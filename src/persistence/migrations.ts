@@ -1,0 +1,130 @@
+/**
+ * The migration chain — the reason a campaign started in Phase 0 can still be
+ * opened in Phase 4.
+ *
+ * `Campaign` is deliberately thin today and will grow every phase. Each time
+ * its persisted shape changes, `CURRENT_SCHEMA_VERSION` goes up by one, a step
+ * is added here, and a fixture of the shape being left behind is checked in.
+ * The guard test in `migrations.test.ts` fails if any of those three drift
+ * apart, because a harness that silently stops covering an old shape is worse
+ * than no harness at all: the failure surfaces as an unloadable save on
+ * someone's tablet months later.
+ */
+
+import { CURRENT_SCHEMA_VERSION, type Campaign } from '../engine/campaign';
+
+/**
+ * A save part-way through the chain. Not a `Campaign` — only the final step's
+ * output is one, and typing the intermediates as `Campaign` would make every
+ * historical shape claim to be the current one.
+ */
+export type PersistedCampaign = Readonly<Record<string, unknown>>;
+
+export interface MigrationStep {
+  /** The schema version this step reads. */
+  readonly from: number;
+
+  /**
+   * Always `from + 1`. Steps move one version at a time so the registry is a
+   * chain that can be checked for holes, rather than a set of jumps where a
+   * missing link only shows up on the one save that needed it.
+   */
+  readonly to: number;
+
+  /**
+   * Takes the previous shape to the next. It does not set `schemaVersion` —
+   * `migrate` stamps that once at the end, so a step can only get the data
+   * change wrong, never the bookkeeping.
+   */
+  readonly up: (previous: PersistedCampaign) => PersistedCampaign;
+}
+
+/**
+ * Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`.
+ *
+ * Empty because v1 is the first version there has ever been, so nothing has
+ * been left behind yet. The shape and the guard around it are the deliverable;
+ * the first real entry arrives with the first change to `Campaign`.
+ */
+export const MIGRATION_STEPS: readonly MigrationStep[] = [];
+
+/** Why a save could not be brought forward. */
+export type MigrationErrorReason = 'unreadable-version' | 'future-version';
+
+export interface MigrationError {
+  readonly reason: MigrationErrorReason;
+
+  /** A sentence for a person holding a tablet mid-campaign, not a stack trace. */
+  readonly message: string;
+}
+
+/**
+ * A discriminated result rather than a thrown error.
+ *
+ * Z0-5 wraps this in `parseCampaignFile`, which is itself a result type over a
+ * pipeline of fallible steps (parse, validate, migrate). Returning a result
+ * lets that pipeline forward a failure as data; throwing would force a
+ * try/catch in the middle of it and make the one interesting case — a save from
+ * a newer version — indistinguishable from a genuine bug at the call site.
+ */
+export type MigrationResult =
+  | { readonly ok: true; readonly campaign: Campaign }
+  | { readonly ok: false; readonly error: MigrationError };
+
+function readSchemaVersion(raw: unknown): number | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+
+  const version = (raw as { schemaVersion?: unknown }).schemaVersion;
+
+  return typeof version === 'number' && Number.isInteger(version) && version >= 1 ? version : null;
+}
+
+/**
+ * Chains a save forward to `CURRENT_SCHEMA_VERSION`.
+ *
+ * Versioning is all this owns. It trusts Z0-5 to have checked the shape first
+ * and to check it again afterwards, so the cast at the end asserts what the
+ * chain is responsible for producing, not what has been proven about `raw`.
+ */
+export function migrate(raw: unknown): MigrationResult {
+  const version = readSchemaVersion(raw);
+
+  if (version === null) {
+    return {
+      ok: false,
+      error: {
+        reason: 'unreadable-version',
+        message:
+          'This file does not say which save format it uses, so it is probably not a County Road Z campaign.',
+      },
+    };
+  }
+
+  if (version > CURRENT_SCHEMA_VERSION) {
+    return {
+      ok: false,
+      error: {
+        reason: 'future-version',
+        // Refused rather than opened. A newer version wrote fields this build
+        // knows nothing about, and loading it would quietly drop them the next
+        // time the campaign was saved.
+        message:
+          `This campaign was saved by a newer version of the app (save format ${version}; ` +
+          `this version reads up to ${CURRENT_SCHEMA_VERSION}). Update the app and open it ` +
+          `again — opening it here would discard whatever the newer version added.`,
+      },
+    };
+  }
+
+  let working = raw as PersistedCampaign;
+
+  for (const step of MIGRATION_STEPS) {
+    if (step.from < version) continue;
+    working = step.up(working);
+  }
+
+  return {
+    ok: true,
+    campaign: { ...working, schemaVersion: CURRENT_SCHEMA_VERSION } as unknown as Campaign,
+  };
+}
