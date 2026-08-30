@@ -41,7 +41,7 @@ describe('App shell', () => {
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Campaign Tracker');
     expect(screen.getByRole('heading', { level: 2, name: /start a new campaign/i })).toBeVisible();
-    expect(screen.getByLabelText(/campaign name/i)).toBeVisible();
+    expect(screen.getByLabelText(/^campaign name$/i)).toBeVisible();
     expect(screen.getByRole('button', { name: /new campaign/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /choose a file/i })).toBeEnabled();
   });
@@ -52,7 +52,7 @@ describe('App shell', () => {
 
     expect(screen.getByRole('button', { name: /new campaign/i })).toBeDisabled();
 
-    await user.type(screen.getByLabelText(/campaign name/i), '   ');
+    await user.type(screen.getByLabelText(/^campaign name$/i), '   ');
     expect(screen.getByRole('button', { name: /new campaign/i })).toBeDisabled();
   });
 
@@ -60,7 +60,7 @@ describe('App shell', () => {
     const user = userEvent.setup();
     renderApp();
 
-    await user.type(screen.getByLabelText(/campaign name/i), 'Cedar Hollow');
+    await user.type(screen.getByLabelText(/^campaign name$/i), 'Cedar Hollow');
     await user.click(screen.getByRole('button', { name: /new campaign/i }));
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Cedar Hollow');
@@ -68,7 +68,7 @@ describe('App shell', () => {
     expect(headerFact('Phase')).toHaveTextContent('Mission');
 
     // The way in is gone once you are in.
-    expect(screen.queryByLabelText(/campaign name/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^campaign name$/i)).not.toBeInTheDocument();
   });
 
   it('reflects a campaign already open at boot', () => {
@@ -126,7 +126,7 @@ describe('App shell', () => {
 
     expect(screen.queryByRole('button', { name: /export/i })).toBeNull();
 
-    await user.type(screen.getByLabelText(/campaign name/i), 'Cedar Hollow');
+    await user.type(screen.getByLabelText(/^campaign name$/i), 'Cedar Hollow');
     await user.click(screen.getByRole('button', { name: 'New campaign' }));
 
     expect(screen.getByRole('button', { name: /export campaign/i })).toBeEnabled();
