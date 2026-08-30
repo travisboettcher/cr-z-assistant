@@ -23,7 +23,7 @@ import { migrate, type MigrationErrorReason } from './migrations';
  * hand-copied list would go stale the first time the chain grew a new failure.
  */
 export type SaveFileErrorReason =
-  'invalid-json' | 'not-a-campaign' | 'damaged-campaign' | MigrationErrorReason;
+  'unreadable-file' | 'invalid-json' | 'not-a-campaign' | 'damaged-campaign' | MigrationErrorReason;
 
 export interface SaveFileError {
   readonly reason: SaveFileErrorReason;
@@ -167,4 +167,34 @@ export function parseCampaignFile(text: string): SaveFileResult {
   }
 
   return { ok: true, campaign: migrated.campaign };
+}
+
+/**
+ * Reads a picked or dropped file and parses it.
+ *
+ * Separate from `parseCampaignFile` because reading a `File` is the one part of
+ * import that touches the platform: the text is already in memory by the time
+ * the parser sees it. Keeping the read here means the UI branches on a single
+ * result shape instead of juggling a promise rejection and a result.
+ *
+ * `unreadable-file` is a distinct reason from `not-a-campaign` on purpose. A
+ * file the browser could not read at all — revoked permission, a device
+ * unplugged mid-read, a directory picked by mistake — is a different problem
+ * from a file that read fine and turned out to be something else, and the two
+ * want different things from the reader.
+ */
+export async function readCampaignFile(file: Blob): Promise<SaveFileResult> {
+  let text: string;
+
+  try {
+    text = await file.text();
+  } catch {
+    return failure(
+      'unreadable-file',
+      'This file could not be read. If it is on a drive or a phone, check it is still ' +
+        'connected, then pick it again.',
+    );
+  }
+
+  return parseCampaignFile(text);
 }

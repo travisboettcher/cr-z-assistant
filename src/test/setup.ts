@@ -9,3 +9,31 @@ import '@testing-library/jest-dom/vitest';
  * match twice.
  */
 afterEach(cleanup);
+
+/**
+ * jsdom implements the `<dialog>` element and its `open` property but not
+ * `showModal()` or `close()`, so a component that opens a dialog throws under
+ * test while working perfectly in a browser.
+ *
+ * This is the smallest stand-in that lets the surrounding behaviour be tested:
+ * toggling `open` and firing `close`. It is **not** a modality polyfill — it
+ * does not trap focus, does not render a backdrop, and does not close on
+ * Escape. Those are real behaviours this project relies on, and they are
+ * covered where they actually exist: the Playwright suite in `e2e/`, running
+ * against real Chromium.
+ */
+if (typeof HTMLDialogElement !== 'undefined' && !HTMLDialogElement.prototype.showModal) {
+  HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+    this.open = true;
+  };
+
+  HTMLDialogElement.prototype.close = function close(
+    this: HTMLDialogElement,
+    returnValue?: string,
+  ) {
+    if (!this.open) return;
+    this.open = false;
+    if (returnValue !== undefined) this.returnValue = returnValue;
+    this.dispatchEvent(new Event('close'));
+  };
+}

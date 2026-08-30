@@ -7,3 +7,5 @@ coverage
 *.local
 .DS_Store
 .vite
+playwright-report
+test-results

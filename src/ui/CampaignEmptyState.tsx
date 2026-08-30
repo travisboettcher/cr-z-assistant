@@ -3,13 +3,13 @@
  * `status: 'empty'` rather than off a blank campaign, so "no campaign open" is
  * a state the UI reads instead of a shape it fakes.
  *
- * Two ways in: name a new campaign, or import a saved file. Only the first
- * works today; see the note on the import panel.
+ * Two ways in: name a new campaign, or import a saved file.
  */
 
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useCampaign } from '../state/useCampaign';
+import { ImportCampaign } from './ImportCampaign';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
 export function CampaignEmptyState() {
@@ -79,31 +79,8 @@ export function CampaignEmptyState() {
         </form>
       </section>
 
-      <section
-        aria-labelledby="import-campaign-heading"
-        className="rounded-xl border border-dashed border-stone-300 p-6 dark:border-stone-700"
-      >
-        <h2 id="import-campaign-heading" className="text-xl font-semibold">
-          Import a saved campaign
-        </h2>
-        <p className="mt-1 text-stone-600 dark:text-stone-400">
-          Reading a campaign back from a <code>.json</code> file is not built yet.
-        </p>
-
-        {/*
-         * Deliberately inert. Import is Z0-9 (#9), and the parser it will call
-         * does not exist on this branch — so the affordance is shown, with no
-         * handler and no file input behind it, rather than wired to something
-         * that fails at the tap. #9 replaces this button with the real picker.
-         */}
-        <button
-          type="button"
-          disabled
-          className={`${TOUCH_TARGET} ${FOCUS_RING} mt-5 cursor-not-allowed rounded-lg border border-stone-300 px-6 py-2 text-lg font-medium text-stone-500 dark:border-stone-700 dark:text-stone-400`}
-        >
-          Import
-        </button>
-      </section>
+      {/* Nothing is open, so there is nothing an import could destroy. */}
+      <ImportCampaign confirmOverwrite={false} />
     </div>
   );
 }

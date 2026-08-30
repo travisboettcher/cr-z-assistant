@@ -17,7 +17,15 @@ const ENGINE_IS_PURE =
   'src/engine and src/data must not depend on React or the UI layer — they are pure functions over a Campaign. Move the rendering concern into src/ui instead.';
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'coverage/**', 'node_modules/**'] },
+  {
+    ignores: [
+      'dist/**',
+      'coverage/**',
+      'node_modules/**',
+      'playwright-report/**',
+      'test-results/**',
+    ],
+  },
 
   js.configs.recommended,
   tseslint.configs.recommended,
@@ -55,7 +63,7 @@ export default tseslint.config(
   },
 
   {
-    files: ['vite.config.ts', 'eslint.config.js'],
+    files: ['vite.config.ts', 'eslint.config.js', 'playwright.config.ts', 'e2e/**/*.ts'],
     languageOptions: { globals: globals.node },
   },
 

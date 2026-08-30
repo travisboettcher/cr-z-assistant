@@ -43,13 +43,7 @@ describe('App shell', () => {
     expect(screen.getByRole('heading', { level: 2, name: /start a new campaign/i })).toBeVisible();
     expect(screen.getByLabelText(/campaign name/i)).toBeVisible();
     expect(screen.getByRole('button', { name: /new campaign/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^import$/i })).toBeInTheDocument();
-  });
-
-  it('leaves Import inert until #9 wires it to the parser', () => {
-    renderApp();
-
-    expect(screen.getByRole('button', { name: /^import$/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /choose a file/i })).toBeEnabled();
   });
 
   it('will not start a campaign without a name', async () => {
