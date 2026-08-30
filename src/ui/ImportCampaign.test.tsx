@@ -26,7 +26,7 @@ function renderApp() {
 }
 
 async function startCampaign(user: ReturnType<typeof userEvent.setup>, name: string) {
-  await user.type(screen.getByLabelText(/campaign name/i), name);
+  await user.type(screen.getByLabelText(/^campaign name$/i), name);
   await user.click(screen.getByRole('button', { name: 'New campaign' }));
 }
 

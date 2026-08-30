@@ -9,6 +9,8 @@
 
 import type { Campaign } from '../engine/campaign';
 import { downloadCampaign } from '../persistence/exportFile';
+import { useCampaign } from '../state/useCampaign';
+import { StartNewCampaign } from './StartNewCampaign';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
 export interface CampaignOverviewProps {
@@ -16,6 +18,8 @@ export interface CampaignOverviewProps {
 }
 
 export function CampaignOverview({ campaign }: CampaignOverviewProps) {
+  const { unsavedChanges, markExported, autosaveError } = useCampaign();
+
   return (
     <section
       aria-labelledby="campaign-overview-heading"
@@ -36,27 +40,41 @@ export function CampaignOverview({ campaign }: CampaignOverviewProps) {
         the shell they will hang off.
       </p>
 
-      {/*
-       * The exported file is the durable save — the copy that survives a
-       * cleared browser — so the button says what it produces rather than a
-       * bare "Export", and the line under it says plainly that nothing is
-       * being kept anywhere else yet. Autosave arrives in Z0-10 (#10); until
-       * it does, this is the only way a campaign outlives the tab.
-       */}
       <div className="mt-6 border-t border-stone-200 pt-6 dark:border-stone-800">
-        <button
-          type="button"
-          onClick={() => {
-            downloadCampaign(campaign);
-          }}
-          className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg bg-amber-600 px-5 font-semibold text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
-        >
-          Export campaign
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              downloadCampaign(campaign);
+              markExported();
+            }}
+            className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg bg-amber-600 px-5 font-semibold text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+          >
+            Export campaign
+          </button>
+          <StartNewCampaign />
+        </div>
+        {/*
+         * The wording carries the distinction the whole persistence layer
+         * rests on: the browser copy is a convenience that a cleared browser
+         * takes with it, and the exported file is the one that lasts. Calling
+         * the autosave "saved" without that qualifier is how someone
+         * eventually loses a campaign.
+         */}
         <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">
-          Downloads a <code>.json</code> file. This is the only saved copy — nothing is kept in the
-          browser yet.
+          {unsavedChanges
+            ? 'Changed since your last export. The browser is keeping a copy, but only an exported file survives clearing your browser data.'
+            : 'Matches your last exported file.'}
         </p>
+
+        {autosaveError !== null && (
+          <p
+            role="status"
+            className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+          >
+            {autosaveError}
+          </p>
+        )}
       </div>
     </section>
   );

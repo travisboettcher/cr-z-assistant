@@ -11,6 +11,20 @@ import '@testing-library/jest-dom/vitest';
 afterEach(cleanup);
 
 /**
+ * Autosave writes to `localStorage`, so without this a campaign created in one
+ * test would be restored by the next one that boots the provider — a
+ * cross-test dependency that shows up as a baffling failure in an unrelated
+ * file.
+ */
+afterEach(() => {
+  try {
+    globalThis.localStorage?.clear();
+  } catch {
+    // A suite that stubbed storage may have removed clear(); nothing to do.
+  }
+});
+
+/**
  * jsdom implements the `<dialog>` element and its `open` property but not
  * `showModal()` or `close()`, so a component that opens a dialog throws under
  * test while working perfectly in a browser.

@@ -22,6 +22,32 @@ async function startCampaign(page: Page, name: string) {
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(name);
 }
 
+/**
+ * Waits for the debounced autosave to reach storage.
+ *
+ * The write is debounced, and Playwright acts far faster than a person, so a
+ * reload issued immediately after an edit can beat it. Waiting for the stored
+ * text is deterministic where a fixed delay is a guess.
+ */
+async function waitForAutosave(page: Page, contains: string) {
+  await page.waitForFunction(
+    (needle) => (localStorage.getItem('crz.campaign.autosave.v1') ?? '').includes(needle),
+    contains,
+  );
+}
+
+/**
+ * Starts a new campaign from inside an open one, through the confirm dialog.
+ * With autosave in place this is the only way to get back to a clean slate
+ * without clearing storage.
+ */
+async function startFreshCampaign(page: Page, name: string) {
+  await page.getByRole('button', { name: /start a new campaign/i }).click();
+  await page.getByLabel(/new campaign name/i).fill(name);
+  await page.getByRole('button', { name: /start it/i }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(name);
+}
+
 /** Clicks Export and returns the file's contents and suggested name. */
 async function exportCampaign(page: Page) {
   const [download] = await Promise.all([
@@ -43,6 +69,12 @@ async function writeTempFile(name: string, contents: string) {
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
+  // Autosave persists across tests in a reused context; each test states its
+  // own starting point rather than inheriting the previous one's campaign.
+  await page.evaluate(() => {
+    localStorage.clear();
+  });
+  await page.reload();
 });
 
 test('a campaign survives export, a reload, and import', async ({ page }) => {
@@ -59,12 +91,15 @@ test('a campaign survives export, a reload, and import', async ({ page }) => {
     materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
   });
 
-  // The reload is the point: nothing is persisted yet, so the campaign is
-  // genuinely gone and the file is the only way back to it.
+  // Autosave (Z0-10) means a reload keeps the campaign, so the file has to be
+  // imported over a *different* one for the import path to be exercised at all.
+  await waitForAutosave(page, 'Cedar Hollow');
   await page.reload();
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Campaign Tracker');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Cedar Hollow');
 
+  await startFreshCampaign(page, 'Millbrook');
   await page.setInputFiles('input[type="file"]', exported.path);
+  await page.getByRole('button', { name: /replace it/i }).click();
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Cedar Hollow');
   // Scoped to the header: "Turn" is also the label of a nav placeholder.
@@ -80,8 +115,7 @@ test('importing over an open campaign asks first, and declining keeps it', async
   await startCampaign(page, 'Cedar Hollow');
   const exported = await exportCampaign(page);
 
-  await page.reload();
-  await startCampaign(page, 'Millbrook');
+  await startFreshCampaign(page, 'Millbrook');
 
   await page.setInputFiles('input[type="file"]', exported.path);
 
@@ -99,8 +133,7 @@ test('confirming the dialog replaces the open campaign', async ({ page }) => {
   await startCampaign(page, 'Cedar Hollow');
   const exported = await exportCampaign(page);
 
-  await page.reload();
-  await startCampaign(page, 'Millbrook');
+  await startFreshCampaign(page, 'Millbrook');
 
   await page.setInputFiles('input[type="file"]', exported.path);
   await page.getByRole('button', { name: /replace it/i }).click();
@@ -113,8 +146,7 @@ test('the confirmation dialog closes on Escape without replacing anything', asyn
   await startCampaign(page, 'Cedar Hollow');
   const exported = await exportCampaign(page);
 
-  await page.reload();
-  await startCampaign(page, 'Millbrook');
+  await startFreshCampaign(page, 'Millbrook');
 
   await page.setInputFiles('input[type="file"]', exported.path);
   await expect(page.getByRole('dialog')).toBeVisible();
