@@ -116,4 +116,25 @@ describe('App shell', () => {
 
     expect(screen.getByRole('contentinfo')).toHaveTextContent(/rulebook/i);
   });
+
+  /**
+   * The export affordance only makes sense with a campaign open, and it is the
+   * only durable save until Z0-10 lands, so its absence would be a silent data
+   * loss rather than a missing button.
+   */
+  it('offers export once a campaign is open, and not before', async () => {
+    const user = userEvent.setup();
+    render(
+      <CampaignProvider>
+        <App />
+      </CampaignProvider>,
+    );
+
+    expect(screen.queryByRole('button', { name: /export/i })).toBeNull();
+
+    await user.type(screen.getByLabelText(/campaign name/i), 'Cedar Hollow');
+    await user.click(screen.getByRole('button', { name: 'New campaign' }));
+
+    expect(screen.getByRole('button', { name: /export campaign/i })).toBeEnabled();
+  });
 });
