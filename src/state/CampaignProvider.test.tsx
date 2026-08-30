@@ -1,18 +1,11 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createNewCampaign } from '../engine/campaign';
 import { CampaignProvider } from './CampaignProvider';
 import { useCampaign } from './useCampaign';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
-
-/**
- * Testing Library only registers its own cleanup when Vitest runs with
- * `globals: true`, which this project does not, so each render would otherwise
- * leave its tree in the document and the next query would match twice.
- */
-afterEach(cleanup);
 
 /**
  * Stands in for the app shell Z0-7 will build: it reads state and dispatches,

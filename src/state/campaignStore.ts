@@ -45,7 +45,7 @@ export const INITIAL_CAMPAIGN_STATE: CampaignState = { status: 'empty' };
 /**
  * The whole action surface for Phase 0.
  *
- * Deliberately four actions. Survivors, bases, facilities and materials
+ * Deliberately five actions. Survivors, bases, facilities and materials
  * arithmetic are Phase 1+ and ship no rules here, so inventing actions for them
  * now would mean designing rules-shaped events before the rules exist. There is
  * also no "close campaign" action: nothing in Phase 0 goes from open back to
