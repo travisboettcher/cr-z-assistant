@@ -1,6 +1,9 @@
 node_modules
 dist
 coverage
+
+# Scratch checkouts created when stories are built in parallel agent worktrees.
+.claude/worktrees/
 *.local
 .DS_Store
 .vite
