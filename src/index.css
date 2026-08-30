@@ -1,0 +1,15 @@
+@import 'tailwindcss';
+
+/*
+ * Tablet-first. This gets used standing next to a table with miniatures on it,
+ * not sitting at a desk, so interactive targets stay comfortably thumb-sized.
+ */
+@theme {
+  --spacing-touch: 2.75rem;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
