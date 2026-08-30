@@ -13,6 +13,7 @@ import { useCampaign } from '../state/useCampaign';
 import { AppHeader } from './AppHeader';
 import { CampaignEmptyState } from './CampaignEmptyState';
 import { CampaignOverview } from './CampaignOverview';
+import { ImportCampaign } from './ImportCampaign';
 import { SectionNav } from './SectionNav';
 
 export function App() {
@@ -29,7 +30,16 @@ export function App() {
 
       <main className="mx-auto w-full max-w-4xl grow px-5 py-8">
         {state.status === 'open' ? (
-          <CampaignOverview campaign={state.campaign} />
+          <div className="flex flex-col gap-6">
+            <CampaignOverview campaign={state.campaign} />
+            {/*
+             * Import stays reachable with a campaign open, not only from the
+             * empty state — otherwise the only way to open a saved file would
+             * be to reload the page first. Here it replaces what is loaded, so
+             * it confirms before overwriting.
+             */}
+            <ImportCampaign confirmOverwrite />
+          </div>
         ) : (
           <CampaignEmptyState />
         )}
