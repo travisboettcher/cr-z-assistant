@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "9f2c1d6e-5b30-4a77-8c41-0e6b2f9a7d13",
+  "name": "Cedar Hollow",
+  "createdAt": "2026-08-30T00:00:00.000Z",
+  "turn": 3,
+  "phase": "planning",
+  "materials": {
+    "food": 4,
+    "fuel": 2,
+    "hardware": 7,
+    "rare": 1
+  },
+  "survivors": [],
+  "base": null,
+  "log": []
+}
