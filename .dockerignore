@@ -1,0 +1,18 @@
+# The build stage runs `npm ci` itself, so a host node_modules would only make
+# the context large and risk baking in platform-specific binaries.
+node_modules
+dist
+
+.git
+.github
+.claude
+e2e
+playwright-report
+test-results
+coverage
+
+Dockerfile
+compose.yaml
+.dockerignore
+*.md
+docs
