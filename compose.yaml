@@ -1,0 +1,54 @@
+# An example, not a description of anyone's infrastructure.
+#
+# Two ways to use it:
+#
+#   docker compose up --build         serves on http://localhost:8080
+#   docker compose --profile traefik up --build
+#                                     adds Traefik routing labels
+#
+# Everything site-specific is an environment variable with a placeholder
+# default, so nothing here needs editing to try it and nothing here assumes
+# your setup looks like anyone else's. Set the values in a `.env` file beside
+# this one, or export them.
+
+services:
+  cr-z-assistant:
+    build:
+      context: .
+      args:
+        # "/" for a domain root; "/crz/" to serve under a path.
+        BASE_PATH: ${CRZ_BASE_PATH:-/}
+    image: cr-z-assistant:local
+    restart: unless-stopped
+    ports:
+      - '${CRZ_PORT:-8080}:80'
+
+  # The same container with Traefik labels attached. Kept behind a profile so
+  # the plain service above stays usable by anyone who does not run Traefik.
+  #
+  # Deliberately generic: no auth middleware, no TLS resolver, no network name
+  # that only exists on one machine. Those belong in your own compose file —
+  # add them here as extra labels, or merge this service into an existing stack.
+  cr-z-assistant-traefik:
+    profiles: ['traefik']
+    build:
+      context: .
+      args:
+        BASE_PATH: ${CRZ_BASE_PATH:-/}
+    image: cr-z-assistant:local
+    restart: unless-stopped
+    networks: [web]
+    # List form, not a mapping: Compose interpolates label *values* but escapes
+    # `${...}` inside a mapping key, so `CRZ_ROUTER` would end up in the router
+    # name literally. As list entries the whole string is a value.
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.${CRZ_ROUTER:-cr-z-assistant}.rule=Host(`${CRZ_HOST:-crz.example.com}`)'
+      - 'traefik.http.routers.${CRZ_ROUTER:-cr-z-assistant}.entrypoints=${CRZ_ENTRYPOINT:-websecure}'
+      - 'traefik.http.services.${CRZ_ROUTER:-cr-z-assistant}.loadbalancer.server.port=80'
+
+networks:
+  web:
+    # Assumes a Traefik-facing network already exists. Drop `external: true` to
+    # have compose create it instead.
+    external: true
