@@ -40,8 +40,9 @@ npm run dev            # http://localhost:5173
 |---|---|
 | `npm run build` | production bundle into `dist/` |
 | `npm run preview` | serve the built bundle |
-| `npm test` | unit tests |
+| `npm test` | unit tests, property-based ones included |
 | `npm run e2e` | end-to-end round-trip against the built bundle, tablet viewport |
+| `npm run mutate` | mutation testing — minutes, not on every PR. See [`docs/mutation-testing.md`](docs/mutation-testing.md) |
 | `npm run typecheck` · `lint` · `format:check` | the rest of the gate |
 
 ## Deploying
@@ -83,7 +84,7 @@ E2E_BASE_URL=http://localhost:8080 npm run e2e
 
 ## How it is built
 
-Vite · React · TypeScript · Tailwind · Vitest · Playwright.
+Vite · React · TypeScript · Tailwind · Vitest · Playwright · fast-check · Stryker.
 
 Three rules the code holds itself to, each aimed at a specific way the previous attempt at
 this app failed:
@@ -99,3 +100,10 @@ this app failed:
    Skill Score for the turn and makes a cached one wrong.
 
 Each directory under `src/` carries a README saying what belongs in it and what must not.
+
+And one thing the code holds *its tests* to: since the tests were written from the same
+reading of the rulebook as the code, a green suite only proves the two agree. Mutation
+testing breaks the code on purpose to find tests that would not have noticed, and
+property-based tests generate saves nobody thought to write down —
+[`docs/mutation-testing.md`](docs/mutation-testing.md) covers both, including which surviving
+mutants are known to be unkillable and why.

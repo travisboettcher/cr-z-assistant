@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CURRENT_SCHEMA_VERSION, createNewCampaign, type Campaign } from '../engine/campaign';
 import { serializeCampaign } from './exportFile';
 import { migrate } from './migrations';
-import { parseCampaignFile } from './saveFile';
+import { parseCampaignFile, readCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
 
@@ -165,8 +165,13 @@ describe('parseCampaignFile', () => {
     ['a fractional turn', { turn: 2.5 }],
     ['a turn that is a string', { turn: '3' }],
     ['no id', { id: '' }],
+    ['an id that is not a string', { id: 42 }],
     ['a name that is not a string', { name: 42 }],
     ['an unreadable creation date', { createdAt: 'last Tuesday' }],
+    // A list of one date parses as that date once JavaScript coerces it, so
+    // the type check in front of `Date.parse` is load-bearing rather than
+    // decorative — mutation testing found it by deleting it and passing.
+    ['a creation date that is not a string', { createdAt: ['2026-08-30T00:00:00.000Z'] }],
     ['survivors this version cannot read', { survivors: [{ name: 'Rae' }] }],
     ['a base this version cannot read', { base: { rooms: [] } }],
     ['a log this version cannot read', { log: ['turn 1'] }],
@@ -180,6 +185,26 @@ describe('parseCampaignFile', () => {
     expect(result.error.message).toMatch(/County Road Z/);
   });
 
+  /**
+   * `1e999` is how a number too large to represent survives a trip through a
+   * text file: `JSON.parse` hands back `Infinity`, which is a `number` and
+   * passes every check except the finite one. Written as raw text because
+   * `JSON.stringify(Infinity)` is `null` and could not express the case.
+   */
+  it('rejects a material count that overflows to infinity', () => {
+    const text = JSON.stringify(sampleCampaign()).replace('"food":0', '"food":1e999');
+
+    expect(JSON.parse(text).materials.food).toBe(Infinity);
+
+    const result = parseCampaignFile(text);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+
+    expect(result.error.reason).toBe('damaged-campaign');
+    expect(result.error.message).toContain('food count');
+  });
+
   it('says which part of the campaign is wrong', () => {
     const result = parseCampaignFile(savedWith({ phase: 'harvest' }));
 
@@ -187,6 +212,15 @@ describe('parseCampaignFile', () => {
     if (result.ok) return;
 
     expect(result.error.message).toContain('mission, advancement, planning, management');
+  });
+
+  it('lists the tiers that exist when a survivor has one that does not', () => {
+    const result = parseCampaignFile(savedWith({ survivors: [{ ...VALID_SURVIVOR, tier: 7 }] }));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+
+    expect(result.error.message).toContain('1, 2, 3, 4');
   });
 
   /**
@@ -271,6 +305,25 @@ describe('parseCampaignFile with a roster', () => {
       { ...VALID_SURVIVOR, skills: { whittling: 1 } },
     ],
     ['has unreadable health', 'unreadable health', { ...VALID_SURVIVOR, currentHp: 'hurt' }],
+    ['has an empty id', 'has no id', { ...VALID_SURVIVOR, id: '' }],
+    ['has an id that is not a string', 'has no id', { ...VALID_SURVIVOR, id: 42 }],
+    ['has stats that are not stats', 'has no stats', { ...VALID_SURVIVOR, stats: 'strong' }],
+    [
+      'has a skill list that is a list',
+      'has no skill list',
+      { ...VALID_SURVIVOR, skills: ['carry'] },
+    ],
+    [
+      'has a skill level that is not a level',
+      'unreadable level for carry',
+      { ...VALID_SURVIVOR, skills: { carry: 'lots' } },
+    ],
+    // A numeric string, a negative and a fraction: the three ways a count can
+    // look like a number and not be one. Each is a separate check inside
+    // `isCountFromZero`, and a suite that only ever passes 'hurt' proves one.
+    ['has a move score written as text', 'has no move score', { ...VALID_SURVIVOR, move: '7' }],
+    ['has a negative defense score', 'has no defense score', { ...VALID_SURVIVOR, defense: -1 }],
+    ['has fractional experience', 'unreadable experience', { ...VALID_SURVIVOR, xp: 1.5 }],
   ])('reports a survivor that %s', (_label, expected, survivor) => {
     const result = parseCampaignFile(savedWith({ survivors: [survivor] }));
 
@@ -294,5 +347,44 @@ describe('parseCampaignFile with a roster', () => {
     if (result.ok) return;
 
     expect(result.error.message).toContain('survivor 3 of 3');
+  });
+});
+
+/**
+ * `readCampaignFile` is a thin wrapper over `parseCampaignFile`, and the one
+ * thing it adds is the case its wrapping exists for: a file the browser could
+ * not read at all. That is a different problem from a file that read fine and
+ * turned out to be something else, and it is the branch no import test
+ * exercises, because every other test hands over text that reads perfectly.
+ */
+describe('readCampaignFile', () => {
+  it('parses a file that reads', async () => {
+    const campaign = sampleCampaign();
+    const result = await readCampaignFile(new Blob([serializeCampaign(campaign)]));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign).toEqual(campaign);
+  });
+
+  it('explains a file the browser could not read, rather than rejecting', async () => {
+    // A drive unplugged mid-read, or permission revoked between the pick and
+    // the read: the browser hands back a rejected promise, not bad text.
+    const unreadable = {
+      text: () => Promise.reject(new DOMException('The requested file could not be read')),
+    } as unknown as Blob;
+
+    const result = await readCampaignFile(unreadable);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+
+    expect(result.error.reason).toBe('unreadable-file');
+    // Both halves of the advice: what to check, and what to do afterwards.
+    expect(result.error.message).toMatch(/drive or a phone/);
+    expect(result.error.message).toMatch(/pick it again/);
+    // The DOMException's own words never reach the reader.
+    expect(result.error.message).not.toMatch(/DOMException/);
   });
 });

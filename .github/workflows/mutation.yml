@@ -1,0 +1,51 @@
+# Mutation testing — the check on whether the tests would notice if the code
+# were wrong.
+#
+# Deliberately **not** part of the pull-request gate. The `ci` workflow runs in
+# under a minute and is worth protecting; a full mutation run takes minutes and
+# answers a slower-moving question — test quality, which does not change
+# meaningfully between one commit and the next. So it runs weekly, and on
+# demand when someone wants the number for a specific branch.
+#
+# The score threshold lives in `stryker.config.json` and fails the run on its
+# own; see `docs/mutation-testing.md` for where it came from and which
+# surviving mutants are known to be unkillable.
+name: mutation
+
+on:
+  schedule:
+    # Mondays, 06:00 UTC.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mutate:
+    runs-on: ubuntu-latest
+    name: mutate
+    # A full run is minutes rather than seconds, and a hung one should not sit
+    # on a runner for the default six hours.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run mutate
+
+      # Uploaded on failure too — a run that broke the threshold is precisely
+      # the one whose surviving mutants someone needs to read.
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: reports/mutation/
+          retention-days: 30

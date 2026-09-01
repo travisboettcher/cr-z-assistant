@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "packageManager": "npm",
+  "testRunner": "vitest",
+  "vitest": { "configFile": "vite.config.ts", "related": false },
+  "reporters": ["html", "clear-text", "progress"],
+  "htmlReporter": { "fileName": "reports/mutation/index.html" },
+  "mutate": [
+    "src/engine/survivor.ts",
+    "src/state/campaignStore.ts",
+    "src/persistence/migrations.ts",
+    "src/persistence/saveFile.ts",
+    "src/persistence/exportFile.ts"
+  ],
+  "ignorePatterns": ["dist", "playwright-report", "test-results", "reports", "coverage"],
+  "thresholds": { "high": 96, "low": 94, "break": 94 },
+  "timeoutMS": 20000,
+  "tempDirName": "node_modules/.stryker-tmp"
+}

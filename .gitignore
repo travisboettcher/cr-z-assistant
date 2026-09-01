@@ -9,3 +9,6 @@ coverage
 .vite
 playwright-report
 test-results
+
+# Stryker's mutation report; the score that matters is the one CI prints.
+reports

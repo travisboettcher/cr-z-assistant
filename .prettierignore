@@ -2,6 +2,7 @@ dist
 coverage
 node_modules
 package-lock.json
+reports
 
 # Prose is hand-wrapped for readability; Prettier reflowing it adds churn.
 *.md

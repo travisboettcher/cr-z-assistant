@@ -95,27 +95,58 @@ describe('campaignFileName', () => {
 });
 
 describe('downloadCampaign', () => {
-  it('offers the serialized campaign under the generated filename', () => {
+  it('offers the serialized campaign under the generated filename', async () => {
     const campaign = createNewCampaign('Cedar Hollow', FIXED);
-    const createObjectURL = vi.fn(() => 'blob:stub');
+    const blobs: Blob[] = [];
+    const createObjectURL = vi.fn((blob: Blob) => {
+      blobs.push(blob);
+      return 'blob:stub';
+    });
     const revokeObjectURL = vi.fn();
     vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL });
 
-    const clicked: HTMLAnchorElement[] = [];
+    const clicked: { anchor: HTMLAnchorElement; connected: boolean }[] = [];
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
       this: HTMLAnchorElement,
     ) {
-      clicked.push(this);
+      // Recorded at click time rather than after: a link the browser is asked
+      // to follow has to be in the document *then*, and afterwards is exactly
+      // when it stops being.
+      clicked.push({ anchor: this, connected: this.isConnected });
     });
 
     downloadCampaign(campaign, EXPORTED_AT);
 
     expect(clicked).toHaveLength(1);
-    expect(clicked[0]?.download).toBe('cedar-hollow-turn-1-2026-08-30.json');
+    expect(clicked[0]?.anchor.download).toBe('cedar-hollow-turn-1-2026-08-30.json');
     expect(createObjectURL).toHaveBeenCalledOnce();
 
-    // The link must not be left behind in the document after the download.
+    /**
+     * What is actually inside the blob, not just that one was made. The file
+     * the browser writes is the campaign or this module has done nothing —
+     * and an empty blob under the right filename is the worst possible
+     * failure, since it looks like a successful export until the save is
+     * opened again.
+     */
+    expect(await blobs[0]?.text()).toBe(serializeCampaign(campaign));
+    expect(blobs[0]?.type).toBe('application/json');
+
+    // Firefox ignores a programmatic click on a detached anchor, so being in
+    // the document at that moment is the behaviour, not an implementation
+    // detail.
+    expect(clicked[0]?.connected).toBe(true);
+
+    // And the link must not be left behind in the document afterwards.
     expect(document.querySelector('a[download]')).toBeNull();
+
+    /**
+     * The object URL is revoked on the next frame rather than immediately, so
+     * proving it is revoked at all means waiting one. A leaked URL pins the
+     * whole serialized campaign in memory for as long as the tab lives.
+     */
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:stub');
 
     click.mockRestore();
     vi.unstubAllGlobals();
