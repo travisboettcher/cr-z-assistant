@@ -1,6 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { CURRENT_SCHEMA_VERSION, createNewCampaign } from '../engine/campaign';
+import { CURRENT_SCHEMA_VERSION, createNewCampaign, type Survivor } from '../engine/campaign';
 import { MIGRATION_STEPS, migrate } from './migrations';
+
+/**
+ * The current survivor shape, spelled out. `satisfies` means adding a field to
+ * `Survivor` fails the typecheck here, so the key list below cannot quietly
+ * fall behind the type it is supposed to be policing.
+ */
+const SAMPLE_SURVIVOR = {
+  id: 'b7e41f28-3c60-4d95-8a12-6f0e9d4c7b53',
+  name: 'Earl Rhodes',
+  tier: 4,
+  stats: { strength: 3, dexterity: 2, intelligence: 4, cooperation: 1 },
+  skills: { tactics: 3 },
+  move: 7,
+  defense: 6,
+  currentHp: 3,
+  xp: 5,
+} satisfies Survivor;
 
 /**
  * Fixtures are discovered from the directory rather than listed here on
@@ -85,6 +102,34 @@ describe('the version-bump guard', () => {
       expect(Object.keys(result.campaign).sort(), `${fixture.path} is missing a field`).toEqual(
         expectedKeys,
       );
+    }
+  });
+
+  /**
+   * The assertion the test above asked for.
+   *
+   * It compares **top-level** keys, and v1 → v2 adds none — `survivors` was
+   * always there, it just stopped being empty. So the change that gave
+   * survivors a real shape would have sailed through the guard untouched. This
+   * is the nested-shape assertion its comment says such a change deserves: from
+   * here on, a fixture whose survivors are missing a field fails, which is what
+   * makes a future v2 → v3 that forgets one fail too.
+   */
+  it('brings every fixture survivor up to the current survivor shape', () => {
+    const expectedKeys = Object.keys(SAMPLE_SURVIVOR).sort();
+
+    for (const fixture of fixtures) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok) continue;
+
+      for (const [index, survivor] of result.campaign.survivors.entries()) {
+        expect(
+          Object.keys(survivor).sort(),
+          `${fixture.path} survivor ${index + 1} is missing a field`,
+        ).toEqual(expectedKeys);
+      }
     }
   });
 });
