@@ -1,0 +1,128 @@
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { CampaignProvider } from '../state/CampaignProvider';
+import { App } from './App';
+
+/**
+ * Driven through `App` and the real provider rather than by handing
+ * `SurvivorRoster` a campaign prop and a stub dispatch. The story is that a
+ * survivor added on screen reaches the store and comes back out of it, and a
+ * test that stubs the store cannot show that.
+ */
+async function openCampaign(name = 'Cedar Hollow') {
+  const user = userEvent.setup();
+
+  render(
+    <CampaignProvider>
+      <App />
+    </CampaignProvider>,
+  );
+
+  await user.type(screen.getByLabelText(/^campaign name$/i), name);
+  await user.click(screen.getByRole('button', { name: 'New campaign' }));
+
+  return user;
+}
+
+async function addSurvivor(user: ReturnType<typeof userEvent.setup>, name: string, tier: string) {
+  await user.type(screen.getByLabelText(/survivor name/i), name);
+  await user.selectOptions(screen.getByLabelText(/^tier$/i), tier);
+  await user.click(screen.getByRole('button', { name: /add survivor/i }));
+}
+
+function roster() {
+  return screen.getByRole('region', { name: /community/i });
+}
+
+describe('SurvivorRoster', () => {
+  it('starts empty and says what a starting community is built from', () => {
+    render(
+      <CampaignProvider>
+        <App />
+      </CampaignProvider>,
+    );
+
+    // Nothing to show until a campaign is open.
+    expect(screen.queryByRole('region', { name: /community/i })).not.toBeInTheDocument();
+  });
+
+  it('adds a survivor and shows their tier and derived health', async () => {
+    const user = await openCampaign();
+
+    await addSurvivor(user, 'Earl Rhodes', '4');
+
+    const row = within(roster()).getByRole('listitem');
+    expect(within(row).getByText('Earl Rhodes')).toBeInTheDocument();
+    expect(within(row).getByText(/tier 4 · hero/i)).toBeInTheDocument();
+    // Max HP is the tier, computed rather than stored.
+    expect(within(row).getByText('4 / 4')).toBeInTheDocument();
+  });
+
+  it('counts tier levels rather than heads, because that is what a roster spends', async () => {
+    const user = await openCampaign();
+
+    await addSurvivor(user, 'Earl Rhodes', '4');
+    await addSurvivor(user, 'Carla Proust', '3');
+
+    expect(within(roster()).getByText(/2 survivors · 7 tier levels/i)).toBeInTheDocument();
+  });
+
+  it('clears the name field so the next survivor can be typed straight in', async () => {
+    const user = await openCampaign();
+
+    await addSurvivor(user, 'Earl Rhodes', '4');
+
+    expect(screen.getByLabelText(/survivor name/i)).toHaveValue('');
+  });
+
+  it('refuses to add a survivor with a blank name', async () => {
+    const user = await openCampaign();
+
+    await user.type(screen.getByLabelText(/survivor name/i), '   ');
+    await user.click(screen.getByRole('button', { name: /add survivor/i }));
+
+    expect(within(roster()).queryByRole('listitem')).not.toBeInTheDocument();
+  });
+
+  it('renames a survivor through the store', async () => {
+    const user = await openCampaign();
+    await addSurvivor(user, 'Earl Rhodes', '4');
+
+    await user.click(screen.getByRole('button', { name: /rename/i }));
+    const field = screen.getByLabelText(/rename earl rhodes/i);
+    await user.clear(field);
+    await user.type(field, 'Earl Rhodes Jr');
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    expect(within(roster()).getByText('Earl Rhodes Jr')).toBeInTheDocument();
+  });
+
+  /**
+   * Removing is not undoable, so it is confirmed — and declining has to
+   * actually keep them, which is the half of a confirmation people forget to
+   * test.
+   */
+  it('confirms before removing, and keeps the survivor if you decline', async () => {
+    const user = await openCampaign();
+    await addSurvivor(user, 'Earl Rhodes', '4');
+
+    await user.click(within(roster()).getByRole('button', { name: /remove/i }));
+    await user.click(screen.getByRole('button', { name: /keep them/i }));
+
+    expect(within(roster()).getByText('Earl Rhodes')).toBeInTheDocument();
+  });
+
+  it('removes the survivor when the removal is confirmed', async () => {
+    const user = await openCampaign();
+    await addSurvivor(user, 'Earl Rhodes', '4');
+    await addSurvivor(user, 'Carla Proust', '3');
+
+    const rows = within(roster()).getAllByRole('listitem');
+    await user.click(within(rows[0]!).getByRole('button', { name: /^remove$/i }));
+    await user.click(screen.getByRole('button', { name: /remove them/i }));
+
+    expect(within(roster()).queryByText('Earl Rhodes')).not.toBeInTheDocument();
+    expect(within(roster()).getByText('Carla Proust')).toBeInTheDocument();
+  });
+});

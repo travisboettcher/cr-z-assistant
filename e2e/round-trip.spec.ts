@@ -48,6 +48,13 @@ async function startFreshCampaign(page: Page, name: string) {
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(name);
 }
 
+async function addSurvivor(page: Page, name: string, tier: string) {
+  await page.getByLabel(/survivor name/i).fill(name);
+  await page.getByLabel(/^tier$/i).selectOption(tier);
+  await page.getByRole('button', { name: /add survivor/i }).click();
+  await expect(page.getByRole('region', { name: /community/i })).toContainText(name);
+}
+
 /** Clicks Export and returns the file's contents and suggested name. */
 async function exportCampaign(page: Page) {
   const [download] = await Promise.all([
@@ -109,6 +116,74 @@ test('a campaign survives export, a reload, and import', async ({ page }) => {
   // round trip lost nothing, not merely that the name came back.
   const reExported = await exportCampaign(page);
   expect(reExported.text).toBe(exported.text);
+});
+
+/**
+ * Z1-5's acceptance: the Phase 0 round trip, now carrying real game state.
+ *
+ * The earlier test proves an empty campaign survives; this one proves the
+ * roster does. It is the same journey with something in it worth losing.
+ */
+test('a roster survives export, a reload, and import', async ({ page }) => {
+  await startCampaign(page, 'Cedar Hollow');
+
+  await addSurvivor(page, 'Earl Rhodes', '4');
+  await addSurvivor(page, 'Carla Proust', '3');
+
+  const community = page.getByRole('region', { name: /community/i });
+  await expect(community).toContainText('2 survivors · 7 tier levels');
+
+  const exported = await exportCampaign(page);
+  expect(JSON.parse(exported.text).survivors).toMatchObject([
+    { name: 'Earl Rhodes', tier: 4, currentHp: 4 },
+    { name: 'Carla Proust', tier: 3, currentHp: 3 },
+  ]);
+
+  await waitForAutosave(page, 'Earl Rhodes');
+  await page.reload();
+  await expect(community).toContainText('Earl Rhodes');
+
+  // Imported over a different campaign, so the import path is exercised rather
+  // than the autosave restore.
+  await startFreshCampaign(page, 'Millbrook');
+  await expect(community).toContainText('No survivors yet');
+
+  await page.setInputFiles('input[type="file"]', exported.path);
+  await page.getByRole('button', { name: /replace it/i }).click();
+
+  await expect(community).toContainText('Earl Rhodes');
+  await expect(community).toContainText('Carla Proust');
+  await expect(community).toContainText('2 survivors · 7 tier levels');
+
+  // Byte-identical, so the roster made the trip intact rather than merely
+  // recognisably.
+  const reExported = await exportCampaign(page);
+  expect(reExported.text).toBe(exported.text);
+});
+
+test('a survivor can be renamed and removed', async ({ page }) => {
+  await startCampaign(page, 'Cedar Hollow');
+  await addSurvivor(page, 'Earl Rhodes', '4');
+  await addSurvivor(page, 'Carla Proust', '3');
+
+  const community = page.getByRole('region', { name: /community/i });
+
+  await community
+    .getByRole('button', { name: /rename/i })
+    .first()
+    .click();
+  await page.getByLabel(/rename earl rhodes/i).fill('Earl Rhodes Jr');
+  await page.getByRole('button', { name: /^save$/i }).click();
+  await expect(community).toContainText('Earl Rhodes Jr');
+
+  await community
+    .getByRole('button', { name: /^remove$/i })
+    .first()
+    .click();
+  await page.getByRole('button', { name: /remove them/i }).click();
+
+  await expect(community).not.toContainText('Earl Rhodes Jr');
+  await expect(community).toContainText('1 survivor · 3 tier levels');
 });
 
 test('importing over an open campaign asks first, and declining keeps it', async ({ page }) => {

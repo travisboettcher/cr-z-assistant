@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { CAMPAIGN_PHASES, createNewCampaign } from '../engine/campaign';
 import type { Campaign } from '../engine/campaign';
+import { createSurvivor } from '../engine/survivor';
 import { INITIAL_CAMPAIGN_STATE, campaignReducer } from './campaignStore';
 import type { CampaignAction, CampaignState } from './campaignStore';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 const OTHER = { id: '99999999-8888-7777-6666-555555555555', createdAt: '2026-09-01T00:00:00.000Z' };
+const SURVIVOR_ID = 'b7e41f28-3c60-4d95-8a12-6f0e9d4c7b53';
+const OTHER_SURVIVOR_ID = 'd2c93a75-1e48-4f60-b8d7-5a3e0c96f41b';
 
 /** An open state to run editing actions against. */
 function openState(campaign: Campaign = createNewCampaign('Cedar Hollow', FIXED)): CampaignState {
@@ -155,6 +158,92 @@ describe('campaign/turnAdvanced', () => {
   });
 });
 
+describe('the survivor actions', () => {
+  /** An open campaign with two survivors already on the roster. */
+  function withRoster(): CampaignState {
+    let state = openState();
+    state = campaignReducer(state, {
+      type: 'survivor/added',
+      name: 'Earl Rhodes',
+      tier: 4,
+      id: SURVIVOR_ID,
+    });
+    return campaignReducer(state, {
+      type: 'survivor/added',
+      name: 'Carla Proust',
+      tier: 3,
+      id: OTHER_SURVIVOR_ID,
+    });
+  }
+
+  it('adds a survivor built from the tier the caller asked for', () => {
+    const campaign = expectOpen(withRoster());
+
+    expect(campaign.survivors).toHaveLength(2);
+    expect(campaign.survivors[0]).toEqual(createSurvivor('Earl Rhodes', 4, { id: SURVIVOR_ID }));
+  });
+
+  it('appends rather than reordering, so the roster reads in the order it was built', () => {
+    const campaign = expectOpen(withRoster());
+
+    expect(campaign.survivors.map((survivor) => survivor.name)).toEqual([
+      'Earl Rhodes',
+      'Carla Proust',
+    ]);
+  });
+
+  /**
+   * By id, not by index. Removing someone reorders the array, and an index
+   * captured before that renames whoever moved into the slot.
+   */
+  it('renames the survivor with the matching id and leaves the rest alone', () => {
+    const campaign = expectOpen(
+      campaignReducer(withRoster(), {
+        type: 'survivor/renamed',
+        id: OTHER_SURVIVOR_ID,
+        name: 'Carla P.',
+      }),
+    );
+
+    expect(campaign.survivors.map((survivor) => survivor.name)).toEqual([
+      'Earl Rhodes',
+      'Carla P.',
+    ]);
+  });
+
+  it('ignores a rename for an id that is not on the roster', () => {
+    const before = expectOpen(withRoster());
+    const after = expectOpen(
+      campaignReducer(withRoster(), {
+        type: 'survivor/renamed',
+        id: 'not-a-survivor',
+        name: 'Nobody',
+      }),
+    );
+
+    expect(after.survivors).toEqual(before.survivors);
+  });
+
+  it('removes only the named survivor', () => {
+    const campaign = expectOpen(
+      campaignReducer(withRoster(), { type: 'survivor/removed', id: SURVIVOR_ID }),
+    );
+
+    expect(campaign.survivors.map((survivor) => survivor.name)).toEqual(['Carla Proust']);
+  });
+
+  /**
+   * The reason the roster is worth having at all: what goes in comes back out
+   * of the save file unchanged.
+   */
+  it('produces survivors that survive a JSON round trip', () => {
+    const campaign = expectOpen(withRoster());
+    const restored: Campaign = JSON.parse(JSON.stringify(campaign));
+
+    expect(restored.survivors).toEqual(campaign.survivors);
+  });
+});
+
 /**
  * Editing actions dispatched with nothing open are a UI bug, not a user-facing
  * error. Ignoring them keeps a stray dispatch from taking down the render tree
@@ -166,6 +255,9 @@ describe('editing actions against the empty state', () => {
     { type: 'campaign/renamed', name: 'Millbrook' },
     { type: 'campaign/phaseSet', phase: 'planning' },
     { type: 'campaign/turnAdvanced' },
+    { type: 'survivor/added', name: 'Earl Rhodes', tier: 4, id: SURVIVOR_ID },
+    { type: 'survivor/renamed', id: SURVIVOR_ID, name: 'Earl Rhodes Jr' },
+    { type: 'survivor/removed', id: SURVIVOR_ID },
   ];
 
   for (const action of editingActions) {
@@ -189,6 +281,9 @@ describe('purity', () => {
     { type: 'campaign/renamed', name: 'Millbrook' },
     { type: 'campaign/phaseSet', phase: 'advancement' },
     { type: 'campaign/turnAdvanced' },
+    { type: 'survivor/added', name: 'Earl Rhodes', tier: 4, id: SURVIVOR_ID },
+    { type: 'survivor/renamed', id: SURVIVOR_ID, name: 'Earl Rhodes Jr' },
+    { type: 'survivor/removed', id: SURVIVOR_ID },
   ];
 
   for (const action of allActions) {
