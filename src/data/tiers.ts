@@ -26,23 +26,56 @@ export interface TierRules {
   readonly maxHp: number;
   /** Labor contributed to a project team (pg. 32). */
   readonly labor: number;
+  /**
+   * Item slots before the Carry skill is counted (pg. 49). A survivor with the
+   * Carry skill adds their Carry *Score* on top of this.
+   */
+  readonly baseItemSlots: number;
 }
 
 /**
  * The Tier table.
  *
- * Four of the five columns equal the Tier number for every row, so this looks
- * like four copies of its own key. It is not: they are **five separate rules
+ * Five of the six columns equal the Tier number for every row, so this looks
+ * like five copies of its own key. It is not: they are **five separate rules
  * that happen to coincide**, drawn from four different pages. Collapsing them
  * into `maxHp = tier` would mean a later rules change to any one of them
- * silently changing the other three. `statArray` is the column that actually
+ * silently changing the other four. `statArray` is the column that actually
  * differs.
  */
 export const TIER_RULES: Record<Tier, TierRules> = {
-  1: { statArray: [1, 0, 0, 0], skillSlots: 1, maxSkillLevel: 1, maxHp: 1, labor: 1 },
-  2: { statArray: [2, 1, 0, 0], skillSlots: 2, maxSkillLevel: 2, maxHp: 2, labor: 2 },
-  3: { statArray: [3, 2, 1, 0], skillSlots: 3, maxSkillLevel: 3, maxHp: 3, labor: 3 },
-  4: { statArray: [4, 3, 2, 1], skillSlots: 4, maxSkillLevel: 4, maxHp: 4, labor: 4 },
+  1: {
+    statArray: [1, 0, 0, 0],
+    skillSlots: 1,
+    maxSkillLevel: 1,
+    maxHp: 1,
+    labor: 1,
+    baseItemSlots: 1,
+  },
+  2: {
+    statArray: [2, 1, 0, 0],
+    skillSlots: 2,
+    maxSkillLevel: 2,
+    maxHp: 2,
+    labor: 2,
+    baseItemSlots: 2,
+  },
+  3: {
+    statArray: [3, 2, 1, 0],
+    skillSlots: 3,
+    maxSkillLevel: 3,
+    maxHp: 3,
+    labor: 3,
+    baseItemSlots: 3,
+  },
+  4: {
+    statArray: [4, 3, 2, 1],
+    skillSlots: 4,
+    maxSkillLevel: 4,
+    maxHp: 4,
+    labor: 4,
+    baseItemSlots: 4,
+  },
 };
 
 /**
