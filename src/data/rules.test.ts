@@ -71,16 +71,18 @@ describe('tier table', () => {
     }
   });
 
-  it('sets skill slots, max skill level, max HP and labor to the tier number', () => {
-    // These four coincide today but are four separate rules from four pages.
-    // Asserted per tier rather than in a loop over a derived value, so a rules
-    // change to one of them fails here instead of quietly agreeing with itself.
+  it('sets skill slots, max skill level, max HP, labor and base item slots to the tier number', () => {
+    // These five coincide today but are five separate rules from four pages.
+    // Asserted per column rather than in a loop over a derived value, so a
+    // rules change to one of them fails here instead of quietly agreeing with
+    // itself.
     for (const tier of TIERS) {
       const rules = TIER_RULES[tier];
       expect(rules.skillSlots).toBe(tier);
       expect(rules.maxSkillLevel).toBe(tier);
       expect(rules.maxHp).toBe(tier);
       expect(rules.labor).toBe(tier);
+      expect(rules.baseItemSlots).toBe(tier);
     }
   });
 
