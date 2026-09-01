@@ -8,12 +8,14 @@
  * makes any cached value wrong. If you are tempted to add a field that can be
  * calculated from other fields, write a function in this directory instead.
  *
- * The shape is deliberately thin. Phase 0 ships no game rules, so survivors,
- * bases and the campaign log are present as empty placeholders and get their
- * real types in later phases — through the migration chain in `src/persistence`,
- * which exists precisely to make that change survivable for a campaign already
- * in progress.
+ * The shape grows a phase at a time. `survivors` became real in Phase 1;
+ * `base` and `log` are still empty placeholders and get their types in Phases 2
+ * and 3 — through the migration chain in `src/persistence`, which exists
+ * precisely to make that change survivable for a campaign already in progress.
  */
+
+import type { Skill, Stat } from '../data/skills';
+import type { Tier } from '../data/tiers';
 
 /** The four campaign phases, in the strict order the turn runs them. */
 export const CAMPAIGN_PHASES = ['mission', 'advancement', 'planning', 'management'] as const;
@@ -35,7 +37,56 @@ export type Materials = Record<Material, number>;
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
+
+/** A survivor's four stat values (pg. 40). */
+export type Stats = Record<Stat, number>;
+
+/**
+ * The skills a survivor has, and at what level.
+ *
+ * **Partial on purpose.** A Rookie has one skill, not twenty of which nineteen
+ * are absent — how many skills a survivor holds is itself a rule (skill slots =
+ * Tier, pg. 38–39), and counting the entries of this record is how that rule is
+ * checked. A full record of twenty zeroes would make "has the skill at level 0"
+ * and "does not have the skill" the same state, and they are not.
+ */
+export type SkillLevels = Partial<Record<Skill, number>>;
+
+/**
+ * One survivor.
+ *
+ * **Primitive facts only.** Skill Score, max HP, item slots and labor are all
+ * computable from what is here plus the tables in `src/data`, so none of them
+ * appear — the hunger penalty in Phase 3 changes every Skill Score for a turn,
+ * and a stored one would be wrong the moment it did.
+ *
+ * Equipment, keywords and assignments are absent for a different reason: their
+ * rules are Phases 5, 7 and 3. Adding fields for them now would be designing
+ * shapes before the rules that constrain them exist.
+ */
+export interface Survivor {
+  id: string;
+
+  name: string;
+
+  tier: Tier;
+
+  stats: Stats;
+
+  skills: SkillLevels;
+
+  /** Score, not level — Move has no governing stat (pg. 41). */
+  move: number;
+
+  /** Score, not level, for the same reason. */
+  defense: number;
+
+  /** Max HP is the Tier and is derived; this is the survivor's current health. */
+  currentHp: number;
+
+  xp: number;
+}
 
 export interface Campaign {
   /** Which version of the persisted shape this campaign was written in. */
@@ -55,12 +106,7 @@ export interface Campaign {
 
   materials: Materials;
 
-  /**
-   * Placeholder — Phase 1 (#roster) gives this a real element type. Typed as
-   * empty rather than `unknown[]` because Phase 0 genuinely cannot hold a
-   * survivor, and a type that admits one would let the shape drift silently.
-   */
-  survivors: readonly never[];
+  survivors: readonly Survivor[];
 
   /** Placeholder — Phase 2 (base building) replaces this with a `Base`. */
   base: null;

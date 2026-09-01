@@ -7,7 +7,8 @@
  * something a person can read and diff, and hand it to the browser.
  */
 
-import { MATERIALS, type Campaign } from '../engine/campaign';
+import { SKILLS, STATS } from '../data/skills';
+import { MATERIALS, type Campaign, type Survivor } from '../engine/campaign';
 
 /** Material counts in the fixed order from the engine, not insertion order. */
 function orderedMaterials(campaign: Campaign): Record<string, number> {
@@ -16,6 +17,54 @@ function orderedMaterials(campaign: Campaign): Record<string, number> {
     ordered[material] = campaign.materials[material];
   }
   return ordered;
+}
+
+/** Stats in the fixed order from the rules data. */
+function orderedStats(survivor: Survivor): Record<string, number> {
+  const ordered: Record<string, number> = {};
+  for (const stat of STATS) {
+    ordered[stat] = survivor.stats[stat];
+  }
+  return ordered;
+}
+
+/**
+ * A survivor's skills in rulebook order rather than the order they were learnt.
+ *
+ * Only the skills the survivor actually has are written — `SkillLevels` is
+ * partial on purpose, and filling in the other sixteen with zeroes would both
+ * bloat the file and erase the difference between "has it at level 0" and "does
+ * not have it".
+ */
+function orderedSkills(survivor: Survivor): Record<string, number> {
+  const ordered: Record<string, number> = {};
+  for (const skill of SKILLS) {
+    const level = survivor.skills[skill];
+    if (level !== undefined) ordered[skill] = level;
+  }
+  return ordered;
+}
+
+/**
+ * One survivor with its keys in a fixed order.
+ *
+ * The same guarantee `inFileOrder` gives the campaign, one level down: nesting
+ * objects inside `survivors` means `JSON.stringify` follows *their* insertion
+ * order too, so two saves of the same roster would otherwise diff as though
+ * every survivor had changed the moment one of them learnt a skill.
+ */
+function orderedSurvivor(survivor: Survivor): Record<keyof Survivor, unknown> {
+  return {
+    id: survivor.id,
+    name: survivor.name,
+    tier: survivor.tier,
+    stats: orderedStats(survivor),
+    skills: orderedSkills(survivor),
+    move: survivor.move,
+    defense: survivor.defense,
+    currentHp: survivor.currentHp,
+    xp: survivor.xp,
+  };
 }
 
 /**
@@ -40,7 +89,7 @@ function inFileOrder(campaign: Campaign): Record<keyof Campaign, unknown> {
     turn: campaign.turn,
     phase: campaign.phase,
     materials: orderedMaterials(campaign),
-    survivors: campaign.survivors,
+    survivors: campaign.survivors.map(orderedSurvivor),
     base: campaign.base,
     log: campaign.log,
   };

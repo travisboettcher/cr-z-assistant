@@ -12,6 +12,8 @@
  * base model and makes the shape genuinely wide; that is the point to revisit.
  */
 
+import { SKILL_STATS, STATS } from '../data/skills';
+import { TIERS } from '../data/tiers';
 import { CAMPAIGN_PHASES, MATERIALS, type Campaign } from '../engine/campaign';
 import { migrate, type MigrationErrorReason } from './migrations';
 
@@ -45,6 +47,52 @@ function isCountFromOne(value: unknown): boolean {
   return typeof value === 'number' && Number.isInteger(value) && value >= 1;
 }
 
+function isCountFromZero(value: unknown): boolean {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+}
+
+/**
+ * Names the first thing structurally wrong with one survivor, or `null`.
+ *
+ * **Shape only — never legality.** Whether a Tier 2 survivor is allowed three
+ * skills, or a level-4 one, is a rule, and Z1-7 lets a player override those
+ * rules deliberately. A campaign that was saved with an override in it is a
+ * campaign this must still open; refusing it here would make the override a
+ * feature that silently destroys the save that used it.
+ *
+ * So: is `tier` one of the four Tiers, are the stats present and countable, are
+ * the skill keys skills that exist. Not: is any of it a legal survivor.
+ */
+function describeSurvivorProblem(value: unknown): string | null {
+  if (!isRecord(value)) return 'is not a survivor';
+
+  if (typeof value.id !== 'string' || value.id === '') return 'has no id';
+  if (typeof value.name !== 'string') return 'has no name';
+  if (!TIERS.some((tier) => tier === value.tier)) {
+    return `has a tier that is not one of ${TIERS.join(', ')}`;
+  }
+
+  const stats: unknown = value.stats;
+  if (!isRecord(stats)) return 'has no stats';
+  for (const stat of STATS) {
+    if (!isCountFromZero(stats[stat])) return `has no ${stat} score`;
+  }
+
+  const skills: unknown = value.skills;
+  if (!isRecord(skills)) return 'has no skill list';
+  for (const [skill, level] of Object.entries(skills)) {
+    if (!(skill in SKILL_STATS)) return `has a skill this version does not know: ${skill}`;
+    if (!isCountFromZero(level)) return `has an unreadable level for ${skill}`;
+  }
+
+  if (!isCountFromZero(value.move)) return 'has no move score';
+  if (!isCountFromZero(value.defense)) return 'has no defense score';
+  if (!isCountFromZero(value.currentHp)) return 'has unreadable health';
+  if (!isCountFromZero(value.xp)) return 'has unreadable experience';
+
+  return null;
+}
+
 /**
  * Names the first thing wrong with a would-be current-shape `Campaign`, or
  * `null` if there is nothing wrong with it.
@@ -54,8 +102,8 @@ function isCountFromOne(value: unknown): boolean {
  * act on. Order matters only in that the first problem found is the one
  * reported — a file with several is rarely worth enumerating.
  *
- * This describes the shape as it is *today*. When Phase 1 gives `survivors` a
- * real element type, this function changes in the same commit as the migration
+ * This describes the shape as it is *today*. When a later phase gives `base` or
+ * `log` a real type, this function changes in the same commit as the migration
  * step that fills it in; those two drifting apart is exactly the failure the
  * guard test in `migrations.test.ts` is watching for.
  */
@@ -84,14 +132,19 @@ function describeCampaignProblem(value: unknown): string | null {
     }
   }
 
-  // `survivors`, `base` and `log` are typed empty because Phase 0 genuinely
-  // cannot hold any of them. Accepting a populated one would let a file put
-  // data into the app that no code here knows how to read; a save that legally
-  // has survivors comes from a later version, and `migrate` refuses that first
-  // with a message that actually tells the reader to update the app.
-  if (!Array.isArray(value.survivors) || value.survivors.length > 0) {
-    return 'its survivor list is missing, or holds survivors this version cannot read';
+  if (!Array.isArray(value.survivors)) return 'its survivor list is missing';
+  for (const [index, survivor] of value.survivors.entries()) {
+    const problem = describeSurvivorProblem(survivor);
+    // Positional rather than by name, because a survivor whose name is the
+    // damaged field cannot be pointed at by it.
+    if (problem !== null) return `survivor ${index + 1} of ${value.survivors.length} ${problem}`;
   }
+
+  // `base` and `log` are still typed empty because Phase 1 genuinely cannot
+  // hold either. Accepting a populated one would let a file put data into the
+  // app that no code here knows how to read; a save that legally has a base
+  // comes from a later version, and `migrate` refuses that first with a message
+  // that actually tells the reader to update the app.
   if (value.base !== null) return 'it has a base, which this version cannot read';
   if (!Array.isArray(value.log) || value.log.length > 0) {
     return 'its campaign log is missing, or holds entries this version cannot read';

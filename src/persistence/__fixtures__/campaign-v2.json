@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 2,
+  "id": "3a5e8c11-7d92-4b06-9f38-1c47a0e5b2d9",
+  "name": "Cedar Hollow",
+  "createdAt": "2026-08-30T00:00:00.000Z",
+  "turn": 3,
+  "phase": "planning",
+  "materials": {
+    "food": 4,
+    "fuel": 2,
+    "hardware": 7,
+    "rare": 1
+  },
+  "survivors": [
+    {
+      "id": "b7e41f28-3c60-4d95-8a12-6f0e9d4c7b53",
+      "name": "Earl Rhodes",
+      "tier": 4,
+      "stats": {
+        "strength": 3,
+        "dexterity": 2,
+        "intelligence": 4,
+        "cooperation": 1
+      },
+      "skills": {
+        "heavy-weapon": 2,
+        "carry": 1,
+        "scavenge": 1,
+        "tactics": 3
+      },
+      "move": 7,
+      "defense": 6,
+      "currentHp": 3,
+      "xp": 5
+    },
+    {
+      "id": "d2c93a75-1e48-4f60-b8d7-5a3e0c96f41b",
+      "name": "Carla Proust",
+      "tier": 3,
+      "stats": {
+        "strength": 1,
+        "dexterity": 3,
+        "intelligence": 2,
+        "cooperation": 0
+      },
+      "skills": {
+        "archery": 2,
+        "stealth": 1,
+        "enter": 0
+      },
+      "move": 6,
+      "defense": 6,
+      "currentHp": 3,
+      "xp": 0
+    },
+    {
+      "id": "f60b2d84-9a17-4c3e-85d0-2b7f1e6a9c48",
+      "name": "Ruby Vance",
+      "tier": 1,
+      "stats": {
+        "strength": 0,
+        "dexterity": 1,
+        "intelligence": 0,
+        "cooperation": 0
+      },
+      "skills": {
+        "handguns": 1
+      },
+      "move": 6,
+      "defense": 6,
+      "currentHp": 0,
+      "xp": 2
+    }
+  ],
+  "base": null,
+  "log": []
+}

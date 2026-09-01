@@ -40,13 +40,33 @@ export interface MigrationStep {
 }
 
 /**
- * Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`.
+ * v1 → v2: `survivors` stopped being a placeholder.
  *
- * Empty because v1 is the first version there has ever been, so nothing has
- * been left behind yet. The shape and the guard around it are the deliverable;
- * the first real entry arrives with the first change to `Campaign`.
+ * **This step changes no data, and that is the correct answer rather than a
+ * lazy one.** A v1 campaign's `survivors` is `[]`, which is already a valid v2
+ * roster, because v1 genuinely could not hold a survivor — Phase 0 shipped no
+ * rules to build one from. There is nothing to convert.
+ *
+ * What changed is what the version *number* means, and the bump earns its keep
+ * in one direction only: opening a new save in an old build. `saveFile.ts`
+ * validates a campaign against the shape the build knows, and a Phase 0 build
+ * rejects any non-empty survivor list outright. Without the bump it would
+ * report a perfectly good save as *"not complete: its survivor list holds
+ * survivors this version cannot read"* — a damaged-file message for an undamaged
+ * file. With it, the same build refuses on version first and says *"saved by a
+ * newer version of the app — update the app"*, which is both true and something
+ * the reader can act on.
+ *
+ * That is only observable from an older build, so no test here can prove it.
  */
-export const MIGRATION_STEPS: readonly MigrationStep[] = [];
+const survivorsBecameReal: MigrationStep = {
+  from: 1,
+  to: 2,
+  up: (previous) => previous,
+};
+
+/** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
+export const MIGRATION_STEPS: readonly MigrationStep[] = [survivorsBecameReal];
 
 /** Why a save could not be brought forward. */
 export type MigrationErrorReason = 'unreadable-version' | 'future-version';
