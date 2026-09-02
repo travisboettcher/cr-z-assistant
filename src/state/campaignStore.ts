@@ -84,6 +84,14 @@ export type CampaignAction =
   | { readonly type: 'campaign/phaseSet'; readonly phase: CampaignPhase }
   | { readonly type: 'campaign/turnAdvanced' }
   /**
+   * Record whether the starting community is finished.
+   *
+   * A toggle rather than a one-way "done" action: it turns off a rule, and a
+   * control that turns a rule off permanently on one misplaced thumb is a door
+   * that should not close.
+   */
+  | { readonly type: 'campaign/startingCommunityBuiltSet'; readonly built: boolean }
+  /**
    * Add a survivor to the community.
    *
    * `id` is required for the same reason `campaign/started` requires one: a
@@ -145,6 +153,12 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
      */
     case 'campaign/turnAdvanced':
       return withCampaign(state, (campaign) => ({ ...campaign, turn: campaign.turn + 1 }));
+
+    case 'campaign/startingCommunityBuiltSet':
+      return withCampaign(state, (campaign) => ({
+        ...campaign,
+        startingCommunityBuilt: action.built,
+      }));
 
     case 'survivor/added':
       return withCampaign(state, (campaign) => ({

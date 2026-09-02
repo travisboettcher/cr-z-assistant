@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { STATS } from '../data/skills';
-import { TIER_RULES } from '../data/tiers';
+import { TIER_RULES, type Tier } from '../data/tiers';
 import type { Survivor } from './campaign';
-import { skillSlotsAreFull, survivorViolations, withStatValue } from './legality';
+import {
+  communityViolations,
+  skillSlotsAreFull,
+  survivorViolations,
+  withStatValue,
+} from './legality';
 import { createSurvivor } from './survivor';
 
 /**
@@ -134,5 +139,43 @@ describe('withStatValue', () => {
         }
       }
     }
+  });
+});
+
+describe('communityViolations', () => {
+  const roster = (...tiers: readonly Tier[]): readonly Survivor[] =>
+    tiers.map((tier, index) => createSurvivor(`Survivor ${index}`, tier, { id: `s${index}` }));
+
+  it('accepts the ten tier levels a starting community is built from', () => {
+    // The rulebook's recommended opening: one Hero and two Leaders (pg. 48).
+    expect(communityViolations(roster(4, 3, 3), false)).toEqual([]);
+  });
+
+  it('reports an eleventh tier level', () => {
+    const violations = communityViolations(roster(4, 3, 3, 1), false);
+
+    expect(violations.map((v) => v.code)).toEqual(['community-over-budget']);
+    expect(violations[0]?.message).toMatch(/spends 11/);
+  });
+
+  /**
+   * The budget is a rule about *building* a starting community, not about
+   * having one. Recruits push a community past ten legitimately, so once the
+   * player says the building is done the rule stops applying — otherwise the
+   * app is wrong for the rest of the campaign.
+   */
+  it('stops applying once the community is marked built', () => {
+    expect(communityViolations(roster(4, 3, 3, 1), true)).toEqual([]);
+  });
+
+  it('applies again if the flag is turned back off', () => {
+    const over = roster(4, 3, 3, 1);
+
+    expect(communityViolations(over, true)).toEqual([]);
+    expect(communityViolations(over, false)).toHaveLength(1);
+  });
+
+  it('says nothing about an empty community', () => {
+    expect(communityViolations([], false)).toEqual([]);
   });
 });

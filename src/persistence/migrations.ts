@@ -65,8 +65,35 @@ const survivorsBecameReal: MigrationStep = {
   up: (previous) => previous,
 };
 
+/**
+ * v2 → v3: campaigns record whether the starting community is finished.
+ *
+ * **The first step in this chain that actually moves data** — v1 → v2 changed
+ * nothing and earned its keep purely through the version number.
+ *
+ * It answers **`true`**, which is the opposite of what `createNewCampaign`
+ * answers for a brand-new campaign, and the difference is the point. The
+ * ten-tier-level budget (pg. 48) did not exist when a v2 campaign was written,
+ * so its roster was built without ever being checked against it. Defaulting
+ * those campaigns to `false` would take a perfectly good six-survivor community
+ * and start reporting it as over budget the moment the player updated the app.
+ * A new campaign has no such history, so it starts under the check.
+ *
+ * The honest summary: `false` means "still building and never told otherwise";
+ * for a campaign from before the question existed, the truthful answer is that
+ * nobody was ever asked, and not-checking is the safer reading of that.
+ */
+const startingCommunityBuiltRecorded: MigrationStep = {
+  from: 2,
+  to: 3,
+  up: (previous) => ({ ...previous, startingCommunityBuilt: true }),
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
-export const MIGRATION_STEPS: readonly MigrationStep[] = [survivorsBecameReal];
+export const MIGRATION_STEPS: readonly MigrationStep[] = [
+  survivorsBecameReal,
+  startingCommunityBuiltRecorded,
+];
 
 /** Why a save could not be brought forward. */
 export type MigrationErrorReason = 'unreadable-version' | 'future-version';

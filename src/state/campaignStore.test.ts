@@ -277,6 +277,7 @@ describe('editing actions against the empty state', () => {
     { type: 'campaign/renamed', name: 'Millbrook' },
     { type: 'campaign/phaseSet', phase: 'planning' },
     { type: 'campaign/turnAdvanced' },
+    { type: 'campaign/startingCommunityBuiltSet', built: true },
     { type: 'survivor/added', name: 'Earl Rhodes', tier: 4, id: SURVIVOR_ID },
     { type: 'survivor/renamed', id: SURVIVOR_ID, name: 'Earl Rhodes Jr' },
     { type: 'survivor/hpSet', id: SURVIVOR_ID, currentHp: 1 },
@@ -304,6 +305,7 @@ describe('purity', () => {
     { type: 'campaign/renamed', name: 'Millbrook' },
     { type: 'campaign/phaseSet', phase: 'advancement' },
     { type: 'campaign/turnAdvanced' },
+    { type: 'campaign/startingCommunityBuiltSet', built: true },
     { type: 'survivor/added', name: 'Earl Rhodes', tier: 4, id: SURVIVOR_ID },
     { type: 'survivor/renamed', id: SURVIVOR_ID, name: 'Earl Rhodes Jr' },
     { type: 'survivor/hpSet', id: SURVIVOR_ID, currentHp: 1 },
@@ -344,3 +346,27 @@ function deepFreeze(value: unknown): void {
     deepFreeze(nested);
   }
 }
+
+describe('campaign/startingCommunityBuiltSet', () => {
+  it('records the answer both ways, changing nothing else', () => {
+    const before = createNewCampaign('Cedar Hollow', FIXED);
+
+    expect(before.startingCommunityBuilt).toBe(false);
+
+    const built = expectOpen(
+      campaignReducer(openState(before), {
+        type: 'campaign/startingCommunityBuiltSet',
+        built: true,
+      }),
+    );
+    expect(built).toEqual({ ...before, startingCommunityBuilt: true });
+
+    const unbuilt = expectOpen(
+      campaignReducer(openState(built), {
+        type: 'campaign/startingCommunityBuiltSet',
+        built: false,
+      }),
+    );
+    expect(unbuilt).toEqual(before);
+  });
+});

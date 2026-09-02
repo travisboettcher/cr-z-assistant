@@ -70,6 +70,7 @@ describe('createNewCampaign', () => {
       'name',
       'phase',
       'schemaVersion',
+      'startingCommunityBuilt',
       'survivors',
       'turn',
     ]);

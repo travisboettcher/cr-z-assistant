@@ -126,3 +126,52 @@ describe('SurvivorRoster', () => {
     expect(within(roster()).getByText('Carla Proust')).toBeInTheDocument();
   });
 });
+
+describe('the starting-community budget', () => {
+  function budgetWarning() {
+    return within(roster()).queryByText(/is built from 10 tier levels/i);
+  }
+
+  it('says nothing while a community is within its ten tier levels', async () => {
+    const user = await openCampaign();
+
+    // The rulebook's recommended opening: one Hero and two Leaders (pg. 48).
+    await addSurvivor(user, 'Earl Rhodes', '4');
+    await addSurvivor(user, 'Carla Proust', '3');
+    await addSurvivor(user, 'Marcus Webb', '3');
+
+    expect(budgetWarning()).not.toBeInTheDocument();
+  });
+
+  it('reports an eleventh tier level', async () => {
+    const user = await openCampaign();
+
+    await addSurvivor(user, 'Earl Rhodes', '4');
+    await addSurvivor(user, 'Carla Proust', '3');
+    await addSurvivor(user, 'Marcus Webb', '3');
+    await addSurvivor(user, 'Ruby Vance', '1');
+
+    expect(budgetWarning()).toBeInTheDocument();
+  });
+
+  /**
+   * Reversible on purpose. The control turns a rule off, and one that did so
+   * permanently on a misplaced thumb would be a door that should not close.
+   */
+  it('stops checking once the community is marked built, and starts again if unmarked', async () => {
+    const user = await openCampaign();
+
+    await addSurvivor(user, 'Earl Rhodes', '4');
+    await addSurvivor(user, 'Carla Proust', '3');
+    await addSurvivor(user, 'Marcus Webb', '3');
+    await addSurvivor(user, 'Ruby Vance', '1');
+
+    const toggle = within(roster()).getByRole('checkbox', { name: /starting community is built/i });
+
+    await user.click(toggle);
+    expect(budgetWarning()).not.toBeInTheDocument();
+
+    await user.click(toggle);
+    expect(budgetWarning()).toBeInTheDocument();
+  });
+});

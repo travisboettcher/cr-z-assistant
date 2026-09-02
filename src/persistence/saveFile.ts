@@ -140,6 +140,10 @@ function describeCampaignProblem(value: unknown): string | null {
     if (problem !== null) return `survivor ${index + 1} of ${value.survivors.length} ${problem}`;
   }
 
+  if (typeof value.startingCommunityBuilt !== 'boolean') {
+    return 'it does not say whether its starting community is finished';
+  }
+
   // `base` and `log` are still typed empty because Phase 1 genuinely cannot
   // hold either. Accepting a populated one would let a file put data into the
   // app that no code here knows how to read; a save that legally has a base

@@ -5,6 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
+import v3Fixture from './__fixtures__/campaign-v3.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -233,7 +234,10 @@ describe('parseCampaignFile with a roster', () => {
    * a skill diffs as though the whole roster changed.
    */
   it('re-exports a roster byte-identically', () => {
-    const text = `${JSON.stringify(v2Fixture, null, 2)}\n`;
+    // The *current* fixture, because byte-identity is a claim about the format
+    // this build writes. An older file legitimately comes back one version up,
+    // which is the migration working rather than the round trip failing.
+    const text = `${JSON.stringify(v3Fixture, null, 2)}\n`;
     const result = parseCampaignFile(text);
 
     expect(result.ok).toBe(true);

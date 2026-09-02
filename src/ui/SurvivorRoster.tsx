@@ -15,6 +15,7 @@ import { useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { TIERS, type Tier } from '../data/tiers';
 import type { Campaign, Survivor } from '../engine/campaign';
+import { communityViolations } from '../engine/legality';
 import { communityTierLevels, itemSlots, maxHp } from '../engine/survivor';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
@@ -79,6 +80,8 @@ export function SurvivorRoster({ campaign, onOpenSheet }: SurvivorRosterProps) {
           {communityTierLevels(campaign.survivors)} tier levels <PageRef pages={48} />
         </p>
       </div>
+
+      <CommunityBudget campaign={campaign} />
 
       <form onSubmit={handleAdd} className="mt-5 flex flex-wrap items-end gap-3">
         <div className="grow basis-48">
@@ -187,6 +190,52 @@ export function SurvivorRoster({ campaign, onOpenSheet }: SurvivorRosterProps) {
         </div>
       </dialog>
     </section>
+  );
+}
+
+/**
+ * The ten-tier-level budget, and the switch that retires it.
+ *
+ * The budget is a rule about *building* a starting community (pg. 48), not
+ * about having one. Once play begins, rescued strangers and field recruits push
+ * a community past ten legitimately, and an app still complaining about it then
+ * would be wrong for the rest of the campaign. Nothing in the campaign data
+ * says when that moment arrives, so the player says so.
+ */
+function CommunityBudget({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+  const checkboxId = useId();
+  const violations = communityViolations(campaign.survivors, campaign.startingCommunityBuilt);
+
+  return (
+    <div className="mt-4 flex flex-col gap-3">
+      {violations.map((violation) => (
+        <p
+          key={violation.code}
+          className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+        >
+          {violation.message} <PageRef pages={violation.pages} />
+        </p>
+      ))}
+
+      <label htmlFor={checkboxId} className="flex items-center gap-3 text-sm">
+        <input
+          id={checkboxId}
+          type="checkbox"
+          checked={campaign.startingCommunityBuilt}
+          onChange={(event) => {
+            dispatch({
+              type: 'campaign/startingCommunityBuiltSet',
+              built: event.target.checked,
+            });
+          }}
+          className={`${FOCUS_RING} size-5 rounded border-stone-300 dark:border-stone-600`}
+        />
+        <span className="text-stone-600 dark:text-stone-400">
+          The starting community is built — stop checking it against the ten-tier-level budget.
+        </span>
+      </label>
+    </div>
   );
 }
 
