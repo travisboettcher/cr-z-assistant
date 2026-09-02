@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { Survivor } from './campaign';
-import { communityTierLevels, itemSlots, labor, maxHp, skillScore } from './survivor';
+import {
+  communityTierLevels,
+  createSurvivor,
+  itemSlots,
+  labor,
+  maxHp,
+  skillScore,
+} from './survivor';
 
 /**
  * The rulebook builds two characters completely on pg. 48–50 and states their
@@ -94,6 +101,50 @@ describe('itemSlots', () => {
     // Carrying capacity moves when Strength moves, which is the whole reason
     // the rule reads Score rather than level.
     expect(itemSlots(stronger)).toBe(10);
+  });
+});
+
+describe('createSurvivor', () => {
+  const ID = '0f1e2d3c-4b5a-4968-8776-655443322110';
+
+  it('gives a survivor the stat values their tier is built from', () => {
+    const leader = createSurvivor('Carla Proust', 3, { id: ID });
+
+    // The multiset is what the rules fix (pg. 38-39); which stat holds which
+    // value is the player's to choose, so the arrangement is only a default.
+    expect(Object.values(leader.stats).sort()).toEqual([0, 1, 2, 3]);
+  });
+
+  it('starts at full health with the common skills at six and no experience', () => {
+    const leader = createSurvivor('Carla Proust', 3, { id: ID });
+
+    expect(leader.currentHp).toBe(maxHp(leader));
+    expect(leader.currentHp).toBe(3);
+    expect(leader.move).toBe(6);
+    expect(leader.defense).toBe(6);
+    expect(leader.xp).toBe(0);
+  });
+
+  /**
+   * Slots waiting rather than skills in them. Choosing skills is the creation
+   * screen's job, and an empty list is what lets that screen report the build
+   * as unfinished.
+   */
+  it('starts with no skills at all', () => {
+    expect(createSurvivor('Ruby Vance', 1, { id: ID }).skills).toEqual({});
+  });
+
+  it('honours an injected id and generates a distinct one otherwise', () => {
+    expect(createSurvivor('Ruby Vance', 1, { id: ID }).id).toBe(ID);
+    expect(createSurvivor('Ruby Vance', 1).id).not.toBe(createSurvivor('Ruby Vance', 1).id);
+  });
+
+  it('produces a survivor the derived functions can read', () => {
+    const hero = createSurvivor('Earl Rhodes', 4, { id: ID });
+
+    expect(maxHp(hero)).toBe(4);
+    // No Carry skill yet, so item slots are the bare tier.
+    expect(itemSlots(hero)).toBe(4);
   });
 });
 

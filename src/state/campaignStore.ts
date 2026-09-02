@@ -20,8 +20,10 @@
  *    campaign factory.
  */
 
+import type { Tier } from '../data/tiers';
 import { createNewCampaign } from '../engine/campaign';
 import type { Campaign, CampaignPhase } from '../engine/campaign';
+import { createSurvivor } from '../engine/survivor';
 
 /**
  * The app boots with nothing loaded, and Z0-7's empty state renders off that
@@ -43,14 +45,18 @@ export type CampaignState =
 export const INITIAL_CAMPAIGN_STATE: CampaignState = { status: 'empty' };
 
 /**
- * The whole action surface for Phase 0.
+ * The action surface.
  *
- * Deliberately five actions. Survivors, bases, facilities and materials
- * arithmetic are Phase 1+ and ship no rules here, so inventing actions for them
- * now would mean designing rules-shaped events before the rules exist. There is
- * also no "close campaign" action: nothing in Phase 0 goes from open back to
- * empty without immediately opening another campaign, and an action with no
- * caller is a guess about the future.
+ * Five `campaign/*` actions from Phase 0 and three `survivor/*` from Phase 1.
+ * The second namespace is deliberate: those act on a member of the campaign
+ * rather than on the campaign itself, and `campaign/survivorAdded` reads worse
+ * than it reasons.
+ *
+ * Bases, facilities and materials arithmetic are still absent — inventing
+ * actions for them now would mean designing rules-shaped events before the
+ * rules exist. There is also still no "close campaign" action: nothing goes
+ * from open back to empty without immediately opening another campaign, and an
+ * action with no caller is a guess about the future.
  */
 export type CampaignAction =
   /**
@@ -75,7 +81,22 @@ export type CampaignAction =
   | { readonly type: 'campaign/loaded'; readonly campaign: Campaign }
   | { readonly type: 'campaign/renamed'; readonly name: string }
   | { readonly type: 'campaign/phaseSet'; readonly phase: CampaignPhase }
-  | { readonly type: 'campaign/turnAdvanced' };
+  | { readonly type: 'campaign/turnAdvanced' }
+  /**
+   * Add a survivor to the community.
+   *
+   * `id` is required for the same reason `campaign/started` requires one: a
+   * UUID is the impure part, so the UI captures it at the click and the reducer
+   * stays a pure function of its arguments.
+   */
+  | {
+      readonly type: 'survivor/added';
+      readonly name: string;
+      readonly tier: Tier;
+      readonly id: string;
+    }
+  | { readonly type: 'survivor/renamed'; readonly id: string; readonly name: string }
+  | { readonly type: 'survivor/removed'; readonly id: string };
 
 export function campaignReducer(state: CampaignState, action: CampaignAction): CampaignState {
   switch (action.type) {
@@ -102,6 +123,33 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
      */
     case 'campaign/turnAdvanced':
       return withCampaign(state, (campaign) => ({ ...campaign, turn: campaign.turn + 1 }));
+
+    case 'survivor/added':
+      return withCampaign(state, (campaign) => ({
+        ...campaign,
+        survivors: [
+          ...campaign.survivors,
+          createSurvivor(action.name, action.tier, { id: action.id }),
+        ],
+      }));
+
+    /**
+     * Renaming is by id rather than by index: the roster is reordered by
+     * removals, and a stale index renames the wrong person.
+     */
+    case 'survivor/renamed':
+      return withCampaign(state, (campaign) => ({
+        ...campaign,
+        survivors: campaign.survivors.map((survivor) =>
+          survivor.id === action.id ? { ...survivor, name: action.name } : survivor,
+        ),
+      }));
+
+    case 'survivor/removed':
+      return withCampaign(state, (campaign) => ({
+        ...campaign,
+        survivors: campaign.survivors.filter((survivor) => survivor.id !== action.id),
+      }));
 
     default:
       return assertNever(action);

@@ -36,8 +36,8 @@ export function CampaignOverview({ campaign }: CampaignOverviewProps) {
         .
       </p>
       <p className="mt-4 text-stone-600 dark:text-stone-400">
-        The roster, base, turn, mission and equipment screens are not built yet. Until then this is
-        the shell they will hang off.
+        The base, turn, mission and equipment screens are not built yet. Until then this is the
+        shell they will hang off.
       </p>
 
       <div className="mt-6 border-t border-stone-200 pt-6 dark:border-stone-800">

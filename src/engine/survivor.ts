@@ -10,9 +10,9 @@
  * React, enforced by `no-restricted-imports` in `eslint.config.js`.
  */
 
-import { SKILL_STATS, type Skill } from '../data/skills';
-import { TIER_RULES } from '../data/tiers';
-import type { Survivor } from './campaign';
+import { COMMON_SKILL_START_SCORE, SKILL_STATS, type Skill } from '../data/skills';
+import { TIER_RULES, type Tier } from '../data/tiers';
+import type { Stats, Survivor } from './campaign';
 
 /**
  * A skill's level added to its governing stat (pg. 41), or **null when the
@@ -63,4 +63,59 @@ export function itemSlots(survivor: Survivor): number {
  */
 export function communityTierLevels(survivors: readonly Survivor[]): number {
   return survivors.reduce((total, survivor) => total + survivor.tier, 0);
+}
+
+/**
+ * A Tier's stat values laid out across the four stats.
+ *
+ * **This arrangement is a default, not a rule.** pg. 38–39 gives a Tier an
+ * ordered list of values — a Hero gets 4, 3, 2 and 1 — and says *"These values
+ * are assigned to whichever Stats you choose"*. Putting the highest in Strength
+ * is this app's arbitrary starting point, not something the rulebook says.
+ *
+ * It is a safe default because the multiset is always the Tier's own, so a
+ * survivor built this way is never *illegal*, only possibly not the character
+ * the player had in mind. Rearranging them is the creation screen's job.
+ */
+function defaultStats(tier: Tier): Stats {
+  const [highest, second, third, lowest] = TIER_RULES[tier].statArray;
+
+  return { strength: highest, dexterity: second, intelligence: third, cooperation: lowest };
+}
+
+/** Values a caller may pin instead of letting the factory generate them. */
+export interface NewSurvivorOptions {
+  id?: string;
+}
+
+/**
+ * A survivor at the moment they join the community.
+ *
+ * **No skills.** Skill slots are the Tier (pg. 38–39), so a new survivor has
+ * slots waiting rather than skills in them; choosing skills is the creation
+ * screen's job, and it is also what reports the build as incomplete until they
+ * are filled.
+ *
+ * `id` is injectable for the same reason `createNewCampaign` takes one: a UUID
+ * is the only impure thing this needs, and taking it as an argument keeps the
+ * module honest about the engine's purity rule and its tests free of a moving
+ * value.
+ */
+export function createSurvivor(
+  name: string,
+  tier: Tier,
+  options: NewSurvivorOptions = {},
+): Survivor {
+  return {
+    id: options.id ?? crypto.randomUUID(),
+    name,
+    tier,
+    stats: defaultStats(tier),
+    skills: {},
+    move: COMMON_SKILL_START_SCORE,
+    defense: COMMON_SKILL_START_SCORE,
+    // Joining at full health. Wounds come from missions, which is Phase 4.
+    currentHp: TIER_RULES[tier].maxHp,
+    xp: 0,
+  };
 }

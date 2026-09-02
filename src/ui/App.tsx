@@ -15,6 +15,7 @@ import { CampaignEmptyState } from './CampaignEmptyState';
 import { CampaignOverview } from './CampaignOverview';
 import { ImportCampaign } from './ImportCampaign';
 import { SectionNav } from './SectionNav';
+import { SurvivorRoster } from './SurvivorRoster';
 
 export function App() {
   const { state } = useCampaign();
@@ -32,6 +33,7 @@ export function App() {
         {state.status === 'open' ? (
           <div className="flex flex-col gap-6">
             <CampaignOverview campaign={state.campaign} />
+            <SurvivorRoster campaign={state.campaign} />
             {/*
              * Import stays reachable with a campaign open, not only from the
              * empty state — otherwise the only way to open a saved file would
