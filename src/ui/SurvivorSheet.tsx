@@ -11,10 +11,12 @@
  * Tablet-first. This is read standing next to a table with miniatures on it.
  */
 
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { COMMON_SKILLS, SKILLS, SKILL_STATS, STATS, type Stat } from '../data/skills';
+import { COMMON_SKILLS, SKILLS, SKILL_STATS, STATS, type Skill, type Stat } from '../data/skills';
+import { TIER_RULES } from '../data/tiers';
 import type { Survivor } from '../engine/campaign';
+import { skillSlotsAreFull, survivorViolations, withStatValue } from '../engine/legality';
 import { itemSlots, maxHp, skillScore } from '../engine/survivor';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
@@ -53,6 +55,8 @@ export function SurvivorSheet({ survivor, onClose }: SurvivorSheetProps) {
         </button>
       </div>
 
+      <Violations survivor={survivor} />
+
       <Vitals survivor={survivor} />
 
       <Stats survivor={survivor} />
@@ -68,6 +72,34 @@ export function SurvivorSheet({ survivor, onClose }: SurvivorSheetProps) {
 
       <Skills survivor={survivor} />
     </section>
+  );
+}
+
+/**
+ * What is wrong with this build, if anything.
+ *
+ * Reported rather than enforced. A survivor part-way through being built is the
+ * normal state of one added a moment ago, and blocking on that would make the
+ * app unusable; a survivor who is genuinely illegal may be a house rule or a
+ * case this app models wrong. Either way the sheet says so, with the page, and
+ * lets the player decide.
+ */
+function Violations({ survivor }: { readonly survivor: Survivor }) {
+  const violations = survivorViolations(survivor);
+
+  if (violations.length === 0) return null;
+
+  return (
+    <ul className="mt-4 flex flex-col gap-2">
+      {violations.map((violation) => (
+        <li
+          key={violation.code}
+          className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+        >
+          {violation.message} <PageRef pages={violation.pages} />
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -153,24 +185,67 @@ function Vitals({ survivor }: { readonly survivor: Survivor }) {
 }
 
 function Stats({ survivor }: { readonly survivor: Survivor }) {
+  const { dispatch } = useCampaign();
+  const groupId = useId();
+
   return (
     <div className="mt-6 border-t border-stone-200 pt-6 dark:border-stone-800">
       <h3 className="text-sm font-semibold tracking-[0.15em] text-stone-500 uppercase dark:text-stone-400">
         Stats <PageRef pages={40} />
       </h3>
-      <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+        A tier hands out a fixed set of values and lets you choose which stat gets which. Moving a
+        value here swaps it with the stat that had it, so the four always stay that set.
+      </p>
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {STATS.map((stat) => (
           <div
             key={stat}
             className="rounded-lg border border-stone-200 px-4 py-3 dark:border-stone-700"
           >
-            <dt className="text-sm text-stone-600 dark:text-stone-400">{STAT_LABELS[stat]}</dt>
-            <dd className="text-2xl font-semibold tabular-nums">{survivor.stats[stat]}</dd>
+            <label
+              htmlFor={`${groupId}-${stat}`}
+              className="block text-sm text-stone-600 dark:text-stone-400"
+            >
+              {STAT_LABELS[stat]}
+            </label>
+            <select
+              id={`${groupId}-${stat}`}
+              value={survivor.stats[stat]}
+              onChange={(event) => {
+                dispatch({
+                  type: 'survivor/statsSet',
+                  id: survivor.id,
+                  stats: withStatValue(survivor, stat, Number(event.target.value)),
+                });
+              }}
+              className={`${FOCUS_RING} mt-1 w-full rounded-lg border border-stone-300 bg-transparent px-2 py-1 text-2xl font-semibold tabular-nums dark:border-stone-600`}
+            >
+              {statOptions(survivor, stat).map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
           </div>
         ))}
-      </dl>
+      </div>
     </div>
   );
+}
+
+/**
+ * The values this stat can be set to, highest first.
+ *
+ * Duplicates are collapsed — a Citizen's array is 2/1/0/0 and two identical
+ * options are noise. The stat's current value is folded in so that a survivor
+ * from a hand-edited file still shows what they actually have rather than a
+ * blank control; the sheet reports that as a violation instead.
+ */
+function statOptions(survivor: Survivor, stat: Stat): readonly number[] {
+  const values = [...TIER_RULES[survivor.tier].statArray, survivor.stats[stat]];
+
+  return [...new Set(values)].sort((a, b) => b - a);
 }
 
 function CommonSkills({ survivor }: { readonly survivor: Survivor }) {
@@ -202,6 +277,38 @@ function CommonSkills({ survivor }: { readonly survivor: Survivor }) {
 }
 
 function Skills({ survivor }: { readonly survivor: Survivor }) {
+  const { dispatch } = useCampaign();
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const confirmId = useId();
+  const [pending, setPending] = useState<Skill | null>(null);
+
+  const slots = TIER_RULES[survivor.tier].skillSlots;
+
+  function take(skill: Skill) {
+    /*
+     * The one blocked action in the sheet. Being part-way through a build is
+     * shown but never blocked; going *over* the tier's slots is refused, with
+     * a way through for a house rule or a case this app has wrong. The override
+     * gates this press only — nothing about it is stored, so the survivor keeps
+     * reporting the violation for as long as they actually have it.
+     */
+    if (skillSlotsAreFull(survivor)) {
+      setPending(skill);
+      dialogRef.current?.showModal();
+      return;
+    }
+
+    dispatch({ type: 'survivor/skillAdded', id: survivor.id, skill });
+  }
+
+  function takeAnyway() {
+    if (pending !== null) {
+      dispatch({ type: 'survivor/skillAdded', id: survivor.id, skill: pending });
+    }
+    setPending(null);
+    dialogRef.current?.close();
+  }
+
   return (
     <div className="mt-6 border-t border-stone-200 pt-6 dark:border-stone-800">
       <h3 className="text-sm font-semibold tracking-[0.15em] text-stone-500 uppercase dark:text-stone-400">
@@ -209,19 +316,73 @@ function Skills({ survivor }: { readonly survivor: Survivor }) {
       </h3>
       <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
         Score is the skill&rsquo;s level plus its governing stat. A dash means this survivor does
-        not have the skill and cannot use it.
+        not have the skill and cannot use it. Skills start at level zero; raising one costs
+        experience.
       </p>
 
       <div className="mt-3 grid gap-4 sm:grid-cols-2">
         {STATS.map((stat) => (
-          <SkillGroup key={stat} stat={stat} survivor={survivor} />
+          <SkillGroup
+            key={stat}
+            stat={stat}
+            survivor={survivor}
+            onTake={take}
+            onDrop={(skill) => {
+              dispatch({ type: 'survivor/skillRemoved', id: survivor.id, skill });
+            }}
+          />
         ))}
       </div>
+
+      <dialog
+        ref={dialogRef}
+        aria-labelledby={confirmId}
+        onClose={() => {
+          setPending(null);
+        }}
+        className="m-auto max-w-md rounded-xl bg-white p-6 text-stone-900 backdrop:bg-stone-950/50 dark:bg-stone-900 dark:text-stone-100"
+      >
+        <h2 id={confirmId} className="text-xl font-semibold">
+          That is one skill too many
+        </h2>
+        <p className="mt-2 text-stone-600 dark:text-stone-400">
+          {pending === null
+            ? null
+            : `${survivor.name} already has ${slots} ${slots === 1 ? 'skill' : 'skills'}, which is
+               all a tier ${survivor.tier} survivor gets. Taking ${SKILL_LABELS[pending]} as well
+               will keep showing on this sheet as a broken rule.`}{' '}
+          <PageRef pages="38–39" />
+        </p>
+
+        <div className="mt-6 flex flex-wrap justify-end gap-3">
+          <button
+            type="button"
+            onClick={() => dialogRef.current?.close()}
+            className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 px-5 font-medium hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800`}
+          >
+            Leave it
+          </button>
+          <button
+            type="button"
+            onClick={takeAnyway}
+            className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg bg-amber-600 px-5 font-semibold text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+          >
+            Take it anyway
+          </button>
+        </div>
+      </dialog>
     </div>
   );
 }
 
-function SkillGroup({ stat, survivor }: { readonly stat: Stat; readonly survivor: Survivor }) {
+interface SkillGroupProps {
+  readonly stat: Stat;
+  readonly survivor: Survivor;
+  readonly onTake: (skill: Skill) => void;
+  readonly onDrop: (skill: Skill) => void;
+}
+
+function SkillGroup({ stat, survivor, onTake, onDrop }: SkillGroupProps) {
   const governed = SKILLS.filter((skill) => SKILL_STATS[skill] === stat);
 
   return (
@@ -240,6 +401,9 @@ function SkillGroup({ stat, survivor }: { readonly stat: Stat; readonly survivor
             </th>
             <th scope="col" className="px-4 py-1 text-right font-medium">
               Score
+            </th>
+            <th scope="col" className="px-2 py-1">
+              <span className="sr-only">Take or drop</span>
             </th>
           </tr>
         </thead>
@@ -265,6 +429,16 @@ function SkillGroup({ stat, survivor }: { readonly stat: Stat; readonly survivor
                 </td>
                 <td className="px-4 py-1.5 text-right font-semibold tabular-nums">
                   {score === null ? <Absent /> : score}
+                </td>
+                <td className="px-2 py-1.5 text-right">
+                  <button
+                    type="button"
+                    onClick={() => (level === undefined ? onTake(skill) : onDrop(skill))}
+                    className={`${FOCUS_RING} rounded px-1 text-sm font-medium underline decoration-dotted underline-offset-4`}
+                  >
+                    {level === undefined ? 'Take' : 'Drop'}
+                    <span className="sr-only"> {SKILL_LABELS[skill]}</span>
+                  </button>
                 </td>
               </tr>
             );

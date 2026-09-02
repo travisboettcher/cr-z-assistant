@@ -224,6 +224,48 @@ test('the character sheet shows computed scores and a dash for unlearned skills'
   await expect(page.getByRole('region', { name: /community/i })).toContainText('1 / 4');
 });
 
+/**
+ * Building a survivor, and the one action the sheet refuses.
+ *
+ * The override is the interesting half: it lets the rule through once, and the
+ * violation is still there afterwards. Nothing about the override is stored, so
+ * there is nothing that could go stale — the sheet simply reports what is true.
+ */
+test('a build that breaks a rule is refused, overridden, and still reported', async ({ page }) => {
+  await startCampaign(page, 'Cedar Hollow');
+  await addSurvivor(page, 'Ruby Vance', '2');
+
+  await page.getByRole('button', { name: /^sheet$/i }).click();
+  const sheet = page.getByRole('region', { name: 'Ruby Vance' });
+
+  await expect(sheet).toContainText('Still choosing skills: 0 of 2');
+
+  const take = (skill: string) =>
+    sheet.getByRole('row', { name: new RegExp(`^${skill}\\b`) }).getByRole('button');
+
+  await take('Archery').click();
+  await take('Stealth').click();
+  await expect(sheet).not.toContainText('Still choosing skills');
+
+  // A third skill is one more than a Citizen gets.
+  await take('Enter').click();
+  await expect(page.getByRole('button', { name: /take it anyway/i })).toBeVisible();
+  await page.getByRole('button', { name: /leave it/i }).click();
+  // Case-insensitive on purpose: `toContainText` with a plain string is
+  // case-sensitive, so a lowercase "has 3 skills" here would never match and
+  // this negative assertion would pass whether the violation showed or not.
+  await expect(sheet).not.toContainText(/has 3 skills/i);
+
+  await take('Enter').click();
+  await page.getByRole('button', { name: /take it anyway/i }).click();
+  await expect(sheet).toContainText(/has 3 skills/i);
+
+  // And it survives the round trip, because an overridden survivor is just a
+  // survivor — there is no flag riding along with them.
+  const exported = await exportCampaign(page);
+  expect(Object.keys(JSON.parse(exported.text).survivors[0].skills)).toHaveLength(3);
+});
+
 test('importing over an open campaign asks first, and declining keeps it', async ({ page }) => {
   await startCampaign(page, 'Cedar Hollow');
   const exported = await exportCampaign(page);

@@ -20,9 +20,10 @@
  *    campaign factory.
  */
 
+import { MIN_SKILL_LEVEL, type Skill } from '../data/skills';
 import type { Tier } from '../data/tiers';
 import { createNewCampaign } from '../engine/campaign';
-import type { Campaign, CampaignPhase } from '../engine/campaign';
+import type { Campaign, CampaignPhase, Stats, Survivor } from '../engine/campaign';
 import { createSurvivor } from '../engine/survivor';
 
 /**
@@ -105,6 +106,18 @@ export type CampaignAction =
    * recorded: the player types what happened at the table.
    */
   | { readonly type: 'survivor/hpSet'; readonly id: string; readonly currentHp: number }
+  /**
+   * Replace a survivor's four stat values wholesale.
+   *
+   * The whole record rather than one stat, because assigning a value to a stat
+   * swaps it with whichever stat held it (`withStatValue`) — one assignment is
+   * always two changes, and sending them separately would let a render land
+   * between the halves with a stat array the Tier never hands out.
+   */
+  | { readonly type: 'survivor/statsSet'; readonly id: string; readonly stats: Stats }
+  /** Take a skill, at level 0 — skills all start there (pg. 41). */
+  | { readonly type: 'survivor/skillAdded'; readonly id: string; readonly skill: Skill }
+  | { readonly type: 'survivor/skillRemoved'; readonly id: string; readonly skill: Skill }
   | { readonly type: 'survivor/removed'; readonly id: string };
 
 export function campaignReducer(state: CampaignState, action: CampaignAction): CampaignState {
@@ -147,20 +160,37 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
      * removals, and a stale index renames the wrong person.
      */
     case 'survivor/renamed':
-      return withCampaign(state, (campaign) => ({
-        ...campaign,
-        survivors: campaign.survivors.map((survivor) =>
-          survivor.id === action.id ? { ...survivor, name: action.name } : survivor,
-        ),
-      }));
+      return editSurvivor(state, action.id, (survivor) => ({ ...survivor, name: action.name }));
 
     case 'survivor/hpSet':
-      return withCampaign(state, (campaign) => ({
-        ...campaign,
-        survivors: campaign.survivors.map((survivor) =>
-          survivor.id === action.id ? { ...survivor, currentHp: action.currentHp } : survivor,
-        ),
+      return editSurvivor(state, action.id, (survivor) => ({
+        ...survivor,
+        currentHp: action.currentHp,
       }));
+
+    case 'survivor/statsSet':
+      return editSurvivor(state, action.id, (survivor) => ({ ...survivor, stats: action.stats }));
+
+    case 'survivor/skillAdded':
+      return editSurvivor(state, action.id, (survivor) => ({
+        ...survivor,
+        skills: { ...survivor.skills, [action.skill]: MIN_SKILL_LEVEL },
+      }));
+
+    /**
+     * Removed, not zeroed. A skill at level 0 is one the survivor *has* and is
+     * spending a slot on; deleting the key is what gives the slot back.
+     */
+    case 'survivor/skillRemoved':
+      return editSurvivor(state, action.id, (survivor) => {
+        // A fresh copy is mutated rather than the stored record, so the reducer
+        // stays pure; the rest-destructuring idiom for this reads worse and
+        // leaves an unused binding behind.
+        const skills = { ...survivor.skills };
+        delete skills[action.skill];
+
+        return { ...survivor, skills };
+      });
 
     case 'survivor/removed':
       return withCampaign(state, (campaign) => ({
@@ -182,6 +212,27 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
  * Returning the *same* state reference keeps React from re-rendering over a
  * no-op.
  */
+/**
+ * Applies an edit to one survivor, found by id.
+ *
+ * By id rather than by index throughout: removals reorder the roster, so an
+ * index captured a render ago edits whoever moved into the slot. An id that is
+ * not on the roster changes nothing — the survivor may have been removed
+ * between a control rendering and being pressed.
+ */
+function editSurvivor(
+  state: CampaignState,
+  id: string,
+  edit: (survivor: Survivor) => Survivor,
+): CampaignState {
+  return withCampaign(state, (campaign) => ({
+    ...campaign,
+    survivors: campaign.survivors.map((survivor) =>
+      survivor.id === id ? edit(survivor) : survivor,
+    ),
+  }));
+}
+
 function withCampaign(state: CampaignState, edit: (campaign: Campaign) => Campaign): CampaignState {
   if (state.status !== 'open') {
     return state;

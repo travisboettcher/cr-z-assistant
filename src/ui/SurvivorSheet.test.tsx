@@ -146,3 +146,109 @@ describe('SurvivorSheet', () => {
     expect(screen.queryByRole('region', { name: 'Earl Rhodes' })).not.toBeInTheDocument();
   });
 });
+
+/**
+ * Building a survivor. Skills start at level zero (pg. 41), so creation is
+ * choosing *which* skills and how the tier's stat values are arranged — levels
+ * come only from experience, which is a later story.
+ */
+describe('SurvivorSheet editing', () => {
+  /** The Take/Drop control in one skill's row. */
+  function toggle(sheet: HTMLElement, label: string) {
+    return within(skillRow(sheet, label)).getByRole('button');
+  }
+
+  it('swaps stat values rather than overwriting them', async () => {
+    const { user, sheet } = await openSheetFor('Earl Rhodes', '4');
+
+    // A fresh Tier 4 is 4/3/2/1 laid out in stat order, so Strength holds 4 and
+    // Cooperation holds 1. Moving the 4 onto Cooperation must send the 1 back.
+    await user.selectOptions(within(sheet).getByLabelText(/^cooperation$/i), '4');
+
+    expect(within(sheet).getByLabelText(/^cooperation$/i)).toHaveValue('4');
+    expect(within(sheet).getByLabelText(/^strength$/i)).toHaveValue('1');
+  });
+
+  it('never lets a swap produce an illegal stat array', async () => {
+    const { user, sheet } = await openSheetFor('Earl Rhodes', '4');
+
+    await user.selectOptions(within(sheet).getByLabelText(/^cooperation$/i), '4');
+    await user.selectOptions(within(sheet).getByLabelText(/^dexterity$/i), '4');
+    await user.selectOptions(within(sheet).getByLabelText(/^strength$/i), '3');
+
+    // Whatever the arrangement, the collection is still the tier's own, so the
+    // only violation left is the unfinished build.
+    expect(within(sheet).queryByText(/are not the/i)).not.toBeInTheDocument();
+  });
+
+  it('takes a skill when there is a slot free', async () => {
+    const { user, sheet } = await openSheetFor('Ruby Vance', '2');
+
+    await user.click(toggle(sheet, 'Archery'));
+
+    // Dexterity 1 at tier 2, skill at level 0, so the score is 1 — and the row
+    // now offers to drop it rather than take it.
+    expect(within(skillRow(sheet, 'Archery')).getByText('1')).toBeInTheDocument();
+    expect(toggle(sheet, 'Archery')).toHaveTextContent(/drop/i);
+  });
+
+  it('frees the slot again when a skill is dropped', async () => {
+    const { user, sheet } = await openSheetFor('Ruby Vance', '2');
+
+    await user.click(toggle(sheet, 'Archery'));
+    await user.click(toggle(sheet, 'Archery'));
+
+    expect(toggle(sheet, 'Archery')).toHaveTextContent(/take/i);
+    expect(within(sheet).getByText(/still choosing skills: 0 of 2/i)).toBeInTheDocument();
+  });
+
+  it('reports an unfinished build without getting in the way of it', async () => {
+    const { sheet } = await openSheetFor('Ruby Vance', '2');
+
+    expect(within(sheet).getByText(/still choosing skills: 0 of 2/i)).toBeInTheDocument();
+    // Shown, never blocked: every control is still live.
+    expect(toggle(sheet, 'Archery')).toBeEnabled();
+  });
+
+  it('refuses a skill past the tier’s slots, and declining leaves it untaken', async () => {
+    const { user, sheet } = await openSheetFor('Ruby Vance', '2');
+
+    await user.click(toggle(sheet, 'Archery'));
+    await user.click(toggle(sheet, 'Stealth'));
+    await user.click(toggle(sheet, 'Enter'));
+
+    expect(screen.getByRole('button', { name: /take it anyway/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /leave it/i }));
+
+    expect(toggle(sheet, 'Enter')).toHaveTextContent(/take/i);
+    expect(within(sheet).queryByText(/has 3 skills/i)).not.toBeInTheDocument();
+  });
+
+  /**
+   * The override gates the action once; it does not silence the report. An
+   * overridden survivor keeps showing the violation for exactly as long as they
+   * have it, which is why nothing about the override is stored.
+   */
+  it('lets the rule be overridden, and still reports the survivor as illegal after', async () => {
+    const { user, sheet } = await openSheetFor('Ruby Vance', '2');
+
+    await user.click(toggle(sheet, 'Archery'));
+    await user.click(toggle(sheet, 'Stealth'));
+    await user.click(toggle(sheet, 'Enter'));
+    await user.click(screen.getByRole('button', { name: /take it anyway/i }));
+
+    expect(toggle(sheet, 'Enter')).toHaveTextContent(/drop/i);
+    expect(within(sheet).getByText(/has 3 skills/i)).toBeInTheDocument();
+  });
+
+  it('reports nothing at all for a legal build', async () => {
+    const { user, sheet } = await openSheetFor('Ruby Vance', '2');
+
+    await user.click(toggle(sheet, 'Archery'));
+    await user.click(toggle(sheet, 'Stealth'));
+
+    expect(within(sheet).queryByText(/still choosing/i)).not.toBeInTheDocument();
+    expect(within(sheet).queryByText(/has 3 skills/i)).not.toBeInTheDocument();
+  });
+});
