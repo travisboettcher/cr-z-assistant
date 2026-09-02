@@ -96,6 +96,15 @@ export type CampaignAction =
       readonly id: string;
     }
   | { readonly type: 'survivor/renamed'; readonly id: string; readonly name: string }
+  /**
+   * Set a survivor's current health.
+   *
+   * Only *current* health — max HP is the Tier and is derived, so there is
+   * nothing to set. Wounds come from the tactical layer, which the app does not
+   * simulate, so until the Advancement Phase lands this is how a wound gets
+   * recorded: the player types what happened at the table.
+   */
+  | { readonly type: 'survivor/hpSet'; readonly id: string; readonly currentHp: number }
   | { readonly type: 'survivor/removed'; readonly id: string };
 
 export function campaignReducer(state: CampaignState, action: CampaignAction): CampaignState {
@@ -142,6 +151,14 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         ...campaign,
         survivors: campaign.survivors.map((survivor) =>
           survivor.id === action.id ? { ...survivor, name: action.name } : survivor,
+        ),
+      }));
+
+    case 'survivor/hpSet':
+      return withCampaign(state, (campaign) => ({
+        ...campaign,
+        survivors: campaign.survivors.map((survivor) =>
+          survivor.id === action.id ? { ...survivor, currentHp: action.currentHp } : survivor,
         ),
       }));
 

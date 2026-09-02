@@ -9,6 +9,7 @@
  * state of its own and changes nothing except through an action.
  */
 
+import { useState } from 'react';
 import { useCampaign } from '../state/useCampaign';
 import { AppHeader } from './AppHeader';
 import { CampaignEmptyState } from './CampaignEmptyState';
@@ -16,9 +17,33 @@ import { CampaignOverview } from './CampaignOverview';
 import { ImportCampaign } from './ImportCampaign';
 import { SectionNav } from './SectionNav';
 import { SurvivorRoster } from './SurvivorRoster';
+import { SurvivorSheet } from './SurvivorSheet';
 
 export function App() {
   const { state } = useCampaign();
+
+  /**
+   * Which sheet is open is **UI state, not campaign state**. It never goes
+   * through the store and never reaches the save file: who you happen to be
+   * looking at is not a fact about the campaign, and putting it on the
+   * persisted shape would mean a migration for something that does not even
+   * survive a reload.
+   *
+   * Held as an id rather than a survivor, so the object rendered is always the
+   * current one from the store rather than a copy taken when it was opened.
+   */
+  const [openSheetId, setOpenSheetId] = useState<string | null>(null);
+
+  /**
+   * Resolved every render, and deliberately allowed to come back undefined:
+   * the open survivor can be removed, and importing a campaign replaces the
+   * whole roster. Both leave the id dangling, and both should simply close the
+   * sheet rather than render an empty one.
+   */
+  const openSurvivor =
+    state.status === 'open'
+      ? state.campaign.survivors.find((survivor) => survivor.id === openSheetId)
+      : undefined;
 
   return (
     <div className="flex min-h-full flex-col bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
@@ -33,7 +58,15 @@ export function App() {
         {state.status === 'open' ? (
           <div className="flex flex-col gap-6">
             <CampaignOverview campaign={state.campaign} />
-            <SurvivorRoster campaign={state.campaign} />
+            <SurvivorRoster campaign={state.campaign} onOpenSheet={setOpenSheetId} />
+            {openSurvivor !== undefined && (
+              <SurvivorSheet
+                survivor={openSurvivor}
+                onClose={() => {
+                  setOpenSheetId(null);
+                }}
+              />
+            )}
             {/*
              * Import stays reachable with a campaign open, not only from the
              * empty state — otherwise the only way to open a saved file would

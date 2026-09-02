@@ -186,6 +186,44 @@ test('a survivor can be renamed and removed', async ({ page }) => {
   await expect(community).toContainText('1 survivor · 3 tier levels');
 });
 
+/**
+ * The character sheet in a real browser. The unit tests check the same numbers,
+ * but the em dash is the sort of thing a jsdom snapshot can agree with while
+ * the built page renders something else entirely.
+ */
+test('the character sheet shows computed scores and a dash for unlearned skills', async ({
+  page,
+}) => {
+  await startCampaign(page, 'Cedar Hollow');
+  await addSurvivor(page, 'Earl Rhodes', '4');
+
+  await page.getByRole('button', { name: /^sheet$/i }).click();
+  const sheet = page.getByRole('region', { name: 'Earl Rhodes' });
+
+  await expect(sheet).toContainText('Tier 4 · Hero');
+  await expect(sheet).toContainText('4 / 4');
+
+  // Strength 3 with no Blade Weapon skill: a dash, never a 3.
+  const blade = sheet.getByRole('row', { name: /^Blade Weapon/ });
+  await expect(blade).toContainText('—');
+  await expect(blade).not.toContainText(/\d/);
+
+  // A wound typed in here survives the round trip.
+  await sheet.getByRole('button', { name: /^set$/i }).click();
+  await page.getByLabel(/current health for earl rhodes/i).fill('1');
+  await page.getByRole('button', { name: /save health/i }).click();
+  await expect(sheet).toContainText('1 / 4');
+
+  const exported = await exportCampaign(page);
+  expect(JSON.parse(exported.text).survivors[0]).toMatchObject({ currentHp: 1 });
+
+  await startFreshCampaign(page, 'Millbrook');
+  await page.setInputFiles('input[type="file"]', exported.path);
+  await page.getByRole('button', { name: /replace it/i }).click();
+
+  await expect(page.getByRole('region', { name: /community/i })).toContainText('1 / 4');
+});
+
 test('importing over an open campaign asks first, and declining keeps it', async ({ page }) => {
   await startCampaign(page, 'Cedar Hollow');
   const exported = await exportCampaign(page);

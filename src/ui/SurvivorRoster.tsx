@@ -23,9 +23,12 @@ import { TIER_LABELS } from './tierLabels';
 
 export interface SurvivorRosterProps {
   readonly campaign: Campaign;
+
+  /** Opens a survivor's character sheet. Which one is open is not campaign state. */
+  readonly onOpenSheet: (id: string) => void;
 }
 
-export function SurvivorRoster({ campaign }: SurvivorRosterProps) {
+export function SurvivorRoster({ campaign, onOpenSheet }: SurvivorRosterProps) {
   const { dispatch } = useCampaign();
   const headingId = useId();
   const nameId = useId();
@@ -134,6 +137,7 @@ export function SurvivorRoster({ campaign }: SurvivorRosterProps) {
                 setPendingRemoval(survivor);
                 dialogRef.current?.showModal();
               }}
+              onOpenSheet={() => onOpenSheet(survivor.id)}
             />
           ))}
         </ul>
@@ -190,6 +194,7 @@ interface RosterRowProps {
   readonly survivor: Survivor;
   readonly onRename: (name: string) => void;
   readonly onRemove: () => void;
+  readonly onOpenSheet: () => void;
 }
 
 /**
@@ -197,7 +202,7 @@ interface RosterRowProps {
  * tablet an always-editable field beside a table is one stray thumb away from
  * quietly renaming somebody.
  */
-function RosterRow({ survivor, onRename, onRemove }: RosterRowProps) {
+function RosterRow({ survivor, onRename, onRemove, onOpenSheet }: RosterRowProps) {
   const fieldId = useId();
   const [draft, setDraft] = useState<string | null>(null);
 
@@ -260,6 +265,15 @@ function RosterRow({ survivor, onRename, onRemove }: RosterRowProps) {
       </dl>
 
       <div className="flex shrink-0 flex-wrap gap-2">
+        {draft === null && (
+          <button
+            type="button"
+            onClick={onOpenSheet}
+            className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 px-4 font-medium hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800`}
+          >
+            Sheet
+          </button>
+        )}
         {draft === null && (
           <button
             type="button"
