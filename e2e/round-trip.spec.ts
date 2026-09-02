@@ -266,6 +266,36 @@ test('a build that breaks a rule is refused, overridden, and still reported', as
   expect(Object.keys(JSON.parse(exported.text).survivors[0].skills)).toHaveLength(3);
 });
 
+/**
+ * A recruit found on a mission, with the skill their die gave them.
+ *
+ * The roll travels on the action rather than being made inside the store, so a
+ * fixed result here is the real code path, not a stub.
+ */
+test('a field recruit arrives with the skill their roll gives them', async ({ page }) => {
+  await startCampaign(page, 'Cedar Hollow');
+
+  const community = page.getByRole('region', { name: /community/i });
+  await community.getByText(/recruit from the field/i).click();
+
+  await page.getByLabel(/recruit name/i).fill('Carla Proust');
+  await page.getByLabel(/recruit tier/i).selectOption('3');
+  await page.getByLabel(/skill roll/i).selectOption('6');
+  await page.getByRole('button', { name: /^recruit$/i }).click();
+
+  await expect(community).toContainText('Carla Proust');
+
+  await page.getByRole('button', { name: /^sheet$/i }).click();
+  const sheet = page.getByRole('region', { name: 'Carla Proust' });
+
+  // A six is Archery (pg. 50): Dexterity 2 at tier 3, skill at level 0.
+  await expect(sheet.getByRole('row', { name: /^Archery/ })).toContainText('Drop');
+  await expect(sheet).toContainText('Still choosing skills: 1 of 3');
+
+  const exported = await exportCampaign(page);
+  expect(JSON.parse(exported.text).survivors[0].skills).toEqual({ archery: 0 });
+});
+
 test('importing over an open campaign asks first, and declining keeps it', async ({ page }) => {
   await startCampaign(page, 'Cedar Hollow');
   const exported = await exportCampaign(page);

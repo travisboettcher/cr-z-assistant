@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CAMPAIGN_PHASES, createNewCampaign } from '../engine/campaign';
 import type { Campaign } from '../engine/campaign';
-import { createSurvivor } from '../engine/survivor';
+import { createSurvivor, recruitSurvivor } from '../engine/survivor';
 import { INITIAL_CAMPAIGN_STATE, campaignReducer } from './campaignStore';
 import type { CampaignAction, CampaignState } from './campaignStore';
 
@@ -279,6 +279,7 @@ describe('editing actions against the empty state', () => {
     { type: 'campaign/turnAdvanced' },
     { type: 'campaign/startingCommunityBuiltSet', built: true },
     { type: 'survivor/added', name: 'Earl Rhodes', tier: 4, id: SURVIVOR_ID },
+    { type: 'survivor/recruited', name: 'Carla Proust', tier: 3, roll: 6, id: OTHER_SURVIVOR_ID },
     { type: 'survivor/renamed', id: SURVIVOR_ID, name: 'Earl Rhodes Jr' },
     { type: 'survivor/hpSet', id: SURVIVOR_ID, currentHp: 1 },
     { type: 'survivor/removed', id: SURVIVOR_ID },
@@ -307,6 +308,7 @@ describe('purity', () => {
     { type: 'campaign/turnAdvanced' },
     { type: 'campaign/startingCommunityBuiltSet', built: true },
     { type: 'survivor/added', name: 'Earl Rhodes', tier: 4, id: SURVIVOR_ID },
+    { type: 'survivor/recruited', name: 'Carla Proust', tier: 3, roll: 6, id: OTHER_SURVIVOR_ID },
     { type: 'survivor/renamed', id: SURVIVOR_ID, name: 'Earl Rhodes Jr' },
     { type: 'survivor/hpSet', id: SURVIVOR_ID, currentHp: 1 },
     { type: 'survivor/removed', id: SURVIVOR_ID },
@@ -368,5 +370,43 @@ describe('campaign/startingCommunityBuiltSet', () => {
       }),
     );
     expect(unbuilt).toEqual(before);
+  });
+});
+
+describe('survivor/recruited', () => {
+  it('adds the recruit the rulebook’s own example produces', () => {
+    const campaign = expectOpen(
+      campaignReducer(openState(), {
+        type: 'survivor/recruited',
+        name: 'Carla Proust',
+        tier: 3,
+        roll: 6,
+        id: SURVIVOR_ID,
+      }),
+    );
+
+    // A six is Archery (pg. 50).
+    expect(campaign.survivors[0]).toEqual(
+      recruitSurvivor('Carla Proust', 3, 6, { id: SURVIVOR_ID }),
+    );
+    expect(Object.keys(campaign.survivors[0]?.skills ?? {})).toEqual(['archery']);
+  });
+
+  it('appends to the roster like any other arrival', () => {
+    let state = campaignReducer(openState(), {
+      type: 'survivor/added',
+      name: 'Earl Rhodes',
+      tier: 4,
+      id: SURVIVOR_ID,
+    });
+    state = campaignReducer(state, {
+      type: 'survivor/recruited',
+      name: 'Carla Proust',
+      tier: 3,
+      roll: 6,
+      id: OTHER_SURVIVOR_ID,
+    });
+
+    expect(expectOpen(state).survivors.map((s) => s.name)).toEqual(['Earl Rhodes', 'Carla Proust']);
   });
 });

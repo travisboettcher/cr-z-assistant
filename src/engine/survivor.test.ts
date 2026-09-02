@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { D10_RESULTS } from '../data/recruitTable';
+import { SKILLS } from '../data/skills';
 import type { Survivor } from './campaign';
 import {
   communityTierLevels,
@@ -6,6 +8,7 @@ import {
   itemSlots,
   labor,
   maxHp,
+  recruitSurvivor,
   skillScore,
 } from './survivor';
 
@@ -155,5 +158,66 @@ describe('communityTierLevels', () => {
 
   it('is zero for an empty community', () => {
     expect(communityTierLevels([])).toBe(0);
+  });
+});
+
+/**
+ * A survivor found on a mission rather than built at the start (pg. 50).
+ *
+ * The rulebook works this one too: Carla Proust is a Tier 3 field recruit whose
+ * roll came up a **six**, giving her **Archery**. If the d10 table is
+ * transcribed wrong, or read off by one, that single assertion catches it.
+ */
+describe('recruitSurvivor', () => {
+  const ID = '4d8f1b60-9a27-4c53-b1e6-70a5c93d2f48';
+
+  it('gives a leader the skill the rulebook’s own example rolls', () => {
+    const carla = recruitSurvivor('Carla Proust', 3, 6, { id: ID });
+
+    expect(Object.keys(carla.skills)).toEqual(['archery']);
+    expect(carla.skills.archery).toBe(0);
+  });
+
+  it('is otherwise an ordinary survivor of that tier', () => {
+    const carla = recruitSurvivor('Carla Proust', 3, 6, { id: ID });
+
+    expect(carla).toEqual({
+      ...createSurvivor('Carla Proust', 3, { id: ID }),
+      skills: { archery: 0 },
+    });
+  });
+
+  /** A Rookie's single skill is never randomly generated (pg. 38-39). */
+  it('rolls nothing for a rookie, whatever the die said', () => {
+    for (const roll of D10_RESULTS) {
+      expect(recruitSurvivor('Ruby Vance', 1, roll, { id: ID }).skills).toEqual({});
+    }
+  });
+
+  /**
+   * Result 10 is the player's choice, which is not a skill. The recruit arrives
+   * one skill short — the same state a freshly created survivor is in — and the
+   * sheet reports it and offers the control to finish them.
+   */
+  it('leaves a player’s-choice roll for the player', () => {
+    expect(recruitSurvivor('Carla Proust', 3, 10, { id: ID }).skills).toEqual({});
+  });
+
+  it('rolls a real skill for every result but the last', () => {
+    for (const roll of D10_RESULTS) {
+      const skills = Object.keys(recruitSurvivor('Recruit', 2, roll, { id: ID }).skills);
+
+      if (roll === 10) {
+        expect(skills, 'result 10 is the player’s choice').toEqual([]);
+        continue;
+      }
+
+      expect(skills, `roll ${roll}`).toHaveLength(1);
+      expect(SKILLS, `roll ${roll}`).toContain(skills[0]);
+    }
+  });
+
+  it('generates a distinct id when none is given', () => {
+    expect(recruitSurvivor('Recruit', 2, 1).id).not.toBe(recruitSurvivor('Recruit', 2, 1).id);
   });
 });

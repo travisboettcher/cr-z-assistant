@@ -40,10 +40,19 @@ export const RECRUIT_SKILL_TABLE = {
  * Heroes are never recruited in the field (pg. 38) — a Tier 4 survivor only
  * ever arrives through creation or promotion.
  */
-export const FIELD_RECRUITABLE_TIERS: readonly Tier[] = [1, 2, 3];
+export const FIELD_RECRUITABLE_TIERS = [1, 2, 3] as const satisfies readonly Tier[];
+
+/**
+ * The Tiers a field recruit can arrive at.
+ *
+ * Derived from the list rather than written out again, and narrower than
+ * `Tier`, so a function that recruits somebody cannot be handed a Hero at all
+ * — a compile error rather than a check that has to remember to run.
+ */
+export type FieldRecruitTier = (typeof FIELD_RECRUITABLE_TIERS)[number];
 
 /**
  * Tier 2 and above roll for one of their skills; a Rookie's single skill is
  * never randomly generated (pg. 38–39).
  */
-export const TIERS_WITH_ROLLED_SKILL: readonly Tier[] = [2, 3];
+export const TIERS_WITH_ROLLED_SKILL = [2, 3] as const satisfies readonly Tier[];
