@@ -224,6 +224,28 @@ describe('the survivor actions', () => {
     expect(after.survivors).toEqual(before.survivors);
   });
 
+  it('sets current health without touching anything else about the survivor', () => {
+    const before = expectOpen(withRoster()).survivors[0];
+    const after = expectOpen(
+      campaignReducer(withRoster(), { type: 'survivor/hpSet', id: SURVIVOR_ID, currentHp: 1 }),
+    ).survivors[0];
+
+    expect(after).toEqual({ ...before, currentHp: 1 });
+  });
+
+  /**
+   * Zero is a real state, not a missing value: a survivor at 0 HP faces a rot
+   * check in the Management Phase rather than being gone from the roster.
+   */
+  it('accepts zero health', () => {
+    const campaign = expectOpen(
+      campaignReducer(withRoster(), { type: 'survivor/hpSet', id: SURVIVOR_ID, currentHp: 0 }),
+    );
+
+    expect(campaign.survivors[0]?.currentHp).toBe(0);
+    expect(campaign.survivors).toHaveLength(2);
+  });
+
   it('removes only the named survivor', () => {
     const campaign = expectOpen(
       campaignReducer(withRoster(), { type: 'survivor/removed', id: SURVIVOR_ID }),
@@ -257,6 +279,7 @@ describe('editing actions against the empty state', () => {
     { type: 'campaign/turnAdvanced' },
     { type: 'survivor/added', name: 'Earl Rhodes', tier: 4, id: SURVIVOR_ID },
     { type: 'survivor/renamed', id: SURVIVOR_ID, name: 'Earl Rhodes Jr' },
+    { type: 'survivor/hpSet', id: SURVIVOR_ID, currentHp: 1 },
     { type: 'survivor/removed', id: SURVIVOR_ID },
   ];
 
@@ -283,6 +306,7 @@ describe('purity', () => {
     { type: 'campaign/turnAdvanced' },
     { type: 'survivor/added', name: 'Earl Rhodes', tier: 4, id: SURVIVOR_ID },
     { type: 'survivor/renamed', id: SURVIVOR_ID, name: 'Earl Rhodes Jr' },
+    { type: 'survivor/hpSet', id: SURVIVOR_ID, currentHp: 1 },
     { type: 'survivor/removed', id: SURVIVOR_ID },
   ];
 
