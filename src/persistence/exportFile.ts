@@ -90,6 +90,7 @@ function inFileOrder(campaign: Campaign): Record<keyof Campaign, unknown> {
     phase: campaign.phase,
     materials: orderedMaterials(campaign),
     survivors: campaign.survivors.map(orderedSurvivor),
+    startingCommunityBuilt: campaign.startingCommunityBuilt,
     base: campaign.base,
     log: campaign.log,
   };

@@ -37,7 +37,7 @@ export type Materials = Record<Material, number>;
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;
 
 /** A survivor's four stat values (pg. 40). */
 export type Stats = Record<Stat, number>;
@@ -108,6 +108,19 @@ export interface Campaign {
 
   survivors: readonly Survivor[];
 
+  /**
+   * Whether the player has finished assembling their starting community.
+   *
+   * A starting community is built from ten Tier levels (pg. 48), and that rule
+   * stops applying once play begins — field recruits push a community past ten
+   * perfectly legally. Nothing else in a campaign says when the building is
+   * over, so the player says it, and this records the answer.
+   *
+   * A decision, not a derived value: it cannot be worked out from the roster,
+   * the turn or the phase, which is why it is stored rather than computed.
+   */
+  startingCommunityBuilt: boolean;
+
   /** Placeholder — Phase 2 (base building) replaces this with a `Base`. */
   base: null;
 
@@ -141,6 +154,10 @@ export function createNewCampaign(name: string, options: NewCampaignOptions = {}
     // All zero. Starting material counts are a rule, and Phase 0 ships none.
     materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
     survivors: [],
+    // False, so a new campaign gets the ten-tier-level check while it is being
+    // built. The v2 → v3 migration deliberately answers `true` instead — see
+    // the step in `src/persistence/migrations.ts` for why the two differ.
+    startingCommunityBuilt: false,
     base: null,
     log: [],
   };

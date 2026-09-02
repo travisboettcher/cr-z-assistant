@@ -20,11 +20,16 @@
  */
 
 import { STATS, type Stat } from '../data/skills';
-import { TIER_RULES } from '../data/tiers';
+import { STARTING_COMMUNITY_TIER_LEVELS, TIER_RULES } from '../data/tiers';
 import type { Stats, Survivor } from './campaign';
+import { communityTierLevels } from './survivor';
 
 export type ViolationCode =
-  'too-many-skills' | 'not-enough-skills' | 'skill-above-tier' | 'stats-not-tier-array';
+  | 'too-many-skills'
+  | 'not-enough-skills'
+  | 'skill-above-tier'
+  | 'stats-not-tier-array'
+  | 'community-over-budget';
 
 export interface Violation {
   readonly code: ViolationCode;
@@ -105,6 +110,33 @@ function hasTierStatArray(survivor: Survivor): boolean {
   const actual = Object.values(survivor.stats).sort(ascending);
 
   return expected.length === actual.length && expected.every((value, i) => value === actual[i]);
+}
+
+/**
+ * What is wrong with the community as a whole, or an empty list.
+ *
+ * Only one rule so far: a starting community is built from ten Tier levels
+ * (pg. 48). It stops applying once the player says the building is done,
+ * because field recruits push a community past ten perfectly legally and an app
+ * that kept nagging about it would be wrong for the rest of the campaign.
+ */
+export function communityViolations(
+  survivors: readonly Survivor[],
+  startingCommunityBuilt: boolean,
+): readonly Violation[] {
+  if (startingCommunityBuilt) return [];
+
+  const spent = communityTierLevels(survivors);
+
+  if (spent <= STARTING_COMMUNITY_TIER_LEVELS) return [];
+
+  return [
+    {
+      code: 'community-over-budget',
+      message: `A starting community is built from ${STARTING_COMMUNITY_TIER_LEVELS} tier levels, and this one spends ${spent}.`,
+      pages: 48,
+    },
+  ];
 }
 
 /** Whether adding one more skill would break the Tier's slot count. */

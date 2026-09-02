@@ -191,3 +191,42 @@ describe('migrate', () => {
     expect(result.error.message.length).toBeGreaterThan(0);
   });
 });
+
+/**
+ * The v2 → v3 step answers `true` where `createNewCampaign` answers `false`,
+ * and this pair is the whole reason they differ.
+ *
+ * The ten-tier-level budget did not exist when a v2 campaign was written, so
+ * its roster was built without ever being checked against it. Defaulting those
+ * campaigns to "still building" would take a perfectly good community and start
+ * reporting it as over budget the moment the player updated the app.
+ */
+describe('the v2 to v3 default', () => {
+  it('marks every campaign written before the question existed as already built', () => {
+    for (const fixture of fixtures.filter((f) => f.version < 3)) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok) continue;
+
+      expect(
+        result.campaign.startingCommunityBuilt,
+        `${fixture.path} was re-opened for checking`,
+      ).toBe(true);
+    }
+  });
+
+  it('leaves a brand-new campaign under the check', () => {
+    expect(createNewCampaign('Cedar Hollow').startingCommunityBuilt).toBe(false);
+  });
+
+  it('keeps a v3 campaign’s own answer', () => {
+    const v3 = fixtures.find((fixture) => fixture.version === 3);
+    const result = migrate(v3?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.startingCommunityBuilt).toBe(true);
+  });
+});
