@@ -70,6 +70,14 @@ jobs:
       # holds by key alone, without depending on how GitHub scopes caches
       # between refs.
       #
+      # One thing to know before reading a cache key in a log: on a
+      # `pull_request` event `github.sha` is the *merge* commit, not the pushed
+      # head — so the key names a SHA that appears in no `git log`. Nothing here
+      # needs to change for that, but two consequences follow: the primary key
+      # rolls when **main** moves and not only when this branch does, which the
+      # prefix restore is what absorbs; and a re-run of the same job recomputes
+      # the same key, which is the duplicate-key case handled below.
+      #
       # Restore and save stay separate steps (rather than one `actions/cache`)
       # because the save needs conditions of its own — see below.
       #
