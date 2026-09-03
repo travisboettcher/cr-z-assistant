@@ -13,6 +13,12 @@
 
 import { useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
+import {
+  D10_RESULTS,
+  FIELD_RECRUITABLE_TIERS,
+  type D10Result,
+  type FieldRecruitTier,
+} from '../data/recruitTable';
 import { TIERS, type Tier } from '../data/tiers';
 import type { Campaign, Survivor } from '../engine/campaign';
 import { communityViolations } from '../engine/legality';
@@ -122,6 +128,8 @@ export function SurvivorRoster({ campaign, onOpenSheet }: SurvivorRosterProps) {
         </button>
       </form>
 
+      <RecruitForm />
+
       {campaign.survivors.length === 0 ? (
         <p className="mt-6 text-stone-600 dark:text-stone-400">
           No survivors yet. A starting community is built from ten tier levels{' '}
@@ -191,6 +199,131 @@ export function SurvivorRoster({ campaign, onOpenSheet }: SurvivorRosterProps) {
       </dialog>
     </section>
   );
+}
+
+/**
+ * Bringing somebody back from a mission.
+ *
+ * A separate form from "add survivor" rather than a mode on it, because it is a
+ * different act with different rules: no Heroes (pg. 38), and one of their
+ * skills comes off a d10 table rather than being chosen (pg. 50).
+ *
+ * **The die is typeable, and the button is only a convenience.** Someone at the
+ * table has usually already rolled a physical d10, and result 10 is the
+ * player's choice anyway — so the field is the source of truth and the roll
+ * travels on the action, keeping the reducer pure.
+ */
+function RecruitForm() {
+  const { dispatch } = useCampaign();
+  const nameId = useId();
+  const tierId = useId();
+  const rollId = useId();
+
+  const [name, setName] = useState('');
+  const [tier, setTier] = useState<FieldRecruitTier>(2);
+  const [roll, setRoll] = useState<D10Result>(1);
+
+  function handleRecruit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const trimmed = name.trim();
+    if (trimmed === '') return;
+
+    dispatch({ type: 'survivor/recruited', name: trimmed, tier, roll, id: crypto.randomUUID() });
+    setName('');
+  }
+
+  return (
+    <details className="mt-4 rounded-lg border border-stone-200 p-4 dark:border-stone-700">
+      <summary className={`${FOCUS_RING} cursor-pointer font-medium`}>
+        Recruit from the field
+      </summary>
+
+      <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">
+        A survivor found on a mission arrives with one skill already rolled. Heroes are never
+        recruited this way. <PageRef pages={50} />
+      </p>
+
+      <form onSubmit={handleRecruit} className="mt-4 flex flex-wrap items-end gap-3">
+        <div className="grow basis-40">
+          <label htmlFor={nameId} className="block text-sm font-medium">
+            Recruit name
+          </label>
+          <input
+            id={nameId}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            className={`${FOCUS_RING} mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 dark:border-stone-600 dark:bg-stone-800`}
+          />
+        </div>
+
+        <div>
+          <label htmlFor={tierId} className="block text-sm font-medium">
+            Recruit tier
+          </label>
+          <select
+            id={tierId}
+            value={tier}
+            onChange={(event) => setTier(Number(event.target.value) as FieldRecruitTier)}
+            className={`${FOCUS_RING} mt-1 rounded-lg border border-stone-300 px-3 py-2 dark:border-stone-600 dark:bg-stone-800`}
+          >
+            {FIELD_RECRUITABLE_TIERS.map((value) => (
+              <option key={value} value={value}>
+                {value} — {TIER_LABELS[value]}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor={rollId} className="block text-sm font-medium">
+            Skill roll
+          </label>
+          <div className="mt-1 flex items-center gap-2">
+            <select
+              id={rollId}
+              value={roll}
+              onChange={(event) => setRoll(Number(event.target.value) as D10Result)}
+              className={`${FOCUS_RING} rounded-lg border border-stone-300 px-3 py-2 tabular-nums dark:border-stone-600 dark:bg-stone-800`}
+            >
+              {D10_RESULTS.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => setRoll(rollD10())}
+              className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 px-4 font-medium hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800`}
+            >
+              Roll d10
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 px-5 font-semibold hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800`}
+        >
+          Recruit
+        </button>
+      </form>
+    </details>
+  );
+}
+
+/**
+ * One d10, for players who would rather tap than reach for a die.
+ *
+ * The only randomness in the app, and it stays here in the UI rather than in
+ * the engine or the store — both of which are pure and take the result as an
+ * argument instead.
+ */
+function rollD10(): D10Result {
+  const index = Math.floor(Math.random() * D10_RESULTS.length);
+
+  return D10_RESULTS[index] ?? 1;
 }
 
 /**

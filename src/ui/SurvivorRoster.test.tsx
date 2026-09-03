@@ -175,3 +175,83 @@ describe('the starting-community budget', () => {
     expect(budgetWarning()).toBeInTheDocument();
   });
 });
+
+describe('recruiting from the field', () => {
+  async function openRecruitForm(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(within(roster()).getByText(/recruit from the field/i));
+  }
+
+  it('recruits a leader with the skill their roll gives them', async () => {
+    const user = await openCampaign();
+    await openRecruitForm(user);
+
+    await user.type(screen.getByLabelText(/recruit name/i), 'Carla Proust');
+    await user.selectOptions(screen.getByLabelText(/recruit tier/i), '3');
+    await user.selectOptions(screen.getByLabelText(/skill roll/i), '6');
+    await user.click(screen.getByRole('button', { name: /^recruit$/i }));
+
+    // A six is Archery (pg. 50), and the sheet is where that shows.
+    await user.click(screen.getByRole('button', { name: /^sheet$/i }));
+    const sheet = screen.getByRole('region', { name: 'Carla Proust' });
+    const archery = within(sheet).getByRole('row', { name: /^Archery/ });
+
+    expect(within(archery).getByRole('button')).toHaveTextContent(/drop/i);
+    // Two skills still to choose: a Leader has three slots and arrived with one.
+    expect(within(sheet).getByText(/still choosing skills: 1 of 3/i)).toBeInTheDocument();
+  });
+
+  /** Heroes are never recruited in the field (pg. 38). */
+  it('does not offer a hero as a recruit tier', async () => {
+    const user = await openCampaign();
+    await openRecruitForm(user);
+
+    const tiers = within(screen.getByLabelText(/recruit tier/i)).getAllByRole('option');
+
+    expect(tiers.map((option) => option.textContent)).toEqual([
+      '1 — Rookie',
+      '2 — Citizen',
+      '3 — Leader',
+    ]);
+  });
+
+  it('leaves a player’s-choice roll for the player to finish', async () => {
+    const user = await openCampaign();
+    await openRecruitForm(user);
+
+    await user.type(screen.getByLabelText(/recruit name/i), 'Marcus Webb');
+    await user.selectOptions(screen.getByLabelText(/recruit tier/i), '2');
+    await user.selectOptions(screen.getByLabelText(/skill roll/i), '10');
+    await user.click(screen.getByRole('button', { name: /^recruit$/i }));
+
+    await user.click(screen.getByRole('button', { name: /^sheet$/i }));
+
+    expect(
+      within(screen.getByRole('region', { name: 'Marcus Webb' })).getByText(
+        /still choosing skills: 0 of 2/i,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('refuses a recruit with a blank name', async () => {
+    const user = await openCampaign();
+    await openRecruitForm(user);
+
+    await user.type(screen.getByLabelText(/recruit name/i), '   ');
+    await user.click(screen.getByRole('button', { name: /^recruit$/i }));
+
+    expect(within(roster()).queryByRole('listitem')).not.toBeInTheDocument();
+  });
+
+  it('can roll the die for you, always landing on a result the table has', async () => {
+    const user = await openCampaign();
+    await openRecruitForm(user);
+
+    const field = screen.getByLabelText(/skill roll/i);
+
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      await user.click(screen.getByRole('button', { name: /roll d10/i }));
+      expect(Number((field as HTMLSelectElement).value)).toBeGreaterThanOrEqual(1);
+      expect(Number((field as HTMLSelectElement).value)).toBeLessThanOrEqual(10);
+    }
+  });
+});

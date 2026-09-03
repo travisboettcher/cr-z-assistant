@@ -10,7 +10,14 @@
  * React, enforced by `no-restricted-imports` in `eslint.config.js`.
  */
 
-import { COMMON_SKILL_START_SCORE, SKILL_STATS, type Skill } from '../data/skills';
+import { COMMON_SKILL_START_SCORE, MIN_SKILL_LEVEL, SKILL_STATS, type Skill } from '../data/skills';
+import {
+  PLAYERS_CHOICE,
+  RECRUIT_SKILL_TABLE,
+  TIERS_WITH_ROLLED_SKILL,
+  type D10Result,
+  type FieldRecruitTier,
+} from '../data/recruitTable';
 import { TIER_RULES, type Tier } from '../data/tiers';
 import type { Stats, Survivor } from './campaign';
 
@@ -86,6 +93,46 @@ function defaultStats(tier: Tier): Stats {
 /** Values a caller may pin instead of letting the factory generate them. */
 export interface NewSurvivorOptions {
   id?: string;
+}
+
+/**
+ * A survivor recruited on a mission rather than built at the start.
+ *
+ * They arrive with a history, so **one of their skills is rolled** off the d10
+ * table (pg. 50) instead of chosen. Everything else about them is a created
+ * survivor: the same stat array, the same starting Move and Defense, the same
+ * empty slots waiting to be filled.
+ *
+ * **The roll is an argument, not something this function makes.** Rolling is
+ * the impure part, exactly like the UUID, and taking the result keeps this pure
+ * and its tests free of a stubbed random number. It also means a player who has
+ * already rolled a physical d10 at the table types in what they got.
+ *
+ * `tier` is a `FieldRecruitTier`, not a `Tier`: Heroes are never recruited in
+ * the field (pg. 38), so passing one is a compile error rather than a rule this
+ * has to remember to enforce.
+ *
+ * A roll of 10 is the player's choice and adds **no** skill here. That is not a
+ * gap: the recruit is then simply one skill short, which is the state every
+ * newly created survivor is already in, and the sheet already reports it and
+ * offers the control to finish them.
+ */
+export function recruitSurvivor(
+  name: string,
+  tier: FieldRecruitTier,
+  roll: D10Result,
+  options: NewSurvivorOptions = {},
+): Survivor {
+  const recruit = createSurvivor(name, tier, options);
+
+  // A Rookie's single skill is never randomly generated (pg. 38-39).
+  if (!TIERS_WITH_ROLLED_SKILL.some((rolls) => rolls === tier)) return recruit;
+
+  const rolled = RECRUIT_SKILL_TABLE[roll];
+
+  if (rolled === PLAYERS_CHOICE) return recruit;
+
+  return { ...recruit, skills: { [rolled]: MIN_SKILL_LEVEL } };
 }
 
 /**

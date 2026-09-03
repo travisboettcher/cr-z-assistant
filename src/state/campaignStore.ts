@@ -20,11 +20,12 @@
  *    campaign factory.
  */
 
+import type { D10Result, FieldRecruitTier } from '../data/recruitTable';
 import { MIN_SKILL_LEVEL, type Skill } from '../data/skills';
 import type { Tier } from '../data/tiers';
 import { createNewCampaign } from '../engine/campaign';
 import type { Campaign, CampaignPhase, Stats, Survivor } from '../engine/campaign';
-import { createSurvivor } from '../engine/survivor';
+import { createSurvivor, recruitSurvivor } from '../engine/survivor';
 
 /**
  * The app boots with nothing loaded, and Z0-7's empty state renders off that
@@ -48,9 +49,8 @@ export const INITIAL_CAMPAIGN_STATE: CampaignState = { status: 'empty' };
 /**
  * The action surface.
  *
- * Five `campaign/*` actions from Phase 0 and three `survivor/*` from Phase 1.
- * The second namespace is deliberate: those act on a member of the campaign
- * rather than on the campaign itself, and `campaign/survivorAdded` reads worse
+ * `campaign/*` actions act on the campaign; `survivor/*` on one member of it.
+ * The second namespace is deliberate — `campaign/survivorAdded` reads worse
  * than it reasons.
  *
  * Bases, facilities and materials arithmetic are still absent — inventing
@@ -102,6 +102,20 @@ export type CampaignAction =
       readonly type: 'survivor/added';
       readonly name: string;
       readonly tier: Tier;
+      readonly id: string;
+    }
+  /**
+   * Add a survivor brought back from a mission.
+   *
+   * Carries the d10 result (pg. 50) for the same reason it carries the id: the
+   * roll is the impure part, so the UI does it — or the player types in what
+   * their physical die showed — and the reducer stays a pure function.
+   */
+  | {
+      readonly type: 'survivor/recruited';
+      readonly name: string;
+      readonly tier: FieldRecruitTier;
+      readonly roll: D10Result;
       readonly id: string;
     }
   | { readonly type: 'survivor/renamed'; readonly id: string; readonly name: string }
@@ -173,6 +187,15 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
      * Renaming is by id rather than by index: the roster is reordered by
      * removals, and a stale index renames the wrong person.
      */
+    case 'survivor/recruited':
+      return withCampaign(state, (campaign) => ({
+        ...campaign,
+        survivors: [
+          ...campaign.survivors,
+          recruitSurvivor(action.name, action.tier, action.roll, { id: action.id }),
+        ],
+      }));
+
     case 'survivor/renamed':
       return editSurvivor(state, action.id, (survivor) => ({ ...survivor, name: action.name }));
 
