@@ -195,7 +195,9 @@ describe('recruiting from the field', () => {
     const sheet = screen.getByRole('region', { name: 'Carla Proust' });
     const archery = within(sheet).getByRole('row', { name: /^Archery/ });
 
-    expect(within(archery).getByRole('button')).toHaveTextContent(/drop/i);
+    expect(within(archery).getByRole('button', { name: /^(take|drop)\b/i })).toHaveTextContent(
+      /drop/i,
+    );
     // Two skills still to choose: a Leader has three slots and arrived with one.
     expect(within(sheet).getByText(/still choosing skills: 1 of 3/i)).toBeInTheDocument();
   });

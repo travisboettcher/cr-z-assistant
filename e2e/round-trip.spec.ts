@@ -209,7 +209,7 @@ test('the character sheet shows computed scores and a dash for unlearned skills'
   await expect(blade).not.toContainText(/\d/);
 
   // A wound typed in here survives the round trip.
-  await sheet.getByRole('button', { name: /^set$/i }).click();
+  await sheet.getByRole('button', { name: /^set health$/i }).click();
   await page.getByLabel(/current health for earl rhodes/i).fill('1');
   await page.getByRole('button', { name: /save health/i }).click();
   await expect(sheet).toContainText('1 / 4');
@@ -241,7 +241,9 @@ test('a build that breaks a rule is refused, overridden, and still reported', as
   await expect(sheet).toContainText('Still choosing skills: 0 of 2');
 
   const take = (skill: string) =>
-    sheet.getByRole('row', { name: new RegExp(`^${skill}\\b`) }).getByRole('button');
+    sheet
+      .getByRole('row', { name: new RegExp(`^${skill}\\b`) })
+      .getByRole('button', { name: /^take\b/i });
 
   await take('Archery').click();
   await take('Stealth').click();
@@ -374,4 +376,59 @@ test.describe('a file that is not a usable save', () => {
     await expect(page.getByRole('alert')).toContainText(/newer version/i);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Campaign Tracker');
   });
+});
+
+/**
+ * Spending experience in a real browser.
+ *
+ * The prices are asserted off the buttons themselves, because that is where a
+ * player reads them — and the two of them are the point: one sentence of pg. 30
+ * charges a skill its new *level* and Move its new *Score*, and a build that
+ * quoted "+1 · 1 XP" for Move would look entirely reasonable.
+ */
+test('experience buys a level and a promotion, and both survive the round trip', async ({
+  page,
+}) => {
+  await startCampaign(page, 'Cedar Hollow');
+  await addSurvivor(page, 'Marcus Webb', '2');
+
+  await page.getByRole('button', { name: /^sheet$/i }).click();
+  const sheet = page.getByRole('region', { name: 'Marcus Webb' });
+
+  await sheet.getByRole('button', { name: /^set experience$/i }).click();
+  await page.getByLabel(/experience for marcus webb/i).fill('20');
+  await page.getByRole('button', { name: /save experience/i }).click();
+
+  await sheet
+    .getByRole('row', { name: /^Scavenge\b/ })
+    .getByRole('button', { name: /^take\b/i })
+    .click();
+
+  await expect(sheet.getByRole('button', { name: /raise scavenge to level 1/i })).toContainText(
+    '+1 · 1 XP',
+  );
+  await expect(sheet.getByRole('button', { name: /raise move to 7/i })).toContainText('+1 · 7 XP');
+
+  await sheet.getByRole('button', { name: /raise scavenge to level 1/i }).click();
+  await expect(sheet.getByRole('button', { name: /raise scavenge to level 2/i })).toBeVisible();
+
+  // Promotion: six XP for tier 3, a rebuilt stat array, and a slot rather than
+  // a skill — so the sheet immediately says one is still to choose.
+  await sheet.getByRole('button', { name: /raise their tier/i }).click();
+  await expect(sheet).toContainText('Tier 3 · Leader');
+  await expect(sheet).toContainText('Still choosing skills: 1 of 3');
+
+  const exported = await exportCampaign(page);
+  expect(JSON.parse(exported.text).survivors[0]).toMatchObject({
+    tier: 3,
+    skills: { scavenge: 1 },
+    // Twenty, less one for the level and six for the tier.
+    xp: 13,
+  });
+
+  await startFreshCampaign(page, 'Millbrook');
+  await page.setInputFiles('input[type="file"]', exported.path);
+  await page.getByRole('button', { name: /replace it/i }).click();
+
+  await expect(page.getByRole('region', { name: /community/i })).toContainText('Tier 3 · Leader');
 });

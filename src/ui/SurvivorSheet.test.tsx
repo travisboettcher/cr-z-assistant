@@ -110,7 +110,9 @@ describe('SurvivorSheet', () => {
   it('records a wound through the store', async () => {
     const { user, sheet } = await openSheetFor('Earl Rhodes', '4');
 
-    await user.click(within(sheet).getByRole('button', { name: /^set$/i }));
+    // "Set health", not just "Set": experience is edited by hand too, and two
+    // controls reading only "Set" would be indistinguishable to a screen reader.
+    await user.click(within(sheet).getByRole('button', { name: /^set health$/i }));
     const field = screen.getByLabelText(/current health for earl rhodes/i);
     await user.clear(field);
     await user.type(field, '1');
@@ -153,9 +155,12 @@ describe('SurvivorSheet', () => {
  * come only from experience, which is a later story.
  */
 describe('SurvivorSheet editing', () => {
-  /** The Take/Drop control in one skill's row. */
+  /**
+   * The Take/Drop control in one skill's row, named rather than "the button":
+   * a skill the survivor holds also has a "+1" control beside it.
+   */
   function toggle(sheet: HTMLElement, label: string) {
-    return within(skillRow(sheet, label)).getByRole('button');
+    return within(skillRow(sheet, label)).getByRole('button', { name: /^(take|drop)\b/i });
   }
 
   it('swaps stat values rather than overwriting them', async () => {
@@ -252,3 +257,166 @@ describe('SurvivorSheet editing', () => {
     expect(within(sheet).queryByText(/has 3 skills/i)).not.toBeInTheDocument();
   });
 });
+
+/**
+ * Spending experience (pg. 30).
+ *
+ * The assertions that matter are about *price*, and they are made on the
+ * controls themselves — a player decides what to buy by reading the buttons, so
+ * a button quoting the wrong number is the bug even if the arithmetic behind it
+ * is right.
+ */
+describe('SurvivorSheet advancement', () => {
+  async function openWithXp(name: string, tier: string, xp: number) {
+    const { user, sheet } = await openSheetFor(name, tier);
+
+    await user.click(within(sheet).getByRole('button', { name: /^set experience$/i }));
+    const field = screen.getByLabelText(new RegExp(`experience for ${name}`, 'i'));
+    await user.clear(field);
+    await user.type(field, String(xp));
+    await user.click(screen.getByRole('button', { name: /save experience/i }));
+
+    return { user, sheet };
+  }
+
+  /** What the sheet says the survivor's balance is, read back off the field. */
+  async function balance(
+    user: ReturnType<typeof userEvent.setup>,
+    sheet: HTMLElement,
+    name: string,
+  ) {
+    await user.click(within(sheet).getByRole('button', { name: /^set experience$/i }));
+    const field = screen.getByLabelText(new RegExp(`experience for ${name}`, 'i'));
+    const value = Number((field as HTMLInputElement).value);
+    await user.click(screen.getByRole('button', { name: /save experience/i }));
+
+    return value;
+  }
+
+  it('records an experience balance typed in by hand', async () => {
+    const { user, sheet } = await openWithXp('Marcus Webb', '2', 20);
+
+    expect(await balance(user, sheet, 'Marcus Webb')).toBe(20);
+  });
+
+  /**
+   * The whole trap of this story, on screen: one sentence of pg. 30 covers both
+   * of these and they differ by six. Asserted from the same survivor, in the
+   * same test, because a wrong reading is only visible in the contrast.
+   */
+  it('quotes a skill level at its level and a point of move at its score', async () => {
+    const { user, sheet } = await openWithXp('Marcus Webb', '2', 20);
+    await user.click(toggleFor(sheet, 'Scavenge'));
+
+    expect(
+      within(sheet).getByRole('button', { name: /raise scavenge to level 1/i }),
+    ).toHaveAccessibleName(/1 experience/);
+    expect(within(sheet).getByRole('button', { name: /raise move to 7/i })).toHaveAccessibleName(
+      /7 experience/,
+    );
+  });
+
+  it('charges the balance what the button quoted', async () => {
+    const { user, sheet } = await openWithXp('Marcus Webb', '2', 20);
+    await user.click(toggleFor(sheet, 'Scavenge'));
+
+    await user.click(within(sheet).getByRole('button', { name: /raise scavenge to level 1/i }));
+    // Level 1, and a Score of 1 with it — Marcus's Intelligence is 0, so the
+    // level is the whole of his Scavenge Score.
+    const cells = within(skillRow(sheet, 'Scavenge')).getAllByRole('cell');
+    expect(cells[0]).toHaveTextContent('1');
+    expect(cells[1]).toHaveTextContent('1');
+    expect(await balance(user, sheet, 'Marcus Webb')).toBe(19);
+
+    await user.click(within(sheet).getByRole('button', { name: /raise move to 7/i }));
+    expect(await balance(user, sheet, 'Marcus Webb')).toBe(12);
+
+    // And the next level costs more than the last, because the price is the level.
+    expect(
+      within(sheet).getByRole('button', { name: /raise scavenge to level 2/i }),
+    ).toHaveAccessibleName(/2 experience/);
+  });
+
+  it('offers nothing to raise on a skill the survivor has not taken', async () => {
+    const { sheet } = await openWithXp('Marcus Webb', '2', 20);
+
+    expect(
+      within(sheet).queryByRole('button', { name: /raise scavenge/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('stops a skill at the tier’s maximum level, and says so', async () => {
+    const { user, sheet } = await openWithXp('Ruby Vance', '1', 20);
+    await user.click(toggleFor(sheet, 'Carry'));
+    await user.click(within(sheet).getByRole('button', { name: /raise carry to level 1/i }));
+
+    // A Rookie caps at level 1 (pg. 41), so the next one is refused with a reason.
+    const next = within(sheet).getByRole('button', { name: /raise carry to level 2/i });
+    expect(next).toBeDisabled();
+    expect(next).toHaveAccessibleName(/maximum level for their tier/i);
+  });
+
+  it('stops move at a score of eight, and says so', async () => {
+    const { user, sheet } = await openWithXp('Earl Rhodes', '4', 40);
+
+    await user.click(within(sheet).getByRole('button', { name: /raise move to 7/i }));
+    await user.click(within(sheet).getByRole('button', { name: /raise move to 8/i }));
+
+    const next = within(sheet).getByRole('button', { name: /raise move to 9/i });
+    expect(next).toBeDisabled();
+    expect(next).toHaveAccessibleName(/maximum score of eight/i);
+  });
+
+  it('refuses a purchase the survivor cannot pay for, quoting the price anyway', async () => {
+    const { sheet } = await openWithXp('Marcus Webb', '2', 3);
+
+    const move = within(sheet).getByRole('button', { name: /raise move to 7/i });
+    expect(move).toBeDisabled();
+    expect(move).toHaveAccessibleName(/7 experience/);
+    expect(move).toHaveAccessibleName(/not enough experience/i);
+  });
+
+  /**
+   * Promotion rebuilds the stat array to the new Tier's, and the ordering it
+   * keeps is the player's own: Marcus's 2 is moved onto Intelligence first, so
+   * his 3 has to land there and not back in Strength.
+   */
+  it('promotes a survivor, keeping their own ordering of the stat array', async () => {
+    const { user, sheet } = await openWithXp('Marcus Webb', '2', 6);
+
+    await user.selectOptions(within(sheet).getByLabelText(/^intelligence$/i), '2');
+    await user.click(within(sheet).getByRole('button', { name: /raise their tier/i }));
+
+    expect(within(sheet).getByText(/tier 3 · leader/i)).toBeInTheDocument();
+    expect(within(sheet).getByLabelText(/^intelligence$/i)).toHaveValue('3');
+    expect(within(sheet).getByLabelText(/^strength$/i)).toHaveValue('1');
+    expect(await balance(user, sheet, 'Marcus Webb')).toBe(0);
+  });
+
+  /** A slot, not a skill — so the sheet immediately says one is missing. */
+  it('grants a skill slot on promotion and leaves the choosing to the player', async () => {
+    const { user, sheet } = await openWithXp('Marcus Webb', '2', 6);
+    await user.click(toggleFor(sheet, 'Scavenge'));
+    await user.click(toggleFor(sheet, 'Medicine'));
+
+    expect(within(sheet).queryByText(/still choosing/i)).not.toBeInTheDocument();
+
+    await user.click(within(sheet).getByRole('button', { name: /raise their tier/i }));
+
+    expect(within(sheet).getByText(/still choosing skills: 2 of 3/i)).toBeInTheDocument();
+  });
+
+  it('has nowhere to promote a hero, and quotes no price for it', async () => {
+    const { sheet } = await openWithXp('Earl Rhodes', '4', 40);
+
+    const promote = within(sheet).getByRole('button', { name: /raise their tier/i });
+    expect(promote).toBeDisabled();
+    expect(promote).toHaveAccessibleName(/top of the table/i);
+    expect(promote).not.toHaveAccessibleName(/experience/i);
+  });
+});
+
+/** The Take/Drop control in one skill's row, past the "+1" beside it. */
+function toggleFor(sheet: HTMLElement, label: string) {
+  return within(skillRow(sheet, label)).getByRole('button', { name: /^(take|drop)\b/i });
+}

@@ -410,3 +410,98 @@ describe('survivor/recruited', () => {
     expect(expectOpen(state).survivors.map((s) => s.name)).toEqual(['Earl Rhodes', 'Carla Proust']);
   });
 });
+
+describe('spending experience', () => {
+  /** A Citizen with two skills, six XP, and both stats already assigned. */
+  function withCitizen(xp: number): CampaignState {
+    let state = campaignReducer(openState(), {
+      type: 'survivor/added',
+      name: 'Marcus Webb',
+      tier: 2,
+      id: SURVIVOR_ID,
+    });
+    state = campaignReducer(state, {
+      type: 'survivor/skillAdded',
+      id: SURVIVOR_ID,
+      skill: 'scavenge',
+    });
+
+    return campaignReducer(state, { type: 'survivor/xpSet', id: SURVIVOR_ID, xp });
+  }
+
+  function survivor(state: CampaignState) {
+    return expectOpen(state).survivors[0];
+  }
+
+  it('records an experience balance the player types in', () => {
+    expect(survivor(withCitizen(6))?.xp).toBe(6);
+  });
+
+  /**
+   * The reducer delegates the price to the engine, so this is where the two
+   * cost shapes have to still be distinct after going through the store: one
+   * skill level and one point of Move, bought by the same survivor out of the
+   * same balance.
+   */
+  it('charges a skill level its level and a point of move its score', () => {
+    const start = withCitizen(20);
+
+    const levelled = campaignReducer(start, {
+      type: 'survivor/skillLevelBought',
+      id: SURVIVOR_ID,
+      skill: 'scavenge',
+    });
+    expect(survivor(levelled)?.skills.scavenge).toBe(1);
+    expect(survivor(levelled)?.xp).toBe(19);
+
+    const faster = campaignReducer(start, {
+      type: 'survivor/commonSkillBought',
+      id: SURVIVOR_ID,
+      skill: 'move',
+    });
+    expect(survivor(faster)?.move).toBe(7);
+    expect(survivor(faster)?.xp).toBe(13);
+  });
+
+  /**
+   * The reducer never checks a price itself, so this is really a test that it
+   * cannot: a blocked purchase comes back as the same survivor, from the engine.
+   */
+  it('refuses a purchase the survivor cannot pay for', () => {
+    const broke = withCitizen(0);
+
+    const after = campaignReducer(broke, {
+      type: 'survivor/commonSkillBought',
+      id: SURVIVOR_ID,
+      skill: 'defense',
+    });
+
+    expect(survivor(after)).toEqual(survivor(broke));
+  });
+
+  it('promotes a survivor, spending the price and rebuilding their stats', () => {
+    const after = campaignReducer(withCitizen(6), { type: 'survivor/tierBought', id: SURVIVOR_ID });
+
+    expect(survivor(after)?.tier).toBe(3);
+    expect(survivor(after)?.xp).toBe(0);
+    expect(Object.values(survivor(after)?.stats ?? {}).sort()).toEqual([0, 1, 2, 3]);
+  });
+
+  it('spends nobody else’s experience', () => {
+    let state = campaignReducer(withCitizen(20), {
+      type: 'survivor/added',
+      name: 'Earl Rhodes',
+      tier: 4,
+      id: OTHER_SURVIVOR_ID,
+    });
+    state = campaignReducer(state, {
+      type: 'survivor/commonSkillBought',
+      id: SURVIVOR_ID,
+      skill: 'move',
+    });
+
+    const earl = expectOpen(state).survivors[1];
+    expect(earl?.move).toBe(6);
+    expect(earl?.xp).toBe(0);
+  });
+});

@@ -12,9 +12,16 @@
  */
 
 import { useId, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { COMMON_SKILLS, SKILLS, SKILL_STATS, STATS, type Skill, type Stat } from '../data/skills';
 import { TIER_RULES } from '../data/tiers';
+import {
+  commonSkillPurchase,
+  skillLevelPurchase,
+  tierPurchase,
+  type Purchase,
+  type PurchaseBlock,
+} from '../engine/advancement';
 import type { Survivor } from '../engine/campaign';
 import { skillSlotsAreFull, survivorViolations, withStatValue } from '../engine/legality';
 import { itemSlots, maxHp, skillScore } from '../engine/survivor';
@@ -45,6 +52,7 @@ export function SurvivorSheet({ survivor, onClose }: SurvivorSheetProps) {
           <p className="mt-1 text-stone-600 dark:text-stone-400">
             Tier {survivor.tier} · {TIER_LABELS[survivor.tier]} <PageRef pages="38–39" />
           </p>
+          <Promote survivor={survivor} />
         </div>
         <button
           type="button"
@@ -106,67 +114,25 @@ function Violations({ survivor }: { readonly survivor: Survivor }) {
 /** HP, item slots and XP — the three numbers checked most often mid-turn. */
 function Vitals({ survivor }: { readonly survivor: Survivor }) {
   const { dispatch } = useCampaign();
-  const hpId = useId();
-  const [draft, setDraft] = useState<string | null>(null);
-
-  function save(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const value = Number(draft);
-    if (Number.isInteger(value) && value >= 0) {
-      dispatch({ type: 'survivor/hpSet', id: survivor.id, currentHp: value });
-    }
-    setDraft(null);
-  }
 
   return (
     <div className="mt-6 flex flex-wrap items-end gap-x-8 gap-y-4 border-t border-stone-200 pt-6 dark:border-stone-800">
-      <div>
-        <p className="text-xs font-semibold tracking-[0.15em] text-stone-500 uppercase dark:text-stone-400">
-          Health <PageRef pages={49} />
-        </p>
-        {draft === null ? (
-          <div className="mt-1 flex items-baseline gap-3">
-            <p className="text-2xl font-semibold tabular-nums">
-              {survivor.currentHp} / {maxHp(survivor)}
-            </p>
-            <button
-              type="button"
-              onClick={() => setDraft(String(survivor.currentHp))}
-              className={`${FOCUS_RING} rounded text-sm font-medium underline decoration-dotted underline-offset-4`}
-            >
-              Set
-            </button>
-          </div>
-        ) : (
-          <form onSubmit={save} className="mt-1 flex items-end gap-2">
-            <div>
-              <label htmlFor={hpId} className="sr-only">
-                Current health for {survivor.name}
-              </label>
-              <input
-                id={hpId}
-                type="number"
-                min={0}
-                max={maxHp(survivor)}
-                autoFocus
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                className={`${FOCUS_RING} w-20 rounded-lg border border-stone-300 px-3 py-2 tabular-nums dark:border-stone-600 dark:bg-stone-800`}
-              />
-            </div>
-            <button
-              type="submit"
-              className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 px-4 font-medium hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800`}
-            >
-              Save health
-            </button>
-          </form>
-        )}
-      </div>
+      <EditableNumber
+        heading={
+          <>
+            Health <PageRef pages={49} />
+          </>
+        }
+        display={`${survivor.currentHp} / ${maxHp(survivor)}`}
+        value={survivor.currentHp}
+        max={maxHp(survivor)}
+        what="health"
+        fieldLabel={`Current health for ${survivor.name}`}
+        onSave={(currentHp) => dispatch({ type: 'survivor/hpSet', id: survivor.id, currentHp })}
+      />
 
       <div>
-        <p className="text-xs font-semibold tracking-[0.15em] text-stone-500 uppercase dark:text-stone-400">
+        <p className={VITAL_HEADING}>
           Item slots <PageRef pages={49} />
         </p>
         {/* Tier plus the Carry Score, so this moves when Strength does. What
@@ -174,13 +140,205 @@ function Vitals({ survivor }: { readonly survivor: Survivor }) {
         <p className="mt-1 text-2xl font-semibold tabular-nums">{itemSlots(survivor)}</p>
       </div>
 
-      <div>
-        <p className="text-xs font-semibold tracking-[0.15em] text-stone-500 uppercase dark:text-stone-400">
-          Experience <PageRef pages={30} />
-        </p>
-        <p className="mt-1 text-2xl font-semibold tabular-nums">{survivor.xp}</p>
-      </div>
+      {/*
+       * Typed in rather than earned. XP comes from missions and the Training
+       * Room, both of which are the Phase 3 Advancement Phase; until that lands
+       * the player says what happened at the table, exactly as for health.
+       */}
+      <EditableNumber
+        heading={
+          <>
+            Experience <PageRef pages={30} />
+          </>
+        }
+        display={survivor.xp}
+        value={survivor.xp}
+        what="experience"
+        fieldLabel={`Experience for ${survivor.name}`}
+        onSave={(xp) => dispatch({ type: 'survivor/xpSet', id: survivor.id, xp })}
+      />
     </div>
+  );
+}
+
+const VITAL_HEADING =
+  'text-xs font-semibold tracking-[0.15em] text-stone-500 uppercase dark:text-stone-400';
+
+interface EditableNumberProps {
+  readonly heading: ReactNode;
+
+  /** What the number reads as at rest — health shows its maximum alongside. */
+  readonly display: ReactNode;
+
+  readonly value: number;
+
+  readonly max?: number | undefined;
+
+  /** Completes "Set …" and "Save …", so the two controls are distinguishable. */
+  readonly what: string;
+
+  readonly fieldLabel: string;
+
+  readonly onSave: (value: number) => void;
+}
+
+/**
+ * A stored number the player edits by hand.
+ *
+ * Shared by health and experience because they are the same interaction and,
+ * more to the point, the same *kind* of fact: something that happened at the
+ * table which the app has no way to know. Both go away as the phases that
+ * generate them land.
+ */
+function EditableNumber({
+  heading,
+  display,
+  value,
+  max,
+  what,
+  fieldLabel,
+  onSave,
+}: EditableNumberProps) {
+  const fieldId = useId();
+  const [draft, setDraft] = useState<string | null>(null);
+
+  function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const parsed = Number(draft);
+    // Rejected silently rather than reported: the field is `type="number"` and
+    // the only way here with a bad value is a browser that let one through.
+    if (Number.isInteger(parsed) && parsed >= 0) {
+      onSave(parsed);
+    }
+    setDraft(null);
+  }
+
+  return (
+    <div>
+      <p className={VITAL_HEADING}>{heading}</p>
+      {draft === null ? (
+        <div className="mt-1 flex items-baseline gap-3">
+          <p className="text-2xl font-semibold tabular-nums">{display}</p>
+          <button
+            type="button"
+            onClick={() => setDraft(String(value))}
+            className={`${FOCUS_RING} rounded text-sm font-medium underline decoration-dotted underline-offset-4`}
+          >
+            {/*
+             * Announced in full, shown short. Health and experience both have
+             * one of these and a pair reading only "Set" is two identical
+             * buttons to anyone not looking at where they sit on the page.
+             */}
+            <span aria-hidden="true">Set</span>
+            <span className="sr-only">Set {what}</span>
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={save} className="mt-1 flex items-end gap-2">
+          <div>
+            <label htmlFor={fieldId} className="sr-only">
+              {fieldLabel}
+            </label>
+            <input
+              id={fieldId}
+              type="number"
+              min={0}
+              max={max}
+              autoFocus
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              className={`${FOCUS_RING} w-20 rounded-lg border border-stone-300 px-3 py-2 tabular-nums dark:border-stone-600 dark:bg-stone-800`}
+            />
+          </div>
+          <button
+            type="submit"
+            className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 px-4 font-medium hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800`}
+          >
+            Save {what}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Why a purchase is greyed out, in the words a player would use.
+ *
+ * A disabled control that does not say why is worse than no control at all:
+ * the player is left wondering whether the app is broken or they are.
+ */
+const BLOCKED_REASONS: Record<PurchaseBlock, string> = {
+  'not-enough-xp': 'not enough experience yet',
+  'at-tier-maximum': 'already at the maximum level for their tier',
+  'at-score-maximum': 'already at the maximum score of eight',
+  'skill-not-taken': 'they do not have this skill',
+  'already-a-hero': 'tier 4 is the top of the table',
+};
+
+interface BuyButtonProps {
+  readonly purchase: Purchase;
+
+  /** The visible label — "+1" for a level, "Promote" for a tier. */
+  readonly label: string;
+
+  /** Completes "raise …" for a screen reader, e.g. "Archery to level 2". */
+  readonly what: string;
+
+  readonly onBuy: () => void;
+}
+
+/**
+ * One purchase, with its price on it.
+ *
+ * The price shows whether or not the button is pressable, because on a control
+ * the player cannot use yet the price is the useful part: it is what tells them
+ * how much experience to go and earn.
+ */
+function BuyButton({ purchase, label, what, onBuy }: BuyButtonProps) {
+  const { cost, blocked } = purchase;
+
+  return (
+    <button
+      type="button"
+      disabled={blocked !== null}
+      onClick={onBuy}
+      className={`${FOCUS_RING} rounded px-1 text-sm font-medium whitespace-nowrap underline decoration-dotted underline-offset-4 disabled:cursor-not-allowed disabled:text-stone-400 disabled:no-underline dark:disabled:text-stone-600`}
+    >
+      {/*
+       * The glance version and the spoken version, side by side. "+1 · 2 XP"
+       * is right for a thumb over a tablet and wrong read aloud, and the
+       * blocked reason has to be in the name because a disabled control cannot
+       * be focused to hear a tooltip.
+       */}
+      <span aria-hidden="true">
+        {label}
+        {/* A survivor with nowhere left to go has no price to quote. */}
+        {cost > 0 ? <> · {cost} XP</> : null}
+      </span>
+      <span className="sr-only">
+        Raise {what}
+        {cost > 0 ? `, ${cost} experience` : ''}
+        {blocked === null ? '' : ` — ${BLOCKED_REASONS[blocked]}`}
+      </span>
+    </button>
+  );
+}
+
+/** Buying the next Tier — a stat array, a skill slot, and a price (pg. 30). */
+function Promote({ survivor }: { readonly survivor: Survivor }) {
+  const { dispatch } = useCampaign();
+
+  return (
+    <p className="mt-2">
+      <BuyButton
+        purchase={tierPurchase(survivor)}
+        label="Promote"
+        what="their tier"
+        onBuy={() => dispatch({ type: 'survivor/tierBought', id: survivor.id })}
+      />
+    </p>
   );
 }
 
@@ -249,7 +407,7 @@ function statOptions(survivor: Survivor, stat: Stat): readonly number[] {
 }
 
 function CommonSkills({ survivor }: { readonly survivor: Survivor }) {
-  const scores: Record<string, number> = { move: survivor.move, defense: survivor.defense };
+  const { dispatch } = useCampaign();
 
   return (
     <div className="mt-6 border-t border-stone-200 pt-6 dark:border-stone-800">
@@ -257,7 +415,8 @@ function CommonSkills({ survivor }: { readonly survivor: Survivor }) {
         Common skills <PageRef pages={41} />
       </h3>
       <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-        Scores, not levels — these have no governing stat.
+        Scores, not levels — these have no governing stat, so raising one costs its new{' '}
+        <em>score</em> rather than a level.
       </p>
       <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {COMMON_SKILLS.map((skill) => (
@@ -268,7 +427,17 @@ function CommonSkills({ survivor }: { readonly survivor: Survivor }) {
             <dt className="text-sm text-stone-600 dark:text-stone-400">
               {COMMON_SKILL_LABELS[skill]}
             </dt>
-            <dd className="text-2xl font-semibold tabular-nums">{scores[skill]}</dd>
+            <dd className="flex items-baseline justify-between gap-2">
+              <span className="text-2xl font-semibold tabular-nums">{survivor[skill]}</span>
+              <BuyButton
+                purchase={commonSkillPurchase(survivor, skill)}
+                label="+1"
+                what={`${COMMON_SKILL_LABELS[skill]} to ${survivor[skill] + 1}`}
+                onBuy={() =>
+                  dispatch({ type: 'survivor/commonSkillBought', id: survivor.id, skill })
+                }
+              />
+            </dd>
           </div>
         ))}
       </dl>
@@ -316,8 +485,8 @@ function Skills({ survivor }: { readonly survivor: Survivor }) {
       </h3>
       <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
         Score is the skill&rsquo;s level plus its governing stat. A dash means this survivor does
-        not have the skill and cannot use it. Skills start at level zero; raising one costs
-        experience.
+        not have the skill and cannot use it. Skills start at level zero, and each level costs its
+        own number in experience &mdash; so they are only ever bought one at a time, in order.
       </p>
 
       <div className="mt-3 grid gap-4 sm:grid-cols-2">
@@ -327,6 +496,9 @@ function Skills({ survivor }: { readonly survivor: Survivor }) {
             stat={stat}
             survivor={survivor}
             onTake={take}
+            onBuy={(skill) => {
+              dispatch({ type: 'survivor/skillLevelBought', id: survivor.id, skill });
+            }}
             onDrop={(skill) => {
               dispatch({ type: 'survivor/skillRemoved', id: survivor.id, skill });
             }}
@@ -379,10 +551,11 @@ interface SkillGroupProps {
   readonly stat: Stat;
   readonly survivor: Survivor;
   readonly onTake: (skill: Skill) => void;
+  readonly onBuy: (skill: Skill) => void;
   readonly onDrop: (skill: Skill) => void;
 }
 
-function SkillGroup({ stat, survivor, onTake, onDrop }: SkillGroupProps) {
+function SkillGroup({ stat, survivor, onTake, onBuy, onDrop }: SkillGroupProps) {
   const governed = SKILLS.filter((skill) => SKILL_STATS[skill] === stat);
 
   return (
@@ -401,6 +574,9 @@ function SkillGroup({ stat, survivor, onTake, onDrop }: SkillGroupProps) {
             </th>
             <th scope="col" className="px-4 py-1 text-right font-medium">
               Score
+            </th>
+            <th scope="col" className="px-2 py-1">
+              <span className="sr-only">Raise a level</span>
             </th>
             <th scope="col" className="px-2 py-1">
               <span className="sr-only">Take or drop</span>
@@ -430,14 +606,31 @@ function SkillGroup({ stat, survivor, onTake, onDrop }: SkillGroupProps) {
                 <td className="px-4 py-1.5 text-right font-semibold tabular-nums">
                   {score === null ? <Absent /> : score}
                 </td>
+                {/*
+                 * Nothing at all for a skill the survivor has not taken. There
+                 * is no level to raise, and a greyed-out price on every one of
+                 * the twenty rows would bury the ones they can actually buy.
+                 */}
+                <td className="px-2 py-1.5 text-right">
+                  {level === undefined ? null : (
+                    <BuyButton
+                      purchase={skillLevelPurchase(survivor, skill)}
+                      label="+1"
+                      what={`${SKILL_LABELS[skill]} to level ${level + 1}`}
+                      onBuy={() => onBuy(skill)}
+                    />
+                  )}
+                </td>
                 <td className="px-2 py-1.5 text-right">
                   <button
                     type="button"
                     onClick={() => (level === undefined ? onTake(skill) : onDrop(skill))}
                     className={`${FOCUS_RING} rounded px-1 text-sm font-medium underline decoration-dotted underline-offset-4`}
                   >
-                    {level === undefined ? 'Take' : 'Drop'}
-                    <span className="sr-only"> {SKILL_LABELS[skill]}</span>
+                    <span aria-hidden="true">{level === undefined ? 'Take' : 'Drop'}</span>
+                    <span className="sr-only">
+                      {level === undefined ? 'Take' : 'Drop'} {SKILL_LABELS[skill]}
+                    </span>
                   </button>
                 </td>
               </tr>
