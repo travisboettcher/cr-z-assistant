@@ -1,0 +1,50 @@
+name: Mutation
+
+# Deliberately NOT on pull_request.
+#
+# The ordinary CI run is about a minute, and that number is worth protecting: a
+# gate people wait on gets worked around. A mutation run is ~4 minutes because
+# it executes the suite once per surviving mutant, and — more to the point — its
+# output is a number to *read*, not a yes/no on a diff. A score that drops two
+# points wants a person deciding whether the new code needs a test or the
+# mutants are equivalent, which is a conversation, not a merge blocker.
+#
+# So it runs weekly, and on demand whenever someone wants to check their work.
+# `npm run mutate` locally is the same thing.
+on:
+  schedule:
+    # Mondays, 04:00 UTC.
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mutate:
+    runs-on: ubuntu-latest
+    name: mutation score
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # `thresholds.break` in stryker.config.json fails this step if the score
+      # falls under it. The threshold is set from a real measurement rather than
+      # an aspiration — see the mutation-testing section of the README.
+      - run: npm run mutate
+
+      # Uploaded either way: a passing run's report is how the next threshold
+      # gets chosen, and a failing one's is how the drop gets diagnosed.
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: reports/mutation/
+          retention-days: 30

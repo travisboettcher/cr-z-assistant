@@ -179,3 +179,61 @@ describe('communityViolations', () => {
     expect(communityViolations([], false)).toEqual([]);
   });
 });
+
+/**
+ * Boundaries and unreachable-looking guards, each added because a mutation of
+ * it survived the whole suite (issue #40).
+ *
+ * These are the cases a hand-written test set predictably misses: the value
+ * exactly *on* a limit rather than over it, and a branch the types make look
+ * impossible but a hand-edited save file can still reach.
+ */
+describe('the edges the tests were missing', () => {
+  /**
+   * `>` and `>=` differ by exactly one survivor: the one sitting on the cap.
+   * Every earlier test used a level clearly over it, so flipping the operator
+   * broke nothing — a Leader with Archery at 3 would have been reported as
+   * illegal and nothing would have said so.
+   */
+  it('allows a skill sitting exactly on the tier maximum', () => {
+    const leader = { ...createSurvivor('Carla Proust', 3), skills: { archery: 3 } };
+
+    expect(TIER_RULES[3].maxSkillLevel).toBe(3);
+    expect(survivorViolations(leader).map((v) => v.code)).not.toContain('skill-above-tier');
+  });
+
+  it('still reports a skill one level over it', () => {
+    const leader = { ...createSurvivor('Carla Proust', 3), skills: { archery: 4 } };
+
+    expect(survivorViolations(leader).map((v) => v.code)).toContain('skill-above-tier');
+  });
+
+  /**
+   * The length half of the stat-array comparison, which looks dead because
+   * `Stats` has four keys and a `StatArray` has four values — and is not, because
+   * the save-file parser only checks that the four it knows about are present.
+   * A hand-edited file with a fifth stat gets this far, and without the length
+   * check its four real values would match and the extra would pass unnoticed.
+   */
+  it('reports a survivor carrying a stat this version does not know about', () => {
+    const hero = createSurvivor('Earl Rhodes', 4);
+    const withExtra = { ...hero, stats: { ...hero.stats, luck: 7 } } as unknown as Survivor;
+
+    expect(survivorViolations(withExtra).map((v) => v.code)).toContain('stats-not-tier-array');
+  });
+
+  /**
+   * `withStatValue` swaps, so it needs somebody holding the value it is asked
+   * to assign. Nothing in the app can ask for a value the survivor does not
+   * have — the dropdown is built from what they hold — so this only fires for a
+   * hand-edited file, where `stats-not-tier-array` is already the real report.
+   * Returning the stats untouched is what keeps that from silently corrupting
+   * them further.
+   */
+  it('leaves stats alone when asked to assign a value nobody holds', () => {
+    const hero = createSurvivor('Earl Rhodes', 4);
+
+    expect(Object.values(hero.stats)).not.toContain(9);
+    expect(withStatValue(hero, 'strength', 9)).toEqual(hero.stats);
+  });
+});

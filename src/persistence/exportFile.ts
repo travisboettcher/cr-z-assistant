@@ -158,6 +158,14 @@ export function campaignFileName(campaign: Campaign, exportedAt: Date): string {
  * in some engines, and leaking a URL for one frame is cheaper than a download
  * that silently produces an empty file.
  */
+// Stryker disable all: the body below is platform glue, and its real check is
+// the e2e export in `e2e/round-trip.spec.ts` — a genuine browser downloading a
+// genuine file whose bytes are then re-imported. A jsdom assertion that
+// `document.body.append` was called proves the code calls it, not that a
+// download works, so mutants here would be killed by a test worth less than the
+// mutant. Everything that decides *what* the file contains is in
+// `serializeCampaign` and `campaignFileName`, which are pure, mutated, and at
+// 100%.
 export function downloadCampaign(campaign: Campaign, exportedAt: Date = new Date()): void {
   const url = URL.createObjectURL(
     new Blob([serializeCampaign(campaign)], { type: 'application/json' }),
@@ -174,3 +182,4 @@ export function downloadCampaign(campaign: Campaign, exportedAt: Date = new Date
     URL.revokeObjectURL(url);
   });
 }
+// Stryker restore all

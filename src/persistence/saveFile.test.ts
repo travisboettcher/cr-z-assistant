@@ -300,3 +300,167 @@ describe('parseCampaignFile with a roster', () => {
     expect(result.error.message).toContain('survivor 3 of 3');
   });
 });
+
+/**
+ * The type half of the shape check, which nothing was exercising (issue #40).
+ *
+ * Every earlier damaged-file case *removes* a field or gives it an out-of-range
+ * value. None of them gives a field the wrong JavaScript *type* — a numeric
+ * name, a string turn — so every `typeof` guard in this file could be deleted
+ * and the suite stayed green. This is the app's trust boundary: the one place
+ * that reads bytes somebody else wrote, and the guards there are worth more
+ * than the ones anywhere else.
+ */
+describe('a file whose fields are the wrong type', () => {
+  const rejected = (overrides: Record<string, unknown>) => {
+    const result = parseCampaignFile(savedWith(overrides));
+
+    expect(result.ok, `expected ${JSON.stringify(overrides)} to be refused`).toBe(false);
+    return result.ok ? null : result.error;
+  };
+
+  it('refuses a campaign id that is not a string', () => {
+    expect(rejected({ id: 12345 })?.reason).toBe('damaged-campaign');
+  });
+
+  it('refuses an empty campaign id, which is a string and still not an id', () => {
+    expect(rejected({ id: '' })?.reason).toBe('damaged-campaign');
+  });
+
+  it('refuses a name that is not a string', () => {
+    expect(rejected({ name: 42 })?.reason).toBe('damaged-campaign');
+  });
+
+  it('refuses a creation date that is not a string', () => {
+    expect(rejected({ createdAt: 1756857600000 })?.reason).toBe('damaged-campaign');
+  });
+
+  /**
+   * The value that makes the `typeof` half of that check load-bearing, and the
+   * reason the test above is not enough on its own.
+   *
+   * `Date.parse` stringifies its argument, so `Date.parse(12345)` reads "12345"
+   * as the **year 12345** and returns a perfectly good timestamp — while
+   * `Date.parse(1756857600000)` has too many digits for a year and gives NaN.
+   * A test using only the long number passes whether or not the string check is
+   * there, which is precisely how the surviving mutant hid: the assertion looked
+   * like it covered the guard and actually exercised the other half of the `||`.
+   */
+  it('refuses a numeric creation date that would parse as a year', () => {
+    expect(Number.isNaN(Date.parse(12345 as unknown as string))).toBe(false);
+    expect(rejected({ createdAt: 12345 })?.reason).toBe('damaged-campaign');
+  });
+
+  it('refuses a phase that is not a string', () => {
+    expect(rejected({ phase: 3 })?.reason).toBe('damaged-campaign');
+  });
+
+  it('refuses a turn that is a string, even one that looks like a number', () => {
+    expect(rejected({ turn: '3' })?.reason).toBe('damaged-campaign');
+  });
+
+  it('refuses a fractional turn', () => {
+    expect(rejected({ turn: 2.5 })?.reason).toBe('damaged-campaign');
+  });
+
+  it('refuses a material count that is not a number', () => {
+    expect(rejected({ materials: { food: '4', fuel: 0, hardware: 0, rare: 0 } })?.reason).toBe(
+      'damaged-campaign',
+    );
+  });
+
+  it('refuses a material count that is not finite', () => {
+    // `Infinity` does not survive JSON — it serialises to null — which is
+    // itself the reason the check is for finiteness rather than just a number.
+    expect(rejected({ materials: { food: Infinity, fuel: 0, hardware: 0, rare: 0 } })?.reason).toBe(
+      'damaged-campaign',
+    );
+  });
+
+  it('refuses a flag that is not a boolean', () => {
+    expect(rejected({ startingCommunityBuilt: 'yes' })?.reason).toBe('damaged-campaign');
+  });
+});
+
+/** The same gap one level down, on a survivor rather than the campaign. */
+describe('a survivor whose fields are the wrong type', () => {
+  const withSurvivor = (overrides: Record<string, unknown>) =>
+    parseCampaignFile(savedWith({ survivors: [{ ...VALID_SURVIVOR, ...overrides }] }));
+
+  it.each([
+    ['a numeric id', { id: 7 }],
+    ['an empty id', { id: '' }],
+    ['a numeric name', { name: 7 }],
+    ['a string tier', { tier: '4' }],
+    ['stats that are not an object', { stats: 'strong' }],
+    [
+      'a string stat value',
+      { stats: { strength: '3', dexterity: 2, intelligence: 4, cooperation: 1 } },
+    ],
+    [
+      'a negative stat value',
+      { stats: { strength: -1, dexterity: 2, intelligence: 4, cooperation: 1 } },
+    ],
+    ['skills that are not an object', { skills: ['tactics'] }],
+    ['a string skill level', { skills: { tactics: '3' } }],
+    ['a negative skill level', { skills: { tactics: -1 } }],
+    ['a string move score', { move: '7' }],
+    ['a negative move score', { move: -1 }],
+    ['a string defense score', { defense: '6' }],
+    ['a fractional health', { currentHp: 1.5 }],
+    ['a negative experience balance', { xp: -5 }],
+  ])('refuses %s', (_label, overrides) => {
+    const result = withSurvivor(overrides);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.reason).toBe('damaged-campaign');
+  });
+
+  /** The counts that are legal, so the checks above are not simply refusing everything. */
+  it('accepts a zero stat, a zero level and a zero balance', () => {
+    const result = withSurvivor({
+      stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: 0 },
+      skills: { tactics: 0 },
+      move: 0,
+      defense: 0,
+      currentHp: 0,
+      xp: 0,
+    });
+
+    expect(result.ok).toBe(true);
+  });
+});
+
+/**
+ * The guard that keeps this module's central promise (issue #40).
+ *
+ * `parseCampaignFile` says it always returns a result and never throws — the
+ * UI branches on one shape and has no catch. `Array.isArray` is what holds that
+ * up here: without it, `value.survivors.entries()` on a campaign whose survivor
+ * list is a number raises an uncaught `TypeError` and takes the render tree down
+ * mid-import.
+ *
+ * Nothing tested it, because every earlier damaged-file case gave `survivors` a
+ * bad *element* rather than making it the wrong thing entirely. Asserted as
+ * "does not throw" first and "refused" second, in that order, because the throw
+ * is the serious failure.
+ */
+describe('a campaign whose survivor list is not a list', () => {
+  it.each([
+    ['a number', 5],
+    ['a string', 'Earl Rhodes'],
+    ['an object', { 0: 'Earl Rhodes' }],
+    ['null', null],
+  ])('refuses %s without throwing', (_label, survivors) => {
+    const text = savedWith({ survivors });
+    let result: ReturnType<typeof parseCampaignFile> | undefined;
+
+    expect(() => {
+      result = parseCampaignFile(text);
+    }).not.toThrow();
+
+    expect(result?.ok).toBe(false);
+    if (result?.ok === false) expect(result.error.reason).toBe('damaged-campaign');
+  });
+});
