@@ -21,8 +21,9 @@
  */
 
 import type { D10Result, FieldRecruitTier } from '../data/recruitTable';
-import { MIN_SKILL_LEVEL, type Skill } from '../data/skills';
+import { MIN_SKILL_LEVEL, type CommonSkill, type Skill } from '../data/skills';
 import type { Tier } from '../data/tiers';
+import { withCommonSkillBought, withSkillLevelBought, withTierBought } from '../engine/advancement';
 import { createNewCampaign } from '../engine/campaign';
 import type { Campaign, CampaignPhase, Stats, Survivor } from '../engine/campaign';
 import { createSurvivor, recruitSurvivor } from '../engine/survivor';
@@ -140,6 +141,30 @@ export type CampaignAction =
   /** Take a skill, at level 0 — skills all start there (pg. 41). */
   | { readonly type: 'survivor/skillAdded'; readonly id: string; readonly skill: Skill }
   | { readonly type: 'survivor/skillRemoved'; readonly id: string; readonly skill: Skill }
+  /**
+   * Set a survivor's experience balance.
+   *
+   * Typed in by hand this phase. XP is awarded for missions and by the Training
+   * Room, both of which are the Phase 3 Advancement Phase; until that lands the
+   * player says what happened at the table, exactly as they do for health.
+   */
+  | { readonly type: 'survivor/xpSet'; readonly id: string; readonly xp: number }
+  /**
+   * Spend XP on the **next** level of a skill the survivor already has.
+   *
+   * There is no action that sets a level, which is what makes "skills cannot be
+   * gained out of order" (pg. 30) unrepresentable rather than validated. The
+   * three purchase actions carry no price: the cost is a rule, so
+   * `src/engine/advancement` works it out and re-checks the purchase itself.
+   */
+  | { readonly type: 'survivor/skillLevelBought'; readonly id: string; readonly skill: Skill }
+  | {
+      readonly type: 'survivor/commonSkillBought';
+      readonly id: string;
+      readonly skill: CommonSkill;
+    }
+  /** Promote a survivor one Tier, rebuilding their stat array. */
+  | { readonly type: 'survivor/tierBought'; readonly id: string }
   | { readonly type: 'survivor/removed'; readonly id: string };
 
 export function campaignReducer(state: CampaignState, action: CampaignAction): CampaignState {
@@ -228,6 +253,28 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
         return { ...survivor, skills };
       });
+
+    case 'survivor/xpSet':
+      return editSurvivor(state, action.id, (survivor) => ({ ...survivor, xp: action.xp }));
+
+    /**
+     * The three purchases delegate wholesale. Each `with*Bought` re-runs its own
+     * price and legality check and returns the survivor unchanged when the
+     * purchase is blocked, so this reducer cannot spend XP the survivor does not
+     * have by forgetting to ask — there is nothing here to forget.
+     */
+    case 'survivor/skillLevelBought':
+      return editSurvivor(state, action.id, (survivor) =>
+        withSkillLevelBought(survivor, action.skill),
+      );
+
+    case 'survivor/commonSkillBought':
+      return editSurvivor(state, action.id, (survivor) =>
+        withCommonSkillBought(survivor, action.skill),
+      );
+
+    case 'survivor/tierBought':
+      return editSurvivor(state, action.id, withTierBought);
 
     case 'survivor/removed':
       return withCampaign(state, (campaign) => ({
