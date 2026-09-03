@@ -121,12 +121,18 @@ in the reducer's tests.
 
 It runs **on every pull request**, which is where it is worth the most, and is affordable there
 because of Stryker's incremental mode: a pull request pays for the mutants its own diff touches
-and reuses the rest. Measured here — a full run is **5m03s** locally and **9m07s** on
-`ubuntu-latest`; an incremental run over one changed file plus one new test is **52s** locally.
-A run restores the previous results for the same pull request first and `main`'s baseline second,
-so the cache misses only on a genuinely new branch. `push` to main and the weekly schedule run in
-full (`npm run mutate:full`) to audit the incremental results, because a reused "killed" verdict
-can go stale. See `.github/workflows/mutation.yml`.
+and reuses the rest. Measured, local and CI:
+
+| | local | `ubuntu-latest` |
+|---|---|---|
+| full run | 5m03s | 9m07s |
+| nothing changed (536 of 675 reused) | 21s | **17s** — 40s of job, with checkout and `npm ci` |
+| one file changed + one new test | 52s | — |
+
+A run restores the previous results for the same pull request first and `main`'s baseline second, so
+the cache misses only on a genuinely new branch. `push` to main and the weekly schedule run in full
+(`npm run mutate:full`) to audit the incremental results, because a reused "killed" verdict can go
+stale. See `.github/workflows/mutation.yml`.
 
 Three things about reading the score:
 
