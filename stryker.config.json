@@ -7,6 +7,8 @@
   },
   "reporters": ["html", "json", "clear-text", "progress"],
   "coverageAnalysis": "perTest",
+  "incremental": true,
+  "incrementalFile": "reports/mutation/stryker-incremental.json",
   "mutate": [
     "src/engine/**/*.ts",
     "src/persistence/**/*.ts",
@@ -19,9 +21,9 @@
     "excludedMutations": ["StringLiteral"]
   },
   "thresholds": {
-    "high": 97,
-    "low": 94,
-    "break": 94
+    "high": 98,
+    "low": 96,
+    "break": 96
   },
   "tempDirName": ".stryker-tmp",
   "htmlReporter": {

@@ -18,6 +18,7 @@
     "format:check": "prettier --check .",
     "e2e": "playwright test",
     "mutate": "stryker run",
+    "mutate:full": "stryker run --force",
     "e2e:ui": "playwright test --ui"
   },
   "dependencies": {

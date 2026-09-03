@@ -43,7 +43,8 @@ npm run dev            # http://localhost:5173
 | `npm test` | unit tests |
 | `npm run e2e` | end-to-end round-trip against the built bundle, tablet viewport |
 | `npm run typecheck` · `lint` · `format:check` | the rest of the gate |
-| `npm run mutate` | mutation score for the engine, persistence and the reducer — not part of CI, see below |
+| `npm run mutate` | mutation score for the engine, persistence and the reducer — incremental, so a second run is fast |
+| `npm run mutate:full` | the same, ignoring cached results — the audit, and how to rebuild a stale baseline |
 
 ## Deploying
 
@@ -114,16 +115,27 @@ overdraws. The generators live in `src/test/arbitraries.ts` and are typed as pro
 `Campaign` and `Survivor`, so a schema change breaks them at compile time.
 
 **Mutation testing** (`npm run mutate`) breaks the code on purpose and asks whether any test
-fails. It runs weekly rather than per pull request — see `.github/workflows/mutation.yml` for
-why — and covers `src/engine`, `src/persistence` and the reducer, against those layers' own
-tests only. That last part is the point: a mutant in the reducer killed only by a React test is
-still a gap in the reducer's tests.
+fails. It covers `src/engine`, `src/persistence` and the reducer, against those layers' own tests
+only — that part is the point: a mutant in the reducer killed only by a React test is still a gap
+in the reducer's tests.
+
+It runs **on every pull request**, which is where it is worth the most, and is affordable there
+because of Stryker's incremental mode: a pull request pays for the mutants its own diff touches
+and reuses the rest. Measured here — a full run is **5m03s**, an incremental run over one changed
+file plus one new test is **52s**. `push` to main and the weekly schedule run in full
+(`npm run mutate:full`), which both refreshes the cache pull requests restore and audits the
+incremental results, because a reused "killed" verdict can go stale. See
+`.github/workflows/mutation.yml`.
 
 Three things about reading the score:
 
-- **The threshold comes from a measurement, not an aspiration.** Chasing 100% buys noise.
+- **The threshold comes from a measurement, not an aspiration.** Chasing 100% buys noise — but a
+  threshold that is *loose* buys nothing either. Ours is 96 against a measured 96.64, tightened
+  from 94 when a probe showed that a whole untested function fitted inside the old headroom and
+  the run still passed. A gate you can walk past is a wall chart.
 - **The deliverable is the surviving mutants, not the number.** Each one gets a test or a
-  written reason it does not matter.
+  written reason it does not matter. The score only says whether to go looking; the run uploads
+  the report as an artifact so a red pull request can be read rather than guessed at.
 - **Some mutants cannot be killed.** Most that survive here are redundant type guards standing
   in front of a check that already rejects the value; `Number.isInteger` makes a preceding
   `typeof x === 'number'` unreachable. Those are equivalent mutants, not gaps.
