@@ -505,3 +505,142 @@ describe('spending experience', () => {
     expect(earl?.xp).toBe(0);
   });
 });
+
+/**
+ * Two actions that had no reducer test at all until mutation testing said so
+ * (issue #40).
+ *
+ * Both were exercised only through the character sheet, so deleting their case
+ * from this reducer broke nothing in `src/state`'s own suite — which is exactly
+ * the gap the pure-layer mutation run was scoped to expose. A rule that only
+ * breaks when rendered is a rule nobody can check without a DOM.
+ */
+describe('the actions only the sheet was testing', () => {
+  function withSurvivor(): CampaignState {
+    return campaignReducer(openState(), {
+      type: 'survivor/added',
+      name: 'Earl Rhodes',
+      tier: 4,
+      id: SURVIVOR_ID,
+    });
+  }
+
+  /**
+   * The whole record at once, because assigning one stat swaps it with whoever
+   * held that value — one assignment is always two changes, and sending them
+   * separately would let a render land on a stat array no tier hands out.
+   */
+  it('survivor/statsSet replaces the four stat values', () => {
+    const stats = { strength: 1, dexterity: 2, intelligence: 3, cooperation: 4 };
+
+    const after = campaignReducer(withSurvivor(), {
+      type: 'survivor/statsSet',
+      id: SURVIVOR_ID,
+      stats,
+    });
+
+    expect(expectOpen(after).survivors[0]?.stats).toEqual(stats);
+  });
+
+  it('survivor/statsSet leaves everything else about the survivor alone', () => {
+    const before = expectOpen(withSurvivor()).survivors[0];
+    const stats = { strength: 4, dexterity: 3, intelligence: 2, cooperation: 1 };
+
+    const after = expectOpen(
+      campaignReducer(withSurvivor(), { type: 'survivor/statsSet', id: SURVIVOR_ID, stats }),
+    ).survivors[0];
+
+    expect(after).toEqual({ ...before, stats });
+  });
+
+  /**
+   * Removed, not zeroed. A skill at level 0 is one the survivor *has* and is
+   * spending a tier slot on; deleting the key is what gives the slot back, and
+   * `skillSlotsAreFull` counts keys.
+   */
+  it('survivor/skillRemoved deletes the key rather than zeroing it', () => {
+    let state = campaignReducer(withSurvivor(), {
+      type: 'survivor/skillAdded',
+      id: SURVIVOR_ID,
+      skill: 'archery',
+    });
+    expect(expectOpen(state).survivors[0]?.skills).toEqual({ archery: 0 });
+
+    state = campaignReducer(state, {
+      type: 'survivor/skillRemoved',
+      id: SURVIVOR_ID,
+      skill: 'archery',
+    });
+
+    expect(expectOpen(state).survivors[0]?.skills).toEqual({});
+    expect('archery' in (expectOpen(state).survivors[0]?.skills ?? {})).toBe(false);
+  });
+
+  it('survivor/skillRemoved keeps the survivor’s other skills', () => {
+    let state = withSurvivor();
+    for (const skill of ['archery', 'tactics', 'carry'] as const) {
+      state = campaignReducer(state, { type: 'survivor/skillAdded', id: SURVIVOR_ID, skill });
+    }
+
+    state = campaignReducer(state, {
+      type: 'survivor/skillRemoved',
+      id: SURVIVOR_ID,
+      skill: 'tactics',
+    });
+
+    expect(Object.keys(expectOpen(state).survivors[0]?.skills ?? {})).toEqual(['archery', 'carry']);
+  });
+
+  it('survivor/skillRemoved does not touch a skill the survivor never had', () => {
+    const before = expectOpen(withSurvivor()).survivors[0];
+
+    const after = campaignReducer(withSurvivor(), {
+      type: 'survivor/skillRemoved',
+      id: SURVIVOR_ID,
+      skill: 'stealth',
+    });
+
+    expect(expectOpen(after).survivors[0]).toEqual(before);
+  });
+});
+
+/**
+ * Creation and recruitment coincide at tier 4, which is why every earlier
+ * `survivor/added` test could not tell them apart (issue #40).
+ *
+ * A Hero's skill is never randomly generated (pg. 38–39), so `recruitSurvivor`
+ * and `createSurvivor` return the same Hero — and every test above adds a tier
+ * 4. Handing `survivor/added` to the recruit path therefore changed nothing
+ * anybody was checking. At tier 2 the two genuinely differ: a recruit rolls a
+ * skill and a created survivor arrives with empty slots.
+ */
+describe('a survivor added rather than recruited', () => {
+  it('arrives with no skills at a tier where recruits would roll one', () => {
+    const campaign = expectOpen(
+      campaignReducer(openState(), {
+        type: 'survivor/added',
+        name: 'Marcus Webb',
+        tier: 2,
+        id: SURVIVOR_ID,
+      }),
+    );
+
+    expect(campaign.survivors[0]).toEqual(createSurvivor('Marcus Webb', 2, { id: SURVIVOR_ID }));
+    expect(campaign.survivors[0]?.skills).toEqual({});
+  });
+
+  /** The contrast, from the same tier: a recruit at 2 does come with a skill. */
+  it('unlike a recruit at the same tier, who comes with the skill they rolled', () => {
+    const campaign = expectOpen(
+      campaignReducer(openState(), {
+        type: 'survivor/recruited',
+        name: 'Marcus Webb',
+        tier: 2,
+        roll: 6,
+        id: SURVIVOR_ID,
+      }),
+    );
+
+    expect(campaign.survivors[0]?.skills).toEqual({ archery: 0 });
+  });
+});

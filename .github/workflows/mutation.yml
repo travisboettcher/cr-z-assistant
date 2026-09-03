@@ -1,0 +1,139 @@
+name: Mutation
+
+# Mutation testing runs on pull requests, which is where it is worth the most:
+# the question "would the tests notice if this were wrong" is most useful asked
+# about the code somebody just wrote.
+#
+# It is affordable there because of Stryker's incremental mode. A previous
+# result is reused when the mutant's code did not change, and — for a killed
+# mutant — the test that killed it did not change either. So a pull request pays
+# only for the mutants its own diff touches, plus every *surviving* mutant
+# whenever it adds a test (Stryker re-tests survivors on any new test, which is
+# conservative in the right direction). Measured on this repo:
+#
+#   full run                            5m03s   locally
+#   full run                            9m07s   on ubuntu-latest
+#   incremental, nothing changed          21s   locally (536 of 675 reused)
+#   incremental, 1 file + 1 new test      52s   locally (466 of 675 reused)
+#
+# The two full-run numbers are the same command on different hardware, and the
+# CI one is what a cache miss actually costs. Worth keeping both in view: it is
+# the reason the cache matters more than the local figures suggest.
+#
+# The score reported is still the whole-project score, with untouched mutants
+# counted from the cache, so `thresholds.break` in stryker.config.json means the
+# same thing on a pull request as it does on a full run.
+#
+# `push` to main and the weekly schedule run in FULL, because an incremental
+# score can be optimistic: a "killed" verdict survives when that particular test
+# is untouched, so weakening some *other* test that also covered the mutant goes
+# unnoticed. The full runs are the audit; the pull-request runs are the fast
+# feedback.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Mondays, 04:00 UTC. Note this is the audit, not the cache-warmer — GitHub
+    # evicts caches untouched for about a week, and it is the run on every merge
+    # to main that actually keeps the baseline fresh.
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mutate:
+    runs-on: ubuntu-latest
+    name: mutation score
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Cache keys are scoped by trigger, and that scoping is what keeps one
+      # pull request's results out of another's:
+      #
+      #   pull_request  save mutation-pr-<number>-<sha>
+      #                 restore mutation-pr-<number>-  then  mutation-main-
+      #   everything else  save/restore mutation-main-<sha> / mutation-main-
+      #
+      # So a pull request prefers its own previous run and falls back to main's
+      # baseline, and can never restore a *different* pull request's file. That
+      # holds by key alone, without depending on how GitHub scopes caches
+      # between refs.
+      #
+      # One thing to know before reading a cache key in a log: on a
+      # `pull_request` event `github.sha` is the *merge* commit, not the pushed
+      # head — so the key names a SHA that appears in no `git log`. Nothing here
+      # needs to change for that, but two consequences follow: the primary key
+      # rolls when **main** moves and not only when this branch does, which the
+      # prefix restore is what absorbs; and a re-run of the same job recomputes
+      # the same key, which is the duplicate-key case handled below.
+      #
+      # Restore and save stay separate steps (rather than one `actions/cache`)
+      # because the save needs conditions of its own — see below.
+      #
+      # A miss is safe rather than wrong: Stryker logs that no incremental file
+      # was found and does a full run. It just costs the 9 minutes above.
+      - name: Restore the previous mutation results
+        uses: actions/cache/restore@v4
+        with:
+          path: reports/mutation/stryker-incremental.json
+          key: ${{ github.event_name == 'pull_request' && format('mutation-pr-{0}-{1}', github.event.pull_request.number, github.sha) || format('mutation-main-{0}', github.sha) }}
+          restore-keys: |
+            ${{ github.event_name == 'pull_request' && format('mutation-pr-{0}-', github.event.pull_request.number) || 'mutation-main-' }}
+            mutation-main-
+
+      - name: Mutation test the diff
+        if: github.event_name == 'pull_request'
+        run: npm run mutate
+
+      - name: Mutation test everything
+        if: github.event_name != 'pull_request'
+        run: npm run mutate:full
+
+      # `cache/save` fails outright on a missing path, and Stryker will not have
+      # written one if it died before finishing, so the existence check is
+      # explicit rather than a `hashFiles()` call inside an `if` — this is the
+      # step the whole scheme depends on, and it should not be able to go quietly
+      # false on an expression subtlety.
+      - name: Did Stryker write an incremental file?
+        id: incremental
+        if: ${{ !cancelled() }}
+        run: |
+          if [ -f reports/mutation/stryker-incremental.json ]; then
+            echo 'written=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'written=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      # Saved on a *failing* run too: a broken threshold is exactly when the next
+      # push wants fast feedback.
+      #
+      # `continue-on-error` because re-running the same commit hits a duplicate
+      # key. The cache is an optimization and must not be able to fail the gate.
+      - name: Save the mutation results
+        if: ${{ !cancelled() && steps.incremental.outputs.written == 'true' }}
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: reports/mutation/stryker-incremental.json
+          key: ${{ github.event_name == 'pull_request' && format('mutation-pr-{0}-{1}', github.event.pull_request.number, github.sha) || format('mutation-main-{0}', github.sha) }}
+
+      # Uploaded either way. On a green run the report is how the next threshold
+      # gets chosen; on a red one it is the list of surviving mutants, which is
+      # the actual thing to read — the score only says whether to go looking.
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: reports/mutation/
+          retention-days: 30

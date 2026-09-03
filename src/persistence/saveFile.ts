@@ -240,6 +240,12 @@ export function parseCampaignFile(text: string): SaveFileResult {
  * from a file that read fine and turned out to be something else, and the two
  * want different things from the reader.
  */
+// Stryker disable all: reading the Blob is platform glue. The `unreadable-file`
+// branch needs a `Blob` whose `text()` rejects, which is a stub of the platform
+// rather than a case a real file reaches, and the path that matters — pick a
+// file, get a campaign or a readable refusal — is driven end to end in
+// `e2e/round-trip.spec.ts` against a real file input. Everything downstream of
+// the read is `parseCampaignFile`, which is mutated and at 100% on its logic.
 export async function readCampaignFile(file: Blob): Promise<SaveFileResult> {
   let text: string;
 
@@ -255,3 +261,4 @@ export async function readCampaignFile(file: Blob): Promise<SaveFileResult> {
 
   return parseCampaignFile(text);
 }
+// Stryker restore all

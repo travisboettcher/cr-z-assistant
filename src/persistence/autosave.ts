@@ -33,7 +33,13 @@ export type AutosaveWrite = { readonly ok: true } | { readonly ok: false; readon
 
 function storage(): Storage | null {
   try {
-    return globalThis.localStorage;
+    // `?? null` rather than a bare return: an environment without the API at
+    // all gives `undefined`, which is not `null`, so every `store === null`
+    // check below would wave it through and then throw on `store.setItem`.
+    // The caller would still get a graceful failure, but the wrong reason for
+    // it — mutation testing found this by pointing out that nothing exercised
+    // the branch either way (issue #40).
+    return globalThis.localStorage ?? null;
   } catch {
     // Accessing the property itself throws when site data is blocked.
     return null;

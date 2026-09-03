@@ -91,3 +91,80 @@ describe('clearAutosave', () => {
     expect(readAutosave()).toBeNull();
   });
 });
+
+/**
+ * The browser that has no usable `localStorage` at all — a branch nothing was
+ * exercising (issue #40).
+ *
+ * Two distinct shapes of "unavailable", and they reach `storage()` differently:
+ * site data blocked makes the *property access itself* throw, while an
+ * environment without the API simply has no property. Every earlier test here
+ * stubbed a store whose *methods* throw, which is a third thing again — a store
+ * that exists and is full.
+ *
+ * All three have to degrade quietly. The exported file is the durable save, so
+ * losing the convenience copy is never worth taking the app down for.
+ */
+describe('a browser with no usable storage', () => {
+  /** Makes the `globalThis.localStorage` getter throw, as blocked site data does. */
+  function withBlockedStorage(run: () => void) {
+    const original = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('site data is blocked');
+      },
+    });
+
+    try {
+      run();
+    } finally {
+      if (original === undefined) {
+        delete (globalThis as { localStorage?: unknown }).localStorage;
+      } else {
+        Object.defineProperty(globalThis, 'localStorage', original);
+      }
+    }
+  }
+
+  it('reports a write it could not make, rather than throwing', () => {
+    withBlockedStorage(() => {
+      const write = writeAutosave(createNewCampaign('Cedar Hollow', FIXED));
+
+      expect(write.ok).toBe(false);
+      // The reason names the browser refusing, not a full store — the caller
+      // shows this to a person, and the two are different problems.
+      if (!write.ok) expect(write.reason).toMatch(/not allowing/i);
+    });
+  });
+
+  it('reads nothing rather than throwing', () => {
+    withBlockedStorage(() => {
+      expect(readAutosave()).toBeNull();
+    });
+  });
+
+  it('clears without throwing, because there is nothing to clear', () => {
+    withBlockedStorage(() => {
+      expect(() => clearAutosave()).not.toThrow();
+    });
+  });
+
+  /**
+   * The same three, for an environment that simply has no `localStorage`. This
+   * is the case `storage()` returned `undefined` for until #40: not `null`, so
+   * every guard passed it through and the write failed on the wrong branch with
+   * the wrong message.
+   */
+  it('treats a missing storage API the same as a blocked one', () => {
+    vi.stubGlobal('localStorage', undefined);
+
+    const write = writeAutosave(createNewCampaign('Cedar Hollow', FIXED));
+
+    expect(write.ok).toBe(false);
+    if (!write.ok) expect(write.reason).toMatch(/not allowing/i);
+    expect(readAutosave()).toBeNull();
+    expect(() => clearAutosave()).not.toThrow();
+  });
+});

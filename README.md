@@ -43,6 +43,8 @@ npm run dev            # http://localhost:5173
 | `npm test` | unit tests |
 | `npm run e2e` | end-to-end round-trip against the built bundle, tablet viewport |
 | `npm run typecheck` · `lint` · `format:check` | the rest of the gate |
+| `npm run mutate` | mutation score for the engine, persistence and the reducer — incremental, so a second run is fast |
+| `npm run mutate:full` | the same, ignoring cached results — the audit, and how to rebuild a stale baseline |
 
 ## Deploying
 
@@ -99,3 +101,52 @@ this app failed:
    Skill Score for the turn and makes a cached one wrong.
 
 Each directory under `src/` carries a README saying what belongs in it and what must not.
+
+## Checking the tests
+
+Most of this app's code and most of its tests were written by the same process, from the same
+reading of the rulebook — so a green suite says the code agrees with the tests, not that the
+tests would notice if the code were wrong. Two things attack that directly.
+
+**Property-based tests** (`fast-check`, in the ordinary `npm test`) generate inputs nobody wrote
+down: any campaign survives export and re-import, serialization is byte-stable however the
+object was assembled, the parser never throws on arbitrary bytes, and advancement never
+overdraws. The generators live in `src/test/arbitraries.ts` and are typed as producing
+`Campaign` and `Survivor`, so a schema change breaks them at compile time.
+
+**Mutation testing** (`npm run mutate`) breaks the code on purpose and asks whether any test
+fails. It covers `src/engine`, `src/persistence` and the reducer, against those layers' own tests
+only — that part is the point: a mutant in the reducer killed only by a React test is still a gap
+in the reducer's tests.
+
+It runs **on every pull request**, which is where it is worth the most, and is affordable there
+because of Stryker's incremental mode: a pull request pays for the mutants its own diff touches
+and reuses the rest. Measured, local and CI:
+
+| | local | `ubuntu-latest` |
+|---|---|---|
+| full run | 5m03s | 9m07s |
+| nothing changed (536 of 675 reused) | 21s | **17s** — 40s of job, with checkout and `npm ci` |
+| one file changed + one new test | 52s | — |
+
+A run restores the previous results for the same pull request first and `main`'s baseline second, so
+the cache misses only on a genuinely new branch. `push` to main and the weekly schedule run in full
+(`npm run mutate:full`) to audit the incremental results, because a reused "killed" verdict can go
+stale. See `.github/workflows/mutation.yml`.
+
+Three things about reading the score:
+
+- **The threshold comes from a measurement, not an aspiration.** Chasing 100% buys noise — but a
+  threshold that is *loose* buys nothing either. Ours is 96 against a measured 96.64, tightened
+  from 94 when a probe showed that a whole untested function fitted inside the old headroom and
+  the run still passed. A gate you can walk past is a wall chart.
+- **The deliverable is the surviving mutants, not the number.** Each one gets a test or a
+  written reason it does not matter. The score only says whether to go looking; the run uploads
+  the report as an artifact so a red pull request can be read rather than guessed at.
+- **Some mutants cannot be killed.** Most that survive here are redundant type guards standing
+  in front of a check that already rejects the value; `Number.isInteger` makes a preceding
+  `typeof x === 'number'` unreachable. Those are equivalent mutants, not gaps.
+
+Neither replaces the tests built from the rulebook's own worked characters (pg. 48–50). Those
+check the app against the *rules*; these check the tests against the *code*. A perfect mutation
+score on a function implementing the wrong rule is still the wrong rule.
