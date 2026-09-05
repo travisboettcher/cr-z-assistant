@@ -203,8 +203,8 @@ test('the character sheet shows computed scores and a dash for unlearned skills'
   await expect(sheet).toContainText('Tier 4 · Hero');
   await expect(sheet).toContainText('4 / 4');
 
-  // Strength 3 with no Blade Weapon skill: a dash, never a 3.
-  const blade = sheet.getByRole('row', { name: /^Blade Weapon/ });
+  // Strength 3 with no Bladed Weapon skill: a dash, never a 3.
+  const blade = sheet.getByRole('row', { name: /^Bladed Weapon/ });
   await expect(blade).toContainText('—');
   await expect(blade).not.toContainText(/\d/);
 
@@ -290,7 +290,7 @@ test('a field recruit arrives with the skill their roll gives them', async ({ pa
   await page.getByRole('button', { name: /^sheet$/i }).click();
   const sheet = page.getByRole('region', { name: 'Carla Proust' });
 
-  // A six is Archery (pg. 50): Dexterity 2 at tier 3, skill at level 0.
+  // A six is Archery (pg. 15): Dexterity 2 at tier 3, skill at level 0.
   await expect(sheet.getByRole('row', { name: /^Archery/ })).toContainText('Drop');
   await expect(sheet).toContainText('Still choosing skills: 1 of 3');
 
@@ -382,7 +382,7 @@ test.describe('a file that is not a usable save', () => {
  * Spending experience in a real browser.
  *
  * The prices are asserted off the buttons themselves, because that is where a
- * player reads them — and the two of them are the point: one sentence of pg. 30
+ * player reads them — and the two of them are the point: one sentence of pg. 18
  * charges a skill its new *level* and Move its new *Score*, and a build that
  * quoted "+1 · 1 XP" for Move would look entirely reasonable.
  */
@@ -413,7 +413,11 @@ test('experience buys a level and a promotion, and both survive the round trip',
   await expect(sheet.getByRole('button', { name: /raise scavenge to level 2/i })).toBeVisible();
 
   // Promotion: six XP for tier 3, a rebuilt stat array, and a slot rather than
-  // a skill — so the sheet immediately says one is still to choose.
+  // a skill — so the sheet immediately says one is still to choose. A Citizen
+  // has two stats at zero and the player picks which one rises (pg. 18), so the
+  // button stays refused until the sheet is told.
+  await expect(sheet.getByRole('button', { name: /raise their tier/i })).toBeDisabled();
+  await sheet.getByLabel(/raise from zero/i).selectOption('cooperation');
   await sheet.getByRole('button', { name: /raise their tier/i }).click();
   await expect(sheet).toContainText('Tier 3 · Leader');
   await expect(sheet).toContainText('Still choosing skills: 1 of 3');
@@ -424,6 +428,8 @@ test('experience buys a level and a promotion, and both survive the round trip',
     skills: { scavenge: 1 },
     // Twenty, less one for the level and six for the tier.
     xp: 13,
+    // The zero the player raised, and the one they left alone.
+    stats: { strength: 3, dexterity: 2, cooperation: 1, intelligence: 0 },
   });
 
   await startFreshCampaign(page, 'Millbrook');

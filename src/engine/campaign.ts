@@ -30,6 +30,25 @@ export type Material = (typeof MATERIALS)[number];
 export type Materials = Record<Material, number>;
 
 /**
+ * Which flavour of apocalypse a campaign is running.
+ *
+ * A campaign setup choice, and **absent is a real answer** — a campaign not
+ * using one is the book's default, not a campaign with a missing field. Hence
+ * optional on `Campaign` rather than a fourth member meaning "none": the two
+ * would be the same state with two spellings.
+ *
+ * Shipped ahead of anything that reads it, which is the one place this codebase
+ * pays a migration early on purpose. Phase 2's facilities data gates Containment,
+ * the Lounge and the Mystic Library on the origin, so the field is needed then;
+ * adding it now costs one no-op step in a chain built for exactly this, and it
+ * means a campaign started today already carries the answer. Nothing in the app
+ * sets it yet — the rules that turn an origin into anything are Phases 2 and 7.
+ */
+export const CAMPAIGN_ORIGINS = ['viral', 'cosmic-horror', 'magic'] as const;
+
+export type CampaignOrigin = (typeof CAMPAIGN_ORIGINS)[number];
+
+/**
  * Bumped whenever the persisted shape of `Campaign` changes. Lives here rather
  * than in `src/persistence` because the field lives on this type and
  * persistence may import from the engine, never the reverse.
@@ -37,9 +56,9 @@ export type Materials = Record<Material, number>;
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 3;
+export const CURRENT_SCHEMA_VERSION = 4;
 
-/** A survivor's four stat values (pg. 40). */
+/** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
 
 /**
@@ -47,7 +66,7 @@ export type Stats = Record<Stat, number>;
  *
  * **Partial on purpose.** A Rookie has one skill, not twenty of which nineteen
  * are absent — how many skills a survivor holds is itself a rule (skill slots =
- * Tier, pg. 38–39), and counting the entries of this record is how that rule is
+ * Tier, pg. 7), and counting the entries of this record is how that rule is
  * checked. A full record of twenty zeroes would make "has the skill at level 0"
  * and "does not have the skill" the same state, and they are not.
  */
@@ -56,12 +75,12 @@ export type SkillLevels = Partial<Record<Skill, number>>;
 /**
  * One survivor.
  *
- * **Primitive facts only.** Skill Score, max HP, item slots and labor are all
+ * **Primitive facts only.** Skill Score, max HP, Inventory Slots and labor are all
  * computable from what is here plus the tables in `src/data`, so none of them
  * appear — the hunger penalty in Phase 3 changes every Skill Score for a turn,
  * and a stored one would be wrong the moment it did.
  *
- * Equipment, keywords and assignments are absent for a different reason: their
+ * Equipment, traits and assignments are absent for a different reason: their
  * rules are Phases 5, 7 and 3. Adding fields for them now would be designing
  * shapes before the rules that constrain them exist.
  */
@@ -76,7 +95,7 @@ export interface Survivor {
 
   skills: SkillLevels;
 
-  /** Score, not level — Move has no governing stat (pg. 41). */
+  /** Score, not level — Move has no governing stat (pg. 9). */
   move: number;
 
   /** Score, not level, for the same reason. */
@@ -104,6 +123,14 @@ export interface Campaign {
 
   phase: CampaignPhase;
 
+  /**
+   * The campaign's origin, or absent for one not using an origin.
+   *
+   * The only optional field on the persisted shape, and the reason
+   * `migrations.test.ts` knows which keys may legitimately be missing.
+   */
+  origin?: CampaignOrigin;
+
   materials: Materials;
 
   survivors: readonly Survivor[];
@@ -111,7 +138,7 @@ export interface Campaign {
   /**
    * Whether the player has finished assembling their starting community.
    *
-   * A starting community is built from ten Tier levels (pg. 48), and that rule
+   * A starting community is built from ten Tier levels (pg. 13), and that rule
    * stops applying once play begins — field recruits push a community past ten
    * perfectly legally. Nothing else in a campaign says when the building is
    * over, so the player says it, and this records the answer.

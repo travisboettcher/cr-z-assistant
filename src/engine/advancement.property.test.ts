@@ -1,7 +1,7 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { COMMON_SKILLS, COMMON_SKILL_MAX_SCORE, SKILLS, STATS } from '../data/skills';
-import type { CommonSkill, Skill } from '../data/skills';
+import type { CommonSkill, Skill, Stat } from '../data/skills';
 import { TIERS, TIER_RULES } from '../data/tiers';
 import {
   commonSkillPurchase,
@@ -58,7 +58,14 @@ function playableSurvivorArbitrary(): fc.Arbitrary<Survivor> {
 type Purchase =
   | { readonly kind: 'skill'; readonly skill: Skill }
   | { readonly kind: 'common'; readonly skill: CommonSkill }
-  | { readonly kind: 'tier' };
+  /**
+   * `raise` is drawn from every stat *and* null rather than from the zeros this
+   * survivor happens to have. The survivor changes under the run — a promotion
+   * rewrites all four stats — so a choice picked from the starting survivor
+   * would go stale anyway, and drawing across the whole space exercises both
+   * the promotion that goes through and the one refused for want of an answer.
+   */
+  | { readonly kind: 'tier'; readonly raise: Stat | null };
 
 /**
  * Purchases drawn from the survivor who will make them.
@@ -102,7 +109,13 @@ function scenarioArbitrary(): fc.Arbitrary<{
         }),
         weight: 3,
       },
-      { arbitrary: fc.record({ kind: fc.constant('tier' as const) }), weight: 2 },
+      {
+        arbitrary: fc.record({
+          kind: fc.constant('tier' as const),
+          raise: fc.constantFrom<Stat | null>(...STATS, null),
+        }),
+        weight: 2,
+      },
     );
 
     return fc
@@ -125,7 +138,10 @@ function apply(survivor: Survivor, purchase: Purchase) {
         after: withCommonSkillBought(survivor, purchase.skill),
       };
     case 'tier':
-      return { quote: tierPurchase(survivor), after: withTierBought(survivor) };
+      return {
+        quote: tierPurchase(survivor, purchase.raise),
+        after: withTierBought(survivor, purchase.raise),
+      };
   }
 }
 

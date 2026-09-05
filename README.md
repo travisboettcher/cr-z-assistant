@@ -2,7 +2,7 @@
 
 A campaign tracker for the *County Road Z* tabletop miniatures game by Jordan Heckman.
 
-The tactical layer happens on the table with miniatures. The strategic layer between missions
+The Mission Layer happens on the table with miniatures. The Community Layer between missions
 is bookkeeping and arithmetic — survivors, base, materials, unrest, siege threat — which is
 what this is for.
 
@@ -13,7 +13,14 @@ descriptions, no skill descriptions, no mission narrative — only the numbers a
 needed to compute state, with page references back to the rulebook. It is a tracker, not a
 substitute for the rules, and it does not try to teach you the game.
 
-*County Road Z* is copyright Jordan Heckman. This project is unaffiliated.
+*County Road Z* is copyright Jordan Heckman, published by Modiphius Entertainment
+(ISBN 978-1-80281-366-1). This project is unaffiliated.
+
+**Every page reference in this repository is to that edition** — the 188-page Modiphius
+printing, Dec 2023 / Jan 2024. Its printed page numbers run four behind the PDF's page index,
+and the citations here use the printed number. See
+[`docs/rulebook-edition.md`](docs/rulebook-edition.md) for where each rule lives, what the
+edition renamed, and the rules recorded for later phases.
 
 ## What works today
 
@@ -137,7 +144,7 @@ stale. See `.github/workflows/mutation.yml`.
 Three things about reading the score:
 
 - **The threshold comes from a measurement, not an aspiration.** Chasing 100% buys noise — but a
-  threshold that is *loose* buys nothing either. Ours is 96 against a measured 96.64, tightened
+  threshold that is *loose* buys nothing either. Ours is 96 against a measured 96.91, tightened
   from 94 when a probe showed that a whole untested function fitted inside the old headroom and
   the run still passed. A gate you can walk past is a wall chart.
 - **The deliverable is the surviving mutants, not the number.** Each one gets a test or a
@@ -147,6 +154,6 @@ Three things about reading the score:
   in front of a check that already rejects the value; `Number.isInteger` makes a preceding
   `typeof x === 'number'` unreachable. Those are equivalent mutants, not gaps.
 
-Neither replaces the tests built from the rulebook's own worked characters (pg. 48–50). Those
+Neither replaces the tests built from the rulebook's own worked characters (pg. 13–15). Those
 check the app against the *rules*; these check the tests against the *code*. A perfect mutation
 score on a function implementing the wrong rule is still the wrong rule.

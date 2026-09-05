@@ -13,7 +13,7 @@
  * survivor becomes legal again. So the UI gates the *action* once, and a
  * survivor who is illegal keeps reporting it for exactly as long as they are.
  *
- * Skill *levels* are not a creation concern: skills start at zero (pg. 41) and
+ * Skill *levels* are not a creation concern: skills start at zero (pg. 8) and
  * only XP raises them, so "cannot buy levels out of order" is a rule about a
  * purchase and lives with advancement. A stored level carries no evidence of
  * the order it was bought in, and there is nothing here to check.
@@ -56,7 +56,7 @@ export function survivorViolations(survivor: Survivor): readonly Violation[] {
     violations.push({
       code: 'too-many-skills',
       message: `Has ${skills.length} skills, and a tier ${survivor.tier} survivor has ${rules.skillSlots}.`,
-      pages: '38–39',
+      pages: 7,
     });
   }
 
@@ -65,7 +65,7 @@ export function survivorViolations(survivor: Survivor): readonly Violation[] {
       violations.push({
         code: 'skill-above-tier',
         message: `${skill} is at level ${level}, above the maximum of ${rules.maxSkillLevel} for tier ${survivor.tier}.`,
-        pages: 41,
+        pages: 7,
       });
     }
   }
@@ -74,7 +74,7 @@ export function survivorViolations(survivor: Survivor): readonly Violation[] {
     violations.push({
       code: 'stats-not-tier-array',
       message: `Their stats are not the ${rules.statArray.join('/')} a tier ${survivor.tier} survivor is built from.`,
-      pages: '38–39',
+      pages: 7,
     });
   }
 
@@ -87,7 +87,7 @@ export function survivorViolations(survivor: Survivor): readonly Violation[] {
     violations.push({
       code: 'not-enough-skills',
       message: `Still choosing skills: ${skills.length} of ${rules.skillSlots}.`,
-      pages: '38–39',
+      pages: 7,
     });
   }
 
@@ -98,7 +98,7 @@ export function survivorViolations(survivor: Survivor): readonly Violation[] {
  * A survivor's four stat values, as the multiset their Tier hands out.
  *
  * Compared as sorted values rather than per stat, because which stat holds
- * which value is the player's choice (pg. 38–39) — only the collection is
+ * which value is the player's choice (pg. 7) — only the collection is
  * fixed.
  */
 function hasTierStatArray(survivor: Survivor): boolean {
@@ -116,7 +116,7 @@ function hasTierStatArray(survivor: Survivor): boolean {
  * What is wrong with the community as a whole, or an empty list.
  *
  * Only one rule so far: a starting community is built from ten Tier levels
- * (pg. 48). It stops applying once the player says the building is done,
+ * (pg. 13). It stops applying once the player says the building is done,
  * because field recruits push a community past ten perfectly legally and an app
  * that kept nagging about it would be wrong for the rest of the campaign.
  */
@@ -134,7 +134,7 @@ export function communityViolations(
     {
       code: 'community-over-budget',
       message: `A starting community is built from ${STARTING_COMMUNITY_TIER_LEVELS} tier levels, and this one spends ${spent}.`,
-      pages: 48,
+      pages: 13,
     },
   ];
 }

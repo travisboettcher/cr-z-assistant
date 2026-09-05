@@ -71,7 +71,7 @@ describe('tier table', () => {
     }
   });
 
-  it('sets skill slots, max skill level, max HP, labor and base item slots to the tier number', () => {
+  it('sets skill slots, max skill level, max HP, labor and base Inventory Slots to the tier number', () => {
     // These five coincide today but are five separate rules from four pages.
     // Asserted per column rather than in a loop over a derived value, so a
     // rules change to one of them fails here instead of quietly agreeing with
@@ -82,7 +82,7 @@ describe('tier table', () => {
       expect(rules.maxSkillLevel).toBe(tier);
       expect(rules.maxHp).toBe(tier);
       expect(rules.labor).toBe(tier);
-      expect(rules.baseItemSlots).toBe(tier);
+      expect(rules.baseInventorySlots).toBe(tier);
     }
   });
 
@@ -113,7 +113,7 @@ describe('advancement costs', () => {
     expect(commonSkillScoreCost(7)).toBe(7);
     expect(commonSkillScoreCost(COMMON_SKILL_MAX_SCORE)).toBe(8);
 
-    // The bug this guards: reading pg. 30 once and charging Move as though it
+    // The bug this guards: reading pg. 18 once and charging Move as though it
     // had a level. Raising Move from its starting 6 is the seventh step, and
     // costs 7 — not 1.
     expect(commonSkillScoreCost(COMMON_SKILL_START_SCORE + 1)).not.toBe(skillLevelCost(1));

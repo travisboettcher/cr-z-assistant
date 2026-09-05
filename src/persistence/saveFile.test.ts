@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import v3Fixture from './__fixtures__/campaign-v3.json';
+import v4Fixture from './__fixtures__/campaign-v4.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -237,7 +237,7 @@ describe('parseCampaignFile with a roster', () => {
     // The *current* fixture, because byte-identity is a claim about the format
     // this build writes. An older file legitimately comes back one version up,
     // which is the migration working rather than the round trip failing.
-    const text = `${JSON.stringify(v3Fixture, null, 2)}\n`;
+    const text = `${JSON.stringify(v4Fixture, null, 2)}\n`;
     const result = parseCampaignFile(text);
 
     expect(result.ok).toBe(true);
@@ -258,8 +258,8 @@ describe('parseCampaignFile with a roster', () => {
       { ...v2Fixture.survivors[2], skills: { handguns: 4, archery: 2, stealth: 1 } },
     ];
 
-    // A Rookie with three skills, one of them at level 4: illegal by pg. 38-39
-    // and pg. 41, and none of the parser's business.
+    // A Rookie with three skills, one of them at level 4: illegal by pg. 7 and
+    // pg. 8, and none of the parser's business.
     expect(parseCampaignFile(JSON.stringify(houseRuled)).ok).toBe(true);
   });
 
@@ -379,6 +379,22 @@ describe('a file whose fields are the wrong type', () => {
 
   it('refuses a flag that is not a boolean', () => {
     expect(rejected({ startingCommunityBuilt: 'yes' })?.reason).toBe('damaged-campaign');
+  });
+
+  /**
+   * `origin` is the one optional field on the shape, so it needs both halves
+   * asserting: absent is a campaign not using an origin and has to open, while
+   * a name this build does not know has to be refused rather than carried — a
+   * facilities list gated on an unrecognised origin quietly shows nothing.
+   */
+  it('refuses an origin it does not recognise, and accepts one it does', () => {
+    expect(rejected({ origin: 'radiation' })?.reason).toBe('damaged-campaign');
+    expect(rejected({ origin: 7 })?.reason).toBe('damaged-campaign');
+    expect(parseCampaignFile(savedWith({ origin: 'magic' })).ok).toBe(true);
+  });
+
+  it('opens a campaign with no origin at all', () => {
+    expect(parseCampaignFile(savedWith({})).ok).toBe(true);
   });
 });
 

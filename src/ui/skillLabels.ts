@@ -21,7 +21,7 @@ export const STAT_LABELS: Record<Stat, string> = {
 
 export const SKILL_LABELS: Record<Skill, string> = {
   'blunt-weapon': 'Blunt Weapon',
-  'blade-weapon': 'Blade Weapon',
+  'blade-weapon': 'Bladed Weapon',
   'heavy-weapon': 'Heavy Weapon',
   carry: 'Carry',
   break: 'Break',

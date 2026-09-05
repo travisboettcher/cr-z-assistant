@@ -4,7 +4,7 @@
  * The app ships no rule text — it holds the numbers needed to compute state and
  * points at the page for everything else. That only works if the pointer is
  * consistent and unmissable, so every citation goes through here rather than
- * being typed inline as "(p41)" on one screen and "pg 41" on the next.
+ * being typed inline as "(p8)" on one screen and "pg 8" on the next.
  *
  * Deferred from Z0-7 until a screen actually needed to cite something.
  */

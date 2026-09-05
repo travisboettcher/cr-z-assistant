@@ -11,7 +11,7 @@ import {
 import { createSurvivor } from './survivor';
 
 /**
- * Earl as the rulebook finishes him on pg. 49: a legal Tier 4 build, four
+ * Earl as the rulebook finishes him on pg. 14: a legal Tier 4 build, four
  * skills, stats 4/3/2/1 arranged as the example arranges them. If this reports
  * a violation, the rules are being read wrong — which is the point of using the
  * book's own character rather than one invented to match the code.
@@ -65,7 +65,7 @@ describe('survivorViolations', () => {
   });
 
   /**
-   * Which stat holds which value is the player's choice (pg. 38-39), so only
+   * Which stat holds which value is the player's choice (pg. 7), so only
    * the collection is checked. Earl with his 4 in Strength instead of
    * Intelligence is a different character, not an illegal one.
    */
@@ -147,7 +147,7 @@ describe('communityViolations', () => {
     tiers.map((tier, index) => createSurvivor(`Survivor ${index}`, tier, { id: `s${index}` }));
 
   it('accepts the ten tier levels a starting community is built from', () => {
-    // The rulebook's recommended opening: one Hero and two Leaders (pg. 48).
+    // The rulebook's recommended opening: one Hero and two Leaders (pg. 13).
     expect(communityViolations(roster(4, 3, 3), false)).toEqual([]);
   });
 

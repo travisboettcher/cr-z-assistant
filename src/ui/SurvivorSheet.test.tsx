@@ -38,12 +38,12 @@ function skillRow(sheet: HTMLElement, label: string) {
 }
 
 describe('SurvivorSheet', () => {
-  it('shows the tier, and the health and item slots derived from it', async () => {
+  it('shows the tier, and the health and Inventory Slots derived from it', async () => {
     const { sheet } = await openSheetFor('Earl Rhodes', '4');
 
     expect(within(sheet).getByText(/tier 4 · hero/i)).toBeInTheDocument();
     expect(within(sheet).getByText('4 / 4')).toBeInTheDocument();
-    // No Carry skill yet, so item slots are the bare tier.
+    // No Carry skill yet, so Inventory Slots are the bare tier.
     expect(within(sheet).getByText('4', { selector: 'p.text-2xl' })).toBeInTheDocument();
   });
 
@@ -57,7 +57,7 @@ describe('SurvivorSheet', () => {
     const { sheet } = await openSheetFor('Earl Rhodes', '4');
 
     const groups: Record<string, readonly string[]> = {
-      Strength: ['Blunt Weapon', 'Blade Weapon', 'Heavy Weapon', 'Carry', 'Break'],
+      Strength: ['Blunt Weapon', 'Bladed Weapon', 'Heavy Weapon', 'Carry', 'Break'],
       Dexterity: ['Handguns', 'Long Guns', 'Archery', 'Stealth', 'Enter'],
       Intelligence: ['Scavenge', 'Scout', 'Tactics', 'Tinker', 'Traps'],
       Cooperation: ['Medicine', 'Rationing', 'Mechanics', 'Teaching', 'Utilities'],
@@ -86,7 +86,7 @@ describe('SurvivorSheet', () => {
   it('shows a dash, not a number, for a skill the survivor does not have', async () => {
     const { sheet } = await openSheetFor('Earl Rhodes', '4');
 
-    const row = skillRow(sheet, 'Blade Weapon');
+    const row = skillRow(sheet, 'Bladed Weapon');
 
     expect(within(row).getAllByText('—')).toHaveLength(2);
     expect(within(row).getAllByText('not learned')).toHaveLength(2);
@@ -150,7 +150,7 @@ describe('SurvivorSheet', () => {
 });
 
 /**
- * Building a survivor. Skills start at level zero (pg. 41), so creation is
+ * Building a survivor. Skills start at level zero (pg. 8), so creation is
  * choosing *which* skills and how the tier's stat values are arranged — levels
  * come only from experience, which is a later story.
  */
@@ -259,7 +259,7 @@ describe('SurvivorSheet editing', () => {
 });
 
 /**
- * Spending experience (pg. 30).
+ * Spending experience (pg. 18).
  *
  * The assertions that matter are about *price*, and they are made on the
  * controls themselves — a player decides what to buy by reading the buttons, so
@@ -300,7 +300,7 @@ describe('SurvivorSheet advancement', () => {
   });
 
   /**
-   * The whole trap of this story, on screen: one sentence of pg. 30 covers both
+   * The whole trap of this story, on screen: one sentence of pg. 18 covers both
    * of these and they differ by six. Asserted from the same survivor, in the
    * same test, because a wrong reading is only visible in the contrast.
    */
@@ -350,7 +350,7 @@ describe('SurvivorSheet advancement', () => {
     await user.click(toggleFor(sheet, 'Carry'));
     await user.click(within(sheet).getByRole('button', { name: /raise carry to level 1/i }));
 
-    // A Rookie caps at level 1 (pg. 41), so the next one is refused with a reason.
+    // A Rookie caps at level 1 (pg. 7), so the next one is refused with a reason.
     const next = within(sheet).getByRole('button', { name: /raise carry to level 2/i });
     expect(next).toBeDisabled();
     expect(next).toHaveAccessibleName(/maximum level for their tier/i);
@@ -385,12 +385,45 @@ describe('SurvivorSheet advancement', () => {
     const { user, sheet } = await openWithXp('Marcus Webb', '2', 6);
 
     await user.selectOptions(within(sheet).getByLabelText(/^intelligence$/i), '2');
+    await user.selectOptions(within(sheet).getByLabelText(/raise from zero/i), 'strength');
     await user.click(within(sheet).getByRole('button', { name: /raise their tier/i }));
 
     expect(within(sheet).getByText(/tier 3 · leader/i)).toBeInTheDocument();
     expect(within(sheet).getByLabelText(/^intelligence$/i)).toHaveValue('3');
     expect(within(sheet).getByLabelText(/^strength$/i)).toHaveValue('1');
     expect(await balance(user, sheet, 'Marcus Webb')).toBe(0);
+  });
+
+  /**
+   * The zero-stat choice, on screen (pg. 18). A Citizen has two stats at 0 and
+   * only one of them becomes the Leader's 1, so the sheet asks — and refuses,
+   * with a reason, until it is answered. The other answer has to produce the
+   * other character, or the control is decoration.
+   */
+  it('asks which stat comes off zero, and will not promote until it is told', async () => {
+    const { user, sheet } = await openWithXp('Marcus Webb', '2', 6);
+
+    const promote = within(sheet).getByRole('button', { name: /raise their tier/i });
+    expect(promote).toBeDisabled();
+    expect(promote).toHaveAccessibleName(/choose which stat comes off zero/i);
+
+    await user.selectOptions(within(sheet).getByLabelText(/raise from zero/i), 'cooperation');
+    await user.click(within(sheet).getByRole('button', { name: /raise their tier/i }));
+
+    expect(within(sheet).getByText(/tier 3 · leader/i)).toBeInTheDocument();
+    expect(within(sheet).getByLabelText(/^cooperation$/i)).toHaveValue('1');
+    expect(within(sheet).getByLabelText(/^intelligence$/i)).toHaveValue('0');
+  });
+
+  /** A Leader has one stat left at zero, so there is nothing to ask about. */
+  it('asks nothing of a survivor with a single stat at zero', async () => {
+    const { user, sheet } = await openWithXp('Carla Proust', '3', 8);
+
+    expect(within(sheet).queryByLabelText(/raise from zero/i)).not.toBeInTheDocument();
+
+    await user.click(within(sheet).getByRole('button', { name: /raise their tier/i }));
+
+    expect(within(sheet).getByText(/tier 4 · hero/i)).toBeInTheDocument();
   });
 
   /** A slot, not a skill — so the sheet immediately says one is missing. */
@@ -401,6 +434,7 @@ describe('SurvivorSheet advancement', () => {
 
     expect(within(sheet).queryByText(/still choosing/i)).not.toBeInTheDocument();
 
+    await user.selectOptions(within(sheet).getByLabelText(/raise from zero/i), 'intelligence');
     await user.click(within(sheet).getByRole('button', { name: /raise their tier/i }));
 
     expect(within(sheet).getByText(/still choosing skills: 2 of 3/i)).toBeInTheDocument();
