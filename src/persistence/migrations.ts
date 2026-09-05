@@ -73,7 +73,7 @@ const survivorsBecameReal: MigrationStep = {
  *
  * It answers **`true`**, which is the opposite of what `createNewCampaign`
  * answers for a brand-new campaign, and the difference is the point. The
- * ten-tier-level budget (pg. 48) did not exist when a v2 campaign was written,
+ * ten-tier-level budget (pg. 13) did not exist when a v2 campaign was written,
  * so its roster was built without ever being checked against it. Defaulting
  * those campaigns to `false` would take a perfectly good six-survivor community
  * and start reporting it as over budget the moment the player updated the app.
@@ -89,10 +89,31 @@ const startingCommunityBuiltRecorded: MigrationStep = {
   up: (previous) => ({ ...previous, startingCommunityBuilt: true }),
 };
 
+/**
+ * v3 → v4: campaigns can record which origin they are running.
+ *
+ * **A no-op on data, and unlike v1 → v2 that is the answer rather than a
+ * placeholder for one.** `origin` is optional: a campaign not using an origin
+ * simply has no origin, and a v3 campaign was written before the question could
+ * be asked, so absent is already the truthful answer for every one of them.
+ * Filling in a default would invent a campaign setting nobody chose.
+ *
+ * The step still earns the version bump, for the reason v1 → v2 did: a v4 save
+ * carrying an origin, opened in a v3 build, is refused on version with *"update
+ * the app"* rather than accepted and then silently stripped of the field on the
+ * next export.
+ */
+const originRecorded: MigrationStep = {
+  from: 3,
+  to: 4,
+  up: (previous) => previous,
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
   startingCommunityBuiltRecorded,
+  originRecorded,
 ];
 
 /** Why a save could not be brought forward. */

@@ -385,7 +385,7 @@ describe('survivor/recruited', () => {
       }),
     );
 
-    // A six is Archery (pg. 50).
+    // A six is Archery (pg. 15).
     expect(campaign.survivors[0]).toEqual(
       recruitSurvivor('Carla Proust', 3, 6, { id: SURVIVOR_ID }),
     );
@@ -480,11 +480,33 @@ describe('spending experience', () => {
   });
 
   it('promotes a survivor, spending the price and rebuilding their stats', () => {
-    const after = campaignReducer(withCitizen(6), { type: 'survivor/tierBought', id: SURVIVOR_ID });
+    const after = campaignReducer(withCitizen(6), {
+      type: 'survivor/tierBought',
+      id: SURVIVOR_ID,
+      // A Citizen is 2/1/0/0, so which zero becomes the Leader's 1 is the
+      // player's (pg. 18) and rides on the action.
+      raise: 'intelligence',
+    });
 
     expect(survivor(after)?.tier).toBe(3);
     expect(survivor(after)?.xp).toBe(0);
+    expect(survivor(after)?.stats.intelligence).toBe(1);
     expect(Object.values(survivor(after)?.stats ?? {}).sort()).toEqual([0, 1, 2, 3]);
+  });
+
+  /**
+   * The reducer cannot promote past the question, for the same reason it cannot
+   * overspend: `withTierBought` re-runs the check and hands the survivor back.
+   */
+  it('promotes nobody when the zero-stat choice has not been made', () => {
+    const before = withCitizen(6);
+    const after = campaignReducer(before, {
+      type: 'survivor/tierBought',
+      id: SURVIVOR_ID,
+      raise: null,
+    });
+
+    expect(survivor(after)).toEqual(survivor(before));
   });
 
   it('spends nobody else’s experience', () => {
@@ -608,7 +630,7 @@ describe('the actions only the sheet was testing', () => {
  * Creation and recruitment coincide at tier 4, which is why every earlier
  * `survivor/added` test could not tell them apart (issue #40).
  *
- * A Hero's skill is never randomly generated (pg. 38–39), so `recruitSurvivor`
+ * A Hero's skill is never randomly generated (pg. 7), so `recruitSurvivor`
  * and `createSurvivor` return the same Hero — and every test above adds a tier
  * 4. Handing `survivor/added` to the recruit path therefore changed nothing
  * anybody was checking. At tier 2 the two genuinely differ: a recruit rolls a

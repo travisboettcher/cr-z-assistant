@@ -14,7 +14,7 @@
 
 import { SKILL_STATS, STATS } from '../data/skills';
 import { TIERS } from '../data/tiers';
-import { CAMPAIGN_PHASES, MATERIALS, type Campaign } from '../engine/campaign';
+import { CAMPAIGN_ORIGINS, CAMPAIGN_PHASES, MATERIALS, type Campaign } from '../engine/campaign';
 import { migrate, type MigrationErrorReason } from './migrations';
 
 /**
@@ -119,6 +119,14 @@ function describeCampaignProblem(value: unknown): string | null {
   if (!isCountFromOne(value.turn)) return 'its turn number is missing or is not a whole turn';
   if (typeof value.phase !== 'string' || !CAMPAIGN_PHASES.some((phase) => phase === value.phase)) {
     return `its phase is not one of ${CAMPAIGN_PHASES.join(', ')}`;
+  }
+
+  // Absent is legal and means a campaign not using an origin, so only a present
+  // value is checked — and a present one has to be a name this build knows,
+  // because Phase 2 gates facilities on it and an unknown origin would quietly
+  // hide them.
+  if (value.origin !== undefined && !CAMPAIGN_ORIGINS.some((origin) => origin === value.origin)) {
+    return `its origin is not one of ${CAMPAIGN_ORIGINS.join(', ')}`;
   }
 
   const materials: unknown = value.materials;

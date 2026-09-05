@@ -3,7 +3,7 @@
  *
  * A player looks at this instead of a piece of paper, so it shows every number
  * the paper version makes them work out by hand, and works out none of them in
- * here: Skill Scores, max HP and item slots all come from `src/engine/survivor`
+ * here: Skill Scores, max HP and Inventory Slots all come from `src/engine/survivor`
  * and are recomputed on every render. Nothing derived is stored, because the
  * Phase 3 hunger penalty will change every Skill Score for a turn and a cached
  * one would be wrong the whole time.
@@ -17,6 +17,7 @@ import { COMMON_SKILLS, SKILLS, SKILL_STATS, STATS, type Skill, type Stat } from
 import { TIER_RULES } from '../data/tiers';
 import {
   commonSkillPurchase,
+  promotionStatChoices,
   skillLevelPurchase,
   tierPurchase,
   type Purchase,
@@ -24,7 +25,7 @@ import {
 } from '../engine/advancement';
 import type { Survivor } from '../engine/campaign';
 import { skillSlotsAreFull, survivorViolations, withStatValue } from '../engine/legality';
-import { itemSlots, maxHp, skillScore } from '../engine/survivor';
+import { inventorySlots, maxHp, skillScore } from '../engine/survivor';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
 import { COMMON_SKILL_LABELS, SKILL_LABELS, STAT_LABELS } from './skillLabels';
@@ -50,7 +51,7 @@ export function SurvivorSheet({ survivor, onClose }: SurvivorSheetProps) {
             {survivor.name}
           </h2>
           <p className="mt-1 text-stone-600 dark:text-stone-400">
-            Tier {survivor.tier} · {TIER_LABELS[survivor.tier]} <PageRef pages="38–39" />
+            Tier {survivor.tier} · {TIER_LABELS[survivor.tier]} <PageRef pages={7} />
           </p>
           <Promote survivor={survivor} />
         </div>
@@ -111,7 +112,7 @@ function Violations({ survivor }: { readonly survivor: Survivor }) {
   );
 }
 
-/** HP, item slots and XP — the three numbers checked most often mid-turn. */
+/** HP, Inventory Slots and XP — the three numbers checked most often mid-turn. */
 function Vitals({ survivor }: { readonly survivor: Survivor }) {
   const { dispatch } = useCampaign();
 
@@ -120,7 +121,7 @@ function Vitals({ survivor }: { readonly survivor: Survivor }) {
       <EditableNumber
         heading={
           <>
-            Health <PageRef pages={49} />
+            Health <PageRef pages={7} />
           </>
         }
         display={`${survivor.currentHp} / ${maxHp(survivor)}`}
@@ -133,11 +134,11 @@ function Vitals({ survivor }: { readonly survivor: Survivor }) {
 
       <div>
         <p className={VITAL_HEADING}>
-          Item slots <PageRef pages={49} />
+          Inventory Slots <PageRef pages={14} />
         </p>
         {/* Tier plus the Carry Score, so this moves when Strength does. What
             goes in the slots is Phase 5. */}
-        <p className="mt-1 text-2xl font-semibold tabular-nums">{itemSlots(survivor)}</p>
+        <p className="mt-1 text-2xl font-semibold tabular-nums">{inventorySlots(survivor)}</p>
       </div>
 
       {/*
@@ -148,7 +149,7 @@ function Vitals({ survivor }: { readonly survivor: Survivor }) {
       <EditableNumber
         heading={
           <>
-            Experience <PageRef pages={30} />
+            Experience <PageRef pages={18} />
           </>
         }
         display={survivor.xp}
@@ -275,6 +276,7 @@ const BLOCKED_REASONS: Record<PurchaseBlock, string> = {
   'at-score-maximum': 'already at the maximum score of eight',
   'skill-not-taken': 'they do not have this skill',
   'already-a-hero': 'tier 4 is the top of the table',
+  'stat-choice-required': 'choose which stat comes off zero first',
 };
 
 interface BuyButtonProps {
@@ -326,19 +328,58 @@ function BuyButton({ purchase, label, what, onBuy }: BuyButtonProps) {
   );
 }
 
-/** Buying the next Tier — a stat array, a skill slot, and a price (pg. 30). */
+/**
+ * Buying the next Tier — a stat array, a skill slot, and a price (pg. 18).
+ *
+ * **The zero-stat question is asked, never answered here.** A promotion raises
+ * every stat by one, and pg. 18 gives the player the choice of which stat comes
+ * off 0 when more than one is sitting there — true of every promotion but a
+ * Leader's. So the picker appears exactly when the engine says there is a
+ * choice, starts empty rather than on a guess, and Promote stays disabled with
+ * a reason until it is answered.
+ */
 function Promote({ survivor }: { readonly survivor: Survivor }) {
   const { dispatch } = useCampaign();
+  const choiceId = useId();
+  const [picked, setPicked] = useState<Stat | ''>('');
+  const choices = promotionStatChoices(survivor);
+  // Re-derived from the current choices rather than reset by an effect: a
+  // promotion changes the stats under this control, and a stale pick left over
+  // from the previous Tier must not count as an answer to the new question.
+  const raise = choices.some((choice) => choice === picked) ? (picked as Stat) : null;
 
   return (
-    <p className="mt-2">
+    <div className="mt-2 flex flex-wrap items-center gap-3">
       <BuyButton
-        purchase={tierPurchase(survivor)}
+        purchase={tierPurchase(survivor, raise)}
         label="Promote"
         what="their tier"
-        onBuy={() => dispatch({ type: 'survivor/tierBought', id: survivor.id })}
+        onBuy={() => {
+          dispatch({ type: 'survivor/tierBought', id: survivor.id, raise });
+          setPicked('');
+        }}
       />
-    </p>
+      {choices.length > 0 ? (
+        <span className="flex items-center gap-2 text-sm">
+          <label htmlFor={choiceId} className="text-stone-600 dark:text-stone-400">
+            Raise from zero
+          </label>
+          <select
+            id={choiceId}
+            value={picked}
+            onChange={(event) => setPicked(event.target.value as Stat | '')}
+            className={`${FOCUS_RING} rounded-lg border border-stone-300 bg-transparent px-2 py-1 dark:border-stone-600`}
+          >
+            <option value="">Choose…</option>
+            {choices.map((stat) => (
+              <option key={stat} value={stat}>
+                {STAT_LABELS[stat]}
+              </option>
+            ))}
+          </select>
+        </span>
+      ) : null}
+    </div>
   );
 }
 
@@ -349,7 +390,7 @@ function Stats({ survivor }: { readonly survivor: Survivor }) {
   return (
     <div className="mt-6 border-t border-stone-200 pt-6 dark:border-stone-800">
       <h3 className="text-sm font-semibold tracking-[0.15em] text-stone-500 uppercase dark:text-stone-400">
-        Stats <PageRef pages={40} />
+        Stats <PageRef pages={8} />
       </h3>
       <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
         A tier hands out a fixed set of values and lets you choose which stat gets which. Moving a
@@ -412,7 +453,7 @@ function CommonSkills({ survivor }: { readonly survivor: Survivor }) {
   return (
     <div className="mt-6 border-t border-stone-200 pt-6 dark:border-stone-800">
       <h3 className="text-sm font-semibold tracking-[0.15em] text-stone-500 uppercase dark:text-stone-400">
-        Common skills <PageRef pages={41} />
+        Common skills <PageRef pages={9} />
       </h3>
       <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
         Scores, not levels — these have no governing stat, so raising one costs its new{' '}
@@ -481,7 +522,7 @@ function Skills({ survivor }: { readonly survivor: Survivor }) {
   return (
     <div className="mt-6 border-t border-stone-200 pt-6 dark:border-stone-800">
       <h3 className="text-sm font-semibold tracking-[0.15em] text-stone-500 uppercase dark:text-stone-400">
-        Skills <PageRef pages={41} />
+        Skills <PageRef pages={8} />
       </h3>
       <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
         Score is the skill&rsquo;s level plus its governing stat. A dash means this survivor does
@@ -523,7 +564,7 @@ function Skills({ survivor }: { readonly survivor: Survivor }) {
             : `${survivor.name} already has ${slots} ${slots === 1 ? 'skill' : 'skills'}, which is
                all a tier ${survivor.tier} survivor gets. Taking ${SKILL_LABELS[pending]} as well
                will keep showing on this sheet as a broken rule.`}{' '}
-          <PageRef pages="38–39" />
+          <PageRef pages={7} />
         </p>
 
         <div className="mt-6 flex flex-wrap justify-end gap-3">
@@ -595,7 +636,7 @@ function SkillGroup({ stat, survivor, onTake, onBuy, onDrop }: SkillGroupProps) 
                 </th>
                 {/*
                  * An em dash, not a zero and not the bare stat. A survivor with
-                 * Strength 3 and no Blade Weapon skill is not a Blade Weapon 3
+                 * Strength 3 and no Bladed Weapon skill is not a Bladed Weapon 3
                  * — they cannot make the check at all — and a number here is a
                  * number somebody could roll against. `skillScore` returns null
                  * precisely so this branch has to exist.

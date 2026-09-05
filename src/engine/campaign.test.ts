@@ -57,6 +57,9 @@ describe('createNewCampaign', () => {
    * cheapest way that rule gets broken is someone caching `unrest` or a Skill
    * Score onto the campaign because it was convenient. Adding a field to
    * `Campaign` should be a deliberate act that updates this list.
+   *
+   * `origin` is absent and belongs absent: it is optional, and a new campaign
+   * has not been asked which apocalypse it is running.
    */
   it('stores exactly the primitive facts and nothing derived', () => {
     const campaign = createNewCampaign('Cedar Hollow', FIXED);
@@ -80,7 +83,7 @@ describe('createNewCampaign', () => {
 describe('Survivor', () => {
   /**
    * The same canary one level down, and the one that matters most now that a
-   * survivor is where the derived values live. Skill Score, max HP, item slots
+   * survivor is where the derived values live. Skill Score, max HP, Inventory Slots
    * and labor are all computable from what is here; caching any of them would
    * put a value on the persisted shape that the Phase 3 hunger penalty makes
    * wrong for a whole turn.

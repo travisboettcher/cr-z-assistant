@@ -21,7 +21,12 @@
 import fc from 'fast-check';
 import { SKILLS, STATS, type Skill } from '../data/skills';
 import { TIERS } from '../data/tiers';
-import { CAMPAIGN_PHASES, CURRENT_SCHEMA_VERSION, MATERIALS } from '../engine/campaign';
+import {
+  CAMPAIGN_ORIGINS,
+  CAMPAIGN_PHASES,
+  CURRENT_SCHEMA_VERSION,
+  MATERIALS,
+} from '../engine/campaign';
 import type { Campaign, Materials, SkillLevels, Stats, Survivor } from '../engine/campaign';
 
 /**
@@ -146,19 +151,40 @@ function materialsArbitrary(): fc.Arbitrary<Materials> {
  * tests' job, and they use real fixture files rather than generated ones.
  */
 export function campaignArbitrary(): fc.Arbitrary<Campaign> {
-  return fc.record({
-    schemaVersion: fc.constant(CURRENT_SCHEMA_VERSION),
-    id: anyId,
-    name: anyName,
-    createdAt: anyCreatedAt,
-    turn: fc.integer({ min: 1, max: 9999 }),
-    phase: fc.constantFrom(...CAMPAIGN_PHASES),
-    materials: materialsArbitrary(),
-    survivors: fc.array(survivorArbitrary(), { maxLength: 6 }),
-    startingCommunityBuilt: fc.boolean(),
-    base: fc.constant(null),
-    log: fc.constant([]),
-  });
+  return fc.record(
+    {
+      schemaVersion: fc.constant(CURRENT_SCHEMA_VERSION),
+      id: anyId,
+      name: anyName,
+      createdAt: anyCreatedAt,
+      turn: fc.integer({ min: 1, max: 9999 }),
+      phase: fc.constantFrom(...CAMPAIGN_PHASES),
+      origin: fc.constantFrom(...CAMPAIGN_ORIGINS),
+      materials: materialsArbitrary(),
+      survivors: fc.array(survivorArbitrary(), { maxLength: 6 }),
+      startingCommunityBuilt: fc.boolean(),
+      base: fc.constant(null),
+      log: fc.constant([]),
+    },
+    // Every key but `origin`, which is optional on `Campaign` — so half the
+    // generated campaigns leave it out entirely. Both are real files, and the
+    // absent one is the one a round trip can get wrong by writing `null`.
+    {
+      requiredKeys: [
+        'schemaVersion',
+        'id',
+        'name',
+        'createdAt',
+        'turn',
+        'phase',
+        'materials',
+        'survivors',
+        'startingCommunityBuilt',
+        'base',
+        'log',
+      ],
+    },
+  );
 }
 
 /**

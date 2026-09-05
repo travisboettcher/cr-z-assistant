@@ -86,6 +86,10 @@ function inFileOrder(campaign: Campaign): Record<keyof Campaign, unknown> {
     id: campaign.id,
     name: campaign.name,
     createdAt: campaign.createdAt,
+    // Optional, so this is `undefined` for most campaigns — which `JSON.stringify`
+    // drops, leaving the key absent rather than written as null. Absent is what
+    // "no origin" means, so the file says it the same way the type does.
+    origin: campaign.origin,
     turn: campaign.turn,
     phase: campaign.phase,
     materials: orderedMaterials(campaign),

@@ -3,7 +3,7 @@
  *
  * The first screen in the app that holds game state a player created. It shows
  * the stored facts and the derived ones side by side without storing any of the
- * derived ones: HP and item slots are computed on every render by `src/engine`,
+ * derived ones: HP and Inventory Slots are computed on every render by `src/engine`,
  * because the Phase 3 hunger penalty will make any cached value wrong for a
  * whole turn.
  *
@@ -22,7 +22,7 @@ import {
 import { TIERS, type Tier } from '../data/tiers';
 import type { Campaign, Survivor } from '../engine/campaign';
 import { communityViolations } from '../engine/legality';
-import { communityTierLevels, itemSlots, maxHp } from '../engine/survivor';
+import { communityTierLevels, inventorySlots, maxHp } from '../engine/survivor';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
@@ -205,8 +205,8 @@ export function SurvivorRoster({ campaign, onOpenSheet }: SurvivorRosterProps) {
  * Bringing somebody back from a mission.
  *
  * A separate form from "add survivor" rather than a mode on it, because it is a
- * different act with different rules: no Heroes (pg. 38), and one of their
- * skills comes off a d10 table rather than being chosen (pg. 50).
+ * different act with different rules: no Heroes (pg. 7), and one of their
+ * skills comes off a d10 table rather than being chosen (pg. 15).
  *
  * **The die is typeable, and the button is only a convenience.** Someone at the
  * table has usually already rolled a physical d10, and result 10 is the
@@ -241,7 +241,7 @@ function RecruitForm() {
 
       <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">
         A survivor found on a mission arrives with one skill already rolled. Heroes are never
-        recruited this way. <PageRef pages={50} />
+        recruited this way. <PageRef pages={15} />
       </p>
 
       <form onSubmit={handleRecruit} className="mt-4 flex flex-wrap items-end gap-3">
@@ -329,7 +329,7 @@ function rollD10(): D10Result {
 /**
  * The ten-tier-level budget, and the switch that retires it.
  *
- * The budget is a rule about *building* a starting community (pg. 48), not
+ * The budget is a rule about *building* a starting community (pg. 13), not
  * about having one. Once play begins, rescued strangers and field recruits push
  * a community past ten legitimately, and an app still complaining about it then
  * would be wrong for the rest of the campaign. Nothing in the campaign data
@@ -430,7 +430,7 @@ function RosterRow({ survivor, onRename, onRemove, onOpenSheet }: RosterRowProps
 
       {/*
        * Both derived, both recomputed here rather than read off the survivor:
-       * item slots move with Strength and with the Carry skill, and HP with the
+       * Inventory Slots move with Strength and with the Carry skill, and HP with the
        * Tier. Neither is stored.
        */}
       <dl className="flex shrink-0 gap-4 text-sm">
@@ -442,7 +442,7 @@ function RosterRow({ survivor, onRename, onRemove, onOpenSheet }: RosterRowProps
         </div>
         <div>
           <dt className="text-stone-500 dark:text-stone-400">Slots</dt>
-          <dd className="font-semibold tabular-nums">{itemSlots(survivor)}</dd>
+          <dd className="font-semibold tabular-nums">{inventorySlots(survivor)}</dd>
         </div>
       </dl>
 

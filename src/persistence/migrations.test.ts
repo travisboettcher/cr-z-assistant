@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { CURRENT_SCHEMA_VERSION, createNewCampaign, type Survivor } from '../engine/campaign';
+import {
+  CURRENT_SCHEMA_VERSION,
+  createNewCampaign,
+  type Campaign,
+  type Survivor,
+} from '../engine/campaign';
 import { MIGRATION_STEPS, migrate } from './migrations';
 
 /**
@@ -42,6 +47,21 @@ const fixtures = Object.entries(fixtureModules)
   .sort((a, b) => a.version - b.version);
 
 const versionsUpToCurrent = Array.from({ length: CURRENT_SCHEMA_VERSION }, (_, i) => i + 1);
+
+/**
+ * The fields a migrated campaign may legitimately not have.
+ *
+ * The shape guard below works by comparing a migrated fixture's keys against a
+ * freshly created campaign's, and an optional field breaks that outright: it is
+ * absent from a new campaign and present on a fixture that uses it, and both are
+ * correct. Listing it here is the deliberate act that says so — a *required*
+ * field added without a step still fails the guard, because adding it to this
+ * list is a separate decision somebody has to make on purpose.
+ *
+ * `satisfies` keeps the names honest: a field renamed on `Campaign` fails the
+ * typecheck here rather than silently exempting a key that no longer exists.
+ */
+const OPTIONAL_CAMPAIGN_KEYS = ['origin'] as const satisfies readonly (keyof Campaign)[];
 
 /**
  * The story's central acceptance: bumping `CURRENT_SCHEMA_VERSION` alone must
@@ -91,6 +111,7 @@ describe('the version-bump guard', () => {
    */
   it('brings every checked-in fixture up to the current campaign shape', () => {
     const expectedKeys = Object.keys(createNewCampaign('Cedar Hollow')).sort();
+    const optional: readonly string[] = OPTIONAL_CAMPAIGN_KEYS;
 
     for (const fixture of fixtures) {
       const result = migrate(fixture.contents);
@@ -99,10 +120,32 @@ describe('the version-bump guard', () => {
       if (!result.ok) continue;
 
       expect(result.campaign.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
-      expect(Object.keys(result.campaign).sort(), `${fixture.path} is missing a field`).toEqual(
-        expectedKeys,
-      );
+      // An optional field a fixture happens to carry is set aside rather than
+      // counted as a difference; anything else missing or extra is a hole in
+      // the chain.
+      expect(
+        Object.keys(result.campaign)
+          .filter((key) => !optional.includes(key))
+          .sort(),
+        `${fixture.path} is missing a field`,
+      ).toEqual(expectedKeys);
     }
+  });
+
+  /**
+   * The other half of that exemption. Setting a key aside is only safe while it
+   * is genuinely optional, so the fixture that carries one has to arrive with it
+   * intact: a chain that dropped `origin` on the way forward would otherwise
+   * pass the test above by being ignored.
+   */
+  it('carries an optional field through the chain rather than dropping it', () => {
+    const v4 = fixtures.find((fixture) => fixture.version === 4);
+    const result = migrate(v4?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.origin).toBe('cosmic-horror');
   });
 
   /**

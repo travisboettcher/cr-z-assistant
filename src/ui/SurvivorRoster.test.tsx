@@ -135,7 +135,7 @@ describe('the starting-community budget', () => {
   it('says nothing while a community is within its ten tier levels', async () => {
     const user = await openCampaign();
 
-    // The rulebook's recommended opening: one Hero and two Leaders (pg. 48).
+    // The rulebook's recommended opening: one Hero and two Leaders (pg. 13).
     await addSurvivor(user, 'Earl Rhodes', '4');
     await addSurvivor(user, 'Carla Proust', '3');
     await addSurvivor(user, 'Marcus Webb', '3');
@@ -190,7 +190,7 @@ describe('recruiting from the field', () => {
     await user.selectOptions(screen.getByLabelText(/skill roll/i), '6');
     await user.click(screen.getByRole('button', { name: /^recruit$/i }));
 
-    // A six is Archery (pg. 50), and the sheet is where that shows.
+    // A six is Archery (pg. 15), and the sheet is where that shows.
     await user.click(screen.getByRole('button', { name: /^sheet$/i }));
     const sheet = screen.getByRole('region', { name: 'Carla Proust' });
     const archery = within(sheet).getByRole('row', { name: /^Archery/ });
@@ -202,7 +202,7 @@ describe('recruiting from the field', () => {
     expect(within(sheet).getByText(/still choosing skills: 1 of 3/i)).toBeInTheDocument();
   });
 
-  /** Heroes are never recruited in the field (pg. 38). */
+  /** Heroes are never recruited in the field (pg. 7). */
   it('does not offer a hero as a recruit tier', async () => {
     const user = await openCampaign();
     await openRecruitForm(user);

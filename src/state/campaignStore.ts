@@ -21,7 +21,7 @@
  */
 
 import type { D10Result, FieldRecruitTier } from '../data/recruitTable';
-import { MIN_SKILL_LEVEL, type CommonSkill, type Skill } from '../data/skills';
+import { MIN_SKILL_LEVEL, type CommonSkill, type Skill, type Stat } from '../data/skills';
 import type { Tier } from '../data/tiers';
 import { withCommonSkillBought, withSkillLevelBought, withTierBought } from '../engine/advancement';
 import { createNewCampaign } from '../engine/campaign';
@@ -108,7 +108,7 @@ export type CampaignAction =
   /**
    * Add a survivor brought back from a mission.
    *
-   * Carries the d10 result (pg. 50) for the same reason it carries the id: the
+   * Carries the d10 result (pg. 15) for the same reason it carries the id: the
    * roll is the impure part, so the UI does it — or the player types in what
    * their physical die showed — and the reducer stays a pure function.
    */
@@ -124,7 +124,7 @@ export type CampaignAction =
    * Set a survivor's current health.
    *
    * Only *current* health — max HP is the Tier and is derived, so there is
-   * nothing to set. Wounds come from the tactical layer, which the app does not
+   * nothing to set. Wounds come from the Mission Layer, which the app does not
    * simulate, so until the Advancement Phase lands this is how a wound gets
    * recorded: the player types what happened at the table.
    */
@@ -138,7 +138,7 @@ export type CampaignAction =
    * between the halves with a stat array the Tier never hands out.
    */
   | { readonly type: 'survivor/statsSet'; readonly id: string; readonly stats: Stats }
-  /** Take a skill, at level 0 — skills all start there (pg. 41). */
+  /** Take a skill, at level 0 — skills all start there (pg. 8). */
   | { readonly type: 'survivor/skillAdded'; readonly id: string; readonly skill: Skill }
   | { readonly type: 'survivor/skillRemoved'; readonly id: string; readonly skill: Skill }
   /**
@@ -153,7 +153,7 @@ export type CampaignAction =
    * Spend XP on the **next** level of a skill the survivor already has.
    *
    * There is no action that sets a level, which is what makes "skills cannot be
-   * gained out of order" (pg. 30) unrepresentable rather than validated. The
+   * gained out of order" (pg. 18) unrepresentable rather than validated. The
    * three purchase actions carry no price: the cost is a rule, so
    * `src/engine/advancement` works it out and re-checks the purchase itself.
    */
@@ -163,8 +163,16 @@ export type CampaignAction =
       readonly id: string;
       readonly skill: CommonSkill;
     }
-  /** Promote a survivor one Tier, rebuilding their stat array. */
-  | { readonly type: 'survivor/tierBought'; readonly id: string }
+  /**
+   * Promote a survivor one Tier, rebuilding their stat array.
+   *
+   * `raise` is the stat the player chose to lift off 0, and is required rather
+   * than optional: pg. 18 gives that choice to the player whenever more than
+   * one stat sits at 0, which is two promotions out of three. `null` says there
+   * was nothing to choose — the engine re-checks that and promotes nobody if
+   * there was.
+   */
+  | { readonly type: 'survivor/tierBought'; readonly id: string; readonly raise: Stat | null }
   | { readonly type: 'survivor/removed'; readonly id: string };
 
 export function campaignReducer(state: CampaignState, action: CampaignAction): CampaignState {
@@ -274,7 +282,7 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       );
 
     case 'survivor/tierBought':
-      return editSurvivor(state, action.id, withTierBought);
+      return editSurvivor(state, action.id, (survivor) => withTierBought(survivor, action.raise));
 
     case 'survivor/removed':
       return withCampaign(state, (campaign) => ({
