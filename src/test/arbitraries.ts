@@ -19,12 +19,14 @@
  */
 
 import fc from 'fast-check';
+import { BASES, BASE_IDS } from '../data/bases';
+import { FACILITY_IDS, UPGRADE_IDS } from '../data/facilities';
 import { SKILLS, STATS, type Skill } from '../data/skills';
 import { TIERS } from '../data/tiers';
 import { MATERIALS, type Materials } from '../data/materials';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { CAMPAIGN_PHASES, CURRENT_SCHEMA_VERSION } from '../engine/campaign';
-import type { Campaign, SkillLevels, Stats, Survivor } from '../engine/campaign';
+import type { Base, Campaign, SkillLevels, SlotState, Stats, Survivor } from '../engine/campaign';
 
 /**
  * Any single UTF-16 code unit — **including an unpaired surrogate**.
@@ -139,6 +141,58 @@ function materialsArbitrary(): fc.Arbitrary<Materials> {
 }
 
 /**
+ * What a player may have done to one slot.
+ *
+ * `requiredKeys: []` is the point of this generator rather than a detail of it:
+ * every field of `SlotState` is optional, absent means the same as false, and
+ * the round trip can only get that wrong in one direction — by writing `false`
+ * or `null` where the campaign said nothing at all. Generating states that
+ * leave fields out is what catches it.
+ */
+function slotStateArbitrary(): fc.Arbitrary<SlotState> {
+  return fc.record(
+    {
+      cleared: fc.constant(true as const),
+      built: fc.record({
+        facility: fc.constantFrom(...FACILITY_IDS),
+        builtOnTurn: fc.integer({ min: 1, max: 9999 }),
+      }),
+      upgrades: fc.array(fc.constantFrom(...UPGRADE_IDS), { maxLength: 4 }),
+      power: fc.constant(true as const),
+      water: fc.constant(true as const),
+    },
+    { requiredKeys: [] },
+  );
+}
+
+/**
+ * A base this build could have written.
+ *
+ * Slots are drawn from the chosen base's own layout, because a slot id outside
+ * it is a damaged save by definition and `parseCampaignFile` says so — the
+ * round-trip property is a claim about files this app writes, not about every
+ * object that fits the type. What it does **not** respect is legality: a
+ * Watchtower may land in an Indoor slot and a Kitchen may carry a Watchtower's
+ * upgrade, because a player can override both (Z2-5, Z2-6) and an overridden
+ * base is exactly the one most likely to break a round trip.
+ */
+export function baseArbitrary(): fc.Arbitrary<Base> {
+  return fc.constantFrom(...BASE_IDS).chain((id) => {
+    const slotIds = (BASES[id].slots as readonly { readonly id: string }[]).map((slot) => slot.id);
+
+    return fc.record({
+      id: fc.constant(id),
+      slots: fc
+        .uniqueArray(fc.tuple(fc.constantFrom(...slotIds), slotStateArbitrary()), {
+          selector: ([slot]) => slot,
+          maxLength: slotIds.length,
+        })
+        .map((entries) => Object.fromEntries(entries) as Record<string, SlotState>),
+    });
+  });
+}
+
+/**
  * A campaign this build could have written.
  *
  * `schemaVersion` is pinned to the current one rather than generated, because
@@ -160,7 +214,9 @@ export function campaignArbitrary(): fc.Arbitrary<Campaign> {
       materials: materialsArbitrary(),
       survivors: fc.array(survivorArbitrary(), { maxLength: 6 }),
       startingCommunityBuilt: fc.boolean(),
-      base: fc.constant(null),
+      // Half the campaigns have claimed a base and half have not; null is a
+      // real state and a round trip can get it wrong by writing `{}`.
+      base: fc.option(baseArbitrary(), { nil: null }),
       log: fc.constant([]),
     },
     // Every key but `origin`, which is optional on `Campaign` — so half the

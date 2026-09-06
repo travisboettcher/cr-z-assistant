@@ -8,12 +8,14 @@
  * makes any cached value wrong. If you are tempted to add a field that can be
  * calculated from other fields, write a function in this directory instead.
  *
- * The shape grows a phase at a time. `survivors` became real in Phase 1;
- * `base` and `log` are still empty placeholders and get their types in Phases 2
- * and 3 — through the migration chain in `src/persistence`, which exists
+ * The shape grows a phase at a time. `survivors` became real in Phase 1 and
+ * `base` in Phase 2; `log` is still an empty placeholder and gets its type in
+ * Phase 3 — through the migration chain in `src/persistence`, which exists
  * precisely to make that change survivable for a campaign already in progress.
  */
 
+import type { BaseId } from '../data/bases';
+import type { FacilityId, UpgradeId } from '../data/facilities';
 import type { Materials } from '../data/materials';
 import type { CampaignOrigin } from '../data/origins';
 import type { Skill, Stat } from '../data/skills';
@@ -32,7 +34,7 @@ export type CampaignPhase = (typeof CAMPAIGN_PHASES)[number];
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 4;
+export const CURRENT_SCHEMA_VERSION = 5;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -83,6 +85,98 @@ export interface Survivor {
   xp: number;
 }
 
+/**
+ * A facility the player has built into a slot.
+ *
+ * Built-in facilities are **not** recorded here — they are in the base's own
+ * layout in `src/data/bases.ts`, and copying one into the save would give the
+ * same fact two homes that could disagree.
+ */
+export interface BuiltFacility {
+  readonly facility: FacilityId;
+
+  /**
+   * The campaign turn it went up on.
+   *
+   * A primitive fact — *when this happened* — and the only way the rule that an
+   * upgrade may not be built the same turn as its facility (pg. 54) survives a
+   * reload. Nothing else in a campaign records it.
+   */
+  readonly builtOnTurn: number;
+}
+
+/**
+ * What the player has done to one Facility Slot.
+ *
+ * Everything permanent about a slot — its Indoor/Outdoor kind, whether it
+ * starts empty, built-in or full of rubble — belongs to the base layout and is
+ * read from there. This holds only what a player changed, so a slot nobody has
+ * touched has no entry at all.
+ *
+ * Every field is optional and absent means the same as false, which is the one
+ * spelling this shape allows: `power: false` and no `power` key would otherwise
+ * be the same state written two ways, and the exporter would have to pick one
+ * anyway.
+ */
+export interface SlotState {
+  /** Set once a clearing project has been paid for (pg. 54). */
+  readonly cleared?: true;
+
+  /** A facility built into this slot. Absent where the base ships a built-in. */
+  readonly built?: BuiltFacility;
+
+  /**
+   * Upgrades the player has added, in the order they were built, on top of
+   * whatever the base layout already ships in this slot.
+   *
+   * A list rather than a set: repeats are legal and count separately against
+   * the cap of three, so two Extra Beds are two upgrades and not one.
+   */
+  readonly upgrades?: readonly UpgradeId[];
+
+  /**
+   * Power and Water assigned to this slot's facility for the turn (pg. 20, 67).
+   *
+   * Stored, unlike the pool they come out of: how much a base generates is
+   * arithmetic over its facilities and gets recomputed, but *where the player
+   * put it* is a decision. One point covers the facility and all its upgrades,
+   * so this is a flag and not a count. Clearing them each Planning Phase is
+   * Phase 3's job; until then an assignment simply stands.
+   */
+  readonly power?: true;
+  readonly water?: true;
+}
+
+/**
+ * The community's base.
+ *
+ * **Primitive facts only**, and thin on purpose: the slot list, each slot's
+ * kind, the built-in facilities and the clearing projects are all rules, and
+ * they live in `src/data/bases.ts`. What persists is which base was claimed and
+ * what the player has since done to it. Storage caps, bed counts, utility pools
+ * and production are all computed from the two together.
+ */
+export interface Base {
+  /**
+   * Which base from the roster in `src/data/bases.ts`.
+   *
+   * A catalogue id, not a generated one — the type says which. It is a field
+   * rather than a fixed part of the campaign because Claim a New Base (Phase 4)
+   * replaces it, and nothing anywhere may cache a value derived from it.
+   */
+  readonly id: BaseId;
+
+  /**
+   * Slot id to what the player has done to it, for the slots they have touched.
+   *
+   * **Partial on purpose**, exactly as `SkillLevels` is. An untouched slot is
+   * absent rather than present-and-empty, so "nothing has happened here" has
+   * one spelling; and a slot id that is not in the base's layout is a damaged
+   * save rather than a slot.
+   */
+  readonly slots: Readonly<Record<string, SlotState>>;
+}
+
 export interface Campaign {
   /** Which version of the persisted shape this campaign was written in. */
   schemaVersion: number;
@@ -124,8 +218,14 @@ export interface Campaign {
    */
   startingCommunityBuilt: boolean;
 
-  /** Placeholder — Phase 2 (base building) replaces this with a `Base`. */
-  base: null;
+  /**
+   * The community's base, or `null` for a campaign that has not claimed one.
+   *
+   * Null is a real answer, not a missing value: a campaign before its first
+   * base is the state the Start a New Community and Claim a New Base missions
+   * resolve. A base with no slots would be a different thing entirely.
+   */
+  base: Base | null;
 
   /** Placeholder — Phase 3 (the turn engine) makes this an append-only log. */
   log: readonly never[];

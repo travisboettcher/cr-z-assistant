@@ -7,9 +7,10 @@
  * something a person can read and diff, and hand it to the browser.
  */
 
+import { BASES } from '../data/bases';
 import { SKILLS, STATS } from '../data/skills';
 import { MATERIALS } from '../data/materials';
-import type { Campaign, Survivor } from '../engine/campaign';
+import type { Base, Campaign, SlotState, Survivor } from '../engine/campaign';
 
 /** Material counts in the fixed order from the engine, not insertion order. */
 function orderedMaterials(campaign: Campaign): Record<string, number> {
@@ -69,6 +70,46 @@ function orderedSurvivor(survivor: Survivor): Record<keyof Survivor, unknown> {
 }
 
 /**
+ * One slot's state with its keys in a fixed order, and its absent fields left
+ * absent.
+ *
+ * `SlotState` is all-optional, so writing `false` for what a player has not
+ * done would invent state the type says nothing about — and would make an
+ * untouched-but-recorded slot look different from an untouched one.
+ */
+function orderedSlot(state: SlotState): Record<keyof SlotState, unknown> {
+  return {
+    cleared: state.cleared,
+    built: state.built && {
+      facility: state.built.facility,
+      builtOnTurn: state.built.builtOnTurn,
+    },
+    upgrades: state.upgrades,
+    power: state.power,
+    water: state.water,
+  };
+}
+
+/**
+ * The base with its slots in the order the base's own layout lists them, not
+ * the order the player happened to build in.
+ *
+ * The same guarantee `orderedSkills` gives a survivor: two saves of the same
+ * base diff as though nothing changed unless something did. Only slots the
+ * player has touched are written, because `Base.slots` is partial on purpose.
+ */
+function orderedBase(base: Base): Record<keyof Base, unknown> {
+  const slots: Record<string, unknown> = {};
+
+  for (const slot of BASES[base.id].slots) {
+    const state = base.slots[slot.id];
+    if (state !== undefined) slots[slot.id] = orderedSlot(state);
+  }
+
+  return { id: base.id, slots };
+}
+
+/**
  * The campaign rewritten with its keys in a fixed order.
  *
  * `JSON.stringify` follows insertion order, so a campaign that came through
@@ -96,7 +137,7 @@ function inFileOrder(campaign: Campaign): Record<keyof Campaign, unknown> {
     materials: orderedMaterials(campaign),
     survivors: campaign.survivors.map(orderedSurvivor),
     startingCommunityBuilt: campaign.startingCommunityBuilt,
-    base: campaign.base,
+    base: campaign.base === null ? null : orderedBase(campaign.base),
     log: campaign.log,
   };
 }

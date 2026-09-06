@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   CURRENT_SCHEMA_VERSION,
   createNewCampaign,
+  type Base,
   type Campaign,
+  type SlotState,
   type Survivor,
 } from '../engine/campaign';
 import { MIGRATION_STEPS, migrate } from './migrations';
@@ -23,6 +25,28 @@ const SAMPLE_SURVIVOR = {
   currentHp: 3,
   xp: 5,
 } satisfies Survivor;
+
+/**
+ * The current base shape, spelled out, for the same reason `SAMPLE_SURVIVOR`
+ * is: `satisfies` means a field added to `Base` fails the typecheck here rather
+ * than quietly escaping the nested-shape assertion below.
+ *
+ * `SlotState` gets its own spelling because every one of its fields is optional
+ * — a key list taken from a sample slot would only cover the fields that sample
+ * happened to use, so the sample uses all of them.
+ */
+const SAMPLE_SLOT = {
+  cleared: true,
+  built: { facility: 'watchtower', builtOnTurn: 2 },
+  upgrades: ['spotlight'],
+  power: true,
+  water: true,
+} satisfies SlotState;
+
+const SAMPLE_BASE = {
+  id: 'hobby-farm',
+  slots: { 'front-yard': SAMPLE_SLOT },
+} satisfies Base;
 
 /**
  * Fixtures are discovered from the directory rather than listed here on
@@ -174,6 +198,57 @@ describe('the version-bump guard', () => {
         ).toEqual(expectedKeys);
       }
     }
+  });
+
+  /**
+   * The nested-shape assertion for the base, alongside the one for survivors
+   * and for the same reason: v4 → v5 adds no top-level key — `base` was always
+   * there, it just stopped being `null` — so the guard above would not have
+   * noticed the change at all.
+   *
+   * Only the keys a fixture actually uses can be checked, because `SlotState`
+   * is all-optional and absent is a legitimate value for every field of it. So
+   * this asserts the other direction: no fixture may carry a key that is not
+   * part of the shape.
+   */
+  it('brings every fixture base up to the current base shape', () => {
+    const baseKeys = Object.keys(SAMPLE_BASE).sort();
+    const slotKeys: readonly string[] = Object.keys(SAMPLE_SLOT);
+
+    for (const fixture of fixtures) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok || result.campaign.base === null) continue;
+
+      expect(Object.keys(result.campaign.base).sort(), `${fixture.path} base`).toEqual(baseKeys);
+
+      for (const [id, slot] of Object.entries(result.campaign.base.slots)) {
+        for (const key of Object.keys(slot)) {
+          expect(slotKeys, `${fixture.path} slot ${id} has an unknown field`).toContain(key);
+        }
+      }
+    }
+  });
+
+  /**
+   * The base's equivalent of the optional-field test above: a chain that
+   * dropped `base` on the way forward would pass the shape guard by leaving
+   * `null` behind, which is a legitimate value.
+   */
+  it('carries a claimed base through the chain rather than dropping it', () => {
+    const v5 = fixtures.find((fixture) => fixture.version === 5);
+    const result = migrate(v5?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.base?.id).toBe('hobby-farm');
+    expect(result.campaign.base?.slots['front-yard']).toEqual({
+      built: { facility: 'watchtower', builtOnTurn: 2 },
+      upgrades: ['spotlight'],
+      power: true,
+    });
   });
 });
 
