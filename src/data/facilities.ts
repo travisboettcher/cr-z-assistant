@@ -593,6 +593,11 @@ export type UpgradeId =
   | 'gunsmith'
   | 'auto-shop';
 
+/** Every upgrade in the table, flattened, in facility order. */
+export const UPGRADE_IDS: readonly UpgradeId[] = FACILITY_IDS.flatMap((id) =>
+  (FACILITIES[id] as Facility).upgrades.map((upgrade) => upgrade.id),
+);
+
 /** The facility an upgrade belongs to, or undefined if it belongs to none. */
 export function facilityOfUpgrade(upgrade: UpgradeId): Facility | undefined {
   return FACILITY_IDS.map((id) => FACILITIES[id] as Facility).find((facility) =>

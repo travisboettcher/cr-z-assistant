@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import v4Fixture from './__fixtures__/campaign-v4.json';
+import v5Fixture from './__fixtures__/campaign-v5.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -233,11 +233,16 @@ describe('parseCampaignFile with a roster', () => {
    * to come out byte-identical — otherwise every save after a survivor learns
    * a skill diffs as though the whole roster changed.
    */
-  it('re-exports a roster byte-identically', () => {
+  it('re-exports a roster and a base byte-identically', () => {
     // The *current* fixture, because byte-identity is a claim about the format
     // this build writes. An older file legitimately comes back one version up,
     // which is the migration working rather than the round trip failing.
-    const text = `${JSON.stringify(v4Fixture, null, 2)}\n`;
+    //
+    // From v5 the fixture carries a base, so this now also pins the slot order
+    // — written in the base's layout order, not the order the player built in —
+    // and that absent optional fields stay absent rather than coming back as
+    // `false`.
+    const text = `${JSON.stringify(v5Fixture, null, 2)}\n`;
     const result = parseCampaignFile(text);
 
     expect(result.ok).toBe(true);
@@ -283,6 +288,90 @@ describe('parseCampaignFile with a roster', () => {
 
     expect(result.error.reason).toBe('damaged-campaign');
     expect(result.error.message).toContain(expected);
+  });
+
+  /**
+   * Shape, never legality — the base's half of the rule the survivor tests
+   * above state. Z2-5 and Z2-6 let a player override slot kinds, costs and the
+   * upgrade cap on purpose, so an overridden base has to reopen: a Watchtower
+   * in an Indoor slot and a Kitchen carrying a Watchtower's upgrade are both
+   * illegal and both none of the parser's business.
+   */
+  it('opens a base that breaks the rules but not the shape', () => {
+    const houseRuled = savedWith({
+      base: {
+        id: 'distillery',
+        slots: {
+          // An Outdoor-only facility in an Indoor slot, with four upgrades on
+          // it, one of which belongs to another facility entirely.
+          'tasting-room': {
+            built: { facility: 'watchtower', builtOnTurn: 1 },
+            upgrades: ['watch-post', 'watch-post', 'spotlight', 'gas-range'],
+          },
+        },
+      },
+    });
+
+    expect(parseCampaignFile(houseRuled).ok).toBe(true);
+  });
+
+  it.each([
+    ['is not an object', 'its base is not a base', 7],
+    [
+      'names a base this version does not know',
+      'base is one this version does not know',
+      { id: 'space-station', slots: {} },
+    ],
+    ['has no slots', 'its base has no slots', { id: 'hobby-farm' }],
+    [
+      'has a slot the base does not have',
+      'the hobby-farm does not have',
+      { id: 'hobby-farm', slots: { 'wine-cellar': {} } },
+    ],
+    [
+      'holds a facility this version does not know',
+      'facility this version does not know',
+      {
+        id: 'hobby-farm',
+        slots: { 'front-yard': { built: { facility: 'helipad', builtOnTurn: 1 } } },
+      },
+    ],
+    [
+      'does not say when a facility was built',
+      'which turn it was built on',
+      { id: 'hobby-farm', slots: { 'front-yard': { built: { facility: 'garden' } } } },
+    ],
+    [
+      'holds an upgrade this version does not know',
+      'upgrade this version does not know',
+      { id: 'hobby-farm', slots: { 'front-yard': { upgrades: ['moat'] } } },
+    ],
+    [
+      'records something other than cleared',
+      'other than cleared',
+      { id: 'hobby-farm', slots: { 'ruined-chicken-coop': { cleared: false } } },
+    ],
+    [
+      'records something other than assigned for a utility',
+      'other than assigned for its power',
+      { id: 'hobby-farm', slots: { garden: { power: 'yes' } } },
+    ],
+  ])('reports a base that %s', (_label, expected, base) => {
+    const result = parseCampaignFile(savedWith({ base }));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+
+    expect(result.error.reason).toBe('damaged-campaign');
+    expect(result.error.message).toContain(expected);
+  });
+
+  /**
+   * A campaign that has not claimed a base is not a damaged one — null is the
+   * answer to "which base", not a missing field.
+   */
+  it('opens a campaign with no base', () => {
+    expect(parseCampaignFile(savedWith({ base: null })).ok).toBe(true);
   });
 
   /**

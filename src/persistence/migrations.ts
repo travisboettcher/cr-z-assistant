@@ -109,11 +109,34 @@ const originRecorded: MigrationStep = {
   up: (previous) => previous,
 };
 
+/**
+ * v4 → v5: campaigns can hold a base.
+ *
+ * **A no-op on data, for the third and last time in this chain — and the reason
+ * is different again.** v1 → v2 changed nothing because `survivors` was already
+ * `[]`; v3 → v4 changed nothing because absent is what "no origin" means. Here
+ * it is because `base` was already `null` and null still means the same thing:
+ * a campaign that has not claimed a base. Every v4 campaign is in exactly that
+ * state, since a v4 build could not put anything else there.
+ *
+ * The bump earns its keep the way v3 → v4 did, and more so: a v5 save with a
+ * base, opened in a v4 build, would fail that build's shape check with *"it has
+ * a base, which this version cannot read"* — a damaged-file message for an
+ * undamaged file. Refusing on version instead says *"update the app"*, which is
+ * both true and actionable.
+ */
+const baseBecameReal: MigrationStep = {
+  from: 4,
+  to: 5,
+  up: (previous) => previous,
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
   startingCommunityBuiltRecorded,
   originRecorded,
+  baseBecameReal,
 ];
 
 /** Why a save could not be brought forward. */
