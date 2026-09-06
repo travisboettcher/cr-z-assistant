@@ -8,7 +8,8 @@
  */
 
 import { SKILLS, STATS } from '../data/skills';
-import { MATERIALS, type Campaign, type Survivor } from '../engine/campaign';
+import { MATERIALS } from '../data/materials';
+import type { Campaign, Survivor } from '../engine/campaign';
 
 /** Material counts in the fixed order from the engine, not insertion order. */
 function orderedMaterials(campaign: Campaign): Record<string, number> {

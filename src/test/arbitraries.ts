@@ -21,13 +21,10 @@
 import fc from 'fast-check';
 import { SKILLS, STATS, type Skill } from '../data/skills';
 import { TIERS } from '../data/tiers';
-import {
-  CAMPAIGN_ORIGINS,
-  CAMPAIGN_PHASES,
-  CURRENT_SCHEMA_VERSION,
-  MATERIALS,
-} from '../engine/campaign';
-import type { Campaign, Materials, SkillLevels, Stats, Survivor } from '../engine/campaign';
+import { MATERIALS, type Materials } from '../data/materials';
+import { CAMPAIGN_ORIGINS } from '../data/origins';
+import { CAMPAIGN_PHASES, CURRENT_SCHEMA_VERSION } from '../engine/campaign';
+import type { Campaign, SkillLevels, Stats, Survivor } from '../engine/campaign';
 
 /**
  * Any single UTF-16 code unit — **including an unpaired surrogate**.
