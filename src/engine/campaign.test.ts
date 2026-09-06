@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { MATERIALS } from '../data/materials';
 import {
   CAMPAIGN_PHASES,
   CURRENT_SCHEMA_VERSION,
-  MATERIALS,
   createNewCampaign,
   type Campaign,
   type Survivor,

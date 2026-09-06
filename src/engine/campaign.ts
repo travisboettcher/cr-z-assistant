@@ -14,6 +14,8 @@
  * precisely to make that change survivable for a campaign already in progress.
  */
 
+import type { Materials } from '../data/materials';
+import type { CampaignOrigin } from '../data/origins';
 import type { Skill, Stat } from '../data/skills';
 import type { Tier } from '../data/tiers';
 
@@ -21,32 +23,6 @@ import type { Tier } from '../data/tiers';
 export const CAMPAIGN_PHASES = ['mission', 'advancement', 'planning', 'management'] as const;
 
 export type CampaignPhase = (typeof CAMPAIGN_PHASES)[number];
-
-/** The four stored material types. */
-export const MATERIALS = ['food', 'fuel', 'hardware', 'rare'] as const;
-
-export type Material = (typeof MATERIALS)[number];
-
-export type Materials = Record<Material, number>;
-
-/**
- * Which flavour of apocalypse a campaign is running.
- *
- * A campaign setup choice, and **absent is a real answer** — a campaign not
- * using one is the book's default, not a campaign with a missing field. Hence
- * optional on `Campaign` rather than a fourth member meaning "none": the two
- * would be the same state with two spellings.
- *
- * Shipped ahead of anything that reads it, which is the one place this codebase
- * pays a migration early on purpose. Phase 2's facilities data gates Containment,
- * the Lounge and the Mystic Library on the origin, so the field is needed then;
- * adding it now costs one no-op step in a chain built for exactly this, and it
- * means a campaign started today already carries the answer. Nothing in the app
- * sets it yet — the rules that turn an origin into anything are Phases 2 and 7.
- */
-export const CAMPAIGN_ORIGINS = ['viral', 'cosmic-horror', 'magic'] as const;
-
-export type CampaignOrigin = (typeof CAMPAIGN_ORIGINS)[number];
 
 /**
  * Bumped whenever the persisted shape of `Campaign` changes. Lives here rather
