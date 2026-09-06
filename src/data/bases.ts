@@ -82,18 +82,31 @@ export type BaseSlot = {
       /**
        * Whether further upgrades may be built.
        *
-       * Stored rather than derived from `upgrades`, though the book's rule — a
-       * built-in that already has an upgrade cannot be upgraded further
-       * (pg. 54) — explains every row but one. The Distillery's Utility Station
-       * is listed as taking no upgrades while carrying none, so the derivation
-       * would get it wrong. **Confirm that row against the book**; if it is a
-       * transcription slip, this field can collapse into the rule.
+       * **Stored, not derived.** The book's rule — a built-in that already has
+       * an upgrade cannot be upgraded further (pg. 54) — explains every row but
+       * the Distillery's Utility Station, which is locked while carrying no
+       * upgrade. That row is a real exception and not a misprint: pg. 61
+       * describes the section as producing about what a Utility Station with
+       * two Rain Collectors would, but a Rain Collector requires an Outdoor
+       * slot and this one is Indoor, so naming the upgrades would have printed
+       * an illegal build. The designer wrote the output down directly instead —
+       * see `flatOutput`. So "locked" and "carries an upgrade" are two facts,
+       * not one, and this field records the first of them.
        */
       readonly upgradable: boolean;
       /**
-       * A built-in that produces a flat amount where its facility is normally
-       * staffed — the Distillery's Utility Station, listed as 2 Water.
-       * Confirm alongside `upgradable` above.
+       * Output a built-in produces flat, where its facility is normally staffed
+       * — the Distillery's Utility Station and its 2 Water (pg. 61).
+       *
+       * A parenthesised number in the book's Effect column is production per
+       * turn, so this arrives **unstaffed**.
+       *
+       * **Ruled, because the text does not say:** the facility is still a
+       * Utility Station, so it may also be staffed for the usual Utilities
+       * Score worth of Power and Water, and that output adds to this rather
+       * than replacing it. Nothing in the text settles it either way; this is
+       * the permissive reading, recorded here so a later phase implements the
+       * ruling rather than re-deciding it.
        */
       readonly flatOutput?: { readonly output: 'power' | 'water'; readonly amount: number };
     }

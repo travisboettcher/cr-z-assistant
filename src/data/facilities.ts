@@ -262,11 +262,14 @@ export const FACILITIES = {
         // one upgrade's effect and not a net number — the Garden's own output
         // may already be zero for want of Water.
         //
-        // **Confirm against the book:** the table states "max 1 per Garden" for
-        // the Fence and the Greenhouse and not for this one, so no constraint
-        // is recorded here. A summary of the same chapter lists all three as
-        // one-per-Garden. Following the table, which is the more specific of
-        // the two, and flagging rather than deciding it silently.
+        // **No per-Garden limit, and that is deliberate.** Only the Fence and
+        // the Greenhouse are one-per-Garden; neither the table nor the prose
+        // (pg. 68) restricts this one, so the general cap of three upgrades is
+        // the only limit. That opens a real build rather than an oversight: a
+        // watered Garden with a Fence and two Herb Plots yields 2 Food and 2
+        // Health a turn, and three Herb Plots trade the Garden's Food away
+        // entirely for 3 Health. Anything that enforces the cap must not
+        // quietly add a limit here.
         id: 'herb-plot',
         cost: { hardware: 1, labor: 2 },
         effects: {
@@ -374,12 +377,18 @@ export const FACILITIES = {
     effects: { spellLearning: { xpCost: 6, maxHumanity: 3 } },
     upgrades: [
       {
-        // **Confirm against the book:** the facility table lists the Study Room
-        // under the Mystic Library, adding a staff member to it. The project
-        // note's summary of the new-edition facilities describes it as adding a
-        // Training Room staff member instead. Recorded where the table puts it;
-        // the two readings differ in which facility it belongs to, not in what
-        // it does, so moving it later is a one-line edit either way.
+        // **Belongs to the Mystic Library, not the Training Room.** The prose
+        // sits inside the Mystic Library's own sidebar (pg. 70) and lets one
+        // more survivor staff *this* facility. The project note's summary of
+        // the new-edition facilities called it a Training Room staff-adder;
+        // that is wrong, and the Training Room has no staff-adder at all — its
+        // three upgrades are the Weight Room, the Ropes Course and the
+        // Classroom, all flat XP.
+        //
+        // It carries no origin of its own because its facility does: an upgrade
+        // is only reachable through the facility it belongs to, so a picker
+        // that filters facilities on the campaign's origin filters this too.
+        // Adding the gate here as well would be a second copy of one rule.
         id: 'study-room',
         cost: { hardware: 2, labor: 1 },
         effects: { extraStaff: 1 },

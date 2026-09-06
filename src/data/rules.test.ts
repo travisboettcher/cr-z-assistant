@@ -288,6 +288,28 @@ describe('facility table', () => {
     // filtering, which is the shape the rule needs whether or not it fires.
     expect(UPGRADES_LIST.filter((upgrade) => upgrade.rare)).toHaveLength(0);
   });
+
+  it('limits only the Fence and the Greenhouse to one per Garden', () => {
+    // Not the Herb Plot: nothing restricts it, so the cap of three upgrades is
+    // its only limit and three of them on one Garden is a legal build. Pinned
+    // here because "one per Garden" reads like a rule about Garden upgrades in
+    // general, and it is not.
+    const limited = UPGRADES_LIST.filter(
+      (upgrade) => upgrade.constraints?.maxPerFacility !== undefined,
+    ).map((upgrade) => upgrade.id);
+
+    expect(limited).toEqual(['fence', 'greenhouse']);
+  });
+
+  it('staffs the Mystic Library with the Study Room, and the Training Room with nothing', () => {
+    // The upgrade lives in the Mystic Library's sidebar (pg. 70). The Training
+    // Room's three upgrades are all flat XP and none of them adds staff.
+    expect(facilityOfUpgrade('study-room')?.id).toBe('mystic-library');
+
+    for (const upgrade of (FACILITIES['training-room'] as Facility).upgrades) {
+      expect([upgrade.id, upgrade.effects.extraStaff]).toEqual([upgrade.id, undefined]);
+    }
+  });
 });
 
 /**
@@ -452,8 +474,9 @@ describe('base roster', () => {
 
   it('locks a built-in that already carries an upgrade', () => {
     // pg. 54: a built-in facility with an upgrade installed cannot be upgraded
-    // further. The Distillery's Utility Station is the one row that is locked
-    // while carrying none — flagged in `bases.ts` to confirm against the book.
+    // further. The Distillery's Utility Station is the one row locked while
+    // carrying none, and it is a real exception rather than a misprint — see
+    // `bases.ts`. So the rule is asserted in one direction only.
     for (const id of BASE_IDS) {
       for (const slot of BASES[id].slots as readonly BaseSlot[]) {
         if (slot.state !== 'built-in' || slot.upgrades.length === 0) continue;
@@ -463,7 +486,16 @@ describe('base roster', () => {
     }
 
     const distillery = BASES.distillery.slots.find((slot) => slot.id === 'utility-station');
-    expect(distillery).toMatchObject({ upgradable: false, upgrades: [] });
+    expect(distillery).toMatchObject({
+      upgradable: false,
+      upgrades: [],
+      flatOutput: { output: 'water', amount: 2 },
+    });
+
+    // And it is still a Utility Station, so it can still be staffed — the
+    // flat 2 Water adds to whatever its staff produces rather than replacing
+    // it. A ruling, not a quotation; see `bases.ts`.
+    expect(FACILITIES['utility-station'].staffed).toBe(true);
   });
 
   it('gives the Regional Firehouse eight beds across its two bunk rooms', () => {
