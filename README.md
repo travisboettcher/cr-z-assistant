@@ -144,9 +144,11 @@ stale. See `.github/workflows/mutation.yml`.
 Three things about reading the score:
 
 - **The threshold comes from a measurement, not an aspiration.** Chasing 100% buys noise — but a
-  threshold that is *loose* buys nothing either. Ours is 96 against a measured 96.91, tightened
-  from 94 when a probe showed that a whole untested function fitted inside the old headroom and
-  the run still passed. A gate you can walk past is a wall chart.
+  threshold that is *loose* buys nothing either. Ours is 96 against a measured 96.69 — 96.91
+  when the threshold was set — tightened from 94 when a probe showed that a whole untested
+  function fitted inside the old headroom and the run still passed. A gate you can walk past is
+  a wall chart. The headroom is deliberately thin, and it does its job: the base engine landed
+  at 95.15 on its first run and had to be fixed rather than waved through.
 - **The deliverable is the surviving mutants, not the number.** Each one gets a test or a
   written reason it does not matter. The score only says whether to go looking; the run uploads
   the report as an artifact so a red pull request can be read rather than guessed at.
