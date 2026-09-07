@@ -21,13 +21,14 @@
  */
 
 import type { BaseId } from '../data/bases';
-import type { FacilityId } from '../data/facilities';
+import type { FacilityId, UpgradeId } from '../data/facilities';
 import type { Material } from '../data/materials';
 import type { D10Result, FieldRecruitTier } from '../data/recruitTable';
 import { MIN_SKILL_LEVEL, type CommonSkill, type Skill, type Stat } from '../data/skills';
 import type { Tier } from '../data/tiers';
 import { withCommonSkillBought, withSkillLevelBought, withTierBought } from '../engine/advancement';
 import { withFacilityBuilt } from '../engine/build';
+import { withUpgradeBuilt } from '../engine/upgrade';
 import { createNewCampaign } from '../engine/campaign';
 import type { Campaign, CampaignPhase, Stats, Survivor } from '../engine/campaign';
 import { createSurvivor, recruitSurvivor } from '../engine/survivor';
@@ -215,6 +216,13 @@ export type CampaignAction =
       readonly slot: string;
       readonly facility: FacilityId;
       readonly labor: number;
+    }
+  /** Adds an upgrade to whatever stands in the slot. `labor` rides along for the same reason. */
+  | {
+      readonly type: 'upgrade/built';
+      readonly slot: string;
+      readonly upgrade: UpgradeId;
+      readonly labor: number;
     };
 
 export function campaignReducer(state: CampaignState, action: CampaignAction): CampaignState {
@@ -363,6 +371,15 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         withFacilityBuilt(campaign, {
           slot: action.slot,
           facility: action.facility,
+          labor: action.labor,
+        }),
+      );
+
+    case 'upgrade/built':
+      return withCampaign(state, (campaign) =>
+        withUpgradeBuilt(campaign, {
+          slot: action.slot,
+          upgrade: action.upgrade,
           labor: action.labor,
         }),
       );

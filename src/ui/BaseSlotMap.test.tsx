@@ -242,3 +242,75 @@ describe('building into a slot', () => {
     expect(screen.queryByLabelText(/^facility$/i)).not.toBeInTheDocument();
   });
 });
+
+describe('upgrading a facility', () => {
+  async function readyToUpgrade(hardware = '9') {
+    const user = await openCampaign();
+    await claim(user, 'Small Town Home — Tier 1');
+    await user.clear(screen.getByLabelText(/labor available/i));
+    await user.type(screen.getByLabelText(/labor available/i), '5');
+    await user.clear(screen.getByLabelText(/^hardware$/i));
+    await user.type(screen.getByLabelText(/^hardware$/i), hardware);
+
+    return user;
+  }
+
+  it('offers each slot the verb its state has, and not the other', async () => {
+    await readyToUpgrade();
+
+    // The Small Town Home has three built-in facilities and two empty slots.
+    expect(screen.getAllByRole('button', { name: /^upgrade /i })).toHaveLength(3);
+    expect(screen.getAllByRole('button', { name: /^build in /i })).toHaveLength(2);
+  });
+
+  it('adds an upgrade to a built-in and shows it on the card', async () => {
+    const user = await readyToUpgrade();
+    await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
+    await user.selectOptions(screen.getByLabelText(/^upgrade$/i), ['Gas Range']);
+    await user.click(screen.getByRole('button', { name: /add upgrade/i }));
+
+    const map = slotMap();
+    expect(within(map).getByText(/gas range — 1 of 3, room for 2 more/i)).toBeInTheDocument();
+    // A Gas Range costs 2 Hardware.
+    expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(7);
+  });
+
+  it('holds an upgrade on the turn its facility was built, behind an override', async () => {
+    const user = await readyToUpgrade();
+
+    // Build a Workshop into the garage this turn, then try to upgrade it.
+    await user.click(screen.getByRole('button', { name: /build in garage/i }));
+    await user.selectOptions(screen.getByLabelText(/^facility$/i), ['Workshop']);
+    await user.click(screen.getByRole('button', { name: /build here/i }));
+
+    await user.click(screen.getByRole('button', { name: /upgrade garage/i }));
+
+    expect(screen.getByText(/went up this turn/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add upgrade/i })).toBeDisabled();
+    expect(screen.getByLabelText(/add it anyway/i)).toBeInTheDocument();
+  });
+
+  it('never holds a built-in on the same-turn rule', async () => {
+    const user = await readyToUpgrade();
+    await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
+
+    // The kitchen came with the base, so it was never built and the rule has
+    // nothing to compare against.
+    expect(screen.queryByText(/went up this turn/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add upgrade/i })).toBeEnabled();
+  });
+
+  it('offers nothing to change on a built-in the base locks', async () => {
+    const user = await openCampaign();
+    await claim(user, 'Summer Camp — Tier 1');
+    await user.clear(screen.getByLabelText(/^hardware$/i));
+    await user.type(screen.getByLabelText(/^hardware$/i), '9');
+    await user.clear(screen.getByLabelText(/labor available/i));
+    await user.type(screen.getByLabelText(/labor available/i), '5');
+
+    await user.click(screen.getByRole('button', { name: /upgrade bunk room 1/i }));
+
+    expect(screen.getByText(/takes no further upgrades/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add upgrade/i })).toBeDisabled();
+  });
+});
