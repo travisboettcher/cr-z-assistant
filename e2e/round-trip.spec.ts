@@ -527,3 +527,55 @@ test('a facility is built into a slot, and the build survives the round trip', a
   const reExported = await exportCampaign(page);
   expect(reExported.text).toBe(exported.text);
 });
+
+/**
+ * Z2-6's acceptance, and the one rule in Phase 2 that needs two turns to show.
+ *
+ * A facility built this turn refuses an upgrade until the next one, which is
+ * the whole reason `builtOnTurn` is stored: without it the rule cannot survive
+ * a reload, and this is the journey that would notice.
+ */
+test('an upgrade waits for the turn after its facility went up', async ({ page }) => {
+  await startCampaign(page, 'Cedar Hollow');
+
+  await page.getByLabel(/choose a base/i).selectOption({ label: 'Small Town Home — Tier 1' });
+  await page.getByRole('button', { name: /claim this base/i }).click();
+
+  await page.getByLabel(/^hardware$/i).fill('12');
+  await page.getByLabel(/labor available/i).fill('5');
+
+  await page.getByRole('button', { name: /build in garage/i }).click();
+  await page.getByLabel(/^facility$/i).selectOption({ label: 'Workshop' });
+  await page.getByRole('button', { name: /build here/i }).click();
+
+  // Same turn: held, with an override rather than a flat refusal.
+  await page.getByRole('button', { name: /upgrade garage/i }).click();
+  await expect(page.getByText(/went up this turn/i)).toBeVisible();
+  await expect(page.getByRole('button', { name: /add upgrade/i })).toBeDisabled();
+
+  // A built-in was never built, so the same rule never touches it.
+  await page.getByRole('button', { name: /upgrade kitchen/i }).click();
+  await expect(page.getByText(/went up this turn/i)).not.toBeVisible();
+  await page.getByLabel(/^upgrade$/i).selectOption({ label: 'Gas Range' });
+  await page.getByRole('button', { name: /add upgrade/i }).click();
+
+  const map = page.getByRole('region', { name: 'Small Town Home' });
+  await expect(map).toContainText('Gas Range — 1 of 3, room for 2 more');
+
+  const exported = await exportCampaign(page);
+  expect(JSON.parse(exported.text)).toMatchObject({
+    base: {
+      slots: {
+        garage: { built: { facility: 'workshop', builtOnTurn: 1 } },
+        kitchen: { upgrades: ['gas-range'] },
+      },
+    },
+  });
+
+  await waitForAutosave(page, 'Cedar Hollow');
+  await page.reload();
+
+  // The turn the Workshop went up survived the reload, so the rule still holds.
+  await page.getByRole('button', { name: /upgrade garage/i }).click();
+  await expect(page.getByText(/went up this turn/i)).toBeVisible();
+});

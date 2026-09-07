@@ -7,35 +7,23 @@
  * own. See `docs/base-slot-interaction.md` for the shape the screen puts around
  * them.
  *
- * **Blockers and warnings are different things**, and keeping them apart is
- * most of this module:
- *
- * - A **blocker** stops the build. The slot is taken, the rubble is still
- *   there, the Hardware or the Labor is not there to spend.
- * - A **warning** is a rule the player may break on purpose — a facility in the
- *   wrong kind of slot, or one gated behind an origin or a mission. Z1-7
- *   established that an override belongs to the player and is never stored, and
- *   this is the same override for the base.
- *
- * **Affordability is a blocker rather than a warning, deliberately.** Overriding
- * it would spend materials the community does not have, and the honest fix for
- * a wrong count is to correct the count. Nothing in the book says what a base
- * with −2 Hardware means and this app should not be the first to say it.
+ * Blockers and warnings mean what `checks.ts` says they mean. Here a blocker is
+ * a taken slot, uncleared rubble, or a cost the community cannot pay; a warning
+ * is a facility in the wrong kind of slot, or one gated behind an origin or a
+ * mission the player may wave through.
  */
 
 import { FACILITIES, type Facility, type FacilityId } from '../data/facilities';
 import type { Campaign } from './campaign';
 import { layoutOf, occupants } from './base';
+import type { Check, Violation } from './checks';
 
 /**
  * Why a build is refused or questioned.
  *
- * The same three fields as `legality.ts`'s survivor `Violation` — a code for
- * logic, a message for a person, and the page so the reader can check the rule
- * rather than take this app's word for it — with its own closed set of codes.
- * Sharing one open union across both would let a survivor violation be returned
- * from here, and vice versa, which the typecheck should be catching rather than
- * permitting.
+ * Its own closed set of codes, over the shared shape in `checks.ts`: sharing an
+ * open union across the verbs would let an upgrade violation be returned from a
+ * build check, which the typecheck should be catching rather than permitting.
  */
 export type BuildViolationCode =
   | 'no-base'
@@ -48,28 +36,9 @@ export type BuildViolationCode =
   | 'origin-locked'
   | 'mission-locked';
 
-export interface Violation {
-  readonly code: BuildViolationCode;
+export type BuildViolation = Violation<BuildViolationCode>;
 
-  /** A sentence for a person at a table, not a rule restated. */
-  readonly message: string;
-
-  /** For `PageRef`, so the reader can check the rule itself. */
-  readonly pages: number | string;
-}
-
-/**
- * What is wrong with a build, split by whether the player may proceed anyway.
- *
- * Two lists rather than one list of flagged entries: the screen treats them
- * completely differently — one disables the button and the other unlocks an
- * override — and a caller that has to filter before it can render is a caller
- * that can forget to.
- */
-export interface BuildCheck {
-  readonly blockers: readonly Violation[];
-  readonly warnings: readonly Violation[];
-}
+export type BuildCheck = Check<BuildViolationCode>;
 
 /** What a build needs, beyond a campaign: where, what, and the Labor to hand. */
 export interface BuildRequest {
@@ -88,8 +57,8 @@ export interface BuildRequest {
 
 /** Everything wrong with this build, or two empty lists. */
 export function checkBuild(campaign: Campaign, request: BuildRequest): BuildCheck {
-  const blockers: Violation[] = [];
-  const warnings: Violation[] = [];
+  const blockers: BuildViolation[] = [];
+  const warnings: BuildViolation[] = [];
 
   const base = campaign.base;
 

@@ -788,3 +788,50 @@ describe('campaign/materialSet', () => {
     ).toEqual(INITIAL_CAMPAIGN_STATE);
   });
 });
+
+describe('upgrade/built', () => {
+  const kitchen = (): CampaignState =>
+    openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+      turn: 3,
+      base: { id: 'small-town-home', slots: {} },
+    });
+
+  it('adds the upgrade and spends its Hardware', () => {
+    const state = campaignReducer(kitchen(), {
+      type: 'upgrade/built',
+      slot: 'kitchen',
+      upgrade: 'gas-range',
+      labor: 2,
+    });
+    const campaign = expectOpen(state);
+
+    expect(campaign.base?.slots.kitchen?.upgrades).toEqual(['gas-range']);
+    expect(campaign.materials.hardware).toBe(7);
+  });
+
+  it('does nothing when the upgrade is blocked', () => {
+    const before = kitchen();
+    // A Spotlight belongs to a Watchtower, not a Kitchen.
+    const state = campaignReducer(before, {
+      type: 'upgrade/built',
+      slot: 'kitchen',
+      upgrade: 'spotlight',
+      labor: 2,
+    });
+
+    expect(expectOpen(state)).toEqual(expectOpen(before));
+  });
+
+  it('does nothing when no campaign is open', () => {
+    expect(
+      campaignReducer(INITIAL_CAMPAIGN_STATE, {
+        type: 'upgrade/built',
+        slot: 'kitchen',
+        upgrade: 'gas-range',
+        labor: 2,
+      }),
+    ).toEqual(INITIAL_CAMPAIGN_STATE);
+  });
+});

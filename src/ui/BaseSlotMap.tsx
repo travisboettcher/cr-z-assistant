@@ -26,6 +26,7 @@ import {
   slotLabel,
 } from './baseLabels';
 import { BuildFacility } from './BuildFacility';
+import { UpgradeFacility } from './UpgradeFacility';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
@@ -69,10 +70,10 @@ interface SlotCardProps {
   readonly labor: number;
   readonly open: boolean;
   readonly onToggle: () => void;
-  readonly onBuilt: () => void;
+  readonly onCommitted: () => void;
 }
 
-function SlotCard({ campaign, slot, occupant, labor, open, onToggle, onBuilt }: SlotCardProps) {
+function SlotCard({ campaign, slot, occupant, labor, open, onToggle, onCommitted }: SlotCardProps) {
   const utilities =
     occupant === undefined
       ? []
@@ -100,6 +101,22 @@ function SlotCard({ campaign, slot, occupant, labor, open, onToggle, onBuilt }: 
               {utilities.map((utility) => UTILITY_LABELS[utility]).join(' and ')} assigned
             </p>
           )}
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded={open}
+            className={`${TOUCH_TARGET} ${FOCUS_RING} mt-2 rounded-lg border border-stone-300 px-3 text-sm font-medium dark:border-stone-700`}
+          >
+            {open ? 'Cancel' : `Upgrade ${slotLabel(slot.id)}`}
+          </button>
+          {open && (
+            <UpgradeFacility
+              campaign={campaign}
+              slot={slot.id}
+              labor={labor}
+              onUpgraded={onCommitted}
+            />
+          )}
         </>
       )}
 
@@ -120,7 +137,7 @@ function SlotCard({ campaign, slot, occupant, labor, open, onToggle, onBuilt }: 
             {open ? 'Cancel' : `Build in ${slotLabel(slot.id)}`}
           </button>
           {open && (
-            <BuildFacility campaign={campaign} slot={slot.id} labor={labor} onBuilt={onBuilt} />
+            <BuildFacility campaign={campaign} slot={slot.id} labor={labor} onBuilt={onCommitted} />
           )}
         </>
       )}
@@ -208,7 +225,7 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
             onToggle: () => {
               setOpenSlot(openSlot === slot.id ? null : slot.id);
             },
-            onBuilt: () => {
+            onCommitted: () => {
               setOpenSlot(null);
             },
           };
