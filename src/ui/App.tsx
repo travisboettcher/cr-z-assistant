@@ -12,6 +12,8 @@
 import { useState } from 'react';
 import { useCampaign } from '../state/useCampaign';
 import { AppHeader } from './AppHeader';
+import { BaseSlotMap } from './BaseSlotMap';
+import { ClaimBase } from './ClaimBase';
 import { CampaignEmptyState } from './CampaignEmptyState';
 import { CampaignOverview } from './CampaignOverview';
 import { ImportCampaign } from './ImportCampaign';
@@ -59,6 +61,16 @@ export function App() {
           <div className="flex flex-col gap-6">
             <CampaignOverview campaign={state.campaign} />
             <SurvivorRoster campaign={state.campaign} onOpenSheet={setOpenSheetId} />
+            {/*
+             * One or the other, never both: a campaign either has a base to
+             * show or has not claimed one. Null is the real state rather than
+             * an empty base, so there is nothing to render a slot map from.
+             */}
+            {state.campaign.base === null ? (
+              <ClaimBase />
+            ) : (
+              <BaseSlotMap base={state.campaign.base} />
+            )}
             {openSurvivor !== undefined && (
               <SurvivorSheet
                 survivor={openSurvivor}

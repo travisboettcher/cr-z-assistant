@@ -20,6 +20,7 @@
  *    campaign factory.
  */
 
+import type { BaseId } from '../data/bases';
 import type { D10Result, FieldRecruitTier } from '../data/recruitTable';
 import { MIN_SKILL_LEVEL, type CommonSkill, type Skill, type Stat } from '../data/skills';
 import type { Tier } from '../data/tiers';
@@ -173,7 +174,16 @@ export type CampaignAction =
    * there was.
    */
   | { readonly type: 'survivor/tierBought'; readonly id: string; readonly raise: Stat | null }
-  | { readonly type: 'survivor/removed'; readonly id: string };
+  | { readonly type: 'survivor/removed'; readonly id: string }
+  /**
+   * Claims a base for a community that has none.
+   *
+   * Carries the base's id and nothing else: everything about the base — its
+   * slots, their kinds, the facilities it ships — is in `src/data/bases.ts`,
+   * so claiming copies nothing and there is nothing here to fall out of sync
+   * with the rules. What the player does to it afterwards is recorded per slot.
+   */
+  | { readonly type: 'base/claimed'; readonly base: BaseId };
 
 export function campaignReducer(state: CampaignState, action: CampaignAction): CampaignState {
   switch (action.type) {
@@ -283,6 +293,25 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
     case 'survivor/tierBought':
       return editSurvivor(state, action.id, (survivor) => withTierBought(survivor, action.raise));
+
+    /**
+     * **Refuses a base for a community that already has one.**
+     *
+     * Moving house is the Claim a New Base mission, and it carries questions
+     * this action has no answer for — what Inventory comes along, and which
+     * Hero leaves when the new base's Tier caps them lower (pg. 54). Those are
+     * Phase 4's. Replacing the base here would drop every slot the player has
+     * built into, silently, in one dispatch.
+     *
+     * The screen does not offer the action once a base is claimed, so this is
+     * a backstop rather than the guard a player meets. It is here because the
+     * screen is the wrong place for the only thing standing between a
+     * mis-dispatch and a wiped base.
+     */
+    case 'base/claimed':
+      return withCampaign(state, (campaign) =>
+        campaign.base === null ? { ...campaign, base: { id: action.base, slots: {} } } : campaign,
+      );
 
     case 'survivor/removed':
       return withCampaign(state, (campaign) => ({
