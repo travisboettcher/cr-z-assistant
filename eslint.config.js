@@ -24,6 +24,11 @@ export default tseslint.config(
       'node_modules/**',
       'playwright-report/**',
       'test-results/**',
+      // Stryker's sandbox is a whole second copy of `src`, so linting during a
+      // mutation run otherwise reports every file twice and fails on the copy
+      // for being outside the tsconfig root.
+      '.stryker-tmp/**',
+      'reports/**',
     ],
   },
 

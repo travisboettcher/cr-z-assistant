@@ -329,6 +329,16 @@ describe('parseCampaignFile with a roster', () => {
       { id: 'hobby-farm', slots: { 'wine-cellar': {} } },
     ],
     [
+      'has a slot that is not an object',
+      'is not a slot',
+      { id: 'hobby-farm', slots: { garden: 7 } },
+    ],
+    [
+      'has an unreadable facility',
+      'has an unreadable facility',
+      { id: 'hobby-farm', slots: { 'front-yard': { built: 7 } } },
+    ],
+    [
       'holds a facility this version does not know',
       'facility this version does not know',
       {

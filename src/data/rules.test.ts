@@ -26,9 +26,7 @@ import {
   type Facility,
   type Upgrade,
   type UpgradeId,
-  type Utility,
 } from './facilities';
-import { STORAGE_ABOVE_TIER, STORED_MATERIALS, type StoredMaterial } from './materials';
 import { CAMPAIGN_ORIGINS } from './origins';
 
 describe('stats and skills', () => {
@@ -312,101 +310,33 @@ describe('facility table', () => {
   });
 });
 
-/**
- * A base's storage cap per material, derived exactly as pg. 54 states it:
- * Tier + 3, plus every built-in facility and upgrade whose requirements are met.
- *
- * Local to this test on purpose — Z2-3 builds the real function over a live
- * `Base`. What this checks is the transcription: that re-deriving the column
- * reproduces the roster the book prints.
- */
-function storageCap(base: BaseId, supplied: readonly Utility[]): Record<StoredMaterial, number> {
-  const tier = BASES[base].tier;
-  const caps = Object.fromEntries(
-    STORED_MATERIALS.map((material) => [material, tier + STORAGE_ABOVE_TIER]),
-  ) as Record<StoredMaterial, number>;
-
-  const met = (requires: { utilities?: readonly Utility[] } | undefined) =>
-    (requires?.utilities ?? []).every((utility) => supplied.includes(utility));
-
-  for (const slot of BASES[base].slots as readonly BaseSlot[]) {
-    if (slot.state !== 'built-in') continue;
-
-    const facility = FACILITIES[slot.facility] as Facility;
-    const entries = [
-      facility,
-      ...slot.upgrades.map(
-        (id) => facility.upgrades.find((upgrade) => upgrade.id === id) as Upgrade,
-      ),
-    ];
-
-    for (const entry of entries) {
-      if (!met(entry.requires)) continue;
-
-      for (const material of STORED_MATERIALS) {
-        caps[material] += entry.effects.storage?.[material] ?? 0;
-      }
-    }
-  }
-
-  return caps;
-}
-
 describe('base roster', () => {
   /**
-   * The roster as the book prints it (pg. 54) — Hardware / Food / Fuel, the
-   * slot count and how many of those slots start empty.
+   * The roster as the book prints it (pg. 54) — the Tier, the slot count and
+   * how many of those slots start empty.
    *
-   * This table is a **check on the transcription, not a source**: none of these
-   * numbers are stored in `bases.ts`. Storage is re-derived from the Tier and
-   * the built-in facilities, and the counts from the slot list. The Greasy
-   * Spoon's printed `6/6(8)/6` is the parenthetical case — its built-in
-   * Refrigeration needs Power, so the Food cap is 6 unpowered and 8 powered,
-   * which is the unmet-requirement rule showing up in the book's own table.
+   * A **check on the transcription, not a source**: none of these numbers are
+   * stored in `bases.ts`, and the counts are re-derived from the slot list. The
+   * roster's storage column is checked the same way, in `engine/base.test.ts`,
+   * where the function that derives it lives.
    */
-  const PRINTED: Record<
-    BaseId,
-    {
-      tier: number;
-      storage: [number, number, number];
-      powered?: [number, number, number];
-      slots: number;
-      empty: number;
-    }
-  > = {
-    'small-town-home': { tier: 1, storage: [4, 4, 4], slots: 5, empty: 2 },
-    'summer-camp': { tier: 1, storage: [4, 4, 4], slots: 7, empty: 3 },
-    'rural-church': { tier: 1, storage: [4, 4, 4], slots: 7, empty: 3 },
-    'greasy-spoon': { tier: 1, storage: [6, 6, 6], powered: [6, 8, 6], slots: 7, empty: 4 },
-    'hobby-farm': { tier: 2, storage: [9, 7, 7], slots: 9, empty: 2 },
-    distillery: { tier: 2, storage: [7, 7, 9], slots: 9, empty: 6 },
-    'outdoor-sports-shop': { tier: 2, storage: [5, 5, 5], slots: 9, empty: 6 },
-    'renaissance-festival': { tier: 3, storage: [6, 6, 6], slots: 8, empty: 5 },
-    'hydroelectric-dam': { tier: 3, storage: [8, 8, 8], slots: 7, empty: 4 },
-    'regional-firehouse': { tier: 3, storage: [6, 6, 6], slots: 8, empty: 2 },
+  const PRINTED: Record<BaseId, { tier: number; slots: number; empty: number }> = {
+    'small-town-home': { tier: 1, slots: 5, empty: 2 },
+    'summer-camp': { tier: 1, slots: 7, empty: 3 },
+    'rural-church': { tier: 1, slots: 7, empty: 3 },
+    'greasy-spoon': { tier: 1, slots: 7, empty: 4 },
+    'hobby-farm': { tier: 2, slots: 9, empty: 2 },
+    distillery: { tier: 2, slots: 9, empty: 6 },
+    'outdoor-sports-shop': { tier: 2, slots: 9, empty: 6 },
+    'renaissance-festival': { tier: 3, slots: 8, empty: 5 },
+    'hydroelectric-dam': { tier: 3, slots: 7, empty: 4 },
+    'regional-firehouse': { tier: 3, slots: 8, empty: 2 },
   };
 
   it('lists ten bases across three tiers, one of them the starter', () => {
     expect(BASE_IDS).toHaveLength(10);
     expect(BASE_IDS.filter((id) => BASES[id].tier === 3)).toHaveLength(3);
     expect(BASE_IDS.filter((id) => 'starter' in BASES[id])).toEqual(['small-town-home']);
-  });
-
-  it('re-derives the printed storage column of every base', () => {
-    for (const id of BASE_IDS) {
-      const printed = PRINTED[id];
-
-      expect([id, storageCap(id, [])]).toEqual([
-        id,
-        { hardware: printed.storage[0], food: printed.storage[1], fuel: printed.storage[2] },
-      ]);
-
-      const powered = printed.powered ?? printed.storage;
-      expect([id, storageCap(id, ['power', 'water'])]).toEqual([
-        id,
-        { hardware: powered[0], food: powered[1], fuel: powered[2] },
-      ]);
-    }
   });
 
   it('re-derives the printed slot and empty-slot counts', () => {
