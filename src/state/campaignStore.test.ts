@@ -835,3 +835,42 @@ describe('upgrade/built', () => {
     ).toEqual(INITIAL_CAMPAIGN_STATE);
   });
 });
+
+describe('slot/cleared', () => {
+  const farm = (): CampaignState =>
+    openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      materials: { food: 0, fuel: 0, hardware: 1, rare: 0 },
+      base: { id: 'hobby-farm', slots: {} },
+    });
+
+  it('clears the slot and credits what the project yields', () => {
+    const campaign = expectOpen(
+      campaignReducer(farm(), { type: 'slot/cleared', slot: 'ruined-chicken-coop', labor: 2 }),
+    );
+
+    expect(campaign.base?.slots['ruined-chicken-coop']).toEqual({ cleared: true });
+    expect(campaign.materials.hardware).toBe(3);
+  });
+
+  it('does nothing when the clearing is blocked', () => {
+    const before = farm();
+    const state = campaignReducer(before, {
+      type: 'slot/cleared',
+      slot: 'ruined-chicken-coop',
+      labor: 1,
+    });
+
+    expect(expectOpen(state)).toEqual(expectOpen(before));
+  });
+
+  it('does nothing when no campaign is open', () => {
+    expect(
+      campaignReducer(INITIAL_CAMPAIGN_STATE, {
+        type: 'slot/cleared',
+        slot: 'ruined-chicken-coop',
+        labor: 2,
+      }),
+    ).toEqual(INITIAL_CAMPAIGN_STATE);
+  });
+});
