@@ -702,3 +702,89 @@ describe('base/claimed', () => {
     ).toEqual(INITIAL_CAMPAIGN_STATE);
   });
 });
+
+describe('facility/built', () => {
+  /** A claimed base with Hardware to spend, on a turn worth recording. */
+  function withBase(): CampaignState {
+    return openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+      turn: 3,
+      base: { id: 'small-town-home', slots: {} },
+    });
+  }
+
+  it('builds the facility and spends its Hardware', () => {
+    const state = campaignReducer(withBase(), {
+      type: 'facility/built',
+      slot: 'garage',
+      facility: 'workshop',
+      labor: 2,
+    });
+    const campaign = expectOpen(state);
+
+    expect(campaign.base?.slots.garage).toEqual({
+      built: { facility: 'workshop', builtOnTurn: 3 },
+    });
+    expect(campaign.materials.hardware).toBe(6);
+  });
+
+  it('does nothing when the build is blocked', () => {
+    // Delegated wholesale to `withFacilityBuilt`, which re-runs its own check —
+    // so the reducer cannot spend Hardware by forgetting to ask.
+    const before = withBase();
+    const state = campaignReducer(before, {
+      type: 'facility/built',
+      slot: 'kitchen',
+      facility: 'workshop',
+      labor: 2,
+    });
+
+    expect(expectOpen(state)).toEqual(expectOpen(before));
+  });
+
+  it('does nothing when no campaign is open', () => {
+    expect(
+      campaignReducer(INITIAL_CAMPAIGN_STATE, {
+        type: 'facility/built',
+        slot: 'garage',
+        facility: 'workshop',
+        labor: 2,
+      }),
+    ).toEqual(INITIAL_CAMPAIGN_STATE);
+  });
+});
+
+describe('campaign/materialSet', () => {
+  it('sets one material and leaves the other three alone', () => {
+    const state = campaignReducer(openState(), {
+      type: 'campaign/materialSet',
+      material: 'hardware',
+      count: 7,
+    });
+
+    expect(expectOpen(state).materials).toEqual({ food: 0, fuel: 0, hardware: 7, rare: 0 });
+  });
+
+  it('records a count over any cap, because Check Storage is not this app’s yet', () => {
+    // A Tier 1 base stores 4 Hardware (pg. 54). Refusing the number here would
+    // be inventing a consequence the Management Phase owns (pg. 23).
+    const state = campaignReducer(openState(), {
+      type: 'campaign/materialSet',
+      material: 'food',
+      count: 99,
+    });
+
+    expect(expectOpen(state).materials.food).toBe(99);
+  });
+
+  it('does nothing when no campaign is open', () => {
+    expect(
+      campaignReducer(INITIAL_CAMPAIGN_STATE, {
+        type: 'campaign/materialSet',
+        material: 'food',
+        count: 3,
+      }),
+    ).toEqual(INITIAL_CAMPAIGN_STATE);
+  });
+});

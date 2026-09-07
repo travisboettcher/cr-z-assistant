@@ -69,7 +69,7 @@ export function App() {
             {state.campaign.base === null ? (
               <ClaimBase />
             ) : (
-              <BaseSlotMap base={state.campaign.base} />
+              <BaseSlotMap campaign={state.campaign} />
             )}
             {openSurvivor !== undefined && (
               <SurvivorSheet

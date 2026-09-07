@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { BASES, BASE_IDS } from '../data/bases';
+import { createNewCampaign } from '../engine/campaign';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
 import { BaseSlotMap } from './BaseSlotMap';
@@ -105,7 +106,12 @@ describe('claiming a base', () => {
     // and reads the store for nothing, and claiming ten bases through the UI
     // would test the chooser ten times to test this once.
     for (const id of BASE_IDS) {
-      const { unmount } = render(<BaseSlotMap base={{ id, slots: {} }} />);
+      const campaign = { ...createNewCampaign('Cedar Hollow'), base: { id, slots: {} } };
+      const { unmount } = render(
+        <CampaignProvider>
+          <BaseSlotMap campaign={campaign} />
+        </CampaignProvider>,
+      );
       const map = screen.getByRole('region', { name: BASE_LABELS[id] });
 
       expect(within(map).getAllByRole('listitem')).toHaveLength(BASES[id].slots.length);
@@ -134,5 +140,105 @@ describe('slotLabel', () => {
 
   it('restores punctuation an identifier cannot hold', () => {
     expect(slotLabel('kings-pavilion')).toBe("King's Pavilion");
+  });
+});
+
+describe('building into a slot', () => {
+  /** Opens a campaign with a base claimed and Labor entered. */
+  async function readyToBuild(labor = '5', hardware?: string) {
+    const user = await openCampaign();
+    await claim(user, 'Small Town Home — Tier 1');
+    await user.clear(screen.getByLabelText(/labor available/i));
+    await user.type(screen.getByLabelText(/labor available/i), labor);
+
+    if (hardware !== undefined) {
+      await user.clear(screen.getByLabelText(/^hardware$/i));
+      await user.type(screen.getByLabelText(/^hardware$/i), hardware);
+    }
+
+    return user;
+  }
+
+  const garage = () => screen.getByRole('button', { name: /build in garage/i });
+
+  it('offers a build only on the slots that are empty', async () => {
+    await readyToBuild();
+
+    // The garage and the front yard are empty; the kitchen and two bunk rooms
+    // are built in and offer nothing.
+    expect(screen.getAllByRole('button', { name: /^build in /i })).toHaveLength(2);
+  });
+
+  it('shows the cost before the button rather than after it', async () => {
+    const user = await readyToBuild();
+    await user.click(garage());
+
+    // A Bunk Room is the first facility offered: 3 Hardware, 2 Labor.
+    expect(screen.getByText(/3 Hardware · 2 Labor/i)).toBeInTheDocument();
+  });
+
+  it('opens one card at a time', async () => {
+    const user = await readyToBuild();
+    await user.click(garage());
+    await user.click(screen.getByRole('button', { name: /build in front yard/i }));
+
+    expect(screen.getAllByLabelText(/^facility$/i)).toHaveLength(1);
+    expect(garage()).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('refuses a build it cannot pay for, and offers no override for it', async () => {
+    // A new campaign holds no Hardware at all.
+    const user = await readyToBuild();
+    await user.click(garage());
+
+    expect(screen.getByText(/costs 3 hardware and the community has 0/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /build here/i })).toBeDisabled();
+    expect(screen.queryByLabelText(/build it anyway/i)).not.toBeInTheDocument();
+  });
+
+  it('refuses a build for want of Labor, naming both numbers', async () => {
+    const user = await readyToBuild('0');
+    await user.click(garage());
+
+    expect(screen.getByText(/costs 2 labor and 0 is available/i)).toBeInTheDocument();
+  });
+
+  it('holds a rule-breaking build behind an override, then builds it', async () => {
+    const user = await readyToBuild('5', '4');
+    await user.click(garage());
+    await user.selectOptions(screen.getByLabelText(/^facility$/i), ['Garden']);
+
+    // A Garden needs an outdoor slot and the garage is indoor: a rule, not
+    // arithmetic, so the build is held rather than refused.
+    expect(screen.getByText(/needs an outdoor slot, and this one is indoor/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /build here/i })).toBeDisabled();
+
+    await user.click(screen.getByLabelText(/build it anyway/i));
+    await user.click(screen.getByRole('button', { name: /build here/i }));
+
+    const map = slotMap();
+    const cards = within(map).getAllByRole('listitem');
+    // The garage is the fourth slot of the Small Town Home's layout.
+    expect(cards[3]).toHaveTextContent('Garden');
+    // And it keeps reporting the violation for as long as it stands, because
+    // the override was never stored.
+    expect(within(map).queryByRole('button', { name: /build in garage/i })).not.toBeInTheDocument();
+  });
+
+  it('spends the Hardware the build costs', async () => {
+    const user = await readyToBuild('5', '9');
+    await user.click(garage());
+    await user.click(screen.getByRole('button', { name: /build here/i }));
+
+    // A Bunk Room costs 3 of the 9.
+    expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(6);
+  });
+
+  it('closes the card once the build lands', async () => {
+    const user = await readyToBuild('5', '9');
+    await user.click(garage());
+    await user.click(screen.getByRole('button', { name: /build here/i }));
+
+    expect(screen.queryByLabelText(/^facility$/i)).not.toBeInTheDocument();
   });
 });
