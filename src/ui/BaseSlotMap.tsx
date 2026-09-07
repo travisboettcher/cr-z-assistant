@@ -11,8 +11,9 @@
  * and the materials they qualify. This is the picture of the building.
  */
 
+import { useId, useState } from 'react';
 import { BASES, type BaseSlot } from '../data/bases';
-import type { Base } from '../engine/campaign';
+import type { Campaign } from '../engine/campaign';
 import { layoutOf, occupants, upgradesRemaining, upgradesUsed } from '../engine/base';
 import type { Occupant } from '../engine/base';
 import { MATERIALS } from '../data/materials';
@@ -24,10 +25,12 @@ import {
   UTILITY_LABELS,
   slotLabel,
 } from './baseLabels';
+import { BuildFacility } from './BuildFacility';
 import { PageRef } from './PageRef';
+import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
 export interface BaseSlotMapProps {
-  readonly base: Base;
+  readonly campaign: Campaign;
 }
 
 /** What a clearing project gives back, as a phrase rather than a table. */
@@ -59,7 +62,17 @@ function upgradeSummary(occupant: Occupant): string | null {
   return `${names.join(', ')} — ${String(used)} of 3, ${room}`;
 }
 
-function SlotCard({ slot, occupant }: { readonly slot: BaseSlot; readonly occupant?: Occupant }) {
+interface SlotCardProps {
+  readonly campaign: Campaign;
+  readonly slot: BaseSlot;
+  readonly occupant?: Occupant;
+  readonly labor: number;
+  readonly open: boolean;
+  readonly onToggle: () => void;
+  readonly onBuilt: () => void;
+}
+
+function SlotCard({ campaign, slot, occupant, labor, open, onToggle, onBuilt }: SlotCardProps) {
   const utilities =
     occupant === undefined
       ? []
@@ -91,7 +104,25 @@ function SlotCard({ slot, occupant }: { readonly slot: BaseSlot; readonly occupa
       )}
 
       {occupant === undefined && slot.state === 'empty' && (
-        <p className="mt-2 text-stone-600 dark:text-stone-400">Empty — ready to build in</p>
+        <>
+          <p className="mt-2 text-stone-600 dark:text-stone-400">Empty — ready to build in</p>
+          {/*
+           * The card's one action. A slot is in exactly one state and each
+           * state has at most two verbs, which is what keeps this a card rather
+           * than a control panel — see `docs/base-slot-interaction.md`.
+           */}
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded={open}
+            className={`${TOUCH_TARGET} ${FOCUS_RING} mt-2 rounded-lg border border-stone-300 px-3 text-sm font-medium dark:border-stone-700`}
+          >
+            {open ? 'Cancel' : `Build in ${slotLabel(slot.id)}`}
+          </button>
+          {open && (
+            <BuildFacility campaign={campaign} slot={slot.id} labor={labor} onBuilt={onBuilt} />
+          )}
+        </>
       )}
 
       {occupant === undefined && slot.state === 'clearing-project' && (
@@ -104,7 +135,23 @@ function SlotCard({ slot, occupant }: { readonly slot: BaseSlot; readonly occupa
   );
 }
 
-export function BaseSlotMap({ base }: BaseSlotMapProps) {
+export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
+  const laborId = useId();
+
+  /**
+   * Which card is expanded, and how much Labor is to hand. Both are **UI state
+   * and never campaign state**: one is where you happen to be looking, and the
+   * other belongs to the Planning Phase's project team, which is Phase 3.
+   *
+   * One card at a time, so a nine-slot base does not double in height the
+   * moment two are open — and matching how `App` holds `openSheetId`.
+   */
+  const [openSlot, setOpenSlot] = useState<string | null>(null);
+  const [labor, setLabor] = useState(0);
+
+  const base = campaign.base;
+  if (base === null) return null;
+
   const rules = BASES[base.id];
   const found = occupants(base);
   const slots = layoutOf(base);
@@ -126,23 +173,60 @@ export function BaseSlotMap({ base }: BaseSlotMapProps) {
         </p>
       </div>
 
+      {/*
+       * Above the map, not per card. Labor is a pool spent across every project
+       * in a turn — clearing one slot and building in another draw on the same
+       * one — and a field per card would say the opposite.
+       */}
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <label htmlFor={laborId} className="text-sm font-medium">
+          Labor available
+        </label>
+        <input
+          id={laborId}
+          type="number"
+          min={0}
+          value={labor}
+          onChange={(event) => {
+            setLabor(Math.max(0, Number(event.target.value)));
+          }}
+          className={`${TOUCH_TARGET} ${FOCUS_RING} w-24 rounded-lg border border-stone-300 bg-white px-3 tabular-nums dark:border-stone-700 dark:bg-stone-950`}
+        />
+        <span className="text-sm text-stone-600 dark:text-stone-400">
+          From the project team, which the Planning Phase assigns <PageRef pages={20} />
+        </span>
+      </div>
+
       <ul className="mt-5 grid gap-3 sm:grid-cols-2">
         {slots.map((slot) => {
           const occupant = found.find((candidate) => candidate.slotId === slot.id);
+          const shared = {
+            campaign,
+            slot,
+            labor,
+            open: openSlot === slot.id,
+            onToggle: () => {
+              setOpenSlot(openSlot === slot.id ? null : slot.id);
+            },
+            onBuilt: () => {
+              setOpenSlot(null);
+            },
+          };
 
           // Two call sites rather than one optional prop, for the reason
           // `App.tsx` gives: under `exactOptionalPropertyTypes` a possibly
           // undefined prop is not the same as an omitted one.
           return occupant === undefined ? (
-            <SlotCard key={slot.id} slot={slot} />
+            <SlotCard key={slot.id} {...shared} />
           ) : (
-            <SlotCard key={slot.id} slot={slot} occupant={occupant} />
+            <SlotCard key={slot.id} {...shared} occupant={occupant} />
           );
         })}
       </ul>
 
       <p className="mt-5 text-sm text-stone-600 dark:text-stone-400">
-        Building into a slot, clearing one, and assigning Power and Water are the next stories.
+        Clearing a blocked slot, adding upgrades, and assigning Power and Water are the next
+        stories.
       </p>
     </section>
   );

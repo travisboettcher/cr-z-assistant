@@ -21,10 +21,13 @@
  */
 
 import type { BaseId } from '../data/bases';
+import type { FacilityId } from '../data/facilities';
+import type { Material } from '../data/materials';
 import type { D10Result, FieldRecruitTier } from '../data/recruitTable';
 import { MIN_SKILL_LEVEL, type CommonSkill, type Skill, type Stat } from '../data/skills';
 import type { Tier } from '../data/tiers';
 import { withCommonSkillBought, withSkillLevelBought, withTierBought } from '../engine/advancement';
+import { withFacilityBuilt } from '../engine/build';
 import { createNewCampaign } from '../engine/campaign';
 import type { Campaign, CampaignPhase, Stats, Survivor } from '../engine/campaign';
 import { createSurvivor, recruitSurvivor } from '../engine/survivor';
@@ -183,7 +186,36 @@ export type CampaignAction =
    * so claiming copies nothing and there is nothing here to fall out of sync
    * with the rules. What the player does to it afterwards is recorded per slot.
    */
-  | { readonly type: 'base/claimed'; readonly base: BaseId };
+  | { readonly type: 'base/claimed'; readonly base: BaseId }
+  /**
+   * Builds a facility into a slot, spending its Hardware.
+   *
+   * `labor` rides on the action because there is nowhere to read it from: the
+   * pool is the project team's and that is Phase 3. It is the same shape as the
+   * recruit roll — a value the UI captures and the reducer is handed, so the
+   * reducer stays a pure function of its arguments.
+   */
+  /**
+   * Sets one material count by hand.
+   *
+   * Materials are produced and spent by the Advancement and Management Phases,
+   * which are Phase 3. Until then nothing in the app can put a single Hardware
+   * into a community — and a base screen whose Build button can never be
+   * pressed is the "nothing is usable until everything works" failure the
+   * delivery plan exists to avoid. So the player types what is on their
+   * worksheet, exactly as Phase 1 let them type XP.
+   *
+   * No cap is enforced. Check Storage is a Management Phase step (pg. 23) and
+   * over-storage has consequences this app does not model yet; refusing the
+   * number would be inventing a rule rather than recording one.
+   */
+  | { readonly type: 'campaign/materialSet'; readonly material: Material; readonly count: number }
+  | {
+      readonly type: 'facility/built';
+      readonly slot: string;
+      readonly facility: FacilityId;
+      readonly labor: number;
+    };
 
 export function campaignReducer(state: CampaignState, action: CampaignAction): CampaignState {
   switch (action.type) {
@@ -311,6 +343,28 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
     case 'base/claimed':
       return withCampaign(state, (campaign) =>
         campaign.base === null ? { ...campaign, base: { id: action.base, slots: {} } } : campaign,
+      );
+
+    case 'campaign/materialSet':
+      return withCampaign(state, (campaign) => ({
+        ...campaign,
+        materials: { ...campaign.materials, [action.material]: action.count },
+      }));
+
+    /**
+     * Delegates wholesale, the way the three advancement purchases do.
+     * `withFacilityBuilt` re-runs its own check and returns the campaign
+     * unchanged when anything blocks the build, so this reducer cannot spend
+     * Hardware the community does not have by forgetting to ask — there is
+     * nothing here to forget.
+     */
+    case 'facility/built':
+      return withCampaign(state, (campaign) =>
+        withFacilityBuilt(campaign, {
+          slot: action.slot,
+          facility: action.facility,
+          labor: action.labor,
+        }),
       );
 
     case 'survivor/removed':

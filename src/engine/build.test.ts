@@ -1,0 +1,217 @@
+import { describe, expect, it } from 'vitest';
+import { createNewCampaign, type Base, type Campaign } from './campaign';
+import { buildableFacilities, checkBuild, withFacilityBuilt } from './build';
+
+const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
+
+/** A campaign with a base, plenty of Hardware, and a turn worth pointing at. */
+function campaignWith(base: Base | null, overrides: Partial<Campaign> = {}): Campaign {
+  return {
+    ...createNewCampaign('Cedar Hollow', FIXED),
+    materials: { food: 0, fuel: 0, hardware: 20, rare: 0 },
+    turn: 4,
+    base,
+    ...overrides,
+  };
+}
+
+const smallTownHome = (slots: Base['slots'] = {}): Base => ({ id: 'small-town-home', slots });
+
+const codes = (violations: readonly { code: string }[]) => violations.map(({ code }) => code);
+
+describe('checkBuild', () => {
+  it('finds nothing wrong with a facility that fits', () => {
+    // The Small Town Home's garage is an indoor slot; a Workshop needs no
+    // particular kind and costs 3 Hardware and 2 Labor.
+    const check = checkBuild(campaignWith(smallTownHome()), {
+      slot: 'garage',
+      facility: 'workshop',
+      labor: 2,
+    });
+
+    expect(check).toEqual({ blockers: [], warnings: [] });
+  });
+
+  it('refuses a slot that already holds something', () => {
+    const check = checkBuild(campaignWith(smallTownHome()), {
+      slot: 'kitchen',
+      facility: 'workshop',
+      labor: 5,
+    });
+
+    expect(codes(check.blockers)).toContain('slot-occupied');
+  });
+
+  it('refuses a slot whose rubble has not been cleared, and allows it once it has', () => {
+    const blocked = checkBuild(campaignWith({ id: 'hobby-farm', slots: {} }), {
+      slot: 'ruined-chicken-coop',
+      facility: 'garden',
+      labor: 5,
+    });
+    const cleared = checkBuild(
+      campaignWith({ id: 'hobby-farm', slots: { 'ruined-chicken-coop': { cleared: true } } }),
+      { slot: 'ruined-chicken-coop', facility: 'garden', labor: 5 },
+    );
+
+    expect(codes(blocked.blockers)).toContain('slot-not-cleared');
+    expect(cleared.blockers).toEqual([]);
+  });
+
+  it('refuses a build the community cannot pay for, in either currency', () => {
+    const poor = campaignWith(smallTownHome(), {
+      materials: { food: 0, fuel: 0, hardware: 1, rare: 0 },
+    });
+
+    const check = checkBuild(poor, { slot: 'garage', facility: 'workshop', labor: 0 });
+
+    expect(codes(check.blockers)).toEqual(['not-enough-hardware', 'not-enough-labor']);
+    // Affordability is never a warning: there is no override for arithmetic.
+    expect(check.warnings).toEqual([]);
+  });
+
+  it('warns rather than refuses when the slot is the wrong kind', () => {
+    // A Garden needs an outdoor slot; the garage is indoor.
+    const check = checkBuild(campaignWith(smallTownHome()), {
+      slot: 'garage',
+      facility: 'garden',
+      labor: 5,
+    });
+
+    expect(check.blockers).toEqual([]);
+    expect(codes(check.warnings)).toEqual(['wrong-slot-kind']);
+  });
+
+  it('warns about an origin this campaign is not running, and stops once it is', () => {
+    const none = checkBuild(campaignWith(smallTownHome()), {
+      slot: 'garage',
+      facility: 'mystic-library',
+      labor: 5,
+    });
+    const magic = checkBuild(campaignWith(smallTownHome(), { origin: 'magic' }), {
+      slot: 'garage',
+      facility: 'mystic-library',
+      labor: 5,
+    });
+
+    expect(codes(none.warnings)).toContain('origin-locked');
+    expect(codes(magic.warnings)).not.toContain('origin-locked');
+    // The mission gate outlives the origin gate: Phase 4 owns which mission.
+    expect(codes(magic.warnings)).toEqual(['mission-locked']);
+  });
+
+  it('refuses a campaign with no base, and a slot the base does not have', () => {
+    // The whole shape, not just the blockers: neither of these is a rule the
+    // player may wave through, so both must come back with nothing to override.
+    const none = checkBuild(campaignWith(null), {
+      slot: 'garage',
+      facility: 'workshop',
+      labor: 5,
+    });
+    const missing = checkBuild(campaignWith(smallTownHome()), {
+      slot: 'wine-cellar',
+      facility: 'workshop',
+      labor: 5,
+    });
+
+    expect(codes(none.blockers)).toEqual(['no-base']);
+    expect(none.warnings).toEqual([]);
+    expect(codes(missing.blockers)).toEqual(['no-such-slot']);
+    expect(missing.warnings).toEqual([]);
+  });
+
+  it('affords a build that costs exactly what the community holds', () => {
+    // The boundary, asserted because `<` and `<=` differ only here: a Workshop
+    // costs 3 Hardware and 2 Labor, and exactly enough is enough.
+    const exact = campaignWith(smallTownHome(), {
+      materials: { food: 0, fuel: 0, hardware: 3, rare: 0 },
+    });
+
+    expect(checkBuild(exact, { slot: 'garage', facility: 'workshop', labor: 2 })).toEqual({
+      blockers: [],
+      warnings: [],
+    });
+  });
+});
+
+describe('withFacilityBuilt', () => {
+  it('builds, records the turn, and spends the Hardware', () => {
+    const after = withFacilityBuilt(campaignWith(smallTownHome()), {
+      slot: 'garage',
+      facility: 'workshop',
+      labor: 2,
+    });
+
+    expect(after.base?.slots.garage).toEqual({
+      built: { facility: 'workshop', builtOnTurn: 4 },
+    });
+    expect(after.materials.hardware).toBe(17);
+  });
+
+  it('leaves Labor alone, because there is nowhere to spend it from yet', () => {
+    const before = campaignWith(smallTownHome());
+    const after = withFacilityBuilt(before, { slot: 'garage', facility: 'workshop', labor: 2 });
+
+    expect(after.materials).toEqual({ ...before.materials, hardware: 17 });
+  });
+
+  it('keeps what the slot already recorded', () => {
+    const cleared = campaignWith({
+      id: 'hobby-farm',
+      slots: { 'ruined-chicken-coop': { cleared: true } },
+    });
+    const after = withFacilityBuilt(cleared, {
+      slot: 'ruined-chicken-coop',
+      facility: 'garden',
+      labor: 2,
+    });
+
+    // Clearing is a fact about the slot that a build must not erase.
+    expect(after.base?.slots['ruined-chicken-coop']).toEqual({
+      cleared: true,
+      built: { facility: 'garden', builtOnTurn: 4 },
+    });
+  });
+
+  it('refuses a blocked build and changes nothing at all', () => {
+    const poor = campaignWith(smallTownHome(), {
+      materials: { food: 0, fuel: 0, hardware: 1, rare: 0 },
+    });
+
+    expect(withFacilityBuilt(poor, { slot: 'garage', facility: 'workshop', labor: 5 })).toBe(poor);
+  });
+
+  it('builds through a warning, because proceeding past one is the player’s call', () => {
+    const after = withFacilityBuilt(campaignWith(smallTownHome()), {
+      slot: 'garage',
+      facility: 'garden',
+      labor: 5,
+    });
+
+    // A Garden in an indoor slot: illegal, overridable, and once overridden it
+    // is built. It keeps reporting the violation for as long as it stands.
+    expect(after.base?.slots.garage?.built?.facility).toBe('garden');
+  });
+
+  it('does nothing to a campaign with no base', () => {
+    const none = campaignWith(null);
+
+    expect(withFacilityBuilt(none, { slot: 'garage', facility: 'workshop', labor: 5 })).toBe(none);
+  });
+});
+
+describe('buildableFacilities', () => {
+  it('leaves out the facilities of an origin this campaign is not running', () => {
+    const ids = buildableFacilities(campaignWith(smallTownHome())).map((facility) => facility.id);
+
+    expect(ids).not.toContain('mystic-library');
+    expect(ids).toContain('workshop');
+  });
+
+  it('offers an origin’s own facility to a campaign running it', () => {
+    const ids = buildableFacilities(campaignWith(smallTownHome(), { origin: 'magic' })).map(
+      (facility) => facility.id,
+    );
+
+    expect(ids).toContain('mystic-library');
+  });
+});

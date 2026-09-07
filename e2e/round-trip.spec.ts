@@ -480,3 +480,50 @@ test('a claimed base survives export, a reload, and import', async ({ page }) =>
   const reExported = await exportCampaign(page);
   expect(reExported.text).toBe(exported.text);
 });
+
+/**
+ * Z2-5's acceptance, and the first time the base screen does something.
+ *
+ * Materials are typed in because nothing in the app produces them until the
+ * Advancement Phase (Phase 3), the same way Phase 1 typed in XP. That is what
+ * makes a build possible at all, so it is part of the journey rather than
+ * setup: a Build button that can never be pressed would not be worth shipping.
+ */
+test('a facility is built into a slot, and the build survives the round trip', async ({ page }) => {
+  await startCampaign(page, 'Cedar Hollow');
+
+  await page.getByLabel(/choose a base/i).selectOption({ label: 'Small Town Home — Tier 1' });
+  await page.getByRole('button', { name: /claim this base/i }).click();
+
+  await page.getByLabel(/^hardware$/i).fill('9');
+  await page.getByLabel(/labor available/i).fill('5');
+
+  await page.getByRole('button', { name: /build in garage/i }).click();
+  await page.getByLabel(/^facility$/i).selectOption({ label: 'Workshop' });
+  await expect(page.getByText(/3 Hardware · 2 Labor/i)).toBeVisible();
+  await page.getByRole('button', { name: /build here/i }).click();
+
+  const map = page.getByRole('region', { name: 'Small Town Home' });
+  await expect(map).toContainText('Workshop');
+  // Spent, not merely recorded.
+  await expect(page.getByLabel(/^hardware$/i)).toHaveValue('6');
+
+  const exported = await exportCampaign(page);
+  expect(JSON.parse(exported.text)).toMatchObject({
+    materials: { hardware: 6 },
+    base: { id: 'small-town-home', slots: { garage: { built: { facility: 'workshop' } } } },
+  });
+
+  await waitForAutosave(page, 'Cedar Hollow');
+  await page.reload();
+  await expect(page.getByRole('region', { name: 'Small Town Home' })).toContainText('Workshop');
+
+  await startFreshCampaign(page, 'Millbrook');
+  await page.setInputFiles('input[type="file"]', exported.path);
+  await page.getByRole('button', { name: /replace it/i }).click();
+
+  await expect(page.getByRole('region', { name: 'Small Town Home' })).toContainText('Workshop');
+
+  const reExported = await exportCampaign(page);
+  expect(reExported.text).toBe(exported.text);
+});
