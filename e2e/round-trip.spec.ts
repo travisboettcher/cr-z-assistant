@@ -438,3 +438,45 @@ test('experience buys a level and a promotion, and both survive the round trip',
 
   await expect(page.getByRole('region', { name: /community/i })).toContainText('Tier 3 · Leader');
 });
+
+/**
+ * Z2-4's acceptance: a claimed base survives an export, a reload and an import.
+ *
+ * The same journey as the roster test, one layer down. What makes it worth its
+ * own run is that the base stores almost nothing — an id and an empty slot
+ * record — and everything on the screen is read back out of the rules data. A
+ * round trip that lost the id would show a base that is not the one claimed,
+ * and every number on the slot map would be quietly wrong rather than missing.
+ */
+test('a claimed base survives export, a reload, and import', async ({ page }) => {
+  await startCampaign(page, 'Cedar Hollow');
+
+  await page.getByLabel(/choose a base/i).selectOption({ label: 'Hobby Farm — Tier 2' });
+  await page.getByRole('button', { name: /claim this base/i }).click();
+
+  const map = page.getByRole('region', { name: 'Hobby Farm' });
+  await expect(map).toContainText('Tier 2 base');
+  // A built-in facility, a locked upgrade, and the rubble that needs clearing:
+  // three slot states off one layout, none of them stored in the save.
+  await expect(map).toContainText('Shelving — 1 of 3, no room for more');
+  await expect(map).toContainText('Blocked — 2 Labor to clear');
+
+  const exported = await exportCampaign(page);
+  expect(JSON.parse(exported.text)).toMatchObject({ base: { id: 'hobby-farm', slots: {} } });
+
+  await waitForAutosave(page, 'Cedar Hollow');
+  await page.reload();
+  await expect(page.getByRole('region', { name: 'Hobby Farm' })).toBeVisible();
+
+  await startFreshCampaign(page, 'Millbrook');
+  // A fresh campaign has no base, so the chooser is back.
+  await expect(page.getByLabel(/choose a base/i)).toBeVisible();
+
+  await page.setInputFiles('input[type="file"]', exported.path);
+  await page.getByRole('button', { name: /replace it/i }).click();
+
+  await expect(page.getByRole('region', { name: 'Hobby Farm' })).toBeVisible();
+
+  const reExported = await exportCampaign(page);
+  expect(reExported.text).toBe(exported.text);
+});

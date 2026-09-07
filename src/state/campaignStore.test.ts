@@ -666,3 +666,39 @@ describe('a survivor added rather than recruited', () => {
     expect(campaign.survivors[0]?.skills).toEqual({ archery: 0 });
   });
 });
+
+describe('base/claimed', () => {
+  it('claims a base for a community that has none', () => {
+    const state = campaignReducer(openState(), { type: 'base/claimed', base: 'hobby-farm' });
+
+    // Nothing but the id and an empty slot record: the layout, the built-in
+    // facilities and the clearing projects are rules, and they stay in the data.
+    expect(expectOpen(state).base).toEqual({ id: 'hobby-farm', slots: {} });
+  });
+
+  it('refuses to replace a base that is already claimed', () => {
+    const claimed = campaignReducer(openState(), { type: 'base/claimed', base: 'hobby-farm' });
+    const built = {
+      status: 'open' as const,
+      campaign: {
+        ...expectOpen(claimed),
+        base: { id: 'hobby-farm' as const, slots: { 'front-yard': { cleared: true as const } } },
+      },
+    };
+
+    const again = campaignReducer(built, { type: 'base/claimed', base: 'distillery' });
+
+    // Moving house is the Claim a New Base mission (Phase 4). Allowing it here
+    // would drop every slot the player had built into, in one dispatch.
+    expect(expectOpen(again).base).toEqual({
+      id: 'hobby-farm',
+      slots: { 'front-yard': { cleared: true } },
+    });
+  });
+
+  it('does nothing when no campaign is open', () => {
+    expect(
+      campaignReducer(INITIAL_CAMPAIGN_STATE, { type: 'base/claimed', base: 'hobby-farm' }),
+    ).toEqual(INITIAL_CAMPAIGN_STATE);
+  });
+});
