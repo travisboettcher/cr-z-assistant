@@ -184,8 +184,14 @@ function supplied(entry: Facility | Upgrade, occupant: Occupant): boolean {
   return (entry.requires?.utilities ?? []).every((utility) => occupant[utility]);
 }
 
-/** The facility and its upgrades, minus everything an unmet utility switches off. */
-function working(occupant: Occupant): readonly (Facility | Upgrade)[] {
+/**
+ * The facility and its upgrades, minus everything an unmet utility switches off.
+ *
+ * Exported because production reads it too: what a facility makes and what it
+ * stores are switched off by the same rule, and two copies of that rule would
+ * be two places for it to drift.
+ */
+export function working(occupant: Occupant): readonly (Facility | Upgrade)[] {
   return [occupant.facility, ...occupant.upgrades].filter((entry) => supplied(entry, occupant));
 }
 
