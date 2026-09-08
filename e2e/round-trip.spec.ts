@@ -632,3 +632,78 @@ test('a cleared slot builds like an empty one of its own kind', async ({ page })
   await page.reload();
   await expect(page.getByRole('region', { name: 'Hobby Farm' })).toContainText('Garden');
 });
+
+/**
+ * Z2-8's acceptance: one point covers a facility and everything on it, and what
+ * it switches on is visible rather than notional.
+ *
+ * The Storage Area's Refrigeration needs Power to raise the Food cap, which is
+ * the roster's own 6/6(8)/6 — the parenthetical the book prints. Assigning one
+ * point to the slot is what moves it, and taking the point back moves it down.
+ */
+test('a point of Power covers a facility and its upgrades, and survives the round trip', async ({
+  page,
+}) => {
+  await startCampaign(page, 'Cedar Hollow');
+
+  await page.getByLabel(/choose a base/i).selectOption({ label: 'Small Town Home — Tier 1' });
+  await page.getByRole('button', { name: /claim this base/i }).click();
+
+  await page.getByLabel(/^hardware$/i).fill('12');
+  await page.getByLabel(/labor available/i).fill('9');
+  await page.getByLabel(/utilities score/i).fill('1');
+
+  // A Storage Area with two upgrades on it: three things, one point of Power.
+  await page.getByRole('button', { name: /build in garage/i }).click();
+  await page.getByLabel(/^facility$/i).selectOption({ label: 'Storage Area' });
+  await page.getByRole('button', { name: /build here/i }).click();
+
+  /*
+   * Both upgrades go on through the override, and they have to: an upgrade may
+   * not be built the same turn as its facility (pg. 54), and **Phase 2 has no
+   * way to advance the turn** — the turn engine is Phase 3. So until then the
+   * only facilities that can be upgraded without waving the rule through are
+   * the ones the base came with, which is a consequence of the phase boundary
+   * rather than of this story.
+   */
+  for (const upgrade of ['Refrigeration', 'Shelving']) {
+    await page.getByRole('button', { name: /upgrade garage/i }).click();
+    await page.getByLabel(/^upgrade$/i).selectOption({ label: upgrade });
+    await expect(page.getByText(/went up this turn/i)).toBeVisible();
+    await page.getByLabel(/add it anyway/i).check();
+    await page.getByRole('button', { name: /add upgrade/i }).click();
+  }
+
+  await page.getByRole('button', { name: /upgrade garage/i }).click();
+  await page.getByRole('checkbox', { name: 'Power' }).check();
+
+  // One point for all three, not one each.
+  await expect(page.getByText(/power 1\/0 flat/i)).toBeVisible();
+  await expect(page.getByText(/1 of 1 staffed/i)).toBeVisible();
+
+  const exported = await exportCampaign(page);
+  expect(JSON.parse(exported.text)).toMatchObject({
+    base: {
+      slots: {
+        garage: {
+          built: { facility: 'storage-area' },
+          upgrades: ['refrigeration', 'shelving'],
+          power: true,
+        },
+      },
+    },
+  });
+
+  await waitForAutosave(page, 'Cedar Hollow');
+  await page.reload();
+
+  // The assignment persists; the pool it is spending from does not, so the
+  // Score is back to zero and the point is now over-assigned — and must still
+  // be removable, or the base is stranded.
+  await page.getByRole('button', { name: /upgrade garage/i }).click();
+  const power = page.getByRole('checkbox', { name: 'Power' });
+  await expect(power).toBeChecked();
+  await expect(power).toBeEnabled();
+  await power.uncheck();
+  await expect(page.getByRole('checkbox', { name: 'Power' })).not.toBeChecked();
+});

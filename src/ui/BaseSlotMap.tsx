@@ -13,8 +13,16 @@
 
 import { useId, useState } from 'react';
 import { BASES, type BaseSlot } from '../data/bases';
+import { UTILITIES } from '../data/facilities';
+import { assignedCount, staffedSpent } from '../engine/utilities';
 import type { Campaign } from '../engine/campaign';
-import { layoutOf, occupants, upgradesRemaining, upgradesUsed } from '../engine/base';
+import {
+  flatUtilitiesGenerated,
+  layoutOf,
+  occupants,
+  upgradesRemaining,
+  upgradesUsed,
+} from '../engine/base';
 import type { Occupant } from '../engine/base';
 import { MATERIALS } from '../data/materials';
 import {
@@ -25,6 +33,7 @@ import {
   UTILITY_LABELS,
   slotLabel,
 } from './baseLabels';
+import { AssignUtilities } from './AssignUtilities';
 import { BuildFacility } from './BuildFacility';
 import { ClearSlot } from './ClearSlot';
 import { UpgradeFacility } from './UpgradeFacility';
@@ -75,6 +84,8 @@ interface SlotCardProps {
   /** Whether a clearing project on this slot has been paid for. */
   readonly cleared: boolean;
   readonly labor: number;
+  /** The staffed Utilities Score, entered above the map. */
+  readonly staffed: number;
   readonly open: boolean;
   readonly onToggle: () => void;
   readonly onCommitted: () => void;
@@ -86,6 +97,7 @@ function SlotCard({
   occupant,
   cleared,
   labor,
+  staffed,
   open,
   onToggle,
   onCommitted,
@@ -132,12 +144,21 @@ function SlotCard({
             {open ? 'Cancel' : `Upgrade ${slotLabel(slot.id)}`}
           </button>
           {open && (
-            <UpgradeFacility
-              campaign={campaign}
-              slot={slot.id}
-              labor={labor}
-              onUpgraded={onCommitted}
-            />
+            <>
+              <UpgradeFacility
+                campaign={campaign}
+                slot={slot.id}
+                labor={labor}
+                onUpgraded={onCommitted}
+              />
+              {/*
+               * Both verbs an occupied slot has, in one expanded region. They
+               * sit together rather than behind separate toggles because a
+               * player deciding what to do with a facility is choosing between
+               * them, not navigating to one.
+               */}
+              <AssignUtilities campaign={campaign} slot={slot.id} staffed={staffed} />
+            </>
           )}
         </>
       )}
@@ -191,6 +212,7 @@ function SlotCard({
 
 export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
   const laborId = useId();
+  const staffedId = useId();
 
   /**
    * Which card is expanded, and how much Labor is to hand. Both are **UI state
@@ -202,6 +224,7 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
    */
   const [openSlot, setOpenSlot] = useState<string | null>(null);
   const [labor, setLabor] = useState(0);
+  const [staffed, setStaffed] = useState(0);
 
   const base = campaign.base;
   if (base === null) return null;
@@ -210,6 +233,7 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
   const found = occupants(base);
   const slots = layoutOf(base);
   const empty = slots.filter((slot) => slot.state === 'empty').length;
+  const flat = flatUtilitiesGenerated(base);
 
   return (
     <section
@@ -251,6 +275,41 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
         </span>
       </div>
 
+      {/*
+       * The other half of the utility pools, and the other thing the Planning
+       * Phase will supply. A staffed Utility Station produces its staff's
+       * Utilities Score split across Power and Water however the player likes,
+       * so one number covers both — which is why the readout below shows what
+       * each pool generates on its own and what the Score is covering.
+       */}
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <label htmlFor={staffedId} className="text-sm font-medium">
+          Utilities Score
+        </label>
+        <input
+          id={staffedId}
+          type="number"
+          min={0}
+          value={staffed}
+          onChange={(event) => {
+            setStaffed(Math.max(0, Number(event.target.value)));
+          }}
+          className={`${TOUCH_TARGET} ${FOCUS_RING} w-24 rounded-lg border border-stone-300 bg-white px-3 tabular-nums dark:border-stone-700 dark:bg-stone-950`}
+        />
+        {/*
+         * Built as one string rather than assembled from expressions, so it
+         * reads as one sentence to a screen reader and to a test — React would
+         * otherwise split it into text nodes at every interpolation.
+         */}
+        <span className="text-sm text-stone-600 dark:text-stone-400">
+          {`${UTILITIES.map(
+            (utility) =>
+              `${UTILITY_LABELS[utility]} ${String(assignedCount(base, utility))}/${String(flat[utility])} flat`,
+          ).join(' · ')}, ${String(staffedSpent(base))} of ${String(staffed)} staffed`}{' '}
+          <PageRef pages={67} />
+        </span>
+      </div>
+
       <ul className="mt-5 grid gap-3 sm:grid-cols-2">
         {slots.map((slot) => {
           const occupant = found.find((candidate) => candidate.slotId === slot.id);
@@ -259,6 +318,7 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
             slot,
             cleared: base.slots[slot.id]?.cleared === true,
             labor,
+            staffed,
             open: openSlot === slot.id,
             onToggle: () => {
               setOpenSlot(openSlot === slot.id ? null : slot.id);
@@ -280,7 +340,7 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
       </ul>
 
       <p className="mt-5 text-sm text-stone-600 dark:text-stone-400">
-        Assigning Power and Water is the next story.
+        Beds, storage caps and production join this map in the next story.
       </p>
     </section>
   );

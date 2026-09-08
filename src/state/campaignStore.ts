@@ -21,7 +21,7 @@
  */
 
 import type { BaseId } from '../data/bases';
-import type { FacilityId, UpgradeId } from '../data/facilities';
+import type { FacilityId, UpgradeId, Utility } from '../data/facilities';
 import type { Material } from '../data/materials';
 import type { D10Result, FieldRecruitTier } from '../data/recruitTable';
 import { MIN_SKILL_LEVEL, type CommonSkill, type Skill, type Stat } from '../data/skills';
@@ -30,6 +30,7 @@ import { withCommonSkillBought, withSkillLevelBought, withTierBought } from '../
 import { withFacilityBuilt } from '../engine/build';
 import { withSlotCleared } from '../engine/clearing';
 import { withUpgradeBuilt } from '../engine/upgrade';
+import { withUtilityToggled } from '../engine/utilities';
 import { createNewCampaign } from '../engine/campaign';
 import type { Campaign, CampaignPhase, Stats, Survivor } from '../engine/campaign';
 import { createSurvivor, recruitSurvivor } from '../engine/survivor';
@@ -226,7 +227,22 @@ export type CampaignAction =
       readonly labor: number;
     }
   /** Clears the rubble out of a slot, adding back whatever the project yields. */
-  | { readonly type: 'slot/cleared'; readonly slot: string; readonly labor: number };
+  | { readonly type: 'slot/cleared'; readonly slot: string; readonly labor: number }
+  /**
+   * Puts a point of Power or Water on a slot, or takes it off.
+   *
+   * `staffed` is the combined Utilities Score of whoever works a Utility
+   * Station, entered by hand until the Planning Phase assigns staff. It rides
+   * on the action for the same reason `labor` does: there is nothing on
+   * `Campaign` to read it from yet, and the pool it feeds is derived rather
+   * than stored.
+   */
+  | {
+      readonly type: 'utility/toggled';
+      readonly slot: string;
+      readonly utility: Utility;
+      readonly staffed: number;
+    };
 
 export function campaignReducer(state: CampaignState, action: CampaignAction): CampaignState {
   switch (action.type) {
@@ -390,6 +406,15 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
     case 'slot/cleared':
       return withCampaign(state, (campaign) =>
         withSlotCleared(campaign, { slot: action.slot, labor: action.labor }),
+      );
+
+    case 'utility/toggled':
+      return withCampaign(state, (campaign) =>
+        withUtilityToggled(campaign, {
+          slot: action.slot,
+          utility: action.utility,
+          staffed: action.staffed,
+        }),
       );
 
     case 'survivor/removed':

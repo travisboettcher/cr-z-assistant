@@ -378,3 +378,72 @@ describe('clearing a slot', () => {
     expect(screen.getByText(/4 standard weapons this version cannot track/i)).toBeInTheDocument();
   });
 });
+
+describe('assigning Power and Water', () => {
+  async function readyToSupply(score = '2') {
+    const user = await openCampaign();
+    await claim(user, 'Small Town Home — Tier 1');
+    await user.clear(screen.getByLabelText(/utilities score/i));
+    await user.type(screen.getByLabelText(/utilities score/i), score);
+
+    return user;
+  }
+
+  const openKitchen = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
+  };
+
+  it('shows what each pool generates and what the Score is covering', async () => {
+    await readyToSupply();
+
+    expect(
+      screen.getByText(/power 0\/0 flat · water 0\/0 flat, 0 of 2 staffed/i),
+    ).toBeInTheDocument();
+  });
+
+  it('assigns a point, and the readout follows it', async () => {
+    const user = await readyToSupply();
+    await openKitchen(user);
+    await user.click(screen.getByRole('checkbox', { name: /water/i }));
+
+    expect(screen.getByText(/water 1\/0 flat, 1 of 2 staffed/i)).toBeInTheDocument();
+    // And the card says so with the form closed.
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }));
+    expect(within(slotMap()).getByText(/water assigned/i)).toBeInTheDocument();
+  });
+
+  it('warns rather than refuses when nothing in the slot uses the point', async () => {
+    const user = await readyToSupply();
+    await user.click(screen.getByRole('button', { name: /upgrade bunk room 1/i }));
+
+    // A Bunk Room needs neither utility: pointless, legal, and not refused.
+    expect(screen.getAllByText(/nothing here uses it/i)).toHaveLength(2);
+    expect(screen.getByRole('checkbox', { name: /power/i })).toBeEnabled();
+  });
+
+  it('refuses a point the base cannot generate, and says how short it is', async () => {
+    const user = await readyToSupply('0');
+    await openKitchen(user);
+
+    expect(screen.getAllByText(/needs 1 more than this base generates/i)).toHaveLength(2);
+    expect(screen.getByRole('checkbox', { name: /water/i })).toBeDisabled();
+  });
+
+  it('lets a point go back even when the Score no longer covers it', async () => {
+    const user = await readyToSupply('1');
+    await openKitchen(user);
+    await user.click(screen.getByRole('checkbox', { name: /water/i }));
+
+    // Drop the Score below what is assigned, as a Planning Phase re-assignment
+    // would. The point must still be removable or the base is stranded.
+    await user.clear(screen.getByLabelText(/utilities score/i));
+    await user.type(screen.getByLabelText(/utilities score/i), '0');
+
+    const water = screen.getByRole('checkbox', { name: /water/i });
+    expect(water).toBeChecked();
+    expect(water).toBeEnabled();
+
+    await user.click(water);
+    expect(screen.getByRole('checkbox', { name: /water/i })).not.toBeChecked();
+  });
+});

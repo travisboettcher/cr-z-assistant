@@ -874,3 +874,54 @@ describe('slot/cleared', () => {
     ).toEqual(INITIAL_CAMPAIGN_STATE);
   });
 });
+
+describe('utility/toggled', () => {
+  const powered = (): CampaignState =>
+    openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      base: { id: 'small-town-home', slots: {} },
+    });
+
+  it('puts a point on the slot and takes it back off', () => {
+    const on = campaignReducer(powered(), {
+      type: 'utility/toggled',
+      slot: 'kitchen',
+      utility: 'water',
+      staffed: 1,
+    });
+
+    expect(expectOpen(on).base?.slots.kitchen?.water).toBe(true);
+
+    const off = campaignReducer(on, {
+      type: 'utility/toggled',
+      slot: 'kitchen',
+      utility: 'water',
+      staffed: 1,
+    });
+
+    expect(expectOpen(off).base?.slots.kitchen?.water).toBeUndefined();
+  });
+
+  it('does nothing when the base cannot generate the point', () => {
+    const before = powered();
+    const state = campaignReducer(before, {
+      type: 'utility/toggled',
+      slot: 'kitchen',
+      utility: 'water',
+      staffed: 0,
+    });
+
+    expect(expectOpen(state)).toEqual(expectOpen(before));
+  });
+
+  it('does nothing when no campaign is open', () => {
+    expect(
+      campaignReducer(INITIAL_CAMPAIGN_STATE, {
+        type: 'utility/toggled',
+        slot: 'kitchen',
+        utility: 'water',
+        staffed: 1,
+      }),
+    ).toEqual(INITIAL_CAMPAIGN_STATE);
+  });
+});
