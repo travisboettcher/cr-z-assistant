@@ -314,3 +314,67 @@ describe('upgrading a facility', () => {
     expect(screen.getByRole('button', { name: /add upgrade/i })).toBeDisabled();
   });
 });
+
+describe('clearing a slot', () => {
+  async function readyToClear(labor = '5') {
+    const user = await openCampaign();
+    await claim(user, 'Hobby Farm — Tier 2');
+    await user.clear(screen.getByLabelText(/labor available/i));
+    await user.type(screen.getByLabelText(/labor available/i), labor);
+
+    return user;
+  }
+
+  const coop = () => screen.getByRole('button', { name: /clear ruined chicken coop/i });
+
+  it('offers a clear only on the blocked slot', async () => {
+    await readyToClear();
+
+    expect(screen.getAllByRole('button', { name: /^clear /i })).toHaveLength(1);
+  });
+
+  it('shows the cost in the form and the yield on the card, each once', async () => {
+    const user = await readyToClear();
+
+    // The yield is on the card before anything is opened, because it is what a
+    // player weighs when deciding where to spend Labor.
+    expect(screen.getByText(/2 labor to clear, and yields 2 hardware/i)).toBeInTheDocument();
+
+    await user.click(coop());
+
+    expect(screen.getByText(/0 Hardware · 2 Labor/i)).toBeInTheDocument();
+    // And not repeated inside the form.
+    expect(screen.getAllByText(/yields 2 hardware/i)).toHaveLength(1);
+  });
+
+  it('refuses for want of Labor, and offers no override for it', async () => {
+    const user = await readyToClear('1');
+    await user.click(coop());
+
+    expect(screen.getByText(/costs 2 labor and 1 is available/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /clear it/i })).toBeDisabled();
+    // Nothing about clearing is a rule a table plays differently.
+    expect(screen.queryByLabelText(/anyway/i)).not.toBeInTheDocument();
+  });
+
+  it('turns the slot into one that can be built in, and credits the yield', async () => {
+    const user = await readyToClear();
+    await user.click(coop());
+    await user.click(screen.getByRole('button', { name: /clear it/i }));
+
+    const map = screen.getByRole('region', { name: 'Hobby Farm' });
+    expect(within(map).getByText(/cleared — ready to build in/i)).toBeInTheDocument();
+    expect(
+      within(map).getByRole('button', { name: /build in ruined chicken coop/i }),
+    ).toBeInTheDocument();
+    expect(within(map).queryByRole('button', { name: /^clear /i })).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(2);
+  });
+
+  it('says what it cannot give back, rather than dropping it quietly', async () => {
+    const user = await openCampaign();
+    await claim(user, 'Outdoor Sports Shop — Tier 2');
+
+    expect(screen.getByText(/4 standard weapons this version cannot track/i)).toBeInTheDocument();
+  });
+});

@@ -579,3 +579,56 @@ test('an upgrade waits for the turn after its facility went up', async ({ page }
   await page.getByRole('button', { name: /upgrade garage/i }).click();
   await expect(page.getByText(/went up this turn/i)).toBeVisible();
 });
+
+/**
+ * Z2-7's acceptance: clearing changes what a slot is *available* for, and never
+ * what kind of slot it is.
+ *
+ * The Hobby Farm's ruined chicken coop is Outdoor. Cleared, it takes a Garden
+ * without complaint and still reports a Bunk Room as wanting an Indoor slot —
+ * which is the distinction a clearing project could most easily lose.
+ */
+test('a cleared slot builds like an empty one of its own kind', async ({ page }) => {
+  await startCampaign(page, 'Cedar Hollow');
+
+  await page.getByLabel(/choose a base/i).selectOption({ label: 'Hobby Farm — Tier 2' });
+  await page.getByRole('button', { name: /claim this base/i }).click();
+  await page.getByLabel(/labor available/i).fill('5');
+
+  const map = page.getByRole('region', { name: 'Hobby Farm' });
+  await expect(map).toContainText('Blocked — 2 Labor to clear, and yields 2 hardware');
+
+  await page.getByRole('button', { name: /clear ruined chicken coop/i }).click();
+  await page.getByRole('button', { name: /clear it/i }).click();
+
+  // The yield arrives in storage, which is the only way Phase 2 gains Hardware
+  // other than typing it in.
+  await expect(page.getByLabel(/^hardware$/i)).toHaveValue('2');
+  await expect(map).toContainText('Cleared — ready to build in');
+
+  await page.getByRole('button', { name: /build in ruined chicken coop/i }).click();
+
+  // Still an Outdoor slot: an Indoor facility is questioned, an Outdoor one is
+  // not. Clearing changed availability, not kind.
+  await page.getByLabel(/^facility$/i).selectOption({ label: 'Bunk Room' });
+  await expect(page.getByText(/needs an indoor slot, and this one is outdoor/i)).toBeVisible();
+
+  await page.getByLabel(/^facility$/i).selectOption({ label: 'Garden' });
+  await expect(page.getByText(/needs an indoor slot/i)).not.toBeVisible();
+  await page.getByRole('button', { name: /build here/i }).click();
+
+  await expect(map).toContainText('Garden');
+
+  const exported = await exportCampaign(page);
+  expect(JSON.parse(exported.text)).toMatchObject({
+    base: {
+      slots: {
+        'ruined-chicken-coop': { cleared: true, built: { facility: 'garden' } },
+      },
+    },
+  });
+
+  await waitForAutosave(page, 'Cedar Hollow');
+  await page.reload();
+  await expect(page.getByRole('region', { name: 'Hobby Farm' })).toContainText('Garden');
+});

@@ -26,6 +26,7 @@ import {
   slotLabel,
 } from './baseLabels';
 import { BuildFacility } from './BuildFacility';
+import { ClearSlot } from './ClearSlot';
 import { UpgradeFacility } from './UpgradeFacility';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
@@ -42,7 +43,11 @@ function clearingReward(slot: Extract<BaseSlot, { state: 'clearing-project' }>):
 
   const equipment = slot.yields?.equipment;
   if (equipment !== undefined) {
-    materials.push(`${String(equipment.count)} standard ${equipment.category}s`);
+    // Said here rather than promised and quietly dropped: Phase 5 owns the item
+    // catalogue, so there is no Inventory to put four standard weapons into.
+    materials.push(
+      `${String(equipment.count)} standard ${equipment.category}s this version cannot track`,
+    );
   }
 
   return materials.length === 0 ? null : materials.join(', ');
@@ -67,13 +72,30 @@ interface SlotCardProps {
   readonly campaign: Campaign;
   readonly slot: BaseSlot;
   readonly occupant?: Occupant;
+  /** Whether a clearing project on this slot has been paid for. */
+  readonly cleared: boolean;
   readonly labor: number;
   readonly open: boolean;
   readonly onToggle: () => void;
   readonly onCommitted: () => void;
 }
 
-function SlotCard({ campaign, slot, occupant, labor, open, onToggle, onCommitted }: SlotCardProps) {
+function SlotCard({
+  campaign,
+  slot,
+  occupant,
+  cleared,
+  labor,
+  open,
+  onToggle,
+  onCommitted,
+}: SlotCardProps) {
+  /**
+   * A cleared slot is an ordinary empty slot of its kind. Clearing changes what
+   * the slot is *available* for and never what kind it is — an Outdoor slot
+   * full of rubble is an Outdoor slot afterwards.
+   */
+  const buildable = occupant === undefined && (slot.state === 'empty' || cleared);
   const utilities =
     occupant === undefined
       ? []
@@ -120,9 +142,11 @@ function SlotCard({ campaign, slot, occupant, labor, open, onToggle, onCommitted
         </>
       )}
 
-      {occupant === undefined && slot.state === 'empty' && (
+      {buildable && (
         <>
-          <p className="mt-2 text-stone-600 dark:text-stone-400">Empty — ready to build in</p>
+          <p className="mt-2 text-stone-600 dark:text-stone-400">
+            {cleared ? 'Cleared — ready to build in' : 'Empty — ready to build in'}
+          </p>
           {/*
            * The card's one action. A slot is in exactly one state and each
            * state has at most two verbs, which is what keeps this a card rather
@@ -142,11 +166,24 @@ function SlotCard({ campaign, slot, occupant, labor, open, onToggle, onCommitted
         </>
       )}
 
-      {occupant === undefined && slot.state === 'clearing-project' && (
-        <p className="mt-2 text-stone-600 dark:text-stone-400">
-          Blocked — {slot.labor} Labor to clear
-          {clearingReward(slot) !== null && `, and yields ${String(clearingReward(slot))}`}
-        </p>
+      {occupant === undefined && slot.state === 'clearing-project' && !cleared && (
+        <>
+          <p className="mt-2 text-stone-600 dark:text-stone-400">
+            Blocked — {slot.labor} Labor to clear
+            {clearingReward(slot) !== null && `, and yields ${String(clearingReward(slot))}`}
+          </p>
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded={open}
+            className={`${TOUCH_TARGET} ${FOCUS_RING} mt-2 rounded-lg border border-stone-300 px-3 text-sm font-medium dark:border-stone-700`}
+          >
+            {open ? 'Cancel' : `Clear ${slotLabel(slot.id)}`}
+          </button>
+          {open && (
+            <ClearSlot campaign={campaign} slot={slot.id} labor={labor} onCleared={onCommitted} />
+          )}
+        </>
       )}
     </li>
   );
@@ -220,6 +257,7 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
           const shared = {
             campaign,
             slot,
+            cleared: base.slots[slot.id]?.cleared === true,
             labor,
             open: openSlot === slot.id,
             onToggle: () => {
@@ -242,8 +280,7 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
       </ul>
 
       <p className="mt-5 text-sm text-stone-600 dark:text-stone-400">
-        Clearing a blocked slot, adding upgrades, and assigning Power and Water are the next
-        stories.
+        Assigning Power and Water is the next story.
       </p>
     </section>
   );

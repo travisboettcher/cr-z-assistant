@@ -28,6 +28,7 @@ import { MIN_SKILL_LEVEL, type CommonSkill, type Skill, type Stat } from '../dat
 import type { Tier } from '../data/tiers';
 import { withCommonSkillBought, withSkillLevelBought, withTierBought } from '../engine/advancement';
 import { withFacilityBuilt } from '../engine/build';
+import { withSlotCleared } from '../engine/clearing';
 import { withUpgradeBuilt } from '../engine/upgrade';
 import { createNewCampaign } from '../engine/campaign';
 import type { Campaign, CampaignPhase, Stats, Survivor } from '../engine/campaign';
@@ -223,7 +224,9 @@ export type CampaignAction =
       readonly slot: string;
       readonly upgrade: UpgradeId;
       readonly labor: number;
-    };
+    }
+  /** Clears the rubble out of a slot, adding back whatever the project yields. */
+  | { readonly type: 'slot/cleared'; readonly slot: string; readonly labor: number };
 
 export function campaignReducer(state: CampaignState, action: CampaignAction): CampaignState {
   switch (action.type) {
@@ -382,6 +385,11 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
           upgrade: action.upgrade,
           labor: action.labor,
         }),
+      );
+
+    case 'slot/cleared':
+      return withCampaign(state, (campaign) =>
+        withSlotCleared(campaign, { slot: action.slot, labor: action.labor }),
       );
 
     case 'survivor/removed':
