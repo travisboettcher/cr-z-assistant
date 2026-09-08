@@ -396,9 +396,10 @@ describe('assigning Power and Water', () => {
   it('shows what each pool generates and what the Score is covering', async () => {
     await readyToSupply();
 
-    expect(
-      screen.getByText(/power 0\/0 flat · water 0\/0 flat, 0 of 2 staffed/i),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('definition', { name: /power assigned/i })).toHaveTextContent(
+      '0 / 0 flat',
+    );
+    expect(screen.getByRole('definition', { name: /score spent/i })).toHaveTextContent('0 / 2');
   });
 
   it('assigns a point, and the readout follows it', async () => {
@@ -406,10 +407,13 @@ describe('assigning Power and Water', () => {
     await openKitchen(user);
     await user.click(screen.getByRole('checkbox', { name: /water/i }));
 
-    expect(screen.getByText(/water 1\/0 flat, 1 of 2 staffed/i)).toBeInTheDocument();
+    expect(screen.getByRole('definition', { name: /water assigned/i })).toHaveTextContent(
+      '1 / 0 flat',
+    );
+    expect(screen.getByRole('definition', { name: /score spent/i })).toHaveTextContent('1 / 2');
     // And the card says so with the form closed.
     await user.click(screen.getByRole('button', { name: /^cancel$/i }));
-    expect(within(slotMap()).getByText(/water assigned/i)).toBeInTheDocument();
+    expect(within(slotMap()).getByText(/supplied with water/i)).toBeInTheDocument();
   });
 
   it('warns rather than refuses when nothing in the slot uses the point', async () => {
@@ -445,5 +449,88 @@ describe('assigning Power and Water', () => {
 
     await user.click(water);
     expect(screen.getByRole('checkbox', { name: /water/i })).not.toBeChecked();
+  });
+});
+
+describe('the base sheet', () => {
+  async function claimed() {
+    const user = await openCampaign();
+    await claim(user, 'Greasy Spoon — Tier 1');
+    return user;
+  }
+
+  it('totals what the paper worksheet makes you total', async () => {
+    await claimed();
+
+    // The Greasy Spoon ships a Bunk Room with an Extra Bed: three beds.
+    expect(screen.getByRole('definition', { name: /beds/i })).toHaveTextContent('3');
+  });
+
+  it('shows storage against the cap, and says when it is over', async () => {
+    const user = await claimed();
+
+    // Tier 1 plus its built-in Storage Area is 6 for each material.
+    expect(screen.getByRole('definition', { name: /food stored/i })).toHaveTextContent('0 / 6');
+
+    await user.clear(screen.getByLabelText(/^food$/i));
+    await user.type(screen.getByLabelText(/^food$/i), '9');
+
+    expect(screen.getByText(/over the cap/i)).toBeInTheDocument();
+  });
+
+  it('follows a utility onto the Food cap, which is the roster’s own 6(8)', async () => {
+    const user = await claimed();
+
+    // Its Refrigeration needs Power. That is the parenthetical the book prints.
+    await user.clear(screen.getByLabelText(/utilities score/i));
+    await user.type(screen.getByLabelText(/utilities score/i), '1');
+    await user.click(screen.getByRole('button', { name: /upgrade storage area/i }));
+    await user.click(screen.getByRole('checkbox', { name: 'Power' }));
+
+    expect(screen.getByRole('definition', { name: /food stored/i })).toHaveTextContent('0 / 8');
+  });
+
+  it('counts Heroes against what the base allows', async () => {
+    const user = await claimed();
+
+    expect(screen.getByRole('definition', { name: /heroes/i })).toHaveTextContent('0 / 1');
+
+    await user.type(screen.getByLabelText(/survivor name/i), 'Earl');
+    await user.selectOptions(screen.getByLabelText(/^tier$/i), '4');
+    await user.click(screen.getByRole('button', { name: /add survivor/i }));
+
+    expect(screen.getByRole('definition', { name: /heroes/i })).toHaveTextContent('1 / 1');
+  });
+});
+
+describe('previewing production', () => {
+  it('changes with the person picked, and with a utility', async () => {
+    const user = await openCampaign();
+
+    // A cook with Rationing: Cooperation 1 plus Rationing 0 is a Score of 1.
+    await user.type(screen.getByLabelText(/survivor name/i), 'Carla');
+    await user.selectOptions(screen.getByLabelText(/^tier$/i), '2');
+    await user.click(screen.getByRole('button', { name: /add survivor/i }));
+
+    await claim(user, 'Small Town Home — Tier 1');
+    await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
+
+    // Nobody assigned yet.
+    expect(screen.getByText(/needs someone assigned/i)).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText(/preview with/i), ['Carla']);
+
+    // A Kitchen halves without Water, and a Citizen with no Rationing has no
+    // Rationing Score at all — which the sheet says rather than showing a zero.
+    expect(screen.getByText(/they do not have the skill/i)).toBeInTheDocument();
+  });
+
+  it('offers no preview on a facility nobody works', async () => {
+    const user = await openCampaign();
+    await claim(user, 'Small Town Home — Tier 1');
+    await user.click(screen.getByRole('button', { name: /upgrade bunk room 1/i }));
+
+    // A Bunk Room is passive: beds, and nothing to staff.
+    expect(screen.queryByLabelText(/preview with/i)).not.toBeInTheDocument();
   });
 });

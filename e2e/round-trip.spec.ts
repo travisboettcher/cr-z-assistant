@@ -678,8 +678,8 @@ test('a point of Power covers a facility and its upgrades, and survives the roun
   await page.getByRole('checkbox', { name: 'Power' }).check();
 
   // One point for all three, not one each.
-  await expect(page.getByText(/power 1\/0 flat/i)).toBeVisible();
-  await expect(page.getByText(/1 of 1 staffed/i)).toBeVisible();
+  await expect(page.getByLabel(/power assigned/i)).toHaveText('1 / 0 flat');
+  await expect(page.getByLabel(/score spent/i)).toHaveText('1 / 1');
 
   const exported = await exportCampaign(page);
   expect(JSON.parse(exported.text)).toMatchObject({
@@ -706,4 +706,46 @@ test('a point of Power covers a facility and its upgrades, and survives the roun
   await expect(power).toBeEnabled();
   await power.uncheck();
   await expect(page.getByRole('checkbox', { name: 'Power' })).not.toBeChecked();
+});
+
+/**
+ * Z2-9's acceptance, and the end of Phase 2: the base sheet reads the way the
+ * paper worksheet does, and staffing it changes nothing that gets saved.
+ */
+test('the base sheet totals the base, and previewing staff saves nothing', async ({ page }) => {
+  await startCampaign(page, 'Cedar Hollow');
+
+  // Someone who can actually cook: a Hero with Rationing.
+  await page.getByLabel(/survivor name/i).fill('Carla');
+  await page.getByLabel(/^tier$/i).selectOption('4');
+  await page.getByRole('button', { name: /add survivor/i }).click();
+
+  await page.getByLabel(/choose a base/i).selectOption({ label: 'Greasy Spoon — Tier 1' });
+  await page.getByRole('button', { name: /claim this base/i }).click();
+
+  // The roster's own figures, on screen: three beds, a Tier 1 base with a
+  // built-in Storage Area storing 6, and one Hero allowed.
+  await expect(page.getByLabel(/^beds$/i)).toHaveText('3');
+  await expect(page.getByLabel(/food stored/i)).toHaveText('0 / 6');
+  await expect(page.getByLabel(/^heroes$/i)).toHaveText('1 / 1');
+
+  // Power turns the built-in Refrigeration on, which is the parenthetical the
+  // book prints for this base: 6/6(8)/6.
+  await page.getByLabel(/utilities score/i).fill('1');
+  await page.getByRole('button', { name: /upgrade storage area/i }).click();
+  await page.getByRole('checkbox', { name: 'Power' }).check();
+  await expect(page.getByLabel(/food stored/i)).toHaveText('0 / 8');
+
+  const beforePreview = await exportCampaign(page);
+
+  // Preview the Kitchen with Carla. The number moves; the campaign does not.
+  await page.getByRole('button', { name: /^cancel$/i }).click();
+  await page.getByRole('button', { name: /upgrade kitchen/i }).click();
+  await expect(page.getByText(/needs someone assigned/i)).toBeVisible();
+
+  await page.getByLabel(/preview with/i).selectOption({ label: 'Carla' });
+  await expect(page.getByText(/needs someone assigned/i)).not.toBeVisible();
+
+  const afterPreview = await exportCampaign(page);
+  expect(afterPreview.text).toBe(beforePreview.text);
 });

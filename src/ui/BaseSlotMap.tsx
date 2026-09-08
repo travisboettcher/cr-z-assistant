@@ -13,16 +13,8 @@
 
 import { useId, useState } from 'react';
 import { BASES, type BaseSlot } from '../data/bases';
-import { UTILITIES } from '../data/facilities';
-import { assignedCount, staffedSpent } from '../engine/utilities';
 import type { Campaign } from '../engine/campaign';
-import {
-  flatUtilitiesGenerated,
-  layoutOf,
-  occupants,
-  upgradesRemaining,
-  upgradesUsed,
-} from '../engine/base';
+import { layoutOf, occupants, upgradesRemaining, upgradesUsed } from '../engine/base';
 import type { Occupant } from '../engine/base';
 import { MATERIALS } from '../data/materials';
 import {
@@ -34,6 +26,8 @@ import {
   slotLabel,
 } from './baseLabels';
 import { AssignUtilities } from './AssignUtilities';
+import { BaseSheet } from './BaseSheet';
+import { ProductionPreview } from './ProductionPreview';
 import { BuildFacility } from './BuildFacility';
 import { ClearSlot } from './ClearSlot';
 import { UpgradeFacility } from './UpgradeFacility';
@@ -132,7 +126,12 @@ function SlotCard({
           </p>
           {utilities.length > 0 && (
             <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-              {utilities.map((utility) => UTILITY_LABELS[utility]).join(' and ')} assigned
+              {/*
+               * "Supplied with" rather than "assigned", because the sheet above
+               * says "Power assigned" about the whole base and these are
+               * different facts — one slot's supply against the base's total.
+               */}
+              Supplied with {utilities.map((utility) => UTILITY_LABELS[utility]).join(' and ')}
             </p>
           )}
           <button
@@ -158,6 +157,7 @@ function SlotCard({
                * them, not navigating to one.
                */}
               <AssignUtilities campaign={campaign} slot={slot.id} staffed={staffed} />
+              <ProductionPreview campaign={campaign} occupant={occupant} />
             </>
           )}
         </>
@@ -233,7 +233,6 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
   const found = occupants(base);
   const slots = layoutOf(base);
   const empty = slots.filter((slot) => slot.state === 'empty').length;
-  const flat = flatUtilitiesGenerated(base);
 
   return (
     <section
@@ -279,8 +278,8 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
        * The other half of the utility pools, and the other thing the Planning
        * Phase will supply. A staffed Utility Station produces its staff's
        * Utilities Score split across Power and Water however the player likes,
-       * so one number covers both — which is why the readout below shows what
-       * each pool generates on its own and what the Score is covering.
+       * so one number covers both. What it buys is read off the base sheet
+       * below rather than repeated here — the sheet is where totals live.
        */}
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <label htmlFor={staffedId} className="text-sm font-medium">
@@ -296,18 +295,14 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
           }}
           className={`${TOUCH_TARGET} ${FOCUS_RING} w-24 rounded-lg border border-stone-300 bg-white px-3 tabular-nums dark:border-stone-700 dark:bg-stone-950`}
         />
-        {/*
-         * Built as one string rather than assembled from expressions, so it
-         * reads as one sentence to a screen reader and to a test — React would
-         * otherwise split it into text nodes at every interpolation.
-         */}
-        <span className="text-sm text-stone-600 dark:text-stone-400">
-          {`${UTILITIES.map(
-            (utility) =>
-              `${UTILITY_LABELS[utility]} ${String(assignedCount(base, utility))}/${String(flat[utility])} flat`,
-          ).join(' · ')}, ${String(staffedSpent(base))} of ${String(staffed)} staffed`}{' '}
-          <PageRef pages={67} />
-        </span>
+      </div>
+
+      {/*
+       * Above the map: these are facts about the whole base, where the cards
+       * below answer for one slot each. See `docs/base-slot-interaction.md`.
+       */}
+      <div className="mt-5 border-t border-stone-200 pt-5 dark:border-stone-800">
+        <BaseSheet campaign={campaign} staffed={staffed} />
       </div>
 
       <ul className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -340,7 +335,8 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
       </ul>
 
       <p className="mt-5 text-sm text-stone-600 dark:text-stone-400">
-        Beds, storage caps and production join this map in the next story.
+        Staffing a facility is a Planning Phase assignment, so the production above is a preview and
+        is never saved <PageRef pages={20} />
       </p>
     </section>
   );
