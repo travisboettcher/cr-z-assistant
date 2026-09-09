@@ -25,7 +25,8 @@ import { SKILLS, STATS, type Skill } from '../data/skills';
 import { TIERS } from '../data/tiers';
 import { MATERIALS, type Materials } from '../data/materials';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
-import { CAMPAIGN_PHASES, CURRENT_SCHEMA_VERSION } from '../engine/campaign';
+import { CAMPAIGN_PHASES } from '../data/turn';
+import { CURRENT_SCHEMA_VERSION } from '../engine/campaign';
 import type { Base, Campaign, SkillLevels, SlotState, Stats, Survivor } from '../engine/campaign';
 
 /**

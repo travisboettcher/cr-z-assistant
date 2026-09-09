@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MATERIALS } from '../data/materials';
 import {
-  CAMPAIGN_PHASES,
   CURRENT_SCHEMA_VERSION,
   createNewCampaign,
   type Campaign,
@@ -141,10 +140,6 @@ describe('Survivor', () => {
 });
 
 describe('constants', () => {
-  it('runs the four campaign phases in rulebook order', () => {
-    expect(CAMPAIGN_PHASES).toEqual(['mission', 'advancement', 'planning', 'management']);
-  });
-
   it('covers every material in the starting inventory', () => {
     const campaign = createNewCampaign('Cedar Hollow', FIXED);
 

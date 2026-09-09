@@ -5,6 +5,7 @@
  * skills is rolled rather than chosen.
  */
 
+import type { D10Result } from './dice';
 import type { Skill } from './skills';
 import type { Tier } from './tiers';
 
@@ -17,10 +18,6 @@ import type { Tier } from './tiers';
 export const PLAYERS_CHOICE = 'players-choice';
 
 export type PlayersChoice = typeof PLAYERS_CHOICE;
-
-export const D10_RESULTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
-
-export type D10Result = (typeof D10_RESULTS)[number];
 
 /** The starting skill of a field recruit, by d10 result (pg. 15). */
 export const RECRUIT_SKILL_TABLE = {

@@ -13,12 +13,8 @@
 
 import { useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import {
-  D10_RESULTS,
-  FIELD_RECRUITABLE_TIERS,
-  type D10Result,
-  type FieldRecruitTier,
-} from '../data/recruitTable';
+import { D10_RESULTS, type D10Result } from '../data/dice';
+import { FIELD_RECRUITABLE_TIERS, type FieldRecruitTier } from '../data/recruitTable';
 import { TIERS, type Tier } from '../data/tiers';
 import type { Campaign, Survivor } from '../engine/campaign';
 import { communityViolations } from '../engine/legality';

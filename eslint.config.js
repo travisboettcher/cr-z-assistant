@@ -8,13 +8,17 @@ import prettier from 'eslint-config-prettier';
 /**
  * The engine must stay pure: derived values and phase transitions are plain
  * functions over a Campaign, unit-testable with zero DOM. Data files hold rules
- * as data and nothing else. Both are enforced here rather than by convention,
- * so breaking the boundary fails `npm run lint` instead of rotting quietly.
+ * as data and nothing else, and sit *below* the engine — they may not import
+ * from it. All three are enforced here rather than by convention, so breaking a
+ * boundary fails `npm run lint` instead of rotting quietly.
  */
 const PURE_LAYERS = ['src/engine/**/*.ts', 'src/data/**/*.ts'];
 
 const ENGINE_IS_PURE =
   'src/engine and src/data must not depend on React or the UI layer — they are pure functions over a Campaign. Move the rendering concern into src/ui instead.';
+
+const DATA_IS_THE_BOTTOM =
+  'src/data must not import from src/engine — the engine is a set of functions over the rules, not where they live. If the engine holds something a rules file needs, move it down into src/data (materials, origins and the campaign phases all made that trip).';
 
 export default tseslint.config(
   {
@@ -61,6 +65,22 @@ export default tseslint.config(
           patterns: [
             { group: ['react', 'react-dom', 'react/*', 'react-dom/*'], message: ENGINE_IS_PURE },
             { group: ['**/ui/**', '**/ui'], message: ENGINE_IS_PURE },
+          ],
+        },
+      ],
+    },
+  },
+
+  {
+    files: ['src/data/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            { group: ['react', 'react-dom', 'react/*', 'react-dom/*'], message: ENGINE_IS_PURE },
+            { group: ['**/ui/**', '**/ui'], message: ENGINE_IS_PURE },
+            { group: ['**/engine/**', '**/engine'], message: DATA_IS_THE_BOTTOM },
           ],
         },
       ],

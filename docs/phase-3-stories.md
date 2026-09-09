@@ -83,26 +83,33 @@ restate.
 | Mission Phase | select, equip, play; opting out lets one unassigned survivor scavenge | 17–18 |
 | Advancement Phase | XP gain then spend; strangers; materials; heal wounds; add facilities, upgrades and trades | 18–19 |
 | Advancement order | Heal Wounds is **step 4**, and the distribution is a constraint, not a sum | 19 |
-| Material roll | d10 per material: 1–3 Fuel, 4–6 Food, 7–9 Hardware, 10 Rare | 18 |
-| Result substitution | Rationing / Mechanics / Utilities **change a roll's result**, count = summed score | 12 |
-| Teaching | Σ Teaching scores on the mission, **max 2 XP per survivor** | 12 |
+| Material roll | one d10 **per material recovered on the mission**; 1–3 Fuel, 4–6 Food, 7–9 Hardware, 10 the Rare Item Table | 18–19 |
+| Result substitution | Rationing / Mechanics / Utilities **change a roll's result**; uses = that skill's summed score across the mission | 12 |
+| Teaching, on a mission | assigns 1 XP to as many survivors as the mission's summed Teaching score, **replacing** the discretionary point; max 2 per survivor | 12 |
+| Teaching, in a Training Room | XP equal to the staff's Teaching score, to survivors **not** on the mission; max 2 per survivor | 70 |
+| Scavenging instead | opting out of the mission sends **one** otherwise-unassigned survivor: one of every material with the Scavenge skill, one of a single material without | 17 |
 | Planning Phase | one task per survivor: facility staff → project team → rest and healing → mission team | 20–21 |
 | Utilities lifecycle | generated and assigned at the **end of Planning Step 1**, last until the next Planning Phase | 20, 67 |
 | Labor pool | Σ Tier levels of the project team; unspent Labor is lost | 20 |
-| Rest | 1 HP, usable **only by the resting survivor** | 19–20 |
+| Rest | 1 HP, usable **only by the resting survivor**; **only one survivor may rest per turn** | 19, 21 |
+| Rest and healing eligibility | only survivors below maximum Health; healing at all requires a Medical Clinic | 21 |
+| Wounded and injured | a **wounded** survivor may staff or join a project, forfeiting healing; an **injured** one may not join a mission team | 20–21 |
 | Management Phase | seven steps: Check for Rot, Feed, Assign Beds, Calculate Unrest, Check Storage, Check the Horde, Departures | 22–23 |
+| Checks | d10 + a modifier, meeting or beating a target; a natural 1 always fails and a natural 10 always succeeds | 8 |
 | Check for Rot | per 0-HP survivor, a Tier check against 12 − combined Medicine of the Medical Clinic's staff | 22 |
+| A failed Rot check | the survivor turns and is removed, **and bites** a survivor assigned to healing this turn for 1 Damage | 22 |
 | Feed | T1–2 eat 1, T3–4 eat 2; Hunger = required − available; **not cumulative** | 22 |
 | Hunger penalty | a shortfall drops stats — and therefore every Skill Score — until the next Management Phase | 22 |
 | Assign Beds | Exhaustion = population − beds, if positive; not cumulative | 23 |
 | Exhaustion penalty | if Exhaustion exceeds the mission team's size, one survivor comes off the team | 23 |
 | Unrest | Hunger + Exhaustion | 23 |
 | Check Storage | material counts above the cap are lost down to it | 23 |
-| Siege Threat | staffed facilities + project team size + base modifiers + turns since the last siege | 23 |
+| Siege Threat | staffed facilities + project team size + base modifiers + turns since the last siege, **all raw counts** | 23 |
 | Siege trigger | d10 + Siege Threat ≥ 16 → next mission must be Siege Defense | 23 |
-| Departures | Unrest + Siege Threat ≥ 10 → the lowest-Tier survivor leaves | 23 |
+| Departures | Unrest + Siege Threat ≥ 10 → the lowest-Tier survivor leaves; a tie is the player's choice, and a survivor at 0 Health cannot be chosen | 23 |
+| A departure's wake | their facility counts as **never having been staffed**; their Tier comes off the turn's unused Labor, and a project goes unfinished if that runs it negative | 23 |
 
-**Three things that look like one rule and are not:**
+**Four things that look like one rule and are not:**
 
 1. **Hunger is not the hunger penalty.** Hunger is a number that feeds Unrest. The penalty is a
    separate consequence of a shortfall that reaches every stat in the community and every score
@@ -116,6 +123,12 @@ restate.
    scratch every Management Phase and never added to a running total — which is another way of
    saying neither may be stored, and the phrase is in the book twice because it is easy to get
    wrong once.
+4. **The two Teaching caps are two rules that both happen to be 2.** One caps what a staffed
+   Training Room may give a single survivor (pg. 70) and applies to survivors who were *not* on
+   the mission; the other caps what a Teacher on the mission may hand out (pg. 12) and *replaces*
+   the discretionary post-mission point rather than adding to it. A community can hit both in one
+   turn. Collapsing them into one constant would make a later change to either silently change
+   the other — the same reasoning that keeps the Tier table's five coinciding columns apart.
 
 ## The data this phase cannot invent
 
@@ -133,6 +146,14 @@ against the page as it is used, exactly as Phase 2's citations were.
 
 **Z3-1 is the long pole and cannot be parallelised**, since the walk in Z3-3 reads its step list
 and every Management step reads its constants.
+
+**Transcribed 2026-09-08.** Every row of the table above is now confirmed against the printed
+text, and the suspicion was worth having: the material roll is once *per material recovered*
+rather than a flat roll, the Teaching cap turned out to be two separate caps, and the hunger
+penalty is worse than garbled — see [the rulings below](#rulings-the-book-leaves-open). The
+Planning step-order conflict is real and resolved in favour of pp. 20–21, which is what
+`rulebook-edition.md` predicted and what `rules.test.ts` now asserts so a later reader checking
+against the pg. 17 summary cannot quietly undo it.
 
 ## Decisions recorded, rather than left to the implementation
 
@@ -155,10 +176,18 @@ alongside `baseLabels.ts`, which is what makes the markdown export in Phase 8 a 
 rather than a second format to keep in sync. Append-only, with no action that removes an entry:
 undo, when it comes, appends the undoing.
 
-**Assignments are stored, and cleared each Planning Phase.** Who staffs the Clinic this turn is a
-decision, and decisions persist. It is also *this turn's* decision, so Planning Step 1 clears
-last turn's — along with the utility assignments Phase 2 deliberately left standing with a note
-pointing here.
+**Assignments are stored, and cleared at the top of each Planning Phase.** Who staffs the Clinic
+this turn is a decision, and decisions persist. It is also *this turn's* decision, so Planning
+Step 1 clears last turn's — along with the utility assignments Phase 2 deliberately left standing
+with a note pointing here.
+
+**One assignment field serves three readers, and the turn order is why.** The book has Heal
+Wounds and Add Facilities reading assignments made in the *previous* Planning Phase, and Check
+for Rot reading assignments made in *this* one — which reads like the app needs to keep a history.
+It does not. The Advancement Phase of turn N+1 runs *before* the Planning Phase of turn N+1, and
+the Management Phase runs *after* it, so clearing at the top of Planning means a single current
+`assignments` field is already the right answer at all three moments. Worth writing down, because
+"store last turn's assignments too" is a plausible-looking wrong turn that costs a schema field.
 
 **One task per survivor is structural, not validated.** The rule (pg. 20) is that each survivor
 is assigned to exactly one task. Modelled as a map from survivor id to one assignment, a second
@@ -195,6 +224,38 @@ mean one migration step doing two unrelated things, and the migration chain is t
 keeps an in-progress campaign openable — it is worth more as a record of what changed and when
 than as a short file.
 
+## Rulings the book leaves open
+
+Five places where the printed text does not decide the answer. Each needs a table ruling before
+the story that depends on it, and each is recorded here rather than settled quietly in code — a
+house rule that lives in a function is indistinguishable from a rule.
+
+1. **The hunger penalty (pg. 22, Z3-9) — the one that matters.** The book says to subtract Hunger
+   from the community's population and, if the result is negative, reduce every survivor's stats
+   by that number. Two problems. `population − Hunger` is almost never negative: Hunger is capped
+   at the Food required, which is at most twice the population, so the penalty fires only when a
+   mostly Tier 3–4 community has nearly empty stores. A community six Food short of twelve takes
+   no stat penalty at all under a literal reading. And "reduced by that number" where the number
+   is negative is self-contradictory; the intent is presumably its absolute value. The literal
+   reading is at least coherent — a starvation threshold rather than a hunger tax — and Hunger is
+   never consequence-free either way, because Unrest counts it. **Needs a ruling.**
+2. **Whether the Rot check target has a floor (pg. 22, Z3-9).** None is stated, so a Clinic with
+   enough Medicine drives it to 2 or below. Left unclamped in the data on the grounds that the
+   natural-1 rule (pg. 8) already stops it becoming a certainty, and that clamping would be
+   inventing a rule. Flagged rather than assumed.
+3. **Who counts as "at the base" at Departures (pg. 23, Z3-10).** The rule names the lowest-Tier
+   survivor *at the base*, which reads as excluding a mission team — except the Planning Phase
+   assigns next turn's team, so at the Management Phase nobody has left yet. Reading it as the
+   whole community is the only one that does not depend on a journey that has not happened.
+4. **How broadly the Utilities substitution applies (pg. 12, Z3-7).** Rationing is locked to Food
+   and Mechanics to Hardware, but Utilities is written as "a given material" and appears to allow
+   any — including, perhaps, forcing a 10 and a Rare Item Table roll. The asymmetry may be
+   deliberate or may be loose phrasing.
+5. **Whether "wounded" and "injured" are the same state (pg. 20–21, Z3-6).** A *wounded* survivor
+   may staff a facility or join a project team, forfeiting healing; an *injured* one may not join
+   a mission team. If they are one state the rules are consistent and restrictive; if they are
+   two the book never defines the second.
+
 ---
 
 ## Z3-1 — The campaign turn as rules data
@@ -213,14 +274,21 @@ rulebook open at pg. 17–23**, plus pg. 12 and 19 — see
 - No prose. A step is an id, a label short enough for a tab, and a page.
 
 **Acceptance**
-- Every threshold in the phase is a named export here, and a test greps the engine for bare
-  numeric literals in the places these belong.
-- A test asserts the phase ids match `CAMPAIGN_PHASES` exactly, so the two cannot drift.
-- Every step's page confirmed against the printed text as it is transcribed.
+- Every threshold in the phase is a named export here.
+- Every step is cited, and every citation lands inside pg. 17–23.
+- Step ids are unique across the whole turn.
+- The Planning Phase's step order is asserted, so the pg. 17 summary cannot quietly win later.
 - A header comment naming the edition and the transcription date, matching `bases.ts`.
 
 **Out of scope:** mission metadata (Phase 4) and the equipment tables (Phase 5), both of which
 have steps that mention them.
+
+**Two things this story turned out to include.** The campaign phases moved down out of
+`src/engine/campaign.ts`, because the steps hang off them and a rules file may not import from
+the engine — the trip `materials.ts` and `origins.ts` made in Phase 2, and now enforced by
+`eslint.config.js` rather than remembered. And the d10 moved out of `recruitTable.ts` into a
+`dice.ts` of its own, because the material roll is its second caller and a d10 was never a
+recruit-table concept.
 
 ---
 
@@ -286,8 +354,14 @@ facility, and until now there was no next turn to build it on.
 store early. Everything computed in Z3-5 reads it.
 
 **Scope**
-- An `Assignment` discriminated union: facility staff (with the slot), project team, rest, or
-  mission team (with a team id — see the decision above).
+- An `Assignment` discriminated union: facility staff (with the slot), project team, rest,
+  healing, mission team (with a team id — see the decision above), or **scavenging**. The last is
+  the opt-out case (pg. 17): skipping the mission sends one survivor to scavenge, and the book
+  requires that they have no other assignment — which makes it an assignment like the rest,
+  rather than a flag somewhere else that the one-task rule would then have to be told about.
+- Rest and healing are one Planning step and two members of the union, because they are two rules:
+  rest generates a Health point locked to the survivor who rested, and healing draws on a shared
+  pool. Only one survivor may rest per turn (pg. 21).
 - Stored as a partial map from survivor id to one assignment. Absent means unassigned, which is a
   real state and the commonest one at the start of a Planning Phase.
 - `CURRENT_SCHEMA_VERSION` → 7, with a migration step, a `campaign-v7.json` fixture, and a `Base`-
@@ -351,6 +425,11 @@ app move. It is also where the utilities lifecycle Phase 2 left half-built final
 - The Labor pool appears as the project team fills, from Z3-5.
 - Staffing a facility whose utility requirement is unmet is a warning, not a blocker — the
   facility produces nothing, which is a rule the player may be about to fix.
+- Eligibility, from pp. 20–21: only survivors below maximum Health may rest or be healed; healing
+  at all requires a Medical Clinic; **only one survivor may rest per turn**; a wounded survivor
+  may staff a facility or join a project team but forfeits healing that turn; an injured survivor
+  may not join a mission team. Whether "wounded" and "injured" are one state is
+  [ruling 5](#rulings-the-book-leaves-open).
 
 **Acceptance**
 - Entering the Planning Phase twice in a row clears assignments both times, and a test asserts
@@ -369,12 +448,16 @@ acquire a step to happen in.
 **Scope**
 - The steps in order (pg. 18–19): advancement, strangers, materials, heal wounds (Z3-8), then
   facilities, upgrades and arriving trades.
-- Materials: the d10 per material entered as rolled (1–3 Fuel, 4–6 Food, 7–9 Hardware, 10 Rare),
-  plus the Rationing / Mechanics / Utilities substitution that **changes a roll's result** rather
-  than adding to it (pg. 12), plus facility production from Z3-5 added as a proposed amount the
-  player accepts.
-- XP: Phase 1's advancement inside its step, with the Teaching cap of 2 XP per survivor applied
-  where teaching is the source.
+- Materials: one d10 **per material recovered on the mission**, entered as rolled — no materials
+  recovered means no roll at all — plus the Rationing / Mechanics / Utilities substitution that
+  **changes a roll's result** rather than adding to it, with uses equal to that skill's summed
+  score across the mission (pg. 12), plus facility production from Z3-5 added as a proposed
+  amount the player accepts. How broadly Utilities may substitute is
+  [ruling 4](#rulings-the-book-leaves-open).
+- XP, in the book's order (pg. 18): 1 to every survivor who was on the mission, then one further
+  discretionary point, then a Training Room's output, then spending. A Teacher on the mission
+  **replaces** the discretionary point rather than adding to it, and the two 2-XP caps are two
+  rules — see the note above the story list.
 - Building a facility outside this step is a warning, not a refusal — Phase 2 lets you build any
   time, and the fix is to say which step it belongs to, not to take the ability away.
 - Rescued strangers are a doorway: the step exists, and creating them is Phase 4.
@@ -422,13 +505,18 @@ turn.
 **Scope**
 - **Check for Rot** (pg. 22): per 0-HP survivor, a Tier check against 12 − the combined Medicine
   of the Medical Clinic's staff. The app names the target and the roller; the player rolls; the
-  outcome is applied on confirmation.
+  outcome is applied on confirmation, never silently. A failure is **two** removals in the worst
+  case: the survivor turns and is removed, *and* bites a survivor assigned to healing this turn
+  for 1 Damage, who is removed in turn if that takes them to 0. Whether the target has a floor is
+  [ruling 2](#rulings-the-book-leaves-open).
 - **Feed** (pg. 22): Food required from Tiers (T1–2 eat 1, T3–4 eat 2) against Food available;
   Hunger is the shortfall, recomputed from scratch and never accumulated.
 - **The hunger penalty**: a shortfall drops stats, and therefore every Skill Score, until the
   next Management Phase. `skillScore` grows a campaign-state parameter; nothing is written to any
   survivor. This is the change the whole architecture was built to absorb, and it should cost one
-  function and its call sites.
+  function and its call sites. **When the penalty fires, and by how much, is
+  [ruling 1](#rulings-the-book-leaves-open)** — the printed sentence is self-contradictory, and
+  this story cannot start without an answer.
 - **Assign Beds** (pg. 23): Exhaustion = population − beds where positive, from Z2-3's bed count,
   also never accumulated.
 
@@ -454,9 +542,18 @@ materials, its next mission and its people. Nothing in the app has consequences 
   last siege. `lastSiegeTurn` becomes a stored primitive fact; "turns since" is derived from it.
   The player rolls a d10; ≥ 16 with Siege Threat locks the next turn's mission to Siege Defense.
 - **Departures** (pg. 23): Unrest + Siege Threat ≥ 10 and the lowest-Tier survivor leaves; a tie
-  is the player's choice. Named and confirmed, never silent.
+  is the player's choice, and a survivor at 0 Health can neither leave nor be chosen. Named and
+  confirmed, never silent. Who counts as being at the base is
+  [ruling 3](#rulings-the-book-leaves-open).
 - The exhaustion penalty: Exhaustion above the mission team's size takes one survivor off it.
 - The base sheet stops saying "from the base itself" and shows the total.
+
+**An ordering trap worth naming before it is discovered.** A departure makes the facility they
+staffed count as **having never been staffed** — retroactively, not merely unstaffed from now on —
+and takes their Tier off the turn's unused Labor, running a project unfinished if that goes
+negative. So step 7 changes the answer step 6 already computed from the staffed-facility count.
+Nothing here may cache a Siege Threat; the step order in the data is the order the *steps* run,
+not permission for a value computed in one to survive the next.
 
 **Acceptance**
 - A single Food removed from a community on the edge changes Hunger, then Unrest, then whether

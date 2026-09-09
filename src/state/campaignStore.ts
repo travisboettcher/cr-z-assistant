@@ -23,7 +23,8 @@
 import type { BaseId } from '../data/bases';
 import type { FacilityId, UpgradeId, Utility } from '../data/facilities';
 import type { Material } from '../data/materials';
-import type { D10Result, FieldRecruitTier } from '../data/recruitTable';
+import type { D10Result } from '../data/dice';
+import type { FieldRecruitTier } from '../data/recruitTable';
 import { MIN_SKILL_LEVEL, type CommonSkill, type Skill, type Stat } from '../data/skills';
 import type { Tier } from '../data/tiers';
 import { withCommonSkillBought, withSkillLevelBought, withTierBought } from '../engine/advancement';
@@ -32,7 +33,8 @@ import { withSlotCleared } from '../engine/clearing';
 import { withUpgradeBuilt } from '../engine/upgrade';
 import { withUtilityToggled } from '../engine/utilities';
 import { createNewCampaign } from '../engine/campaign';
-import type { Campaign, CampaignPhase, Stats, Survivor } from '../engine/campaign';
+import type { CampaignPhase } from '../data/turn';
+import type { Campaign, Stats, Survivor } from '../engine/campaign';
 import { createSurvivor, recruitSurvivor } from '../engine/survivor';
 
 /**
