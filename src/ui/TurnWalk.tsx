@@ -57,6 +57,7 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
 
   return (
     <section
+      id="turn"
       aria-labelledby="turn-walk-heading"
       className="rounded-xl border border-stone-200 bg-white p-6 dark:border-stone-800 dark:bg-stone-900"
     >

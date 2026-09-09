@@ -56,7 +56,7 @@ export function App() {
           not the same as omitting it, and the narrowing here is free. */}
       {state.status === 'open' ? <AppHeader campaign={state.campaign} /> : <AppHeader />}
 
-      <SectionNav />
+      <SectionNav campaignOpen={state.status === 'open'} />
 
       <main className="mx-auto w-full max-w-4xl grow px-5 py-8">
         {state.status === 'open' ? (

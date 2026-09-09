@@ -40,8 +40,8 @@ export function CampaignOverview({ campaign }: CampaignOverviewProps) {
         .
       </p>
       <p className="mt-4 text-stone-600 dark:text-stone-400">
-        The turn, mission and equipment screens are not built yet. Until then this is the shell they
-        will hang off.
+        The mission and equipment screens are not built yet. Until then this is the shell they will
+        hang off.
       </p>
 
       {/*

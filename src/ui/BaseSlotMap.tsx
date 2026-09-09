@@ -236,6 +236,7 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
 
   return (
     <section
+      id="base"
       aria-labelledby="base-slot-map-heading"
       className="rounded-xl border border-stone-200 bg-white p-6 dark:border-stone-800 dark:bg-stone-900"
     >
