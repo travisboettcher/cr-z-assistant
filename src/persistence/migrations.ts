@@ -200,6 +200,32 @@ const stepReplacedPhase: MigrationStep = {
   },
 };
 
+/**
+ * v7 → v8: a campaign records what each survivor is doing this turn.
+ *
+ * **Adds an empty record, and empty is the honest answer rather than a
+ * placeholder for one.** Assignments last exactly one turn and are cleared at
+ * the top of every Planning Phase, so "nobody is assigned yet" is a state every
+ * campaign passes through every turn — it is not a gap in an old save, it is
+ * where a turn starts.
+ *
+ * There is nothing to reconstruct, either. A v7 campaign's roster, base and
+ * materials are the *results* of assignments that were never recorded, and
+ * inventing a project team from a facility that got built would be making up a
+ * turn that nobody played.
+ *
+ * The one real consequence lands on the player rather than the data: a campaign
+ * paused mid-Planning in a v7 build comes back with that Planning Phase's
+ * decisions gone, and has to be assigned again. That is the same shape as the
+ * v6 → v7 note about resuming inside the Management Phase, and it is worth
+ * knowing before the first turn after an update rather than during it.
+ */
+const assignmentsBecameReal: MigrationStep = {
+  from: 7,
+  to: 8,
+  up: (previous) => ({ ...previous, assignments: {} }),
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -208,6 +234,7 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   baseBecameReal,
   logBecameReal,
   stepReplacedPhase,
+  assignmentsBecameReal,
 ];
 
 /** Why a save could not be brought forward. */

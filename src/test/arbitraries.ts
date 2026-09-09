@@ -29,7 +29,15 @@ import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { CAMPAIGN_PHASES } from '../data/turn';
 import { TURN_SEQUENCE } from '../engine/turn';
 import { CURRENT_SCHEMA_VERSION } from '../engine/campaign';
-import type { Base, Campaign, SkillLevels, SlotState, Stats, Survivor } from '../engine/campaign';
+import type {
+  Assignment,
+  Base,
+  Campaign,
+  SkillLevels,
+  SlotState,
+  Stats,
+  Survivor,
+} from '../engine/campaign';
 import type { CampaignEvent, LogEntry } from '../engine/log';
 
 /**
@@ -289,6 +297,24 @@ function logEntryArbitrary(): fc.Arbitrary<LogEntry> {
 }
 
 /**
+ * One task, drawn from all six.
+ *
+ * Written out per task rather than generated from a shared shape, for the
+ * reason `campaignEventArbitrary` is: the members carry different fields, and a
+ * round trip can only get one wrong by dropping a field that only one task has.
+ */
+function assignmentArbitrary(): fc.Arbitrary<Assignment> {
+  return fc.oneof<fc.Arbitrary<Assignment>[]>(
+    fc.record({ task: fc.constant('staff' as const), slot: anyId }),
+    fc.record({ task: fc.constant('project' as const) }),
+    fc.record({ task: fc.constant('rest' as const) }),
+    fc.record({ task: fc.constant('healing' as const) }),
+    fc.record({ task: fc.constant('mission' as const), team: fc.integer({ min: 1, max: 4 }) }),
+    fc.record({ task: fc.constant('scavenging' as const) }),
+  );
+}
+
+/**
  * A campaign this build could have written.
  *
  * `schemaVersion` is pinned to the current one rather than generated, because
@@ -298,6 +324,41 @@ function logEntryArbitrary(): fc.Arbitrary<LogEntry> {
  * tests' job, and they use real fixture files rather than generated ones.
  */
 export function campaignArbitrary(): fc.Arbitrary<Campaign> {
+  return unassignedCampaignArbitrary().chain((campaign) =>
+    assignmentsArbitrary(campaign.survivors).map((assignments) => ({ ...campaign, assignments })),
+  );
+}
+
+/**
+ * Tasks for some of these survivors, and none for the rest.
+ *
+ * **Keyed by ids the campaign actually holds**, which is why this is chained on
+ * to the roster rather than generated beside it: an assignment naming nobody is
+ * a damaged save by definition and `parseCampaignFile` says so, and the
+ * round-trip property is a claim about the files this app writes.
+ *
+ * Some rather than all, because the partial record is the point — a Planning
+ * Phase spends most of its life half-assigned, and a generator that filled
+ * every id would never produce the state the screen is mostly looking at.
+ */
+function assignmentsArbitrary(
+  survivors: readonly Survivor[],
+): fc.Arbitrary<Record<string, Assignment>> {
+  return fc
+    .uniqueArray(
+      fc.tuple(fc.constantFrom('', ...survivors.map((one) => one.id)), assignmentArbitrary()),
+      {
+        selector: ([id]) => id,
+        maxLength: Math.max(survivors.length, 1),
+      },
+    )
+    .map((entries) =>
+      Object.fromEntries(entries.filter(([id]) => survivors.some((one) => one.id === id))),
+    );
+}
+
+/** The campaign shape, before the assignments that have to know its roster. */
+function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments'>> {
   return fc.record(
     {
       schemaVersion: fc.constant(CURRENT_SCHEMA_VERSION),

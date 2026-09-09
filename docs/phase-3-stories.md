@@ -371,7 +371,7 @@ offer the wrong button but cannot invent a turn that runs Management before Plan
 
 ---
 
-## Z3-4 — Assignments, and schema v7
+## Z3-4 — Assignments, and schema v8
 
 **Why:** The primitive fact the whole Planning Phase is about, and the one Phase 2 refused to
 store early. Everything computed in Z3-5 reads it.
@@ -387,19 +387,33 @@ store early. Everything computed in Z3-5 reads it.
   pool. Only one survivor may rest per turn (pg. 21).
 - Stored as a partial map from survivor id to one assignment. Absent means unassigned, which is a
   real state and the commonest one at the start of a Planning Phase.
-- `CURRENT_SCHEMA_VERSION` → 7, with a migration step, a `campaign-v7.json` fixture, and a `Base`-
-  style arbitrary in `src/test/arbitraries.ts` typed as producing an `Assignment`.
+- `CURRENT_SCHEMA_VERSION` → **8**, with a migration step, a `campaign-v8.json` fixture, and a
+  `Base`-style arbitrary in `src/test/arbitraries.ts` typed as producing an `Assignment`. (The
+  plan said 7; [Z3-3](#z3-3--the-turn-counter-and-the-phase-walk) took that number when it
+  replaced `Campaign.phase` with `Campaign.step`.)
 - Save-file validation: an assignment naming a survivor who is gone, or a slot with no facility
   in it, is a damaged save and reports a readable error rather than crashing a screen.
 
 **Acceptance**
 - Assigning a survivor who already has a task replaces the assignment; a test asserts there is no
   shape in which one survivor holds two.
-- The v6 fixture migrates forward and the v7 fixture round-trips.
+- The v7 fixture migrates forward and the v8 fixture round-trips.
 - Removing a survivor removes their assignment, and a test covers it — a dangling assignment is
   exactly the kind of orphan that survives a save and breaks a screen three turns later.
 
 **Out of scope:** what an assignment *does*. That is Z3-5.
+
+**Where the shape-versus-legality line fell.** `saveFile.ts` refuses an assignment that refers to
+nothing — a task this version has never heard of, a Staff assignment that does not say where, a
+task keyed to somebody the roster does not hold. It accepts an assignment that is merely
+*illegal*: staffing a slot with no facility in it, resting at full Health, a mission team with an
+injured survivor on it. Those are rules (pg. 20–21), Z3-6 reports them, and a player may be
+part-way through fixing one when they save — the same reasoning that keeps an overridden survivor
+build openable.
+
+**Two ordering functions became one.** The exporter needed to write an assignment tag-first with
+its remaining fields sorted, which is exactly what Z3-2 had already written for log events. They
+are now one `taggedFirst` helper over both unions rather than two functions that happen to agree.
 
 ---
 

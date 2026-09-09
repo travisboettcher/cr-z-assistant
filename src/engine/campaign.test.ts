@@ -64,6 +64,7 @@ describe('createNewCampaign', () => {
     const campaign = createNewCampaign('Cedar Hollow', FIXED);
 
     expect(Object.keys(campaign).sort()).toEqual([
+      'assignments',
       'base',
       'createdAt',
       'id',

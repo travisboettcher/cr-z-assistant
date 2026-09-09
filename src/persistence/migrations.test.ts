@@ -407,3 +407,39 @@ describe('the v6 to v7 phase-to-step mapping', () => {
     expect('phase' in result.campaign).toBe(false);
   });
 });
+
+/**
+ * The v7 → v8 addition, which is a no-op that is worth a test anyway: the
+ * empty record it adds is not a placeholder, it is where every turn starts.
+ */
+describe('the v7 to v8 assignments default', () => {
+  it('brings every earlier campaign forward with nobody assigned', () => {
+    for (const fixture of fixtures) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok) continue;
+
+      // The v8 fixture has three, and every older one has none — an old save
+      // records the *results* of assignments nobody wrote down, and inventing a
+      // project team from a facility that got built would be making up a turn.
+      expect(
+        Object.keys(result.campaign.assignments).length,
+        `${fixture.path} came forward with the wrong assignments`,
+      ).toBe(fixture.version === 8 ? 3 : 0);
+    }
+  });
+
+  it('keeps a v8 campaign’s own answers', () => {
+    const v8 = fixtures.find((fixture) => fixture.version === 8);
+    const result = migrate(v8?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.assignments['b7e41f28-3c60-4d95-8a12-6f0e9d4c7b53']).toEqual({
+      task: 'staff',
+      slot: 'kitchen',
+    });
+  });
+});
