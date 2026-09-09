@@ -11,11 +11,11 @@
  */
 
 import { COMMON_SKILL_START_SCORE, MIN_SKILL_LEVEL, SKILL_STATS, type Skill } from '../data/skills';
+import type { D10Result } from '../data/dice';
 import {
   PLAYERS_CHOICE,
   RECRUIT_SKILL_TABLE,
   TIERS_WITH_ROLLED_SKILL,
-  type D10Result,
   type FieldRecruitTier,
 } from '../data/recruitTable';
 import { TIER_RULES, type Tier } from '../data/tiers';

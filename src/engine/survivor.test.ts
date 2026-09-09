@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { D10_RESULTS } from '../data/recruitTable';
+import { D10_RESULTS } from '../data/dice';
 import { SKILLS } from '../data/skills';
 import type { Survivor } from './campaign';
 import {

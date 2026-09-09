@@ -18,7 +18,8 @@ import { SKILL_STATS, STATS } from '../data/skills';
 import { TIERS } from '../data/tiers';
 import { MATERIALS } from '../data/materials';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
-import { CAMPAIGN_PHASES, type Campaign } from '../engine/campaign';
+import { CAMPAIGN_PHASES } from '../data/turn';
+import type { Campaign } from '../engine/campaign';
 import { migrate, type MigrationErrorReason } from './migrations';
 
 /**

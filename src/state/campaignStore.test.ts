@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CAMPAIGN_PHASES, createNewCampaign } from '../engine/campaign';
+import { CAMPAIGN_PHASES } from '../data/turn';
+import { createNewCampaign } from '../engine/campaign';
 import type { Campaign } from '../engine/campaign';
 import { createSurvivor, recruitSurvivor } from '../engine/survivor';
 import { INITIAL_CAMPAIGN_STATE, campaignReducer } from './campaignStore';

@@ -20,11 +20,7 @@ import type { Materials } from '../data/materials';
 import type { CampaignOrigin } from '../data/origins';
 import type { Skill, Stat } from '../data/skills';
 import type { Tier } from '../data/tiers';
-
-/** The four campaign phases, in the strict order the turn runs them. */
-export const CAMPAIGN_PHASES = ['mission', 'advancement', 'planning', 'management'] as const;
-
-export type CampaignPhase = (typeof CAMPAIGN_PHASES)[number];
+import type { CampaignPhase } from '../data/turn';
 
 /**
  * Bumped whenever the persisted shape of `Campaign` changes. Lives here rather

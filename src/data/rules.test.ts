@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { commonSkillScoreCost, skillLevelCost, tierCost } from './advancement';
+import { D10_RESULTS } from './dice';
 import {
-  D10_RESULTS,
   FIELD_RECRUITABLE_TIERS,
   PLAYERS_CHOICE,
   RECRUIT_SKILL_TABLE,
@@ -28,6 +28,14 @@ import {
   type UpgradeId,
 } from './facilities';
 import { CAMPAIGN_ORIGINS } from './origins';
+import { MATERIALS, type Material } from './materials';
+import {
+  CAMPAIGN_PHASES,
+  FOOD_EATEN_PER_TURN,
+  MATERIAL_ROLL_TABLE,
+  SIEGE_THREAT_TERMS,
+  TURN_STEPS,
+} from './turn';
 
 describe('stats and skills', () => {
   it('has four stats and twenty governed skills', () => {
@@ -446,5 +454,100 @@ describe('base roster', () => {
       }, 0);
 
     expect(beds).toBe(8);
+  });
+});
+
+describe('the campaign turn', () => {
+  it('runs the four campaign phases in rulebook order', () => {
+    expect(CAMPAIGN_PHASES).toEqual(['mission', 'advancement', 'planning', 'management']);
+  });
+
+  it('gives every phase at least one numbered step', () => {
+    for (const phase of CAMPAIGN_PHASES) {
+      expect(TURN_STEPS[phase].length).toBeGreaterThan(0);
+    }
+  });
+
+  it('names every step of the turn exactly once', () => {
+    const ids = CAMPAIGN_PHASES.flatMap((phase) => TURN_STEPS[phase].map((step) => step.id));
+
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('cites every step inside the Community Layer chapter', () => {
+    // The whole turn is pg. 17-23. A citation outside that range is a
+    // transcription slip, which is exactly what the edition retrofit existed
+    // to remove -- and a range like '18-19' has to have both ends checked.
+    for (const phase of CAMPAIGN_PHASES) {
+      for (const step of TURN_STEPS[phase]) {
+        const pages = String(step.pages)
+          .split(/[^0-9]+/)
+          .filter((part) => part !== '')
+          .map(Number);
+
+        expect(pages.length).toBeGreaterThan(0);
+
+        for (const page of pages) {
+          expect(page).toBeGreaterThanOrEqual(17);
+          expect(page).toBeLessThanOrEqual(23);
+        }
+      }
+    }
+  });
+
+  it('numbers the Planning Phase the way pg. 20-21 does, not the way pg. 17 does', () => {
+    // The book contradicts itself: the turn summary on pg. 17 puts the mission
+    // team third and rest and healing fourth. This asserts the resolution so
+    // that a later reader checking against the summary cannot quietly undo it.
+    expect(TURN_STEPS.planning.map((step) => step.id)).toEqual([
+      'assign-facility-staff',
+      'assign-project-team',
+      'assign-rest-and-healing',
+      'assign-mission-team',
+    ]);
+  });
+
+  it('walks the Management Phase through its seven steps in order', () => {
+    expect(TURN_STEPS.management.map((step) => step.id)).toEqual([
+      'check-for-rot',
+      'feed-your-survivors',
+      'assign-beds',
+      'calculate-unrest',
+      'check-storage',
+      'check-the-horde',
+      'departures',
+    ]);
+  });
+
+  it('feeds Tiers 1-2 one Food and Tiers 3-4 two', () => {
+    // The printed table, asserted by value. A length check would pass on any
+    // four numbers, and the thing that can go wrong transcribing a four-row
+    // table is a row, not a missing row.
+    expect(TIERS.map((tier) => FOOD_EATEN_PER_TURN[tier])).toEqual([1, 1, 2, 2]);
+  });
+
+  it('turns every d10 into a material, on the boundaries the book prints', () => {
+    const rolled = D10_RESULTS.map((result) => MATERIAL_ROLL_TABLE[result]);
+
+    expect(rolled).toEqual([
+      'fuel',
+      'fuel',
+      'fuel',
+      'food',
+      'food',
+      'food',
+      'hardware',
+      'hardware',
+      'hardware',
+      'rare',
+    ]);
+
+    // And every material is reachable, so a range that swallowed its
+    // neighbour would fail here as well as above.
+    expect([...new Set<Material>(rolled)].sort()).toEqual([...MATERIALS].sort());
+  });
+
+  it('builds Siege Threat out of four distinct terms', () => {
+    expect(new Set(SIEGE_THREAT_TERMS).size).toBe(4);
   });
 });
