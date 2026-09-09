@@ -21,13 +21,15 @@
 import fc from 'fast-check';
 import { BASES, BASE_IDS } from '../data/bases';
 import { FACILITY_IDS, UPGRADE_IDS } from '../data/facilities';
-import { SKILLS, STATS, type Skill } from '../data/skills';
+import { COMMON_SKILLS, SKILLS, STATS, type Skill } from '../data/skills';
+import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS, type Materials } from '../data/materials';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { CAMPAIGN_PHASES } from '../data/turn';
 import { CURRENT_SCHEMA_VERSION } from '../engine/campaign';
 import type { Base, Campaign, SkillLevels, SlotState, Stats, Survivor } from '../engine/campaign';
+import type { CampaignEvent, LogEntry } from '../engine/log';
 
 /**
  * Any single UTF-16 code unit — **including an unpaired surrogate**.
@@ -81,9 +83,23 @@ const anyCount = fc.integer({ min: 0, max: 999 });
  */
 const anyMaterialCount = fc.integer({ min: 0, max: 9999 });
 
-/** An ISO 8601 timestamp, which is what `createNewCampaign` writes. */
+/**
+ * An ISO 8601 timestamp, which is what `createNewCampaign` writes and what a
+ * log entry is stamped with.
+ *
+ * `noInvalidDate` is load-bearing rather than tidy. `fc.date()` will happily
+ * produce an `Invalid Date`, whose `toISOString()` throws — so the generator
+ * itself would blow up rather than the property failing. That was latent from
+ * the day this was written and only surfaced when Z3-2 started drawing up to
+ * nine timestamps per campaign instead of one: at one draw apiece it simply
+ * never came up.
+ */
 const anyCreatedAt = fc
-  .date({ min: new Date('1970-01-01T00:00:00.000Z'), max: new Date('2999-12-31T23:59:59.999Z') })
+  .date({
+    min: new Date('1970-01-01T00:00:00.000Z'),
+    max: new Date('2999-12-31T23:59:59.999Z'),
+    noInvalidDate: true,
+  })
   .map((date) => date.toISOString());
 
 function statsArbitrary(): fc.Arbitrary<Stats> {
@@ -194,6 +210,84 @@ export function baseArbitrary(): fc.Arbitrary<Base> {
 }
 
 /**
+ * Any one of the fourteen things that can happen.
+ *
+ * Written out per kind rather than generated from a shared shape, and that is
+ * the point: `CampaignEvent` is a union whose members carry different fields,
+ * and the round trip can only get one wrong by dropping a field that only one
+ * kind has. A generator that emitted a common subset would never notice.
+ *
+ * Typed as producing a `CampaignEvent`, so a kind added to `log.ts` without a
+ * line here is a missing case rather than a silently untested one — the same
+ * guarantee `campaignArbitrary` gives the campaign's own shape.
+ */
+function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
+  const survivor = { survivor: anyId, name: anyName };
+
+  return fc.oneof<fc.Arbitrary<CampaignEvent>[]>(
+    fc.record({ kind: fc.constant('campaign-started' as const), name: anyName }),
+    fc.record({ kind: fc.constant('phase-entered' as const) }),
+    fc.record({ kind: fc.constant('turn-began' as const) }),
+    fc.record({ kind: fc.constant('starting-community-settled' as const), built: fc.boolean() }),
+    fc.record({
+      kind: fc.constant('survivor-added' as const),
+      ...survivor,
+      tier: fc.constantFrom(...TIERS),
+    }),
+    fc.record({
+      kind: fc.constant('survivor-recruited' as const),
+      ...survivor,
+      tier: fc.constantFrom(...TIERS),
+      roll: fc.constantFrom(...D10_RESULTS),
+    }),
+    fc.record({
+      kind: fc.constant('survivor-left' as const),
+      ...survivor,
+      tier: fc.constantFrom(...TIERS),
+    }),
+    fc.record({
+      kind: fc.constant('survivor-promoted' as const),
+      ...survivor,
+      tier: fc.constantFrom(...TIERS),
+    }),
+    fc.record({
+      kind: fc.constant('skill-level-bought' as const),
+      ...survivor,
+      skill: fc.constantFrom(...SKILLS),
+      level: fc.integer({ min: 0, max: 4 }),
+    }),
+    fc.record({
+      kind: fc.constant('common-skill-bought' as const),
+      ...survivor,
+      skill: fc.constantFrom(...COMMON_SKILLS),
+      score: fc.integer({ min: 0, max: 8 }),
+    }),
+    fc.record({ kind: fc.constant('base-claimed' as const), base: fc.constantFrom(...BASE_IDS) }),
+    fc.record({
+      kind: fc.constant('facility-built' as const),
+      slot: anyId,
+      facility: fc.constantFrom(...FACILITY_IDS),
+    }),
+    fc.record({
+      kind: fc.constant('upgrade-built' as const),
+      slot: anyId,
+      upgrade: fc.constantFrom(...UPGRADE_IDS),
+    }),
+    fc.record({ kind: fc.constant('slot-cleared' as const), slot: anyId }),
+  );
+}
+
+/** One entry: when it happened, in both clocks, and what happened. */
+function logEntryArbitrary(): fc.Arbitrary<LogEntry> {
+  return fc.record({
+    turn: fc.integer({ min: 1, max: 9999 }),
+    phase: fc.constantFrom(...CAMPAIGN_PHASES),
+    at: anyCreatedAt,
+    event: campaignEventArbitrary(),
+  });
+}
+
+/**
  * A campaign this build could have written.
  *
  * `schemaVersion` is pinned to the current one rather than generated, because
@@ -218,7 +312,9 @@ export function campaignArbitrary(): fc.Arbitrary<Campaign> {
       // Half the campaigns have claimed a base and half have not; null is a
       // real state and a round trip can get it wrong by writing `{}`.
       base: fc.option(baseArbitrary(), { nil: null }),
-      log: fc.constant([]),
+      // No longer pinned empty: from v6 a log is real, and an entry is the one
+      // place in the file where objects of different shapes share an array.
+      log: fc.array(logEntryArbitrary(), { maxLength: 8 }),
     },
     // Every key but `origin`, which is optional on `Campaign` — so half the
     // generated campaigns leave it out entirely. Both are real files, and the

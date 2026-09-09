@@ -25,11 +25,15 @@ export function StartNewCampaign() {
     event.preventDefault();
     if (trimmed === '') return;
 
+    // One clock read for both, as in `CampaignEmptyState`.
+    const now = new Date().toISOString();
+
     dispatch({
       type: 'campaign/started',
       name: trimmed,
       id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      at: now,
     });
 
     setName('');

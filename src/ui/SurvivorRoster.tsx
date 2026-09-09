@@ -50,13 +50,23 @@ export function SurvivorRoster({ campaign, onOpenSheet }: SurvivorRosterProps) {
 
     // The UUID is generated here rather than in the reducer: it is the impure
     // part, and the store stays a pure function by taking it as an argument.
-    dispatch({ type: 'survivor/added', name: trimmed, tier, id: crypto.randomUUID() });
+    dispatch({
+      type: 'survivor/added',
+      name: trimmed,
+      tier,
+      id: crypto.randomUUID(),
+      at: new Date().toISOString(),
+    });
     setName('');
   }
 
   function confirmRemoval() {
     if (pendingRemoval !== null) {
-      dispatch({ type: 'survivor/removed', id: pendingRemoval.id });
+      dispatch({
+        type: 'survivor/removed',
+        id: pendingRemoval.id,
+        at: new Date().toISOString(),
+      });
     }
     setPendingRemoval(null);
     dialogRef.current?.close();
@@ -225,7 +235,14 @@ function RecruitForm() {
     const trimmed = name.trim();
     if (trimmed === '') return;
 
-    dispatch({ type: 'survivor/recruited', name: trimmed, tier, roll, id: crypto.randomUUID() });
+    dispatch({
+      type: 'survivor/recruited',
+      name: trimmed,
+      tier,
+      roll,
+      id: crypto.randomUUID(),
+      at: new Date().toISOString(),
+    });
     setName('');
   }
 
@@ -356,6 +373,7 @@ function CommunityBudget({ campaign }: { readonly campaign: Campaign }) {
             dispatch({
               type: 'campaign/startingCommunityBuiltSet',
               built: event.target.checked,
+              at: new Date().toISOString(),
             });
           }}
           className={`${FOCUS_RING} size-5 rounded border-stone-300 dark:border-stone-600`}

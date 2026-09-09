@@ -8,18 +8,23 @@
  *
  * Validation is hand-rolled rather than a schema library. `Campaign` is a dozen
  * fields, and a schema would have to be kept in sync with the type *and* with
- * every migration — more surface than it saves at this size. Phase 2 lands the
- * base model and makes the shape genuinely wide; that is the point to revisit.
+ * every migration — more surface than it saves at this size. Phases 2 and 3
+ * have since made the shape genuinely wide, and the two tables below are the
+ * first place it starts to look like a schema written longhand. Still not worth
+ * a library: what a table buys here is the exhaustive `Record` over the event
+ * kinds, which is a typecheck a schema would have to be told about.
  */
 
 import { BASES } from '../data/bases';
 import { FACILITIES, facilityOfUpgrade, type UpgradeId } from '../data/facilities';
-import { SKILL_STATS, STATS } from '../data/skills';
+import { COMMON_SKILLS, SKILL_STATS, STATS } from '../data/skills';
+import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS } from '../data/materials';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { CAMPAIGN_PHASES } from '../data/turn';
 import type { Campaign } from '../engine/campaign';
+import type { CampaignEventKind } from '../engine/log';
 import { migrate, type MigrationErrorReason } from './migrations';
 
 /**
@@ -46,6 +51,24 @@ export type SaveFileResult =
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Whether a catalogue actually has an entry under this name.
+ *
+ * **`Object.hasOwn`, never `in`.** `in` walks the prototype chain, so
+ * `'toString' in FACILITIES` is `true` and a save file naming a facility
+ * `toString` sails through validation — after which the screen that looks it up
+ * gets `Function.prototype.toString` and either renders nonsense or throws
+ * somewhere far from here. The names to worry about are ordinary strings a
+ * person could type into a file by hand or by accident: `constructor`,
+ * `toString`, `valueOf`.
+ *
+ * This module's contract is that a damaged file comes back as a sentence, never
+ * as an exception, and `in` is the one thing in it that quietly broke that.
+ */
+function isKeyOf(catalogue: object, key: string): boolean {
+  return Object.hasOwn(catalogue, key);
 }
 
 function isCountFromOne(value: unknown): boolean {
@@ -86,7 +109,7 @@ function describeSurvivorProblem(value: unknown): string | null {
   const skills: unknown = value.skills;
   if (!isRecord(skills)) return 'has no skill list';
   for (const [skill, level] of Object.entries(skills)) {
-    if (!(skill in SKILL_STATS)) return `has a skill this version does not know: ${skill}`;
+    if (!isKeyOf(SKILL_STATS, skill)) return `has a skill this version does not know: ${skill}`;
     if (!isCountFromZero(level)) return `has an unreadable level for ${skill}`;
   }
 
@@ -121,7 +144,7 @@ function describeSlotProblem(value: unknown): string | null {
   const built: unknown = value.built;
   if (built !== undefined) {
     if (!isRecord(built)) return 'has an unreadable facility';
-    if (typeof built.facility !== 'string' || !(built.facility in FACILITIES)) {
+    if (typeof built.facility !== 'string' || !isKeyOf(FACILITIES, built.facility)) {
       return `holds a facility this version does not know: ${String(built.facility)}`;
     }
     if (!isCountFromOne(built.builtOnTurn)) return 'does not say which turn it was built on';
@@ -157,7 +180,7 @@ function describeSlotProblem(value: unknown): string | null {
 function describeBaseProblem(value: unknown): string | null {
   if (!isRecord(value)) return 'its base is not a base';
 
-  if (typeof value.id !== 'string' || !(value.id in BASES)) {
+  if (typeof value.id !== 'string' || !isKeyOf(BASES, value.id)) {
     return `its base is one this version does not know: ${String(value.id)}`;
   }
 
@@ -173,6 +196,134 @@ function describeBaseProblem(value: unknown): string | null {
 
     const problem = describeSlotProblem(state);
     if (problem !== null) return `the ${id} slot of its base ${problem}`;
+  }
+
+  return null;
+}
+
+/**
+ * How to check one field of a log event, by the field's name.
+ *
+ * Shared across events rather than written per kind, because the vocabulary is
+ * small and the same `slot` means the same thing whether a facility went up in
+ * it or the rubble came out. Two names for skills, though — a governed skill
+ * and a common skill are different sets (pg. 9), and one checker covering both
+ * would accept `move` where only the twenty are legal.
+ */
+const EVENT_FIELD_CHECKS = {
+  id: (value: unknown) => typeof value === 'string' && value !== '',
+  name: (value: unknown) => typeof value === 'string',
+  count: isCountFromZero,
+  flag: (value: unknown) => typeof value === 'boolean',
+  tier: (value: unknown) => TIERS.some((tier) => tier === value),
+  roll: (value: unknown) => D10_RESULTS.some((result) => result === value),
+  skill: (value: unknown) => typeof value === 'string' && isKeyOf(SKILL_STATS, value),
+  commonSkill: (value: unknown) => COMMON_SKILLS.some((skill) => skill === value),
+  base: (value: unknown) => typeof value === 'string' && isKeyOf(BASES, value),
+  facility: (value: unknown) => typeof value === 'string' && isKeyOf(FACILITIES, value),
+  upgrade: (value: unknown) =>
+    typeof value === 'string' && facilityOfUpgrade(value as UpgradeId) !== undefined,
+} as const;
+
+type EventFieldCheck = keyof typeof EVENT_FIELD_CHECKS;
+
+/**
+ * The fields each kind of event carries, and how to check each one.
+ *
+ * A full `Record` over the event kinds, so an event added to `log.ts` without a
+ * line here fails the typecheck rather than sailing through validation
+ * unchecked — the same guarantee `inFileOrder` gives the campaign's own fields.
+ * `phase-entered` and `turn-began` carry nothing: which phase, and which turn,
+ * are the entry's own.
+ */
+const EVENT_FIELDS: Record<
+  CampaignEventKind,
+  readonly (readonly [field: string, check: EventFieldCheck])[]
+> = {
+  'campaign-started': [['name', 'name']],
+  'phase-entered': [],
+  'turn-began': [],
+  'starting-community-settled': [['built', 'flag']],
+  'survivor-added': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['tier', 'tier'],
+  ],
+  'survivor-recruited': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['tier', 'tier'],
+    ['roll', 'roll'],
+  ],
+  'survivor-left': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['tier', 'tier'],
+  ],
+  'survivor-promoted': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['tier', 'tier'],
+  ],
+  'skill-level-bought': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['skill', 'skill'],
+    ['level', 'count'],
+  ],
+  'common-skill-bought': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['skill', 'commonSkill'],
+    ['score', 'count'],
+  ],
+  'base-claimed': [['base', 'base']],
+  'facility-built': [
+    ['slot', 'id'],
+    ['facility', 'facility'],
+  ],
+  'upgrade-built': [
+    ['slot', 'id'],
+    ['upgrade', 'upgrade'],
+  ],
+  'slot-cleared': [['slot', 'id']],
+};
+
+/**
+ * Names the first thing structurally wrong with one log entry, or `null`.
+ *
+ * **Shape only, exactly as the survivor and slot checks are** — but the reason
+ * differs, and it is worth being clear about. There is no "illegal log entry" to
+ * be permissive about: a log records what happened, and what happened happened.
+ * What this defends against is a file that was hand-edited or truncated, where
+ * accepting an entry whose fields are missing would put `undefined` into a line
+ * of someone's campaign history rather than saying the file is damaged.
+ *
+ * An unknown `kind` is the interesting case, and it is reported rather than
+ * skipped: it means either a damaged file or a save from a newer version, and
+ * `migrate` has already ruled out the second by the time this runs.
+ */
+function describeLogEntryProblem(value: unknown): string | null {
+  if (!isRecord(value)) return 'is not a log entry';
+
+  if (!isCountFromOne(value.turn)) return 'does not say which turn it happened in';
+  if (typeof value.phase !== 'string' || !CAMPAIGN_PHASES.some((phase) => phase === value.phase)) {
+    return `happened in a phase that is not one of ${CAMPAIGN_PHASES.join(', ')}`;
+  }
+  if (typeof value.at !== 'string' || Number.isNaN(Date.parse(value.at))) {
+    return 'has a time that is missing or unreadable';
+  }
+
+  const event: unknown = value.event;
+  if (!isRecord(event)) return 'does not say what happened';
+
+  const kind = event.kind;
+  if (typeof kind !== 'string' || !isKeyOf(EVENT_FIELDS, kind)) {
+    return `records something this version does not know about: ${String(kind)}`;
+  }
+
+  for (const [field, check] of EVENT_FIELDS[kind as CampaignEventKind]) {
+    if (!EVENT_FIELD_CHECKS[check](event[field])) return `has an unreadable ${field}`;
   }
 
   return null;
@@ -244,13 +395,12 @@ function describeCampaignProblem(value: unknown): string | null {
     if (problem !== null) return problem;
   }
 
-  // `log` is still typed empty because Phase 2 genuinely cannot hold an entry.
-  // Accepting a populated one would let a file put data into the app that no
-  // code here knows how to read; a save that legally has a log comes from a
-  // later version, and `migrate` refuses that first with a message that
-  // actually tells the reader to update the app.
-  if (!Array.isArray(value.log) || value.log.length > 0) {
-    return 'its campaign log is missing, or holds entries this version cannot read';
+  if (!Array.isArray(value.log)) return 'its campaign log is missing';
+  for (const [index, entry] of value.log.entries()) {
+    const problem = describeLogEntryProblem(entry);
+    // Positional, like survivors: an entry whose damaged field is the one that
+    // says what happened cannot be pointed at by what happened.
+    if (problem !== null) return `log entry ${index + 1} of ${value.log.length} ${problem}`;
   }
 
   return null;

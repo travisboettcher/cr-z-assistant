@@ -482,6 +482,49 @@ test('a claimed base survives export, a reload, and import', async ({ page }) =>
 });
 
 /**
+ * Z3-2's acceptance, end to end: the history is written by doing things rather
+ * than by anything typing into it, and it comes back out of a save file whole.
+ *
+ * The material count is the interesting half. Something visibly changes on
+ * screen and the history does not grow, because a hand-entered count is the
+ * player correcting the record rather than something that happened to the
+ * community — and when the Advancement Phase produces materials for real, that
+ * is what will earn the entry.
+ */
+test('the campaign log records what happened, and survives the round trip', async ({ page }) => {
+  await startCampaign(page, 'Cedar Hollow');
+
+  const history = page.getByRole('region', { name: 'History' });
+  await expect(history).toContainText('Started the campaign “Cedar Hollow”');
+  await expect(history.getByRole('listitem')).toHaveCount(1);
+
+  await page.getByLabel(/choose a base/i).selectOption({ label: 'Hobby Farm — Tier 2' });
+  await page.getByRole('button', { name: /claim this base/i }).click();
+
+  // Newest first, so the claim is above the start it was claimed for.
+  await expect(history.getByRole('listitem').first()).toContainText('Claimed the Hobby Farm');
+  await expect(history.getByRole('listitem')).toHaveCount(2);
+
+  await page.getByLabel(/^hardware$/i).fill('6');
+  await expect(page.getByLabel(/^hardware$/i)).toHaveValue('6');
+  await expect(history.getByRole('listitem')).toHaveCount(2);
+
+  const exported = await exportCampaign(page);
+  expect(JSON.parse(exported.text).log).toHaveLength(2);
+
+  await startFreshCampaign(page, 'Elsewhere');
+  await page.setInputFiles('input[type="file"]', exported.path);
+  await page.getByRole('button', { name: /replace it/i }).click();
+
+  await expect(page.getByRole('region', { name: 'History' })).toContainText(
+    'Claimed the Hobby Farm',
+  );
+
+  const reExported = await exportCampaign(page);
+  expect(reExported.text).toBe(exported.text);
+});
+
+/**
  * Z2-5's acceptance, and the first time the base screen does something.
  *
  * Materials are typed in because nothing in the app produces them until the

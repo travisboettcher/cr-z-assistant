@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import v5Fixture from './__fixtures__/campaign-v5.json';
+import v6Fixture from './__fixtures__/campaign-v6.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -238,11 +238,12 @@ describe('parseCampaignFile with a roster', () => {
     // this build writes. An older file legitimately comes back one version up,
     // which is the migration working rather than the round trip failing.
     //
-    // From v5 the fixture carries a base, so this now also pins the slot order
-    // — written in the base's layout order, not the order the player built in —
+    // From v5 the fixture carries a base, so this also pins the slot order —
+    // written in the base's layout order, not the order the player built in —
     // and that absent optional fields stay absent rather than coming back as
-    // `false`.
-    const text = `${JSON.stringify(v5Fixture, null, 2)}\n`;
+    // `false`. From v6 it carries a log, which pins that an entry's own keys
+    // and its event's fields both survive a round trip untouched.
+    const text = `${JSON.stringify(v6Fixture, null, 2)}\n`;
     const result = parseCampaignFile(text);
 
     expect(result.ok).toBe(true);
@@ -577,5 +578,80 @@ describe('a campaign whose survivor list is not a list', () => {
 
     expect(result?.ok).toBe(false);
     if (result?.ok === false) expect(result.error.reason).toBe('damaged-campaign');
+  });
+});
+
+/**
+ * Names that every object already has.
+ *
+ * `'toString' in FACILITIES` is `true`, because `in` walks the prototype chain
+ * — so a catalogue lookup guarded by `in` accepts `toString`, `constructor` and
+ * `valueOf` as though they were real entries, and hands the caller a function.
+ * Found while adding the log's own validation in Z3-2, and fixed across the
+ * whole module rather than only in the new code: the base lookup was the worst
+ * of them, because `BASES.toString.slots` is `undefined` and the very next line
+ * calls `.some` on it.
+ *
+ * These are not exotic inputs. They are ordinary words, and this module's whole
+ * contract is that a damaged file comes back as a sentence rather than as an
+ * exception thrown from somewhere else entirely.
+ */
+describe('a campaign naming something every object already has', () => {
+  const inherited = ['toString', 'constructor', 'valueOf', '__proto__'];
+
+  function refusal(text: string) {
+    let result: ReturnType<typeof parseCampaignFile> | undefined;
+
+    expect(() => {
+      result = parseCampaignFile(text);
+    }).not.toThrow();
+
+    expect(result?.ok).toBe(false);
+    if (result?.ok === false) expect(result.error.reason).toBe('damaged-campaign');
+
+    return result;
+  }
+
+  it.each(inherited)('refuses %s as a base rather than crashing on it', (name) => {
+    refusal(savedWith({ base: { id: name, slots: {} } }));
+  });
+
+  it.each(inherited)('refuses %s as a facility rather than crashing on it', (name) => {
+    refusal(
+      savedWith({
+        base: {
+          id: 'hobby-farm',
+          slots: { garden: { built: { facility: name, builtOnTurn: 1 } } },
+        },
+      }),
+    );
+  });
+
+  it.each(inherited)('refuses %s as a kind of log entry rather than crashing on it', (name) => {
+    refusal(
+      savedWith({
+        log: [{ turn: 1, phase: 'mission', at: '2026-09-08T21:00:00.000Z', event: { kind: name } }],
+      }),
+    );
+  });
+
+  it.each(inherited)('refuses %s as a survivor skill rather than crashing on it', (name) => {
+    refusal(
+      savedWith({
+        survivors: [
+          {
+            id: 'a',
+            name: 'Earl Rhodes',
+            tier: 1,
+            stats: { strength: 1, dexterity: 0, intelligence: 0, cooperation: 0 },
+            skills: { [name]: 0 },
+            move: 6,
+            defense: 6,
+            currentHp: 1,
+            xp: 0,
+          },
+        ],
+      }),
+    );
   });
 });

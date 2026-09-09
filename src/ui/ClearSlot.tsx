@@ -47,7 +47,7 @@ export function ClearSlot({ campaign, slot, labor, onCleared }: ClearSlotProps) 
       label="Clear it"
       overrideLabel="Clear it anyway"
       onCommit={() => {
-        dispatch({ type: 'slot/cleared', slot, labor });
+        dispatch({ type: 'slot/cleared', slot, labor, at: new Date().toISOString() });
         onCleared();
       }}
     />

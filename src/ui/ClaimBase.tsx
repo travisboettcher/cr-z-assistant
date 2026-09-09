@@ -112,7 +112,7 @@ export function ClaimBase() {
           <button
             type="button"
             onClick={() => {
-              dispatch({ type: 'base/claimed', base: choice });
+              dispatch({ type: 'base/claimed', base: choice, at: new Date().toISOString() });
             }}
             className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg bg-amber-600 px-5 font-semibold text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
           >

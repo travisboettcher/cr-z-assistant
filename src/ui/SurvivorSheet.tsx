@@ -355,7 +355,12 @@ function Promote({ survivor }: { readonly survivor: Survivor }) {
         label="Promote"
         what="their tier"
         onBuy={() => {
-          dispatch({ type: 'survivor/tierBought', id: survivor.id, raise });
+          dispatch({
+            type: 'survivor/tierBought',
+            id: survivor.id,
+            raise,
+            at: new Date().toISOString(),
+          });
           setPicked('');
         }}
       />
@@ -475,7 +480,12 @@ function CommonSkills({ survivor }: { readonly survivor: Survivor }) {
                 label="+1"
                 what={`${COMMON_SKILL_LABELS[skill]} to ${survivor[skill] + 1}`}
                 onBuy={() =>
-                  dispatch({ type: 'survivor/commonSkillBought', id: survivor.id, skill })
+                  dispatch({
+                    type: 'survivor/commonSkillBought',
+                    id: survivor.id,
+                    skill,
+                    at: new Date().toISOString(),
+                  })
                 }
               />
             </dd>
@@ -538,7 +548,12 @@ function Skills({ survivor }: { readonly survivor: Survivor }) {
             survivor={survivor}
             onTake={take}
             onBuy={(skill) => {
-              dispatch({ type: 'survivor/skillLevelBought', id: survivor.id, skill });
+              dispatch({
+                type: 'survivor/skillLevelBought',
+                id: survivor.id,
+                skill,
+                at: new Date().toISOString(),
+              });
             }}
             onDrop={(skill) => {
               dispatch({ type: 'survivor/skillRemoved', id: survivor.id, skill });

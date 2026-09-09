@@ -51,7 +51,13 @@ export function BuildFacility({ campaign, slot, labor, onBuilt }: BuildFacilityP
       label="Build here"
       overrideLabel="Build it anyway"
       onCommit={() => {
-        dispatch({ type: 'facility/built', slot, facility: choice, labor });
+        dispatch({
+          type: 'facility/built',
+          slot,
+          facility: choice,
+          labor,
+          at: new Date().toISOString(),
+        });
         onBuilt();
       }}
     >

@@ -57,7 +57,13 @@ export function UpgradeFacility({ campaign, slot, labor, onUpgraded }: UpgradeFa
       label="Add upgrade"
       overrideLabel="Add it anyway"
       onCommit={() => {
-        dispatch({ type: 'upgrade/built', slot, upgrade: chosen, labor });
+        dispatch({
+          type: 'upgrade/built',
+          slot,
+          upgrade: chosen,
+          labor,
+          at: new Date().toISOString(),
+        });
         onUpgraded();
       }}
     >

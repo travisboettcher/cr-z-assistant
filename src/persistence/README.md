@@ -18,3 +18,8 @@ The migration harness lands before anything can write a file (Z0-4 before Z0-8),
 never a save format on disk that nothing can read back. When the `Campaign` shape changes,
 bump `CURRENT_SCHEMA_VERSION`, add a migration step, and check in a fixture of the old shape —
 the version-bump guard test fails if you skip either.
+
+**Look up a catalogue entry with `isKeyOf`, never with `in`.** `in` walks the prototype chain, so
+`'toString' in FACILITIES` is `true` and a file naming a facility `toString` passes validation and
+hands the next screen a function. Ordinary words, not exotic input, and the module's contract is
+that a damaged file comes back as a sentence rather than an exception thrown somewhere else.

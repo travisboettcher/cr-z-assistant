@@ -13,6 +13,7 @@ import { useState } from 'react';
 import { useCampaign } from '../state/useCampaign';
 import { AppHeader } from './AppHeader';
 import { BaseSlotMap } from './BaseSlotMap';
+import { CampaignLog } from './CampaignLog';
 import { ClaimBase } from './ClaimBase';
 import { CampaignEmptyState } from './CampaignEmptyState';
 import { CampaignOverview } from './CampaignOverview';
@@ -71,6 +72,12 @@ export function App() {
             ) : (
               <BaseSlotMap campaign={state.campaign} />
             )}
+            {/*
+             * Below the base rather than above it: the history is what the
+             * campaign *did*, and the screens above are what it can do next.
+             * It renders nothing at all until there is something to show.
+             */}
+            <CampaignLog campaign={state.campaign} />
             {openSurvivor !== undefined && (
               <SurvivorSheet
                 survivor={openSurvivor}
