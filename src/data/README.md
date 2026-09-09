@@ -53,5 +53,5 @@ imports from `src/engine`.
 
 Costs, caps and formulas are fine here. Facility descriptions, skill descriptions and mission
 narrative are not — the app must be useless without owning the rulebook. Display labels are not
-here either: naming things for a screen is the UI's job, the same way `src/ui/phaseLabels.ts`
+here either: naming things for a screen is the UI's job, the same way `src/ui/turnLabels.ts`
 names the campaign phases.

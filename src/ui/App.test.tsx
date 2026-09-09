@@ -80,7 +80,7 @@ describe('App shell', () => {
           createdAt: '2026-08-30T00:00:00.000Z',
         }),
         turn: 4,
-        phase: 'planning',
+        step: 'assign-rest-and-healing',
       },
     });
 

@@ -263,7 +263,7 @@ describe('migrate', () => {
     expect(result.campaign.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(result.campaign.name).toBe('Cedar Hollow');
     expect(result.campaign.turn).toBe(3);
-    expect(result.campaign.phase).toBe('planning');
+    expect(result.campaign.step).toBe('assign-facility-staff');
     expect(result.campaign.materials).toEqual({ food: 4, fuel: 2, hardware: 7, rare: 1 });
   });
 
@@ -346,5 +346,64 @@ describe('the v2 to v3 default', () => {
     if (!result.ok) return;
 
     expect(result.campaign.startingCommunityBuilt).toBe(true);
+  });
+});
+
+/**
+ * The v6 → v7 replacement, which is the first step in the chain that swaps a
+ * field rather than adding one — and the first that can put a campaign in the
+ * wrong place rather than merely in an incomplete one.
+ */
+describe('the v6 to v7 phase-to-step mapping', () => {
+  function stepAfterMigrating(phase: unknown): string | undefined {
+    const v6 = fixtures.find((fixture) => fixture.version === 6);
+    const result = migrate({ ...(v6?.contents as object), phase });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return undefined;
+
+    return result.campaign.step;
+  }
+
+  it.each([
+    ['mission', 'select-mission'],
+    ['advancement', 'character-advancement'],
+    ['planning', 'assign-facility-staff'],
+    ['management', 'check-for-rot'],
+  ])('brings a campaign in the %s phase to %s', (phase, step) => {
+    expect(stepAfterMigrating(phase)).toBe(step);
+  });
+
+  /**
+   * The first step of the phase, not the last, and the choice matters.
+   *
+   * A v6 build never recorded how far into a phase anyone was, so the position
+   * genuinely is not in the file — but the two ways of guessing fail
+   * differently. Landing at the top risks repeating work a player can *see*
+   * they have already done. Landing at the bottom risks skipping work they have
+   * not, silently, and three Management steps remove survivors or destroy
+   * materials.
+   */
+  it('lands at the top of the phase rather than the bottom', () => {
+    expect(stepAfterMigrating('management')).toBe('check-for-rot');
+    expect(stepAfterMigrating('management')).not.toBe('departures');
+  });
+
+  it('puts a campaign whose phase is unreadable at the top of the turn', () => {
+    // `saveFile.ts` re-checks the shape after this runs, so a bad value could
+    // equally be left to fail there. Handing on a field the chain knows is
+    // wrong would make the failure look like a bug in the newer code.
+    expect(stepAfterMigrating('harvest')).toBe('select-mission');
+    expect(stepAfterMigrating(undefined)).toBe('select-mission');
+  });
+
+  it('leaves no `phase` behind', () => {
+    const v6 = fixtures.find((fixture) => fixture.version === 6);
+    const result = migrate(v6?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect('phase' in result.campaign).toBe(false);
   });
 });

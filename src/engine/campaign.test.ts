@@ -15,7 +15,7 @@ describe('createNewCampaign', () => {
 
     expect(campaign.name).toBe('Cedar Hollow');
     expect(campaign.turn).toBe(1);
-    expect(campaign.phase).toBe('mission');
+    expect(campaign.step).toBe('select-mission');
     expect(campaign.materials).toEqual({ food: 0, fuel: 0, hardware: 0, rare: 0 });
     expect(campaign.survivors).toEqual([]);
     expect(campaign.base).toBeNull();
@@ -70,9 +70,9 @@ describe('createNewCampaign', () => {
       'log',
       'materials',
       'name',
-      'phase',
       'schemaVersion',
       'startingCommunityBuilt',
+      'step',
       'survivors',
       'turn',
     ]);

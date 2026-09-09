@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CAMPAIGN_PHASES, type CampaignPhase } from '../data/turn';
+import type { CampaignPhase, TurnStepId } from '../data/turn';
+import { TURN_SEQUENCE } from '../engine/turn';
 import { createNewCampaign } from '../engine/campaign';
 import type { Campaign } from '../engine/campaign';
 import type { CampaignEvent, LogEntry } from '../engine/log';
@@ -121,7 +122,7 @@ describe('campaign/loaded', () => {
    * being normalised on the way in.
    */
   it('stores the campaign verbatim', () => {
-    const turnFive: Campaign = { ...imported, turn: 5, phase: 'planning' };
+    const turnFive: Campaign = { ...imported, turn: 5, step: 'assign-project-team' };
 
     const state = campaignReducer(INITIAL_CAMPAIGN_STATE, {
       type: 'campaign/loaded',
@@ -144,76 +145,123 @@ describe('campaign/renamed', () => {
   });
 });
 
-describe('campaign/phaseSet', () => {
-  it.each(CAMPAIGN_PHASES)('moves the campaign to the %s phase', (phase) => {
-    // Starts somewhere else in every case, so that every phase is a real move
-    // rather than one of them silently exercising the no-op below.
-    const before: Campaign = { ...createNewCampaign('Cedar Hollow', FIXED), phase: 'planning' };
+describe('walking the turn', () => {
+  const opened = (step: TurnStepId, turn = 1): Campaign => ({
+    ...createNewCampaign('Cedar Hollow', FIXED),
+    turn,
+    step,
+  });
+
+  it('moves one step, recording nothing inside a phase', () => {
+    const before = opened('check-for-rot');
 
     const after = expectOpen(
-      campaignReducer(openState(before), { type: 'campaign/phaseSet', at: AT, phase }),
+      campaignReducer(openState(before), { type: 'turn/advanced', by: 'step', at: AT }),
     );
 
-    if (phase === 'planning') {
-      expect(after).toEqual(before);
-      return;
-    }
+    // Nineteen entries a turn for pressing Next is a history nobody reads.
+    expect(after).toEqual({ ...before, step: 'feed-your-survivors' });
+  });
 
-    // Logged *after* the change, so the entry sits in the phase just entered
-    // and the event does not repeat it.
+  it('records the crossing when a step opens a new phase', () => {
+    const before = opened('tactical-mission');
+
+    const after = expectOpen(
+      campaignReducer(openState(before), { type: 'turn/advanced', by: 'step', at: AT }),
+    );
+
+    // Stamped after the move, so the entry sits in the phase just entered.
     expect(after).toEqual({
       ...before,
-      phase,
-      log: [entry(before.turn, phase, { kind: 'phase-entered' })],
+      step: 'character-advancement',
+      log: [entry(1, 'advancement', { kind: 'phase-entered' })],
     });
   });
 
-  it('records nothing for a phase the campaign is already in', () => {
-    const before = createNewCampaign('Cedar Hollow', FIXED);
+  it('skips the rest of a phase without leaving the order', () => {
+    const before = opened('character-advancement');
 
     const after = expectOpen(
-      campaignReducer(openState(before), {
-        type: 'campaign/phaseSet',
-        at: AT,
-        phase: before.phase,
-      }),
+      campaignReducer(openState(before), { type: 'turn/advanced', by: 'phase', at: AT }),
     );
+
+    // Past four unfinished Advancement steps and into the first Planning one —
+    // forward, and not reachable any other way than in order.
+    expect(after).toEqual({
+      ...before,
+      step: 'assign-facility-staff',
+      log: [entry(1, 'planning', { kind: 'phase-entered' })],
+    });
+  });
+
+  it.each(['step', 'phase'] as const)(
+    'ends the turn off the end of the Management Phase, by %s',
+    (by) => {
+      const before = opened('departures', 3);
+
+      const after = expectOpen(
+        campaignReducer(openState(before), { type: 'turn/advanced', by, at: AT }),
+      );
+
+      expect(after).toEqual({
+        ...before,
+        turn: 4,
+        step: 'select-mission',
+        // One entry, not two. "Turn 4 began" already says the Mission Phase is
+        // open, and a `phase-entered` beside it would be the log narrating.
+        log: [entry(4, 'mission', { kind: 'turn-began' })],
+      });
+    },
+  );
+
+  it('offers no way to reach a phase out of order', () => {
+    // The whole reason `turn/advanced` carries no destination. Walking a turn
+    // from its first step must visit all nineteen, in the book's order — there
+    // is no action that could skip backwards or sideways into one.
+    let state = openState(opened('select-mission'));
+    const visited: TurnStepId[] = ['select-mission'];
+
+    for (let move = 0; move < TURN_SEQUENCE.length - 1; move += 1) {
+      state = campaignReducer(state, { type: 'turn/advanced', by: 'step', at: AT });
+      visited.push(expectOpen(state).step);
+    }
+
+    expect(visited).toEqual(TURN_SEQUENCE);
+  });
+
+  it('steps back within the turn, and records nothing for doing so', () => {
+    const before = opened('assign-beds', 2);
+
+    const after = expectOpen(campaignReducer(openState(before), { type: 'turn/reversed' }));
+
+    // A correction to the record, not something that happened — the same rule
+    // that keeps a rename out of the log.
+    expect(after).toEqual({ ...before, step: 'feed-your-survivors' });
+  });
+
+  it('refuses to step back out of the turn it is in', () => {
+    // The turn that ended took materials, Health and sometimes survivors with
+    // it, and "back" cannot put those back.
+    const before = opened('select-mission', 4);
+
+    const after = expectOpen(campaignReducer(openState(before), { type: 'turn/reversed' }));
 
     expect(after).toEqual(before);
-    expect(after.log).toEqual([]);
-  });
-});
-
-describe('campaign/turnAdvanced', () => {
-  it('increments the turn by one', () => {
-    const before = createNewCampaign('Cedar Hollow', FIXED);
-
-    const after = expectOpen(
-      campaignReducer(openState(before), { type: 'campaign/turnAdvanced', at: AT }),
-    );
-
-    expect(after.turn).toBe(before.turn + 1);
+    expect(after.turn).toBe(4);
   });
 
-  /**
-   * Pinned on purpose. Sending the campaign back to the Mission Phase on a new
-   * turn is a claim about turn structure — a rule, and Phase 0 ships none.
-   * If that behaviour is ever wanted it belongs in the Phase 3 turn engine.
-   */
-  it('leaves the phase alone', () => {
-    const midTurn: Campaign = { ...createNewCampaign('Cedar Hollow', FIXED), phase: 'management' };
+  it('comes back to where it started after a step forward and a step back', () => {
+    const before = opened('feed-your-survivors', 2);
 
-    const after = expectOpen(
-      campaignReducer(openState(midTurn), { type: 'campaign/turnAdvanced', at: AT }),
-    );
-
-    // The entry is filed under the turn that has just begun, not the one that
-    // ended — the store advances first and records second.
-    expect(after).toEqual({
-      ...midTurn,
-      turn: midTurn.turn + 1,
-      log: [entry(midTurn.turn + 1, 'management', { kind: 'turn-began' })],
+    const forward = campaignReducer(openState(before), {
+      type: 'turn/advanced',
+      by: 'step',
+      at: AT,
     });
+    const back = expectOpen(campaignReducer(forward, { type: 'turn/reversed' }));
+
+    expect(back.step).toBe(before.step);
+    expect(back.turn).toBe(before.turn);
   });
 });
 
@@ -336,8 +384,8 @@ describe('the survivor actions', () => {
 describe('editing actions against the empty state', () => {
   const editingActions: readonly CampaignAction[] = [
     { type: 'campaign/renamed', name: 'Millbrook' },
-    { type: 'campaign/phaseSet', at: AT, phase: 'planning' },
-    { type: 'campaign/turnAdvanced', at: AT },
+    { type: 'turn/advanced', at: AT, by: 'step' },
+    { type: 'turn/reversed' },
     { type: 'campaign/startingCommunityBuiltSet', at: AT, built: true },
     { type: 'survivor/added', at: AT, name: 'Earl Rhodes', tier: 4, id: SURVIVOR_ID },
     {
@@ -378,8 +426,7 @@ describe('purity', () => {
     },
     { type: 'campaign/loaded', campaign: createNewCampaign('Imported', OTHER) },
     { type: 'campaign/renamed', name: 'Millbrook' },
-    { type: 'campaign/phaseSet', at: AT, phase: 'advancement' },
-    { type: 'campaign/turnAdvanced', at: AT },
+    { type: 'turn/advanced', at: AT, by: 'phase' },
     { type: 'campaign/startingCommunityBuiltSet', at: AT, built: true },
     { type: 'survivor/added', at: AT, name: 'Earl Rhodes', tier: 4, id: SURVIVOR_ID },
     {
@@ -1110,6 +1157,10 @@ describe('what earns a line in the log', () => {
     return openState({
       ...createNewCampaign('Cedar Hollow', FIXED),
       turn: 3,
+      // The last step of the Mission Phase, so that one step forward crosses
+      // into the next phase and one step back has somewhere to go. Both turn
+      // actions would otherwise be no-ops here and pass for the wrong reason.
+      step: 'tactical-mission',
       materials: { food: 1, fuel: 1, hardware: 9, rare: 0 },
       survivors: [
         createSurvivor('Ruby Vance', 1, { id: DECOY }),
@@ -1140,16 +1191,15 @@ describe('what earns a line in the log', () => {
       // A new campaign, so turn 1 rather than `rich()`'s turn 3.
       entry: entry(1, 'mission', { kind: 'campaign-started', name: 'Millbrook' }),
     },
-    'campaign/phaseSet': {
-      action: { type: 'campaign/phaseSet', at: AT, phase: 'management' },
-      // Stamped after the move, so the entry sits in the phase just entered.
-      entry: entry(3, 'management', { kind: 'phase-entered' }),
+    'turn/advanced': {
+      // `rich()` sits on the last step of the Mission Phase, so one step
+      // forward crosses into the Advancement Phase. Stamped after the move, so
+      // the entry sits in the phase just entered.
+      action: { type: 'turn/advanced', at: AT, by: 'step' },
+      entry: entry(3, 'advancement', { kind: 'phase-entered' }),
     },
-    'campaign/turnAdvanced': {
-      action: { type: 'campaign/turnAdvanced', at: AT },
-      // Likewise: the turn that has begun, not the one that ended.
-      entry: entry(4, 'mission', { kind: 'turn-began' }),
-    },
+    // Stepping back is a correction to the record, like a rename.
+    'turn/reversed': { action: { type: 'turn/reversed' }, entry: null },
     'campaign/startingCommunityBuiltSet': {
       action: { type: 'campaign/startingCommunityBuiltSet', at: AT, built: true },
       entry: entry(3, 'mission', { kind: 'starting-community-settled', built: true }),

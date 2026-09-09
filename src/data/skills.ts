@@ -4,7 +4,7 @@
  * Numbers and structure only. Skill *descriptions* are rule text and never ship;
  * what a skill does belongs in the rulebook, and the app cites the page.
  *
- * Display labels are not here either, for the same reason `phaseLabels.ts`
+ * Display labels are not here either, for the same reason `turnLabels.ts`
  * lives in `src/ui` — presentation is the UI's problem, and this directory
  * stays purely structural.
  */

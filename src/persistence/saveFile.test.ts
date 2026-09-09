@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import v6Fixture from './__fixtures__/campaign-v6.json';
+import v7Fixture from './__fixtures__/campaign-v7.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -44,7 +44,9 @@ describe('parseCampaignFile', () => {
 
     expect(result.campaign.name).toBe('Cedar Hollow');
     expect(result.campaign.turn).toBe(3);
-    expect(result.campaign.phase).toBe('planning');
+    // The v6 → v7 step replaces the phase with the step that phase opens on:
+    // an old save never recorded how far into a phase anyone was.
+    expect(result.campaign.step).toBe('assign-facility-staff');
     expect(result.campaign.materials).toEqual({ food: 4, fuel: 2, hardware: 7, rare: 1 });
     expect(result.campaign.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
   });
@@ -154,8 +156,8 @@ describe('parseCampaignFile', () => {
    * of these are campaign-shaped enough to migrate and still are not campaigns.
    */
   it.each([
-    ['a phase that is not a phase', { phase: 'harvest' }],
-    ['a phase of the wrong type', { phase: 3 }],
+    ['a step that is not a step', { step: 'harvest' }],
+    ['a step of the wrong type', { step: 3 }],
     ['materials missing a key', { materials: { food: 4, fuel: 2, hardware: 7 } }],
     [
       'a material that is not a number',
@@ -182,12 +184,12 @@ describe('parseCampaignFile', () => {
   });
 
   it('says which part of the campaign is wrong', () => {
-    const result = parseCampaignFile(savedWith({ phase: 'harvest' }));
+    const result = parseCampaignFile(savedWith({ step: 'harvest' }));
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
 
-    expect(result.error.message).toContain('mission, advancement, planning, management');
+    expect(result.error.message).toContain('where in the turn it is');
   });
 
   /**
@@ -243,7 +245,7 @@ describe('parseCampaignFile with a roster', () => {
     // and that absent optional fields stay absent rather than coming back as
     // `false`. From v6 it carries a log, which pins that an entry's own keys
     // and its event's fields both survive a round trip untouched.
-    const text = `${JSON.stringify(v6Fixture, null, 2)}\n`;
+    const text = `${JSON.stringify(v7Fixture, null, 2)}\n`;
     const result = parseCampaignFile(text);
 
     expect(result.ok).toBe(true);
@@ -451,8 +453,8 @@ describe('a file whose fields are the wrong type', () => {
     expect(rejected({ createdAt: 12345 })?.reason).toBe('damaged-campaign');
   });
 
-  it('refuses a phase that is not a string', () => {
-    expect(rejected({ phase: 3 })?.reason).toBe('damaged-campaign');
+  it('refuses a step that is not a string', () => {
+    expect(rejected({ step: 3 })?.reason).toBe('damaged-campaign');
   });
 
   it('refuses a turn that is a string, even one that looks like a number', () => {

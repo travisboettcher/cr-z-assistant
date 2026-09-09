@@ -25,6 +25,7 @@ import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { CAMPAIGN_PHASES } from '../data/turn';
 import type { Campaign } from '../engine/campaign';
 import type { CampaignEventKind } from '../engine/log';
+import { TURN_SEQUENCE } from '../engine/turn';
 import { migrate, type MigrationErrorReason } from './migrations';
 
 /**
@@ -364,8 +365,11 @@ function describeCampaignProblem(value: unknown): string | null {
     return 'its creation date is missing or unreadable';
   }
   if (!isCountFromOne(value.turn)) return 'its turn number is missing or is not a whole turn';
-  if (!CAMPAIGN_PHASES.some((phase) => phase === value.phase)) {
-    return `its phase is not one of ${CAMPAIGN_PHASES.join(', ')}`;
+  // The step, not the phase: a campaign records where in the turn it is and the
+  // phase is derived from that. Named rather than listed in the message —
+  // nineteen step ids is not a sentence anyone reads.
+  if (!TURN_SEQUENCE.some((step) => step === value.step)) {
+    return 'it does not say where in the turn it is, or names a step this version does not know';
   }
 
   // Absent is legal and means a campaign not using an origin, so only a present

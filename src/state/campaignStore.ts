@@ -34,7 +34,7 @@ import { withUpgradeBuilt } from '../engine/upgrade';
 import { withUtilityToggled } from '../engine/utilities';
 import { createNewCampaign } from '../engine/campaign';
 import { logged, type CampaignEvent } from '../engine/log';
-import type { CampaignPhase } from '../data/turn';
+import { advance, reverse, type AdvanceBy } from '../engine/turn';
 import type { Campaign, Stats, Survivor } from '../engine/campaign';
 import { createSurvivor, recruitSurvivor } from '../engine/survivor';
 
@@ -109,8 +109,28 @@ export type CampaignAction =
    */
   | { readonly type: 'campaign/loaded'; readonly campaign: Campaign }
   | { readonly type: 'campaign/renamed'; readonly name: string }
-  | { readonly type: 'campaign/phaseSet'; readonly phase: CampaignPhase; readonly at: string }
-  | { readonly type: 'campaign/turnAdvanced'; readonly at: string }
+  /**
+   * Move forward through the turn: one step, or on to the next phase.
+   *
+   * **Carries no destination.** The order of the turn is a rule and the reducer
+   * reads it from `src/engine/turn.ts`, so a screen can offer the wrong button
+   * but cannot invent a turn that runs Management before Planning. That is why
+   * the two actions this replaced — a `phaseSet` that took any phase and a
+   * `turnAdvanced` that took none — are gone rather than kept alongside it.
+   *
+   * Off the end of the Management Phase, this is what ends a turn.
+   */
+  | { readonly type: 'turn/advanced'; readonly by: AdvanceBy; readonly at: string }
+  /**
+   * Move back one step, within this turn.
+   *
+   * Unlogged, by the rule the log already holds: pressing Next once too often
+   * and stepping back is a correction to the record, not something that
+   * happened to the community. It stops at the first step of the turn — going
+   * back into the turn before would claim to undo materials spent, Health
+   * distributed and survivors lost, and it cannot.
+   */
+  | { readonly type: 'turn/reversed' }
   /**
    * Record whether the starting community is finished.
    *
@@ -307,28 +327,34 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return withCampaign(state, (campaign) => ({ ...campaign, name: action.name }));
 
     /**
-     * Sets the phase, then logs — so the entry's own `phase` is the one just
-     * entered and the event carries no phase of its own. Setting the phase the
-     * campaign is already in changes nothing and records nothing: the log holds
-     * what happened, and nothing happened.
+     * Moves, then records — so an entry lands in the phase or turn just
+     * entered rather than the one left behind.
+     *
+     * A move that ends the turn logs `turn-began` and nothing else, though it
+     * enters a new phase as well: "turn 4 began" already says the Mission Phase
+     * is open, and two entries for one press would be the log narrating rather
+     * than recording. A move inside a phase logs nothing at all — nineteen
+     * entries a turn for pressing Next is a history nobody can read.
      */
-    case 'campaign/phaseSet':
-      return withCampaign(state, (campaign) =>
-        campaign.phase === action.phase
-          ? campaign
-          : logged({ ...campaign, phase: action.phase }, action.at, { kind: 'phase-entered' }),
-      );
+    case 'turn/advanced':
+      return withCampaign(state, (campaign) => {
+        const move = advance(campaign.step, action.by);
+        const moved: Campaign = move.endsTurn
+          ? { ...campaign, step: move.step, turn: campaign.turn + 1 }
+          : { ...campaign, step: move.step };
 
-    /**
-     * Increments the turn and nothing else. Resetting the phase alongside it
-     * would be a claim about how a turn begins, which is turn-engine work
-     * (Phase 3) and a rule — and rules do not live in the store. Callers set
-     * the phase explicitly.
-     */
-    case 'campaign/turnAdvanced':
-      return withCampaign(state, (campaign) =>
-        logged({ ...campaign, turn: campaign.turn + 1 }, action.at, { kind: 'turn-began' }),
-      );
+        if (move.endsTurn) return logged(moved, action.at, { kind: 'turn-began' });
+        if (move.entersPhase) return logged(moved, action.at, { kind: 'phase-entered' });
+
+        return moved;
+      });
+
+    case 'turn/reversed':
+      return withCampaign(state, (campaign) => {
+        const back = reverse(campaign.step);
+
+        return back === null ? campaign : { ...campaign, step: back };
+      });
 
     case 'campaign/startingCommunityBuiltSet':
       return withCampaign(state, (campaign) =>

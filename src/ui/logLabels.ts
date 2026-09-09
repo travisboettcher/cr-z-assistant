@@ -18,7 +18,7 @@
 
 import type { CampaignEvent, LogEntry } from '../engine/log';
 import { BASE_LABELS, FACILITY_LABELS, UPGRADE_LABELS, slotLabel } from './baseLabels';
-import { PHASE_LABELS } from './phaseLabels';
+import { PHASE_LABELS } from './turnLabels';
 import { COMMON_SKILL_LABELS, SKILL_LABELS } from './skillLabels';
 import { TIER_LABELS } from './tierLabels';
 

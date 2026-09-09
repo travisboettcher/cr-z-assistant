@@ -1,7 +1,7 @@
 /**
  * Display names for the survivor Tiers.
  *
- * Presentation only, the same way `phaseLabels.ts` names the campaign phases —
+ * Presentation only, the same way `turnLabels.ts` names the campaign phases —
  * what a Tier *means* is `TIER_RULES` in `src/data`, and a number on its own is
  * not what anyone calls these people at the table. Typed as a full `Record` so
  * adding a Tier to the rules data fails the typecheck here rather than silently

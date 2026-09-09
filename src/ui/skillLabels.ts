@@ -1,7 +1,7 @@
 /**
  * Display names for the skills.
  *
- * Presentation only, like `phaseLabels.ts` and `tierLabels.ts`. What a skill
+ * Presentation only, like `turnLabels.ts` and `tierLabels.ts`. What a skill
  * *does* is rule text and stays in the rulebook; what it is *called* is the
  * minimum needed to put it on a screen, and `blunt-weapon` is an identifier
  * rather than a name.
