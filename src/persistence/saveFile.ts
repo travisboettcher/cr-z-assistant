@@ -307,9 +307,17 @@ function describeLogEntryProblem(value: unknown): string | null {
   if (!isRecord(value)) return 'is not a log entry';
 
   if (!isCountFromOne(value.turn)) return 'does not say which turn it happened in';
-  if (typeof value.phase !== 'string' || !CAMPAIGN_PHASES.some((phase) => phase === value.phase)) {
+  // No `typeof` guard, unlike the timestamp below. Strict equality against a
+  // list of four strings already rejects everything that is not one of them,
+  // and JSON has no value that is `===` a string without being one. A mutation
+  // run said so first: the guard's mutant was equivalent, which is another way
+  // of saying the guard did nothing.
+  if (!CAMPAIGN_PHASES.some((phase) => phase === value.phase)) {
     return `happened in a phase that is not one of ${CAMPAIGN_PHASES.join(', ')}`;
   }
+  // Here the `typeof` half *is* load-bearing: `Date.parse` coerces, so a bare
+  // `2026` in a file parses as a perfectly good date and would sail through on
+  // its own — and then render as 1970 on the history screen.
   if (typeof value.at !== 'string' || Number.isNaN(Date.parse(value.at))) {
     return 'has a time that is missing or unreadable';
   }
@@ -318,6 +326,9 @@ function describeLogEntryProblem(value: unknown): string | null {
   if (!isRecord(event)) return 'does not say what happened';
 
   const kind = event.kind;
+  // `typeof` again load-bearing, and for a stranger reason: `Object.hasOwn`
+  // coerces its key, so `["turn-began"]` — which JSON can express — stringifies
+  // to a name this table has.
   if (typeof kind !== 'string' || !isKeyOf(EVENT_FIELDS, kind)) {
     return `records something this version does not know about: ${String(kind)}`;
   }
@@ -353,7 +364,7 @@ function describeCampaignProblem(value: unknown): string | null {
     return 'its creation date is missing or unreadable';
   }
   if (!isCountFromOne(value.turn)) return 'its turn number is missing or is not a whole turn';
-  if (typeof value.phase !== 'string' || !CAMPAIGN_PHASES.some((phase) => phase === value.phase)) {
+  if (!CAMPAIGN_PHASES.some((phase) => phase === value.phase)) {
     return `its phase is not one of ${CAMPAIGN_PHASES.join(', ')}`;
   }
 

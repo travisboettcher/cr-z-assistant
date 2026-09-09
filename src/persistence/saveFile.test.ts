@@ -708,6 +708,9 @@ describe('a campaign whose log is damaged', () => {
     // text at all.
     ['an entry timed to nonsense', [{ ...good, at: 'sometime tuesday' }], /time/i],
     ['an entry timed to a number', [{ ...good, at: 20260908 }], /time/i],
+    // The number that `Date.parse` is happy with. Without the `typeof` half of
+    // that check this one is accepted and renders as 1970.
+    ['an entry timed to a bare year', [{ ...good, at: 2026 }], /time/i],
     [
       'an entry that does not say what happened',
       [{ ...good, event: 'something' }],
@@ -721,6 +724,14 @@ describe('a campaign whose log is damaged', () => {
     [
       'an entry whose kind this version has never heard of',
       [{ ...good, event: { kind: 'survivor-abducted' } }],
+      /does not know about/i,
+    ],
+    // A real kind, wrapped in a list. `Object.hasOwn` coerces its key, so this
+    // stringifies to a name the table has and passes the lookup — the `typeof`
+    // half of that check is the only thing between it and being accepted.
+    [
+      'an entry whose kind is a real one in a box',
+      [{ ...good, event: { kind: ['turn-began'] } }],
       /does not know about/i,
     ],
     // The field loop: a kind this version knows, carrying a field it cannot
