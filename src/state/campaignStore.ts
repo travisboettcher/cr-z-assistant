@@ -682,13 +682,17 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
  * A fresh copy with the key deleted, so the reducer stays pure. Written out
  * rather than rest-destructured because the idiom for a computed key leaves an
  * unused binding behind, which is the same call `survivor/skillRemoved` makes.
+ *
+ * Deleting a key the record does not have is a no-op, so there is no guard for
+ * that case. There was one — an early return that kept the record's identity
+ * when nothing changed — and a mutation run showed it surviving every test,
+ * because `withCampaign` builds a new state object regardless and nothing
+ * anywhere observes whether this particular record kept its reference.
  */
 function withoutAssignment(
   assignments: Readonly<Record<string, Assignment>>,
   survivor: string,
 ): Readonly<Record<string, Assignment>> {
-  if (!Object.hasOwn(assignments, survivor)) return assignments;
-
   const remaining = { ...assignments };
   delete remaining[survivor];
 

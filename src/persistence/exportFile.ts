@@ -126,12 +126,18 @@ function orderedBase(base: Base): Record<keyof Base, unknown> {
  * no list to keep in step. The tag leads because a reader scanning a save file
  * wants to know *what* before its details, and both unions' remaining fields
  * are a flat bag of scalars with no reading order worth preserving.
+ *
+ * The loop writes the tag a second time, on purpose. Assigning a key an object
+ * already has updates its value and leaves its position alone, so the redundant
+ * write cannot move the tag — and skipping it would need a guard whose only
+ * effect is to avoid a write nobody can observe. A mutation run found that
+ * guard first: it survived every test, because there was nothing there to fail.
  */
 function taggedFirst<T extends object>(value: T, tag: keyof T & string): Record<string, unknown> {
   const ordered: Record<string, unknown> = { [tag]: value[tag] };
 
   for (const field of Object.keys(value).sort()) {
-    if (field !== tag) ordered[field] = (value as Record<string, unknown>)[field];
+    ordered[field] = (value as Record<string, unknown>)[field];
   }
 
   return ordered;
