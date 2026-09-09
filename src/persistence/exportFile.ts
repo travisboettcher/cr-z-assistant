@@ -11,6 +11,7 @@ import { BASES } from '../data/bases';
 import { SKILLS, STATS } from '../data/skills';
 import { MATERIALS } from '../data/materials';
 import type { Base, Campaign, SlotState, Survivor } from '../engine/campaign';
+import type { CampaignEvent, LogEntry } from '../engine/log';
 
 /** Material counts in the fixed order from the engine, not insertion order. */
 function orderedMaterials(campaign: Campaign): Record<string, number> {
@@ -110,6 +111,50 @@ function orderedBase(base: Base): Record<keyof Base, unknown> {
 }
 
 /**
+ * One event with `kind` first and its remaining fields in alphabetical order.
+ *
+ * **Sorted rather than listed per kind, and the property suite is why.** The
+ * first attempt wrote the event through untouched, on the reasoning that an
+ * event is built once as a literal and never merged, so its insertion order
+ * could not drift. `roundTrip.property.test.ts` rejected that inside a second:
+ * an event read back from a file arrives in *that file's* key order, and
+ * re-exporting it then produces different bytes for the same campaign.
+ *
+ * The alternative was fourteen ordering functions, one per kind, each of which
+ * can only ever agree with its constructor and will one day not. A sort is
+ * order-independent by construction — there is no list to keep in step —  and
+ * an event's fields are a flat bag of scalars with no reading order worth
+ * preserving. `kind` leads because it is the discriminant, and a reader
+ * scanning a save file wants to know what happened before its details.
+ */
+function orderedEvent(event: CampaignEvent): Record<string, unknown> {
+  const { kind, ...rest } = event;
+  const ordered: Record<string, unknown> = { kind };
+
+  for (const field of Object.keys(rest).sort()) {
+    ordered[field] = (rest as Record<string, unknown>)[field];
+  }
+
+  return ordered;
+}
+
+/**
+ * One log entry with its keys in a fixed order.
+ *
+ * The `Record<keyof LogEntry, unknown>` return type earns its keep the way
+ * `inFileOrder`'s does: a field added to the entry cannot be silently dropped
+ * from every export.
+ */
+function orderedLogEntry(entry: LogEntry): Record<keyof LogEntry, unknown> {
+  return {
+    turn: entry.turn,
+    phase: entry.phase,
+    at: entry.at,
+    event: orderedEvent(entry.event),
+  };
+}
+
+/**
  * The campaign rewritten with its keys in a fixed order.
  *
  * `JSON.stringify` follows insertion order, so a campaign that came through
@@ -138,7 +183,7 @@ function inFileOrder(campaign: Campaign): Record<keyof Campaign, unknown> {
     survivors: campaign.survivors.map(orderedSurvivor),
     startingCommunityBuilt: campaign.startingCommunityBuilt,
     base: campaign.base === null ? null : orderedBase(campaign.base),
-    log: campaign.log,
+    log: campaign.log.map(orderedLogEntry),
   };
 }
 

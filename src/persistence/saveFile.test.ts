@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import v5Fixture from './__fixtures__/campaign-v5.json';
+import v6Fixture from './__fixtures__/campaign-v6.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -238,11 +238,12 @@ describe('parseCampaignFile with a roster', () => {
     // this build writes. An older file legitimately comes back one version up,
     // which is the migration working rather than the round trip failing.
     //
-    // From v5 the fixture carries a base, so this now also pins the slot order
-    // — written in the base's layout order, not the order the player built in —
+    // From v5 the fixture carries a base, so this also pins the slot order —
+    // written in the base's layout order, not the order the player built in —
     // and that absent optional fields stay absent rather than coming back as
-    // `false`.
-    const text = `${JSON.stringify(v5Fixture, null, 2)}\n`;
+    // `false`. From v6 it carries a log, which pins that an entry's own keys
+    // and its event's fields both survive a round trip untouched.
+    const text = `${JSON.stringify(v6Fixture, null, 2)}\n`;
     const result = parseCampaignFile(text);
 
     expect(result.ok).toBe(true);
@@ -577,5 +578,219 @@ describe('a campaign whose survivor list is not a list', () => {
 
     expect(result?.ok).toBe(false);
     if (result?.ok === false) expect(result.error.reason).toBe('damaged-campaign');
+  });
+});
+
+/**
+ * Names that every object already has.
+ *
+ * `'toString' in FACILITIES` is `true`, because `in` walks the prototype chain
+ * — so a catalogue lookup guarded by `in` accepts `toString`, `constructor` and
+ * `valueOf` as though they were real entries, and hands the caller a function.
+ * Found while adding the log's own validation in Z3-2, and fixed across the
+ * whole module rather than only in the new code: the base lookup was the worst
+ * of them, because `BASES.toString.slots` is `undefined` and the very next line
+ * calls `.some` on it.
+ *
+ * These are not exotic inputs. They are ordinary words, and this module's whole
+ * contract is that a damaged file comes back as a sentence rather than as an
+ * exception thrown from somewhere else entirely.
+ */
+describe('a campaign naming something every object already has', () => {
+  const inherited = ['toString', 'constructor', 'valueOf', '__proto__'];
+
+  function refusal(text: string) {
+    let result: ReturnType<typeof parseCampaignFile> | undefined;
+
+    expect(() => {
+      result = parseCampaignFile(text);
+    }).not.toThrow();
+
+    expect(result?.ok).toBe(false);
+    if (result?.ok === false) expect(result.error.reason).toBe('damaged-campaign');
+
+    return result;
+  }
+
+  it.each(inherited)('refuses %s as a base rather than crashing on it', (name) => {
+    refusal(savedWith({ base: { id: name, slots: {} } }));
+  });
+
+  it.each(inherited)('refuses %s as a facility rather than crashing on it', (name) => {
+    refusal(
+      savedWith({
+        base: {
+          id: 'hobby-farm',
+          slots: { garden: { built: { facility: name, builtOnTurn: 1 } } },
+        },
+      }),
+    );
+  });
+
+  it.each(inherited)('refuses %s as a kind of log entry rather than crashing on it', (name) => {
+    refusal(
+      savedWith({
+        log: [{ turn: 1, phase: 'mission', at: '2026-09-08T21:00:00.000Z', event: { kind: name } }],
+      }),
+    );
+  });
+
+  it.each(inherited)('refuses %s as a survivor skill rather than crashing on it', (name) => {
+    refusal(
+      savedWith({
+        survivors: [
+          {
+            id: 'a',
+            name: 'Earl Rhodes',
+            tier: 1,
+            stats: { strength: 1, dexterity: 0, intelligence: 0, cooperation: 0 },
+            skills: { [name]: 0 },
+            move: 6,
+            defense: 6,
+            currentHp: 1,
+            xp: 0,
+          },
+        ],
+      }),
+    );
+  });
+});
+
+/**
+ * The campaign log, checked the way the roster and the base are: shape only,
+ * one problem named, and never a thrown exception.
+ *
+ * There is no "illegal entry" to be permissive about here, unlike a survivor or
+ * a slot — a log records what happened, and what happened happened. What these
+ * defend against is a file edited or truncated since it was saved, where an
+ * entry with a missing field would put `undefined` into a line of someone's
+ * campaign history instead of saying the file is damaged.
+ */
+describe('a campaign whose log is damaged', () => {
+  const good = {
+    turn: 2,
+    phase: 'advancement',
+    at: '2026-09-08T21:00:00.000Z',
+    event: { kind: 'survivor-added', survivor: 'a', name: 'Earl Rhodes', tier: 3 },
+  };
+
+  function refusalFor(log: unknown) {
+    const result = parseCampaignFile(savedWith({ log }));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected a refusal');
+
+    expect(result.error.reason).toBe('damaged-campaign');
+    return result.error.message;
+  }
+
+  it('accepts a log that is right, so the refusals below mean something', () => {
+    const result = parseCampaignFile(savedWith({ log: [good] }));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.log).toEqual([good]);
+  });
+
+  it.each([
+    ['not a list at all', 5, /campaign log is missing/i],
+    ['an entry that is not an object', [7], /is not a log entry/i],
+    ['an entry with no turn', [{ ...good, turn: undefined }], /which turn/i],
+    ['an entry from turn zero', [{ ...good, turn: 0 }], /which turn/i],
+    ['an entry from half a turn', [{ ...good, turn: 1.5 }], /which turn/i],
+    // Both halves of the phase check, which disagree only on these two: a
+    // string that is not a phase, and a phase-shaped value that is not a
+    // string. One case alone leaves the other half of the `||` untested.
+    ['an entry from a phase that does not exist', [{ ...good, phase: 'brunch' }], /phase/i],
+    ['an entry whose phase is not even a word', [{ ...good, phase: 3 }], /phase/i],
+    // Likewise for the timestamp: unparseable text, and a value that is not
+    // text at all.
+    ['an entry timed to nonsense', [{ ...good, at: 'sometime tuesday' }], /time/i],
+    ['an entry timed to a number', [{ ...good, at: 20260908 }], /time/i],
+    // The number that `Date.parse` is happy with. Without the `typeof` half of
+    // that check this one is accepted and renders as 1970.
+    ['an entry timed to a bare year', [{ ...good, at: 2026 }], /time/i],
+    [
+      'an entry that does not say what happened',
+      [{ ...good, event: 'something' }],
+      /what happened/i,
+    ],
+    [
+      'an entry whose kind is not a word',
+      [{ ...good, event: { kind: 12 } }],
+      /does not know about/i,
+    ],
+    [
+      'an entry whose kind this version has never heard of',
+      [{ ...good, event: { kind: 'survivor-abducted' } }],
+      /does not know about/i,
+    ],
+    // A real kind, wrapped in a list. `Object.hasOwn` coerces its key, so this
+    // stringifies to a name the table has and passes the lookup — the `typeof`
+    // half of that check is the only thing between it and being accepted.
+    [
+      'an entry whose kind is a real one in a box',
+      [{ ...good, event: { kind: ['turn-began'] } }],
+      /does not know about/i,
+    ],
+    // The field loop: a kind this version knows, carrying a field it cannot
+    // read. Nothing above reaches past the discriminant.
+    [
+      'an entry about a survivor of no known tier',
+      [{ ...good, event: { ...good.event, tier: 99 } }],
+      /unreadable tier/i,
+    ],
+    [
+      'an entry about a survivor with no name',
+      [{ ...good, event: { ...good.event, name: null } }],
+      /unreadable name/i,
+    ],
+    [
+      'an entry naming a skill that does not exist',
+      [
+        {
+          ...good,
+          event: {
+            kind: 'skill-level-bought',
+            survivor: 'a',
+            name: 'Earl',
+            skill: 'yodel',
+            level: 1,
+          },
+        },
+      ],
+      /unreadable skill/i,
+    ],
+    [
+      'an entry raising Move as though it were a governed skill',
+      [
+        {
+          ...good,
+          event: {
+            kind: 'skill-level-bought',
+            survivor: 'a',
+            name: 'Earl',
+            skill: 'move',
+            level: 1,
+          },
+        },
+      ],
+      /unreadable skill/i,
+    ],
+  ])('refuses %s', (_label, log, expected) => {
+    expect(refusalFor(log)).toMatch(expected);
+  });
+
+  /**
+   * The position, counted from one.
+   *
+   * A reader with a damaged file needs to be told which entry, and "log entry 0
+   * of 2" is the kind of thing that makes someone doubt the message rather than
+   * the file. Pinned here because an off-by-one is otherwise invisible.
+   */
+  it('counts the damaged entry from one, and says how many there are', () => {
+    expect(refusalFor([good, { ...good, turn: 0 }])).toMatch(/log entry 2 of 2/);
+    expect(refusalFor([{ ...good, turn: 0 }, good, good])).toMatch(/log entry 1 of 3/);
   });
 });

@@ -8,10 +8,10 @@
  * makes any cached value wrong. If you are tempted to add a field that can be
  * calculated from other fields, write a function in this directory instead.
  *
- * The shape grows a phase at a time. `survivors` became real in Phase 1 and
- * `base` in Phase 2; `log` is still an empty placeholder and gets its type in
- * Phase 3 — through the migration chain in `src/persistence`, which exists
- * precisely to make that change survivable for a campaign already in progress.
+ * The shape grows a phase at a time. `survivors` became real in Phase 1, `base`
+ * in Phase 2 and `log` in Phase 3 — each through the migration chain in
+ * `src/persistence`, which exists precisely to make those changes survivable
+ * for a campaign already in progress.
  */
 
 import type { BaseId } from '../data/bases';
@@ -21,6 +21,7 @@ import type { CampaignOrigin } from '../data/origins';
 import type { Skill, Stat } from '../data/skills';
 import type { Tier } from '../data/tiers';
 import type { CampaignPhase } from '../data/turn';
+import type { LogEntry } from './log';
 
 /**
  * Bumped whenever the persisted shape of `Campaign` changes. Lives here rather
@@ -30,7 +31,7 @@ import type { CampaignPhase } from '../data/turn';
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 5;
+export const CURRENT_SCHEMA_VERSION = 6;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -223,8 +224,16 @@ export interface Campaign {
    */
   base: Base | null;
 
-  /** Placeholder — Phase 3 (the turn engine) makes this an append-only log. */
-  log: readonly never[];
+  /**
+   * Everything that has happened, oldest first.
+   *
+   * **Append-only.** Nothing in the app removes or edits an entry, and the
+   * store has no action that could; a log that can be rewritten records what
+   * someone last decided had happened rather than what did. See
+   * [`log.ts`](./log.ts) for what earns an entry and what deliberately does
+   * not.
+   */
+  log: readonly LogEntry[];
 }
 
 /**

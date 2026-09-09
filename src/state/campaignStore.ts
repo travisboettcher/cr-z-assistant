@@ -33,6 +33,7 @@ import { withSlotCleared } from '../engine/clearing';
 import { withUpgradeBuilt } from '../engine/upgrade';
 import { withUtilityToggled } from '../engine/utilities';
 import { createNewCampaign } from '../engine/campaign';
+import { logged, type CampaignEvent } from '../engine/log';
 import type { CampaignPhase } from '../data/turn';
 import type { Campaign, Stats, Survivor } from '../engine/campaign';
 import { createSurvivor, recruitSurvivor } from '../engine/survivor';
@@ -63,11 +64,27 @@ export const INITIAL_CAMPAIGN_STATE: CampaignState = { status: 'empty' };
  * The second namespace is deliberate — `campaign/survivorAdded` reads worse
  * than it reasons.
  *
- * Bases, facilities and materials arithmetic are still absent — inventing
- * actions for them now would mean designing rules-shaped events before the
- * rules exist. There is also still no "close campaign" action: nothing goes
- * from open back to empty without immediately opening another campaign, and an
- * action with no caller is a guess about the future.
+ * There is still no "close campaign" action: nothing goes from open back to
+ * empty without immediately opening another campaign, and an action with no
+ * caller is a guess about the future.
+ *
+ * ## `at` marks the actions that get logged
+ *
+ * An action carrying `at` — an ISO 8601 timestamp captured by the caller at the
+ * click — is one this reducer records in `campaign.log`. An action without one
+ * is one the log deliberately ignores. That is not a coincidence dressed up as
+ * a rule: the log is the only thing here that needs a clock, the reducer cannot
+ * read one and stay pure, so the two facts are the same fact and the type says
+ * so.
+ *
+ * **What earns an entry: what happened to the community — its people, its base,
+ * its turn.** What does not: corrections to how any of that was written down.
+ * Setting a survivor's health, fixing a material count, renaming someone or the
+ * campaign, moving a point of Power around during planning — every one of those
+ * is the player repairing the record rather than something that happened, and a
+ * history full of repairs buries the history. `campaignStore.test.ts` walks the
+ * union and requires every member to be one or the other, so a new action
+ * cannot slip through unclassified.
  */
 export type CampaignAction =
   /**
@@ -82,6 +99,7 @@ export type CampaignAction =
       readonly name: string;
       readonly id: string;
       readonly createdAt: string;
+      readonly at: string;
     }
   /**
    * Adopt an already-parsed campaign — the output of `parseCampaignFile` on
@@ -91,8 +109,8 @@ export type CampaignAction =
    */
   | { readonly type: 'campaign/loaded'; readonly campaign: Campaign }
   | { readonly type: 'campaign/renamed'; readonly name: string }
-  | { readonly type: 'campaign/phaseSet'; readonly phase: CampaignPhase }
-  | { readonly type: 'campaign/turnAdvanced' }
+  | { readonly type: 'campaign/phaseSet'; readonly phase: CampaignPhase; readonly at: string }
+  | { readonly type: 'campaign/turnAdvanced'; readonly at: string }
   /**
    * Record whether the starting community is finished.
    *
@@ -100,7 +118,11 @@ export type CampaignAction =
    * control that turns a rule off permanently on one misplaced thumb is a door
    * that should not close.
    */
-  | { readonly type: 'campaign/startingCommunityBuiltSet'; readonly built: boolean }
+  | {
+      readonly type: 'campaign/startingCommunityBuiltSet';
+      readonly built: boolean;
+      readonly at: string;
+    }
   /**
    * Add a survivor to the community.
    *
@@ -113,6 +135,7 @@ export type CampaignAction =
       readonly name: string;
       readonly tier: Tier;
       readonly id: string;
+      readonly at: string;
     }
   /**
    * Add a survivor brought back from a mission.
@@ -127,6 +150,7 @@ export type CampaignAction =
       readonly tier: FieldRecruitTier;
       readonly roll: D10Result;
       readonly id: string;
+      readonly at: string;
     }
   | { readonly type: 'survivor/renamed'; readonly id: string; readonly name: string }
   /**
@@ -166,11 +190,17 @@ export type CampaignAction =
    * three purchase actions carry no price: the cost is a rule, so
    * `src/engine/advancement` works it out and re-checks the purchase itself.
    */
-  | { readonly type: 'survivor/skillLevelBought'; readonly id: string; readonly skill: Skill }
+  | {
+      readonly type: 'survivor/skillLevelBought';
+      readonly id: string;
+      readonly skill: Skill;
+      readonly at: string;
+    }
   | {
       readonly type: 'survivor/commonSkillBought';
       readonly id: string;
       readonly skill: CommonSkill;
+      readonly at: string;
     }
   /**
    * Promote a survivor one Tier, rebuilding their stat array.
@@ -181,8 +211,13 @@ export type CampaignAction =
    * was nothing to choose — the engine re-checks that and promotes nobody if
    * there was.
    */
-  | { readonly type: 'survivor/tierBought'; readonly id: string; readonly raise: Stat | null }
-  | { readonly type: 'survivor/removed'; readonly id: string }
+  | {
+      readonly type: 'survivor/tierBought';
+      readonly id: string;
+      readonly raise: Stat | null;
+      readonly at: string;
+    }
+  | { readonly type: 'survivor/removed'; readonly id: string; readonly at: string }
   /**
    * Claims a base for a community that has none.
    *
@@ -191,7 +226,7 @@ export type CampaignAction =
    * so claiming copies nothing and there is nothing here to fall out of sync
    * with the rules. What the player does to it afterwards is recorded per slot.
    */
-  | { readonly type: 'base/claimed'; readonly base: BaseId }
+  | { readonly type: 'base/claimed'; readonly base: BaseId; readonly at: string }
   /**
    * Builds a facility into a slot, spending its Hardware.
    *
@@ -220,6 +255,7 @@ export type CampaignAction =
       readonly slot: string;
       readonly facility: FacilityId;
       readonly labor: number;
+      readonly at: string;
     }
   /** Adds an upgrade to whatever stands in the slot. `labor` rides along for the same reason. */
   | {
@@ -227,9 +263,15 @@ export type CampaignAction =
       readonly slot: string;
       readonly upgrade: UpgradeId;
       readonly labor: number;
+      readonly at: string;
     }
   /** Clears the rubble out of a slot, adding back whatever the project yields. */
-  | { readonly type: 'slot/cleared'; readonly slot: string; readonly labor: number }
+  | {
+      readonly type: 'slot/cleared';
+      readonly slot: string;
+      readonly labor: number;
+      readonly at: string;
+    }
   /**
    * Puts a point of Power or Water on a slot, or takes it off.
    *
@@ -251,7 +293,11 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
     case 'campaign/started':
       return {
         status: 'open',
-        campaign: createNewCampaign(action.name, { id: action.id, createdAt: action.createdAt }),
+        campaign: logged(
+          createNewCampaign(action.name, { id: action.id, createdAt: action.createdAt }),
+          action.at,
+          { kind: 'campaign-started', name: action.name },
+        ),
       };
 
     case 'campaign/loaded':
@@ -260,8 +306,18 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
     case 'campaign/renamed':
       return withCampaign(state, (campaign) => ({ ...campaign, name: action.name }));
 
+    /**
+     * Sets the phase, then logs — so the entry's own `phase` is the one just
+     * entered and the event carries no phase of its own. Setting the phase the
+     * campaign is already in changes nothing and records nothing: the log holds
+     * what happened, and nothing happened.
+     */
     case 'campaign/phaseSet':
-      return withCampaign(state, (campaign) => ({ ...campaign, phase: action.phase }));
+      return withCampaign(state, (campaign) =>
+        campaign.phase === action.phase
+          ? campaign
+          : logged({ ...campaign, phase: action.phase }, action.at, { kind: 'phase-entered' }),
+      );
 
     /**
      * Increments the turn and nothing else. Resetting the phase alongside it
@@ -270,35 +326,64 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
      * the phase explicitly.
      */
     case 'campaign/turnAdvanced':
-      return withCampaign(state, (campaign) => ({ ...campaign, turn: campaign.turn + 1 }));
+      return withCampaign(state, (campaign) =>
+        logged({ ...campaign, turn: campaign.turn + 1 }, action.at, { kind: 'turn-began' }),
+      );
 
     case 'campaign/startingCommunityBuiltSet':
-      return withCampaign(state, (campaign) => ({
-        ...campaign,
-        startingCommunityBuilt: action.built,
-      }));
+      return withCampaign(state, (campaign) =>
+        campaign.startingCommunityBuilt === action.built
+          ? campaign
+          : logged({ ...campaign, startingCommunityBuilt: action.built }, action.at, {
+              kind: 'starting-community-settled',
+              built: action.built,
+            }),
+      );
 
     case 'survivor/added':
-      return withCampaign(state, (campaign) => ({
-        ...campaign,
-        survivors: [
-          ...campaign.survivors,
-          createSurvivor(action.name, action.tier, { id: action.id }),
-        ],
-      }));
+      return withCampaign(state, (campaign) =>
+        logged(
+          {
+            ...campaign,
+            survivors: [
+              ...campaign.survivors,
+              createSurvivor(action.name, action.tier, { id: action.id }),
+            ],
+          },
+          action.at,
+          {
+            kind: 'survivor-added',
+            survivor: action.id,
+            name: action.name,
+            tier: action.tier,
+          },
+        ),
+      );
 
     /**
      * Renaming is by id rather than by index: the roster is reordered by
      * removals, and a stale index renames the wrong person.
      */
     case 'survivor/recruited':
-      return withCampaign(state, (campaign) => ({
-        ...campaign,
-        survivors: [
-          ...campaign.survivors,
-          recruitSurvivor(action.name, action.tier, action.roll, { id: action.id }),
-        ],
-      }));
+      return withCampaign(state, (campaign) =>
+        logged(
+          {
+            ...campaign,
+            survivors: [
+              ...campaign.survivors,
+              recruitSurvivor(action.name, action.tier, action.roll, { id: action.id }),
+            ],
+          },
+          action.at,
+          {
+            kind: 'survivor-recruited',
+            survivor: action.id,
+            name: action.name,
+            tier: action.tier,
+            roll: action.roll,
+          },
+        ),
+      );
 
     case 'survivor/renamed':
       return editSurvivor(state, action.id, (survivor) => ({ ...survivor, name: action.name }));
@@ -338,22 +423,65 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
     /**
      * The three purchases delegate wholesale. Each `with*Bought` re-runs its own
-     * price and legality check and returns the survivor unchanged when the
+     * price and legality check and **returns the survivor unchanged** when the
      * purchase is blocked, so this reducer cannot spend XP the survivor does not
      * have by forgetting to ask — there is nothing here to forget.
+     *
+     * That same unchanged return is what `editSurvivorLogged` reads to decide
+     * whether anything happened. A refused purchase leaves no entry, because a
+     * log of attempts is not a log of a campaign.
      */
     case 'survivor/skillLevelBought':
-      return editSurvivor(state, action.id, (survivor) =>
-        withSkillLevelBought(survivor, action.skill),
-      );
+      return editSurvivorLogged(state, action.id, action.at, (survivor) => {
+        const bought = withSkillLevelBought(survivor, action.skill);
+        if (bought === survivor) return null;
+
+        return {
+          survivor: bought,
+          event: {
+            kind: 'skill-level-bought',
+            survivor: survivor.id,
+            name: survivor.name,
+            skill: action.skill,
+            // The level reached, read off the result rather than worked out
+            // here: what a purchase buys is `advancement.ts`'s to say.
+            level: bought.skills[action.skill] ?? 0,
+          },
+        };
+      });
 
     case 'survivor/commonSkillBought':
-      return editSurvivor(state, action.id, (survivor) =>
-        withCommonSkillBought(survivor, action.skill),
-      );
+      return editSurvivorLogged(state, action.id, action.at, (survivor) => {
+        const bought = withCommonSkillBought(survivor, action.skill);
+        if (bought === survivor) return null;
+
+        return {
+          survivor: bought,
+          event: {
+            kind: 'common-skill-bought',
+            survivor: survivor.id,
+            name: survivor.name,
+            skill: action.skill,
+            score: bought[action.skill],
+          },
+        };
+      });
 
     case 'survivor/tierBought':
-      return editSurvivor(state, action.id, (survivor) => withTierBought(survivor, action.raise));
+      return editSurvivorLogged(state, action.id, action.at, (survivor) => {
+        const promoted = withTierBought(survivor, action.raise);
+        if (promoted === survivor) return null;
+
+        return {
+          survivor: promoted,
+          event: {
+            kind: 'survivor-promoted',
+            survivor: survivor.id,
+            name: survivor.name,
+            tier: promoted.tier,
+          },
+        };
+      });
 
     /**
      * **Refuses a base for a community that already has one.**
@@ -371,7 +499,12 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
      */
     case 'base/claimed':
       return withCampaign(state, (campaign) =>
-        campaign.base === null ? { ...campaign, base: { id: action.base, slots: {} } } : campaign,
+        campaign.base === null
+          ? logged({ ...campaign, base: { id: action.base, slots: {} } }, action.at, {
+              kind: 'base-claimed',
+              base: action.base,
+            })
+          : campaign,
       );
 
     case 'campaign/materialSet':
@@ -389,25 +522,40 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
      */
     case 'facility/built':
       return withCampaign(state, (campaign) =>
-        withFacilityBuilt(campaign, {
-          slot: action.slot,
-          facility: action.facility,
-          labor: action.labor,
-        }),
+        loggedIfChanged(
+          campaign,
+          withFacilityBuilt(campaign, {
+            slot: action.slot,
+            facility: action.facility,
+            labor: action.labor,
+          }),
+          action.at,
+          { kind: 'facility-built', slot: action.slot, facility: action.facility },
+        ),
       );
 
     case 'upgrade/built':
       return withCampaign(state, (campaign) =>
-        withUpgradeBuilt(campaign, {
-          slot: action.slot,
-          upgrade: action.upgrade,
-          labor: action.labor,
-        }),
+        loggedIfChanged(
+          campaign,
+          withUpgradeBuilt(campaign, {
+            slot: action.slot,
+            upgrade: action.upgrade,
+            labor: action.labor,
+          }),
+          action.at,
+          { kind: 'upgrade-built', slot: action.slot, upgrade: action.upgrade },
+        ),
       );
 
     case 'slot/cleared':
       return withCampaign(state, (campaign) =>
-        withSlotCleared(campaign, { slot: action.slot, labor: action.labor }),
+        loggedIfChanged(
+          campaign,
+          withSlotCleared(campaign, { slot: action.slot, labor: action.labor }),
+          action.at,
+          { kind: 'slot-cleared', slot: action.slot },
+        ),
       );
 
     case 'utility/toggled':
@@ -419,11 +567,31 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         }),
       );
 
+    /**
+     * Reads the survivor before removing them, because the entry has to outlive
+     * the roster: once they are gone their name is the only thing left to
+     * render, and it is nowhere else in the campaign. An id that is not on the
+     * roster removes nobody and records nothing.
+     */
     case 'survivor/removed':
-      return withCampaign(state, (campaign) => ({
-        ...campaign,
-        survivors: campaign.survivors.filter((survivor) => survivor.id !== action.id),
-      }));
+      return withCampaign(state, (campaign) => {
+        const leaving = campaign.survivors.find((survivor) => survivor.id === action.id);
+        if (leaving === undefined) return campaign;
+
+        return logged(
+          {
+            ...campaign,
+            survivors: campaign.survivors.filter((survivor) => survivor.id !== action.id),
+          },
+          action.at,
+          {
+            kind: 'survivor-left',
+            survivor: leaving.id,
+            name: leaving.name,
+            tier: leaving.tier,
+          },
+        );
+      });
 
     default:
       return assertNever(action);
@@ -447,6 +615,58 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
  * not on the roster changes nothing — the survivor may have been removed
  * between a control rendering and being pressed.
  */
+/**
+ * The campaign the edit produced, with an entry on it — unless the edit
+ * refused, in which case neither.
+ *
+ * Reference equality is the test, and it is exact rather than a heuristic:
+ * every `with*` in `src/engine` returns the campaign it was given when a
+ * blocker stops it, so `after === before` is that refusal and nothing else.
+ */
+function loggedIfChanged(
+  before: Campaign,
+  after: Campaign,
+  at: string,
+  event: CampaignEvent,
+): Campaign {
+  return after === before ? before : logged(after, at, event);
+}
+
+/**
+ * Applies an edit to one survivor and records what it did, or does neither.
+ *
+ * The edit returns `null` for "nothing happened", which is how a refused
+ * purchase leaves the campaign — and the log — untouched. It returns the event
+ * alongside the new survivor rather than the store working one out afterwards,
+ * because the interesting fields (the level reached, the Tier reached) are on
+ * the *result*, and the name is on the survivor as they were before.
+ */
+function editSurvivorLogged(
+  state: CampaignState,
+  id: string,
+  at: string,
+  edit: (survivor: Survivor) => { survivor: Survivor; event: CampaignEvent } | null,
+): CampaignState {
+  return withCampaign(state, (campaign) => {
+    const found = campaign.survivors.find((survivor) => survivor.id === id);
+    if (found === undefined) return campaign;
+
+    const done = edit(found);
+    if (done === null) return campaign;
+
+    return logged(
+      {
+        ...campaign,
+        survivors: campaign.survivors.map((survivor) =>
+          survivor.id === id ? done.survivor : survivor,
+        ),
+      },
+      at,
+      done.event,
+    );
+  });
+}
+
 function editSurvivor(
   state: CampaignState,
   id: string,

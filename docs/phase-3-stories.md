@@ -320,6 +320,15 @@ and the app already does half a dozen things worth recording.
 **Out of scope:** markdown export (Phase 8) and undo (Phase 8). Both read this shape; neither
 changes it.
 
+**Three things this story turned out to include.** An action carrying `at` is exactly an action
+that gets logged — the log is the only thing in the store that needs a clock, the reducer cannot
+read one and stay pure, so the two facts are the same fact and the action union says so. The
+property suite rejected the first attempt at exporting an event: written through untouched, an
+event read back from a file re-serialises in *that file's* key order, so the exporter sorts its
+fields instead. And `in` turned out to be the wrong way to look up a catalogue entry anywhere in
+`saveFile.ts` — it walks the prototype chain, so a save naming a facility `toString` passed
+validation and handed the next screen a function.
+
 ---
 
 ## Z3-3 — The turn counter and the phase walk

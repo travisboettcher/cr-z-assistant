@@ -1,10 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { CAMPAIGN_PHASES } from '../data/turn';
+import { CAMPAIGN_PHASES, type CampaignPhase } from '../data/turn';
 import { createNewCampaign } from '../engine/campaign';
 import type { Campaign } from '../engine/campaign';
+import type { CampaignEvent, LogEntry } from '../engine/log';
 import { createSurvivor, recruitSurvivor } from '../engine/survivor';
 import { INITIAL_CAMPAIGN_STATE, campaignReducer } from './campaignStore';
 import type { CampaignAction, CampaignState } from './campaignStore';
+
+/**
+ * A fixed dispatch time, so an entry the log stamps is a value a test can
+ * assert on rather than a moving clock. Every logged action carries one — see
+ * the note on `at` in `campaignStore.ts`.
+ */
+const AT = '2026-09-08T21:00:00.000Z';
+
+/**
+ * One log entry, stamped at `AT`, filed where the campaign was when it
+ * happened. Written out rather than reaching for `logged` so that a test says
+ * what it expects instead of asking the code under test what it should have
+ * produced.
+ */
+function entry(turn: number, phase: CampaignPhase, event: CampaignEvent): LogEntry {
+  return { turn, phase, at: AT, event };
+}
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 const OTHER = { id: '99999999-8888-7777-6666-555555555555', createdAt: '2026-09-01T00:00:00.000Z' };
@@ -33,15 +51,19 @@ describe('INITIAL_CAMPAIGN_STATE', () => {
 describe('campaign/started', () => {
   const start: CampaignAction = {
     type: 'campaign/started',
+    at: AT,
     name: 'Cedar Hollow',
     id: FIXED.id,
     createdAt: FIXED.createdAt,
   };
 
-  it('opens a fresh campaign from the empty state', () => {
+  it('opens a fresh campaign from the empty state, with the start recorded', () => {
     const campaign = expectOpen(campaignReducer(INITIAL_CAMPAIGN_STATE, start));
 
-    expect(campaign).toEqual(createNewCampaign('Cedar Hollow', FIXED));
+    expect(campaign).toEqual({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      log: [entry(1, 'mission', { kind: 'campaign-started', name: 'Cedar Hollow' })],
+    });
   });
 
   it('takes its id and timestamp from the action rather than generating them', () => {
@@ -124,13 +146,41 @@ describe('campaign/renamed', () => {
 
 describe('campaign/phaseSet', () => {
   it.each(CAMPAIGN_PHASES)('moves the campaign to the %s phase', (phase) => {
+    // Starts somewhere else in every case, so that every phase is a real move
+    // rather than one of them silently exercising the no-op below.
+    const before: Campaign = { ...createNewCampaign('Cedar Hollow', FIXED), phase: 'planning' };
+
+    const after = expectOpen(
+      campaignReducer(openState(before), { type: 'campaign/phaseSet', at: AT, phase }),
+    );
+
+    if (phase === 'planning') {
+      expect(after).toEqual(before);
+      return;
+    }
+
+    // Logged *after* the change, so the entry sits in the phase just entered
+    // and the event does not repeat it.
+    expect(after).toEqual({
+      ...before,
+      phase,
+      log: [entry(before.turn, phase, { kind: 'phase-entered' })],
+    });
+  });
+
+  it('records nothing for a phase the campaign is already in', () => {
     const before = createNewCampaign('Cedar Hollow', FIXED);
 
     const after = expectOpen(
-      campaignReducer(openState(before), { type: 'campaign/phaseSet', phase }),
+      campaignReducer(openState(before), {
+        type: 'campaign/phaseSet',
+        at: AT,
+        phase: before.phase,
+      }),
     );
 
-    expect(after).toEqual({ ...before, phase });
+    expect(after).toEqual(before);
+    expect(after.log).toEqual([]);
   });
 });
 
@@ -138,7 +188,9 @@ describe('campaign/turnAdvanced', () => {
   it('increments the turn by one', () => {
     const before = createNewCampaign('Cedar Hollow', FIXED);
 
-    const after = expectOpen(campaignReducer(openState(before), { type: 'campaign/turnAdvanced' }));
+    const after = expectOpen(
+      campaignReducer(openState(before), { type: 'campaign/turnAdvanced', at: AT }),
+    );
 
     expect(after.turn).toBe(before.turn + 1);
   });
@@ -152,10 +204,16 @@ describe('campaign/turnAdvanced', () => {
     const midTurn: Campaign = { ...createNewCampaign('Cedar Hollow', FIXED), phase: 'management' };
 
     const after = expectOpen(
-      campaignReducer(openState(midTurn), { type: 'campaign/turnAdvanced' }),
+      campaignReducer(openState(midTurn), { type: 'campaign/turnAdvanced', at: AT }),
     );
 
-    expect(after).toEqual({ ...midTurn, turn: midTurn.turn + 1 });
+    // The entry is filed under the turn that has just begun, not the one that
+    // ended — the store advances first and records second.
+    expect(after).toEqual({
+      ...midTurn,
+      turn: midTurn.turn + 1,
+      log: [entry(midTurn.turn + 1, 'management', { kind: 'turn-began' })],
+    });
   });
 });
 
@@ -165,12 +223,14 @@ describe('the survivor actions', () => {
     let state = openState();
     state = campaignReducer(state, {
       type: 'survivor/added',
+      at: AT,
       name: 'Earl Rhodes',
       tier: 4,
       id: SURVIVOR_ID,
     });
     return campaignReducer(state, {
       type: 'survivor/added',
+      at: AT,
       name: 'Carla Proust',
       tier: 3,
       id: OTHER_SURVIVOR_ID,
@@ -249,7 +309,7 @@ describe('the survivor actions', () => {
 
   it('removes only the named survivor', () => {
     const campaign = expectOpen(
-      campaignReducer(withRoster(), { type: 'survivor/removed', id: SURVIVOR_ID }),
+      campaignReducer(withRoster(), { type: 'survivor/removed', at: AT, id: SURVIVOR_ID }),
     );
 
     expect(campaign.survivors.map((survivor) => survivor.name)).toEqual(['Carla Proust']);
@@ -276,14 +336,21 @@ describe('the survivor actions', () => {
 describe('editing actions against the empty state', () => {
   const editingActions: readonly CampaignAction[] = [
     { type: 'campaign/renamed', name: 'Millbrook' },
-    { type: 'campaign/phaseSet', phase: 'planning' },
-    { type: 'campaign/turnAdvanced' },
-    { type: 'campaign/startingCommunityBuiltSet', built: true },
-    { type: 'survivor/added', name: 'Earl Rhodes', tier: 4, id: SURVIVOR_ID },
-    { type: 'survivor/recruited', name: 'Carla Proust', tier: 3, roll: 6, id: OTHER_SURVIVOR_ID },
+    { type: 'campaign/phaseSet', at: AT, phase: 'planning' },
+    { type: 'campaign/turnAdvanced', at: AT },
+    { type: 'campaign/startingCommunityBuiltSet', at: AT, built: true },
+    { type: 'survivor/added', at: AT, name: 'Earl Rhodes', tier: 4, id: SURVIVOR_ID },
+    {
+      type: 'survivor/recruited',
+      at: AT,
+      name: 'Carla Proust',
+      tier: 3,
+      roll: 6,
+      id: OTHER_SURVIVOR_ID,
+    },
     { type: 'survivor/renamed', id: SURVIVOR_ID, name: 'Earl Rhodes Jr' },
     { type: 'survivor/hpSet', id: SURVIVOR_ID, currentHp: 1 },
-    { type: 'survivor/removed', id: SURVIVOR_ID },
+    { type: 'survivor/removed', at: AT, id: SURVIVOR_ID },
   ];
 
   for (const action of editingActions) {
@@ -302,17 +369,30 @@ describe('editing actions against the empty state', () => {
  */
 describe('purity', () => {
   const allActions: readonly CampaignAction[] = [
-    { type: 'campaign/started', name: 'Millbrook', id: OTHER.id, createdAt: OTHER.createdAt },
+    {
+      type: 'campaign/started',
+      at: AT,
+      name: 'Millbrook',
+      id: OTHER.id,
+      createdAt: OTHER.createdAt,
+    },
     { type: 'campaign/loaded', campaign: createNewCampaign('Imported', OTHER) },
     { type: 'campaign/renamed', name: 'Millbrook' },
-    { type: 'campaign/phaseSet', phase: 'advancement' },
-    { type: 'campaign/turnAdvanced' },
-    { type: 'campaign/startingCommunityBuiltSet', built: true },
-    { type: 'survivor/added', name: 'Earl Rhodes', tier: 4, id: SURVIVOR_ID },
-    { type: 'survivor/recruited', name: 'Carla Proust', tier: 3, roll: 6, id: OTHER_SURVIVOR_ID },
+    { type: 'campaign/phaseSet', at: AT, phase: 'advancement' },
+    { type: 'campaign/turnAdvanced', at: AT },
+    { type: 'campaign/startingCommunityBuiltSet', at: AT, built: true },
+    { type: 'survivor/added', at: AT, name: 'Earl Rhodes', tier: 4, id: SURVIVOR_ID },
+    {
+      type: 'survivor/recruited',
+      at: AT,
+      name: 'Carla Proust',
+      tier: 3,
+      roll: 6,
+      id: OTHER_SURVIVOR_ID,
+    },
     { type: 'survivor/renamed', id: SURVIVOR_ID, name: 'Earl Rhodes Jr' },
     { type: 'survivor/hpSet', id: SURVIVOR_ID, currentHp: 1 },
-    { type: 'survivor/removed', id: SURVIVOR_ID },
+    { type: 'survivor/removed', at: AT, id: SURVIVOR_ID },
   ];
 
   for (const action of allActions) {
@@ -359,18 +439,47 @@ describe('campaign/startingCommunityBuiltSet', () => {
     const built = expectOpen(
       campaignReducer(openState(before), {
         type: 'campaign/startingCommunityBuiltSet',
+        at: AT,
         built: true,
       }),
     );
-    expect(built).toEqual({ ...before, startingCommunityBuilt: true });
+    expect(built).toEqual({
+      ...before,
+      startingCommunityBuilt: true,
+      log: [entry(1, 'mission', { kind: 'starting-community-settled', built: true })],
+    });
 
     const unbuilt = expectOpen(
       campaignReducer(openState(built), {
         type: 'campaign/startingCommunityBuiltSet',
+        at: AT,
         built: false,
       }),
     );
-    expect(unbuilt).toEqual(before);
+    // Back to where it started, except the log — which is the point of an
+    // append-only log: a reversal is a second thing that happened, not the
+    // undoing of the first.
+    expect(unbuilt).toEqual({
+      ...before,
+      log: [
+        entry(1, 'mission', { kind: 'starting-community-settled', built: true }),
+        entry(1, 'mission', { kind: 'starting-community-settled', built: false }),
+      ],
+    });
+  });
+
+  it('records nothing for an answer the campaign already gives', () => {
+    const before = createNewCampaign('Cedar Hollow', FIXED);
+
+    const after = expectOpen(
+      campaignReducer(openState(before), {
+        type: 'campaign/startingCommunityBuiltSet',
+        at: AT,
+        built: before.startingCommunityBuilt,
+      }),
+    );
+
+    expect(after).toEqual(before);
   });
 });
 
@@ -379,6 +488,7 @@ describe('survivor/recruited', () => {
     const campaign = expectOpen(
       campaignReducer(openState(), {
         type: 'survivor/recruited',
+        at: AT,
         name: 'Carla Proust',
         tier: 3,
         roll: 6,
@@ -396,12 +506,14 @@ describe('survivor/recruited', () => {
   it('appends to the roster like any other arrival', () => {
     let state = campaignReducer(openState(), {
       type: 'survivor/added',
+      at: AT,
       name: 'Earl Rhodes',
       tier: 4,
       id: SURVIVOR_ID,
     });
     state = campaignReducer(state, {
       type: 'survivor/recruited',
+      at: AT,
       name: 'Carla Proust',
       tier: 3,
       roll: 6,
@@ -417,6 +529,7 @@ describe('spending experience', () => {
   function withCitizen(xp: number): CampaignState {
     let state = campaignReducer(openState(), {
       type: 'survivor/added',
+      at: AT,
       name: 'Marcus Webb',
       tier: 2,
       id: SURVIVOR_ID,
@@ -449,6 +562,7 @@ describe('spending experience', () => {
 
     const levelled = campaignReducer(start, {
       type: 'survivor/skillLevelBought',
+      at: AT,
       id: SURVIVOR_ID,
       skill: 'scavenge',
     });
@@ -457,6 +571,7 @@ describe('spending experience', () => {
 
     const faster = campaignReducer(start, {
       type: 'survivor/commonSkillBought',
+      at: AT,
       id: SURVIVOR_ID,
       skill: 'move',
     });
@@ -473,6 +588,7 @@ describe('spending experience', () => {
 
     const after = campaignReducer(broke, {
       type: 'survivor/commonSkillBought',
+      at: AT,
       id: SURVIVOR_ID,
       skill: 'defense',
     });
@@ -483,6 +599,7 @@ describe('spending experience', () => {
   it('promotes a survivor, spending the price and rebuilding their stats', () => {
     const after = campaignReducer(withCitizen(6), {
       type: 'survivor/tierBought',
+      at: AT,
       id: SURVIVOR_ID,
       // A Citizen is 2/1/0/0, so which zero becomes the Leader's 1 is the
       // player's (pg. 18) and rides on the action.
@@ -503,6 +620,7 @@ describe('spending experience', () => {
     const before = withCitizen(6);
     const after = campaignReducer(before, {
       type: 'survivor/tierBought',
+      at: AT,
       id: SURVIVOR_ID,
       raise: null,
     });
@@ -513,12 +631,14 @@ describe('spending experience', () => {
   it('spends nobody else’s experience', () => {
     let state = campaignReducer(withCitizen(20), {
       type: 'survivor/added',
+      at: AT,
       name: 'Earl Rhodes',
       tier: 4,
       id: OTHER_SURVIVOR_ID,
     });
     state = campaignReducer(state, {
       type: 'survivor/commonSkillBought',
+      at: AT,
       id: SURVIVOR_ID,
       skill: 'move',
     });
@@ -542,6 +662,7 @@ describe('the actions only the sheet was testing', () => {
   function withSurvivor(): CampaignState {
     return campaignReducer(openState(), {
       type: 'survivor/added',
+      at: AT,
       name: 'Earl Rhodes',
       tier: 4,
       id: SURVIVOR_ID,
@@ -642,6 +763,7 @@ describe('a survivor added rather than recruited', () => {
     const campaign = expectOpen(
       campaignReducer(openState(), {
         type: 'survivor/added',
+        at: AT,
         name: 'Marcus Webb',
         tier: 2,
         id: SURVIVOR_ID,
@@ -657,6 +779,7 @@ describe('a survivor added rather than recruited', () => {
     const campaign = expectOpen(
       campaignReducer(openState(), {
         type: 'survivor/recruited',
+        at: AT,
         name: 'Marcus Webb',
         tier: 2,
         roll: 6,
@@ -670,7 +793,11 @@ describe('a survivor added rather than recruited', () => {
 
 describe('base/claimed', () => {
   it('claims a base for a community that has none', () => {
-    const state = campaignReducer(openState(), { type: 'base/claimed', base: 'hobby-farm' });
+    const state = campaignReducer(openState(), {
+      type: 'base/claimed',
+      at: AT,
+      base: 'hobby-farm',
+    });
 
     // Nothing but the id and an empty slot record: the layout, the built-in
     // facilities and the clearing projects are rules, and they stay in the data.
@@ -678,7 +805,11 @@ describe('base/claimed', () => {
   });
 
   it('refuses to replace a base that is already claimed', () => {
-    const claimed = campaignReducer(openState(), { type: 'base/claimed', base: 'hobby-farm' });
+    const claimed = campaignReducer(openState(), {
+      type: 'base/claimed',
+      at: AT,
+      base: 'hobby-farm',
+    });
     const built = {
       status: 'open' as const,
       campaign: {
@@ -687,7 +818,7 @@ describe('base/claimed', () => {
       },
     };
 
-    const again = campaignReducer(built, { type: 'base/claimed', base: 'distillery' });
+    const again = campaignReducer(built, { type: 'base/claimed', at: AT, base: 'distillery' });
 
     // Moving house is the Claim a New Base mission (Phase 4). Allowing it here
     // would drop every slot the player had built into, in one dispatch.
@@ -699,7 +830,7 @@ describe('base/claimed', () => {
 
   it('does nothing when no campaign is open', () => {
     expect(
-      campaignReducer(INITIAL_CAMPAIGN_STATE, { type: 'base/claimed', base: 'hobby-farm' }),
+      campaignReducer(INITIAL_CAMPAIGN_STATE, { type: 'base/claimed', at: AT, base: 'hobby-farm' }),
     ).toEqual(INITIAL_CAMPAIGN_STATE);
   });
 });
@@ -718,6 +849,7 @@ describe('facility/built', () => {
   it('builds the facility and spends its Hardware', () => {
     const state = campaignReducer(withBase(), {
       type: 'facility/built',
+      at: AT,
       slot: 'garage',
       facility: 'workshop',
       labor: 2,
@@ -736,6 +868,7 @@ describe('facility/built', () => {
     const before = withBase();
     const state = campaignReducer(before, {
       type: 'facility/built',
+      at: AT,
       slot: 'kitchen',
       facility: 'workshop',
       labor: 2,
@@ -748,6 +881,7 @@ describe('facility/built', () => {
     expect(
       campaignReducer(INITIAL_CAMPAIGN_STATE, {
         type: 'facility/built',
+        at: AT,
         slot: 'garage',
         facility: 'workshop',
         labor: 2,
@@ -802,6 +936,7 @@ describe('upgrade/built', () => {
   it('adds the upgrade and spends its Hardware', () => {
     const state = campaignReducer(kitchen(), {
       type: 'upgrade/built',
+      at: AT,
       slot: 'kitchen',
       upgrade: 'gas-range',
       labor: 2,
@@ -817,6 +952,7 @@ describe('upgrade/built', () => {
     // A Spotlight belongs to a Watchtower, not a Kitchen.
     const state = campaignReducer(before, {
       type: 'upgrade/built',
+      at: AT,
       slot: 'kitchen',
       upgrade: 'spotlight',
       labor: 2,
@@ -829,6 +965,7 @@ describe('upgrade/built', () => {
     expect(
       campaignReducer(INITIAL_CAMPAIGN_STATE, {
         type: 'upgrade/built',
+        at: AT,
         slot: 'kitchen',
         upgrade: 'gas-range',
         labor: 2,
@@ -847,7 +984,12 @@ describe('slot/cleared', () => {
 
   it('clears the slot and credits what the project yields', () => {
     const campaign = expectOpen(
-      campaignReducer(farm(), { type: 'slot/cleared', slot: 'ruined-chicken-coop', labor: 2 }),
+      campaignReducer(farm(), {
+        type: 'slot/cleared',
+        at: AT,
+        slot: 'ruined-chicken-coop',
+        labor: 2,
+      }),
     );
 
     expect(campaign.base?.slots['ruined-chicken-coop']).toEqual({ cleared: true });
@@ -858,6 +1000,7 @@ describe('slot/cleared', () => {
     const before = farm();
     const state = campaignReducer(before, {
       type: 'slot/cleared',
+      at: AT,
       slot: 'ruined-chicken-coop',
       labor: 1,
     });
@@ -869,6 +1012,7 @@ describe('slot/cleared', () => {
     expect(
       campaignReducer(INITIAL_CAMPAIGN_STATE, {
         type: 'slot/cleared',
+        at: AT,
         slot: 'ruined-chicken-coop',
         labor: 2,
       }),
@@ -924,5 +1068,352 @@ describe('utility/toggled', () => {
         staffed: 1,
       }),
     ).toEqual(INITIAL_CAMPAIGN_STATE);
+  });
+});
+
+/**
+ * Every action, classified: does it earn a line in the campaign's history, and
+ * exactly which line?
+ *
+ * **The `Record` is half the point.** Keyed by the action union's own `type`, so
+ * an action added to the store without a decision here does not merely go
+ * untested — it fails the typecheck. The log's rule (what happened to the
+ * community, never a correction to how it was written down) is only as good as
+ * the guarantee that somebody applied it to every action, and that guarantee is
+ * this line rather than a reviewer's attention.
+ *
+ * **Carrying the whole expected entry is the other half.** An earlier draft
+ * held a `logs: boolean` and asserted the log's *length*, which passes just as
+ * happily when every event is built empty or with the wrong survivor's name in
+ * it — sixteen mutants survived saying exactly that. A count is not an
+ * assertion about a record; the record is.
+ *
+ * Each case carries an action that genuinely *does* something in `rich()`, and
+ * the test asserts that too: an action that changed nothing would satisfy
+ * "records nothing" for entirely the wrong reason.
+ */
+describe('what earns a line in the log', () => {
+  const LOGGED_SURVIVOR = '6b1f0a9c-77d2-4e35-91b8-0d4c2a5e83f7';
+  const DECOY = '0f3d8b51-4a26-4c19-b73e-8e5109cf2a64';
+
+  /**
+   * One campaign rich enough that every action below changes it: a claimed
+   * base with rubble in one slot, an empty outdoor slot, Hardware to spend, a
+   * turn late enough to build on, and a Citizen with skills and XP.
+   *
+   * **The Citizen is second on the roster, behind a survivor nothing touches.**
+   * Every lookup in the store is a `find` by id, and with a roster of one, a
+   * `find` that ignored its predicate entirely would return the right person
+   * anyway. Two mutants lived in exactly that gap.
+   */
+  function rich(): CampaignState {
+    return openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      turn: 3,
+      materials: { food: 1, fuel: 1, hardware: 9, rare: 0 },
+      survivors: [
+        createSurvivor('Ruby Vance', 1, { id: DECOY }),
+        {
+          ...createSurvivor('Marcus Webb', 2, { id: LOGGED_SURVIVOR }),
+          skills: { archery: 0 },
+          xp: 20,
+        },
+      ],
+      base: { id: 'hobby-farm', slots: {} },
+    });
+  }
+
+  /** The survivor fields every survivor event carries, as `rich()` has them. */
+  const WEBB = { survivor: LOGGED_SURVIVOR, name: 'Marcus Webb' } as const;
+
+  interface Policy {
+    readonly action: CampaignAction;
+    /** The entry it must leave behind, or `null` for what the log ignores. */
+    readonly entry: LogEntry | null;
+    /** For the one action that needs a campaign without a base. */
+    readonly state?: CampaignState;
+  }
+
+  const POLICY: Record<CampaignAction['type'], Policy> = {
+    'campaign/started': {
+      action: { type: 'campaign/started', at: AT, name: 'Millbrook', id: 'x', createdAt: AT },
+      // A new campaign, so turn 1 rather than `rich()`'s turn 3.
+      entry: entry(1, 'mission', { kind: 'campaign-started', name: 'Millbrook' }),
+    },
+    'campaign/phaseSet': {
+      action: { type: 'campaign/phaseSet', at: AT, phase: 'management' },
+      // Stamped after the move, so the entry sits in the phase just entered.
+      entry: entry(3, 'management', { kind: 'phase-entered' }),
+    },
+    'campaign/turnAdvanced': {
+      action: { type: 'campaign/turnAdvanced', at: AT },
+      // Likewise: the turn that has begun, not the one that ended.
+      entry: entry(4, 'mission', { kind: 'turn-began' }),
+    },
+    'campaign/startingCommunityBuiltSet': {
+      action: { type: 'campaign/startingCommunityBuiltSet', at: AT, built: true },
+      entry: entry(3, 'mission', { kind: 'starting-community-settled', built: true }),
+    },
+    'survivor/added': {
+      action: { type: 'survivor/added', at: AT, name: 'Ruby Vance', tier: 1, id: 'ruby' },
+      entry: entry(3, 'mission', {
+        kind: 'survivor-added',
+        survivor: 'ruby',
+        name: 'Ruby Vance',
+        tier: 1,
+      }),
+    },
+    'survivor/recruited': {
+      action: {
+        type: 'survivor/recruited',
+        at: AT,
+        name: 'Carla Proust',
+        tier: 2,
+        roll: 6,
+        id: 'carla',
+      },
+      entry: entry(3, 'mission', {
+        kind: 'survivor-recruited',
+        survivor: 'carla',
+        name: 'Carla Proust',
+        tier: 2,
+        roll: 6,
+      }),
+    },
+    'survivor/removed': {
+      action: { type: 'survivor/removed', at: AT, id: LOGGED_SURVIVOR },
+      entry: entry(3, 'mission', { kind: 'survivor-left', ...WEBB, tier: 2 }),
+    },
+    'survivor/tierBought': {
+      action: { type: 'survivor/tierBought', at: AT, id: LOGGED_SURVIVOR, raise: 'intelligence' },
+      // The Tier reached, not the one left behind.
+      entry: entry(3, 'mission', { kind: 'survivor-promoted', ...WEBB, tier: 3 }),
+    },
+    'survivor/skillLevelBought': {
+      action: { type: 'survivor/skillLevelBought', at: AT, id: LOGGED_SURVIVOR, skill: 'archery' },
+      // Level 1: Marcus holds Archery at 0, and a purchase buys the next one.
+      entry: entry(3, 'mission', {
+        kind: 'skill-level-bought',
+        ...WEBB,
+        skill: 'archery',
+        level: 1,
+      }),
+    },
+    'survivor/commonSkillBought': {
+      action: { type: 'survivor/commonSkillBought', at: AT, id: LOGGED_SURVIVOR, skill: 'move' },
+      // A Score, not a level: Move starts at 6 for everyone (pg. 9).
+      entry: entry(3, 'mission', {
+        kind: 'common-skill-bought',
+        ...WEBB,
+        skill: 'move',
+        score: 7,
+      }),
+    },
+    'base/claimed': {
+      action: { type: 'base/claimed', at: AT, base: 'small-town-home' },
+      state: openState(),
+      entry: entry(1, 'mission', { kind: 'base-claimed', base: 'small-town-home' }),
+    },
+    'facility/built': {
+      action: {
+        type: 'facility/built',
+        at: AT,
+        slot: 'front-yard',
+        facility: 'watchtower',
+        labor: 3,
+      },
+      entry: entry(3, 'mission', {
+        kind: 'facility-built',
+        slot: 'front-yard',
+        facility: 'watchtower',
+      }),
+    },
+    'upgrade/built': {
+      action: { type: 'upgrade/built', at: AT, slot: 'kitchen', upgrade: 'gas-range', labor: 2 },
+      entry: entry(3, 'mission', {
+        kind: 'upgrade-built',
+        slot: 'kitchen',
+        upgrade: 'gas-range',
+      }),
+    },
+    'slot/cleared': {
+      action: { type: 'slot/cleared', at: AT, slot: 'ruined-chicken-coop', labor: 2 },
+      entry: entry(3, 'mission', { kind: 'slot-cleared', slot: 'ruined-chicken-coop' }),
+    },
+
+    // Below: everything the log deliberately ignores.
+
+    // Which file is open is a fact about this browser tab, not about the
+    // campaign — and the campaign arriving brings its own log with it.
+    'campaign/loaded': {
+      action: { type: 'campaign/loaded', campaign: createNewCampaign('Millbrook', FIXED) },
+      entry: null,
+    },
+    // Renaming fixes a label. Nothing happened to the community.
+    'campaign/renamed': { action: { type: 'campaign/renamed', name: 'Millbrook' }, entry: null },
+    'survivor/renamed': {
+      action: { type: 'survivor/renamed', id: LOGGED_SURVIVOR, name: 'Marc Webb' },
+      entry: null,
+    },
+    // Health, stats, skills held and XP are all hand-entry standing in for
+    // phases that do not exist yet. When the Advancement Phase awards XP and
+    // the Management Phase deals damage, *those* are what earn an entry.
+    'survivor/hpSet': {
+      action: { type: 'survivor/hpSet', id: LOGGED_SURVIVOR, currentHp: 1 },
+      entry: null,
+    },
+    'survivor/statsSet': {
+      action: {
+        type: 'survivor/statsSet',
+        id: LOGGED_SURVIVOR,
+        stats: { strength: 1, dexterity: 2, intelligence: 0, cooperation: 0 },
+      },
+      entry: null,
+    },
+    'survivor/skillAdded': {
+      action: { type: 'survivor/skillAdded', id: LOGGED_SURVIVOR, skill: 'stealth' },
+      entry: null,
+    },
+    'survivor/skillRemoved': {
+      action: { type: 'survivor/skillRemoved', id: LOGGED_SURVIVOR, skill: 'archery' },
+      entry: null,
+    },
+    'survivor/xpSet': {
+      action: { type: 'survivor/xpSet', id: LOGGED_SURVIVOR, xp: 4 },
+      entry: null,
+    },
+    'campaign/materialSet': {
+      action: { type: 'campaign/materialSet', material: 'food', count: 5 },
+      entry: null,
+    },
+    // Power and Water move around several times while a turn is being planned.
+    // The turn's assignment is worth recording; the fiddling is not, and that
+    // entry belongs to the Planning Phase step rather than to each toggle.
+    'utility/toggled': {
+      action: { type: 'utility/toggled', slot: 'kitchen', utility: 'water', staffed: 2 },
+      entry: null,
+    },
+  };
+
+  for (const [type, policy] of Object.entries(POLICY)) {
+    it(`${policy.entry === null ? 'ignores' : 'records'} ${type}`, () => {
+      const state = policy.state ?? rich();
+      const before = expectOpen(state);
+
+      const after = expectOpen(campaignReducer(state, policy.action));
+
+      // The guard against a vacuous pass: an action that did nothing would
+      // satisfy `ignores` for the wrong reason entirely.
+      expect(after).not.toEqual(before);
+
+      // Every starting state here has an empty log, so the whole log is the
+      // assertion rather than a diff against what was already there.
+      expect(after.log).toEqual(policy.entry === null ? [] : [policy.entry]);
+    });
+  }
+
+  /**
+   * The refusals, which are the other half of "the log holds what happened".
+   *
+   * Each of these delegates to an engine function that returns what it was
+   * given when a blocker stops it, and the store reads that reference to decide
+   * whether anything happened. Without these, a store that logged the *attempt*
+   * would pass every test above.
+   */
+  describe('records nothing for an action that was refused', () => {
+    /** Marcus with no XP: every purchase below is unaffordable. */
+    function broke(): CampaignState {
+      const state = rich();
+      const campaign = expectOpen(state);
+
+      return openState({
+        ...campaign,
+        survivors: campaign.survivors.map((survivor) =>
+          survivor.id === LOGGED_SURVIVOR ? { ...survivor, xp: 0 } : survivor,
+        ),
+      });
+    }
+
+    it.each([
+      [
+        'a skill level nobody can afford',
+        { type: 'survivor/skillLevelBought', at: AT, id: LOGGED_SURVIVOR, skill: 'archery' },
+      ],
+      [
+        'a Move score nobody can afford',
+        { type: 'survivor/commonSkillBought', at: AT, id: LOGGED_SURVIVOR, skill: 'move' },
+      ],
+      [
+        'a promotion nobody can afford',
+        { type: 'survivor/tierBought', at: AT, id: LOGGED_SURVIVOR, raise: 'intelligence' },
+      ],
+    ] as const)('%s', (_label, action) => {
+      const before = expectOpen(broke());
+      const after = expectOpen(campaignReducer(broke(), action));
+
+      expect(after).toEqual(before);
+      expect(after.log).toEqual([]);
+    });
+
+    it('a survivor who is not on the roster', () => {
+      const before = expectOpen(rich());
+      const after = expectOpen(
+        campaignReducer(rich(), { type: 'survivor/removed', at: AT, id: 'nobody' }),
+      );
+
+      expect(after).toEqual(before);
+    });
+
+    it('a build the community cannot pay for', () => {
+      const poor = openState({
+        ...expectOpen(rich()),
+        materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+      });
+      const before = expectOpen(poor);
+
+      const after = expectOpen(
+        campaignReducer(poor, {
+          type: 'facility/built',
+          at: AT,
+          slot: 'front-yard',
+          facility: 'watchtower',
+          labor: 3,
+        }),
+      );
+
+      expect(after).toEqual(before);
+      expect(after.log).toEqual([]);
+    });
+  });
+
+  /**
+   * Append-only, checked as a prefix rather than as a length.
+   *
+   * A log that grew by one entry while quietly rewriting an older one would
+   * pass every count above. Nothing in the store can do that today — there is
+   * no action that edits an entry — and this is what keeps it true.
+   */
+  it('only ever grows, leaving what it already said alone', () => {
+    let state = rich();
+    const seen: LogEntry[] = [];
+
+    for (const [type, policy] of Object.entries(POLICY)) {
+      // The two that replace the campaign rather than change it. A new or
+      // imported campaign brings its own history, and it would be wrong for
+      // this one's to survive into it — so they are not counterexamples to
+      // append-only, they are a different operation.
+      if (type === 'campaign/started' || type === 'campaign/loaded') continue;
+      if (policy.state !== undefined) continue;
+
+      state = campaignReducer(state, policy.action);
+      const { log } = expectOpen(state);
+
+      expect(log.slice(0, seen.length)).toEqual(seen);
+      seen.push(...log.slice(seen.length));
+    }
+
+    // And the run did record something, so the prefix check had entries to be
+    // a claim about.
+    expect(seen.length).toBeGreaterThan(0);
   });
 });

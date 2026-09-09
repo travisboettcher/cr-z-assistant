@@ -5,6 +5,8 @@ import { createNewCampaign } from '../engine/campaign';
 import { CampaignProvider } from './CampaignProvider';
 import { useCampaign } from './useCampaign';
 
+const AT = '2026-09-08T21:00:00.000Z';
+
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 
 /**
@@ -25,6 +27,7 @@ function Probe() {
         onClick={() =>
           dispatch({
             type: 'campaign/started',
+            at: AT,
             name: 'Cedar Hollow',
             id: FIXED.id,
             createdAt: FIXED.createdAt,
@@ -33,7 +36,9 @@ function Probe() {
       >
         New campaign
       </button>
-      <button onClick={() => dispatch({ type: 'campaign/turnAdvanced' })}>Advance turn</button>
+      <button onClick={() => dispatch({ type: 'campaign/turnAdvanced', at: AT })}>
+        Advance turn
+      </button>
     </>
   );
 }

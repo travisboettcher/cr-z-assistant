@@ -28,12 +28,19 @@ export function CampaignEmptyState() {
      * The id and timestamp are generated here, at the click, and passed on the
      * action. That is what keeps the reducer a pure function of its inputs —
      * the impure values are the UI's job to capture, not the store's to invent.
+     *
+     * One clock read for both: the campaign's creation and the log entry that
+     * records it are the same moment, and two calls would put a millisecond
+     * between them for no reason anyone could explain later.
      */
+    const now = new Date().toISOString();
+
     dispatch({
       type: 'campaign/started',
       name: trimmed,
       id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      at: now,
     });
   }
 

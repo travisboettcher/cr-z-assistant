@@ -112,8 +112,7 @@ const originRecorded: MigrationStep = {
 /**
  * v4 → v5: campaigns can hold a base.
  *
- * **A no-op on data, for the third and last time in this chain — and the reason
- * is different again.** v1 → v2 changed nothing because `survivors` was already
+ * **A no-op on data, and the reason is different again.** v1 → v2 changed nothing because `survivors` was already
  * `[]`; v3 → v4 changed nothing because absent is what "no origin" means. Here
  * it is because `base` was already `null` and null still means the same thing:
  * a campaign that has not claimed a base. Every v4 campaign is in exactly that
@@ -131,12 +130,40 @@ const baseBecameReal: MigrationStep = {
   up: (previous) => previous,
 };
 
+/**
+ * v5 → v6: `log` stopped being a placeholder.
+ *
+ * **A no-op on data, and the closest parallel in this chain is v1 → v2** — the
+ * one where `survivors` became real. A v5 campaign's `log` is `[]`, which is
+ * already a valid v6 log, because v5 genuinely could not hold an entry: nothing
+ * in the app wrote one and `saveFile.ts` refused any file that arrived with a
+ * populated log.
+ *
+ * Backfilling is not on the table and is worth saying out loud. A v5 campaign
+ * has a base, a roster and a turn number, and every one of those is the *result*
+ * of things that happened — the log wants the things themselves, and a campaign
+ * saved before there was a log has no record of them. Inventing entries from
+ * the end state would produce a history that never happened, dated to a moment
+ * it did not happen in. An empty log on an old campaign is the truth.
+ *
+ * The bump earns its keep the way v4 → v5 did: a v6 save carrying a log,
+ * opened in a v5 build, hits that build's shape check and is told the file
+ * *"holds entries this version cannot read"* — a damaged-file message for a
+ * perfectly good file. Refusing on version instead says *"update the app"*.
+ */
+const logBecameReal: MigrationStep = {
+  from: 5,
+  to: 6,
+  up: (previous) => previous,
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
   startingCommunityBuiltRecorded,
   originRecorded,
   baseBecameReal,
+  logBecameReal,
 ];
 
 /** Why a save could not be brought forward. */
