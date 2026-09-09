@@ -44,6 +44,7 @@ import type { FacilityId, UpgradeId } from '../data/facilities';
 import type { CommonSkill, Skill } from '../data/skills';
 import type { Tier } from '../data/tiers';
 import type { CampaignPhase } from '../data/turn';
+import { phaseOf } from './turn';
 // Type-only, and the other half of a deliberate pair: `campaign.ts` imports
 // `LogEntry` from here. Both directions are erased at compile time, so there is
 // no runtime cycle — and the alternative, a third module holding one of them,
@@ -166,6 +167,12 @@ export interface LogEntry {
 export function logged(campaign: Campaign, at: string, event: CampaignEvent): Campaign {
   return {
     ...campaign,
-    log: [...campaign.log, { turn: campaign.turn, phase: campaign.phase, at, event }],
+    log: [
+      ...campaign.log,
+      // The phase, not the step. An entry is read as "turn 3, Planning", and
+      // stamping which of Planning's four steps it happened in would be more
+      // precision than anyone reading their own history wants.
+      { turn: campaign.turn, phase: phaseOf(campaign.step), at, event },
+    ],
   };
 }

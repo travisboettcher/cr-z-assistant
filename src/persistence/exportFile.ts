@@ -178,7 +178,7 @@ function inFileOrder(campaign: Campaign): Record<keyof Campaign, unknown> {
     // "no origin" means, so the file says it the same way the type does.
     origin: campaign.origin,
     turn: campaign.turn,
-    phase: campaign.phase,
+    step: campaign.step,
     materials: orderedMaterials(campaign),
     survivors: campaign.survivors.map(orderedSurvivor),
     startingCommunityBuilt: campaign.startingCommunityBuilt,

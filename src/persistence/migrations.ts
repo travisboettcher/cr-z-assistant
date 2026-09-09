@@ -11,6 +11,7 @@
  * someone's tablet months later.
  */
 
+import { CAMPAIGN_PHASES, TURN_STEPS } from '../data/turn';
 import { CURRENT_SCHEMA_VERSION, type Campaign } from '../engine/campaign';
 
 /**
@@ -157,6 +158,48 @@ const logBecameReal: MigrationStep = {
   up: (previous) => previous,
 };
 
+/**
+ * v6 → v7: a campaign records which *step* of the turn it is on, not which
+ * phase.
+ *
+ * **The first step in this chain that replaces a field rather than adding one,
+ * and the first that could get a campaign's position wrong.** A v6 campaign
+ * says `phase: 'management'` and nothing more; a v7 one says
+ * `step: 'check-for-rot'`. Every phase maps to the step it opens on, which is
+ * the only answer the old data supports.
+ *
+ * It is also, unavoidably, a *lossy* migration in one direction: a campaign
+ * paused half way through the Management Phase comes back at the top of it.
+ * That is the honest reading — a v6 build never recorded how far through a
+ * phase anyone was, so there is nothing to recover — but it is worth saying
+ * plainly, because the three destructive Management steps mean a player who
+ * had already fed the community could feed it twice. The first turn a v7 build
+ * opens an old campaign is the one to walk carefully.
+ *
+ * Mapping to the *first* step rather than the last is deliberate for the same
+ * reason. Landing at the top of the phase risks repeating work the player can
+ * see they have already done; landing at the bottom risks skipping work they
+ * have not, silently.
+ */
+const stepReplacedPhase: MigrationStep = {
+  from: 6,
+  to: 7,
+  up: (previous) => {
+    const { phase, ...rest } = previous;
+    const known = CAMPAIGN_PHASES.find((candidate) => candidate === phase);
+
+    return {
+      ...rest,
+      // An unreadable phase becomes the first step of the turn. `saveFile.ts`
+      // checks the shape after this runs, so a bad value could equally be left
+      // to fail there — but the chain's job is to produce the current shape,
+      // and handing on a field it knows is wrong would make the failure look
+      // like a bug in the newer code.
+      step: TURN_STEPS[known ?? 'mission'][0].id,
+    };
+  },
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -164,6 +207,7 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   originRecorded,
   baseBecameReal,
   logBecameReal,
+  stepReplacedPhase,
 ];
 
 /** Why a save could not be brought forward. */

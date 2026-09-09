@@ -14,6 +14,7 @@ import { useCampaign } from '../state/useCampaign';
 import { AppHeader } from './AppHeader';
 import { BaseSlotMap } from './BaseSlotMap';
 import { CampaignLog } from './CampaignLog';
+import { TurnWalk } from './TurnWalk';
 import { ClaimBase } from './ClaimBase';
 import { CampaignEmptyState } from './CampaignEmptyState';
 import { CampaignOverview } from './CampaignOverview';
@@ -55,11 +56,17 @@ export function App() {
           not the same as omitting it, and the narrowing here is free. */}
       {state.status === 'open' ? <AppHeader campaign={state.campaign} /> : <AppHeader />}
 
-      <SectionNav />
+      <SectionNav campaignOpen={state.status === 'open'} />
 
       <main className="mx-auto w-full max-w-4xl grow px-5 py-8">
         {state.status === 'open' ? (
           <div className="flex flex-col gap-6">
+            {/*
+             * First, above everything: the turn is the frame the rest of Phase
+             * 3 hangs inside, and where the table is in it is the question this
+             * screen exists to answer.
+             */}
+            <TurnWalk campaign={state.campaign} />
             <CampaignOverview campaign={state.campaign} />
             <SurvivorRoster campaign={state.campaign} onOpenSheet={setOpenSheetId} />
             {/*

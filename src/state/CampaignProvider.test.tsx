@@ -20,7 +20,7 @@ function Probe() {
     <>
       <p>
         {state.status === 'open'
-          ? `${state.campaign.name} — turn ${state.campaign.turn}`
+          ? `${state.campaign.name} — turn ${state.campaign.turn}, ${state.campaign.step}`
           : 'No campaign'}
       </p>
       <button
@@ -36,8 +36,8 @@ function Probe() {
       >
         New campaign
       </button>
-      <button onClick={() => dispatch({ type: 'campaign/turnAdvanced', at: AT })}>
-        Advance turn
+      <button onClick={() => dispatch({ type: 'turn/advanced', by: 'phase', at: AT })}>
+        Advance
       </button>
     </>
   );
@@ -63,7 +63,7 @@ describe('CampaignProvider', () => {
       </CampaignProvider>,
     );
 
-    expect(screen.getByText('Millbrook — turn 1')).toBeInTheDocument();
+    expect(screen.getByText('Millbrook — turn 1, select-mission')).toBeInTheDocument();
   });
 
   it('re-renders consumers after a dispatched action', async () => {
@@ -75,9 +75,12 @@ describe('CampaignProvider', () => {
     );
 
     await user.click(screen.getByRole('button', { name: 'New campaign' }));
-    await user.click(screen.getByRole('button', { name: 'Advance turn' }));
+    await user.click(screen.getByRole('button', { name: 'Advance' }));
 
-    expect(screen.getByText('Cedar Hollow — turn 2')).toBeInTheDocument();
+    // One phase on, not one turn: a turn ends off the end of the Management
+    // Phase and nowhere else, which is a rule the store reads rather than a
+    // number this action sets.
+    expect(screen.getByText('Cedar Hollow — turn 1, character-advancement')).toBeInTheDocument();
   });
 });
 

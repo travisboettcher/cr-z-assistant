@@ -355,6 +355,20 @@ facility, and until now there was no next turn to build it on.
 - Phases cannot be reached out of order by dispatching directly; the reducer holds the order, not
   the screen.
 
+**What this story turned out to change.** `Campaign.phase` is gone, replaced by `Campaign.step` in
+schema v7, with the phase derived from it. Storing both would be a redundant pair that can
+disagree — but the reason for storing the *finer* of the two is not tidiness: three Management
+steps are destructive (Rot removes survivors, Feed subtracts Food, Check Storage destroys the
+surplus), and a campaign resuming at "somewhere in the Management Phase" after a closed tab could
+not know which had already run. That makes v6 → v7 the first migration in the chain that can put a
+campaign in the *wrong* place rather than an incomplete one, and it maps each phase to the step
+that phase opens on: repeating work a player can see they have done beats silently skipping work
+they have not.
+
+Two actions went with it. `campaign/phaseSet` took any phase and `campaign/turnAdvanced` took
+none; both are replaced by a `turn/advanced` that carries no destination at all, so a screen can
+offer the wrong button but cannot invent a turn that runs Management before Planning.
+
 ---
 
 ## Z3-4 — Assignments, and schema v7

@@ -13,7 +13,7 @@ function campaign(overrides: Partial<Campaign> = {}): Campaign {
 
 describe('logged', () => {
   it('stamps the turn and phase the campaign is in right now', () => {
-    const after = logged(campaign({ turn: 4, phase: 'management' }), AT, { kind: 'turn-began' });
+    const after = logged(campaign({ turn: 4, step: 'check-for-rot' }), AT, { kind: 'turn-began' });
 
     expect(after.log).toEqual([
       { turn: 4, phase: 'management', at: AT, event: { kind: 'turn-began' } },

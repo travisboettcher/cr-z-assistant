@@ -27,6 +27,7 @@ import { TIERS } from '../data/tiers';
 import { MATERIALS, type Materials } from '../data/materials';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { CAMPAIGN_PHASES } from '../data/turn';
+import { TURN_SEQUENCE } from '../engine/turn';
 import { CURRENT_SCHEMA_VERSION } from '../engine/campaign';
 import type { Base, Campaign, SkillLevels, SlotState, Stats, Survivor } from '../engine/campaign';
 import type { CampaignEvent, LogEntry } from '../engine/log';
@@ -304,7 +305,7 @@ export function campaignArbitrary(): fc.Arbitrary<Campaign> {
       name: anyName,
       createdAt: anyCreatedAt,
       turn: fc.integer({ min: 1, max: 9999 }),
-      phase: fc.constantFrom(...CAMPAIGN_PHASES),
+      step: fc.constantFrom(...TURN_SEQUENCE),
       origin: fc.constantFrom(...CAMPAIGN_ORIGINS),
       materials: materialsArbitrary(),
       survivors: fc.array(survivorArbitrary(), { maxLength: 6 }),
@@ -326,7 +327,7 @@ export function campaignArbitrary(): fc.Arbitrary<Campaign> {
         'name',
         'createdAt',
         'turn',
-        'phase',
+        'step',
         'materials',
         'survivors',
         'startingCommunityBuilt',

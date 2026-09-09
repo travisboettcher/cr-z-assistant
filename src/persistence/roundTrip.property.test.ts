@@ -187,7 +187,7 @@ it('does not survive a negative zero material count, which is why the generator 
     name: 'Cedar Hollow',
     createdAt: '2026-09-03T00:00:00.000Z',
     turn: 1,
-    phase: 'mission',
+    step: 'select-mission',
     materials: { food: -0, fuel: 0, hardware: 0, rare: 0 },
     survivors: [],
     startingCommunityBuilt: false,

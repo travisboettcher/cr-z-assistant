@@ -13,7 +13,7 @@
 
 import type { Campaign } from '../engine/campaign';
 import type { LogEntry } from '../engine/log';
-import { PHASE_LABELS } from './phaseLabels';
+import { PHASE_LABELS } from './turnLabels';
 import { PageRef } from './PageRef';
 import { describeEvent } from './logLabels';
 

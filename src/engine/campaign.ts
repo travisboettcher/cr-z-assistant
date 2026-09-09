@@ -20,7 +20,8 @@ import type { Materials } from '../data/materials';
 import type { CampaignOrigin } from '../data/origins';
 import type { Skill, Stat } from '../data/skills';
 import type { Tier } from '../data/tiers';
-import type { CampaignPhase } from '../data/turn';
+import type { TurnStepId } from '../data/turn';
+import { FIRST_STEP_OF_TURN } from './turn';
 import type { LogEntry } from './log';
 
 /**
@@ -31,7 +32,7 @@ import type { LogEntry } from './log';
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 6;
+export const CURRENT_SCHEMA_VERSION = 7;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -188,7 +189,21 @@ export interface Campaign {
   /** 1-based. The first campaign turn is turn 1, not turn 0. */
   turn: number;
 
-  phase: CampaignPhase;
+  /**
+   * Where in the turn the campaign is (pg. 17).
+   *
+   * **A step, not a phase**, and the phase is derived from it by `phaseOf` in
+   * `src/engine/turn.ts` — a step belongs to exactly one phase, so storing both
+   * would be a redundant pair that can disagree.
+   *
+   * The step rather than the phase because three Management Phase steps are
+   * destructive: Check for Rot removes survivors, Feed subtracts Food, Check
+   * Storage destroys the surplus (pg. 22–23). A campaign that resumed at
+   * "somewhere in the Management Phase" after a closed tab could not know which
+   * of those had already run, and doing one twice costs a player their
+   * community.
+   */
+  step: TurnStepId;
 
   /**
    * The campaign's origin, or absent for one not using an origin.
@@ -258,7 +273,7 @@ export function createNewCampaign(name: string, options: NewCampaignOptions = {}
     name,
     createdAt: options.createdAt ?? new Date().toISOString(),
     turn: 1,
-    phase: 'mission',
+    step: FIRST_STEP_OF_TURN,
     // All zero. Starting material counts are a rule, and Phase 0 ships none.
     materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
     survivors: [],

@@ -31,6 +31,7 @@ export function ClaimBase() {
 
   return (
     <section
+      id="base"
       aria-labelledby={headingId}
       className="rounded-xl border border-stone-200 bg-white p-6 dark:border-stone-800 dark:bg-stone-900"
     >

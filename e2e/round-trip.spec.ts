@@ -94,7 +94,7 @@ test('a campaign survives export, a reload, and import', async ({ page }) => {
   expect(JSON.parse(exported.text)).toMatchObject({
     name: 'Cedar Hollow',
     turn: 1,
-    phase: 'mission',
+    step: 'select-mission',
     materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
   });
 
@@ -363,7 +363,7 @@ test.describe('a file that is not a usable save', () => {
         name: 'From The Future',
         createdAt: '2026-08-30T00:00:00.000Z',
         turn: 1,
-        phase: 'mission',
+        step: 'select-mission',
         materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
         survivors: [],
         base: null,
@@ -621,6 +621,33 @@ test('an upgrade waits for the turn after its facility went up', async ({ page }
   // The turn the Workshop went up survived the reload, so the rule still holds.
   await page.getByRole('button', { name: /upgrade garage/i }).click();
   await expect(page.getByText(/went up this turn/i)).toBeVisible();
+
+  /*
+   * Z3-3's acceptance, and the reason it is here rather than in a test of its
+   * own: Phase 2 shipped this rule with no way to satisfy it. The turn walk is
+   * what finally lets a player get to the turn after.
+   *
+   * Four skips is a turn — the Management Phase's opens the next one — and the
+   * last of them asks first, because ending a turn is the one move that cannot
+   * be walked back.
+   */
+  for (let phase = 0; phase < 3; phase += 1) {
+    await page.getByRole('button', { name: /^skip to/i }).click();
+  }
+  await page.getByRole('button', { name: 'End turn 1' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'End turn 1' }).click();
+
+  await expect(page.getByRole('region', { name: 'Turn 2' })).toBeVisible();
+
+  // The garage's upgrade form is still open from before the turn ended, and it
+  // now reads differently: a new turn, so the Workshop is no longer the thing
+  // that just went up.
+  await page.getByLabel(/labor available/i).fill('5');
+  await expect(page.getByText(/went up this turn/i)).not.toBeVisible();
+  await page.getByLabel(/^upgrade$/i).selectOption({ label: 'Metal Shop' });
+  await page.getByRole('button', { name: /add upgrade/i }).click();
+
+  await expect(map).toContainText('Metal Shop');
 });
 
 /**
