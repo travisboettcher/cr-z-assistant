@@ -1336,6 +1336,28 @@ describe('what earns a line in the log', () => {
       action: { type: 'campaign/materialSet', material: 'food', count: 5 },
       entry: null,
     },
+    // Assignments move around several times while a turn is being planned, for
+    // the same reason Power and Water do below: what is worth recording is the
+    // Planning Phase the table settled on, not each change on the way there.
+    'assignment/set': {
+      action: {
+        type: 'assignment/set',
+        survivor: LOGGED_SURVIVOR,
+        assignment: { task: 'project' },
+      },
+      entry: null,
+    },
+    'assignment/cleared': {
+      // Needs somebody to un-assign: `rich()` starts a turn the way every turn
+      // starts, with nobody assigned, so clearing there would change nothing
+      // and pass for the wrong reason.
+      action: { type: 'assignment/cleared', survivor: LOGGED_SURVIVOR },
+      state: openState({
+        ...expectOpen(rich()),
+        assignments: { [LOGGED_SURVIVOR]: { task: 'rest' } },
+      }),
+      entry: null,
+    },
     // Power and Water move around several times while a turn is being planned.
     // The turn's assignment is worth recording; the fiddling is not, and that
     // entry belongs to the Planning Phase step rather than to each toggle.
@@ -1465,5 +1487,133 @@ describe('what earns a line in the log', () => {
     // And the run did record something, so the prefix check had entries to be
     // a claim about.
     expect(seen.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * One task per survivor (pg. 20), which is a *shape* here rather than a check.
+ *
+ * `Campaign.assignments` is keyed by survivor id, so a second task overwrites
+ * the first and two-at-once is unrepresentable. These tests are what stops that
+ * claim from being merely asserted in a comment.
+ */
+describe('assignments', () => {
+  const EARL = '11111111-aaaa-4bbb-8ccc-000000000001';
+  const CARLA = '22222222-aaaa-4bbb-8ccc-000000000002';
+
+  function withPair(assignments: Campaign['assignments'] = {}): CampaignState {
+    return openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      survivors: [
+        createSurvivor('Earl Rhodes', 4, { id: EARL }),
+        createSurvivor('Carla Proust', 3, { id: CARLA }),
+      ],
+      assignments,
+    });
+  }
+
+  it('starts a turn with nobody assigned', () => {
+    expect(createNewCampaign('Cedar Hollow', FIXED).assignments).toEqual({});
+  });
+
+  it('gives a survivor a task', () => {
+    const after = expectOpen(
+      campaignReducer(withPair(), {
+        type: 'assignment/set',
+        survivor: EARL,
+        assignment: { task: 'staff', slot: 'kitchen' },
+      }),
+    );
+
+    expect(after.assignments).toEqual({ [EARL]: { task: 'staff', slot: 'kitchen' } });
+  });
+
+  it('replaces a task rather than adding one, because a survivor has only one', () => {
+    const state = campaignReducer(withPair(), {
+      type: 'assignment/set',
+      survivor: EARL,
+      assignment: { task: 'staff', slot: 'kitchen' },
+    });
+
+    const after = expectOpen(
+      campaignReducer(state, {
+        type: 'assignment/set',
+        survivor: EARL,
+        assignment: { task: 'project' },
+      }),
+    );
+
+    // Not two entries, and not a list of one: the record is keyed by survivor,
+    // so there is no shape in which Earl is staffing *and* on the project team.
+    expect(after.assignments).toEqual({ [EARL]: { task: 'project' } });
+  });
+
+  it('leaves everybody else where they are', () => {
+    const after = expectOpen(
+      campaignReducer(withPair({ [CARLA]: { task: 'rest' } }), {
+        type: 'assignment/set',
+        survivor: EARL,
+        assignment: { task: 'scavenging' },
+      }),
+    );
+
+    expect(after.assignments).toEqual({
+      [CARLA]: { task: 'rest' },
+      [EARL]: { task: 'scavenging' },
+    });
+  });
+
+  it('takes a task away without touching anyone else', () => {
+    const after = expectOpen(
+      campaignReducer(
+        withPair({ [EARL]: { task: 'project' }, [CARLA]: { task: 'mission', team: 1 } }),
+        { type: 'assignment/cleared', survivor: EARL },
+      ),
+    );
+
+    // Absent, not present-and-empty: unassigned has one spelling.
+    expect(after.assignments).toEqual({ [CARLA]: { task: 'mission', team: 1 } });
+    expect(EARL in after.assignments).toBe(false);
+  });
+
+  it('changes nothing when clearing a survivor who has no task', () => {
+    const before = withPair({ [CARLA]: { task: 'rest' } });
+
+    const after = expectOpen(
+      campaignReducer(before, { type: 'assignment/cleared', survivor: EARL }),
+    );
+
+    expect(after).toEqual(expectOpen(before));
+  });
+
+  /**
+   * The orphan that survives a save and breaks a screen three turns later.
+   *
+   * An assignment keyed by an id nobody holds is a damaged save by
+   * `saveFile.ts`'s reckoning, so the store must never write one — and removing
+   * a survivor is the only way it could.
+   */
+  it('takes a survivor’s task with them when they leave the community', () => {
+    const before = withPair({
+      [EARL]: { task: 'staff', slot: 'kitchen' },
+      [CARLA]: { task: 'rest' },
+    });
+
+    const after = expectOpen(
+      campaignReducer(before, { type: 'survivor/removed', at: AT, id: EARL }),
+    );
+
+    expect(after.survivors.map((survivor) => survivor.id)).toEqual([CARLA]);
+    expect(after.assignments).toEqual({ [CARLA]: { task: 'rest' } });
+  });
+
+  it('leaves the assignments alone when the removal removes nobody', () => {
+    const before = withPair({ [EARL]: { task: 'rest' } });
+
+    const after = expectOpen(
+      campaignReducer(before, { type: 'survivor/removed', at: AT, id: 'nobody' }),
+    );
+
+    expect(after).toEqual(expectOpen(before));
   });
 });

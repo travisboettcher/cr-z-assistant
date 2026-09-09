@@ -23,7 +23,7 @@ import { TIERS } from '../data/tiers';
 import { MATERIALS } from '../data/materials';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { CAMPAIGN_PHASES } from '../data/turn';
-import type { Campaign } from '../engine/campaign';
+import type { Assignment, Campaign } from '../engine/campaign';
 import type { CampaignEventKind } from '../engine/log';
 import { TURN_SEQUENCE } from '../engine/turn';
 import { migrate, type MigrationErrorReason } from './migrations';
@@ -215,6 +215,7 @@ const EVENT_FIELD_CHECKS = {
   id: (value: unknown) => typeof value === 'string' && value !== '',
   name: (value: unknown) => typeof value === 'string',
   count: isCountFromZero,
+  countFromOne: isCountFromOne,
   flag: (value: unknown) => typeof value === 'boolean',
   tier: (value: unknown) => TIERS.some((tier) => tier === value),
   roll: (value: unknown) => D10_RESULTS.some((result) => result === value),
@@ -342,6 +343,51 @@ function describeLogEntryProblem(value: unknown): string | null {
 }
 
 /**
+ * The tasks a survivor can be given, and the extra field each carries.
+ *
+ * A full `Record` over the union's own tag, so a task added to `Assignment`
+ * without a line here fails the typecheck rather than sailing through
+ * validation unchecked — the same guarantee `EVENT_FIELDS` gives log entries.
+ * The four with no extra field are `null` rather than absent, so "this task
+ * carries nothing" is stated rather than inferred from a missing key.
+ */
+const ASSIGNMENT_FIELDS: Record<Assignment['task'], readonly [string, EventFieldCheck] | null> = {
+  staff: ['slot', 'id'],
+  project: null,
+  rest: null,
+  healing: null,
+  mission: ['team', 'countFromOne'],
+  scavenging: null,
+};
+
+/**
+ * Names the first thing structurally wrong with one survivor's assignment, or
+ * `null`.
+ *
+ * **Shape only, and the line is in a different place here than for a slot.**
+ * That a survivor is staffing a facility that does not exist, or resting at
+ * full Health, or on a mission team while injured, are all *rules* (pg. 20–21)
+ * — Z3-6 reports them and a player may be mid-way through fixing one when they
+ * save. What this refuses is an assignment that refers to nothing: a task this
+ * version has never heard of, or a Staff assignment that does not say where.
+ */
+function describeAssignmentProblem(value: unknown): string | null {
+  if (!isRecord(value)) return 'is not an assignment';
+
+  const task = value.task;
+  if (typeof task !== 'string' || !isKeyOf(ASSIGNMENT_FIELDS, task)) {
+    return `is a task this version does not know: ${String(task)}`;
+  }
+
+  const field = ASSIGNMENT_FIELDS[task as Assignment['task']];
+  if (field !== null && !EVENT_FIELD_CHECKS[field[1]](value[field[0]])) {
+    return `has an unreadable ${field[0]}`;
+  }
+
+  return null;
+}
+
+/**
  * Names the first thing wrong with a would-be current-shape `Campaign`, or
  * `null` if there is nothing wrong with it.
  *
@@ -408,6 +454,20 @@ function describeCampaignProblem(value: unknown): string | null {
   if (value.base !== null) {
     const problem = describeBaseProblem(value.base);
     if (problem !== null) return problem;
+  }
+
+  const assignments: unknown = value.assignments;
+  if (!isRecord(assignments)) return 'it does not say what its survivors are doing';
+  for (const [id, assignment] of Object.entries(assignments)) {
+    // An assignment keyed by an id nobody on the roster has refers to nothing —
+    // the same reasoning that makes a slot id outside the base's layout a
+    // damaged save rather than a slot this version has not heard of.
+    if (!value.survivors.some((survivor) => isRecord(survivor) && survivor.id === id)) {
+      return `it assigns a task to somebody who is not in the community: ${id}`;
+    }
+
+    const problem = describeAssignmentProblem(assignment);
+    if (problem !== null) return `the task it gives to ${id} ${problem}`;
   }
 
   if (!Array.isArray(value.log)) return 'its campaign log is missing';

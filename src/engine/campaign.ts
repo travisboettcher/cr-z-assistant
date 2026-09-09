@@ -32,7 +32,7 @@ import type { LogEntry } from './log';
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 7;
+export const CURRENT_SCHEMA_VERSION = 8;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -175,6 +175,54 @@ export interface Base {
   readonly slots: Readonly<Record<string, SlotState>>;
 }
 
+/**
+ * What one survivor is doing this turn (pg. 20–21).
+ *
+ * **A survivor may have only one assignment per campaign turn**, and that rule
+ * is why this is a union rather than a bag of flags: two tasks at once is
+ * unrepresentable rather than merely invalid, the same move that put upgrades
+ * inside their facility instead of in a flat list. There is no check to forget
+ * and no state to repair.
+ *
+ * `task` rather than `kind` for the discriminant, because the rule the book
+ * states is about tasks and a type reads best in the words of the rule it
+ * enforces.
+ */
+export type Assignment =
+  /** Working a facility, which produces its output for the turn (pg. 20). */
+  | { readonly task: 'staff'; readonly slot: string }
+  /** On the project team, contributing Tier levels to the Labor pool (pg. 20). */
+  | { readonly task: 'project' }
+  /**
+   * Resting: one Health point, usable only by them (pg. 19, 21).
+   *
+   * Kept apart from `healing` because they are two rules that happen to share a
+   * Planning step. Rest generates a point locked to the survivor who rested;
+   * healing draws on a pool a Medical Clinic distributes equally. Only one
+   * survivor may rest per turn, and any number may be healed.
+   */
+  | { readonly task: 'rest' }
+  /** Being healed from the pool the Medical Clinic's staff generates (pg. 21). */
+  | { readonly task: 'healing' }
+  /**
+   * On a mission team, for the mission next turn (pg. 21).
+   *
+   * Carries a team number from the day it lands, though Phase 3 only ever
+   * writes 1. The published edition makes multiple teams per turn explicit
+   * (pg. 21, 25) and the project note resolved to model N of them from the
+   * start; the field costs nothing today and is a migration later.
+   */
+  | { readonly task: 'mission'; readonly team: number }
+  /**
+   * Scavenging in place of the mission the community opted out of (pg. 17).
+   *
+   * An assignment like any other, and deliberately not a flag somewhere else:
+   * the book says the scavenger must have **no other assignment**, which is
+   * exactly what belonging to this union already means. A flag would have made
+   * the one-task rule something to remember rather than something to type.
+   */
+  | { readonly task: 'scavenging' };
+
 export interface Campaign {
   /** Which version of the persisted shape this campaign was written in. */
   schemaVersion: number;
@@ -240,6 +288,24 @@ export interface Campaign {
   base: Base | null;
 
   /**
+   * What each survivor is doing this turn, for the ones who have been given
+   * something to do.
+   *
+   * **Partial on purpose**, exactly as `Base.slots` and `SkillLevels` are: an
+   * unassigned survivor is absent rather than present-with-nothing, so "nobody
+   * has said yet" has one spelling — and it is the commonest state at the start
+   * of a Planning Phase, not an edge case.
+   *
+   * Keyed by survivor id, so one survivor cannot hold two tasks (pg. 20) by
+   * construction. Cleared at the top of each Planning Phase, which is why a
+   * single field serves the three moments that read it: the Advancement Phase
+   * of the next turn runs *before* that clearing and the Management Phase of
+   * this one runs after it, so "the current assignments" is already the right
+   * answer at all three.
+   */
+  assignments: Readonly<Record<string, Assignment>>;
+
+  /**
    * Everything that has happened, oldest first.
    *
    * **Append-only.** Nothing in the app removes or edits an entry, and the
@@ -282,6 +348,7 @@ export function createNewCampaign(name: string, options: NewCampaignOptions = {}
     // the step in `src/persistence/migrations.ts` for why the two differ.
     startingCommunityBuilt: false,
     base: null,
+    assignments: {},
     log: [],
   };
 }

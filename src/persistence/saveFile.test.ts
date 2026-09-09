@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import v7Fixture from './__fixtures__/campaign-v7.json';
+import v8Fixture from './__fixtures__/campaign-v8.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -244,8 +244,10 @@ describe('parseCampaignFile with a roster', () => {
     // written in the base's layout order, not the order the player built in —
     // and that absent optional fields stay absent rather than coming back as
     // `false`. From v6 it carries a log, which pins that an entry's own keys
-    // and its event's fields both survive a round trip untouched.
-    const text = `${JSON.stringify(v7Fixture, null, 2)}\n`;
+    // and its event's fields both survive a round trip untouched. From v8 it
+    // carries assignments, which pins that they come back in roster order and
+    // that a survivor with no task still has no entry.
+    const text = `${JSON.stringify(v8Fixture, null, 2)}\n`;
     const result = parseCampaignFile(text);
 
     expect(result.ok).toBe(true);
@@ -794,5 +796,88 @@ describe('a campaign whose log is damaged', () => {
   it('counts the damaged entry from one, and says how many there are', () => {
     expect(refusalFor([good, { ...good, turn: 0 }])).toMatch(/log entry 2 of 2/);
     expect(refusalFor([{ ...good, turn: 0 }, good, good])).toMatch(/log entry 1 of 3/);
+  });
+});
+
+/**
+ * Assignments, checked the way the log and the base are: shape only, one
+ * problem named, and never a thrown exception.
+ *
+ * **The line sits in a different place here than for a slot.** That a survivor
+ * is staffing a facility that does not exist, resting at full Health, or on a
+ * mission team while injured are all *rules* (pg. 20–21) — Z3-6 reports them,
+ * and a player may be part-way through fixing one when they save. What this
+ * refuses is an assignment that refers to nothing.
+ */
+describe('a campaign whose assignments are damaged', () => {
+  const EARL = 'b7e41f28-3c60-4d95-8a12-6f0e9d4c7b53';
+
+  const roster = [
+    {
+      id: EARL,
+      name: 'Earl Rhodes',
+      tier: 4,
+      stats: { strength: 3, dexterity: 2, intelligence: 4, cooperation: 1 },
+      skills: { archery: 1 },
+      move: 6,
+      defense: 6,
+      currentHp: 4,
+      xp: 0,
+    },
+  ];
+
+  function refusalFor(assignments: unknown) {
+    const result = parseCampaignFile(savedWith({ survivors: roster, assignments }));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected a refusal');
+
+    expect(result.error.reason).toBe('damaged-campaign');
+    return result.error.message;
+  }
+
+  it.each([
+    ['staff', { task: 'staff', slot: 'kitchen' }],
+    ['project', { task: 'project' }],
+    ['rest', { task: 'rest' }],
+    ['healing', { task: 'healing' }],
+    ['mission', { task: 'mission', team: 1 }],
+    ['scavenging', { task: 'scavenging' }],
+  ])('accepts %s, so the refusals below mean something', (_label, assignment) => {
+    const result = parseCampaignFile(
+      savedWith({ survivors: roster, assignments: { [EARL]: assignment } }),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.assignments).toEqual({ [EARL]: assignment });
+  });
+
+  it.each([
+    ['not a record at all', 5, /what its survivors are doing/i],
+    ['an assignment that is not an object', { [EARL]: 'resting' }, /is not an assignment/i],
+    [
+      'a task this version has never heard of',
+      { [EARL]: { task: 'foraging' } },
+      /does not know: foraging/i,
+    ],
+    ['a task that is not a word', { [EARL]: { task: 7 } }, /does not know: 7/i],
+    // `in` would accept this: every object has a `toString`. `isKeyOf` does not.
+    ['a task every object already has', { [EARL]: { task: 'toString' } }, /does not know/i],
+    ['staffing that does not say where', { [EARL]: { task: 'staff' } }, /unreadable slot/i],
+    [
+      'a mission team that is not a team',
+      { [EARL]: { task: 'mission', team: 0 } },
+      /unreadable team/i,
+    ],
+    // The orphan: a task given to somebody the roster does not hold.
+    [
+      'a task given to a stranger',
+      { 'not-a-survivor': { task: 'rest' } },
+      /not in the community: not-a-survivor/i,
+    ],
+  ])('refuses %s', (_label, assignments, expected) => {
+    expect(refusalFor(assignments)).toMatch(expected);
   });
 });

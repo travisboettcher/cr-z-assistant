@@ -35,7 +35,7 @@ import { withUtilityToggled } from '../engine/utilities';
 import { createNewCampaign } from '../engine/campaign';
 import { logged, type CampaignEvent } from '../engine/log';
 import { advance, reverse, type AdvanceBy } from '../engine/turn';
-import type { Campaign, Stats, Survivor } from '../engine/campaign';
+import type { Assignment, Campaign, Stats, Survivor } from '../engine/campaign';
 import { createSurvivor, recruitSurvivor } from '../engine/survivor';
 
 /**
@@ -270,6 +270,25 @@ export type CampaignAction =
    * number would be inventing a rule rather than recording one.
    */
   | { readonly type: 'campaign/materialSet'; readonly material: Material; readonly count: number }
+  /**
+   * Give a survivor a task for this turn, replacing whatever they had.
+   *
+   * Replacing rather than adding, and there is no action that adds: one task
+   * per survivor (pg. 20) is the shape of `Campaign.assignments`, so a second
+   * task is unrepresentable rather than refused.
+   *
+   * Unlogged, like `utility/toggled` and for the same reason. Assignments move
+   * around several times while a turn is being planned; what is worth recording
+   * is the Planning Phase the table settled on, and that entry belongs to the
+   * phase's own step rather than to each change on the way there.
+   */
+  | {
+      readonly type: 'assignment/set';
+      readonly survivor: string;
+      readonly assignment: Assignment;
+    }
+  /** Take a survivor's task away, leaving them unassigned. */
+  | { readonly type: 'assignment/cleared'; readonly survivor: string }
   | {
       readonly type: 'facility/built';
       readonly slot: string;
@@ -584,6 +603,18 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         ),
       );
 
+    case 'assignment/set':
+      return withCampaign(state, (campaign) => ({
+        ...campaign,
+        assignments: { ...campaign.assignments, [action.survivor]: action.assignment },
+      }));
+
+    case 'assignment/cleared':
+      return withCampaign(state, (campaign) => ({
+        ...campaign,
+        assignments: withoutAssignment(campaign.assignments, action.survivor),
+      }));
+
     case 'utility/toggled':
       return withCampaign(state, (campaign) =>
         withUtilityToggled(campaign, {
@@ -608,6 +639,10 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
           {
             ...campaign,
             survivors: campaign.survivors.filter((survivor) => survivor.id !== action.id),
+            // Their task goes with them. An assignment keyed by an id nobody
+            // holds is a damaged save, and it is the kind of orphan that
+            // survives a file and breaks a screen three turns later.
+            assignments: withoutAssignment(campaign.assignments, action.id),
           },
           action.at,
           {
@@ -641,6 +676,29 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
  * not on the roster changes nothing — the survivor may have been removed
  * between a control rendering and being pressed.
  */
+/**
+ * The assignments, minus one survivor's.
+ *
+ * A fresh copy with the key deleted, so the reducer stays pure. Written out
+ * rather than rest-destructured because the idiom for a computed key leaves an
+ * unused binding behind, which is the same call `survivor/skillRemoved` makes.
+ *
+ * Deleting a key the record does not have is a no-op, so there is no guard for
+ * that case. There was one — an early return that kept the record's identity
+ * when nothing changed — and a mutation run showed it surviving every test,
+ * because `withCampaign` builds a new state object regardless and nothing
+ * anywhere observes whether this particular record kept its reference.
+ */
+function withoutAssignment(
+  assignments: Readonly<Record<string, Assignment>>,
+  survivor: string,
+): Readonly<Record<string, Assignment>> {
+  const remaining = { ...assignments };
+  delete remaining[survivor];
+
+  return remaining;
+}
+
 /**
  * The campaign the edit produced, with an entry on it — unless the edit
  * refused, in which case neither.
