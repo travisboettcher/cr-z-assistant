@@ -22,6 +22,7 @@
 
 import { MAX_UPGRADES_PER_FACILITY, type Upgrade, type UpgradeId } from '../data/facilities';
 import { occupants, upgradesRemaining, upgradesUsed, type Occupant } from './base';
+import { laborPool } from './assignments';
 import type { Check, Violation } from './checks';
 import type { Campaign } from './campaign';
 
@@ -45,7 +46,6 @@ export interface UpgradeRequest {
   readonly slot: string;
   readonly upgrade: UpgradeId;
   /** Labor available this turn, entered by hand — see `build.ts`. */
-  readonly labor: number;
 }
 
 /** The occupant of a slot, or undefined when nothing stands there. */
@@ -116,10 +116,12 @@ export function checkUpgrade(campaign: Campaign, request: UpgradeRequest): Upgra
     });
   }
 
-  if (request.labor < upgrade.cost.labor) {
+  const available = laborPool(campaign);
+
+  if (available < upgrade.cost.labor) {
     blockers.push({
       code: 'not-enough-labor',
-      message: `Costs ${String(upgrade.cost.labor)} Labor and ${String(request.labor)} is available.`,
+      message: `Costs ${String(upgrade.cost.labor)} Labor and ${String(available)} is available.`,
       pages: '72–73',
     });
   }

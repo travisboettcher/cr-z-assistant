@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Base, type Campaign } from './campaign';
 import { buildableFacilities, checkBuild, withFacilityBuilt } from './build';
+import { projectTeamWorth } from '../test/campaigns';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 
@@ -9,6 +10,10 @@ function campaignWith(base: Base | null, overrides: Partial<Campaign> = {}): Cam
   return {
     ...createNewCampaign('Cedar Hollow', FIXED),
     materials: { food: 0, fuel: 0, hardware: 20, rare: 0 },
+    // A project team big enough that Labor is never the thing under test. The
+    // pool is the summed Tier levels of whoever is on it (pg. 20), so the tests
+    // that *are* about Labor override this with a smaller one.
+    ...projectTeamWorth(9),
     turn: 4,
     base,
     ...overrides,
@@ -26,7 +31,6 @@ describe('checkBuild', () => {
     const check = checkBuild(campaignWith(smallTownHome()), {
       slot: 'garage',
       facility: 'workshop',
-      labor: 2,
     });
 
     expect(check).toEqual({ blockers: [], warnings: [] });
@@ -36,7 +40,6 @@ describe('checkBuild', () => {
     const check = checkBuild(campaignWith(smallTownHome()), {
       slot: 'kitchen',
       facility: 'workshop',
-      labor: 5,
     });
 
     expect(codes(check.blockers)).toContain('slot-occupied');
@@ -46,11 +49,10 @@ describe('checkBuild', () => {
     const blocked = checkBuild(campaignWith({ id: 'hobby-farm', slots: {} }), {
       slot: 'ruined-chicken-coop',
       facility: 'garden',
-      labor: 5,
     });
     const cleared = checkBuild(
       campaignWith({ id: 'hobby-farm', slots: { 'ruined-chicken-coop': { cleared: true } } }),
-      { slot: 'ruined-chicken-coop', facility: 'garden', labor: 5 },
+      { slot: 'ruined-chicken-coop', facility: 'garden' },
     );
 
     expect(codes(blocked.blockers)).toContain('slot-not-cleared');
@@ -60,9 +62,10 @@ describe('checkBuild', () => {
   it('refuses a build the community cannot pay for, in either currency', () => {
     const poor = campaignWith(smallTownHome(), {
       materials: { food: 0, fuel: 0, hardware: 1, rare: 0 },
+      ...projectTeamWorth(1),
     });
 
-    const check = checkBuild(poor, { slot: 'garage', facility: 'workshop', labor: 0 });
+    const check = checkBuild(poor, { slot: 'garage', facility: 'workshop' });
 
     expect(codes(check.blockers)).toEqual(['not-enough-hardware', 'not-enough-labor']);
     // Affordability is never a warning: there is no override for arithmetic.
@@ -74,7 +77,6 @@ describe('checkBuild', () => {
     const check = checkBuild(campaignWith(smallTownHome()), {
       slot: 'garage',
       facility: 'garden',
-      labor: 5,
     });
 
     expect(check.blockers).toEqual([]);
@@ -85,12 +87,10 @@ describe('checkBuild', () => {
     const none = checkBuild(campaignWith(smallTownHome()), {
       slot: 'garage',
       facility: 'mystic-library',
-      labor: 5,
     });
     const magic = checkBuild(campaignWith(smallTownHome(), { origin: 'magic' }), {
       slot: 'garage',
       facility: 'mystic-library',
-      labor: 5,
     });
 
     expect(codes(none.warnings)).toContain('origin-locked');
@@ -105,12 +105,10 @@ describe('checkBuild', () => {
     const none = checkBuild(campaignWith(null), {
       slot: 'garage',
       facility: 'workshop',
-      labor: 5,
     });
     const missing = checkBuild(campaignWith(smallTownHome()), {
       slot: 'wine-cellar',
       facility: 'workshop',
-      labor: 5,
     });
 
     expect(codes(none.blockers)).toEqual(['no-base']);
@@ -124,9 +122,10 @@ describe('checkBuild', () => {
     // costs 3 Hardware and 2 Labor, and exactly enough is enough.
     const exact = campaignWith(smallTownHome(), {
       materials: { food: 0, fuel: 0, hardware: 3, rare: 0 },
+      ...projectTeamWorth(2),
     });
 
-    expect(checkBuild(exact, { slot: 'garage', facility: 'workshop', labor: 2 })).toEqual({
+    expect(checkBuild(exact, { slot: 'garage', facility: 'workshop' })).toEqual({
       blockers: [],
       warnings: [],
     });
@@ -138,7 +137,6 @@ describe('withFacilityBuilt', () => {
     const after = withFacilityBuilt(campaignWith(smallTownHome()), {
       slot: 'garage',
       facility: 'workshop',
-      labor: 2,
     });
 
     expect(after.base?.slots.garage).toEqual({
@@ -147,9 +145,9 @@ describe('withFacilityBuilt', () => {
     expect(after.materials.hardware).toBe(17);
   });
 
-  it('leaves Labor alone, because there is nowhere to spend it from yet', () => {
+  it('leaves the project team alone: Labor is generated, not held', () => {
     const before = campaignWith(smallTownHome());
-    const after = withFacilityBuilt(before, { slot: 'garage', facility: 'workshop', labor: 2 });
+    const after = withFacilityBuilt(before, { slot: 'garage', facility: 'workshop' });
 
     expect(after.materials).toEqual({ ...before.materials, hardware: 17 });
   });
@@ -162,7 +160,6 @@ describe('withFacilityBuilt', () => {
     const after = withFacilityBuilt(cleared, {
       slot: 'ruined-chicken-coop',
       facility: 'garden',
-      labor: 2,
     });
 
     // Clearing is a fact about the slot that a build must not erase.
@@ -177,14 +174,13 @@ describe('withFacilityBuilt', () => {
       materials: { food: 0, fuel: 0, hardware: 1, rare: 0 },
     });
 
-    expect(withFacilityBuilt(poor, { slot: 'garage', facility: 'workshop', labor: 5 })).toBe(poor);
+    expect(withFacilityBuilt(poor, { slot: 'garage', facility: 'workshop' })).toBe(poor);
   });
 
   it('builds through a warning, because proceeding past one is the player’s call', () => {
     const after = withFacilityBuilt(campaignWith(smallTownHome()), {
       slot: 'garage',
       facility: 'garden',
-      labor: 5,
     });
 
     // A Garden in an indoor slot: illegal, overridable, and once overridden it
@@ -195,7 +191,7 @@ describe('withFacilityBuilt', () => {
   it('does nothing to a campaign with no base', () => {
     const none = campaignWith(null);
 
-    expect(withFacilityBuilt(none, { slot: 'garage', facility: 'workshop', labor: 5 })).toBe(none);
+    expect(withFacilityBuilt(none, { slot: 'garage', facility: 'workshop' })).toBe(none);
   });
 });
 

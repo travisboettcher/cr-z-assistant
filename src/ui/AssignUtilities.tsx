@@ -25,20 +25,17 @@ import { FOCUS_RING } from './styles';
 export interface AssignUtilitiesProps {
   readonly campaign: Campaign;
   readonly slot: string;
-  /** The staffed Utilities Score, entered above the map and passed down. */
-  readonly staffed: number;
 }
 
 function UtilityToggle({
   campaign,
   slot,
   utility,
-  staffed,
 }: AssignUtilitiesProps & { readonly utility: Utility }) {
   const { dispatch } = useCampaign();
 
   const on = campaign.base?.slots[slot]?.[utility] === true;
-  const check = checkUtility(campaign, { slot, utility, staffed });
+  const check = checkUtility(campaign, { slot, utility });
 
   /**
    * Only a **blocker** disables the box, and only when turning one on: giving a
@@ -62,7 +59,7 @@ function UtilityToggle({
           checked={on}
           disabled={refused}
           onChange={() => {
-            dispatch({ type: 'utility/toggled', slot, utility, staffed });
+            dispatch({ type: 'utility/toggled', slot, utility });
           }}
           className={FOCUS_RING}
         />
@@ -77,7 +74,7 @@ function UtilityToggle({
   );
 }
 
-export function AssignUtilities({ campaign, slot, staffed }: AssignUtilitiesProps) {
+export function AssignUtilities({ campaign, slot }: AssignUtilitiesProps) {
   return (
     <div className="mt-3 border-t border-stone-200 pt-3 dark:border-stone-800">
       <p className="text-sm font-medium">Utilities</p>
@@ -86,13 +83,7 @@ export function AssignUtilities({ campaign, slot, staffed }: AssignUtilitiesProp
       </p>
       <div className="mt-2 flex flex-col gap-2">
         {UTILITIES.map((utility) => (
-          <UtilityToggle
-            key={utility}
-            campaign={campaign}
-            slot={slot}
-            utility={utility}
-            staffed={staffed}
-          />
+          <UtilityToggle key={utility} campaign={campaign} slot={slot} utility={utility} />
         ))}
       </div>
     </div>

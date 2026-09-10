@@ -5,6 +5,7 @@ import { createNewCampaign } from '../engine/campaign';
 import type { Campaign } from '../engine/campaign';
 import type { CampaignEvent, LogEntry } from '../engine/log';
 import { createSurvivor, recruitSurvivor } from '../engine/survivor';
+import { generatingUtilities, projectTeamWorth } from '../test/campaigns';
 import { INITIAL_CAMPAIGN_STATE, campaignReducer } from './campaignStore';
 import type { CampaignAction, CampaignState } from './campaignStore';
 
@@ -890,6 +891,8 @@ describe('facility/built', () => {
       materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
       turn: 3,
       base: { id: 'small-town-home', slots: {} },
+      // Labor to pay with: the pool is the project team's since Z3-5.
+      ...projectTeamWorth(5),
     });
   }
 
@@ -899,7 +902,6 @@ describe('facility/built', () => {
       at: AT,
       slot: 'garage',
       facility: 'workshop',
-      labor: 2,
     });
     const campaign = expectOpen(state);
 
@@ -918,7 +920,6 @@ describe('facility/built', () => {
       at: AT,
       slot: 'kitchen',
       facility: 'workshop',
-      labor: 2,
     });
 
     expect(expectOpen(state)).toEqual(expectOpen(before));
@@ -931,7 +932,6 @@ describe('facility/built', () => {
         at: AT,
         slot: 'garage',
         facility: 'workshop',
-        labor: 2,
       }),
     ).toEqual(INITIAL_CAMPAIGN_STATE);
   });
@@ -978,6 +978,7 @@ describe('upgrade/built', () => {
       materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
       turn: 3,
       base: { id: 'small-town-home', slots: {} },
+      ...projectTeamWorth(5),
     });
 
   it('adds the upgrade and spends its Hardware', () => {
@@ -986,7 +987,6 @@ describe('upgrade/built', () => {
       at: AT,
       slot: 'kitchen',
       upgrade: 'gas-range',
-      labor: 2,
     });
     const campaign = expectOpen(state);
 
@@ -1002,7 +1002,6 @@ describe('upgrade/built', () => {
       at: AT,
       slot: 'kitchen',
       upgrade: 'spotlight',
-      labor: 2,
     });
 
     expect(expectOpen(state)).toEqual(expectOpen(before));
@@ -1015,7 +1014,6 @@ describe('upgrade/built', () => {
         at: AT,
         slot: 'kitchen',
         upgrade: 'gas-range',
-        labor: 2,
       }),
     ).toEqual(INITIAL_CAMPAIGN_STATE);
   });
@@ -1027,6 +1025,7 @@ describe('slot/cleared', () => {
       ...createNewCampaign('Cedar Hollow', FIXED),
       materials: { food: 0, fuel: 0, hardware: 1, rare: 0 },
       base: { id: 'hobby-farm', slots: {} },
+      ...projectTeamWorth(5),
     });
 
   it('clears the slot and credits what the project yields', () => {
@@ -1035,7 +1034,6 @@ describe('slot/cleared', () => {
         type: 'slot/cleared',
         at: AT,
         slot: 'ruined-chicken-coop',
-        labor: 2,
       }),
     );
 
@@ -1044,12 +1042,13 @@ describe('slot/cleared', () => {
   });
 
   it('does nothing when the clearing is blocked', () => {
-    const before = farm();
+    // One Labor against a two-Labor project: the pool is the project team's, so
+    // a refusal is arranged on the roster rather than in the action.
+    const before = openState({ ...expectOpen(farm()), ...projectTeamWorth(1) });
     const state = campaignReducer(before, {
       type: 'slot/cleared',
       at: AT,
       slot: 'ruined-chicken-coop',
-      labor: 1,
     });
 
     expect(expectOpen(state)).toEqual(expectOpen(before));
@@ -1061,25 +1060,26 @@ describe('slot/cleared', () => {
         type: 'slot/cleared',
         at: AT,
         slot: 'ruined-chicken-coop',
-        labor: 2,
       }),
     ).toEqual(INITIAL_CAMPAIGN_STATE);
   });
 });
 
 describe('utility/toggled', () => {
-  const powered = (): CampaignState =>
-    openState({
-      ...createNewCampaign('Cedar Hollow', FIXED),
-      base: { id: 'small-town-home', slots: {} },
-    });
+  /** A base whose staffed Station generates one point to spend. */
+  const powered = (score = 1): CampaignState =>
+    openState(
+      generatingUtilities(
+        { ...createNewCampaign('Cedar Hollow', FIXED), base: { id: 'small-town-home', slots: {} } },
+        score,
+      ),
+    );
 
   it('puts a point on the slot and takes it back off', () => {
     const on = campaignReducer(powered(), {
       type: 'utility/toggled',
       slot: 'kitchen',
       utility: 'water',
-      staffed: 1,
     });
 
     expect(expectOpen(on).base?.slots.kitchen?.water).toBe(true);
@@ -1088,19 +1088,18 @@ describe('utility/toggled', () => {
       type: 'utility/toggled',
       slot: 'kitchen',
       utility: 'water',
-      staffed: 1,
     });
 
     expect(expectOpen(off).base?.slots.kitchen?.water).toBeUndefined();
   });
 
   it('does nothing when the base cannot generate the point', () => {
-    const before = powered();
+    // Somebody in the Station, generating nothing.
+    const before = powered(0);
     const state = campaignReducer(before, {
       type: 'utility/toggled',
       slot: 'kitchen',
       utility: 'water',
-      staffed: 0,
     });
 
     expect(expectOpen(state)).toEqual(expectOpen(before));
@@ -1112,7 +1111,6 @@ describe('utility/toggled', () => {
         type: 'utility/toggled',
         slot: 'kitchen',
         utility: 'water',
-        staffed: 1,
       }),
     ).toEqual(INITIAL_CAMPAIGN_STATE);
   });
@@ -1142,6 +1140,7 @@ describe('utility/toggled', () => {
 describe('what earns a line in the log', () => {
   const LOGGED_SURVIVOR = '6b1f0a9c-77d2-4e35-91b8-0d4c2a5e83f7';
   const DECOY = '0f3d8b51-4a26-4c19-b73e-8e5109cf2a64';
+  const LABORERS = projectTeamWorth(4);
 
   /**
    * One campaign rich enough that every action below changes it: a claimed
@@ -1169,7 +1168,12 @@ describe('what earns a line in the log', () => {
           skills: { archery: 0 },
           xp: 20,
         },
+        // The project team, because since Z3-5 the Labor pool is its summed
+        // Tier levels (pg. 20) — three of the actions below are projects and
+        // would be refused for want of it.
+        ...LABORERS.survivors,
       ],
+      assignments: LABORERS.assignments,
       base: { id: 'hobby-farm', slots: {} },
     });
   }
@@ -1270,7 +1274,6 @@ describe('what earns a line in the log', () => {
         at: AT,
         slot: 'front-yard',
         facility: 'watchtower',
-        labor: 3,
       },
       entry: entry(3, 'mission', {
         kind: 'facility-built',
@@ -1279,7 +1282,7 @@ describe('what earns a line in the log', () => {
       }),
     },
     'upgrade/built': {
-      action: { type: 'upgrade/built', at: AT, slot: 'kitchen', upgrade: 'gas-range', labor: 2 },
+      action: { type: 'upgrade/built', at: AT, slot: 'kitchen', upgrade: 'gas-range' },
       entry: entry(3, 'mission', {
         kind: 'upgrade-built',
         slot: 'kitchen',
@@ -1287,7 +1290,7 @@ describe('what earns a line in the log', () => {
       }),
     },
     'slot/cleared': {
-      action: { type: 'slot/cleared', at: AT, slot: 'ruined-chicken-coop', labor: 2 },
+      action: { type: 'slot/cleared', at: AT, slot: 'ruined-chicken-coop' },
       entry: entry(3, 'mission', { kind: 'slot-cleared', slot: 'ruined-chicken-coop' }),
     },
 
@@ -1362,7 +1365,10 @@ describe('what earns a line in the log', () => {
     // The turn's assignment is worth recording; the fiddling is not, and that
     // entry belongs to the Planning Phase step rather than to each toggle.
     'utility/toggled': {
-      action: { type: 'utility/toggled', slot: 'kitchen', utility: 'water', staffed: 2 },
+      // Needs a pool: the staffed half comes from somebody working a Utility
+      // Station, and the Hobby Farm has one built in.
+      action: { type: 'utility/toggled', slot: 'kitchen', utility: 'water' },
+      state: openState(generatingUtilities(expectOpen(rich()), 2, 'utility-station')),
       entry: null,
     },
   };
@@ -1449,7 +1455,6 @@ describe('what earns a line in the log', () => {
           at: AT,
           slot: 'front-yard',
           facility: 'watchtower',
-          labor: 3,
         }),
       );
 

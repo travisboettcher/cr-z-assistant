@@ -11,7 +11,7 @@
  * and the materials they qualify. This is the picture of the building.
  */
 
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { BASES, type BaseSlot } from '../data/bases';
 import type { Campaign } from '../engine/campaign';
 import { layoutOf, occupants, upgradesRemaining, upgradesUsed } from '../engine/base';
@@ -27,7 +27,9 @@ import {
 } from './baseLabels';
 import { AssignUtilities } from './AssignUtilities';
 import { BaseSheet } from './BaseSheet';
-import { ProductionPreview } from './ProductionPreview';
+import { FacilityWork } from './FacilityWork';
+import { AssignTask } from './AssignTask';
+import { laborPool } from '../engine/assignments';
 import { BuildFacility } from './BuildFacility';
 import { ClearSlot } from './ClearSlot';
 import { UpgradeFacility } from './UpgradeFacility';
@@ -77,9 +79,6 @@ interface SlotCardProps {
   readonly occupant?: Occupant;
   /** Whether a clearing project on this slot has been paid for. */
   readonly cleared: boolean;
-  readonly labor: number;
-  /** The staffed Utilities Score, entered above the map. */
-  readonly staffed: number;
   readonly open: boolean;
   readonly onToggle: () => void;
   readonly onCommitted: () => void;
@@ -90,8 +89,6 @@ function SlotCard({
   slot,
   occupant,
   cleared,
-  labor,
-  staffed,
   open,
   onToggle,
   onCommitted,
@@ -144,20 +141,15 @@ function SlotCard({
           </button>
           {open && (
             <>
-              <UpgradeFacility
-                campaign={campaign}
-                slot={slot.id}
-                labor={labor}
-                onUpgraded={onCommitted}
-              />
+              <UpgradeFacility campaign={campaign} slot={slot.id} onUpgraded={onCommitted} />
               {/*
                * Both verbs an occupied slot has, in one expanded region. They
                * sit together rather than behind separate toggles because a
                * player deciding what to do with a facility is choosing between
                * them, not navigating to one.
                */}
-              <AssignUtilities campaign={campaign} slot={slot.id} staffed={staffed} />
-              <ProductionPreview campaign={campaign} occupant={occupant} />
+              <AssignUtilities campaign={campaign} slot={slot.id} />
+              <FacilityWork campaign={campaign} occupant={occupant} />
             </>
           )}
         </>
@@ -181,9 +173,7 @@ function SlotCard({
           >
             {open ? 'Cancel' : `Build in ${slotLabel(slot.id)}`}
           </button>
-          {open && (
-            <BuildFacility campaign={campaign} slot={slot.id} labor={labor} onBuilt={onCommitted} />
-          )}
+          {open && <BuildFacility campaign={campaign} slot={slot.id} onBuilt={onCommitted} />}
         </>
       )}
 
@@ -201,9 +191,7 @@ function SlotCard({
           >
             {open ? 'Cancel' : `Clear ${slotLabel(slot.id)}`}
           </button>
-          {open && (
-            <ClearSlot campaign={campaign} slot={slot.id} labor={labor} onCleared={onCommitted} />
-          )}
+          {open && <ClearSlot campaign={campaign} slot={slot.id} onCleared={onCommitted} />}
         </>
       )}
     </li>
@@ -211,20 +199,18 @@ function SlotCard({
 }
 
 export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
-  const laborId = useId();
-  const staffedId = useId();
-
   /**
-   * Which card is expanded, and how much Labor is to hand. Both are **UI state
-   * and never campaign state**: one is where you happen to be looking, and the
-   * other belongs to the Planning Phase's project team, which is Phase 3.
+   * Which card is expanded, and nothing else. **UI state, never campaign
+   * state**: where you happen to be looking is not a fact about the campaign.
+   *
+   * The two numbers that used to live here — Labor available and the Utilities
+   * Score — were campaign facts being typed in because nothing recorded who was
+   * doing what. Z3-5 made them derivable, so they are read rather than kept.
    *
    * One card at a time, so a nine-slot base does not double in height the
    * moment two are open — and matching how `App` holds `openSheetId`.
    */
   const [openSlot, setOpenSlot] = useState<string | null>(null);
-  const [labor, setLabor] = useState(0);
-  const [staffed, setStaffed] = useState(0);
 
   const base = campaign.base;
   if (base === null) return null;
@@ -254,47 +240,27 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
       {/*
        * Above the map, not per card. Labor is a pool spent across every project
        * in a turn — clearing one slot and building in another draw on the same
-       * one — and a field per card would say the opposite.
+       * one — and a control per card would say the opposite.
+       *
+       * The Utilities Score used to sit beside it as a second input. It is
+       * derived now too, from whoever is staffing a Utility Station, and it is
+       * read off the base sheet below rather than set here: the sheet is where
+       * totals live.
        */}
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <label htmlFor={laborId} className="text-sm font-medium">
-          Labor available
-        </label>
-        <input
-          id={laborId}
-          type="number"
-          min={0}
-          value={labor}
-          onChange={(event) => {
-            setLabor(Math.max(0, Number(event.target.value)));
-          }}
-          className={`${TOUCH_TARGET} ${FOCUS_RING} w-24 rounded-lg border border-stone-300 bg-white px-3 tabular-nums dark:border-stone-700 dark:bg-stone-950`}
-        />
-        <span className="text-sm text-stone-600 dark:text-stone-400">
-          From the project team, which the Planning Phase assigns <PageRef pages={20} />
-        </span>
-      </div>
-
-      {/*
-       * The other half of the utility pools, and the other thing the Planning
-       * Phase will supply. A staffed Utility Station produces its staff's
-       * Utilities Score split across Power and Water however the player likes,
-       * so one number covers both. What it buys is read off the base sheet
-       * below rather than repeated here — the sheet is where totals live.
-       */}
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <label htmlFor={staffedId} className="text-sm font-medium">
-          Utilities Score
-        </label>
-        <input
-          id={staffedId}
-          type="number"
-          min={0}
-          value={staffed}
-          onChange={(event) => {
-            setStaffed(Math.max(0, Number(event.target.value)));
-          }}
-          className={`${TOUCH_TARGET} ${FOCUS_RING} w-24 rounded-lg border border-stone-300 bg-white px-3 tabular-nums dark:border-stone-700 dark:bg-stone-950`}
+      <div className="mt-4 rounded-lg border border-stone-200 p-4 dark:border-stone-800">
+        <p className="text-sm">
+          <span className="font-medium">Labor available: </span>
+          <span className="tabular-nums">{laborPool(campaign)}</span>
+        </p>
+        <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+          The summed Tier levels of the project team. Whatever is left at the end of the turn is
+          lost <PageRef pages={20} />
+        </p>
+        <AssignTask
+          campaign={campaign}
+          task={{ task: 'project' }}
+          legend="On the project team"
+          pages={20}
         />
       </div>
 
@@ -303,18 +269,21 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
        * below answer for one slot each. See `docs/base-slot-interaction.md`.
        */}
       <div className="mt-5 border-t border-stone-200 pt-5 dark:border-stone-800">
-        <BaseSheet campaign={campaign} staffed={staffed} />
+        <BaseSheet campaign={campaign} />
       </div>
 
-      <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+      {/*
+       * Named, because it is no longer the only list in this region: the
+       * project team above is one too, and a test — or a screen reader — asking
+       * for "the slots" should get the slots.
+       */}
+      <ul aria-label="Facility Slots" className="mt-5 grid gap-3 sm:grid-cols-2">
         {slots.map((slot) => {
           const occupant = found.find((candidate) => candidate.slotId === slot.id);
           const shared = {
             campaign,
             slot,
             cleared: base.slots[slot.id]?.cleared === true,
-            labor,
-            staffed,
             open: openSlot === slot.id,
             onToggle: () => {
               setOpenSlot(openSlot === slot.id ? null : slot.id);

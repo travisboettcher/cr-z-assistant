@@ -2,7 +2,8 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { BASES, BASE_IDS } from '../data/bases';
-import { createNewCampaign } from '../engine/campaign';
+import { createNewCampaign, type Campaign } from '../engine/campaign';
+import { generatingUtilities, projectTeamWorth } from '../test/campaigns';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
 import { BaseSlotMap } from './BaseSlotMap';
@@ -34,8 +35,36 @@ async function claim(user: ReturnType<typeof userEvent.setup>, label: string) {
   await user.click(screen.getByRole('button', { name: /claim this base/i }));
 }
 
+/**
+ * Opens the app on a campaign that already exists.
+ *
+ * Claiming a base is still driven by clicking, because that is a journey worth
+ * testing. What is arranged rather than clicked is the *community*: since Z3-5
+ * the Labor pool is the summed Tier levels of the project team and the utility
+ * pool comes from somebody working a Station, so a test about a build cost
+ * would otherwise spend five survivors' worth of typing before its first
+ * assertion — and did, until the suite started timing out.
+ *
+ * The assignment controls themselves are driven by clicking, in the two tests
+ * that are about them.
+ */
+function openWith(campaign: Campaign) {
+  const user = userEvent.setup();
+
+  render(
+    <CampaignProvider initialState={{ status: 'open', campaign }}>
+      <App />
+    </CampaignProvider>,
+  );
+
+  return user;
+}
+
 const slotMap = () =>
-  screen.getByRole('region', { name: /hobby farm|small town home|distillery/i });
+  screen.getByRole('region', { name: /hobby farm|small town home|distillery|greasy spoon/i });
+
+/** The slot cards, which are no longer the only list inside the map. */
+const slots = () => screen.getByRole('list', { name: /facility slots/i });
 
 describe('claiming a base', () => {
   it('offers the roster of bases before one is claimed', async () => {
@@ -144,25 +173,20 @@ describe('slotLabel', () => {
 });
 
 describe('building into a slot', () => {
-  /** Opens a campaign with a base claimed and Labor entered. */
-  async function readyToBuild(labor = '5', hardware?: string) {
-    const user = await openCampaign();
-    await claim(user, 'Small Town Home — Tier 1');
-    await user.clear(screen.getByLabelText(/labor available/i));
-    await user.type(screen.getByLabelText(/labor available/i), labor);
-
-    if (hardware !== undefined) {
-      await user.clear(screen.getByLabelText(/^hardware$/i));
-      await user.type(screen.getByLabelText(/^hardware$/i), hardware);
-    }
-
-    return user;
+  /** A claimed Small Town Home, with a project team and Hardware to spend. */
+  function readyToBuild(labor = 5, hardware = 0) {
+    return openWith({
+      ...createNewCampaign('Cedar Hollow'),
+      materials: { food: 0, fuel: 0, hardware, rare: 0 },
+      base: { id: 'small-town-home', slots: {} },
+      ...projectTeamWorth(labor),
+    });
   }
 
   const garage = () => screen.getByRole('button', { name: /build in garage/i });
 
   it('offers a build only on the slots that are empty', async () => {
-    await readyToBuild();
+    readyToBuild();
 
     // The garage and the front yard are empty; the kitchen and two bunk rooms
     // are built in and offer nothing.
@@ -170,7 +194,7 @@ describe('building into a slot', () => {
   });
 
   it('shows the cost before the button rather than after it', async () => {
-    const user = await readyToBuild();
+    const user = readyToBuild();
     await user.click(garage());
 
     // A Bunk Room is the first facility offered: 3 Hardware, 2 Labor.
@@ -178,7 +202,7 @@ describe('building into a slot', () => {
   });
 
   it('opens one card at a time', async () => {
-    const user = await readyToBuild();
+    const user = readyToBuild();
     await user.click(garage());
     await user.click(screen.getByRole('button', { name: /build in front yard/i }));
 
@@ -188,7 +212,7 @@ describe('building into a slot', () => {
 
   it('refuses a build it cannot pay for, and offers no override for it', async () => {
     // A new campaign holds no Hardware at all.
-    const user = await readyToBuild();
+    const user = readyToBuild();
     await user.click(garage());
 
     expect(screen.getByText(/costs 3 hardware and the community has 0/i)).toBeInTheDocument();
@@ -197,14 +221,14 @@ describe('building into a slot', () => {
   });
 
   it('refuses a build for want of Labor, naming both numbers', async () => {
-    const user = await readyToBuild('0');
+    const user = readyToBuild(0);
     await user.click(garage());
 
     expect(screen.getByText(/costs 2 labor and 0 is available/i)).toBeInTheDocument();
   });
 
   it('holds a rule-breaking build behind an override, then builds it', async () => {
-    const user = await readyToBuild('5', '4');
+    const user = readyToBuild(5, 4);
     await user.click(garage());
     await user.selectOptions(screen.getByLabelText(/^facility$/i), ['Garden']);
 
@@ -216,17 +240,18 @@ describe('building into a slot', () => {
     await user.click(screen.getByLabelText(/build it anyway/i));
     await user.click(screen.getByRole('button', { name: /build here/i }));
 
-    const map = slotMap();
-    const cards = within(map).getAllByRole('listitem');
+    const cards = within(slots()).getAllByRole('listitem');
     // The garage is the fourth slot of the Small Town Home's layout.
     expect(cards[3]).toHaveTextContent('Garden');
     // And it keeps reporting the violation for as long as it stands, because
     // the override was never stored.
-    expect(within(map).queryByRole('button', { name: /build in garage/i })).not.toBeInTheDocument();
+    expect(
+      within(slotMap()).queryByRole('button', { name: /build in garage/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('spends the Hardware the build costs', async () => {
-    const user = await readyToBuild('5', '9');
+    const user = readyToBuild(5, 9);
     await user.click(garage());
     await user.click(screen.getByRole('button', { name: /build here/i }));
 
@@ -235,7 +260,7 @@ describe('building into a slot', () => {
   });
 
   it('closes the card once the build lands', async () => {
-    const user = await readyToBuild('5', '9');
+    const user = readyToBuild(5, 9);
     await user.click(garage());
     await user.click(screen.getByRole('button', { name: /build here/i }));
 
@@ -244,19 +269,17 @@ describe('building into a slot', () => {
 });
 
 describe('upgrading a facility', () => {
-  async function readyToUpgrade(hardware = '9') {
-    const user = await openCampaign();
-    await claim(user, 'Small Town Home — Tier 1');
-    await user.clear(screen.getByLabelText(/labor available/i));
-    await user.type(screen.getByLabelText(/labor available/i), '5');
-    await user.clear(screen.getByLabelText(/^hardware$/i));
-    await user.type(screen.getByLabelText(/^hardware$/i), hardware);
-
-    return user;
+  function readyToUpgrade(hardware = 9) {
+    return openWith({
+      ...createNewCampaign('Cedar Hollow'),
+      materials: { food: 0, fuel: 0, hardware, rare: 0 },
+      base: { id: 'small-town-home', slots: {} },
+      ...projectTeamWorth(5),
+    });
   }
 
   it('offers each slot the verb its state has, and not the other', async () => {
-    await readyToUpgrade();
+    readyToUpgrade();
 
     // The Small Town Home has three built-in facilities and two empty slots.
     expect(screen.getAllByRole('button', { name: /^upgrade /i })).toHaveLength(3);
@@ -264,7 +287,7 @@ describe('upgrading a facility', () => {
   });
 
   it('adds an upgrade to a built-in and shows it on the card', async () => {
-    const user = await readyToUpgrade();
+    const user = readyToUpgrade();
     await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
     await user.selectOptions(screen.getByLabelText(/^upgrade$/i), ['Gas Range']);
     await user.click(screen.getByRole('button', { name: /add upgrade/i }));
@@ -276,7 +299,7 @@ describe('upgrading a facility', () => {
   });
 
   it('holds an upgrade on the turn its facility was built, behind an override', async () => {
-    const user = await readyToUpgrade();
+    const user = readyToUpgrade();
 
     // Build a Workshop into the garage this turn, then try to upgrade it.
     await user.click(screen.getByRole('button', { name: /build in garage/i }));
@@ -291,7 +314,7 @@ describe('upgrading a facility', () => {
   });
 
   it('never holds a built-in on the same-turn rule', async () => {
-    const user = await readyToUpgrade();
+    const user = readyToUpgrade();
     await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
 
     // The kitchen came with the base, so it was never built and the rule has
@@ -301,12 +324,12 @@ describe('upgrading a facility', () => {
   });
 
   it('offers nothing to change on a built-in the base locks', async () => {
-    const user = await openCampaign();
-    await claim(user, 'Summer Camp — Tier 1');
-    await user.clear(screen.getByLabelText(/^hardware$/i));
-    await user.type(screen.getByLabelText(/^hardware$/i), '9');
-    await user.clear(screen.getByLabelText(/labor available/i));
-    await user.type(screen.getByLabelText(/labor available/i), '5');
+    const user = openWith({
+      ...createNewCampaign('Cedar Hollow'),
+      materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+      base: { id: 'summer-camp', slots: {} },
+      ...projectTeamWorth(5),
+    });
 
     await user.click(screen.getByRole('button', { name: /upgrade bunk room 1/i }));
 
@@ -316,25 +339,24 @@ describe('upgrading a facility', () => {
 });
 
 describe('clearing a slot', () => {
-  async function readyToClear(labor = '5') {
-    const user = await openCampaign();
-    await claim(user, 'Hobby Farm — Tier 2');
-    await user.clear(screen.getByLabelText(/labor available/i));
-    await user.type(screen.getByLabelText(/labor available/i), labor);
-
-    return user;
+  function readyToClear(labor = 5) {
+    return openWith({
+      ...createNewCampaign('Cedar Hollow'),
+      base: { id: 'hobby-farm', slots: {} },
+      ...projectTeamWorth(labor),
+    });
   }
 
   const coop = () => screen.getByRole('button', { name: /clear ruined chicken coop/i });
 
   it('offers a clear only on the blocked slot', async () => {
-    await readyToClear();
+    readyToClear();
 
     expect(screen.getAllByRole('button', { name: /^clear /i })).toHaveLength(1);
   });
 
   it('shows the cost in the form and the yield on the card, each once', async () => {
-    const user = await readyToClear();
+    const user = readyToClear();
 
     // The yield is on the card before anything is opened, because it is what a
     // player weighs when deciding where to spend Labor.
@@ -348,7 +370,7 @@ describe('clearing a slot', () => {
   });
 
   it('refuses for want of Labor, and offers no override for it', async () => {
-    const user = await readyToClear('1');
+    const user = readyToClear(1);
     await user.click(coop());
 
     expect(screen.getByText(/costs 2 labor and 1 is available/i)).toBeInTheDocument();
@@ -358,7 +380,7 @@ describe('clearing a slot', () => {
   });
 
   it('turns the slot into one that can be built in, and credits the yield', async () => {
-    const user = await readyToClear();
+    const user = readyToClear();
     await user.click(coop());
     await user.click(screen.getByRole('button', { name: /clear it/i }));
 
@@ -380,21 +402,22 @@ describe('clearing a slot', () => {
 });
 
 describe('assigning Power and Water', () => {
-  async function readyToSupply(score = '2') {
-    const user = await openCampaign();
-    await claim(user, 'Small Town Home — Tier 1');
-    await user.clear(screen.getByLabelText(/utilities score/i));
-    await user.type(screen.getByLabelText(/utilities score/i), score);
-
-    return user;
+  /** A claimed Small Town Home whose staffed Station generates `score`. */
+  function readyToSupply(score = 2) {
+    return openWith(
+      generatingUtilities(
+        { ...createNewCampaign('Cedar Hollow'), base: { id: 'small-town-home', slots: {} } },
+        score,
+      ),
+    );
   }
 
   const openKitchen = async (user: ReturnType<typeof userEvent.setup>) => {
     await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
   };
 
-  it('shows what each pool generates and what the Score is covering', async () => {
-    await readyToSupply();
+  it('shows what each pool generates and what the Score is covering', () => {
+    readyToSupply();
 
     expect(screen.getByRole('definition', { name: /power assigned/i })).toHaveTextContent(
       '0 / 0 flat',
@@ -403,7 +426,7 @@ describe('assigning Power and Water', () => {
   });
 
   it('assigns a point, and the readout follows it', async () => {
-    const user = await readyToSupply();
+    const user = readyToSupply();
     await openKitchen(user);
     await user.click(screen.getByRole('checkbox', { name: /water/i }));
 
@@ -417,7 +440,7 @@ describe('assigning Power and Water', () => {
   });
 
   it('warns rather than refuses when nothing in the slot uses the point', async () => {
-    const user = await readyToSupply();
+    const user = readyToSupply();
     await user.click(screen.getByRole('button', { name: /upgrade bunk room 1/i }));
 
     // A Bunk Room needs neither utility: pointless, legal, and not refused.
@@ -426,7 +449,7 @@ describe('assigning Power and Water', () => {
   });
 
   it('refuses a point the base cannot generate, and says how short it is', async () => {
-    const user = await readyToSupply('0');
+    const user = readyToSupply(0);
     await openKitchen(user);
 
     expect(screen.getAllByText(/needs 1 more than this base generates/i)).toHaveLength(2);
@@ -434,15 +457,21 @@ describe('assigning Power and Water', () => {
   });
 
   it('lets a point go back even when the Score no longer covers it', async () => {
-    const user = await readyToSupply('1');
+    const user = readyToSupply(1);
     await openKitchen(user);
     await user.click(screen.getByRole('checkbox', { name: /water/i }));
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }));
 
-    // Drop the Score below what is assigned, as a Planning Phase re-assignment
-    // would. The point must still be removable or the base is stranded.
-    await user.clear(screen.getByLabelText(/utilities score/i));
-    await user.type(screen.getByLabelText(/utilities score/i), '0');
+    // Take the Station's worker off it, as a Planning Phase re-assignment
+    // would: the Score drops below what is already assigned, and the point must
+    // still be removable or the base is stranded.
+    await user.click(screen.getByRole('button', { name: /upgrade front yard/i }));
+    await user.click(
+      within(screen.getByRole('group', { name: /working here/i })).getByRole('checkbox'),
+    );
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }));
 
+    await openKitchen(user);
     const water = screen.getByRole('checkbox', { name: /water/i });
     expect(water).toBeChecked();
     expect(water).toBeEnabled();
@@ -479,11 +508,15 @@ describe('the base sheet', () => {
   });
 
   it('follows a utility onto the Food cap, which is the roster’s own 6(8)', async () => {
-    const user = await claimed();
-
     // Its Refrigeration needs Power. That is the parenthetical the book prints.
-    await user.clear(screen.getByLabelText(/utilities score/i));
-    await user.type(screen.getByLabelText(/utilities score/i), '1');
+    const user = openWith(
+      generatingUtilities(
+        { ...createNewCampaign('Cedar Hollow'), base: { id: 'greasy-spoon', slots: {} } },
+        1,
+        'parking-lot-1',
+      ),
+    );
+
     await user.click(screen.getByRole('button', { name: /upgrade storage area/i }));
     await user.click(screen.getByRole('checkbox', { name: 'Power' }));
 
@@ -503,11 +536,10 @@ describe('the base sheet', () => {
   });
 });
 
-describe('previewing production', () => {
-  it('changes with the person picked, and with a utility', async () => {
+describe('staffing a facility', () => {
+  it('changes what it produces, and is written down rather than previewed', async () => {
     const user = await openCampaign();
 
-    // A cook with Rationing: Cooperation 1 plus Rationing 0 is a Score of 1.
     await user.type(screen.getByLabelText(/survivor name/i), 'Carla');
     await user.selectOptions(screen.getByLabelText(/^tier$/i), '2');
     await user.click(screen.getByRole('button', { name: /add survivor/i }));
@@ -518,19 +550,42 @@ describe('previewing production', () => {
     // Nobody assigned yet.
     expect(screen.getByText(/needs someone assigned/i)).toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText(/preview with/i), ['Carla']);
+    const working = within(screen.getByRole('group', { name: /working here/i }));
+    await user.click(working.getByRole('checkbox', { name: /carla/i }));
 
-    // A Kitchen halves without Water, and a Citizen with no Rationing has no
-    // Rationing Score at all — which the sheet says rather than showing a zero.
+    // A Citizen with no Rationing has no Rationing Score at all — which the
+    // sheet says rather than showing a zero.
     expect(screen.getByText(/they do not have the skill/i)).toBeInTheDocument();
+    expect(screen.queryByText(/needs someone assigned/i)).not.toBeInTheDocument();
   });
 
-  it('offers no preview on a facility nobody works', async () => {
+  it('takes a survivor off whatever they were doing, and says so first', async () => {
+    const user = await openCampaign();
+    await user.type(screen.getByLabelText(/survivor name/i), 'Carla');
+    await user.selectOptions(screen.getByLabelText(/^tier$/i), '2');
+    await user.click(screen.getByRole('button', { name: /add survivor/i }));
+    await claim(user, 'Small Town Home — Tier 1');
+
+    const team = within(screen.getByRole('group', { name: /on the project team/i }));
+    await user.click(team.getByRole('checkbox', { name: /carla/i }));
+    expect(screen.getByText('Labor available:').parentElement).toHaveTextContent('2');
+
+    // One task per survivor (pg. 20): staffing the Kitchen takes her off the
+    // project team, and the row said what she was doing before the click.
+    await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
+    const working = within(screen.getByRole('group', { name: /working here/i }));
+    expect(working.getByText(/currently on the project team/i)).toBeInTheDocument();
+
+    await user.click(working.getByRole('checkbox', { name: /carla/i }));
+    expect(screen.getByText('Labor available:').parentElement).toHaveTextContent('0');
+  });
+
+  it('offers nobody to a facility that nobody works', async () => {
     const user = await openCampaign();
     await claim(user, 'Small Town Home — Tier 1');
     await user.click(screen.getByRole('button', { name: /upgrade bunk room 1/i }));
 
     // A Bunk Room is passive: beds, and nothing to staff.
-    expect(screen.queryByLabelText(/preview with/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: /working here/i })).not.toBeInTheDocument();
   });
 });

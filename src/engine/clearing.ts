@@ -20,6 +20,7 @@
 
 import { MATERIALS, type Material } from '../data/materials';
 import { layoutOf } from './base';
+import { laborPool } from './assignments';
 import type { Check, Violation } from './checks';
 import type { Campaign } from './campaign';
 
@@ -33,7 +34,6 @@ export type ClearingCheck = Check<ClearingViolationCode>;
 export interface ClearingRequest {
   readonly slot: string;
   /** Labor available this turn, entered by hand — see `build.ts`. */
-  readonly labor: number;
 }
 
 /** What clearing this slot costs and gives, or undefined where there is no project. */
@@ -89,12 +89,14 @@ export function checkClearing(campaign: Campaign, request: ClearingRequest): Cle
     };
   }
 
-  if (request.labor < slot.labor) {
+  const available = laborPool(campaign);
+
+  if (available < slot.labor) {
     return {
       blockers: [
         {
           code: 'not-enough-labor',
-          message: `Costs ${String(slot.labor)} Labor and ${String(request.labor)} is available.`,
+          message: `Costs ${String(slot.labor)} Labor and ${String(available)} is available.`,
           pages: 54,
         },
       ],

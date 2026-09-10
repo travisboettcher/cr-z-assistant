@@ -24,13 +24,12 @@ import {
 } from '../engine/base';
 import type { Campaign } from '../engine/campaign';
 import { assignedCount, staffedSpent } from '../engine/utilities';
+import { utilitiesScore } from '../engine/assignments';
 import { UTILITY_LABELS } from './baseLabels';
 import { PageRef } from './PageRef';
 
 export interface BaseSheetProps {
   readonly campaign: Campaign;
-  /** The staffed Utilities Score, entered above the map. */
-  readonly staffed: number;
 }
 
 function Figure({
@@ -74,7 +73,7 @@ function Figure({
   );
 }
 
-export function BaseSheet({ campaign, staffed }: BaseSheetProps) {
+export function BaseSheet({ campaign }: BaseSheetProps) {
   const base = campaign.base;
   if (base === null) return null;
 
@@ -133,7 +132,7 @@ export function BaseSheet({ campaign, staffed }: BaseSheetProps) {
        */}
       <Figure
         label="Score spent"
-        value={`${String(staffedSpent(base))} / ${String(staffed)}`}
+        value={`${String(staffedSpent(base))} / ${String(utilitiesScore(campaign))}`}
         note="On assignments beyond flat generation"
         pages={20}
       />

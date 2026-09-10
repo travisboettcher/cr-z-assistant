@@ -23,6 +23,81 @@ async function startCampaign(page: Page, name: string) {
 }
 
 /**
+ * Adds a Hero and puts them on the project team, which is five Labor.
+ *
+ * Since Z3-5 the Labor pool is the summed Tier levels of the project team
+ * (pg. 20) rather than a number typed above the slot map, so a journey that
+ * builds anything has to hire somebody first. A Tier 4 is four Labor and a
+ * Tier 1 is one, which is enough for every project these tests order.
+ */
+async function hireProjectTeam(page: Page) {
+  for (const [name, tier] of [
+    ['Earl Rhodes', '4'],
+    ['Ruby Vance', '1'],
+  ] as const) {
+    await page.getByLabel(/survivor name/i).fill(name);
+    await page.getByLabel(/^tier$/i).selectOption(tier);
+    await page.getByRole('button', { name: /add survivor/i }).click();
+  }
+
+  const team = page.getByRole('group', { name: /on the project team/i });
+  for (const box of await team.getByRole('checkbox').all()) {
+    await box.check();
+  }
+}
+
+/**
+ * Builds a Utility Station into the front yard and puts a Utilities worker in
+ * it, which is what a utility pool is made of since Z3-5.
+ *
+ * The staffed half of the pool is the combined Utilities Score of whoever is
+ * working a Station (pg. 20, 72), and it was a number typed above the slot map
+ * until this story. So a journey that assigns a point of Power now has to
+ * build the thing that generates it and staff it — which is the real journey,
+ * and worth having end to end once.
+ *
+ * The worker is a Hero, and has to be: a Skill Score is the governing stat plus
+ * the level (pg. 8), Utilities is governed by Cooperation, and the Tier stat
+ * arrays only put anything in Cooperation at Tier 4. A Rookie who has learnt
+ * Utilities still has a Score of zero — which is a real state the app models,
+ * and a useless one to build a pool out of.
+ *
+ * `hireProjectTeam` must have run first: the Station costs 3 Hardware and 3
+ * Labor.
+ */
+async function staffAUtilityStation(page: Page, slot = 'front yard') {
+  const worker = 'Sam Reyes';
+
+  await page.getByLabel(/survivor name/i).fill(worker);
+  await page.getByLabel(/^tier$/i).selectOption('4');
+  await page.getByRole('button', { name: /add survivor/i }).click();
+
+  await page.getByRole('button', { name: new RegExp(`build in ${slot}`, 'i') }).click();
+  await page.getByLabel(/^facility$/i).selectOption({ label: 'Utility Station' });
+  await page.getByRole('button', { name: /build here/i }).click();
+
+  await page
+    .getByRole('region', { name: /community/i })
+    .getByRole('listitem')
+    .filter({ hasText: worker })
+    .getByRole('button', { name: /^sheet$/i })
+    .click();
+  const sheet = page.getByRole('region', { name: worker });
+  await sheet
+    .getByRole('row', { name: /^Utilities\b/ })
+    .getByRole('button', { name: /^take\b/i })
+    .click();
+  await sheet.getByRole('button', { name: /^close sheet$/i }).click();
+
+  await page.getByRole('button', { name: new RegExp(`upgrade ${slot}`, 'i') }).click();
+  await page
+    .getByRole('group', { name: /working here/i })
+    .getByRole('checkbox', { name: new RegExp(worker, 'i') })
+    .check();
+  await page.getByRole('button', { name: /^cancel$/i }).click();
+}
+
+/**
  * Waits for the debounced autosave to reach storage.
  *
  * The write is debounced, and Playwright acts far faster than a person, so a
@@ -539,7 +614,7 @@ test('a facility is built into a slot, and the build survives the round trip', a
   await page.getByRole('button', { name: /claim this base/i }).click();
 
   await page.getByLabel(/^hardware$/i).fill('9');
-  await page.getByLabel(/labor available/i).fill('5');
+  await hireProjectTeam(page);
 
   await page.getByRole('button', { name: /build in garage/i }).click();
   await page.getByLabel(/^facility$/i).selectOption({ label: 'Workshop' });
@@ -585,7 +660,7 @@ test('an upgrade waits for the turn after its facility went up', async ({ page }
   await page.getByRole('button', { name: /claim this base/i }).click();
 
   await page.getByLabel(/^hardware$/i).fill('12');
-  await page.getByLabel(/labor available/i).fill('5');
+  await hireProjectTeam(page);
 
   await page.getByRole('button', { name: /build in garage/i }).click();
   await page.getByLabel(/^facility$/i).selectOption({ label: 'Workshop' });
@@ -642,7 +717,7 @@ test('an upgrade waits for the turn after its facility went up', async ({ page }
   // The garage's upgrade form is still open from before the turn ended, and it
   // now reads differently: a new turn, so the Workshop is no longer the thing
   // that just went up.
-  await page.getByLabel(/labor available/i).fill('5');
+  await hireProjectTeam(page);
   await expect(page.getByText(/went up this turn/i)).not.toBeVisible();
   await page.getByLabel(/^upgrade$/i).selectOption({ label: 'Metal Shop' });
   await page.getByRole('button', { name: /add upgrade/i }).click();
@@ -663,7 +738,7 @@ test('a cleared slot builds like an empty one of its own kind', async ({ page })
 
   await page.getByLabel(/choose a base/i).selectOption({ label: 'Hobby Farm — Tier 2' });
   await page.getByRole('button', { name: /claim this base/i }).click();
-  await page.getByLabel(/labor available/i).fill('5');
+  await hireProjectTeam(page);
 
   const map = page.getByRole('region', { name: 'Hobby Farm' });
   await expect(map).toContainText('Blocked — 2 Labor to clear, and yields 2 hardware');
@@ -719,9 +794,9 @@ test('a point of Power covers a facility and its upgrades, and survives the roun
   await page.getByLabel(/choose a base/i).selectOption({ label: 'Small Town Home — Tier 1' });
   await page.getByRole('button', { name: /claim this base/i }).click();
 
-  await page.getByLabel(/^hardware$/i).fill('12');
-  await page.getByLabel(/labor available/i).fill('9');
-  await page.getByLabel(/utilities score/i).fill('1');
+  await page.getByLabel(/^hardware$/i).fill('20');
+  await hireProjectTeam(page);
+  await staffAUtilityStation(page);
 
   // A Storage Area with two upgrades on it: three things, one point of Power.
   await page.getByRole('button', { name: /build in garage/i }).click();
@@ -779,16 +854,16 @@ test('a point of Power covers a facility and its upgrades, and survives the roun
 });
 
 /**
- * Z2-9's acceptance, and the end of Phase 2: the base sheet reads the way the
- * paper worksheet does, and staffing it changes nothing that gets saved.
+ * Z2-9's acceptance, with Z3-5's flip in the middle of it.
+ *
+ * The base sheet still reads the way the paper worksheet does. What changed is
+ * the last third: staffing a facility used to be a preview that was never
+ * saved, because assigning a survivor was Planning Phase work the app could not
+ * do. It is an assignment now, and the point of the closing assertion is
+ * exactly reversed — the export *must* change.
  */
-test('the base sheet totals the base, and previewing staff saves nothing', async ({ page }) => {
+test('the base sheet totals the base, and staffing it is written down', async ({ page }) => {
   await startCampaign(page, 'Cedar Hollow');
-
-  // Someone who can actually cook: a Hero with Rationing.
-  await page.getByLabel(/survivor name/i).fill('Carla');
-  await page.getByLabel(/^tier$/i).selectOption('4');
-  await page.getByRole('button', { name: /add survivor/i }).click();
 
   await page.getByLabel(/choose a base/i).selectOption({ label: 'Greasy Spoon — Tier 1' });
   await page.getByRole('button', { name: /claim this base/i }).click();
@@ -797,25 +872,40 @@ test('the base sheet totals the base, and previewing staff saves nothing', async
   // built-in Storage Area storing 6, and one Hero allowed.
   await expect(page.getByLabel(/^beds$/i)).toHaveText('3');
   await expect(page.getByLabel(/food stored/i)).toHaveText('0 / 6');
+  await expect(page.getByLabel(/^heroes$/i)).toHaveText('0 / 1');
+
+  await page.getByLabel(/^hardware$/i).fill('20');
+  await hireProjectTeam(page);
   await expect(page.getByLabel(/^heroes$/i)).toHaveText('1 / 1');
 
   // Power turns the built-in Refrigeration on, which is the parenthetical the
-  // book prints for this base: 6/6(8)/6.
-  await page.getByLabel(/utilities score/i).fill('1');
+  // book prints for this base: 6/6(8)/6. The point comes out of a Station
+  // somebody is working, rather than a number typed in.
+  // Adds a second Hero, which takes the community over the base's cap of one.
+  // That is a violation the roster reports rather than one this test is about.
+  await staffAUtilityStation(page, 'parking lot 1');
   await page.getByRole('button', { name: /upgrade storage area/i }).click();
   await page.getByRole('checkbox', { name: 'Power' }).check();
   await expect(page.getByLabel(/food stored/i)).toHaveText('0 / 8');
-
-  const beforePreview = await exportCampaign(page);
-
-  // Preview the Kitchen with Carla. The number moves; the campaign does not.
   await page.getByRole('button', { name: /^cancel$/i }).click();
+
+  const beforeStaffing = await exportCampaign(page);
+
+  // Put Earl in the Kitchen. The number moves, and so does the campaign.
   await page.getByRole('button', { name: /upgrade kitchen/i }).click();
   await expect(page.getByText(/needs someone assigned/i)).toBeVisible();
 
-  await page.getByLabel(/preview with/i).selectOption({ label: 'Carla' });
+  await page
+    .getByRole('group', { name: /working here/i })
+    .getByRole('checkbox', { name: /earl/i })
+    .check();
   await expect(page.getByText(/needs someone assigned/i)).not.toBeVisible();
 
-  const afterPreview = await exportCampaign(page);
-  expect(afterPreview.text).toBe(beforePreview.text);
+  const afterStaffing = await exportCampaign(page);
+  expect(afterStaffing.text).not.toBe(beforeStaffing.text);
+  expect(JSON.parse(afterStaffing.text).assignments).toMatchObject({
+    [Object.keys(JSON.parse(afterStaffing.text).assignments).find(
+      (id) => JSON.parse(afterStaffing.text).assignments[id].slot === 'kitchen',
+    ) as string]: { task: 'staff', slot: 'kitchen' },
+  });
 });
