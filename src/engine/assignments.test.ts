@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Assignment, type Base, type Campaign } from './campaign';
 import { createSurvivor } from './survivor';
+import { flatUtilitiesGenerated } from './base';
 import {
   laborPool,
   projectTeam,
@@ -215,6 +216,20 @@ describe('utilitiesScore', () => {
     };
 
     expect(utilitiesScore(campaign)).toBe(0);
+  });
+
+  /**
+   * The two halves of the pool must not both claim the same points.
+   *
+   * The Distillery's built-in Station produces a flat 2 Water whether or not
+   * anybody works it (pg. 61), and that half is `flatUtilitiesGenerated`'s.
+   * Counting it here would let a base spend it twice.
+   */
+  it('leaves the flat half of the pool to the flat half of the pool', () => {
+    const campaign = community({}, { id: 'distillery', slots: {} });
+
+    expect(utilitiesScore(campaign)).toBe(0);
+    expect(flatUtilitiesGenerated(campaign.base as Base).water).toBe(2);
   });
 
   it('is zero for a campaign with no base', () => {

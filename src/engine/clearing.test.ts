@@ -100,10 +100,11 @@ describe('checkClearing', () => {
   });
 
   it('affords a project that costs exactly the Labor available', () => {
-    // The boundary, because `<` and `<=` differ only here.
-    expect(checkClearing(campaignWith(farm()), { slot: 'ruined-chicken-coop' }).blockers).toEqual(
-      [],
-    );
+    // The boundary, because `<` and `<=` differ only here — so the team has to
+    // be worth exactly the coop's two Labor rather than the comfortable nine.
+    const exact = campaignWith(farm(), { ...projectTeamWorth(2) });
+
+    expect(checkClearing(exact, { slot: 'ruined-chicken-coop' }).blockers).toEqual([]);
   });
 });
 

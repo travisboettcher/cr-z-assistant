@@ -31,7 +31,6 @@
  * would be churn.
  */
 
-import type { Utility } from '../data/facilities';
 import { occupants } from './base';
 import type { Assignment, Campaign, Survivor } from './campaign';
 import { facilityProduction, type ProductionLine } from './production';
@@ -46,10 +45,14 @@ import { labor } from './survivor';
  * mission team number is which team rather than which job.
  */
 export function sameTask(one: Assignment, other: Assignment): boolean {
-  if (one.task !== other.task) return false;
-  if (one.task === 'staff' && other.task === 'staff') return one.slot === other.slot;
+  // Staffing asked first, so the tag comparison below is the whole answer for
+  // everything else. An earlier draft matched tags first and then re-checked
+  // *both* sides for staffing, which needed the second check only to satisfy
+  // the typechecker — and left four mutants alive, because by then the two tags
+  // were known equal and every way of breaking that line agreed with it.
+  if (one.task === 'staff') return other.task === 'staff' && one.slot === other.slot;
 
-  return true;
+  return one.task === other.task;
 }
 
 /** Which task a survivor has been given, or `undefined` for none. */
@@ -77,10 +80,10 @@ export function survivorsDoing(
 
 /** Whoever is working this slot's facility (pg. 20). */
 export function staffOf(campaign: Campaign, slot: string): readonly Survivor[] {
-  return survivorsDoing(
-    campaign,
-    (assignment) => assignment.task === 'staff' && assignment.slot === slot,
-  );
+  // Through `sameTask` rather than matching the tag and the slot again here.
+  // Two places answering "is this the same job" is one place too many, and the
+  // copy was the one a mutant could survive in.
+  return survivorsDoing(campaign, (assignment) => sameTask(assignment, { task: 'staff', slot }));
 }
 
 /** Everyone on the project team (pg. 20). */
@@ -123,16 +126,21 @@ export function staffedFacilityCount(campaign: Campaign): number {
  * utility pools — which is the Utility Station's, and only its (pg. 72).
  *
  * Asked of the line rather than of the facility, because `facilityProduction`
- * has already done the work of deciding what an occupant makes and with whom.
- * Both halves are needed: a staffed line with one output goes to one place, and
- * a flat multi-output line is not a thing the table has but is a shape the type
- * allows.
+ * has already decided what an occupant makes and with whom.
+ *
+ * **More than one output is the whole test**, and that is a claim about the
+ * data rather than a shortcut: the Utility Station is the only entry in the
+ * book whose production names two outputs, because it is the only one whose
+ * amount the player divides. `rules.test.ts` asserts that over the whole
+ * catalogue, so this stays true by a test rather than by memory.
+ *
+ * An earlier draft also checked that both outputs *were* utilities. Nothing
+ * could make that check fire — there is no other multi-output line to catch —
+ * and it survived every mutation for exactly that reason. A filter that cannot
+ * discriminate is a filter that is not doing anything.
  */
 function splitsAcrossPools(line: ProductionLine): boolean {
-  const isUtility = (output: ProductionLine['outputs'][number]): output is Utility =>
-    output === 'power' || output === 'water';
-
-  return line.staffed && line.outputs.length > 1 && line.outputs.every(isUtility);
+  return line.staffed && line.outputs.length > 1;
 }
 
 /**
