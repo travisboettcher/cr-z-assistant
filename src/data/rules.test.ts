@@ -468,13 +468,13 @@ describe('production outputs', () => {
    * would then count that facility's output as Power and Water.
    */
   it('divides one amount across outputs only in the Utility Station', () => {
-    const splitting = FACILITY_IDS.filter((id) =>
-      [FACILITIES[id], ...FACILITIES[id].upgrades].some((entry) =>
-        (entry.effects.production ?? []).some(
-          (production) => production.kind === 'staffed-split' || 'outputs' in production,
-        ),
-      ),
-    );
+    const splitting = FACILITY_IDS.filter((id) => {
+      const facility = FACILITIES[id] as Facility;
+
+      return [facility, ...facility.upgrades].some((entry: Facility | Upgrade) =>
+        (entry.effects.production ?? []).some((production) => 'outputs' in production),
+      );
+    });
 
     expect(splitting).toEqual(['utility-station']);
   });

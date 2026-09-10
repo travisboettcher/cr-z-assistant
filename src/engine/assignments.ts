@@ -50,6 +50,12 @@ export function sameTask(one: Assignment, other: Assignment): boolean {
   // *both* sides for staffing, which needed the second check only to satisfy
   // the typechecker — and left four mutants alive, because by then the two tags
   // were known equal and every way of breaking that line agreed with it.
+  //
+  // One survives here and is equivalent: `other.task === 'staff'` replaced by
+  // `true`. Only a Staff assignment carries a slot, so for any other `other`
+  // the comparison that follows is `'kitchen' === undefined`, which is already
+  // false. The check is there for the typechecker — `one.slot` is not readable
+  // without it — and it is the narrowing rather than the test that earns it.
   if (one.task === 'staff') return other.task === 'staff' && one.slot === other.slot;
 
   return one.task === other.task;

@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { createNewCampaign, type Assignment, type Base, type Campaign } from './campaign';
+import {
+  createNewCampaign,
+  type Assignment,
+  type Base,
+  type Campaign,
+  type Survivor,
+} from './campaign';
 import { createSurvivor } from './survivor';
-import { flatUtilitiesGenerated } from './base';
+import { flatUtilitiesGenerated, occupants } from './base';
+import { facilityProduction } from './production';
 import {
   laborPool,
   projectTeam,
@@ -209,12 +216,32 @@ describe('utilitiesScore', () => {
   it('ignores staff on a facility that makes something else', () => {
     // A Kitchen's staff make Food, which is not a utility and cannot be
     // assigned as one.
-    const campaign: Campaign = {
-      ...community({}, farm()),
-      survivors: [utilityWorker(4)],
-      assignments: { 'utilities-4': { task: 'staff', slot: 'kitchen' } },
+    //
+    // **The cook has to be able to cook.** The first version of this put a
+    // Utilities worker in the Kitchen, where their Rationing Score is nothing
+    // at all — so the line it produced was zero, and a rule that wrongly added
+    // it would have added nothing. Three mutants lived in that gap. A Score of
+    // 3 is a number the assertion can see going missing.
+    const cook: Survivor = {
+      ...utilityWorker(3),
+      id: 'cook',
+      name: 'Cook',
+      skills: { rationing: 0 },
     };
 
+    const campaign: Campaign = {
+      ...community({}, farm()),
+      survivors: [cook],
+      assignments: { cook: { task: 'staff', slot: 'kitchen' } },
+    };
+
+    // The Kitchen genuinely makes something with them in it, and none of it is
+    // a utility.
+    expect(
+      facilityProduction(occupants(farm()).find((one) => one.slotId === 'kitchen') as never, [
+        cook,
+      ]),
+    ).not.toEqual([]);
     expect(utilitiesScore(campaign)).toBe(0);
   });
 
