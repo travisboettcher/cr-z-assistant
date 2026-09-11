@@ -45,6 +45,7 @@ import {
   type MaterialRoll,
 } from '../engine/materials';
 import { checkXpAward, withXpAwarded } from '../engine/experience';
+import { healthAwards, withWoundsHealed, woundsHealed } from '../engine/healing';
 import { XP_AWARD, type XpSource } from '../data/turn';
 import type { Assignment, Campaign, Stats, Survivor } from '../engine/campaign';
 import { createSurvivor, recruitSurvivor } from '../engine/survivor';
@@ -297,6 +298,17 @@ export type CampaignAction =
       readonly rolls: readonly MaterialRoll[];
       readonly at: string;
     }
+  /**
+   * Share out a turn's Health, in the Heal Wounds step (pg. 19).
+   *
+   * Carries nothing but the clock: who gets what is `healing.ts`'s to work
+   * out from the assignments and the base, and a screen that sent a
+   * distribution would be a second copy of the equal-shares rule.
+   *
+   * Refused when this turn already has an entry — the step raises Health and
+   * the walk can go back over it.
+   */
+  | { readonly type: 'advancement/woundsHealed'; readonly at: string }
   /**
    * Give a survivor one XP from one of the four sources (pg. 18).
    *
@@ -612,6 +624,28 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         });
       });
 
+    case 'advancement/woundsHealed':
+      return withCampaign(state, (campaign) => {
+        if (woundsHealed(campaign)) return campaign;
+
+        const awards = healthAwards(campaign);
+
+        // One entry per survivor, so the history says who recovered rather
+        // than what the Clinic made. Folded rather than pushed, because
+        // `logged` stamps each entry against the campaign it is appending to.
+        return awards.reduce(
+          (healing, award) =>
+            logged(healing, action.at, {
+              kind: 'health-restored',
+              survivor: award.survivor,
+              name: nameOf(campaign, award.survivor),
+              health: award.health,
+              source: award.source,
+            }),
+          withWoundsHealed(campaign, awards),
+        );
+      });
+
     /**
      * Through the same helper as the three advancement purchases, which is
      * what it is: a survivor gains something and the log says so. The check is
@@ -787,6 +821,19 @@ function loggedIfChanged(
  * because the interesting fields (the level reached, the Tier reached) are on
  * the *result*, and the name is on the survivor as they were before.
  */
+/**
+ * The name to write into a log entry for a survivor id.
+ *
+ * An entry records what happened rather than who is in the community now, so a
+ * survivor who leaves later must not take their own history's readability with
+ * them. An id with nobody behind it cannot reach here — the awards are built
+ * from the roster — and the fallback is the log staying readable rather than a
+ * branch anything can take.
+ */
+function nameOf(campaign: Campaign, survivor: string): string {
+  return campaign.survivors.find((candidate) => candidate.id === survivor)?.name ?? '';
+}
+
 function editSurvivorLogged(
   state: CampaignState,
   id: string,

@@ -26,7 +26,7 @@ import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS, type Materials } from '../data/materials';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
-import { CAMPAIGN_PHASES, XP_SOURCES } from '../data/turn';
+import { CAMPAIGN_PHASES, HEALTH_SOURCES, XP_SOURCES } from '../data/turn';
 import { TURN_SEQUENCE } from '../engine/turn';
 import { CURRENT_SCHEMA_VERSION } from '../engine/campaign';
 import type {
@@ -254,6 +254,13 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       fuel: anyAmount,
       hardware: anyAmount,
       rare: anyAmount,
+    }),
+    fc.record({
+      kind: fc.constant('health-restored' as const),
+      survivor: anyId,
+      name: anyName,
+      health: fc.integer({ min: 1, max: 20 }),
+      source: fc.constantFrom(...HEALTH_SOURCES),
     }),
     fc.record({
       kind: fc.constant('xp-awarded' as const),

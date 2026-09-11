@@ -276,10 +276,92 @@ describe('Add Materials to Storage', () => {
   });
 });
 
+describe('Heal Wounds', () => {
+  /**
+   * A staffed Medical Clinic with Water, so the pool is the medic's Medicine
+   * Score rather than half of it — the size of the pool is what these are
+   * about, and a halving in the middle only obscures it.
+   */
+  function withClinic(overrides: Partial<Campaign> = {}): Campaign {
+    const medic: Survivor = {
+      ...createSurvivor('Nell Haig', 4, { id: 'medic' }),
+      stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: 3 },
+      skills: { medicine: 0 },
+    };
+
+    return advancement({
+      step: 'heal-wounds',
+      survivors: [
+        medic,
+        { ...createSurvivor('Earl Rhodes', 4, { id: EARL }), currentHp: 1 },
+        { ...createSurvivor('Carla Proust', 3, { id: CARLA }), currentHp: 2 },
+      ],
+      assignments: {
+        medic: { task: 'staff', slot: 'garage' },
+        [EARL]: { task: 'healing' },
+        [CARLA]: { task: 'healing' },
+      },
+      base: {
+        id: 'small-town-home',
+        slots: { garage: { built: { facility: 'medical-clinic', builtOnTurn: 1 }, water: true } },
+      },
+      ...overrides,
+    });
+  }
+
+  it('shows the distribution before it is applied', () => {
+    open(withClinic());
+
+    // Three points across two wounded survivors: two to Earl, one to Carla,
+    // because nobody takes a second until everybody has had a first.
+    expect(within(walk()).getByText(/Earl Rhodes \+2 Health/)).toBeTruthy();
+    expect(within(walk()).getByText(/Carla Proust \+1 Health/)).toBeTruthy();
+  });
+
+  it('applies it once, and refuses to do it twice', async () => {
+    const user = open(withClinic());
+
+    await user.click(within(walk()).getByRole('button', { name: /heal wounds/i }));
+
+    expect(within(walk()).getByText(/wounds are healed/i)).toBeTruthy();
+    expect(within(walk()).queryByRole('button', { name: /heal wounds/i })).toBeNull();
+
+    // And it landed on the roster: Earl was at 1 of 4.
+    expect(
+      within(screen.getByRole('region', { name: /community/i }))
+        .getAllByRole('listitem')
+        .find((row) => /Earl Rhodes/.test(row.textContent ?? ''))?.textContent,
+    ).toContain('3');
+  });
+
+  it('reports Health the wounded cannot take', () => {
+    open(
+      withClinic({
+        survivors: [
+          {
+            ...createSurvivor('Nell Haig', 4, { id: 'medic' }),
+            stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: 3 },
+            skills: { medicine: 0 },
+          },
+          { ...createSurvivor('Earl Rhodes', 4, { id: EARL }), currentHp: 3 },
+        ],
+        assignments: { medic: { task: 'staff', slot: 'garage' }, [EARL]: { task: 'healing' } },
+      }),
+    );
+
+    expect(within(walk()).getByText(/more than the wounded can take/i)).toBeTruthy();
+  });
+
+  it('says so plainly when there is nothing to heal', () => {
+    open(advancement({ step: 'heal-wounds' }));
+
+    expect(within(walk()).getByText(/nobody has a wound this step can close/i)).toBeTruthy();
+  });
+});
+
 describe('the steps that point somewhere else', () => {
   it.each([
     ['create-new-survivors', /strangers rescued on the mission/i],
-    ['heal-wounds', /health from a medical clinic/i],
     ['add-facilities-and-upgrades', /this is the step projects finish in/i],
   ] as const)('says what %s is for', (step, says) => {
     open(advancement({ step }));

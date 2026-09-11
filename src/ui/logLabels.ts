@@ -17,7 +17,7 @@
  */
 
 import { MATERIALS } from '../data/materials';
-import { XP_SOURCE_PAGES, type XpSource } from '../data/turn';
+import { XP_SOURCE_PAGES, type HealthSource, type XpSource } from '../data/turn';
 import type { CampaignEvent, LogEntry } from '../engine/log';
 import {
   BASE_LABELS,
@@ -53,6 +53,11 @@ export interface EventLabel {
  * `src/data/turn.ts`, because a second copy here would be a page number in two
  * places waiting to disagree.
  */
+const HEALTH_SOURCE_PHRASES: Record<HealthSource, string> = {
+  facility: 'from the community’s Health',
+  rest: 'by resting',
+};
+
 const XP_SOURCE_PHRASES: Record<XpSource, string> = {
   mission: 'for going on the mission',
   discretionary: 'as the turn’s discretionary point',
@@ -99,6 +104,12 @@ export function describeEvent(event: CampaignEvent): EventLabel {
         pages: '18–19',
       };
     }
+
+    case 'health-restored':
+      return {
+        text: `${event.name} recovered ${event.health} Health ${HEALTH_SOURCE_PHRASES[event.source]}.`,
+        pages: 19,
+      };
 
     case 'xp-awarded':
       return {

@@ -1452,6 +1452,25 @@ describe('what earns a line in the log', () => {
         rare: HOBBY_FARM_PRODUCTION.rare,
       }),
     },
+    'advancement/woundsHealed': {
+      // Its own campaign, because `rich()` has nobody wounded and nobody
+      // healing — the step would be a no-op there and "records nothing" would
+      // pass for entirely the wrong reason. A resting survivor with a wound
+      // needs no base at all: the point is their own (pg. 21).
+      state: openState({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        turn: 3,
+        survivors: [{ ...createSurvivor('Marcus Webb', 2, { id: LOGGED_SURVIVOR }), currentHp: 1 }],
+        assignments: { [LOGGED_SURVIVOR]: { task: 'rest' } },
+      }),
+      action: { type: 'advancement/woundsHealed', at: AT },
+      entry: entry(3, 'mission', {
+        kind: 'health-restored',
+        ...WEBB,
+        health: 1,
+        source: 'rest',
+      }),
+    },
     'advancement/xpAwarded': {
       // The discretionary point (pg. 18): one XP, anybody, and `rich()` has no
       // mission team so no Teacher has taken it away.
