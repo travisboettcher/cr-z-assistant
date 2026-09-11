@@ -35,6 +35,7 @@ import { withUtilityToggled } from '../engine/utilities';
 import { createNewCampaign } from '../engine/campaign';
 import { logged, type CampaignEvent } from '../engine/log';
 import { advance, reverse, type AdvanceBy } from '../engine/turn';
+import { FIRST_PLANNING_STEP, planningHasBegun, withPlanningReset } from '../engine/planning';
 import type { Assignment, Campaign, Stats, Survivor } from '../engine/campaign';
 import { createSurvivor, recruitSurvivor } from '../engine/survivor';
 
@@ -345,6 +346,19 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         const moved: Campaign = move.endsTurn
           ? { ...campaign, step: move.step, turn: campaign.turn + 1 }
           : { ...campaign, step: move.step };
+
+        /*
+         * Entering the Planning Phase clears last turn's tasks and utility
+         * points (pg. 20, 67) — but only once a turn. `planningHasBegun` reads
+         * the log for this turn's own entry, so stepping back into the
+         * Advancement Phase and forward again lands here a second time and
+         * changes nothing. The walk exists to let a table correct itself, and
+         * a correction that destroyed the planning just done would be the
+         * opposite of that.
+         */
+        if (move.step === FIRST_PLANNING_STEP && !planningHasBegun(moved)) {
+          return logged(withPlanningReset(moved), action.at, { kind: 'planning-began' });
+        }
 
         if (move.endsTurn) return logged(moved, action.at, { kind: 'turn-began' });
         if (move.entersPhase) return logged(moved, action.at, { kind: 'phase-entered' });

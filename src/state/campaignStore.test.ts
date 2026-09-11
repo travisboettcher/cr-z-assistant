@@ -188,10 +188,95 @@ describe('walking the turn', () => {
 
     // Past four unfinished Advancement steps and into the first Planning one —
     // forward, and not reachable any other way than in order.
+    //
+    // One entry, not two. "Started planning" already says the Planning Phase
+    // is open, the same way "turn 4 began" says the Mission Phase is.
     expect(after).toEqual({
       ...before,
       step: 'assign-facility-staff',
-      log: [entry(1, 'planning', { kind: 'phase-entered' })],
+      log: [entry(1, 'planning', { kind: 'planning-began' })],
+    });
+  });
+
+  describe('entering the Planning Phase', () => {
+    /** A turn mid-flight, with last turn's tasks and utility points still on. */
+    function planned(step: TurnStepId): Campaign {
+      return {
+        ...opened(step, 3),
+        survivors: [createSurvivor('Earl Rhodes', 4, { id: 'earl' })],
+        assignments: { earl: { task: 'project' } },
+        base: {
+          id: 'small-town-home',
+          slots: { kitchen: { water: true }, garage: { upgrades: ['gas-range'], power: true } },
+        },
+      };
+    }
+
+    it('clears last turn’s tasks and utility points, and nothing else', () => {
+      const before = planned('add-facilities-and-upgrades');
+
+      const after = expectOpen(
+        campaignReducer(openState(before), { type: 'turn/advanced', by: 'step', at: AT }),
+      );
+
+      expect(after.assignments).toEqual({});
+      // The Gas Range stays; only the point of Power goes. A slot whose one
+      // record was a utility goes away entirely, because absent is what
+      // untouched means.
+      expect(after.base?.slots).toEqual({ garage: { upgrades: ['gas-range'] } });
+      expect(after.log.at(-1)?.event).toEqual({ kind: 'planning-began' });
+    });
+
+    it('does not clear again when the walk steps back and forward', () => {
+      // The move the walk exists for: somebody presses Next once too often,
+      // steps back, and comes forward again. Re-clearing here would destroy the
+      // planning they had just done.
+      let state = openState(planned('add-facilities-and-upgrades'));
+      state = campaignReducer(state, { type: 'turn/advanced', by: 'step', at: AT });
+
+      state = campaignReducer(state, {
+        type: 'assignment/set',
+        survivor: 'earl',
+        assignment: { task: 'rest' },
+      });
+      state = campaignReducer(state, { type: 'turn/reversed' });
+      state = campaignReducer(state, { type: 'turn/advanced', by: 'step', at: AT });
+
+      const after = expectOpen(state);
+      expect(after.assignments).toEqual({ earl: { task: 'rest' } });
+      expect(after.log.filter((line) => line.event.kind === 'planning-began')).toHaveLength(1);
+    });
+
+    it('clears again on the next turn', () => {
+      let state = openState(planned('add-facilities-and-upgrades'));
+      state = campaignReducer(state, { type: 'turn/advanced', by: 'step', at: AT });
+      state = campaignReducer(state, {
+        type: 'assignment/set',
+        survivor: 'earl',
+        assignment: { task: 'rest' },
+      });
+
+      // Round the rest of the turn and back into planning: Management, then
+      // the turn ends into Mission, then Advancement, then Planning again.
+      for (let move = 0; move < 4; move += 1) {
+        state = campaignReducer(state, { type: 'turn/advanced', by: 'phase', at: AT });
+      }
+
+      const after = expectOpen(state);
+      expect(after.turn).toBe(4);
+      expect(after.assignments).toEqual({});
+      expect(after.log.filter((line) => line.event.kind === 'planning-began')).toHaveLength(2);
+    });
+
+    it('clears a campaign with no base without reaching for one', () => {
+      const before: Campaign = { ...planned('add-facilities-and-upgrades'), base: null };
+
+      const after = expectOpen(
+        campaignReducer(openState(before), { type: 'turn/advanced', by: 'step', at: AT }),
+      );
+
+      expect(after.assignments).toEqual({});
+      expect(after.base).toBeNull();
     });
   });
 

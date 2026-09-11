@@ -59,6 +59,9 @@ export function describeEvent(event: CampaignEvent): EventLabel {
         pages: 13,
       };
 
+    case 'planning-began':
+      return { text: 'Started planning: last turn’s tasks and utilities cleared.', pages: 20 };
+
     case 'survivor-added':
       return { text: `${event.name} joined, as a ${TIER_LABELS[event.tier]}.` };
 

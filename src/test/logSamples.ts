@@ -22,6 +22,7 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'turn-began' },
   { kind: 'starting-community-settled', built: true },
   { kind: 'starting-community-settled', built: false },
+  { kind: 'planning-began' },
   { kind: 'survivor-added', ...SURVIVOR, tier: 3 },
   { kind: 'survivor-recruited', ...SURVIVOR, tier: 2, roll: 6 },
   { kind: 'survivor-left', ...SURVIVOR, tier: 1 },

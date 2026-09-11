@@ -246,6 +246,7 @@ const EVENT_FIELDS: Record<
   'phase-entered': [],
   'turn-began': [],
   'starting-community-settled': [['built', 'flag']],
+  'planning-began': [],
   'survivor-added': [
     ['survivor', 'id'],
     ['name', 'name'],

@@ -495,6 +495,37 @@ app move. It is also where the utilities lifecycle Phase 2 left half-built final
 - Assigning a survivor to a second task moves them rather than duplicating them, visibly.
 - A survivor assigned to a slot that later loses its facility does not take the screen down.
 
+**The reset runs once a turn, not once an entry — a deliberate departure from the acceptance
+above.** "Entering the Planning Phase twice in a row clears assignments both times" is the wrong
+rule for a walk that goes backwards. Stepping back from Assign Facility Staff to the Advancement
+Phase and forward again would have wiped a phase of planning the player had just done, and a
+control whose undo is destructive is worse than no undo. So the clear happens on the **first**
+arrival at Planning Step 1 in a given turn, and the turn after that clears again.
+
+That is derived, not stored: the reset writes a `planning-began` event, and `planningHasBegun`
+asks the log whether this turn already has one. A `resetRunThisTurn` flag on the campaign would
+have been a second copy of something the log already knows — and would have had to migrate, and
+would have gone stale the first time somebody edited a save by hand.
+
+**Every violation on this screen is a warning.** There are eight codes and no blockers: an unmet
+utility, resting at full Health, a second survivor resting, healing with no Medical Clinic, an
+injured survivor on the mission team, a second scavenger, scavenging without skipping the
+mission, and a task keyed to an empty slot. A row that breaks a rule says so and stays tickable.
+The reason is Z1-7's: the app reports the rules, the table decides them, and half the "violations"
+here are states a player is one tick away from fixing — the tick they are refused is the one that
+fixes it.
+
+**The base screen lost its project-team control and kept its staffing ones.** Z3-5 put a project
+team control on the base screen because nothing else could make the Labor number move; this story
+gave it the step the book puts it in, and two controls for one decision on one page is worse than
+a walk to the right one. The slot cards keep theirs, because a slot card answers "what does this
+facility make" and it makes nothing with nobody in it — the assignment and its consequence belong
+together. The project team has no consequence to sit beside.
+
+**The end-to-end journeys had to learn the walk.** Every e2e test that builds anything now hires a
+team by walking to Planning Step 2, which is what a player does. That is the clearest evidence the
+control moved somewhere real rather than somewhere else on the same page.
+
 ---
 
 ## Z3-7 — The Advancement Phase

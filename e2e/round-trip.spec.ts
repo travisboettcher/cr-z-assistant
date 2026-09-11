@@ -22,6 +22,22 @@ async function startCampaign(page: Page, name: string) {
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(name);
 }
 
+const PHASE_ORDER = ['Mission', 'Advancement', 'Planning', 'Management'] as const;
+
+/**
+ * Walks the turn forward, a phase at a time, from the top of a turn.
+ *
+ * Every caller starts a turn — a fresh campaign or the one after an End turn —
+ * so the walk is counted from the Mission Phase rather than read off the
+ * screen. The last skip of a turn asks before it ends one, and none of these
+ * journeys wants that, so `Management` is as far as this goes.
+ */
+async function skipToPhase(page: Page, phase: (typeof PHASE_ORDER)[number]) {
+  for (const next of PHASE_ORDER.slice(1, PHASE_ORDER.indexOf(phase) + 1)) {
+    await page.getByRole('button', { name: `Skip to ${next}` }).click();
+  }
+}
+
 /**
  * Adds a Hero and puts them on the project team, which is five Labor.
  *
@@ -29,6 +45,11 @@ async function startCampaign(page: Page, name: string) {
  * (pg. 20) rather than a number typed above the slot map, so a journey that
  * builds anything has to hire somebody first. A Tier 4 is four Labor and a
  * Tier 1 is one, which is enough for every project these tests order.
+ *
+ * Since Z3-6 the team is assigned where the book assigns it — Planning Step 2
+ * (pg. 20) — so hiring means walking there. The walk leaves the campaign in the
+ * Planning Phase, which is where a player who had just assigned a team would
+ * be; the base screen below it stays open the whole time.
  */
 async function hireProjectTeam(page: Page) {
   for (const [name, tier] of [
@@ -39,6 +60,9 @@ async function hireProjectTeam(page: Page) {
     await page.getByLabel(/^tier$/i).selectOption(tier);
     await page.getByRole('button', { name: /add survivor/i }).click();
   }
+
+  await skipToPhase(page, 'Planning');
+  await page.getByRole('button', { name: 'Next: Assign Project Team' }).click();
 
   const team = page.getByRole('group', { name: /on the project team/i });
   for (const box of await team.getByRole('checkbox').all()) {
@@ -702,13 +726,11 @@ test('an upgrade waits for the turn after its facility went up', async ({ page }
    * own: Phase 2 shipped this rule with no way to satisfy it. The turn walk is
    * what finally lets a player get to the turn after.
    *
-   * Four skips is a turn — the Management Phase's opens the next one — and the
-   * last of them asks first, because ending a turn is the one move that cannot
-   * be walked back.
+   * Hiring the team left the campaign in the Planning Phase, so one skip
+   * reaches the last phase of the turn — and the skip off *that* asks first,
+   * because ending a turn is the one move that cannot be walked back.
    */
-  for (let phase = 0; phase < 3; phase += 1) {
-    await page.getByRole('button', { name: /^skip to/i }).click();
-  }
+  await page.getByRole('button', { name: 'Skip to Management' }).click();
   await page.getByRole('button', { name: 'End turn 1' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'End turn 1' }).click();
 

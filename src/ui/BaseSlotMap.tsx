@@ -28,7 +28,6 @@ import {
 import { AssignUtilities } from './AssignUtilities';
 import { BaseSheet } from './BaseSheet';
 import { FacilityWork } from './FacilityWork';
-import { AssignTask } from './AssignTask';
 import { laborPool } from '../engine/assignments';
 import { BuildFacility } from './BuildFacility';
 import { ClearSlot } from './ClearSlot';
@@ -256,12 +255,15 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
           The summed Tier levels of the project team. Whatever is left at the end of the turn is
           lost <PageRef pages={20} />
         </p>
-        <AssignTask
-          campaign={campaign}
-          task={{ task: 'project' }}
-          legend="On the project team"
-          pages={20}
-        />
+        {/*
+         * Read here, assigned in the Planning Phase. Z3-5 put the team's own
+         * control here because nothing else could make the number move yet;
+         * Z3-6 gave it the step the book puts it in, and two controls for one
+         * decision on one page is worse than a walk to the right one.
+         */}
+        <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+          Who is on it is Planning Step 2, above.
+        </p>
       </div>
 
       {/*
