@@ -182,6 +182,17 @@ describe('xpPools', () => {
     expect(xpPools(community()).map((pool) => pool.source)).toEqual([...XP_SOURCES]);
   });
 
+  it('carries the page each source’s rule is printed on', () => {
+    expect(
+      Object.fromEntries(xpPools(community()).map((pool) => [pool.source, pool.pages])),
+    ).toEqual({
+      mission: 18,
+      discretionary: 18,
+      'mission-teaching': 12,
+      'training-room': 70,
+    });
+  });
+
   it('gives the mission team one XP each', () => {
     const pool = xpPool(community({ earl: onTheMission }), 'mission');
 
@@ -264,16 +275,29 @@ describe('checkXpAward', () => {
     });
   });
 
-  it('blocks a survivor who did not go from the mission’s XP', () => {
-    expect(
-      codes(checkXpAward(community({ earl: onTheMission }), CARLA, 'mission').blockers),
-    ).toContain('not-eligible');
+  /**
+   * The sentence and the page as well as the code, because the two blockers
+   * that can fire for different sources say different things — and a check
+   * that only compared codes would agree with every one of them.
+   */
+  it('blocks a survivor who did not go from the mission’s XP, and says why', () => {
+    const [refusal] = checkXpAward(community({ earl: onTheMission }), CARLA, 'mission').blockers;
+
+    expect(refusal?.code).toBe('not-eligible');
+    expect(refusal?.message).toBe('Only survivors who went on the mission earn its XP.');
+    expect(refusal?.pages).toBe(18);
   });
 
-  it('blocks a survivor who did go from the Training Room’s', () => {
-    expect(
-      codes(checkXpAward(community({ earl: onTheMission }), EARL, 'training-room').blockers),
-    ).toContain('not-eligible');
+  it('blocks a survivor who did go from the Training Room’s, and says why', () => {
+    const [refusal] = checkXpAward(
+      community({ earl: onTheMission }),
+      EARL,
+      'training-room',
+    ).blockers;
+
+    expect(refusal?.code).toBe('not-eligible');
+    expect(refusal?.message).toBe('A Training Room teaches the survivors who stayed behind.');
+    expect(refusal?.pages).toBe(70);
   });
 
   it('blocks once the pool is spent', () => {
@@ -298,9 +322,14 @@ describe('checkXpAward', () => {
     );
 
     expect(xpPool(campaign, 'mission-teaching').awarded).toBe(2);
-    expect(codes(checkXpAward(campaign, CARLA, 'mission-teaching').blockers)).toEqual([
-      'at-the-cap',
-    ]);
+
+    const [refusal] = checkXpAward(campaign, CARLA, 'mission-teaching').blockers;
+
+    expect(refusal?.code).toBe('at-the-cap');
+    expect(refusal?.message).toContain('2 XP');
+    // The Teacher's cap is pg. 12; the Training Room's identical 2 is pg. 70,
+    // and the two are separate rules that must not cite each other's page.
+    expect(refusal?.pages).toBe(12);
 
     // The pool is not the problem: somebody else may still take from it.
     expect(checkXpAward(campaign, EARL, 'mission-teaching').blockers).toEqual([]);
@@ -313,9 +342,30 @@ describe('checkXpAward', () => {
     ]);
 
     // Two XP to Earl this turn, and neither came from the Training Room.
-    expect(codes(checkXpAward(campaign, CARLA, 'training-room').blockers)).toEqual([
-      'nothing-left-in-the-pool',
+    const [refusal] = checkXpAward(campaign, CARLA, 'training-room').blockers;
+
+    expect(refusal?.code).toBe('nothing-left-in-the-pool');
+    expect(refusal?.pages).toBe(70);
+  });
+
+  it('cites the Training Room’s own page when a survivor hits its cap', () => {
+    const teaching = staffedWith(
+      community({}, [createSurvivor('Carla Proust', 3, { id: CARLA })], {
+        id: 'hobby-farm',
+        slots: { 'front-yard': { built: { facility: 'training-room', builtOnTurn: 1 } } },
+      }),
+      'front-yard',
+      [scored('teacher', 'Nell Haig', 'teaching', 8)],
+    );
+    const campaign = withLog(teaching, [
+      awarded('training-room', CARLA),
+      awarded('training-room', CARLA),
     ]);
+
+    const [refusal] = checkXpAward(campaign, CARLA, 'training-room').blockers;
+
+    expect(refusal?.code).toBe('at-the-cap');
+    expect(refusal?.pages).toBe(70);
   });
 
   it('reports every reason at once', () => {

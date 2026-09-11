@@ -42,6 +42,7 @@ import {
   DISCRETIONARY_MISSION_XP,
   TRAINING_ROOM_MAX_XP_PER_SURVIVOR,
   XP_SOURCES,
+  XP_SOURCE_PAGES,
   type XpSource,
 } from '../data/turn';
 import { missionTeam, staffOf } from './assignments';
@@ -67,8 +68,19 @@ export interface XpPool {
   /** What this turn's log says has already come out of it. */
   readonly awarded: number;
 
-  /** The most one survivor may take from this source, or `null` for no cap. */
-  readonly capPerSurvivor: number | null;
+  /**
+   * The most one survivor may take from this source.
+   *
+   * Every source has one — the mission's point is one each, the discretionary
+   * point is one and only one, and both Teaching rules cap at two (pp. 18, 12,
+   * 70). An earlier draft made this nullable for a source with no cap; there is
+   * no such source, and the `!== null` guard it needed was a branch with
+   * nothing behind it.
+   */
+  readonly capPerSurvivor: number;
+
+  /** The page this source's rule is printed on, for the reader who wants it. */
+  readonly pages: number;
 
   /** Who may draw on it (pg. 18, 12, 70). */
   readonly eligible: readonly Survivor[];
@@ -135,6 +147,11 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
   const offTheMission = campaign.survivors.filter((survivor) => !onTheMission.has(survivor.id));
 
   const totals: Record<XpSource, number> = {
+    // One each (pg. 18). `MISSION_XP` is 1, so nothing can tell this
+    // multiplication from a division and one mutant lives here permanently —
+    // an equivalence created by the constant's value rather than by a gap in
+    // the tests. An edition that made the award 2 would break that tie and the
+    // suite would catch it the same day.
     mission: team.length * MISSION_XP,
     // Replaced, not topped up: a Teacher on the mission takes the point away.
     discretionary: teaching > 0 ? 0 : DISCRETIONARY_MISSION_XP,
@@ -142,7 +159,7 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
     'training-room': trainingRoomXp(campaign),
   };
 
-  const caps: Record<XpSource, number | null> = {
+  const caps: Record<XpSource, number> = {
     mission: MISSION_XP,
     discretionary: DISCRETIONARY_MISSION_XP,
     'mission-teaching': MISSION_TEACHING_MAX_XP_PER_SURVIVOR,
@@ -163,6 +180,7 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
     total: totals[source],
     awarded: awardedThisTurn(campaign, source),
     capPerSurvivor: caps[source],
+    pages: XP_SOURCE_PAGES[source],
     eligible: eligible[source],
   }));
 }
@@ -174,6 +192,21 @@ export function xpPool(campaign: Campaign, source: XpSource): XpPool {
   // a lookup that cannot miss.
   return xpPools(campaign).find((pool) => pool.source === source) as XpPool;
 }
+
+/**
+ * Who may draw on each pool, said rather than branched on.
+ *
+ * Two of the four never refuse anybody, and their sentences are here anyway:
+ * a record with an entry for every source is a claim the typechecker keeps
+ * true, where a ternary covering "mission" and "everything else" was a claim
+ * about which sources exist that quietly went stale.
+ */
+const WHO_MAY_DRAW: Record<XpSource, string> = {
+  mission: 'Only survivors who went on the mission earn its XP.',
+  discretionary: 'Anybody may be given the discretionary point.',
+  'mission-teaching': 'A Teacher may teach anybody in the community.',
+  'training-room': 'A Training Room teaches the survivors who stayed behind.',
+};
 
 /**
  * Everything stopping this award, all of it a blocker.
@@ -188,31 +221,22 @@ export function checkXpAward(campaign: Campaign, survivorId: string, source: XpS
   const blockers: XpViolation[] = [];
 
   if (!pool.eligible.some((survivor) => survivor.id === survivorId)) {
-    blockers.push({
-      code: 'not-eligible',
-      message:
-        source === 'mission'
-          ? 'Only survivors who went on the mission earn its XP.'
-          : 'A Training Room teaches the survivors who stayed behind.',
-      pages: source === 'mission' ? 18 : 70,
-    });
+    blockers.push({ code: 'not-eligible', message: WHO_MAY_DRAW[source], pages: pool.pages });
   }
 
   if (pool.awarded >= pool.total) {
     blockers.push({
       code: 'nothing-left-in-the-pool',
       message: 'There is no XP left from this source this turn.',
-      pages: 18,
+      pages: pool.pages,
     });
   }
 
-  const cap = pool.capPerSurvivor;
-
-  if (cap !== null && awardedThisTurn(campaign, source, survivorId) >= cap) {
+  if (awardedThisTurn(campaign, source, survivorId) >= pool.capPerSurvivor) {
     blockers.push({
       code: 'at-the-cap',
-      message: `${cap} XP from this source is all one survivor may take in a turn.`,
-      pages: source === 'training-room' ? 70 : 12,
+      message: `${pool.capPerSurvivor} XP from this source is all one survivor may take in a turn.`,
+      pages: pool.pages,
     });
   }
 

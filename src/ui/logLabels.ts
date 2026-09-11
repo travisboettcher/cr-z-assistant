@@ -17,7 +17,7 @@
  */
 
 import { MATERIALS } from '../data/materials';
-import type { XpSource } from '../data/turn';
+import { XP_SOURCE_PAGES, type XpSource } from '../data/turn';
 import type { CampaignEvent, LogEntry } from '../engine/log';
 import {
   BASE_LABELS,
@@ -47,24 +47,17 @@ export interface EventLabel {
 }
 
 /**
- * How each XP source reads in a sentence, and which page says so.
+ * How each XP source reads in a sentence.
  *
- * Two records rather than one of pairs, because the pages belong to the rules
- * and the phrases belong to the screen — and only one of the two would change
- * if the app were ever translated.
+ * The phrase is the screen's; the page beside it is the rule's and comes from
+ * `src/data/turn.ts`, because a second copy here would be a page number in two
+ * places waiting to disagree.
  */
 const XP_SOURCE_PHRASES: Record<XpSource, string> = {
   mission: 'for going on the mission',
   discretionary: 'as the turn’s discretionary point',
   'mission-teaching': 'from a Teacher on the mission',
   'training-room': 'in the Training Room',
-};
-
-const XP_SOURCE_PAGES: Record<XpSource, number> = {
-  mission: 18,
-  discretionary: 18,
-  'mission-teaching': 12,
-  'training-room': 70,
 };
 
 export function describeEvent(event: CampaignEvent): EventLabel {

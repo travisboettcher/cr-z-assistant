@@ -612,6 +612,29 @@ by all three verbs, naming the step the turn should be at. A note rather than a 
 three separate closed violation unions — it is the same sentence for building, upgrading and
 clearing, and it is about the turn rather than about the slot.
 
+**What the mutation run found.** `experience.ts` came back at 89.22, the weakest module in the
+repo — the third story running where the new module was, and the third time the survivors were
+pointing at the code rather than at the tests.
+
+Three of the eleven were a `capPerSurvivor` typed as `number | null` for a source with no cap.
+There is no such source; all four have one, and the `!== null` guard the nullability required was
+a branch with nothing behind it. Seven more were ternaries on the source inside a message and a
+page — `source === 'training-room' ? 70 : 12` is a four-entry lookup written as a two-way branch,
+and nothing could distinguish it from its opposite until every source had been asserted
+separately. Both are now records over `XpSource`: `XP_SOURCE_PAGES` in the data (which
+`logLabels.ts` had been keeping a second copy of, now deleted) and `WHO_MAY_DRAW` in the engine.
+A record has the property the branch did not — the typechecker keeps it exhaustive.
+
+The last one stays alive and is equivalent: `team.length * MISSION_XP` cannot be told from
+`team.length / MISSION_XP` while `MISSION_XP` is 1. That is an equivalence created by the
+constant's value, not a gap, and an edition that made the award 2 would break the tie the same
+day.
+
+Elsewhere: the storage-cap comparison had no test landing *exactly* on the cap, and the three
+refusals in the store — a second helping of materials, an award the rules block, an award to
+somebody who is not in the community — were branches no happy-path test could reach. All four now
+have one.
+
 **The project queue is still owed, and is now its own story.** The Z3-5 note put it here on the
 grounds that Z3-7 owns the step projects complete in. Writing this story made the size of it
 clear: the queue changes what *building* means — ordering in Planning, completing in the next

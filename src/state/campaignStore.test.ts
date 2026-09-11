@@ -1751,3 +1751,107 @@ describe('assignments', () => {
     expect(after).toEqual(expectOpen(before));
   });
 });
+
+/**
+ * The two Advancement Phase actions, and the three refusals that make them
+ * safe to walk backwards over.
+ *
+ * Both steps are destructive — one puts materials in storage, the other hands
+ * out XP — and the turn walk lets a player step back across either. The guards
+ * below are what stop a second press from doubling a turn's haul, and each is
+ * a branch that a test asserting only the happy path leaves standing.
+ */
+describe('the Advancement Phase steps', () => {
+  const EARL = '11111111-aaaa-4bbb-8ccc-000000000001';
+  const CARLA = '22222222-aaaa-4bbb-8ccc-000000000002';
+
+  /** Earl went on the mission; Carla stayed at the base. */
+  function afterAMission(): CampaignState {
+    return openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      turn: 3,
+      step: 'character-advancement',
+      survivors: [
+        createSurvivor('Earl Rhodes', 4, { id: EARL }),
+        createSurvivor('Carla Proust', 3, { id: CARLA }),
+      ],
+      assignments: { [EARL]: { task: 'mission', team: 1 } },
+    });
+  }
+
+  const add = (rolls: readonly { roll: 4 | 7 }[]) =>
+    ({ type: 'advancement/materialsAdded', at: AT, rolls }) as const;
+
+  it('puts a turn’s haul in storage', () => {
+    const after = expectOpen(campaignReducer(afterAMission(), add([{ roll: 4 }, { roll: 7 }])));
+
+    expect(after.materials).toEqual({ food: 1, fuel: 0, hardware: 1, rare: 0 });
+  });
+
+  it('refuses a second helping in the same turn', () => {
+    const once = campaignReducer(afterAMission(), add([{ roll: 4 }]));
+    const twice = campaignReducer(once, add([{ roll: 4 }]));
+
+    expect(expectOpen(twice).materials.food).toBe(1);
+    expect(expectOpen(twice).log).toHaveLength(1);
+  });
+
+  it('lets the next turn have its own', () => {
+    const once = expectOpen(campaignReducer(afterAMission(), add([{ roll: 4 }])));
+    const next = campaignReducer(openState({ ...once, turn: 4 }), add([{ roll: 4 }]));
+
+    expect(expectOpen(next).materials.food).toBe(2);
+  });
+
+  it('gives a survivor the XP their pool holds', () => {
+    const after = expectOpen(
+      campaignReducer(afterAMission(), {
+        type: 'advancement/xpAwarded',
+        at: AT,
+        survivor: EARL,
+        source: 'mission',
+      }),
+    );
+
+    expect(after.survivors.find((survivor) => survivor.id === EARL)?.xp).toBe(1);
+  });
+
+  it('refuses an award the rules block, and records nothing', () => {
+    // Carla was not on the mission, so the mission's XP is not hers to take.
+    const after = campaignReducer(afterAMission(), {
+      type: 'advancement/xpAwarded',
+      at: AT,
+      survivor: CARLA,
+      source: 'mission',
+    });
+
+    expect(expectOpen(after).survivors.find((survivor) => survivor.id === CARLA)?.xp).toBe(0);
+    expect(expectOpen(after).log).toEqual([]);
+  });
+
+  it('refuses to empty a pool twice for the same survivor', () => {
+    const award = {
+      type: 'advancement/xpAwarded',
+      at: AT,
+      survivor: EARL,
+      source: 'mission',
+    } as const;
+    const twice = campaignReducer(campaignReducer(afterAMission(), award), award);
+
+    expect(expectOpen(twice).survivors.find((survivor) => survivor.id === EARL)?.xp).toBe(1);
+    expect(expectOpen(twice).log).toHaveLength(1);
+  });
+
+  it('says nothing about a survivor the community does not hold', () => {
+    const before = afterAMission();
+
+    expect(
+      campaignReducer(before, {
+        type: 'advancement/xpAwarded',
+        at: AT,
+        survivor: 'nobody',
+        source: 'discretionary',
+      }),
+    ).toEqual(before);
+  });
+});

@@ -304,6 +304,25 @@ describe('checkMaterials', () => {
     expect(withMaterialsAdded(full, recovered([{ roll: 4 }])).materials.food).toBe(7);
   });
 
+  it('says nothing about a haul that lands exactly on the cap', () => {
+    // Five stored, one rolled, and the Greasy Spoon's own Food: six, which is
+    // its cap. Over the cap is over it, not level with it.
+    const level: Campaign = {
+      ...community({}, greasySpoon()),
+      materials: { food: 4, fuel: 0, hardware: 0, rare: 0 },
+    };
+
+    expect(checkMaterials(level, [{ roll: 4 }]).warnings).toEqual([]);
+
+    // And one more is over.
+    expect(
+      codes(
+        checkMaterials({ ...level, materials: { ...level.materials, food: 5 } }, [{ roll: 4 }])
+          .warnings,
+      ),
+    ).toEqual(['over-storage-cap']);
+  });
+
   it('has no cap to report for Rare, which the book gives none', () => {
     const hoard: Campaign = {
       ...community({}, greasySpoon()),

@@ -187,6 +187,21 @@ export const XP_SOURCES = [
 export type XpSource = (typeof XP_SOURCES)[number];
 
 /**
+ * The page each source's rule is printed on.
+ *
+ * A record rather than the ternaries an earlier draft reached for. Four sources
+ * with three different pages is data, and `source === 'training-room' ? 70 : 12`
+ * is that data written as a branch — one nothing could distinguish from its
+ * opposite until every source had been asserted separately.
+ */
+export const XP_SOURCE_PAGES = {
+  mission: 18,
+  discretionary: 18,
+  'mission-teaching': 12,
+  'training-room': 70,
+} as const satisfies Record<XpSource, number>;
+
+/**
  * Which material a d10 generates, one roll per material recovered on the
  * mission (pg. 18–19).
  *
