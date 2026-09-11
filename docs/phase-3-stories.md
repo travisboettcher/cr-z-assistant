@@ -699,6 +699,25 @@ their history for; "the Clinic made four" says nothing about the turn. The once-
 those entries, the third time this phase has derived a step's "already done" from the log rather
 than storing it.
 
+**What the mutation run found, and the loop it was complaining about.** `healing.ts` came back at
+97.20 with three survivors and — more interestingly — **eight timeouts**. The timeouts were the
+finding. The distribution was a `while (left > 0)` that terminated only because the pool had been
+pre-capped at the available room: true, but invisible, so every mutant that broke the invariant
+hung the runner for twenty seconds instead of failing in milliseconds. Counted as killed, and
+nearly three minutes of the run spent on it.
+
+The loop is rounds now. Each round offers every survivor one point, and nobody can need more
+rounds than the deepest wound, so the bound comes from the rules rather than from an invariant a
+reader has to reconstruct. The surplus rule falls out of the same bound instead of being a
+separate `Math.min`.
+
+Of the three survivors, one was a pool that summed *every* production line rather than only the
+Health ones — no test had a base that made anything else — and one was a warning whose two
+conditions had never both been false at once. The third was the familiar shape: a lookup in the
+reducer to turn an award's survivor id back into a name, with an unreachable guard behind it. A
+`HealthAward` carries the survivor now rather than their id, which is where it came from; the
+lookup and its guard are gone, the same way Z3-7's were.
+
 **A stale sentence on the base screen turned out to be a bug.** It still said staffing a facility
 was "a preview and is never saved" — true in Phase 2, false since Z3-5 made it a real assignment.
 Copy that tells a player the opposite of what the app does is worth treating as a defect rather

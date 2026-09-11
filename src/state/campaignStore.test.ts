@@ -1822,6 +1822,25 @@ describe('the Advancement Phase steps', () => {
     expect(expectOpen(next).materials.food).toBe(2);
   });
 
+  it('heals a turn’s wounds once, and refuses to do it twice', () => {
+    // A Hero at 1 of 4, so one point of rest leaves them wounded. A survivor
+    // the first press filled up would be untouched by the second whether or
+    // not the guard was there, and the test would pass for the wrong reason.
+    const hurt = openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      turn: 3,
+      survivors: [{ ...createSurvivor('Marcus Webb', 4, { id: EARL }), currentHp: 1 }],
+      assignments: { [EARL]: { task: 'rest' } },
+    });
+
+    const once = campaignReducer(hurt, { type: 'advancement/woundsHealed', at: AT });
+    const twice = campaignReducer(once, { type: 'advancement/woundsHealed', at: AT });
+
+    expect(expectOpen(once).survivors[0]?.currentHp).toBe(2);
+    expect(expectOpen(twice).survivors[0]?.currentHp).toBe(2);
+    expect(expectOpen(twice).log).toHaveLength(1);
+  });
+
   it('gives a survivor the XP their pool holds', () => {
     const after = expectOpen(
       campaignReducer(afterAMission(), {

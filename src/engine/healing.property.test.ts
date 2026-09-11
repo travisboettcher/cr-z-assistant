@@ -56,9 +56,7 @@ describe('sharing a pool of Health equally', () => {
     fc.assert(
       fc.property(communityArbitrary, anyPool, (survivors, pool) => {
         for (const award of sharedEqually(survivors, pool)) {
-          const healed = survivors.find((survivor) => survivor.id === award.survivor);
-
-          expect(award.health).toBeLessThanOrEqual(room(healed as Survivor));
+          expect(award.health).toBeLessThanOrEqual(room(award.survivor));
         }
       }),
       RUNS,
@@ -75,7 +73,7 @@ describe('sharing a pool of Health equally', () => {
       fc.property(communityArbitrary, anyPool, (survivors, pool) => {
         const awards = sharedEqually(survivors, pool);
         const given = (survivor: Survivor) =>
-          awards.find((award) => award.survivor === survivor.id)?.health ?? 0;
+          awards.find((award) => award.survivor.id === survivor.id)?.health ?? 0;
 
         const stillTaking = survivors.filter((survivor) => given(survivor) < room(survivor));
 
@@ -114,11 +112,7 @@ describe('sharing a pool of Health equally', () => {
         const awards = sharedEqually(survivors, pool);
         if (awards.length > 0) shared += 1;
 
-        const filled = awards.some((award) => {
-          const healed = survivors.find((survivor) => survivor.id === award.survivor);
-
-          return award.health === room(healed as Survivor);
-        });
+        const filled = awards.some((award) => award.health === room(award.survivor));
 
         if (filled && survivors.length > 1) filledSomebody += 1;
       }),

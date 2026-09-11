@@ -40,8 +40,8 @@ function community(
 
 const codes = (violations: readonly { code: string }[]) => violations.map(({ code }) => code);
 
-const shares = (awards: readonly { survivor: string; health: number }[]) =>
-  Object.fromEntries(awards.map((award) => [award.survivor, award.health]));
+const shares = (awards: readonly { survivor: Survivor; health: number }[]) =>
+  Object.fromEntries(awards.map((award) => [award.survivor.id, award.health]));
 
 describe('room', () => {
   it('is the gap between where a survivor is and their Tier’s maximum', () => {
@@ -94,7 +94,7 @@ describe('sharedEqually', () => {
   it('says nothing about a survivor who gets nothing', () => {
     const pair = [wounded('full', 'Full', 4), wounded('hurt', 'Hurt', 3)];
 
-    expect(sharedEqually(pair, 1).map((award) => award.survivor)).toEqual(['hurt']);
+    expect(sharedEqually(pair, 1).map((award) => award.survivor.id)).toEqual(['hurt']);
   });
 
   it('hands out nothing from an empty pool, or to nobody', () => {
@@ -130,6 +130,17 @@ describe('healingPool', () => {
 
     // Halved rounds up (pg. 72): a Score of 3 without Water is 2.
     expect(healingPool(staffedWith(community([], {}, clinic()), 'garage', [medic]))).toBe(2);
+  });
+
+  it('counts only Health, and not the other things a base produces', () => {
+    // A Garden makes a Food and nothing else (pg. 55). A pool that summed
+    // every production line would call that a point of Health.
+    const garden: Base = {
+      id: 'small-town-home',
+      slots: { 'front-yard': { built: { facility: 'garden', builtOnTurn: 1 } } },
+    };
+
+    expect(healingPool(community([], {}, garden))).toBe(0);
   });
 
   it('counts a flat Health line from an upgrade with nobody staffing anything', () => {
@@ -171,7 +182,9 @@ describe('healthAwards', () => {
   it('gives a resting survivor one point of their own', () => {
     const campaign = community([wounded('a', 'A', 1)], { a: { task: 'rest' } });
 
-    expect(healthAwards(campaign)).toEqual([{ survivor: 'a', health: 1, source: 'rest' }]);
+    expect(healthAwards(campaign)).toEqual([
+      { survivor: campaign.survivors[0], health: 1, source: 'rest' },
+    ]);
   });
 
   /**
@@ -196,9 +209,11 @@ describe('healthAwards', () => {
 
     // Two in the pool, and all of it goes to the one being healed; the rester
     // gets their own one on top.
-    expect(healthAwards(campaign)).toEqual([
-      { survivor: 'healed', health: 2, source: 'facility' },
-      { survivor: 'rester', health: 1, source: 'rest' },
+    expect(
+      healthAwards(campaign).map((award) => [award.survivor.id, award.health, award.source]),
+    ).toEqual([
+      ['healed', 2, 'facility'],
+      ['rester', 1, 'rest'],
     ]);
   });
 
@@ -269,6 +284,16 @@ describe('goingSpare and checkHealing', () => {
     expect(check.warnings[0]?.message).toContain('nobody assigned');
   });
 
+  it('says nothing when there is no pool and nobody waiting for one', () => {
+    // Both halves of the warning's condition are false here. A check that
+    // asked only "is anybody assigned to healing" would announce that nothing
+    // is going spare out of a pool that does not exist.
+    expect(checkHealing(community([wounded('a', 'A', 0)]))).toEqual({
+      blockers: [],
+      warnings: [],
+    });
+  });
+
   it('says nothing at all when there is no pool', () => {
     expect(
       checkHealing(community([wounded('a', 'A', 0)], { a: { task: 'healing' } })).warnings,
@@ -311,7 +336,10 @@ describe('withWoundsHealed', () => {
   const pair = () => community([wounded('a', 'A', 1), wounded('b', 'B', 2)]);
 
   it('raises the Health of the survivors named and nobody else', () => {
-    const after = withWoundsHealed(pair(), [{ survivor: 'a', health: 2, source: 'facility' }]);
+    const before = pair();
+    const after = withWoundsHealed(before, [
+      { survivor: before.survivors[0] as Survivor, health: 2, source: 'facility' },
+    ]);
 
     expect(after.survivors.map((survivor) => survivor.currentHp)).toEqual([3, 2]);
   });
@@ -321,9 +349,11 @@ describe('withWoundsHealed', () => {
    * warns about rather than refuses — and both points have to land.
    */
   it('adds up two awards to the same survivor', () => {
-    const after = withWoundsHealed(pair(), [
-      { survivor: 'a', health: 1, source: 'facility' },
-      { survivor: 'a', health: 1, source: 'rest' },
+    const both = pair();
+    const earl = both.survivors[0] as Survivor;
+    const after = withWoundsHealed(both, [
+      { survivor: earl, health: 1, source: 'facility' },
+      { survivor: earl, health: 1, source: 'rest' },
     ]);
 
     expect(after.survivors[0]?.currentHp).toBe(3);

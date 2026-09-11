@@ -637,8 +637,8 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
           (healing, award) =>
             logged(healing, action.at, {
               kind: 'health-restored',
-              survivor: award.survivor,
-              name: nameOf(campaign, award.survivor),
+              survivor: award.survivor.id,
+              name: award.survivor.name,
               health: award.health,
               source: award.source,
             }),
@@ -821,19 +821,6 @@ function loggedIfChanged(
  * because the interesting fields (the level reached, the Tier reached) are on
  * the *result*, and the name is on the survivor as they were before.
  */
-/**
- * The name to write into a log entry for a survivor id.
- *
- * An entry records what happened rather than who is in the community now, so a
- * survivor who leaves later must not take their own history's readability with
- * them. An id with nobody behind it cannot reach here — the awards are built
- * from the roster — and the fallback is the log staying readable rather than a
- * branch anything can take.
- */
-function nameOf(campaign: Campaign, survivor: string): string {
-  return campaign.survivors.find((candidate) => candidate.id === survivor)?.name ?? '';
-}
-
 function editSurvivorLogged(
   state: CampaignState,
   id: string,

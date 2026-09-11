@@ -306,8 +306,6 @@ function HealWounds({ campaign }: { readonly campaign: Campaign }) {
   const pool = healingPool(campaign);
   const { warnings } = checkHealing(campaign);
 
-  const named = (id: string) => campaign.survivors.find((survivor) => survivor.id === id);
-
   return (
     <>
       <p className={HINT}>
@@ -329,14 +327,14 @@ function HealWounds({ campaign }: { readonly campaign: Campaign }) {
             <ul className="mt-3 flex flex-col gap-1">
               {awards.map((award) => (
                 <li
-                  key={`${award.survivor}-${award.source}`}
+                  key={`${award.survivor.id}-${award.source}`}
                   className="text-sm tabular-nums text-stone-600 dark:text-stone-400"
                 >
-                  {named(award.survivor)?.name} +{award.health} Health
+                  {award.survivor.name} +{award.health} Health
                   <span className="text-xs">
                     {' '}
                     ({HEALTH_SOURCE_LABELS[award.source]}, to{' '}
-                    {(named(award.survivor)?.currentHp ?? 0) + award.health})
+                    {award.survivor.currentHp + award.health})
                   </span>
                 </li>
               ))}
