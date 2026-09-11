@@ -120,6 +120,11 @@ export function resting(campaign: Campaign): readonly Survivor[] {
  * The surplus rule falls out of the same bound. A pool bigger than the
  * community can absorb runs out of rounds with points still in it, and those
  * points are simply not handed out — nobody is overhealed.
+ *
+ * One mutant survives here and is equivalent: `round < rounds` swapped for
+ * `round <= rounds` runs one extra pass, and by then everybody with room is
+ * full, so the pass hands out nothing. A bound that is already sufficient
+ * cannot be broken by making it larger.
  */
 export function sharedEqually(
   survivors: readonly Survivor[],
