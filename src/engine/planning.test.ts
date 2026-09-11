@@ -240,6 +240,15 @@ describe('checkAssignment', () => {
         checkAssignment(community({ [CARLA]: { task: 'rest' } }), CARLA, { task: 'rest' }).warnings,
       ).toEqual([]);
     });
+
+    it('counts who is resting, not who is busy', () => {
+      // Earl is on the project team, which is not resting. A check that
+      // answered "is anybody else assigned to anything" would warn here.
+      expect(
+        checkAssignment(community({ [EARL]: { task: 'project' } }), CARLA, { task: 'rest' })
+          .warnings,
+      ).toEqual([]);
+    });
   });
 
   describe('healing', () => {
@@ -250,6 +259,14 @@ describe('checkAssignment', () => {
       expect(
         codes(checkAssignment(community({}, home()), CARLA, { task: 'healing' }).warnings),
       ).toEqual(['no-medical-clinic']);
+    });
+
+    it('warns rather than breaking when there is no base at all', () => {
+      // A community with nowhere to live has no Clinic either, and the check
+      // has to say so rather than go looking through a base that is not there.
+      expect(codes(checkAssignment(community(), CARLA, { task: 'healing' }).warnings)).toEqual([
+        'no-medical-clinic',
+      ]);
     });
 
     it('says nothing once there is one', () => {
@@ -302,6 +319,15 @@ describe('checkAssignment', () => {
         'scavenging-needs-the-mission-skipped',
       ]);
       expect(check.warnings[0]?.message).toContain('Earl Rhodes');
+    });
+
+    it('counts who is scavenging, not who is busy', () => {
+      expect(
+        codes(
+          checkAssignment(community({ [EARL]: { task: 'project' } }), CARLA, { task: 'scavenging' })
+            .warnings,
+        ),
+      ).toEqual(['scavenging-needs-the-mission-skipped']);
     });
   });
 });

@@ -29,7 +29,7 @@ import { TURN_STEPS } from '../data/turn';
 import { occupants } from './base';
 import type { Assignment, Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
-import { staffOf, survivorsDoing } from './assignments';
+import { survivorsDoing } from './assignments';
 import { maxHp } from './survivor';
 
 export type PlanningViolationCode =
@@ -135,139 +135,155 @@ export function checkAssignment(
   assignment: Assignment,
 ): PlanningCheck {
   const survivor = campaign.survivors.find((candidate) => candidate.id === survivorId);
-  const warnings: PlanningViolation[] = [];
 
   if (survivor === undefined) return { blockers: [], warnings: [] };
 
+  return { blockers: [], warnings: warningsFor(campaign, survivor, assignment) };
+}
+
+/**
+ * The rules each task has, one function each.
+ *
+ * A switch that returns rather than one that pushes into a shared array and
+ * breaks, because the `break` under `case 'project'` was a statement that did
+ * nothing — no test could tell it from its own absence. Returning makes the
+ * empty case say `return []`, which is a claim a test can hold the code to, and
+ * makes the typechecker insist every task is answered: a switch of returns in a
+ * function that promises an array is only well-typed if it is exhaustive.
+ */
+function warningsFor(
+  campaign: Campaign,
+  survivor: Survivor,
+  assignment: Assignment,
+): readonly PlanningViolation[] {
   switch (assignment.task) {
-    case 'staff': {
-      const occupant =
-        campaign.base === null
-          ? undefined
-          : occupants(campaign.base).find((candidate) => candidate.slotId === assignment.slot);
-
-      if (occupant === undefined) {
-        warnings.push({
-          code: 'nothing-in-slot',
-          message: 'Nothing is built in this slot to work.',
-          pages: 54,
-        });
-        break;
-      }
-
-      // The facility and its upgrades together, because one point of a utility
-      // covers all of them — the same reading `checkUtility` takes.
-      const unmet = [occupant.facility, ...occupant.upgrades].some((entry) =>
-        (entry.requires?.utilities ?? []).some((utility) => !occupant[utility]),
-      );
-
-      if (unmet) {
-        warnings.push({
-          code: 'utility-unmet',
-          message: 'Needs a utility it does not have, so it produces nothing this turn.',
-          pages: 67,
-        });
-      }
-
-      break;
-    }
-
-    case 'rest': {
-      if (!isInjured(survivor)) {
-        warnings.push({
-          code: 'already-at-full-health',
-          message: 'Already at full Health, so resting would do nothing.',
-          pages: 21,
-        });
-      }
-
-      const resting = othersDoing(campaign, survivorId, 'rest');
-
-      if (resting.length > 0) {
-        warnings.push({
-          code: 'someone-else-resting',
-          message: `Only one survivor may rest a turn, and ${resting[0]?.name ?? 'somebody'} is.`,
-          pages: 21,
-        });
-      }
-
-      break;
-    }
-
-    case 'healing': {
-      if (!isInjured(survivor)) {
-        warnings.push({
-          code: 'already-at-full-health',
-          message: 'Already at full Health, so healing would do nothing.',
-          pages: 21,
-        });
-      }
-
-      if (!hasMedicalClinic(campaign)) {
-        warnings.push({
-          code: 'no-medical-clinic',
-          message: 'Healing needs a Medical Clinic, and this base has none.',
-          pages: 21,
-        });
-      }
-
-      break;
-    }
-
-    case 'mission': {
-      if (isInjured(survivor)) {
-        warnings.push({
-          code: 'injured-on-a-mission',
-          message: 'Injured survivors cannot be sent on a mission.',
-          pages: 21,
-        });
-      }
-
-      break;
-    }
-
-    case 'scavenging': {
-      const scavenging = othersDoing(campaign, survivorId, 'scavenging');
-
-      if (scavenging.length > 0) {
-        warnings.push({
-          code: 'someone-else-scavenging',
-          message: `Only one survivor may scavenge, and ${scavenging[0]?.name ?? 'somebody'} is.`,
-          pages: 17,
-        });
-      }
-
-      // Always, because this app does not model opting out of a mission —
-      // that is the Mission Phase, and Phase 4's. Said rather than assumed, so
-      // a player scavenging on a turn they fought is told which rule they are
-      // playing past.
-      warnings.push({
-        code: 'scavenging-needs-the-mission-skipped',
-        message: 'Only when the community skips this turn’s mission.',
-        pages: 17,
-      });
-
-      break;
-    }
-
+    case 'staff':
+      return staffingWarnings(campaign, assignment.slot);
+    case 'rest':
+      return restWarnings(campaign, survivor);
+    case 'healing':
+      return healingWarnings(campaign, survivor);
+    case 'mission':
+      return missionWarnings(survivor);
+    case 'scavenging':
+      return scavengingWarnings(campaign, survivor);
+    // Anybody may be on the project team: it is the task with no eligibility
+    // rule of its own (pg. 20).
     case 'project':
-      break;
+      return [];
+  }
+}
+
+function staffingWarnings(campaign: Campaign, slot: string): readonly PlanningViolation[] {
+  const occupant =
+    campaign.base === null
+      ? undefined
+      : occupants(campaign.base).find((candidate) => candidate.slotId === slot);
+
+  if (occupant === undefined) {
+    return [
+      { code: 'nothing-in-slot', message: 'Nothing is built in this slot to work.', pages: 54 },
+    ];
   }
 
-  return { blockers: [], warnings };
+  // The facility and its upgrades together, because one point of a utility
+  // covers all of them — the same reading `checkUtility` takes.
+  const unmet = [occupant.facility, ...occupant.upgrades].some((entry) =>
+    (entry.requires?.utilities ?? []).some((utility) => !occupant[utility]),
+  );
+
+  if (!unmet) return [];
+
+  return [
+    {
+      code: 'utility-unmet',
+      message: 'Needs a utility it does not have, so it produces nothing this turn.',
+      pages: 67,
+    },
+  ];
 }
 
-/** Whether anything in this slot is worth working, for the staffing step. */
-export function staffableSlots(campaign: Campaign): readonly string[] {
-  const base = campaign.base;
-  if (base === null) return [];
+function restWarnings(campaign: Campaign, survivor: Survivor): readonly PlanningViolation[] {
+  const warnings: PlanningViolation[] = [];
 
-  return occupants(base).map((occupant) => occupant.slotId);
+  if (!isInjured(survivor)) {
+    warnings.push({
+      code: 'already-at-full-health',
+      message: 'Already at full Health, so resting would do nothing.',
+      pages: 21,
+    });
+  }
+
+  // Destructured rather than indexed behind a length check, so there is no
+  // unreachable "or somebody" to fall back to: whoever is here has a name.
+  const [resting] = othersDoing(campaign, survivor.id, 'rest');
+
+  if (resting !== undefined) {
+    warnings.push({
+      code: 'someone-else-resting',
+      message: `Only one survivor may rest a turn, and ${resting.name} is.`,
+      pages: 21,
+    });
+  }
+
+  return warnings;
 }
 
-/** Whoever is working a slot, for the step that shows them all at once. */
-export function staffedSlots(
-  campaign: Campaign,
-): readonly { slot: string; staff: readonly Survivor[] }[] {
-  return staffableSlots(campaign).map((slot) => ({ slot, staff: staffOf(campaign, slot) }));
+function healingWarnings(campaign: Campaign, survivor: Survivor): readonly PlanningViolation[] {
+  const warnings: PlanningViolation[] = [];
+
+  if (!isInjured(survivor)) {
+    warnings.push({
+      code: 'already-at-full-health',
+      message: 'Already at full Health, so healing would do nothing.',
+      pages: 21,
+    });
+  }
+
+  if (!hasMedicalClinic(campaign)) {
+    warnings.push({
+      code: 'no-medical-clinic',
+      message: 'Healing needs a Medical Clinic, and this base has none.',
+      pages: 21,
+    });
+  }
+
+  return warnings;
+}
+
+function missionWarnings(survivor: Survivor): readonly PlanningViolation[] {
+  if (!isInjured(survivor)) return [];
+
+  return [
+    {
+      code: 'injured-on-a-mission',
+      message: 'Injured survivors cannot be sent on a mission.',
+      pages: 21,
+    },
+  ];
+}
+
+function scavengingWarnings(campaign: Campaign, survivor: Survivor): readonly PlanningViolation[] {
+  const warnings: PlanningViolation[] = [];
+
+  const [scavenging] = othersDoing(campaign, survivor.id, 'scavenging');
+
+  if (scavenging !== undefined) {
+    warnings.push({
+      code: 'someone-else-scavenging',
+      message: `Only one survivor may scavenge, and ${scavenging.name} is.`,
+      pages: 17,
+    });
+  }
+
+  // Always, because this app does not model opting out of a mission — that is
+  // the Mission Phase, and Phase 4's. Said rather than assumed, so a player
+  // scavenging on a turn they fought is told which rule they are playing past.
+  warnings.push({
+    code: 'scavenging-needs-the-mission-skipped',
+    message: 'Only when the community skips this turn\u2019s mission.',
+    pages: 17,
+  });
+
+  return warnings;
 }

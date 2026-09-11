@@ -522,6 +522,26 @@ a walk to the right one. The slot cards keep theirs, because a slot card answers
 facility make" and it makes nothing with nobody in it — the assignment and its consequence belong
 together. The project team has no consequence to sit beside.
 
+**What the mutation run found, and the simplification it was pointing at.** The new module came
+back at 90.60 — the weakest in the repo, again, and for two different reasons. Nine mutants had no
+coverage at all: `staffableSlots` and `staffedSlots` were written for this screen and then not
+used by it, because the step reads `occupants` directly. Dead code, deleted.
+
+The five survivors were more interesting. Two were unreachable `?? 'somebody'` fallbacks behind a
+`length > 0` check — destructuring the first element instead removes the fallback rather than
+testing it. One was the `break` under `case 'project'`, which no test could tell from its own
+absence. That one was the real finding: the switch pushed into a shared array and broke, so the
+task with no rules had nothing to say. It now returns instead, so the empty case reads `return []`
+— a claim a test can hold the code to — and the five other cases became five small functions. The
+typechecker enforces exhaustiveness for free: a switch of returns in a function that promises an
+array is only well-typed if every task is answered, which was verified by deleting a case and
+watching `tsc` refuse it.
+
+The last two were weak fixtures rather than weak code: nothing tested healing with no base at all
+(so the null guard in `hasMedicalClinic` was never the thing that mattered), and every "somebody
+else is already resting" fixture had that somebody resting — so a check that asked "is anybody else
+assigned to *anything*" agreed with the real one. Both now have a test.
+
 **The end-to-end journeys had to learn the walk.** Every e2e test that builds anything now hires a
 team by walking to Planning Step 2, which is what a player does. That is the clearest evidence the
 control moved somewhere real rather than somewhere else on the same page.
