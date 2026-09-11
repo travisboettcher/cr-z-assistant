@@ -612,24 +612,26 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         });
       });
 
+    /**
+     * Through the same helper as the three advancement purchases, which is
+     * what it is: a survivor gains something and the log says so. The check is
+     * asked here rather than trusted from the screen — a pool that has run out
+     * is a blocker, and awarding past it would invent XP.
+     */
     case 'advancement/xpAwarded':
-      return withCampaign(state, (campaign) => {
-        const survivor = campaign.survivors.find((candidate) => candidate.id === action.survivor);
-        if (survivor === undefined) return campaign;
+      return editSurvivorLogged(state, action.survivor, action.at, (survivor, campaign) => {
+        if (checkXpAward(campaign, action.survivor, action.source).blockers.length > 0) return null;
 
-        // Asked here rather than trusted from the screen. A pool that has run
-        // out is a blocker, and awarding past it would invent XP.
-        if (checkXpAward(campaign, action.survivor, action.source).blockers.length > 0) {
-          return campaign;
-        }
-
-        return logged(withXpAwarded(campaign, action.survivor, XP_AWARD), action.at, {
-          kind: 'xp-awarded',
-          survivor: survivor.id,
-          name: survivor.name,
-          amount: XP_AWARD,
-          source: action.source,
-        });
+        return {
+          survivor: withXpAwarded(survivor, XP_AWARD),
+          event: {
+            kind: 'xp-awarded',
+            survivor: survivor.id,
+            name: survivor.name,
+            amount: XP_AWARD,
+            source: action.source,
+          },
+        };
       });
 
     /**
@@ -789,13 +791,18 @@ function editSurvivorLogged(
   state: CampaignState,
   id: string,
   at: string,
-  edit: (survivor: Survivor) => { survivor: Survivor; event: CampaignEvent } | null,
+  // The campaign as well as the survivor, for the edits whose rules are about
+  // the community rather than the person — an XP pool belongs to the turn.
+  edit: (
+    survivor: Survivor,
+    campaign: Campaign,
+  ) => { survivor: Survivor; event: CampaignEvent } | null,
 ): CampaignState {
   return withCampaign(state, (campaign) => {
     const found = campaign.survivors.find((survivor) => survivor.id === id);
     if (found === undefined) return campaign;
 
-    const done = edit(found);
+    const done = edit(found, campaign);
     if (done === null) return campaign;
 
     return logged(

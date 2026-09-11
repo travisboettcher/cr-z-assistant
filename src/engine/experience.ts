@@ -243,12 +243,18 @@ export function checkXpAward(campaign: Campaign, survivorId: string, source: XpS
   return { blockers, warnings: [] };
 }
 
-/** The campaign with XP added to one survivor. */
-export function withXpAwarded(campaign: Campaign, survivorId: string, amount: number): Campaign {
-  return {
-    ...campaign,
-    survivors: campaign.survivors.map((survivor) =>
-      survivor.id === survivorId ? { ...survivor, xp: survivor.xp + amount } : survivor,
-    ),
-  };
+/**
+ * The survivor with XP added.
+ *
+ * Takes a survivor and returns one, like the three purchases in
+ * `advancement.ts` — the other half of the same transaction, and the shape the
+ * store's `editSurvivorLogged` already knows how to drive. An earlier draft
+ * took the whole campaign and an id, which meant the reducer had to look the
+ * survivor up itself and guard against not finding one. Two places answering
+ * "is this survivor real" is one too many, and the second one's guard was
+ * unreachable: `checkXpAward` refuses anybody who is not in the community
+ * before it can be asked.
+ */
+export function withXpAwarded(survivor: Survivor, amount: number): Survivor {
+  return { ...survivor, xp: survivor.xp + amount };
 }

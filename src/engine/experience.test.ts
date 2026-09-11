@@ -378,22 +378,19 @@ describe('checkXpAward', () => {
 });
 
 describe('withXpAwarded', () => {
-  it('adds to the survivor named and nobody else', () => {
-    const after = withXpAwarded(community(), EARL, 1);
+  const earl = () => createSurvivor('Earl Rhodes', 4, { id: EARL });
 
-    expect(after.survivors.find((survivor) => survivor.id === EARL)?.xp).toBe(1);
-    expect(after.survivors.find((survivor) => survivor.id === CARLA)?.xp).toBe(0);
+  it('adds to what they already had rather than replacing it', () => {
+    expect(withXpAwarded({ ...earl(), xp: 7 }, 2).xp).toBe(9);
   });
 
-  it('adds to what they already had', () => {
-    const rich = community({}, [{ ...createSurvivor('Earl Rhodes', 4, { id: EARL }), xp: 7 }]);
-
-    expect(withXpAwarded(rich, EARL, 2).survivors[0]?.xp).toBe(9);
+  it('starts from nothing for a survivor who has spent everything', () => {
+    expect(withXpAwarded(earl(), 1).xp).toBe(1);
   });
 
-  it('leaves the campaign alone when nobody matches', () => {
-    const before = community();
+  it('changes nothing else about them', () => {
+    const before = { ...earl(), xp: 7 };
 
-    expect(withXpAwarded(before, 'nobody', 1)).toEqual(before);
+    expect({ ...withXpAwarded(before, 2), xp: before.xp }).toEqual(before);
   });
 });

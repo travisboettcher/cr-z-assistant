@@ -635,6 +635,13 @@ refusals in the store — a second helping of materials, an award the rules bloc
 somebody who is not in the community — were branches no happy-path test could reach. All four now
 have one.
 
+The last of those turned out not to want a test at all. `withXpAwarded` took the whole campaign
+and an id, so the reducer had to look the survivor up and guard against not finding one — a guard
+nothing could reach, because `checkXpAward` refuses anybody who is not in the community before it
+is asked. It takes a survivor and returns one now, like the three purchases in `advancement.ts`,
+which is the shape the store's own `editSurvivorLogged` already drives. The case that was fifteen
+lines of its own is the same six the purchases are.
+
 **The project queue is still owed, and is now its own story.** The Z3-5 note put it here on the
 grounds that Z3-7 owns the step projects complete in. Writing this story made the size of it
 clear: the queue changes what *building* means — ordering in Planning, completing in the next
