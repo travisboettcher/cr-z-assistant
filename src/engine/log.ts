@@ -71,6 +71,16 @@ export type CampaignEvent =
   /** The turn that has just begun, which is also the entry's own turn. */
   | { readonly kind: 'turn-began' }
   | { readonly kind: 'starting-community-settled'; readonly built: boolean }
+  /**
+   * The Planning Phase cleared last turn's tasks and utility points (pg. 20).
+   *
+   * Carries nothing: which turn is the entry's own, and how many assignments
+   * went is not a fact about the campaign so much as about the turn before it.
+   * **This entry is load-bearing rather than decorative** — `planningHasBegun`
+   * reads it back to make sure the clearing happens once a turn, so stepping
+   * back and forward through the walk cannot destroy the planning just done.
+   */
+  | { readonly kind: 'planning-began' }
   | {
       readonly kind: 'survivor-added';
       readonly survivor: string;

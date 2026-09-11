@@ -237,6 +237,7 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
     fc.record({ kind: fc.constant('campaign-started' as const), name: anyName }),
     fc.record({ kind: fc.constant('phase-entered' as const) }),
     fc.record({ kind: fc.constant('turn-began' as const) }),
+    fc.record({ kind: fc.constant('planning-began' as const) }),
     fc.record({ kind: fc.constant('starting-community-settled' as const), built: fc.boolean() }),
     fc.record({
       kind: fc.constant('survivor-added' as const),

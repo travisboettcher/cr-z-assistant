@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { BASES, BASE_IDS } from '../data/bases';
 import { createNewCampaign, type Campaign } from '../engine/campaign';
+import { createSurvivor } from '../engine/survivor';
 import { generatingUtilities, projectTeamWorth } from '../test/campaigns';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
@@ -560,14 +561,17 @@ describe('staffing a facility', () => {
   });
 
   it('takes a survivor off whatever they were doing, and says so first', async () => {
-    const user = await openCampaign();
-    await user.type(screen.getByLabelText(/survivor name/i), 'Carla');
-    await user.selectOptions(screen.getByLabelText(/^tier$/i), '2');
-    await user.click(screen.getByRole('button', { name: /add survivor/i }));
-    await claim(user, 'Small Town Home — Tier 1');
+    // Already on the project team, which since Z3-6 is assigned in the
+    // Planning Phase rather than here — the base screen reads the Labor and
+    // points at the step that sets it.
+    const carla = createSurvivor('Carla Proust', 2, { id: 'carla' });
+    const user = openWith({
+      ...createNewCampaign('Cedar Hollow'),
+      base: { id: 'small-town-home', slots: {} },
+      survivors: [carla],
+      assignments: { carla: { task: 'project' } },
+    });
 
-    const team = within(screen.getByRole('group', { name: /on the project team/i }));
-    await user.click(team.getByRole('checkbox', { name: /carla/i }));
     expect(screen.getByText('Labor available:').parentElement).toHaveTextContent('2');
 
     // One task per survivor (pg. 20): staffing the Kitchen takes her off the

@@ -18,6 +18,7 @@ import type { Campaign } from '../engine/campaign';
 import { advance, phaseOf, positionOf, reverse } from '../engine/turn';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
+import { PlanningPhase } from './PlanningPhase';
 import { PHASE_LABELS, STEP_LABELS } from './turnLabels';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
@@ -167,11 +168,24 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
         </button>
       </div>
 
-      {step !== undefined && (
-        <p className="mt-4 text-sm text-stone-600 dark:text-stone-400">
-          This step is not built yet — work it on paper and move on when the table has.{' '}
-          <PageRef pages={step.pages} />
-        </p>
+      {/*
+       * What this step is *for*, below the controls that move off it. The frame
+       * was drawn before its contents on purpose — see
+       * `docs/turn-walk-interaction.md` — and this is where the four stories
+       * that fill it hang their screens.
+       */}
+      {/* Which steps this covers is the phase they are in, which the engine
+          already answers — a list of the four here would be a second copy of
+          `TURN_STEPS.planning` waiting to disagree with the first. */}
+      {phase === 'planning' ? (
+        <PlanningPhase campaign={campaign} step={campaign.step} />
+      ) : (
+        step !== undefined && (
+          <p className="mt-4 text-sm text-stone-600 dark:text-stone-400">
+            This step is not built yet — work it on paper and move on when the table has.{' '}
+            <PageRef pages={step.pages} />
+          </p>
+        )
       )}
 
       <dialog
