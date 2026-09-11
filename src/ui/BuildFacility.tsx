@@ -19,11 +19,10 @@ export interface BuildFacilityProps {
   readonly campaign: Campaign;
   readonly slot: string;
   /** Labor available this turn, entered above the map and passed down. */
-  readonly labor: number;
   readonly onBuilt: () => void;
 }
 
-export function BuildFacility({ campaign, slot, labor, onBuilt }: BuildFacilityProps) {
+export function BuildFacility({ campaign, slot, onBuilt }: BuildFacilityProps) {
   const { dispatch } = useCampaign();
   const chooserId = useId();
 
@@ -31,7 +30,7 @@ export function BuildFacility({ campaign, slot, labor, onBuilt }: BuildFacilityP
   const [choice, setChoice] = useState<FacilityId>(offered[0]?.id ?? 'bunk-room');
 
   const facility = FACILITIES[choice];
-  const check = checkBuild(campaign, { slot, facility: choice, labor });
+  const check = checkBuild(campaign, { slot, facility: choice });
 
   /**
    * Tied to the facility it was granted for, so an override cannot be carried
@@ -55,7 +54,6 @@ export function BuildFacility({ campaign, slot, labor, onBuilt }: BuildFacilityP
           type: 'facility/built',
           slot,
           facility: choice,
-          labor,
           at: new Date().toISOString(),
         });
         onBuilt();

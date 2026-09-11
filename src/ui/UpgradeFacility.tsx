@@ -18,11 +18,10 @@ import { FOCUS_RING, TOUCH_TARGET } from './styles';
 export interface UpgradeFacilityProps {
   readonly campaign: Campaign;
   readonly slot: string;
-  readonly labor: number;
   readonly onUpgraded: () => void;
 }
 
-export function UpgradeFacility({ campaign, slot, labor, onUpgraded }: UpgradeFacilityProps) {
+export function UpgradeFacility({ campaign, slot, onUpgraded }: UpgradeFacilityProps) {
   const { dispatch } = useCampaign();
   const chooserId = useId();
 
@@ -44,7 +43,7 @@ export function UpgradeFacility({ campaign, slot, labor, onUpgraded }: UpgradeFa
   }
 
   const upgrade = offered.find((candidate) => candidate.id === chosen);
-  const check = checkUpgrade(campaign, { slot, upgrade: chosen, labor });
+  const check = checkUpgrade(campaign, { slot, upgrade: chosen });
 
   return (
     <SlotAction
@@ -61,7 +60,6 @@ export function UpgradeFacility({ campaign, slot, labor, onUpgraded }: UpgradeFa
           type: 'upgrade/built',
           slot,
           upgrade: chosen,
-          labor,
           at: new Date().toISOString(),
         });
         onUpgraded();

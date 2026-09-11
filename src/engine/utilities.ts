@@ -7,20 +7,15 @@
  * Spotlight is one point of Power, not four — which is why the assignment is a
  * flag on the slot rather than a count.
  *
- * ## Where the pool comes from, and the half that has to be typed in
+ * ## Where the pool comes from, in two halves
  *
  * Some of it is flat: Solar Panels, Rain Collectors, and the Distillery's
- * built-in Utility Station. `flatUtilitiesGenerated` in `base.ts` has that half
- * and it is fully derived.
+ * built-in Utility Station. `flatUtilitiesGenerated` in `base.ts` has that half.
  *
  * The rest is a staffed Utility Station, which produces its staff's Utilities
- * Score **split across the two however the player likes** — and staffing is the
- * Planning Phase's, which is Phase 3. So the Score is entered by hand, exactly
- * as Labor and XP and the material counts are, and for the same reason: without
- * it the pool is zero on nine of the ten bases and nothing could ever be
- * assigned. What the app enforces today is the rule — a pool cannot be
- * over-assigned — while where the points came from waits for the phase that
- * knows.
+ * Score **split across the two however the player likes**. That half was typed
+ * in until Z3-5, because staffing is the Planning Phase's — it is
+ * `utilitiesScore` in `assignments.ts` now, and nobody types anything.
  *
  * **The split is what makes over-assignment interesting.** Flat Power cannot
  * become Water, but a staffed point can be either, so the pools are only
@@ -31,6 +26,7 @@
 
 import type { Utility } from '../data/facilities';
 import { flatUtilitiesGenerated, layoutOf, occupants } from './base';
+import { utilitiesScore } from './assignments';
 import type { Base, Campaign } from './campaign';
 import type { Check, Violation } from './checks';
 
@@ -44,11 +40,6 @@ export type UtilityCheck = Check<UtilityViolationCode>;
 export interface UtilityRequest {
   readonly slot: string;
   readonly utility: Utility;
-  /**
-   * The combined Utilities Score of whoever is staffing a Utility Station,
-   * entered by hand until the Planning Phase assigns staff (pg. 20).
-   */
-  readonly staffed: number;
 }
 
 /** How many slots currently hold a point of this utility. */
@@ -116,13 +107,14 @@ export function checkUtility(campaign: Campaign, request: UtilityRequest): Utili
   const blockers: UtilityViolation[] = [];
   const warnings: UtilityViolation[] = [];
 
-  // What assigning one more would spend, against what the staffed Score covers.
+  // What assigning one more would spend, against what the staff generate.
   const wouldSpend = staffedSpent(withUtility(base, request.slot, request.utility, true));
+  const generated = utilitiesScore(campaign);
 
-  if (wouldSpend > request.staffed) {
+  if (wouldSpend > generated) {
     blockers.push({
       code: 'pool-exhausted',
-      message: `Needs ${String(wouldSpend - request.staffed)} more than this base generates.`,
+      message: `Needs ${String(wouldSpend - generated)} more than this base generates.`,
       pages: 67,
     });
   }
@@ -173,8 +165,8 @@ function withUtility(base: Base, slot: string, utility: Utility, on: boolean): B
  * the state a save from a house-ruled campaign can be in.
  *
  * Nothing is deducted anywhere, because a pool is not stored: it is recomputed
- * from the facilities and the hand-entered Score every time it is read. Clearing
- * the assignments each Planning Phase is Phase 3's.
+ * from the facilities and whoever is staffing them every time it is read.
+ * Clearing the assignments each Planning Phase is Z3-6's.
  */
 export function withUtilityToggled(campaign: Campaign, request: UtilityRequest): Campaign {
   const base = campaign.base;

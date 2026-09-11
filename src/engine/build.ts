@@ -16,6 +16,7 @@
 import { FACILITIES, type Facility, type FacilityId } from '../data/facilities';
 import type { Campaign } from './campaign';
 import { layoutOf, occupants } from './base';
+import { laborPool } from './assignments';
 import type { Check, Violation } from './checks';
 
 /**
@@ -40,19 +41,16 @@ export type BuildViolation = Violation<BuildViolationCode>;
 
 export type BuildCheck = Check<BuildViolationCode>;
 
-/** What a build needs, beyond a campaign: where, what, and the Labor to hand. */
+/**
+ * What a build needs, beyond a campaign: where, and what.
+ *
+ * No Labor. It was a hand-entered field here until Z3-5, because the pool comes
+ * from the project team (pg. 20) and nothing on `Campaign` recorded one. It
+ * does now, so the cost is checked against a number the campaign already knows.
+ */
 export interface BuildRequest {
   readonly slot: string;
   readonly facility: FacilityId;
-  /**
-   * Labor available this turn, entered by hand.
-   *
-   * The pool comes from the project team (pg. 20) and that is Planning Phase
-   * work, so there is nothing on `Campaign` to read it from yet — the same
-   * reason Phase 1 let XP be typed in. The *rule* is still enforced: a build
-   * that cannot be paid for in Labor is refused.
-   */
-  readonly labor: number;
 }
 
 /** Everything wrong with this build, or two empty lists. */
@@ -119,10 +117,12 @@ export function checkBuild(campaign: Campaign, request: BuildRequest): BuildChec
     });
   }
 
-  if (request.labor < facility.cost.labor) {
+  const available = laborPool(campaign);
+
+  if (available < facility.cost.labor) {
     blockers.push({
       code: 'not-enough-labor',
-      message: `Costs ${String(facility.cost.labor)} Labor and ${String(request.labor)} is available.`,
+      message: `Costs ${String(facility.cost.labor)} Labor and ${String(available)} is available.`,
       pages: '72–73',
     });
   }

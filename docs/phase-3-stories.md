@@ -445,6 +445,27 @@ app now knows.
   Room — sum the assigned survivors rather than the first one.
 - No screen in the app has a Labor or Utilities Score input any more.
 
+**What this story did not do, and why it says so here.** `laborPool` is what the project team
+*generates*. It is not reduced by what has already been built this turn — and Phase 2's
+hand-entered number was not either, so this story changed where the number comes from without
+changing what is tracked.
+
+Spending it down needs something the app does not have. Facilities record the turn they went up;
+upgrades and cleared slots record nothing, so "what has this turn's Labor already paid for" is not
+recoverable. The book has the real shape and it is not a running total: projects are **ordered**
+during the Planning Phase and **complete in the next Advancement Phase** (pg. 20, 19), which is a
+queue. That belongs to [Z3-7](#z3-7--the-advancement-phase), whose step it is, and adding a turn
+stamp to every upgrade here only to replace it there would be churn. **The plan never scoped that
+queue to a story** — it is the largest thing Phase 3 still owes the rules, and Z3-7 is where it
+has to land.
+
+**Assignment had to become possible somewhere.** Removing the two inputs without a way to make the
+derived numbers non-zero would have left a base screen whose Build button could never be pressed —
+the exact "nothing is usable until everything works" failure the plan is shaped against. So the
+slot card's staff *preview* became a real assignment, and the project team got a control where its
+Labor number is read. [Z3-6](#z3-6--the-planning-phase) is not made redundant by that: it puts all
+six tasks in the book's step order, counts the unassigned, and owns the per-turn reset.
+
 ---
 
 ## Z3-6 — The Planning Phase

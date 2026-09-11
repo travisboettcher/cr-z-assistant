@@ -457,6 +457,29 @@ describe('base roster', () => {
   });
 });
 
+describe('production outputs', () => {
+  /**
+   * Only the Utility Station divides one amount between two outputs (pg. 72),
+   * and `splitsAcrossPools` in `src/engine/assignments.ts` reads exactly that
+   * to tell the utility pool's staffed half from every other kind of work.
+   *
+   * Asserted over the whole catalogue rather than trusted, because it is the
+   * kind of fact a single new facility could quietly falsify — and the engine
+   * would then count that facility's output as Power and Water.
+   */
+  it('divides one amount across outputs only in the Utility Station', () => {
+    const splitting = FACILITY_IDS.filter((id) => {
+      const facility = FACILITIES[id] as Facility;
+
+      return [facility, ...facility.upgrades].some((entry: Facility | Upgrade) =>
+        (entry.effects.production ?? []).some((production) => 'outputs' in production),
+      );
+    });
+
+    expect(splitting).toEqual(['utility-station']);
+  });
+});
+
 describe('the campaign turn', () => {
   it('runs the four campaign phases in rulebook order', () => {
     expect(CAMPAIGN_PHASES).toEqual(['mission', 'advancement', 'planning', 'management']);

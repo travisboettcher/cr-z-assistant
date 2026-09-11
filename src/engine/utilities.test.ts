@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { storageCaps } from './base';
 import { createNewCampaign, type Base, type Campaign } from './campaign';
+import { generatingUtilities } from '../test/campaigns';
 import {
   assignedCount,
   checkUtility,
@@ -22,6 +23,14 @@ function campaignWith(base: Base | null, overrides: Partial<Campaign> = {}): Cam
 }
 
 const codes = (violations: readonly { code: string }[]) => violations.map(({ code }) => code);
+
+/**
+ * A campaign whose staffed Utility Station generates this Score.
+ *
+ * The Station goes into `front-yard`, which none of these tests uses for
+ * anything else, so arranging the pool cannot disturb the slot under test.
+ */
+const generating = (campaign: Campaign, score: number) => generatingUtilities(campaign, score);
 
 const home = (slots: Base['slots'] = {}): Base => ({ id: 'small-town-home', slots });
 
@@ -71,16 +80,21 @@ describe('checkUtility', () => {
     });
 
     expect(
-      checkUtility(campaignWith(base), { slot: 'garage', utility: 'power', staffed: 1 }),
+      checkUtility(generating(campaignWith(base), 1), { slot: 'garage', utility: 'power' }),
     ).toEqual({ blockers: [], warnings: [] });
   });
 
   it.each([
-    ['a campaign with no base', campaignWith(null), 'kitchen', 0, 'no-base'],
-    ['a slot this base does not have', campaignWith(home()), 'wine-cellar', 9, 'no-such-slot'],
-    ['an empty slot', campaignWith(home()), 'garage', 9, 'nothing-to-supply'],
-  ])('refuses %s', (_label, campaign, slot, staffed, expected) => {
-    const check = checkUtility(campaign, { slot, utility: 'power', staffed });
+    ['a campaign with no base', campaignWith(null), 'kitchen', 'no-base'],
+    [
+      'a slot this base does not have',
+      generating(campaignWith(home()), 9),
+      'wine-cellar',
+      'no-such-slot',
+    ],
+    ['an empty slot', generating(campaignWith(home()), 9), 'garage', 'nothing-to-supply'],
+  ])('refuses %s', (_label, campaign, slot, expected) => {
+    const check = checkUtility(campaign, { slot, utility: 'power' });
 
     expect(codes(check.blockers)).toEqual([expected]);
     expect(check.warnings).toEqual([]);
@@ -91,10 +105,9 @@ describe('checkUtility', () => {
 
     // Two assigned already, no flat generation, and a Score of 2 covers them.
     // A third needs one more than exists.
-    const check = checkUtility(campaignWith(base), {
+    const check = checkUtility(generating(campaignWith(base), 2), {
       slot: 'bunk-room-2',
       utility: 'power',
-      staffed: 2,
     });
 
     expect(codes(check.blockers)).toEqual(['pool-exhausted']);
@@ -105,13 +118,16 @@ describe('checkUtility', () => {
     // One Power and one Water, against a Score of 2 and no flat generation: the
     // Score covers either, which is what "in any mix" means.
     const base = home({ kitchen: { power: true } });
-    const campaign = campaignWith(base);
 
     expect(
-      checkUtility(campaign, { slot: 'bunk-room-1', utility: 'water', staffed: 2 }).blockers,
+      checkUtility(generating(campaignWith(base), 2), { slot: 'bunk-room-1', utility: 'water' })
+        .blockers,
     ).toEqual([]);
     expect(
-      codes(checkUtility(campaign, { slot: 'bunk-room-1', utility: 'water', staffed: 1 }).blockers),
+      codes(
+        checkUtility(generating(campaignWith(base), 1), { slot: 'bunk-room-1', utility: 'water' })
+          .blockers,
+      ),
     ).toEqual(['pool-exhausted']);
   });
 
@@ -120,23 +136,20 @@ describe('checkUtility', () => {
     // watered slot is free and a powered one is not.
     const campaign = campaignWith(distillery());
 
+    expect(checkUtility(campaign, { slot: 'utility-station', utility: 'water' }).blockers).toEqual(
+      [],
+    );
     expect(
-      checkUtility(campaign, { slot: 'utility-station', utility: 'water', staffed: 0 }).blockers,
-    ).toEqual([]);
-    expect(
-      codes(
-        checkUtility(campaign, { slot: 'utility-station', utility: 'power', staffed: 0 }).blockers,
-      ),
+      codes(checkUtility(campaign, { slot: 'utility-station', utility: 'power' }).blockers),
     ).toEqual(['pool-exhausted']);
   });
 
   it('warns when nothing in the slot would use the point', () => {
     // A Bunk Room needs neither utility. Legal, and pointless, so it is a
     // warning rather than a refusal.
-    const check = checkUtility(campaignWith(home()), {
+    const check = checkUtility(generating(campaignWith(home()), 9), {
       slot: 'bunk-room-1',
       utility: 'power',
-      staffed: 9,
     });
 
     expect(check.blockers).toEqual([]);
@@ -153,11 +166,12 @@ describe('checkUtility', () => {
 
     expect(
       codes(
-        checkUtility(campaignWith(bare), { slot: 'garage', utility: 'power', staffed: 9 }).warnings,
+        checkUtility(generating(campaignWith(bare), 9), { slot: 'garage', utility: 'power' })
+          .warnings,
       ),
     ).toEqual(['not-needed']);
     expect(
-      checkUtility(campaignWith(upgraded), { slot: 'garage', utility: 'power', staffed: 9 })
+      checkUtility(generating(campaignWith(upgraded), 9), { slot: 'garage', utility: 'power' })
         .warnings,
     ).toEqual([]);
   });
@@ -165,12 +179,12 @@ describe('checkUtility', () => {
 
 describe('withUtilityToggled', () => {
   it('puts a point on and takes it off again', () => {
-    const campaign = campaignWith(home({ kitchen: {} }));
+    const campaign = generating(campaignWith(home({ kitchen: {} })), 1);
 
-    const on = withUtilityToggled(campaign, { slot: 'kitchen', utility: 'water', staffed: 1 });
+    const on = withUtilityToggled(campaign, { slot: 'kitchen', utility: 'water' });
     expect(on.base?.slots.kitchen?.water).toBe(true);
 
-    const off = withUtilityToggled(on, { slot: 'kitchen', utility: 'water', staffed: 1 });
+    const off = withUtilityToggled(on, { slot: 'kitchen', utility: 'water' });
     // Removed rather than set false: absent and false are one state, and the
     // persisted shape only has one spelling for it.
     expect(off.base?.slots.kitchen).toEqual({});
@@ -184,10 +198,9 @@ describe('withUtilityToggled', () => {
       },
     });
 
-    const after = withUtilityToggled(campaignWith(base), {
+    const after = withUtilityToggled(generating(campaignWith(base), 1), {
       slot: 'garage',
       utility: 'power',
-      staffed: 1,
     });
 
     // Three things in the slot, one point of Power.
@@ -198,21 +211,19 @@ describe('withUtilityToggled', () => {
   it('keeps what else the slot recorded', () => {
     const base = home({ kitchen: { upgrades: ['gas-range'] } });
 
-    const after = withUtilityToggled(campaignWith(base), {
+    const after = withUtilityToggled(generating(campaignWith(base), 1), {
       slot: 'kitchen',
       utility: 'water',
-      staffed: 1,
     });
 
     expect(after.base?.slots.kitchen).toEqual({ upgrades: ['gas-range'], water: true });
   });
 
   it('refuses a point it cannot generate, and changes nothing', () => {
-    const campaign = campaignWith(home({ kitchen: {} }));
+    // A Station with somebody useless in it: staffed, and generating nothing.
+    const campaign = generating(campaignWith(home({ kitchen: {} })), 0);
 
-    expect(withUtilityToggled(campaign, { slot: 'kitchen', utility: 'water', staffed: 0 })).toBe(
-      campaign,
-    );
+    expect(withUtilityToggled(campaign, { slot: 'kitchen', utility: 'water' })).toBe(campaign);
   });
 
   it('always lets a point go back, even from a base that is over-assigned', () => {
@@ -220,7 +231,7 @@ describe('withUtilityToggled', () => {
     // give a point back would strand it there.
     const over = campaignWith(home({ kitchen: { water: true }, 'bunk-room-1': { water: true } }));
 
-    const after = withUtilityToggled(over, { slot: 'kitchen', utility: 'water', staffed: 0 });
+    const after = withUtilityToggled(over, { slot: 'kitchen', utility: 'water' });
 
     expect(after.base?.slots.kitchen?.water).toBeUndefined();
   });
@@ -228,7 +239,7 @@ describe('withUtilityToggled', () => {
   it('does nothing to a campaign with no base', () => {
     const none = campaignWith(null);
 
-    expect(withUtilityToggled(none, { slot: 'kitchen', utility: 'power', staffed: 9 })).toBe(none);
+    expect(withUtilityToggled(none, { slot: 'kitchen', utility: 'power' })).toBe(none);
   });
 });
 
@@ -239,15 +250,11 @@ describe('what a supplied utility switches on', () => {
     const base = home({
       garage: { built: { facility: 'storage-area', builtOnTurn: 1 }, upgrades: ['refrigeration'] },
     });
-    const campaign = campaignWith(base);
+    const campaign = generating(campaignWith(base), 1);
 
     expect(storageCaps(base).food).toBe(6);
 
-    const powered = withUtilityToggled(campaign, {
-      slot: 'garage',
-      utility: 'power',
-      staffed: 1,
-    });
+    const powered = withUtilityToggled(campaign, { slot: 'garage', utility: 'power' });
 
     expect(storageCaps(powered.base as Base).food).toBe(8);
   });

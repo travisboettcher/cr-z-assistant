@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Base, type Campaign } from './campaign';
 import { checkUpgrade, upgradesFor, withUpgradeBuilt } from './upgrade';
+import { projectTeamWorth } from '../test/campaigns';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 
@@ -8,6 +9,10 @@ function campaignWith(base: Base | null, overrides: Partial<Campaign> = {}): Cam
   return {
     ...createNewCampaign('Cedar Hollow', FIXED),
     materials: { food: 0, fuel: 0, hardware: 20, rare: 0 },
+    // A project team big enough that Labor is never the thing under test. The
+    // pool is the summed Tier levels of whoever is on it (pg. 20), so the tests
+    // that *are* about Labor override this with a smaller one.
+    ...projectTeamWorth(9),
     turn: 4,
     base,
     ...overrides,
@@ -43,7 +48,6 @@ describe('checkUpgrade', () => {
     const check = checkUpgrade(campaignWith(home()), {
       slot: 'kitchen',
       upgrade: 'gas-range',
-      labor: 5,
     });
 
     expect(check).toEqual({ blockers: [], warnings: [] });
@@ -53,12 +57,10 @@ describe('checkUpgrade', () => {
     const empty = checkUpgrade(campaignWith(home()), {
       slot: 'garage',
       upgrade: 'gas-range',
-      labor: 5,
     });
     const foreign = checkUpgrade(campaignWith(home()), {
       slot: 'kitchen',
       upgrade: 'spotlight',
-      labor: 5,
     });
 
     expect(codes(empty.blockers)).toEqual(['nothing-to-upgrade']);
@@ -70,9 +72,12 @@ describe('checkUpgrade', () => {
   });
 
   it('refuses an upgrade the community cannot pay for', () => {
-    const poor = campaignWith(home(), { materials: { food: 0, fuel: 0, hardware: 1, rare: 0 } });
+    const poor = campaignWith(home(), {
+      materials: { food: 0, fuel: 0, hardware: 1, rare: 0 },
+      ...projectTeamWorth(0),
+    });
 
-    const check = checkUpgrade(poor, { slot: 'kitchen', upgrade: 'gas-range', labor: 0 });
+    const check = checkUpgrade(poor, { slot: 'kitchen', upgrade: 'gas-range' });
 
     expect(codes(check.blockers)).toEqual(['not-enough-hardware', 'not-enough-labor']);
     expect(check.warnings).toEqual([]);
@@ -83,14 +88,13 @@ describe('checkUpgrade', () => {
       home({ garage: { built: { facility: 'kitchen', builtOnTurn: 4 } } }),
     );
 
-    expect(
-      codes(checkUpgrade(built, { slot: 'garage', upgrade: 'gas-range', labor: 5 }).warnings),
-    ).toEqual(['built-this-turn']);
+    expect(codes(checkUpgrade(built, { slot: 'garage', upgrade: 'gas-range' }).warnings)).toEqual([
+      'built-this-turn',
+    ]);
 
     // The same campaign a turn later.
     expect(
-      checkUpgrade({ ...built, turn: 5 }, { slot: 'garage', upgrade: 'gas-range', labor: 5 })
-        .warnings,
+      checkUpgrade({ ...built, turn: 5 }, { slot: 'garage', upgrade: 'gas-range' }).warnings,
     ).toEqual([]);
   });
 
@@ -98,8 +102,7 @@ describe('checkUpgrade', () => {
     // `builtOnTurn` is null for a facility the base came with, so the rule has
     // nothing to compare against on any turn.
     expect(
-      checkUpgrade(campaignWith(home()), { slot: 'kitchen', upgrade: 'gas-range', labor: 5 })
-        .warnings,
+      checkUpgrade(campaignWith(home()), { slot: 'kitchen', upgrade: 'gas-range' }).warnings,
     ).toEqual([]);
   });
 
@@ -108,16 +111,16 @@ describe('checkUpgrade', () => {
       home({ kitchen: { upgrades: ['gas-range', 'gas-range', 'gas-range'] } }),
     );
 
-    expect(
-      codes(checkUpgrade(full, { slot: 'kitchen', upgrade: 'gas-range', labor: 5 }).warnings),
-    ).toEqual(['cap-reached']);
+    expect(codes(checkUpgrade(full, { slot: 'kitchen', upgrade: 'gas-range' }).warnings)).toEqual([
+      'cap-reached',
+    ]);
 
     // Nothing in the core table is rare, so the exemption is asserted through
     // the branch that reads the flag rather than through data Phase 5 will add.
     const nearlyFull = campaignWith(home({ kitchen: { upgrades: ['gas-range', 'gas-range'] } }));
-    expect(
-      checkUpgrade(nearlyFull, { slot: 'kitchen', upgrade: 'gas-range', labor: 5 }).warnings,
-    ).toEqual([]);
+    expect(checkUpgrade(nearlyFull, { slot: 'kitchen', upgrade: 'gas-range' }).warnings).toEqual(
+      [],
+    );
   });
 
   it('warns that a locked built-in takes nothing further, rather than citing a cap', () => {
@@ -126,7 +129,6 @@ describe('checkUpgrade', () => {
     const check = checkUpgrade(campaignWith({ id: 'summer-camp', slots: {} }), {
       slot: 'bunk-room-1',
       upgrade: 'extra-bed',
-      labor: 5,
     });
 
     expect(codes(check.warnings)).toEqual(['facility-locked']);
@@ -135,9 +137,12 @@ describe('checkUpgrade', () => {
   it('affords an upgrade that costs exactly what is available', () => {
     // The boundary, asserted because `<` and `<=` differ only here: a Gas Range
     // costs 2 Hardware and 1 Labor.
-    const exact = campaignWith(home(), { materials: { food: 0, fuel: 0, hardware: 2, rare: 0 } });
+    const exact = campaignWith(home(), {
+      materials: { food: 0, fuel: 0, hardware: 2, rare: 0 },
+      ...projectTeamWorth(1),
+    });
 
-    expect(checkUpgrade(exact, { slot: 'kitchen', upgrade: 'gas-range', labor: 1 })).toEqual({
+    expect(checkUpgrade(exact, { slot: 'kitchen', upgrade: 'gas-range' })).toEqual({
       blockers: [],
       warnings: [],
     });
@@ -161,8 +166,7 @@ describe('checkUpgrade', () => {
     });
 
     expect(
-      checkUpgrade(campaignWith(garden), { slot: 'front-yard', upgrade: 'greenhouse', labor: 5 })
-        .warnings,
+      checkUpgrade(campaignWith(garden), { slot: 'front-yard', upgrade: 'greenhouse' }).warnings,
     ).toEqual([]);
   });
 
@@ -172,10 +176,7 @@ describe('checkUpgrade', () => {
     });
 
     expect(
-      codes(
-        checkUpgrade(campaignWith(base), { slot: 'front-yard', upgrade: 'fence', labor: 5 })
-          .warnings,
-      ),
+      codes(checkUpgrade(campaignWith(base), { slot: 'front-yard', upgrade: 'fence' }).warnings),
     ).toEqual(['one-per-facility']);
   });
 
@@ -192,8 +193,7 @@ describe('checkUpgrade', () => {
 
     expect(
       codes(
-        checkUpgrade(campaignWith(base), { slot: 'front-yard', upgrade: 'greenhouse', labor: 5 })
-          .warnings,
+        checkUpgrade(campaignWith(base), { slot: 'front-yard', upgrade: 'greenhouse' }).warnings,
       ),
     ).toEqual(['excluded-by-another']);
   });
@@ -202,7 +202,6 @@ describe('checkUpgrade', () => {
     const check = checkUpgrade(campaignWith(null), {
       slot: 'kitchen',
       upgrade: 'gas-range',
-      labor: 5,
     });
 
     expect(codes(check.blockers)).toEqual(['no-base']);
@@ -215,7 +214,6 @@ describe('withUpgradeBuilt', () => {
     const after = withUpgradeBuilt(campaignWith(home()), {
       slot: 'kitchen',
       upgrade: 'gas-range',
-      labor: 5,
     });
 
     expect(after.base?.slots.kitchen?.upgrades).toEqual(['gas-range']);
@@ -229,7 +227,6 @@ describe('withUpgradeBuilt', () => {
       {
         slot: 'bunk-room-1',
         upgrade: 'extra-bed',
-        labor: 5,
       },
     );
 
@@ -239,7 +236,7 @@ describe('withUpgradeBuilt', () => {
   it('keeps what else the slot recorded', () => {
     const after = withUpgradeBuilt(
       campaignWith(home({ kitchen: { power: true, cleared: true } })),
-      { slot: 'kitchen', upgrade: 'gas-range', labor: 5 },
+      { slot: 'kitchen', upgrade: 'gas-range' },
     );
 
     expect(after.base?.slots.kitchen).toEqual({
@@ -255,7 +252,6 @@ describe('withUpgradeBuilt', () => {
     const after = withUpgradeBuilt(campaignWith(home()), {
       slot: 'kitchen',
       upgrade: 'biofuel-lab',
-      labor: 5,
     });
 
     expect(after.base?.slots.kitchen?.upgrades).toEqual(['biofuel-lab']);
@@ -265,20 +261,20 @@ describe('withUpgradeBuilt', () => {
   it('does nothing to a slot with nothing in it', () => {
     const empty = campaignWith(home());
 
-    expect(withUpgradeBuilt(empty, { slot: 'garage', upgrade: 'gas-range', labor: 5 })).toBe(empty);
+    expect(withUpgradeBuilt(empty, { slot: 'garage', upgrade: 'gas-range' })).toBe(empty);
   });
 
   it('refuses a blocked upgrade and changes nothing at all', () => {
     const poor = campaignWith(home(), { materials: { food: 0, fuel: 0, hardware: 0, rare: 0 } });
 
-    expect(withUpgradeBuilt(poor, { slot: 'kitchen', upgrade: 'gas-range', labor: 5 })).toBe(poor);
+    expect(withUpgradeBuilt(poor, { slot: 'kitchen', upgrade: 'gas-range' })).toBe(poor);
   });
 
   it('goes through a warning, because proceeding past one is the player’s call', () => {
     const full = campaignWith(
       home({ kitchen: { upgrades: ['gas-range', 'gas-range', 'gas-range'] } }),
     );
-    const after = withUpgradeBuilt(full, { slot: 'kitchen', upgrade: 'gas-range', labor: 5 });
+    const after = withUpgradeBuilt(full, { slot: 'kitchen', upgrade: 'gas-range' });
 
     expect(after.base?.slots.kitchen?.upgrades).toHaveLength(4);
   });
@@ -286,6 +282,6 @@ describe('withUpgradeBuilt', () => {
   it('does nothing to a campaign with no base', () => {
     const none = campaignWith(null);
 
-    expect(withUpgradeBuilt(none, { slot: 'kitchen', upgrade: 'gas-range', labor: 5 })).toBe(none);
+    expect(withUpgradeBuilt(none, { slot: 'kitchen', upgrade: 'gas-range' })).toBe(none);
   });
 });

@@ -20,15 +20,14 @@ import { SlotAction } from './SlotAction';
 export interface ClearSlotProps {
   readonly campaign: Campaign;
   readonly slot: string;
-  readonly labor: number;
   readonly onCleared: () => void;
 }
 
-export function ClearSlot({ campaign, slot, labor, onCleared }: ClearSlotProps) {
+export function ClearSlot({ campaign, slot, onCleared }: ClearSlotProps) {
   const { dispatch } = useCampaign();
 
   const project = clearingProject(campaign, slot);
-  const check = checkClearing(campaign, { slot, labor });
+  const check = checkClearing(campaign, { slot });
 
   return (
     <SlotAction
@@ -47,7 +46,7 @@ export function ClearSlot({ campaign, slot, labor, onCleared }: ClearSlotProps) 
       label="Clear it"
       overrideLabel="Clear it anyway"
       onCommit={() => {
-        dispatch({ type: 'slot/cleared', slot, labor, at: new Date().toISOString() });
+        dispatch({ type: 'slot/cleared', slot, at: new Date().toISOString() });
         onCleared();
       }}
     />

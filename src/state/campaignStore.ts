@@ -250,10 +250,9 @@ export type CampaignAction =
   /**
    * Builds a facility into a slot, spending its Hardware.
    *
-   * `labor` rides on the action because there is nowhere to read it from: the
-   * pool is the project team's and that is Phase 3. It is the same shape as the
-   * recruit roll — a value the UI captures and the reducer is handed, so the
-   * reducer stays a pure function of its arguments.
+   * Carried no Labor since Z3-5: the pool is the project team's and the
+   * campaign knows who is on it, so the cost is checked against a number the
+   * reducer works out rather than one the UI passes in.
    */
   /**
    * Sets one material count by hand.
@@ -293,39 +292,24 @@ export type CampaignAction =
       readonly type: 'facility/built';
       readonly slot: string;
       readonly facility: FacilityId;
-      readonly labor: number;
       readonly at: string;
     }
-  /** Adds an upgrade to whatever stands in the slot. `labor` rides along for the same reason. */
+  /** Adds an upgrade to whatever stands in the slot. */
   | {
       readonly type: 'upgrade/built';
       readonly slot: string;
       readonly upgrade: UpgradeId;
-      readonly labor: number;
       readonly at: string;
     }
   /** Clears the rubble out of a slot, adding back whatever the project yields. */
-  | {
-      readonly type: 'slot/cleared';
-      readonly slot: string;
-      readonly labor: number;
-      readonly at: string;
-    }
+  | { readonly type: 'slot/cleared'; readonly slot: string; readonly at: string }
   /**
    * Puts a point of Power or Water on a slot, or takes it off.
    *
-   * `staffed` is the combined Utilities Score of whoever works a Utility
-   * Station, entered by hand until the Planning Phase assigns staff. It rides
-   * on the action for the same reason `labor` does: there is nothing on
-   * `Campaign` to read it from yet, and the pool it feeds is derived rather
-   * than stored.
+   * Carried the staffed Utilities Score until Z3-5, for the reason the three
+   * projects carried Labor. Both halves of the pool are derived now.
    */
-  | {
-      readonly type: 'utility/toggled';
-      readonly slot: string;
-      readonly utility: Utility;
-      readonly staffed: number;
-    };
+  | { readonly type: 'utility/toggled'; readonly slot: string; readonly utility: Utility };
 
 export function campaignReducer(state: CampaignState, action: CampaignAction): CampaignState {
   switch (action.type) {
@@ -569,11 +553,7 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return withCampaign(state, (campaign) =>
         loggedIfChanged(
           campaign,
-          withFacilityBuilt(campaign, {
-            slot: action.slot,
-            facility: action.facility,
-            labor: action.labor,
-          }),
+          withFacilityBuilt(campaign, { slot: action.slot, facility: action.facility }),
           action.at,
           { kind: 'facility-built', slot: action.slot, facility: action.facility },
         ),
@@ -583,11 +563,7 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return withCampaign(state, (campaign) =>
         loggedIfChanged(
           campaign,
-          withUpgradeBuilt(campaign, {
-            slot: action.slot,
-            upgrade: action.upgrade,
-            labor: action.labor,
-          }),
+          withUpgradeBuilt(campaign, { slot: action.slot, upgrade: action.upgrade }),
           action.at,
           { kind: 'upgrade-built', slot: action.slot, upgrade: action.upgrade },
         ),
@@ -595,12 +571,10 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
     case 'slot/cleared':
       return withCampaign(state, (campaign) =>
-        loggedIfChanged(
-          campaign,
-          withSlotCleared(campaign, { slot: action.slot, labor: action.labor }),
-          action.at,
-          { kind: 'slot-cleared', slot: action.slot },
-        ),
+        loggedIfChanged(campaign, withSlotCleared(campaign, { slot: action.slot }), action.at, {
+          kind: 'slot-cleared',
+          slot: action.slot,
+        }),
       );
 
     case 'assignment/set':
@@ -617,11 +591,7 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
     case 'utility/toggled':
       return withCampaign(state, (campaign) =>
-        withUtilityToggled(campaign, {
-          slot: action.slot,
-          utility: action.utility,
-          staffed: action.staffed,
-        }),
+        withUtilityToggled(campaign, { slot: action.slot, utility: action.utility }),
       );
 
     /**
