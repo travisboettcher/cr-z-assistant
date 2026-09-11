@@ -12,6 +12,7 @@
 
 import type { BaseId } from '../data/bases';
 import type { FacilityId, SlotKind, UpgradeId, Utility } from '../data/facilities';
+import type { Material } from '../data/materials';
 
 export const BASE_LABELS: Record<BaseId, string> = {
   'small-town-home': 'Small Town Home',
@@ -88,6 +89,21 @@ export const SLOT_KIND_LABELS: Record<SlotKind, string> = {
 export const UTILITY_LABELS: Record<Utility, string> = {
   power: 'Power',
   water: 'Water',
+};
+
+/**
+ * The four materials, written out.
+ *
+ * The overview screen title-cases the ids with CSS and gets away with it
+ * because every material is one word. A sentence cannot: "Added to storage: 3
+ * food" reads as a typo where "3 Food" reads as the game's own noun, and a
+ * `text-transform` cannot reach inside a string being built in JavaScript.
+ */
+export const MATERIAL_LABELS: Record<Material, string> = {
+  food: 'Food',
+  fuel: 'Fuel',
+  hardware: 'Hardware',
+  rare: 'Rare',
 };
 
 /**

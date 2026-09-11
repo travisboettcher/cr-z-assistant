@@ -42,7 +42,7 @@
  */
 
 import type { D10Result } from './dice';
-import type { Material } from './materials';
+import { MATERIALS, type Material } from './materials';
 import type { Tier } from './tiers';
 
 /** The four campaign phases, in the strict order the turn runs them (pg. 17). */
@@ -107,6 +107,16 @@ export const TURN_STEPS = {
 export type TurnStepId = (typeof TURN_STEPS)[CampaignPhase][number]['id'];
 
 /**
+ * The step a project finishes in (pg. 19).
+ *
+ * Named here rather than typed out wherever the app mentions it, so the one
+ * screen that builds and the one that says when to build cannot disagree.
+ * Facilities, upgrades and cleared slots are all the same kind of thing to the
+ * book — a project, ordered in the Planning Phase and completed here.
+ */
+export const PROJECT_STEP: TurnStepId = 'add-facilities-and-upgrades';
+
+/**
  * XP every survivor who was on the mission gains (pg. 18).
  *
  * Awarded first, before the discretionary point and before a Training Room's
@@ -141,6 +151,42 @@ export const TRAINING_ROOM_MAX_XP_PER_SURVIVOR = 2;
 export const MISSION_TEACHING_MAX_XP_PER_SURVIVOR = 2;
 
 /**
+ * Where a turn's XP comes from, in the order pg. 18 awards it.
+ *
+ * Four sources rather than one number, because each has its own pool, its own
+ * eligibility and its own cap, and the book keeps them apart:
+ *
+ * - `mission` — one XP to every survivor who went (pg. 18).
+ * - `discretionary` — one further XP to anybody, the player's choice (pg. 18).
+ * - `mission-teaching` — a Teacher on the mission hands out one XP to as many
+ *   survivors as the team's summed Teaching Score, max 2 each, and this
+ *   **replaces** the discretionary point rather than adding to it (pg. 12).
+ * - `training-room` — a staffed Training Room's output, to survivors who were
+ *   **not** on the mission, max 2 each (pg. 70).
+ *
+ * The order is the order they are awarded in, and it matters: both caps count
+ * against what a survivor has already been given this turn.
+ */
+/**
+ * How much XP one award hands over.
+ *
+ * One, from every source. The book hands XP out a point at a time — a Teacher
+ * "assigns 1 XP to as many survivors as" their Score (pg. 12) — and both 2-XP
+ * caps are counted in these units, so an award of anything else would have to
+ * be taken apart again to check them.
+ */
+export const XP_AWARD = 1;
+
+export const XP_SOURCES = [
+  'mission',
+  'discretionary',
+  'mission-teaching',
+  'training-room',
+] as const;
+
+export type XpSource = (typeof XP_SOURCES)[number];
+
+/**
  * Which material a d10 generates, one roll per material recovered on the
  * mission (pg. 18–19).
  *
@@ -161,6 +207,37 @@ export const MATERIAL_ROLL_TABLE = {
   9: 'hardware',
   10: 'rare',
 } as const satisfies Record<D10Result, Material>;
+
+/**
+ * The three skills that can force a material roll to a result, and what each
+ * may force it to (pg. 12).
+ *
+ * **A substitution changes a roll, it does not add one.** The book gives each
+ * of these skills uses equal to its summed Score across the mission team, and
+ * each use overrides the result of a die already rolled. Adding a material is
+ * the obvious wrong implementation, so the rule is written here as a mapping
+ * from skill to *allowed results* rather than as an amount.
+ *
+ * Rationing is locked to Food and Mechanics to Hardware. **Utilities is written
+ * as "a given material" and is transcribed as all four**, which is the literal
+ * reading and includes forcing the Rare result a 10 would give. Whether that
+ * asymmetry is deliberate is
+ * [ruling 4](../../docs/phase-3-stories.md#rulings-the-book-leaves-open); the
+ * broad reading is recorded here so a table that rules the other way edits one
+ * line.
+ */
+export const MATERIAL_SUBSTITUTIONS = {
+  rationing: ['food'],
+  mechanics: ['hardware'],
+  utilities: MATERIALS,
+} as const satisfies Record<string, readonly Material[]>;
+
+/** A skill that can override a material roll (pg. 12). */
+export type SubstitutionSkill = keyof typeof MATERIAL_SUBSTITUTIONS;
+
+export const SUBSTITUTION_SKILLS = Object.keys(
+  MATERIAL_SUBSTITUTIONS,
+) as readonly SubstitutionSkill[];
 
 /**
  * Materials a survivor scavenges when the community opts out of the mission

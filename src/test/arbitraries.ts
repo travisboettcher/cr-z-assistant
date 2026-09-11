@@ -26,7 +26,7 @@ import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS, type Materials } from '../data/materials';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
-import { CAMPAIGN_PHASES } from '../data/turn';
+import { CAMPAIGN_PHASES, XP_SOURCES } from '../data/turn';
 import { TURN_SEQUENCE } from '../engine/turn';
 import { CURRENT_SCHEMA_VERSION } from '../engine/campaign';
 import type {
@@ -91,6 +91,16 @@ const anyCount = fc.integer({ min: 0, max: 999 });
  * to it rather than adding a branch to the app.
  */
 const anyMaterialCount = fc.integer({ min: 0, max: 9999 });
+
+/**
+ * A change to a material count, which can go either way.
+ *
+ * A turn's haul is the mission's rolls plus what the base made, and a facility
+ * that eats Food (pg. 55) can outweigh both — so a `materials-added` entry is
+ * the one place in the log where a negative number is a real record rather
+ * than a damaged file.
+ */
+const anyAmount = fc.integer({ min: -9999, max: 9999 });
 
 /**
  * An ISO 8601 timestamp, which is what `createNewCampaign` writes and what a
@@ -238,6 +248,20 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
     fc.record({ kind: fc.constant('phase-entered' as const) }),
     fc.record({ kind: fc.constant('turn-began' as const) }),
     fc.record({ kind: fc.constant('planning-began' as const) }),
+    fc.record({
+      kind: fc.constant('materials-added' as const),
+      food: anyAmount,
+      fuel: anyAmount,
+      hardware: anyAmount,
+      rare: anyAmount,
+    }),
+    fc.record({
+      kind: fc.constant('xp-awarded' as const),
+      survivor: anyId,
+      name: anyName,
+      amount: fc.integer({ min: 1, max: 20 }),
+      source: fc.constantFrom(...XP_SOURCES),
+    }),
     fc.record({ kind: fc.constant('starting-community-settled' as const), built: fc.boolean() }),
     fc.record({
       kind: fc.constant('survivor-added' as const),

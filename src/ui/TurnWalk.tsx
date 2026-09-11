@@ -18,6 +18,7 @@ import type { Campaign } from '../engine/campaign';
 import { advance, phaseOf, positionOf, reverse } from '../engine/turn';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
+import { AdvancementPhase } from './AdvancementPhase';
 import { PlanningPhase } from './PlanningPhase';
 import { PHASE_LABELS, STEP_LABELS } from './turnLabels';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
@@ -179,6 +180,8 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
           `TURN_STEPS.planning` waiting to disagree with the first. */}
       {phase === 'planning' ? (
         <PlanningPhase campaign={campaign} step={campaign.step} />
+      ) : phase === 'advancement' ? (
+        <AdvancementPhase campaign={campaign} step={campaign.step} />
       ) : (
         step !== undefined && (
           <p className="mt-4 text-sm text-stone-600 dark:text-stone-400">

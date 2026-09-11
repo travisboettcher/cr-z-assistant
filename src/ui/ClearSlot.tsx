@@ -31,6 +31,7 @@ export function ClearSlot({ campaign, slot, onCleared }: ClearSlotProps) {
 
   return (
     <SlotAction
+      campaign={campaign}
       // A clearing project costs Labor and no Hardware. Written as a zero
       // rather than hidden, so the cost line reads the same on every verb.
       cost={{ hardware: 0, labor: project?.labor ?? 0 }}

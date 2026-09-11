@@ -95,6 +95,8 @@ describe('the event samples', () => {
     'turn-began': true,
     'starting-community-settled': true,
     'planning-began': true,
+    'materials-added': true,
+    'xp-awarded': true,
     'survivor-added': true,
     'survivor-recruited': true,
     'survivor-left': true,

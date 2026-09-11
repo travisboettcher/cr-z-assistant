@@ -98,6 +98,24 @@ export function projectTeam(campaign: Campaign): readonly Survivor[] {
 }
 
 /**
+ * Everybody on a mission team (pg. 21).
+ *
+ * **Read in the Advancement Phase, written in the Planning one, and that is the
+ * point.** The Planning Phase of a turn assigns *next* turn's team (pg. 21), and
+ * the reset that clears assignments runs at the top of the Planning Phase — so
+ * when the Advancement Phase asks who was on the mission that just played, the
+ * answer is still sitting in `assignments`. Clearing at the top of the turn
+ * instead would have destroyed it one step before it was needed.
+ *
+ * Every team, not one: the assignment carries a team number the app does not
+ * yet write anything but 1 into, and "who went on the mission" is the question
+ * every caller in Phase 3 is asking.
+ */
+export function missionTeam(campaign: Campaign): readonly Survivor[] {
+  return survivorsDoing(campaign, (assignment) => assignment.task === 'mission');
+}
+
+/**
  * The Labor the project team generates this turn (pg. 20).
  *
  * The sum of their Tier levels, and nothing else — the pool is not reduced by

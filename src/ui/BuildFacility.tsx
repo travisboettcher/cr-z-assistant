@@ -41,6 +41,7 @@ export function BuildFacility({ campaign, slot, onBuilt }: BuildFacilityProps) {
 
   return (
     <SlotAction
+      campaign={campaign}
       cost={facility.cost}
       check={check}
       overridden={overriddenFor === choice}

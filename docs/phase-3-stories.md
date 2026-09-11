@@ -454,10 +454,9 @@ Spending it down needs something the app does not have. Facilities record the tu
 upgrades and cleared slots record nothing, so "what has this turn's Labor already paid for" is not
 recoverable. The book has the real shape and it is not a running total: projects are **ordered**
 during the Planning Phase and **complete in the next Advancement Phase** (pg. 20, 19), which is a
-queue. That belongs to [Z3-7](#z3-7--the-advancement-phase), whose step it is, and adding a turn
-stamp to every upgrade here only to replace it there would be churn. **The plan never scoped that
-queue to a story** — it is the largest thing Phase 3 still owes the rules, and Z3-7 is where it
-has to land.
+queue. That belongs to [Z3-11](#z3-11--the-project-queue) — written when Z3-7 reached the step
+projects complete in and found the queue too large to fold into a phase screen. Adding a turn
+stamp to every upgrade here only to replace it there would have been churn either way.
 
 **Assignment had to become possible somewhere.** Removing the two inputs without a way to make the
 derived numbers non-zero would have left a base screen whose Build button could never be pressed —
@@ -579,6 +578,48 @@ acquire a step to happen in.
 - Storage caps are reported here and not enforced — Check Storage is a Management step, and
   enforcing it early would lose materials a turn before the rules say to.
 
+**XP became four pools rather than one number.** The book awards it from four sources with four
+different rules, and collapsing them loses every one: one XP to each survivor who went (pg. 18),
+one discretionary point to anybody (pg. 18), a Teacher on the mission handing out 1 each to as
+many survivors as the team's summed Teaching Score (pg. 12), and a staffed Training Room teaching
+the survivors who *stayed behind* (pg. 70). Two of those cap at 2 per survivor and the caps are
+two different rules. So `XP_SOURCES` is data, `xpPools` sizes each one for the campaign in front
+of it, and a pool with nothing in it still appears — saying *why* it is empty, because "no Teacher
+went out" and "everyone is on the mission team" are different turns.
+
+The replacement is modelled as a replacement: the discretionary pool is one XP **only** while
+nobody who went out can teach, and zero the moment somebody can. Two pools where one is always
+empty is what stops "replaces" turning into "adds" the first time somebody edits this.
+
+**Everything in this module is a blocker, and nothing in the Planning Phase was.** That is not an
+inconsistency: a pool with nothing left in it is the app having nothing to give, and overriding it
+would invent XP. Same reasoning that has always made affordability a blocker. A rule a table might
+play differently is a warning; arithmetic is not.
+
+**How much has been handed out is read off the log**, the third time this phase has reached for
+that shape after `planningHasBegun` and now `materialsAdded`. The per-survivor caps are only
+answerable by a record: "how much has Earl already taken from a Teacher this turn" is not
+derivable from the survivor, who holds one XP number with no source on it.
+
+**Restricted XP is left out rather than laundered.** A Training Room's upgrades produce XP
+spendable only on skills governed by one stat (pg. 73), and `Survivor.xp` is a single number with
+no stat attached. Counting those lines into the pool would silently make them unrestricted, which
+is more generous than the book; they are excluded, and adding them needs a field, a migration and
+a story.
+
+**Building outside its step says so and builds anyway.** One sentence on the slot action, shared
+by all three verbs, naming the step the turn should be at. A note rather than a fourth member of
+three separate closed violation unions — it is the same sentence for building, upgrading and
+clearing, and it is about the turn rather than about the slot.
+
+**The project queue is still owed, and is now its own story.** The Z3-5 note put it here on the
+grounds that Z3-7 owns the step projects complete in. Writing this story made the size of it
+clear: the queue changes what *building* means — ordering in Planning, completing in the next
+Advancement Phase (pp. 20, 19) — which is a new field on the campaign, a migration, and a rewrite
+of all three Phase 2 verbs and their dialogs. Folding that into the phase screen would have made
+one unreviewable change out of two coherent ones. The step exists and says what it is for; the
+queue is [Z3-11](#z3-11--the-project-queue).
+
 ---
 
 ## Z3-8 — Heal Wounds, and the equal-distribution rule
@@ -670,6 +711,43 @@ not permission for a value computed in one to survive the next.
   is the thing most worth a regression test in the whole repo.
 - The siege flag survives a save and gates the next turn's Mission Phase.
 - Storage loss takes each material to its own cap and no further, and logs what was lost.
+
+---
+
+## Z3-11 — The project queue
+
+**Why:** The largest thing Phase 3 still owes the rules, and the one the plan never scoped.
+Projects are **ordered during the Planning Phase and completed in the next Advancement Phase**
+(pp. 20, 19). Phase 2 shipped building as something that happens the instant you press the button,
+because no phase existed to order it in, and Z3-7 found that the fix is a story rather than a
+paragraph: it changes what building *is*.
+
+Written down when [Z3-7](#z3-7--the-advancement-phase) reached the step projects complete in and
+found nothing to complete. Sequenced after Z3-10 rather than before it because nothing in the
+Management Phase depends on it and everything in it depends on the Planning and Advancement
+screens being finished.
+
+**Scope**
+- A queue on the campaign: an ordered list of projects — a facility, an upgrade, a cleared slot —
+  each with the turn it was ordered on. A schema bump and a migration that turns every existing
+  campaign's built facilities into an empty queue, because what is built is already built.
+- Ordering a project spends its Labor and Hardware **in the Planning Phase**; completing it in the
+  next Advancement Phase is what puts the facility on the base.
+- The three Phase 2 verbs become one verb — order a project — and the slot card shows what is
+  queued for that slot alongside what is in it.
+- Unspent Labor is still lost at the end of the turn (pg. 20), which is the rule that makes the
+  queue a decision rather than a formality.
+- `builtOnTurn` keeps its meaning and stops being the only record of when anything happened.
+
+**Acceptance**
+- A project ordered in turn N appears on the base in turn N+1 and not before, and a test walks the
+  two turns.
+- A campaign saved before this story reopens with everything it had built still built.
+- Ordering more than the Labor pool covers is refused, and what is left is visible while there is
+  still time to spend it.
+
+**Open question for the table:** whether a project ordered and then cancelled in the same Planning
+Phase returns its Labor. The book does not say, and both readings are defensible.
 
 ---
 

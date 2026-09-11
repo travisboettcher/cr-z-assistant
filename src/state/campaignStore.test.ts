@@ -1266,6 +1266,17 @@ describe('what earns a line in the log', () => {
   /** The survivor fields every survivor event carries, as `rich()` has them. */
   const WEBB = { survivor: LOGGED_SURVIVOR, name: 'Marcus Webb' } as const;
 
+  /**
+   * What `rich()`'s base makes on its own, with nobody working anything.
+   *
+   * The Hobby Farm's built-in Garden is a flat Food and so is the Fence built
+   * into it (pg. 54, 71); its Kitchen and Utility Station are staffed
+   * facilities and make nothing empty. Written out rather than computed,
+   * because a table that called `baseProduction` to describe what
+   * `baseProduction` produced would agree with any answer it gave.
+   */
+  const HOBBY_FARM_PRODUCTION = { food: 2, fuel: 0, hardware: 0, rare: 0 } as const;
+
   interface Policy {
     readonly action: CampaignAction;
     /** The entry it must leave behind, or `null` for what the log ignores. */
@@ -1423,6 +1434,39 @@ describe('what earns a line in the log', () => {
     'campaign/materialSet': {
       action: { type: 'campaign/materialSet', material: 'food', count: 5 },
       entry: null,
+    },
+    'advancement/materialsAdded': {
+      // Two rolls: a 4 is Food, and a 7 that Mechanics forces to Hardware
+      // anyway — the substitution is exercised here so the entry proves the
+      // reducer went through `materials.ts` rather than counting dice itself.
+      action: {
+        type: 'advancement/materialsAdded',
+        at: AT,
+        rolls: [{ roll: 4 }, { roll: 7, forced: { skill: 'mechanics', material: 'hardware' } }],
+      },
+      entry: entry(3, 'mission', {
+        kind: 'materials-added',
+        food: HOBBY_FARM_PRODUCTION.food + 1,
+        fuel: HOBBY_FARM_PRODUCTION.fuel,
+        hardware: HOBBY_FARM_PRODUCTION.hardware + 1,
+        rare: HOBBY_FARM_PRODUCTION.rare,
+      }),
+    },
+    'advancement/xpAwarded': {
+      // The discretionary point (pg. 18): one XP, anybody, and `rich()` has no
+      // mission team so no Teacher has taken it away.
+      action: {
+        type: 'advancement/xpAwarded',
+        at: AT,
+        survivor: LOGGED_SURVIVOR,
+        source: 'discretionary',
+      },
+      entry: entry(3, 'mission', {
+        kind: 'xp-awarded',
+        ...WEBB,
+        amount: 1,
+        source: 'discretionary',
+      }),
     },
     // Assignments move around several times while a turn is being planned, for
     // the same reason Power and Water do below: what is worth recording is the
