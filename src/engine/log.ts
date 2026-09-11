@@ -43,7 +43,7 @@ import type { D10Result } from '../data/dice';
 import type { FacilityId, UpgradeId } from '../data/facilities';
 import type { CommonSkill, Skill } from '../data/skills';
 import type { Tier } from '../data/tiers';
-import type { CampaignPhase } from '../data/turn';
+import type { CampaignPhase, XpSource } from '../data/turn';
 import { phaseOf } from './turn';
 // Type-only, and the other half of a deliberate pair: `campaign.ts` imports
 // `LogEntry` from here. Both directions are erased at compile time, so there is
@@ -81,6 +81,38 @@ export type CampaignEvent =
    * back and forward through the walk cannot destroy the planning just done.
    */
   | { readonly kind: 'planning-began' }
+  /**
+   * A turn's materials went into storage (pg. 18–19).
+   *
+   * Carries the four amounts rather than the rolls that produced them: the
+   * rolls are a die on a table, the amounts are what happened to the
+   * community. Amounts may be negative — a facility that eats Food (pg. 55)
+   * can outweigh what was recovered — which is why they are not counts.
+   *
+   * **Load-bearing**, like `planning-began`: `materialsAdded` reads it back so
+   * a walk that goes back over the step cannot hand out the haul twice.
+   */
+  | {
+      readonly kind: 'materials-added';
+      readonly food: number;
+      readonly fuel: number;
+      readonly hardware: number;
+      readonly rare: number;
+    }
+  /**
+   * XP went to a survivor, from one of the four sources pg. 18 names.
+   *
+   * **Load-bearing**: the pools and both 2-XP caps are the difference between
+   * what the rules offer and what this turn's entries account for, so an entry
+   * missing here is XP the app would offer twice.
+   */
+  | {
+      readonly kind: 'xp-awarded';
+      readonly survivor: string;
+      readonly name: string;
+      readonly amount: number;
+      readonly source: XpSource;
+    }
   | {
       readonly kind: 'survivor-added';
       readonly survivor: string;

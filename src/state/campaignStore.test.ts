@@ -1266,6 +1266,17 @@ describe('what earns a line in the log', () => {
   /** The survivor fields every survivor event carries, as `rich()` has them. */
   const WEBB = { survivor: LOGGED_SURVIVOR, name: 'Marcus Webb' } as const;
 
+  /**
+   * What `rich()`'s base makes on its own, with nobody working anything.
+   *
+   * The Hobby Farm's built-in Garden is a flat Food and so is the Fence built
+   * into it (pg. 54, 71); its Kitchen and Utility Station are staffed
+   * facilities and make nothing empty. Written out rather than computed,
+   * because a table that called `baseProduction` to describe what
+   * `baseProduction` produced would agree with any answer it gave.
+   */
+  const HOBBY_FARM_PRODUCTION = { food: 2, fuel: 0, hardware: 0, rare: 0 } as const;
+
   interface Policy {
     readonly action: CampaignAction;
     /** The entry it must leave behind, or `null` for what the log ignores. */
@@ -1423,6 +1434,39 @@ describe('what earns a line in the log', () => {
     'campaign/materialSet': {
       action: { type: 'campaign/materialSet', material: 'food', count: 5 },
       entry: null,
+    },
+    'advancement/materialsAdded': {
+      // Two rolls: a 4 is Food, and a 7 that Mechanics forces to Hardware
+      // anyway — the substitution is exercised here so the entry proves the
+      // reducer went through `materials.ts` rather than counting dice itself.
+      action: {
+        type: 'advancement/materialsAdded',
+        at: AT,
+        rolls: [{ roll: 4 }, { roll: 7, forced: { skill: 'mechanics', material: 'hardware' } }],
+      },
+      entry: entry(3, 'mission', {
+        kind: 'materials-added',
+        food: HOBBY_FARM_PRODUCTION.food + 1,
+        fuel: HOBBY_FARM_PRODUCTION.fuel,
+        hardware: HOBBY_FARM_PRODUCTION.hardware + 1,
+        rare: HOBBY_FARM_PRODUCTION.rare,
+      }),
+    },
+    'advancement/xpAwarded': {
+      // The discretionary point (pg. 18): one XP, anybody, and `rich()` has no
+      // mission team so no Teacher has taken it away.
+      action: {
+        type: 'advancement/xpAwarded',
+        at: AT,
+        survivor: LOGGED_SURVIVOR,
+        source: 'discretionary',
+      },
+      entry: entry(3, 'mission', {
+        kind: 'xp-awarded',
+        ...WEBB,
+        amount: 1,
+        source: 'discretionary',
+      }),
     },
     // Assignments move around several times while a turn is being planned, for
     // the same reason Power and Water do below: what is worth recording is the
@@ -1705,5 +1749,109 @@ describe('assignments', () => {
     );
 
     expect(after).toEqual(expectOpen(before));
+  });
+});
+
+/**
+ * The two Advancement Phase actions, and the three refusals that make them
+ * safe to walk backwards over.
+ *
+ * Both steps are destructive — one puts materials in storage, the other hands
+ * out XP — and the turn walk lets a player step back across either. The guards
+ * below are what stop a second press from doubling a turn's haul, and each is
+ * a branch that a test asserting only the happy path leaves standing.
+ */
+describe('the Advancement Phase steps', () => {
+  const EARL = '11111111-aaaa-4bbb-8ccc-000000000001';
+  const CARLA = '22222222-aaaa-4bbb-8ccc-000000000002';
+
+  /** Earl went on the mission; Carla stayed at the base. */
+  function afterAMission(): CampaignState {
+    return openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      turn: 3,
+      step: 'character-advancement',
+      survivors: [
+        createSurvivor('Earl Rhodes', 4, { id: EARL }),
+        createSurvivor('Carla Proust', 3, { id: CARLA }),
+      ],
+      assignments: { [EARL]: { task: 'mission', team: 1 } },
+    });
+  }
+
+  const add = (rolls: readonly { roll: 4 | 7 }[]) =>
+    ({ type: 'advancement/materialsAdded', at: AT, rolls }) as const;
+
+  it('puts a turn’s haul in storage', () => {
+    const after = expectOpen(campaignReducer(afterAMission(), add([{ roll: 4 }, { roll: 7 }])));
+
+    expect(after.materials).toEqual({ food: 1, fuel: 0, hardware: 1, rare: 0 });
+  });
+
+  it('refuses a second helping in the same turn', () => {
+    const once = campaignReducer(afterAMission(), add([{ roll: 4 }]));
+    const twice = campaignReducer(once, add([{ roll: 4 }]));
+
+    expect(expectOpen(twice).materials.food).toBe(1);
+    expect(expectOpen(twice).log).toHaveLength(1);
+  });
+
+  it('lets the next turn have its own', () => {
+    const once = expectOpen(campaignReducer(afterAMission(), add([{ roll: 4 }])));
+    const next = campaignReducer(openState({ ...once, turn: 4 }), add([{ roll: 4 }]));
+
+    expect(expectOpen(next).materials.food).toBe(2);
+  });
+
+  it('gives a survivor the XP their pool holds', () => {
+    const after = expectOpen(
+      campaignReducer(afterAMission(), {
+        type: 'advancement/xpAwarded',
+        at: AT,
+        survivor: EARL,
+        source: 'mission',
+      }),
+    );
+
+    expect(after.survivors.find((survivor) => survivor.id === EARL)?.xp).toBe(1);
+  });
+
+  it('refuses an award the rules block, and records nothing', () => {
+    // Carla was not on the mission, so the mission's XP is not hers to take.
+    const after = campaignReducer(afterAMission(), {
+      type: 'advancement/xpAwarded',
+      at: AT,
+      survivor: CARLA,
+      source: 'mission',
+    });
+
+    expect(expectOpen(after).survivors.find((survivor) => survivor.id === CARLA)?.xp).toBe(0);
+    expect(expectOpen(after).log).toEqual([]);
+  });
+
+  it('refuses to empty a pool twice for the same survivor', () => {
+    const award = {
+      type: 'advancement/xpAwarded',
+      at: AT,
+      survivor: EARL,
+      source: 'mission',
+    } as const;
+    const twice = campaignReducer(campaignReducer(afterAMission(), award), award);
+
+    expect(expectOpen(twice).survivors.find((survivor) => survivor.id === EARL)?.xp).toBe(1);
+    expect(expectOpen(twice).log).toHaveLength(1);
+  });
+
+  it('says nothing about a survivor the community does not hold', () => {
+    const before = afterAMission();
+
+    expect(
+      campaignReducer(before, {
+        type: 'advancement/xpAwarded',
+        at: AT,
+        survivor: 'nobody',
+        source: 'discretionary',
+      }),
+    ).toEqual(before);
   });
 });

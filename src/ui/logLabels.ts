@@ -16,8 +16,16 @@
  * `log.ts` a compile error here instead of a blank line in someone's history.
  */
 
+import { MATERIALS } from '../data/materials';
+import { XP_SOURCE_PAGES, type XpSource } from '../data/turn';
 import type { CampaignEvent, LogEntry } from '../engine/log';
-import { BASE_LABELS, FACILITY_LABELS, UPGRADE_LABELS, slotLabel } from './baseLabels';
+import {
+  BASE_LABELS,
+  FACILITY_LABELS,
+  MATERIAL_LABELS,
+  UPGRADE_LABELS,
+  slotLabel,
+} from './baseLabels';
 import { PHASE_LABELS } from './turnLabels';
 import { COMMON_SKILL_LABELS, SKILL_LABELS } from './skillLabels';
 import { TIER_LABELS } from './tierLabels';
@@ -37,6 +45,20 @@ export interface EventLabel {
    */
   readonly pages?: number | string;
 }
+
+/**
+ * How each XP source reads in a sentence.
+ *
+ * The phrase is the screen's; the page beside it is the rule's and comes from
+ * `src/data/turn.ts`, because a second copy here would be a page number in two
+ * places waiting to disagree.
+ */
+const XP_SOURCE_PHRASES: Record<XpSource, string> = {
+  mission: 'for going on the mission',
+  discretionary: 'as the turn’s discretionary point',
+  'mission-teaching': 'from a Teacher on the mission',
+  'training-room': 'in the Training Room',
+};
 
 export function describeEvent(event: CampaignEvent): EventLabel {
   switch (event.kind) {
@@ -61,6 +83,28 @@ export function describeEvent(event: CampaignEvent): EventLabel {
 
     case 'planning-began':
       return { text: 'Started planning: last turn’s tasks and utilities cleared.', pages: 20 };
+
+    case 'materials-added': {
+      // Only what moved. A turn that recovered three Food and nothing else
+      // should not read as "3 Food, 0 Fuel, 0 Hardware, 0 Rare".
+      const moved = MATERIALS.filter((material) => event[material] !== 0).map(
+        (material) => `${event[material]} ${MATERIAL_LABELS[material]}`,
+      );
+
+      return {
+        text:
+          moved.length === 0
+            ? 'Added nothing to storage this turn.'
+            : `Added to storage: ${moved.join(', ')}.`,
+        pages: '18–19',
+      };
+    }
+
+    case 'xp-awarded':
+      return {
+        text: `${event.name} gained ${event.amount} XP ${XP_SOURCE_PHRASES[event.source]}.`,
+        pages: XP_SOURCE_PAGES[event.source],
+      };
 
     case 'survivor-added':
       return { text: `${event.name} joined, as a ${TIER_LABELS[event.tier]}.` };

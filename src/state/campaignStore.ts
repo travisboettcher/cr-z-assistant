@@ -36,6 +36,16 @@ import { createNewCampaign } from '../engine/campaign';
 import { logged, type CampaignEvent } from '../engine/log';
 import { advance, reverse, type AdvanceBy } from '../engine/turn';
 import { FIRST_PLANNING_STEP, planningHasBegun, withPlanningReset } from '../engine/planning';
+import {
+  baseProduction,
+  combined,
+  materialsAdded,
+  recovered,
+  withMaterialsAdded,
+  type MaterialRoll,
+} from '../engine/materials';
+import { checkXpAward, withXpAwarded } from '../engine/experience';
+import { XP_AWARD, type XpSource } from '../data/turn';
 import type { Assignment, Campaign, Stats, Survivor } from '../engine/campaign';
 import { createSurvivor, recruitSurvivor } from '../engine/survivor';
 
@@ -270,6 +280,40 @@ export type CampaignAction =
    * number would be inventing a rule rather than recording one.
    */
   | { readonly type: 'campaign/materialSet'; readonly material: Material; readonly count: number }
+  /**
+   * Put this turn's haul in storage — the mission's rolls plus what the base
+   * made (pg. 18–19).
+   *
+   * Carries the rolls rather than the total, so the arithmetic that turns a
+   * die into a material stays in `materials.ts` where the substitution rule
+   * lives. A screen that worked out the total itself would be a second copy of
+   * the rule that a substitution *changes* a roll rather than adding one.
+   *
+   * Refused when this turn already has the entry: the step is destructive and
+   * the walk can go back over it.
+   */
+  | {
+      readonly type: 'advancement/materialsAdded';
+      readonly rolls: readonly MaterialRoll[];
+      readonly at: string;
+    }
+  /**
+   * Give a survivor one XP from one of the four sources (pg. 18).
+   *
+   * One survivor and one point per action, because that is how the book hands
+   * it out — a Teacher "assigns 1 XP to as many survivors as" their Score
+   * (pg. 12) — and because both 2-XP caps count per survivor per source. A
+   * bulk award would have to take the caps apart again on the way in.
+   *
+   * Refused when `checkXpAward` blocks it, and the reducer asks rather than
+   * trusting the caller: same posture as the three advancement purchases.
+   */
+  | {
+      readonly type: 'advancement/xpAwarded';
+      readonly survivor: string;
+      readonly source: XpSource;
+      readonly at: string;
+    }
   /**
    * Give a survivor a task for this turn, replacing whatever they had.
    *
@@ -556,6 +600,40 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         materials: { ...campaign.materials, [action.material]: action.count },
       }));
 
+    case 'advancement/materialsAdded':
+      return withCampaign(state, (campaign) => {
+        if (materialsAdded(campaign)) return campaign;
+
+        const adding = combined(recovered(action.rolls), baseProduction(campaign));
+
+        return logged(withMaterialsAdded(campaign, adding), action.at, {
+          kind: 'materials-added',
+          ...adding,
+        });
+      });
+
+    /**
+     * Through the same helper as the three advancement purchases, which is
+     * what it is: a survivor gains something and the log says so. The check is
+     * asked here rather than trusted from the screen — a pool that has run out
+     * is a blocker, and awarding past it would invent XP.
+     */
+    case 'advancement/xpAwarded':
+      return editSurvivorLogged(state, action.survivor, action.at, (survivor, campaign) => {
+        if (checkXpAward(campaign, action.survivor, action.source).blockers.length > 0) return null;
+
+        return {
+          survivor: withXpAwarded(survivor, XP_AWARD),
+          event: {
+            kind: 'xp-awarded',
+            survivor: survivor.id,
+            name: survivor.name,
+            amount: XP_AWARD,
+            source: action.source,
+          },
+        };
+      });
+
     /**
      * Delegates wholesale, the way the three advancement purchases do.
      * `withFacilityBuilt` re-runs its own check and returns the campaign
@@ -713,13 +791,18 @@ function editSurvivorLogged(
   state: CampaignState,
   id: string,
   at: string,
-  edit: (survivor: Survivor) => { survivor: Survivor; event: CampaignEvent } | null,
+  // The campaign as well as the survivor, for the edits whose rules are about
+  // the community rather than the person — an XP pool belongs to the turn.
+  edit: (
+    survivor: Survivor,
+    campaign: Campaign,
+  ) => { survivor: Survivor; event: CampaignEvent } | null,
 ): CampaignState {
   return withCampaign(state, (campaign) => {
     const found = campaign.survivors.find((survivor) => survivor.id === id);
     if (found === undefined) return campaign;
 
-    const done = edit(found);
+    const done = edit(found, campaign);
     if (done === null) return campaign;
 
     return logged(

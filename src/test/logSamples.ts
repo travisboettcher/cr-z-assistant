@@ -23,6 +23,12 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'starting-community-settled', built: true },
   { kind: 'starting-community-settled', built: false },
   { kind: 'planning-began' },
+  { kind: 'materials-added', food: 3, fuel: 0, hardware: 1, rare: 0 },
+  // Negative, because a facility that eats Food can outweigh the haul (pg. 55)
+  // and the validator has to accept an amount no other event's field would.
+  { kind: 'materials-added', food: -2, fuel: 0, hardware: 0, rare: 0 },
+  { kind: 'xp-awarded', ...SURVIVOR, amount: 1, source: 'mission' },
+  { kind: 'xp-awarded', ...SURVIVOR, amount: 2, source: 'mission-teaching' },
   { kind: 'survivor-added', ...SURVIVOR, tier: 3 },
   { kind: 'survivor-recruited', ...SURVIVOR, tier: 2, roll: 6 },
   { kind: 'survivor-left', ...SURVIVOR, tier: 1 },

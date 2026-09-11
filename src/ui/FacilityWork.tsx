@@ -19,7 +19,7 @@ import { staffOf } from '../engine/assignments';
 import { facilityProduction, wantsStaff, type ProducedOutput } from '../engine/production';
 import { AssignTask } from './AssignTask';
 import { STAT_LABELS } from './skillLabels';
-import { UTILITY_LABELS } from './baseLabels';
+import { MATERIAL_LABELS, UTILITY_LABELS } from './baseLabels';
 
 export interface FacilityWorkProps {
   readonly campaign: Campaign;
@@ -27,10 +27,7 @@ export interface FacilityWorkProps {
 }
 
 const OUTPUT_LABELS: Record<ProducedOutput, string> = {
-  food: 'Food',
-  fuel: 'Fuel',
-  hardware: 'Hardware',
-  rare: 'Rare',
+  ...MATERIAL_LABELS,
   health: 'Health',
   xp: 'XP',
   power: UTILITY_LABELS.power,

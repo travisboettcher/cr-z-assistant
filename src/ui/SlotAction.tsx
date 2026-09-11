@@ -13,14 +13,19 @@
  */
 
 import type { ReactNode } from 'react';
+import { PROJECT_STEP } from '../data/turn';
+import type { Campaign } from '../engine/campaign';
 import type { Check } from '../engine/checks';
 import { permitted } from '../engine/checks';
 import { PageRef } from './PageRef';
+import { STEP_LABELS } from './turnLabels';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
 export interface SlotActionProps<Code extends string> {
   /** The picker, or nothing where the verb has nothing to choose. */
   readonly children?: ReactNode;
+  /** For the note about which step projects belong to (pg. 19). */
+  readonly campaign: Campaign;
   readonly cost: { readonly hardware: number; readonly labor: number };
   readonly check: Check<Code>;
   /** Whether the player has waved the warnings through. */
@@ -34,6 +39,7 @@ export interface SlotActionProps<Code extends string> {
 
 export function SlotAction<Code extends string>({
   children,
+  campaign,
   cost,
   check,
   overridden,
@@ -62,6 +68,22 @@ export function SlotAction<Code extends string>({
             </li>
           ))}
         </ul>
+      )}
+
+      {/*
+       * Projects are ordered in the Planning Phase and finish in the next
+       * Advancement Phase (pg. 20, 19). Phase 2 shipped building as something
+       * you could do at any moment, and taking that away now would break every
+       * campaign mid-turn — so the app says which step this belongs to and
+       * leaves the button alone. A note rather than a `Check` code, because it
+       * is the same sentence for all three verbs and would otherwise be a
+       * fourth member of three separate closed unions.
+       */}
+      {campaign.step !== PROJECT_STEP && (
+        <p className="mt-2 text-sm text-amber-800 dark:text-amber-300">
+          Projects belong to {STEP_LABELS[PROJECT_STEP]}, and the turn is at{' '}
+          {STEP_LABELS[campaign.step]}. <PageRef pages={19} />
+        </p>
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-3">

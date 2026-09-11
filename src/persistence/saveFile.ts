@@ -22,7 +22,7 @@ import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS } from '../data/materials';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
-import { CAMPAIGN_PHASES } from '../data/turn';
+import { CAMPAIGN_PHASES, XP_SOURCES } from '../data/turn';
 import type { Assignment, Campaign } from '../engine/campaign';
 import type { CampaignEventKind } from '../engine/log';
 import { TURN_SEQUENCE } from '../engine/turn';
@@ -216,6 +216,10 @@ const EVENT_FIELD_CHECKS = {
   name: (value: unknown) => typeof value === 'string',
   count: isCountFromZero,
   countFromOne: isCountFromOne,
+  // Materials added in a turn can come out negative: a facility that eats Food
+  // (pg. 55) can outweigh what the mission recovered.
+  amount: (value: unknown) => typeof value === 'number' && Number.isSafeInteger(value),
+  xpSource: (value: unknown) => XP_SOURCES.some((source) => source === value),
   flag: (value: unknown) => typeof value === 'boolean',
   tier: (value: unknown) => TIERS.some((tier) => tier === value),
   roll: (value: unknown) => D10_RESULTS.some((result) => result === value),
@@ -247,6 +251,18 @@ const EVENT_FIELDS: Record<
   'turn-began': [],
   'starting-community-settled': [['built', 'flag']],
   'planning-began': [],
+  'materials-added': [
+    ['food', 'amount'],
+    ['fuel', 'amount'],
+    ['hardware', 'amount'],
+    ['rare', 'amount'],
+  ],
+  'xp-awarded': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['amount', 'countFromOne'],
+    ['source', 'xpSource'],
+  ],
   'survivor-added': [
     ['survivor', 'id'],
     ['name', 'name'],

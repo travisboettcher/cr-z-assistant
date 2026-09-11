@@ -47,6 +47,7 @@ export function UpgradeFacility({ campaign, slot, onUpgraded }: UpgradeFacilityP
 
   return (
     <SlotAction
+      campaign={campaign}
       cost={upgrade?.cost ?? { hardware: 0, labor: 0 }}
       check={check}
       overridden={overriddenFor === chosen}

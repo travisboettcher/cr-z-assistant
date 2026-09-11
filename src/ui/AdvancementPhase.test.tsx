@@ -1,0 +1,334 @@
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { createNewCampaign, type Campaign, type Survivor } from '../engine/campaign';
+import { createSurvivor } from '../engine/survivor';
+import { CampaignProvider } from '../state/CampaignProvider';
+import { App } from './App';
+
+const EARL = 'earl';
+const CARLA = 'carla';
+
+/**
+ * A campaign part-way through a turn, arranged rather than clicked.
+ *
+ * Getting to the Advancement Phase by pressing Next is a journey the e2e suite
+ * drives; these are about what the five steps do once you are in one.
+ *
+ * **Earl went on the mission and Carla did not**, which is the distinction
+ * three of the four XP pools turn on.
+ */
+function advancement(overrides: Partial<Campaign> = {}): Campaign {
+  return {
+    ...createNewCampaign('Cedar Hollow'),
+    turn: 3,
+    step: 'character-advancement',
+    survivors: [
+      createSurvivor('Earl Rhodes', 4, { id: EARL }),
+      createSurvivor('Carla Proust', 3, { id: CARLA }),
+    ],
+    assignments: { [EARL]: { task: 'mission', team: 1 } },
+    base: { id: 'small-town-home', slots: {} },
+    ...overrides,
+  };
+}
+
+/** A survivor whose Teaching Score is exactly this (pg. 8). */
+function teacher(id: string, name: string, score: number): Survivor {
+  return {
+    ...createSurvivor(name, 4, { id }),
+    stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: score },
+    skills: { teaching: 0 },
+  };
+}
+
+function open(campaign: Campaign) {
+  const user = userEvent.setup();
+
+  render(
+    <CampaignProvider initialState={{ status: 'open', campaign }}>
+      <App />
+    </CampaignProvider>,
+  );
+
+  return user;
+}
+
+const walk = () => screen.getByRole('region', { name: /^turn \d+$/i });
+const next = () => screen.getByRole('button', { name: /^next:/i });
+
+/** The +1 XP button on the row for this survivor, under this pool. */
+function award(pool: RegExp, survivor: RegExp) {
+  const heading = within(walk()).getByText(pool);
+  const row = within(heading.closest('li') as HTMLElement)
+    .getAllByRole('listitem')
+    .find((item) => survivor.test(item.textContent ?? ''));
+
+  return within(row as HTMLElement).getByRole('button', { name: /\+1 xp/i });
+}
+
+describe('Character Advancement', () => {
+  it('offers the mission’s XP only to the survivors who went', () => {
+    open(advancement());
+
+    const heading = within(walk()).getByText(/for going on the mission/i);
+    const rows = within(heading.closest('li') as HTMLElement).getAllByRole('listitem');
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.textContent).toContain('Earl Rhodes');
+  });
+
+  it('hands a point over, and says so on the survivor’s row', async () => {
+    const user = open(advancement());
+
+    expect(within(walk()).getByText(/for going on the mission/i).textContent).toContain('1 of 1');
+
+    await user.click(award(/for going on the mission/i, /earl/i));
+
+    expect(within(walk()).getByText(/for going on the mission/i).textContent).toContain('0 of 1');
+    expect(award(/for going on the mission/i, /earl/i)).toBeDisabled();
+  });
+
+  /**
+   * pg. 12: a Teacher on the mission **replaces** the discretionary point. The
+   * screen has to show the replacement as a replacement — an app that offered
+   * both would hand out one XP more than the book does, every turn.
+   */
+  it('takes the discretionary point away when a Teacher went out', () => {
+    open(
+      advancement({
+        survivors: [
+          teacher(EARL, 'Earl Rhodes', 2),
+          createSurvivor('Carla Proust', 3, { id: CARLA }),
+        ],
+      }),
+    );
+
+    expect(within(walk()).getByText(/the discretionary point/i).textContent).toContain('0 of 0');
+    expect(within(walk()).getByText(/a teacher on the mission takes this point/i)).toBeTruthy();
+    expect(within(walk()).getByText(/from a teacher on the mission/i).textContent).toContain(
+      '2 of 2',
+    );
+  });
+
+  it('says why an empty pool is empty rather than showing nothing', () => {
+    open(advancement({ assignments: {} }));
+
+    expect(within(walk()).getByText(/nobody is on a mission team/i)).toBeTruthy();
+    expect(within(walk()).getByText(/no staffed training room/i)).toBeTruthy();
+  });
+
+  it('stops at the cap for one survivor while the pool still has XP', async () => {
+    const user = open(
+      advancement({
+        survivors: [
+          teacher(EARL, 'Earl Rhodes', 4),
+          createSurvivor('Carla Proust', 3, { id: CARLA }),
+        ],
+      }),
+    );
+
+    const pool = /from a teacher on the mission/i;
+
+    await user.click(award(pool, /carla/i));
+    await user.click(award(pool, /carla/i));
+
+    // Two is all one survivor may take (pg. 12) — and the pool of four is not
+    // the reason, because Earl can still be taught.
+    expect(award(pool, /carla/i)).toBeDisabled();
+    expect(award(pool, /earl/i)).toBeEnabled();
+  });
+});
+
+describe('Add Materials to Storage', () => {
+  const onTheStep = (overrides: Partial<Campaign> = {}) =>
+    advancement({ step: 'add-materials-to-storage', ...overrides });
+
+  it('proposes the base’s own production before any roll is entered', () => {
+    open(onTheStep());
+
+    // The Small Town Home's built-in Kitchen is staffed and empty, so nothing
+    // is produced and the step still says what it is proposing.
+    expect(within(walk()).getByText(/going into storage/i)).toBeTruthy();
+    expect(within(walk()).getByText(/\+0 Food/)).toBeTruthy();
+  });
+
+  it('turns a roll into the material the table gives', async () => {
+    const user = open(onTheStep());
+
+    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '4');
+
+    expect(within(walk()).getByText(/\+1 Food/)).toBeTruthy();
+    expect(within(walk()).getByText(/rolled 4/i)).toBeTruthy();
+  });
+
+  /**
+   * The story's headline acceptance, driven through the screen: a substitution
+   * **changes** a result. Two rolls in, two materials out — never three.
+   */
+  it('forces a result without adding a material', async () => {
+    const user = open(
+      onTheStep({
+        survivors: [
+          {
+            ...createSurvivor('Earl Rhodes', 4, { id: EARL }),
+            stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: 2 },
+            skills: { mechanics: 0 },
+          },
+          createSurvivor('Carla Proust', 3, { id: CARLA }),
+        ],
+      }),
+    );
+
+    const rolled = within(walk()).getByLabelText(/^rolled$/i);
+    await user.selectOptions(rolled, '4');
+    await user.selectOptions(rolled, '5');
+
+    expect(within(walk()).getByText(/\+2 Food/)).toBeTruthy();
+
+    const [first] = within(walk()).getAllByLabelText(/force the result of this roll/i);
+    await user.selectOptions(first as HTMLElement, 'mechanics:hardware');
+
+    expect(within(walk()).getByText(/\+1 Food/)).toBeTruthy();
+    expect(within(walk()).getByText(/\+1 Hardware/)).toBeTruthy();
+  });
+
+  it('offers no way to force a result when nobody who went can', async () => {
+    const user = open(onTheStep());
+
+    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '4');
+
+    expect(within(walk()).queryByLabelText(/force the result of this roll/i)).toBeNull();
+  });
+
+  /**
+   * The over-spend is a warning, not a refusal: the pool is a Skill Score
+   * somebody typed in, and a control that vanished could not say what it was
+   * for. Same posture as the whole of the Planning Phase.
+   */
+  it('warns about forcing more results than the team’s Score allows', async () => {
+    const user = open(
+      onTheStep({
+        survivors: [
+          {
+            ...createSurvivor('Earl Rhodes', 4, { id: EARL }),
+            // A Score of one: one result, and no more.
+            stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: 1 },
+            skills: { mechanics: 0 },
+          },
+        ],
+      }),
+    );
+
+    const rolled = within(walk()).getByLabelText(/^rolled$/i);
+    await user.selectOptions(rolled, '4');
+    await user.selectOptions(rolled, '5');
+
+    const forcers = within(walk()).getAllByLabelText(/force the result of this roll/i);
+    await user.selectOptions(forcers[0] as HTMLElement, 'mechanics:hardware');
+
+    expect(within(walk()).queryByText(/results forced with mechanics/i)).toBeNull();
+
+    await user.selectOptions(forcers[1] as HTMLElement, 'mechanics:hardware');
+
+    expect(within(walk()).getByText(/2 results forced with mechanics/i)).toBeTruthy();
+    expect(within(walk()).getByRole('button', { name: /add to storage/i })).toBeEnabled();
+  });
+
+  it('puts the haul in storage once, and refuses to do it twice', async () => {
+    const user = open(onTheStep());
+
+    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '10');
+    await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
+
+    expect(within(walk()).getByText(/already in storage/i)).toBeTruthy();
+    expect(within(walk()).queryByRole('button', { name: /add to storage/i })).toBeNull();
+
+    // And it landed: the overview's Rare count moved.
+    expect(screen.getByLabelText(/^rare$/i)).toHaveValue(1);
+  });
+
+  it('takes a roll back off the list', async () => {
+    const user = open(onTheStep());
+
+    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '4');
+    await user.click(within(walk()).getByRole('button', { name: /remove/i }));
+
+    expect(within(walk()).queryByText(/rolled 4/i)).toBeNull();
+    expect(within(walk()).getByText(/\+0 Food/)).toBeTruthy();
+  });
+
+  it('reports a haul over the cap and stores all of it anyway', async () => {
+    const user = open(
+      onTheStep({
+        // The Small Town Home stores 4 Food (pg. 54).
+        materials: { food: 4, fuel: 0, hardware: 0, rare: 0 },
+      }),
+    );
+
+    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '4');
+
+    expect(within(walk()).getByText(/is over this base’s/i)).toBeTruthy();
+
+    await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
+
+    expect(screen.getByLabelText(/^food$/i)).toHaveValue(5);
+  });
+});
+
+describe('the steps that point somewhere else', () => {
+  it.each([
+    ['create-new-survivors', /strangers rescued on the mission/i],
+    ['heal-wounds', /health from a medical clinic/i],
+    ['add-facilities-and-upgrades', /this is the step projects finish in/i],
+  ] as const)('says what %s is for', (step, says) => {
+    open(advancement({ step }));
+
+    expect(within(walk()).getByText(says)).toBeTruthy();
+  });
+});
+
+describe('building outside the step it belongs to', () => {
+  it('says which step projects belong to, and builds anyway', async () => {
+    const user = open(
+      advancement({
+        step: 'character-advancement',
+        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        // Somebody to do the work, since Z3-5 made Labor the project team's.
+        assignments: { [EARL]: { task: 'project' } },
+      }),
+    );
+
+    await user.click(screen.getByRole('button', { name: /build in garage/i }));
+
+    expect(screen.getByText(/projects belong to add facilities and upgrades/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /build here/i })).toBeEnabled();
+  });
+
+  it('says nothing on the step projects actually belong to', async () => {
+    const user = open(
+      advancement({
+        step: 'add-facilities-and-upgrades',
+        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        assignments: { [EARL]: { task: 'project' } },
+      }),
+    );
+
+    await user.click(screen.getByRole('button', { name: /build in garage/i }));
+
+    expect(screen.queryByText(/projects belong to/i)).toBeNull();
+  });
+});
+
+describe('walking through the phase', () => {
+  it('changes what the step shows without leaving the phase', async () => {
+    const user = open(advancement());
+
+    expect(within(walk()).getByText(/for going on the mission/i)).toBeTruthy();
+
+    await user.click(next());
+
+    expect(within(walk()).queryByText(/for going on the mission/i)).toBeNull();
+    expect(within(walk()).getByText(/strangers rescued on the mission/i)).toBeTruthy();
+  });
+});

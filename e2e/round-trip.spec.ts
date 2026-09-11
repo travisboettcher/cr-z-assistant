@@ -931,3 +931,98 @@ test('the base sheet totals the base, and staffing it is written down', async ({
     ) as string]: { task: 'staff', slot: 'kitchen' },
   });
 });
+
+/**
+ * Z3-7's acceptance, executed: a turn's XP and a turn's materials, handed out
+ * in the steps the book puts them in, surviving the round trip.
+ *
+ * This is the first journey that uses the mission team for anything. The
+ * Planning Phase of a turn assigns *next* turn's team (pg. 21), and the reset
+ * that clears assignments runs at the top of the Planning Phase — so the team
+ * assigned here is still there when the next turn's Advancement Phase asks who
+ * went. Proving that end to end is worth a journey, because it is the one
+ * ordering mistake that would make every XP and substitution number wrong
+ * without any test failing.
+ */
+test('a turn’s XP and materials are taken in the steps that award them', async ({ page }) => {
+  await startCampaign(page, 'Cedar Hollow');
+
+  await page.getByLabel(/choose a base/i).selectOption({ label: 'Small Town Home — Tier 1' });
+  await page.getByRole('button', { name: /claim this base/i }).click();
+
+  for (const [name, tier] of [
+    ['Earl Rhodes', '4'],
+    ['Ruby Vance', '1'],
+  ] as const) {
+    await page.getByLabel(/survivor name/i).fill(name);
+    await page.getByLabel(/^tier$/i).selectOption(tier);
+    await page.getByRole('button', { name: /add survivor/i }).click();
+  }
+
+  // Turn 1's Planning Phase: Earl goes out next turn, Ruby stays behind.
+  await skipToPhase(page, 'Planning');
+  await page.getByRole('button', { name: 'Next: Assign Project Team' }).click();
+  await page.getByRole('button', { name: 'Next: Assign Rest and Healing' }).click();
+  await page.getByRole('button', { name: 'Next: Assign Mission Team' }).click();
+  await page
+    .getByRole('group', { name: /on the mission team/i })
+    .getByRole('checkbox', { name: /earl/i })
+    .check();
+
+  // The last step of Planning, so the next step is already the next phase and
+  // the walk offers one button rather than two that do the same thing.
+  await page.getByRole('button', { name: 'Next: Check for Rot' }).click();
+  await page.getByRole('button', { name: 'End turn 1' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'End turn 1' }).click();
+
+  // Turn 2's Advancement Phase, where the team that just went is read back.
+  await page.getByRole('button', { name: 'Skip to Advancement' }).click();
+
+  const walk = page.getByRole('region', { name: 'Turn 2' });
+
+  // Earl went, so Earl earns the mission's point; Ruby did not, so she is not
+  // offered it at all.
+  await expect(walk.getByText(/for going on the mission/i)).toContainText('1 of 1');
+  await walk
+    .getByRole('button', { name: /\+1 xp/i })
+    .first()
+    .click();
+  await expect(walk.getByText(/for going on the mission/i)).toContainText('0 of 1');
+
+  await page.getByRole('button', { name: 'Next: Create New Survivors' }).click();
+  await page.getByRole('button', { name: 'Next: Add Materials to Storage' }).click();
+
+  // Two materials recovered: a 4 is Food and a 10 is Rare.
+  const rolled = walk.getByLabel(/^rolled$/i);
+  await rolled.selectOption('4');
+  await rolled.selectOption('10');
+  await expect(walk.getByText(/\+1 Food/)).toBeVisible();
+  await expect(walk.getByText(/\+1 Rare/)).toBeVisible();
+
+  await walk.getByRole('button', { name: /add to storage/i }).click();
+  await expect(walk.getByText(/already in storage/i)).toBeVisible();
+  await expect(page.getByLabel(/^food$/i)).toHaveValue('1');
+  await expect(page.getByLabel(/^rare$/i)).toHaveValue('1');
+
+  const exported = await exportCampaign(page);
+  expect(JSON.parse(exported.text)).toMatchObject({
+    materials: { food: 1, rare: 1 },
+    survivors: [{ name: 'Earl Rhodes', xp: 1 }, { name: 'Ruby Vance' }],
+  });
+
+  await waitForAutosave(page, 'Cedar Hollow');
+  await page.reload();
+
+  // The step is not repeatable across a reload either, because what makes it
+  // so is an entry in the log rather than a flag in this component.
+  await expect(
+    page.getByRole('region', { name: 'Turn 2' }).getByText(/already in storage/i),
+  ).toBeVisible();
+
+  await startFreshCampaign(page, 'Millbrook');
+  await page.setInputFiles('input[type="file"]', exported.path);
+  await page.getByRole('button', { name: /replace it/i }).click();
+
+  const reExported = await exportCampaign(page);
+  expect(reExported.text).toBe(exported.text);
+});
