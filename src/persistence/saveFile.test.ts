@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import v8Fixture from './__fixtures__/campaign-v8.json';
+import currentFixture from './__fixtures__/campaign-v9.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -246,8 +246,10 @@ describe('parseCampaignFile with a roster', () => {
     // `false`. From v6 it carries a log, which pins that an entry's own keys
     // and its event's fields both survive a round trip untouched. From v8 it
     // carries assignments, which pins that they come back in roster order and
-    // that a survivor with no task still has no entry.
-    const text = `${JSON.stringify(v8Fixture, null, 2)}\n`;
+    // that a survivor with no task still has no entry. From v9 it carries the
+    // turn of the last siege, which pins where a plain number sits among the
+    // nested ones.
+    const text = `${JSON.stringify(currentFixture, null, 2)}\n`;
     const result = parseCampaignFile(text);
 
     expect(result.ok).toBe(true);

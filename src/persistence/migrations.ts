@@ -226,6 +226,21 @@ const assignmentsBecameReal: MigrationStep = {
   up: (previous) => ({ ...previous, assignments: {} }),
 };
 
+/**
+ * v8 → v9: the turn a siege was fought became a stored fact.
+ *
+ * `null` for every existing campaign, which is the truthful answer rather than
+ * a convenient one: nothing in a v8 save records a siege, so claiming one
+ * happened on any particular turn would be inventing history. The consequence
+ * is that "turns since the last siege" counts from turn 1 for a migrated
+ * campaign, which is the same answer it would have given all along.
+ */
+const siegesBecameRecorded: MigrationStep = {
+  from: 8,
+  to: 9,
+  up: (previous) => ({ ...previous, lastSiegeTurn: null }),
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -235,6 +250,7 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   logBecameReal,
   stepReplacedPhase,
   assignmentsBecameReal,
+  siegesBecameRecorded,
 ];
 
 /** Why a save could not be brought forward. */

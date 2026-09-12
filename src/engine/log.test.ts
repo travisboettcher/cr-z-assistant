@@ -101,6 +101,8 @@ describe('the event samples', () => {
     'survivors-fed': true,
     'rot-checked': true,
     'survivor-bitten': true,
+    'storage-checked': true,
+    'horde-checked': true,
     'survivor-added': true,
     'survivor-recruited': true,
     'survivor-left': true,

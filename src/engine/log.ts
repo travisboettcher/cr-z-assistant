@@ -139,6 +139,37 @@ export type CampaignEvent =
       readonly damage: number;
     }
   /**
+   * The stores were trimmed to the base's caps (pg. 23).
+   *
+   * Carries what was **lost**, not what is left: the counts that remain are on
+   * the campaign, and a history worth reading says what the turn cost. Rare is
+   * absent because the book gives it no cap (pg. 54), so it is never trimmed.
+   *
+   * **Load-bearing**: `storageChecked` reads it so the walk cannot spill the
+   * same stores twice.
+   */
+  | {
+      readonly kind: 'storage-checked';
+      readonly food: number;
+      readonly fuel: number;
+      readonly hardware: number;
+    }
+  /**
+   * The horde was checked, and either came or did not (pg. 23).
+   *
+   * The threat as well as the roll, because the threat is four terms deep and
+   * a player looking back at a siege wants to know how close it had been.
+   *
+   * **Load-bearing**: `hordeChecked` reads it so the roll is not made twice in
+   * one turn.
+   */
+  | {
+      readonly kind: 'horde-checked';
+      readonly roll: D10Result;
+      readonly threat: number;
+      readonly siege: boolean;
+    }
+  /**
    * Health went to a survivor, in the Heal Wounds step (pg. 19).
    *
    * One entry per survivor rather than one for the step, because who was

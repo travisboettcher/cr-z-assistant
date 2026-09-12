@@ -21,6 +21,7 @@ import { PageRef } from './PageRef';
 import { AdvancementPhase } from './AdvancementPhase';
 import { ManagementPhase } from './ManagementPhase';
 import { PlanningPhase } from './PlanningPhase';
+import { siegeDue } from '../engine/siege';
 import { PHASE_LABELS, STEP_LABELS } from './turnLabels';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
@@ -187,10 +188,25 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
         <ManagementPhase campaign={campaign} step={campaign.step} />
       ) : (
         step !== undefined && (
-          <p className="mt-4 text-sm text-stone-600 dark:text-stone-400">
-            This step is not built yet — work it on paper and move on when the table has.{' '}
-            <PageRef pages={step.pages} />
-          </p>
+          <>
+            {/*
+             * The one thing the Mission Phase knows about itself before Phase 4
+             * builds it: the horde called, and this turn's mission is not the
+             * player's to choose (pg. 23). Shown here rather than kept for the
+             * screen that does not exist yet, because a player walking into
+             * turn N+1 needs to know before they pick up the mission deck.
+             */}
+            {phase === 'mission' && siegeDue(campaign) && (
+              <p className="mt-4 text-sm font-medium text-amber-800 dark:text-amber-300">
+                The horde came. This turn’s mission is a Siege Defense <PageRef pages={23} />
+              </p>
+            )}
+
+            <p className="mt-4 text-sm text-stone-600 dark:text-stone-400">
+              This step is not built yet — work it on paper and move on when the table has.{' '}
+              <PageRef pages={step.pages} />
+            </p>
+          </>
         )
       )}
 

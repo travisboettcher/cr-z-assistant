@@ -205,6 +205,7 @@ function inFileOrder(campaign: Campaign): Record<keyof Campaign, unknown> {
     turn: campaign.turn,
     step: campaign.step,
     materials: orderedMaterials(campaign),
+    lastSiegeTurn: campaign.lastSiegeTurn,
     survivors: campaign.survivors.map(orderedSurvivor),
     startingCommunityBuilt: campaign.startingCommunityBuilt,
     base: campaign.base === null ? null : orderedBase(campaign.base),

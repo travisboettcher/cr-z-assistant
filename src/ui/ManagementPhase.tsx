@@ -14,7 +14,13 @@
 
 import { useState } from 'react';
 import { D10_RESULTS, type D10Result } from '../data/dice';
-import type { TurnStepId } from '../data/turn';
+import {
+  DEPARTURE_THRESHOLD,
+  SIEGE_THREAT_TERMS,
+  SIEGE_TRIGGER,
+  type SiegeThreatTerm,
+  type TurnStepId,
+} from '../data/turn';
 import type { Campaign } from '../engine/campaign';
 import {
   exhaustion,
@@ -23,8 +29,21 @@ import {
   hungerIfFedNow,
   penaltyFor,
   survivorsFed,
+  unrest,
 } from '../engine/feeding';
 import { beds } from '../engine/base';
+import { missionTeam } from '../engine/assignments';
+import {
+  hordeCame,
+  hordeChecked,
+  siegeThreat,
+  siegeThreatTerms,
+  siegeTriggered,
+} from '../engine/siege';
+import { anythingOverCap, overCap, storageChecked } from '../engine/storage';
+import { departureCandidates, departurePressure, someoneIsLeaving } from '../engine/departures';
+import { MATERIAL_LABELS } from './baseLabels';
+import { STORED_MATERIALS } from '../data/materials';
 import { biteCandidates, mustCheck, rotOutcome, rotTarget } from '../engine/rot';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
@@ -41,6 +60,8 @@ const PRIMARY = `${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4
 
 const FIELD = `${FOCUS_RING} rounded-lg border border-stone-300 px-2 py-1 text-sm dark:border-stone-600 dark:bg-stone-800`;
 
+const SMALL_BUTTON = `${FOCUS_RING} rounded-lg border border-stone-300 px-3 py-1 text-sm font-medium dark:border-stone-600`;
+
 export function ManagementPhase({ campaign, step }: ManagementPhaseProps) {
   return (
     <div className="mt-4 border-t border-stone-200 pt-4 dark:border-stone-800">
@@ -48,12 +69,10 @@ export function ManagementPhase({ campaign, step }: ManagementPhaseProps) {
       {step === 'feed-your-survivors' && <Feed campaign={campaign} />}
       {step === 'assign-beds' && <AssignBeds campaign={campaign} />}
 
-      {step !== 'check-for-rot' && step !== 'feed-your-survivors' && step !== 'assign-beds' && (
-        <p className={HINT}>
-          Unrest, Storage, the Horde and Departures are not built yet — work them on paper and end
-          the turn when the table has <PageRef pages={23} />
-        </p>
-      )}
+      {step === 'calculate-unrest' && <CalculateUnrest campaign={campaign} />}
+      {step === 'check-storage' && <CheckStorage campaign={campaign} />}
+      {step === 'check-the-horde' && <CheckTheHorde campaign={campaign} />}
+      {step === 'departures' && <Departures campaign={campaign} />}
     </div>
   );
 }
@@ -302,3 +321,269 @@ function AssignBeds({ campaign }: { readonly campaign: Campaign }) {
     </>
   );
 }
+
+/**
+ * Step 4: the two numbers added up, and the one consequence they have here.
+ *
+ * Nothing to apply — Unrest is read by the two steps that follow and by
+ * nothing else — so this is a screen that explains rather than acts. The
+ * exception is the exhaustion penalty, which is a real edit and is offered as
+ * one.
+ */
+function CalculateUnrest({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+
+  const short = hunger(campaign);
+  const tired = exhaustion(campaign);
+  const team = missionTeam(campaign);
+
+  // Exhaustion above the mission team's size takes one survivor off it
+  // (pg. 23). Offered rather than done, because *which* one is a decision and
+  // because taking somebody off a team without being asked is the kind of
+  // silent edit this app does not make.
+  const overworked = tired > team.length && team.length > 0;
+
+  return (
+    <>
+      <p className={HINT}>
+        Unrest is Hunger plus Exhaustion, both counted again from scratch this turn{' '}
+        <PageRef pages={23} />
+      </p>
+
+      <p className="mt-3 text-sm font-medium tabular-nums">
+        {short} Hunger + {tired} Exhaustion = {unrest(campaign)} Unrest
+      </p>
+
+      {overworked && (
+        <>
+          <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">
+            Exhaustion is above the mission team’s{' '}
+            <span className="tabular-nums">{team.length}</span>, so one survivor comes off it{' '}
+            <PageRef pages={23} />
+          </p>
+
+          <ul className="mt-2 flex flex-col gap-1">
+            {team.map((survivor) => (
+              <li key={survivor.id} className="flex items-center gap-2 text-sm">
+                <button
+                  type="button"
+                  className={SMALL_BUTTON}
+                  onClick={() => {
+                    dispatch({ type: 'assignment/cleared', survivor: survivor.id });
+                  }}
+                >
+                  Take off
+                </button>
+                <span>{survivor.name}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </>
+  );
+}
+
+/**
+ * Step 5: the caps Phase 2 computed and deliberately refused to enforce.
+ *
+ * Rare is not here and has no row, because the book gives it no cap (pg. 54) —
+ * a community's Rare Items are safe however many it has.
+ */
+function CheckStorage({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+
+  const done = storageChecked(campaign);
+  const spilled = overCap(campaign);
+  const anything = anythingOverCap(campaign);
+
+  return (
+    <>
+      <p className={HINT}>
+        Anything above the base’s cap is lost down to it. Rare has no cap and is never trimmed{' '}
+        <PageRef pages={23} />
+      </p>
+
+      {done ? (
+        <p className="mt-3 text-sm font-medium">
+          Storage is checked for this turn. Stepping back will not spill it twice.
+        </p>
+      ) : anything ? (
+        <>
+          <p className="mt-3 text-sm font-medium">About to be lost</p>
+          <ul className="mt-1 flex flex-col gap-0.5">
+            {STORED_MATERIALS.filter((material) => spilled[material] > 0).map((material) => (
+              <li key={material} className={`${HINT} tabular-nums`}>
+                −{spilled[material]} {MATERIAL_LABELS[material]}
+              </li>
+            ))}
+          </ul>
+
+          <button
+            type="button"
+            className={PRIMARY}
+            onClick={() => {
+              dispatch({ type: 'management/storageChecked', at: new Date().toISOString() });
+            }}
+          >
+            Lose the surplus
+          </button>
+        </>
+      ) : (
+        <p className="mt-3 text-sm font-medium">Nothing is over the cap. Nothing to lose.</p>
+      )}
+    </>
+  );
+}
+
+/**
+ * Step 6: Siege Threat totalled at last, and the roll it feeds.
+ *
+ * The four terms are shown rather than the sum alone, because a player about to
+ * roll wants to know which of their own decisions put the number there — and
+ * three of the four are decisions they made in the Planning Phase.
+ */
+function CheckTheHorde({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+  const [roll, setRoll] = useState<D10Result>(1);
+
+  const done = hordeChecked(campaign);
+  const terms = siegeThreatTerms(campaign);
+  const threat = siegeThreat(campaign);
+
+  return (
+    <>
+      <p className={HINT}>
+        Roll a d10 and add the Siege Threat. At{' '}
+        <span className="tabular-nums">{SIEGE_TRIGGER}</span> or over, next turn’s mission is a
+        Siege Defense <PageRef pages={23} />
+      </p>
+
+      <ul className="mt-3 flex flex-col gap-0.5">
+        {SIEGE_THREAT_TERMS.map((term) => (
+          <li key={term} className={`${HINT} tabular-nums`}>
+            {terms[term] >= 0 ? '+' : ''}
+            {terms[term]} {SIEGE_TERM_LABELS[term]}
+          </li>
+        ))}
+      </ul>
+
+      <p className="mt-2 text-sm font-medium tabular-nums">Siege Threat {threat}</p>
+
+      {done ? (
+        <p className="mt-3 text-sm font-medium">
+          {hordeCame(campaign)
+            ? 'The horde came. Next turn’s mission is a Siege Defense.'
+            : 'The horde stayed away this turn.'}
+        </p>
+      ) : (
+        <>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <label className="text-sm" htmlFor="horde-roll">
+              Rolled
+            </label>
+            <select
+              id="horde-roll"
+              value={roll}
+              className={FIELD}
+              onChange={(changed) => {
+                setRoll(Number(changed.target.value) as D10Result);
+              }}
+            >
+              {D10_RESULTS.map((result) => (
+                <option key={result} value={result}>
+                  {result}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <p className={`mt-2 ${HINT}`}>
+            {siegeTriggered(roll, threat)
+              ? `${roll} + ${threat} is ${roll + threat}. The horde comes.`
+              : `${roll} + ${threat} is ${roll + threat}. Not this turn.`}
+          </p>
+
+          <button
+            type="button"
+            className={PRIMARY}
+            onClick={() => {
+              dispatch({ type: 'management/hordeChecked', roll, at: new Date().toISOString() });
+            }}
+          >
+            Check the horde
+          </button>
+        </>
+      )}
+    </>
+  );
+}
+
+/**
+ * Step 7: somebody walks, and the player says who.
+ *
+ * The candidates are recomputed after every departure, which is the whole
+ * ordering trap made visible: a survivor leaving unstaffs whatever they were
+ * working and shrinks the project team, so the pressure the *next* departure is
+ * checked against is not the one this screen showed a moment ago.
+ */
+function Departures({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+
+  const pressure = departurePressure(campaign);
+  const candidates = departureCandidates(campaign);
+
+  return (
+    <>
+      <p className={HINT}>
+        Unrest plus Siege Threat is <span className="tabular-nums">{pressure}</span>. At{' '}
+        <span className="tabular-nums">{DEPARTURE_THRESHOLD}</span> or over, the lowest-Tier
+        survivor leaves — and a tie is yours to break <PageRef pages={23} />
+      </p>
+
+      {!someoneIsLeaving(campaign) ? (
+        <p className="mt-3 text-sm font-medium">Nobody is leaving. The community holds together.</p>
+      ) : candidates.length === 0 ? (
+        <p className="mt-3 text-sm font-medium">
+          Somebody would leave, but everybody left is at 0 Health and in no state to walk anywhere.
+        </p>
+      ) : (
+        <>
+          <p className="mt-3 text-sm font-medium">
+            {candidates.length === 1 ? 'Leaving' : 'The lowest Tier, and yours to choose between'}
+          </p>
+          <ul className="mt-2 flex flex-col gap-1">
+            {candidates.map((survivor) => (
+              <li key={survivor.id} className="flex items-center gap-2 text-sm">
+                <button
+                  type="button"
+                  className={SMALL_BUTTON}
+                  onClick={() => {
+                    dispatch({
+                      type: 'management/departed',
+                      survivor: survivor.id,
+                      at: new Date().toISOString(),
+                    });
+                  }}
+                >
+                  Send away
+                </button>
+                <span>{survivor.name}</span>
+                <span className="text-xs text-stone-500 dark:text-stone-400">
+                  Tier {survivor.tier}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </>
+  );
+}
+
+const SIEGE_TERM_LABELS: Record<SiegeThreatTerm, string> = {
+  'staffed-facilities': 'staffed facilities',
+  'project-team': 'on the project team',
+  'base-features': 'from the base itself',
+  'turns-since-last-siege': 'turns since the last siege',
+};

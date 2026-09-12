@@ -275,6 +275,18 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       damage: fc.integer({ min: 1, max: 9 }),
     }),
     fc.record({
+      kind: fc.constant('storage-checked' as const),
+      food: anyCount,
+      fuel: anyCount,
+      hardware: anyCount,
+    }),
+    fc.record({
+      kind: fc.constant('horde-checked' as const),
+      roll: fc.constantFrom(...D10_RESULTS),
+      threat: anyAmount,
+      siege: fc.boolean(),
+    }),
+    fc.record({
       kind: fc.constant('health-restored' as const),
       survivor: anyId,
       name: anyName,
@@ -418,6 +430,9 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
       createdAt: anyCreatedAt,
       turn: fc.integer({ min: 1, max: 9999 }),
       step: fc.constantFrom(...TURN_SEQUENCE),
+      // Null as often as a number, because "never besieged" is the state most
+      // campaigns are in and the one a round trip most easily loses.
+      lastSiegeTurn: fc.option(fc.integer({ min: 1, max: 9999 }), { nil: null }),
       origin: fc.constantFrom(...CAMPAIGN_ORIGINS),
       materials: materialsArbitrary(),
       survivors: fc.array(survivorArbitrary(), { maxLength: 6 }),
@@ -440,6 +455,7 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
         'createdAt',
         'turn',
         'step',
+        'lastSiegeTurn',
         'materials',
         'survivors',
         'startingCommunityBuilt',

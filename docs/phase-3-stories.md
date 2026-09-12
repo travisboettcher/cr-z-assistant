@@ -868,6 +868,47 @@ not permission for a value computed in one to survive the next.
 - The siege flag survives a save and gates the next turn's Mission Phase.
 - Storage loss takes each material to its own cap and no further, and logs what was lost.
 
+**One field answers both questions the siege rule asks.** `lastSiegeTurn` is the turn whose
+Mission Phase is or was a Siege Defense, and it is stored because nothing else in a campaign
+records that a siege happened — "turns since the last siege" is worked out *from* it rather than
+the other way round. A turn number rather than a flag, because a flag would need somebody to clear
+it and a turn number simply stops being this turn.
+
+The check sets it to the turn **after** the roll, because that is the turn the siege is fought on.
+That leaves a window where `lastSiegeTurn` is in the future, so `turnsSinceLastSiege` is clamped at
+zero: "minus one turns since" would otherwise *lower* the Siege Threat that the Departures step two
+steps later reads.
+
+**`siegeDue` and `hordeCame` are different questions, and conflating them was a real bug.** The
+screen first reported the outcome of the check with `siegeDue`, which is false on the turn of the
+check — the siege is next turn's. It reads the entry the check wrote instead. A screen reporting
+what just happened has to read the record of what happened.
+
+**Nothing in `siege.ts` is cached, and the plan said why before it could be discovered.** Departures
+runs after Check the Horde and removes a survivor, which retroactively unstaffs whatever they were
+working and shrinks the project team — two of the four terms. So the Siege Threat step 6 rolled
+against is not the one step 7 must use, and a second departure is measured against a number the
+first one changed. Both the engine test and the e2e journey assert the drop.
+
+**The exhaustion penalty is offered, not done.** Exhaustion above the mission team's size takes one
+survivor off it (pg. 23), and *which* one is a decision. Taking somebody off a team without being
+asked is the kind of silent edit this app does not make.
+
+**A tie at the lowest Tier is the player's to break**, which is why `departureCandidates` returns a
+list. Inventing a tiebreak — first on the roster, lowest Health, most recently added — would be this
+app making up a rule the book deliberately leaves to the table. A survivor at 0 Health can neither
+leave nor be chosen, and a community where everybody left standing is at 0 Health loses nobody at
+all: the screen says so rather than silently doing nothing.
+
+**Z3-7's "storage caps are reported, not enforced" finally has its other half.** The overflow a haul
+creates in the Advancement Phase is lost here, a whole phase later, exactly as that story said it
+would be. Rare is never trimmed, because the book gives it no cap.
+
+**What the plan owes the queue.** The story's departure rule also "takes their Tier off the turn's
+unused Labor, running a project unfinished if that goes negative". There is no project to run
+unfinished until [Z3-11](#z3-11--the-project-queue) exists, so that half lands there — the
+retroactive unstaffing, which is the part that has something to act on today, is done.
+
 ---
 
 ## Z3-11 — The project queue
