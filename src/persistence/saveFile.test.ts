@@ -812,6 +812,87 @@ describe('a campaign whose log is damaged', () => {
  * and a player may be part-way through fixing one when they save. What this
  * refuses is an assignment that refers to nothing.
  */
+/**
+ * The project queue, checked the way the log is: shape only, one problem named,
+ * and never a thrown exception.
+ *
+ * **Shape, not legality.** A project queued for a slot the base does not have,
+ * or for a facility that slot could not hold, is a rule the screens report
+ * rather than a damaged file — and Z1-7's override means a campaign can
+ * genuinely hold one. What these refuse is a project that refers to nothing.
+ */
+describe('a campaign whose project queue is damaged', () => {
+  const good = { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 2 };
+
+  function refusalFor(projects: unknown) {
+    const result = parseCampaignFile(savedWith({ projects }));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected a refusal');
+
+    expect(result.error.reason).toBe('damaged-campaign');
+    return result.error.message;
+  }
+
+  it.each([
+    ['a facility', good],
+    ['an upgrade', { kind: 'upgrade', slot: 'kitchen', upgrade: 'gas-range', orderedOnTurn: 2 }],
+    ['a clearing', { kind: 'clearing', slot: 'ruined-chicken-coop', orderedOnTurn: 2 }],
+  ])('accepts %s, so the refusals below mean something', (_label, project) => {
+    const result = parseCampaignFile(savedWith({ projects: [project] }));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.projects).toEqual([project]);
+  });
+
+  it.each([
+    ['not a list at all', 5, /project queue is missing/i],
+    ['a project that is not an object', [7], /is not a project/i],
+    [
+      'a kind this version has never heard of',
+      [{ ...good, kind: 'demolition' }],
+      /does not know: demolition/i,
+    ],
+    ['a kind that is not a word', [{ ...good, kind: 12 }], /does not know: 12/i],
+    // `in` would accept this: every object has a `toString`. `isKeyOf` does not.
+    ['a kind every object already has', [{ ...good, kind: 'toString' }], /does not know/i],
+    // A real kind, wrapped in a list. `Object.hasOwn` coerces its key, so this
+    // stringifies to a name the table has and passes the lookup — the `typeof`
+    // half of that check is the only thing between it and being accepted, and
+    // a `kind` that is an array is not a project this app can render.
+    ['a kind that is a real one in a box', [{ ...good, kind: ['facility'] }], /does not know/i],
+    ['a project that does not say which slot', [{ ...good, slot: undefined }], /which slot/i],
+    ['a project whose slot is not a word', [{ ...good, slot: 4 }], /which slot/i],
+    ['a project with no turn on it', [{ ...good, orderedOnTurn: undefined }], /which turn/i],
+    ['a project ordered on turn zero', [{ ...good, orderedOnTurn: 0 }], /which turn/i],
+    ['a project ordered on half a turn', [{ ...good, orderedOnTurn: 1.5 }], /which turn/i],
+    // The per-kind fields: only two kinds have one, and each has its own.
+    [
+      'a facility that is not in the catalogue',
+      [{ ...good, facility: 'moon-base' }],
+      /unreadable facility/i,
+    ],
+    [
+      'an upgrade that is not in the catalogue',
+      [{ kind: 'upgrade', slot: 'kitchen', upgrade: 'jacuzzi', orderedOnTurn: 2 }],
+      /unreadable upgrade/i,
+    ],
+    // A clearing carries nothing of its own, so a stray facility id on one is
+    // not checked and not a refusal — the queue says what the project is.
+  ])('refuses %s', (_label, projects, says) => {
+    expect(refusalFor(projects)).toMatch(says);
+  });
+
+  /** Positional, like log entries: a damaged kind cannot be named by its kind. */
+  it('says which project in the queue is the damaged one', () => {
+    expect(refusalFor([good, good, { ...good, facility: 'moon-base' }])).toMatch(
+      /project 3 of 3 has an unreadable facility/i,
+    );
+  });
+});
+
 describe('a campaign whose assignments are damaged', () => {
   const EARL = 'b7e41f28-3c60-4d95-8a12-6f0e9d4c7b53';
 

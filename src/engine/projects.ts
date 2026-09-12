@@ -238,6 +238,11 @@ export function completeProjects(campaign: Campaign): {
       if (clearing === undefined) continue;
 
       materials = { ...materials };
+      // `yields` is optional on the type and present on all three projects the
+      // roster has, so the guard is unexercised by data rather than
+      // unnecessary: a project that gives nothing back is a shape the book
+      // allows. A mutant that drops the `?.` survives for that reason, exactly
+      // as it did in `withSlotCleared` before this replaced it.
       for (const [material, amount] of Object.entries(clearing.yields?.materials ?? {})) {
         materials[material as keyof typeof materials] += amount;
       }
