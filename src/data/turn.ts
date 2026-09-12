@@ -271,6 +271,18 @@ export const SCAVENGE_TOTAL_WITHOUT_SKILL = 1;
 export const REST_HEALTH = 1;
 
 /**
+ * Where a point of Health came from (pg. 19, 21).
+ *
+ * Two sources with one difference that matters: a facility's points are shared
+ * out among everybody assigned to healing, and a resting survivor's point is
+ * theirs alone. Kept apart in the record as well as in the rules, so a history
+ * can say which one a survivor got.
+ */
+export const HEALTH_SOURCES = ['facility', 'rest'] as const;
+
+export type HealthSource = (typeof HEALTH_SOURCES)[number];
+
+/**
  * How many survivors may be assigned to rest in a turn (pg. 21).
  *
  * One. A cap rather than a boolean, because it is a number in the book and

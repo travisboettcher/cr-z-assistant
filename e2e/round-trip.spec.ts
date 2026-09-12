@@ -1026,3 +1026,141 @@ test('a turn’s XP and materials are taken in the steps that award them', async
   const reExported = await exportCampaign(page);
   expect(reExported.text).toBe(exported.text);
 });
+
+/**
+ * Z3-8's acceptance, executed: a pool shared equally, and the rule that makes
+ * it an algorithm rather than a division.
+ *
+ * Two wounded survivors and a two-point Clinic. A division would give each of
+ * them one; the rules give the one who needs more the second point, because the
+ * one who fills up drops out of the distribution. Worth a journey because the
+ * numbers come off three things a player sets up on three different screens —
+ * who is staffing the Clinic, who is assigned to healing, and how hurt they
+ * each are — where a unit test arranges all three in one object.
+ */
+test('a Clinic’s Health is shared out unequally, because equally means this', async ({ page }) => {
+  await startCampaign(page, 'Cedar Hollow');
+
+  await page.getByLabel(/choose a base/i).selectOption({ label: 'Small Town Home — Tier 1' });
+  await page.getByRole('button', { name: /claim this base/i }).click();
+
+  // Three Heroes: one to run the Clinic, two to be healed in it. Only Tier 4
+  // has any Cooperation, and Medicine is governed by it (pg. 8).
+  for (const name of ['Nell Haig', 'Tomas Ford', 'Ada Poole']) {
+    await page.getByLabel(/survivor name/i).fill(name);
+    await page.getByLabel(/^tier$/i).selectOption('4');
+    await page.getByRole('button', { name: /add survivor/i }).click();
+  }
+
+  await page.getByLabel(/^hardware$/i).fill('9');
+  // Adds two more survivors of its own and leaves the walk in the Planning
+  // Phase, at the project team's step.
+  await hireProjectTeam(page);
+
+  await page.getByRole('button', { name: /build in garage/i }).click();
+  await page.getByLabel(/^facility$/i).selectOption({ label: 'Medical Clinic' });
+  await page.getByRole('button', { name: /build here/i }).click();
+
+  /*
+   * Nell learns Medicine and trains it to level 4, which is what the Clinic's
+   * output is made of. A Skill Score is the governing stat plus the level
+   * (pg. 8) and a Tier 4's Cooperation is 1, so a Score worth sharing has to be
+   * bought — and a Clinic without Water halves whatever it makes (pg. 72), so
+   * 1 + 4 becomes the three points this journey is about.
+   */
+  const roster = page.getByRole('region', { name: /community/i });
+  await roster
+    .getByRole('listitem')
+    .filter({ hasText: 'Nell Haig' })
+    .getByRole('button', { name: /^sheet$/i })
+    .click();
+  const nell = page.getByRole('region', { name: 'Nell Haig' });
+  await nell.getByRole('button', { name: /^set experience$/i }).click();
+  await page.getByLabel(/experience for nell haig/i).fill('20');
+  await page.getByRole('button', { name: /save experience/i }).click();
+  await nell
+    .getByRole('row', { name: /^Medicine\b/ })
+    .getByRole('button', { name: /^take\b/i })
+    .click();
+  for (const level of [1, 2, 3, 4]) {
+    await nell
+      .getByRole('button', { name: new RegExp(`raise medicine to level ${String(level)}`, 'i') })
+      .click();
+  }
+  await nell.getByRole('button', { name: /^close sheet$/i }).click();
+
+  // Wound the two: Tomas badly, Ada lightly. Four is a Hero's maximum (pg. 7).
+  for (const [name, hp] of [
+    ['Tomas Ford', '1'],
+    ['Ada Poole', '3'],
+  ] as const) {
+    await roster
+      .getByRole('listitem')
+      .filter({ hasText: name })
+      .getByRole('button', { name: /^sheet$/i })
+      .click();
+    const hurt = page.getByRole('region', { name });
+    await hurt.getByRole('button', { name: /^set health$/i }).click();
+    await page.getByLabel(new RegExp(`current health for ${name}`, 'i')).fill(hp);
+    await page.getByRole('button', { name: /save health/i }).click();
+    await hurt.getByRole('button', { name: /^close sheet$/i }).click();
+  }
+
+  // Back one step to staff the Clinic, which is Planning Step 1 (pg. 20).
+  await page.getByRole('button', { name: 'Back to Assign Facility Staff' }).click();
+  await page
+    .getByRole('group', { name: /medical clinic/i })
+    .getByRole('checkbox', { name: /nell/i })
+    .check();
+
+  await page.getByRole('button', { name: 'Next: Assign Project Team' }).click();
+  await page.getByRole('button', { name: 'Next: Assign Rest and Healing' }).click();
+  const healing = page.getByRole('group', { name: /being healed/i });
+  await healing.getByRole('checkbox', { name: /tomas/i }).check();
+  await healing.getByRole('checkbox', { name: /ada/i }).check();
+
+  await page.getByRole('button', { name: 'Next: Assign Mission Team' }).click();
+  await page.getByRole('button', { name: 'Next: Check for Rot' }).click();
+  await page.getByRole('button', { name: 'End turn 1' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'End turn 1' }).click();
+
+  await page.getByRole('button', { name: 'Skip to Advancement' }).click();
+  for (const step of ['Create New Survivors', 'Add Materials to Storage', 'Heal Wounds']) {
+    await page.getByRole('button', { name: `Next: ${step}` }).click();
+  }
+
+  const walk = page.getByRole('region', { name: 'Turn 2' });
+
+  // Three points. Ada needs one and takes one, then fills up and drops out;
+  // Tomas needs three and takes the other two. A division would have given them
+  // one and a half each, overhealing Ada and leaving Tomas short.
+  await expect(walk.getByText(/Tomas Ford \+2 Health/)).toBeVisible();
+  await expect(walk.getByText(/Ada Poole \+1 Health/)).toBeVisible();
+
+  await walk.getByRole('button', { name: /heal wounds/i }).click();
+  await expect(walk.getByText(/wounds are healed/i)).toBeVisible();
+
+  const exported = await exportCampaign(page);
+  const healed = (JSON.parse(exported.text).survivors as { name: string; currentHp: number }[]).map(
+    ({ name, currentHp }) => [name, currentHp],
+  );
+
+  // The project team `hireProjectTeam` brought along is in here too, untouched
+  // at full Health — which is the other half of the claim.
+  expect(healed).toEqual([
+    ['Nell Haig', 4],
+    ['Tomas Ford', 3],
+    ['Ada Poole', 4],
+    ['Earl Rhodes', 4],
+    ['Ruby Vance', 1],
+  ]);
+
+  await waitForAutosave(page, 'Cedar Hollow');
+  await page.reload();
+
+  // Not repeatable across a reload: what makes it so is the log, not this
+  // component.
+  await expect(
+    page.getByRole('region', { name: 'Turn 2' }).getByText(/wounds are healed/i),
+  ).toBeVisible();
+});

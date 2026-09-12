@@ -29,6 +29,8 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'materials-added', food: -2, fuel: 0, hardware: 0, rare: 0 },
   { kind: 'xp-awarded', ...SURVIVOR, amount: 1, source: 'mission' },
   { kind: 'xp-awarded', ...SURVIVOR, amount: 2, source: 'mission-teaching' },
+  { kind: 'health-restored', ...SURVIVOR, health: 2, source: 'facility' },
+  { kind: 'health-restored', ...SURVIVOR, health: 1, source: 'rest' },
   { kind: 'survivor-added', ...SURVIVOR, tier: 3 },
   { kind: 'survivor-recruited', ...SURVIVOR, tier: 2, roll: 6 },
   { kind: 'survivor-left', ...SURVIVOR, tier: 1 },

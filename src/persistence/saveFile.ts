@@ -22,7 +22,7 @@ import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS } from '../data/materials';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
-import { CAMPAIGN_PHASES, XP_SOURCES } from '../data/turn';
+import { CAMPAIGN_PHASES, HEALTH_SOURCES, XP_SOURCES } from '../data/turn';
 import type { Assignment, Campaign } from '../engine/campaign';
 import type { CampaignEventKind } from '../engine/log';
 import { TURN_SEQUENCE } from '../engine/turn';
@@ -220,6 +220,7 @@ const EVENT_FIELD_CHECKS = {
   // (pg. 55) can outweigh what the mission recovered.
   amount: (value: unknown) => typeof value === 'number' && Number.isSafeInteger(value),
   xpSource: (value: unknown) => XP_SOURCES.some((source) => source === value),
+  healthSource: (value: unknown) => HEALTH_SOURCES.some((source) => source === value),
   flag: (value: unknown) => typeof value === 'boolean',
   tier: (value: unknown) => TIERS.some((tier) => tier === value),
   roll: (value: unknown) => D10_RESULTS.some((result) => result === value),
@@ -256,6 +257,12 @@ const EVENT_FIELDS: Record<
     ['fuel', 'amount'],
     ['hardware', 'amount'],
     ['rare', 'amount'],
+  ],
+  'health-restored': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['health', 'countFromOne'],
+    ['source', 'healthSource'],
   ],
   'xp-awarded': [
     ['survivor', 'id'],

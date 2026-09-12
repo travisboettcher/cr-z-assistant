@@ -2,10 +2,9 @@
  * The Advancement Phase's five steps (pp. 18–19).
  *
  * Character Advancement → Create New Survivors → Add Materials to Storage →
- * Heal Wounds → Add Facilities and Upgrades. Three of them were already built
- * and had nowhere to happen: Phase 1's XP spending, Phase 2's building, and
- * Phase 1's recruiting. This story does not move those screens — it gives each
- * one a step that points at it, and builds the two that did not exist.
+ * Heal Wounds → Add Facilities and Upgrades. Two of them point at screens that
+ * were already built and had nowhere in the turn to happen — Phase 1's
+ * recruiting and Phase 2's building — and three do the work themselves.
  *
  * **The screens this phase points at stay where they are.** A roster is useful
  * on every step of the turn and a base map is the map; dragging either inside a
@@ -19,6 +18,7 @@ import { MATERIALS, type Material } from '../data/materials';
 import { D10_RESULTS, type D10Result } from '../data/dice';
 import {
   SUBSTITUTION_SKILLS,
+  type HealthSource,
   type SubstitutionSkill,
   type TurnStepId,
   type XpSource,
@@ -36,6 +36,7 @@ import {
   type MaterialRoll,
 } from '../engine/materials';
 import { checkXpAward, xpPools } from '../engine/experience';
+import { checkHealing, healingPool, healthAwards, woundsHealed } from '../engine/healing';
 import { useCampaign } from '../state/useCampaign';
 import { MATERIAL_LABELS } from './baseLabels';
 import { PageRef } from './PageRef';
@@ -65,12 +66,7 @@ export function AdvancementPhase({ campaign, step }: AdvancementPhaseProps) {
 
       {step === 'add-materials-to-storage' && <AddMaterials campaign={campaign} />}
 
-      {step === 'heal-wounds' && (
-        <p className={HINT}>
-          Health from a Medical Clinic is shared out here, and a resting survivor takes the point
-          they generated. Not built yet — work it on paper and move on <PageRef pages={19} />
-        </p>
-      )}
+      {step === 'heal-wounds' && <HealWounds campaign={campaign} />}
 
       {step === 'add-facilities-and-upgrades' && (
         <p className={HINT}>
@@ -293,6 +289,83 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
     </>
   );
 }
+
+/**
+ * Step 4: a pool shared equally, and the points nobody else can use.
+ *
+ * The distribution is shown before it is applied, per survivor, because
+ * "equally" is a rule a player at a table will want to check — and the whole
+ * reason it is an algorithm rather than a division is that it stops looking
+ * like a division the moment somebody fills up.
+ */
+function HealWounds({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+
+  const done = woundsHealed(campaign);
+  const awards = healthAwards(campaign);
+  const pool = healingPool(campaign);
+  const { warnings } = checkHealing(campaign);
+
+  return (
+    <>
+      <p className={HINT}>
+        The base makes <span className="tabular-nums">{pool}</span> Health, shared{' '}
+        <strong>equally</strong> among everybody assigned to healing — nobody takes a second point
+        until everyone has had a first. A resting survivor’s point is their own{' '}
+        <PageRef pages={19} />
+      </p>
+
+      {done ? (
+        <p className="mt-3 text-sm font-medium">
+          This turn’s wounds are healed. Stepping back through the walk will not heal them again.
+        </p>
+      ) : (
+        <>
+          {awards.length === 0 ? (
+            <p className={`mt-3 ${HINT}`}>Nobody has a wound this step can close.</p>
+          ) : (
+            <ul className="mt-3 flex flex-col gap-1">
+              {awards.map((award) => (
+                <li
+                  key={`${award.survivor.id}-${award.source}`}
+                  className="text-sm tabular-nums text-stone-600 dark:text-stone-400"
+                >
+                  {award.survivor.name} +{award.health} Health
+                  <span className="text-xs">
+                    {' '}
+                    ({HEALTH_SOURCE_LABELS[award.source]}, to{' '}
+                    {award.survivor.currentHp + award.health})
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {warnings.map((warning) => (
+            <p key={warning.code} className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+              {warning.message} <PageRef pages={warning.pages} />
+            </p>
+          ))}
+
+          <button
+            type="button"
+            className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+            onClick={() => {
+              dispatch({ type: 'advancement/woundsHealed', at: new Date().toISOString() });
+            }}
+          >
+            Heal wounds
+          </button>
+        </>
+      )}
+    </>
+  );
+}
+
+const HEALTH_SOURCE_LABELS: Record<HealthSource, string> = {
+  facility: 'shared out',
+  rest: 'from resting',
+};
 
 /**
  * The substitution control for one roll (pg. 12).

@@ -306,9 +306,16 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
         })}
       </ul>
 
+      {/*
+       * Left over from Phase 2 until Z3-8 noticed it. Staffing *was* a preview
+       * that was never saved; Z3-5 made it a real assignment and this sentence
+       * went on saying the opposite — the one kind of stale copy worth
+       * treating as a bug, because a player who believes it will do the work
+       * twice.
+       */}
       <p className="mt-5 text-sm text-stone-600 dark:text-stone-400">
-        Staffing a facility is a Planning Phase assignment, so the production above is a preview and
-        is never saved <PageRef pages={20} />
+        Staffing a facility is Planning Step 1, and is the same assignment whether it is made here
+        or on the turn walk above <PageRef pages={20} />
       </p>
     </section>
   );

@@ -97,6 +97,7 @@ describe('the event samples', () => {
     'planning-began': true,
     'materials-added': true,
     'xp-awarded': true,
+    'health-restored': true,
     'survivor-added': true,
     'survivor-recruited': true,
     'survivor-left': true,

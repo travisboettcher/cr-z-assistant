@@ -674,6 +674,55 @@ the story most likely to be quietly wrong in a way that only shows up in a corne
 - Spending a Health point on Infection instead is **not** here — it is Phase 7, and the function
   is shaped so it can be.
 
+**The loop terminates by construction rather than by a flag.** An early draft carried a
+"did this pass hand anything out" boolean to stop once everybody was full. Capping the pool at the
+available room up front does the same job with nothing to get wrong: while a point is left there
+is somebody who can take it, so every pass gives at least one. The cap is also the surplus rule —
+a pool bigger than the community can absorb leaves the rest unspent rather than overhealing.
+
+**`room` is never negative.** Health is typed in and Z1-7's override lets a roster break the rules
+on purpose, so a survivor above their maximum is a state the app can hold. "Minus two rooms" is
+not a number a distribution should try to reason about; no room is the honest answer, and it keeps
+the total the loop is capped by from going backwards.
+
+**Points first, Health second**, which is the shape the acceptance asked for. `sharedEqually`
+decides who gets how many points and `withWoundsHealed` turns points into Health, because Phase 7
+will make those two decisions rather than one: a point spent on Infection (pg. 30) is the same
+point from the same pool.
+
+**A resting survivor's point is a second list, not a sixth survivor in the first.** It never
+enters the shared pool (pg. 21), and modelling it as a participant would have let the Clinic's
+Health flow to somebody the Clinic never treated.
+
+**One event per survivor healed**, not one for the step. Who recovered is what a player reads
+their history for; "the Clinic made four" says nothing about the turn. The once-a-turn guard reads
+those entries, the third time this phase has derived a step's "already done" from the log rather
+than storing it.
+
+**What the mutation run found, and the loop it was complaining about.** `healing.ts` came back at
+97.20 with three survivors and — more interestingly — **eight timeouts**. The timeouts were the
+finding. The distribution was a `while (left > 0)` that terminated only because the pool had been
+pre-capped at the available room: true, but invisible, so every mutant that broke the invariant
+hung the runner for twenty seconds instead of failing in milliseconds. Counted as killed, and
+nearly three minutes of the run spent on it.
+
+The loop is rounds now. Each round offers every survivor one point, and nobody can need more
+rounds than the deepest wound, so the bound comes from the rules rather than from an invariant a
+reader has to reconstruct. The surplus rule falls out of the same bound instead of being a
+separate `Math.min`.
+
+Of the three survivors, one was a pool that summed *every* production line rather than only the
+Health ones — no test had a base that made anything else — and one was a warning whose two
+conditions had never both been false at once. The third was the familiar shape: a lookup in the
+reducer to turn an award's survivor id back into a name, with an unreachable guard behind it. A
+`HealthAward` carries the survivor now rather than their id, which is where it came from; the
+lookup and its guard are gone, the same way Z3-7's were.
+
+**A stale sentence on the base screen turned out to be a bug.** It still said staffing a facility
+was "a preview and is never saved" — true in Phase 2, false since Z3-5 made it a real assignment.
+Copy that tells a player the opposite of what the app does is worth treating as a defect rather
+than as tidying: somebody who believed it would assign their staff twice.
+
 ---
 
 ## Z3-9 — Management Phase, steps 1–3: Check for Rot, Feed, Assign Beds

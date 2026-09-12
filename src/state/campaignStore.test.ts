@@ -1452,6 +1452,25 @@ describe('what earns a line in the log', () => {
         rare: HOBBY_FARM_PRODUCTION.rare,
       }),
     },
+    'advancement/woundsHealed': {
+      // Its own campaign, because `rich()` has nobody wounded and nobody
+      // healing — the step would be a no-op there and "records nothing" would
+      // pass for entirely the wrong reason. A resting survivor with a wound
+      // needs no base at all: the point is their own (pg. 21).
+      state: openState({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        turn: 3,
+        survivors: [{ ...createSurvivor('Marcus Webb', 2, { id: LOGGED_SURVIVOR }), currentHp: 1 }],
+        assignments: { [LOGGED_SURVIVOR]: { task: 'rest' } },
+      }),
+      action: { type: 'advancement/woundsHealed', at: AT },
+      entry: entry(3, 'mission', {
+        kind: 'health-restored',
+        ...WEBB,
+        health: 1,
+        source: 'rest',
+      }),
+    },
     'advancement/xpAwarded': {
       // The discretionary point (pg. 18): one XP, anybody, and `rich()` has no
       // mission team so no Teacher has taken it away.
@@ -1801,6 +1820,25 @@ describe('the Advancement Phase steps', () => {
     const next = campaignReducer(openState({ ...once, turn: 4 }), add([{ roll: 4 }]));
 
     expect(expectOpen(next).materials.food).toBe(2);
+  });
+
+  it('heals a turn’s wounds once, and refuses to do it twice', () => {
+    // A Hero at 1 of 4, so one point of rest leaves them wounded. A survivor
+    // the first press filled up would be untouched by the second whether or
+    // not the guard was there, and the test would pass for the wrong reason.
+    const hurt = openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      turn: 3,
+      survivors: [{ ...createSurvivor('Marcus Webb', 4, { id: EARL }), currentHp: 1 }],
+      assignments: { [EARL]: { task: 'rest' } },
+    });
+
+    const once = campaignReducer(hurt, { type: 'advancement/woundsHealed', at: AT });
+    const twice = campaignReducer(once, { type: 'advancement/woundsHealed', at: AT });
+
+    expect(expectOpen(once).survivors[0]?.currentHp).toBe(2);
+    expect(expectOpen(twice).survivors[0]?.currentHp).toBe(2);
+    expect(expectOpen(twice).log).toHaveLength(1);
   });
 
   it('gives a survivor the XP their pool holds', () => {

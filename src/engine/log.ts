@@ -43,7 +43,7 @@ import type { D10Result } from '../data/dice';
 import type { FacilityId, UpgradeId } from '../data/facilities';
 import type { CommonSkill, Skill } from '../data/skills';
 import type { Tier } from '../data/tiers';
-import type { CampaignPhase, XpSource } from '../data/turn';
+import type { CampaignPhase, HealthSource, XpSource } from '../data/turn';
 import { phaseOf } from './turn';
 // Type-only, and the other half of a deliberate pair: `campaign.ts` imports
 // `LogEntry` from here. Both directions are erased at compile time, so there is
@@ -106,6 +106,23 @@ export type CampaignEvent =
    * what the rules offer and what this turn's entries account for, so an entry
    * missing here is XP the app would offer twice.
    */
+  /**
+   * Health went to a survivor, in the Heal Wounds step (pg. 19).
+   *
+   * One entry per survivor rather than one for the step, because who was
+   * healed is the part a player reads their history for — "the Clinic made
+   * four" says nothing about the turn.
+   *
+   * **Load-bearing**: `woundsHealed` reads it back so a walk that goes back
+   * over the step cannot heal a community twice on one Clinic.
+   */
+  | {
+      readonly kind: 'health-restored';
+      readonly survivor: string;
+      readonly name: string;
+      readonly health: number;
+      readonly source: HealthSource;
+    }
   | {
       readonly kind: 'xp-awarded';
       readonly survivor: string;
