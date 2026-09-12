@@ -109,6 +109,17 @@ describe('hunger', () => {
 
     expect(hunger(withLog(community(5, 4), [other]))).toBe(0);
   });
+
+  /**
+   * The realistic shape, and the one a "take the last entry" reading gets
+   * wrong: a turn goes on after the community eats, so the shortfall is rarely
+   * the newest thing in the log.
+   */
+  it('finds the shortfall under everything that happened afterwards', () => {
+    const since: LogEntry = { turn: 4, phase: 'mission', at: AT, event: { kind: 'turn-began' } };
+
+    expect(hunger(withLog(community(5, 4), [fed(3, 10, 6), since]))).toBe(6);
+  });
 });
 
 describe('the hunger penalty', () => {
