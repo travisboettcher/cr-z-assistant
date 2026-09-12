@@ -31,6 +31,13 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'xp-awarded', ...SURVIVOR, amount: 2, source: 'mission-teaching' },
   { kind: 'health-restored', ...SURVIVOR, health: 2, source: 'facility' },
   { kind: 'health-restored', ...SURVIVOR, health: 1, source: 'rest' },
+  { kind: 'survivors-fed', required: 10, hunger: 0 },
+  { kind: 'survivors-fed', required: 10, hunger: 6 },
+  { kind: 'rot-checked', ...SURVIVOR, roll: 7, target: 12, passed: false },
+  // A Clinic can drive the target below zero, which the book leaves unclamped
+  // (ruling 2) — so the validator has to accept a target no count would.
+  { kind: 'rot-checked', ...SURVIVOR, roll: 10, target: -1, passed: true },
+  { kind: 'survivor-bitten', ...SURVIVOR, damage: 1 },
   { kind: 'survivor-added', ...SURVIVOR, tier: 3 },
   { kind: 'survivor-recruited', ...SURVIVOR, tier: 2, roll: 6 },
   { kind: 'survivor-left', ...SURVIVOR, tier: 1 },

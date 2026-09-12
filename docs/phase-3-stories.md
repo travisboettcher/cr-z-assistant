@@ -230,15 +230,36 @@ Five places where the printed text does not decide the answer. Each needs a tabl
 the story that depends on it, and each is recorded here rather than settled quietly in code — a
 house rule that lives in a function is indistinguishable from a rule.
 
-1. **The hunger penalty (pg. 22, Z3-9) — the one that matters.** The book says to subtract Hunger
-   from the community's population and, if the result is negative, reduce every survivor's stats
-   by that number. Two problems. `population − Hunger` is almost never negative: Hunger is capped
-   at the Food required, which is at most twice the population, so the penalty fires only when a
-   mostly Tier 3–4 community has nearly empty stores. A community six Food short of twelve takes
-   no stat penalty at all under a literal reading. And "reduced by that number" where the number
-   is negative is self-contradictory; the intent is presumably its absolute value. The literal
-   reading is at least coherent — a starvation threshold rather than a hunger tax — and Hunger is
-   never consequence-free either way, because Unrest counts it. **Needs a ruling.**
+1. **The hunger penalty (pg. 22, Z3-9) — RULED.** The book says to subtract Hunger from the
+   community's population and, if the result is negative, reduce every survivor's stats by that
+   number. Two problems. `population − Hunger` is almost never negative: Hunger is capped at the
+   Food required, which is at most twice the population, so the penalty fires only when a mostly
+   Tier 3–4 community has nearly empty stores. And "reduced by that number" where the number is
+   negative is self-contradictory; the intent is presumably its absolute value.
+
+   **The ruling is the literal one: a starvation threshold, not a hunger tax.**
+   `penalty = max(0, Hunger − population)`, applied to every survivor's stats and floored at zero.
+   The printed arithmetic computes `population − Hunger` and tests it for negativity, which is the
+   shape of a threshold — a tax would just have said "reduce stats by the Hunger" and never
+   mentioned the population.
+
+   | Community | Food required | Food stored | Hunger | pop − Hunger | Stat penalty |
+   |---|---|---|---|---|---|
+   | 5 Heroes | 10 | 5 | 5 | 0 | none |
+   | 5 Heroes | 10 | 4 | 6 | −1 | −1 to every stat |
+   | 5 Heroes | 10 | 0 | 10 | −5 | −5, everything floored at 0 |
+   | 5 Rookies | 5 | 0 | 5 | 0 | **none, at any shortfall** |
+
+   That last row is an accepted consequence rather than a bug to route around: a community of
+   Tier 1–2 survivors can empty its stores completely and take no stat penalty, because the
+   threshold is arithmetically unreachable for them. They are not spared — Hunger feeds Unrest
+   directly (pg. 23), and Unrest + Siege Threat ≥ 10 sends somebody away.
+
+   Two smaller decisions taken with it, neither of which the book leaves genuinely open. **Stats
+   floor at zero**, because a −5 on a Tier 4's array of [4, 3, 2, 1] would otherwise produce
+   negative Skill Scores, which nothing in the book contemplates. And the penalty applies to
+   **stats**, not to Skill Scores directly — which means it also moves Inventory Slots, since
+   those are Tier plus the Carry *Score* (pg. 14).
 2. **Whether the Rot check target has a floor (pg. 22, Z3-9).** None is stated, so a Clinic with
    enough Medicine drives it to 2 or below. Left unclamped in the data on the grounds that the
    natural-1 rule (pg. 8) already stops it becoming a certainty, and that clamping would be
@@ -754,6 +775,62 @@ turn.
   and the Rot check target, from a single change and with no survivor record touched.
 - A test asserts no survivor's stored stats differ before and after a hungry Management Phase.
 - Hunger and Exhaustion both return to zero the moment the shortfall is fixed, with no residue.
+
+**The penalty cost one parameter and six call sites, which is what the architecture was for.**
+`skillScore` grew a `penalty: number`, `statValue` was extracted beside it, and the typechecker
+named every reader: `inventorySlots`, `facilityProduction`, `missionTeaching`, `substitutionUses`,
+the roster and the character sheet. Nothing is written to a survivor, so nothing has to be written
+back when the community eats again — and the e2e journey asserts exactly that, by exporting the
+file after a shortfall and checking every stat is still the one the Tier handed out.
+
+**The parameter has no default, and that is the whole safety.** A default of zero would let a
+reader that ought to pass the penalty forget to, and be wrong silently — the likeliest way for
+this story to ship a bug. Required, the failure is a compile error instead. `NO_PENALTY` is
+exported for the callers that genuinely have none: `wantsStaff` asks a question about the
+catalogue, and a starving community has the same facilities as a fed one.
+
+**Hunger could not be derived from the campaign alone, and the log is why that is fine.** Eating
+is destructive: afterwards, four Food against ten required and nine against ten look identical. So
+the Feed step writes a `survivors-fed` entry carrying the shortfall and `hunger` reads the most
+recent one — the same move `materialsAdded` and `woundsHealed` make, and not a stored derived
+value. What a community went short by on a given turn is a fact about that turn.
+
+Reading the most *recent* entry rather than this turn's is what makes the penalty last "until the
+next Management Phase": it carries through the Mission, Advancement and Planning Phases that
+follow, and is replaced the next time the community eats. Exhaustion needs none of this — beds and
+population are both readable at any moment, so it is live and returns to zero the instant a Bunk
+Room goes up. That asymmetry is also why Feed has an "already done" guard and Assign Beds has
+none: only one of the two destroys anything.
+
+**Who gets bitten is the table's choice.** A failed check turns the survivor *and* bites somebody
+assigned to healing beside them (pg. 22), and the book does not say which where more than one is.
+The screen lists the candidates and the player picks, defaulting to nobody — the same posture as
+every other place the rules leave a choice open. The turning survivor is excluded from their own
+candidate list.
+
+**What the mutation run found.** `campaignStore.ts` came back with **nine uncovered mutants**,
+having been at 100 the story before — the whole failing-Rot branch had no store test at all. The
+UI tests drove it through the app, which is not the same thing: a reducer that removes survivors
+deserves its own table of what it writes, in order. It has one now, and the fixture keeps a decoy
+survivor in front of the one being checked, because a `find` that ignored its predicate would
+otherwise return the right person anyway.
+
+`feeding.ts` came back at 90.70, and the finding was the same shape as Z3-8's: a hand-rolled loop
+walking the log backwards by index. Two of its mutants hung the runner rather than failing it, and
+two more were optional chains on a subscript that could not miss. Collecting the shortfalls with
+`flatMap` and taking the last says the same thing with no index to get wrong, and the test that
+holds it needs *three* entries — with two, "the last" and "the second" are the same position and a
+reader that took either would agree with itself.
+
+`rot.ts` gave up the same unreachable guard this phase keeps producing: a `bittenDies` boolean
+beside a nullable `bitten`, where the flag could not be true without the survivor and every reader
+had to say so again. `RotOutcome.bitten` is now `{ survivor, dies } | null`, so the invariant is in
+the type and there is nothing left to check twice. Each new test was run against the mutant it was
+written for before being kept.
+
+**A survivor who passes their check is still at 0 Health.** Holding on is not being healed, so the
+form stays and the history records what happened. That is the honest reading and it is asserted,
+because "the form went away" would have been an easy and wrong way to show success.
 
 ---
 

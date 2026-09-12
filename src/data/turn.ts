@@ -319,6 +319,15 @@ export const FOOD_EATEN_PER_TURN = {
 export const ROT_CHECK_TARGET = 12;
 
 /**
+ * Damage a turning survivor does to somebody being healed beside them (pg. 22).
+ *
+ * One, and a separate export from every other 1 in this file because it counts
+ * a different thing — the same reasoning that keeps the two Teaching caps
+ * apart.
+ */
+export const ROT_BITE_DAMAGE = 1;
+
+/**
  * The four terms of Siege Threat, each a raw count with no weighting (pg. 23).
  *
  * Listed rather than left implicit in whatever function adds them up, because

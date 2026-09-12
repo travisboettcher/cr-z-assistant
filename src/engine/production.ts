@@ -28,6 +28,14 @@ import { skillScore } from './survivor';
 export type ProducedOutput = Produced | 'siege-threat';
 
 /**
+ * No hunger penalty, for the callers that genuinely have none to apply.
+ *
+ * Named rather than a bare zero so that "this community is not hungry" and
+ * "this question is not about hunger at all" read differently at the call site.
+ */
+export const NO_PENALTY = 0;
+
+/**
  * One thing a facility makes this turn.
  *
  * `outputs` is a list because the Utility Station makes its Score as Power
@@ -58,8 +66,9 @@ export interface ProductionLine {
 function combinedScore(
   staff: readonly Survivor[],
   skill: Parameters<typeof skillScore>[1],
+  penalty: number,
 ): { readonly score: number; readonly anyHasSkill: boolean } {
-  const scores = staff.map((survivor) => skillScore(survivor, skill));
+  const scores = staff.map((survivor) => skillScore(survivor, skill, penalty));
   const known = scores.filter((score): score is number => score !== null);
 
   return {
@@ -79,10 +88,17 @@ function halve(score: number): number {
  * Pass an empty roster for the unstaffed answer, which is a real one: upgrades
  * that produce do so whether or not the facility is worked (pg. 54), so a
  * Workshop with an Auto Shop still makes its Fuel with nobody in it.
+ *
+ * `penalty` is the community's hunger penalty (pg. 22) and has no default, for
+ * the reason `skillScore` has none: a caller that ought to pass it and forgets
+ * would quietly report a starving base's output as though nobody were hungry.
+ * Staffing this module's own defaults away is what made the typechecker list
+ * every screen that reads production.
  */
 export function facilityProduction(
   occupant: Occupant,
-  staff: readonly Survivor[] = [],
+  staff: readonly Survivor[],
+  penalty: number,
 ): readonly ProductionLine[] {
   const lines: ProductionLine[] = [];
   const supplied = (utility: Utility) => occupant[utility];
@@ -106,7 +122,7 @@ export function facilityProduction(
         continue;
       }
 
-      const { score, anyHasSkill } = combinedScore(staff, production.skill);
+      const { score, anyHasSkill } = combinedScore(staff, production.skill, penalty);
       const missingSkill = staff.length > 0 && !anyHasSkill;
 
       if (production.kind === 'staffed-split') {
@@ -161,7 +177,9 @@ export function facilityProduction(
       // The staff's *best* of the four, not their total: one lookout watching
       // with whatever they are best at (pg. 73). Scored once and read twice,
       // rather than recomputed for the amount and again for the skill check.
-      const scores = siege.reducedByBestOf.map((candidate) => combinedScore(staff, candidate));
+      const scores = siege.reducedByBestOf.map((candidate) =>
+        combinedScore(staff, candidate, penalty),
+      );
 
       lines.push({
         outputs: ['siege-threat'],
@@ -177,7 +195,13 @@ export function facilityProduction(
   return lines;
 }
 
-/** Whether anything in this slot would produce more with someone in it. */
+/**
+ * Whether anything in this slot would produce more with someone in it.
+ *
+ * Asked with no staff and no penalty, and neither is a shortcut: whether a
+ * facility *wants* somebody is a fact about the catalogue, and a starving
+ * community still has the same facilities.
+ */
 export function wantsStaff(occupant: Occupant): boolean {
-  return facilityProduction(occupant, []).some((line) => line.staffed);
+  return facilityProduction(occupant, [], NO_PENALTY).some((line) => line.staffed);
 }

@@ -50,6 +50,7 @@ import { occupants } from './base';
 import type { Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
 import { facilityProduction } from './production';
+import { hungerPenalty } from './feeding';
 import { skillScore } from './survivor';
 
 export type XpViolationCode = 'nothing-left-in-the-pool' | 'at-the-cap' | 'not-eligible';
@@ -88,8 +89,10 @@ export interface XpPool {
 
 /** The mission team's combined Teaching Score, which is a Teacher's pool (pg. 12). */
 export function missionTeaching(campaign: Campaign): number {
+  const penalty = hungerPenalty(campaign);
+
   return missionTeam(campaign).reduce(
-    (total, survivor) => total + (skillScore(survivor, 'teaching') ?? 0),
+    (total, survivor) => total + (skillScore(survivor, 'teaching', penalty) ?? 0),
     0,
   );
 }
@@ -105,10 +108,11 @@ export function trainingRoomXp(campaign: Campaign): number {
   const base = campaign.base;
   if (base === null) return 0;
 
+  const penalty = hungerPenalty(campaign);
   let total = 0;
 
   for (const occupant of occupants(base)) {
-    for (const line of facilityProduction(occupant, staffOf(campaign, occupant.slotId))) {
+    for (const line of facilityProduction(occupant, staffOf(campaign, occupant.slotId), penalty)) {
       if (line.restrictedToStat !== undefined) continue;
       if (line.outputs.includes('xp')) total += line.amount;
     }

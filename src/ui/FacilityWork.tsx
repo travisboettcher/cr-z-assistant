@@ -16,6 +16,7 @@
 import type { Occupant } from '../engine/base';
 import type { Campaign } from '../engine/campaign';
 import { staffOf } from '../engine/assignments';
+import { hungerPenalty } from '../engine/feeding';
 import { facilityProduction, wantsStaff, type ProducedOutput } from '../engine/production';
 import { AssignTask } from './AssignTask';
 import { STAT_LABELS } from './skillLabels';
@@ -37,7 +38,10 @@ const OUTPUT_LABELS: Record<ProducedOutput, string> = {
 
 export function FacilityWork({ campaign, occupant }: FacilityWorkProps) {
   const staff = staffOf(campaign, occupant.slotId);
-  const lines = facilityProduction(occupant, staff);
+  // What a facility makes moves with its staff's Skill Scores, and a starving
+  // community's Scores are lower (pg. 22) — so the number on this card drops
+  // the turn the stores run out, without anything being written down.
+  const lines = facilityProduction(occupant, staff, hungerPenalty(campaign));
 
   return (
     <div className="mt-3 border-t border-stone-200 pt-3 dark:border-stone-800">

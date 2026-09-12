@@ -46,6 +46,9 @@ import {
 } from '../engine/materials';
 import { checkXpAward, withXpAwarded } from '../engine/experience';
 import { healthAwards, withWoundsHealed, woundsHealed } from '../engine/healing';
+import { foodRequired, hungerIfFedNow, survivorsFed, withSurvivorsFed } from '../engine/feeding';
+import { rotOutcome, rotTarget, withRotApplied } from '../engine/rot';
+import { ROT_BITE_DAMAGE } from '../data/turn';
 import { XP_AWARD, type XpSource } from '../data/turn';
 import type { Assignment, Campaign, Stats, Survivor } from '../engine/campaign';
 import { createSurvivor, recruitSurvivor } from '../engine/survivor';
@@ -296,6 +299,36 @@ export type CampaignAction =
   | {
       readonly type: 'advancement/materialsAdded';
       readonly rolls: readonly MaterialRoll[];
+      readonly at: string;
+    }
+  /**
+   * Feed the community, in the Management Phase's second step (pg. 22).
+   *
+   * Carries nothing but the clock. What is eaten and what the shortfall comes
+   * to are `feeding.ts`'s to work out, and the entry it leaves behind is the
+   * only record of the Hunger — eating is destructive, so afterwards nothing
+   * can recompute it.
+   *
+   * Refused when this turn already has an entry.
+   */
+  | { readonly type: 'management/survivorsFed'; readonly at: string }
+  /**
+   * Resolve one survivor's Rot check (pg. 22).
+   *
+   * The roll comes from the table, like a field recruit's. `bitten` is the
+   * survivor the player picked to take the bite, or null where nobody else is
+   * being healed — the book does not say who is bitten when more than one is,
+   * so the choice is the table's.
+   *
+   * Not guarded against repeats: a survivor who turns is removed, so the
+   * second press has nobody to check. Passing twice is a second entry in the
+   * history and nothing else, which is a correction rather than a consequence.
+   */
+  | {
+      readonly type: 'management/rotChecked';
+      readonly survivor: string;
+      readonly roll: D10Result;
+      readonly bitten: string | null;
       readonly at: string;
     }
   /**
@@ -621,6 +654,64 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         return logged(withMaterialsAdded(campaign, adding), action.at, {
           kind: 'materials-added',
           ...adding,
+        });
+      });
+
+    case 'management/survivorsFed':
+      return withCampaign(state, (campaign) => {
+        if (survivorsFed(campaign)) return campaign;
+
+        return logged(withSurvivorsFed(campaign), action.at, {
+          kind: 'survivors-fed',
+          required: foodRequired(campaign),
+          hunger: hungerIfFedNow(campaign),
+        });
+      });
+
+    case 'management/rotChecked':
+      return withCampaign(state, (campaign) => {
+        const survivor = campaign.survivors.find((candidate) => candidate.id === action.survivor);
+        if (survivor === undefined) return campaign;
+
+        const outcome = rotOutcome(campaign, action.survivor, action.roll, action.bitten);
+
+        // The check itself is recorded whether it passed or failed: a step that
+        // only wrote down the deaths would read as though nobody else had been
+        // in danger.
+        const checked = logged(withRotApplied(campaign, outcome), action.at, {
+          kind: 'rot-checked',
+          survivor: survivor.id,
+          name: survivor.name,
+          roll: action.roll,
+          target: rotTarget(campaign),
+          passed: outcome.turned === null,
+        });
+
+        if (outcome.turned === null) return checked;
+
+        const turned = logged(checked, action.at, {
+          kind: 'survivor-left',
+          survivor: outcome.turned.id,
+          name: outcome.turned.name,
+          tier: outcome.turned.tier,
+        });
+
+        if (outcome.bitten === null) return turned;
+
+        const bitten = logged(turned, action.at, {
+          kind: 'survivor-bitten',
+          survivor: outcome.bitten.survivor.id,
+          name: outcome.bitten.survivor.name,
+          damage: ROT_BITE_DAMAGE,
+        });
+
+        if (!outcome.bitten.dies) return bitten;
+
+        return logged(bitten, action.at, {
+          kind: 'survivor-left',
+          survivor: outcome.bitten.survivor.id,
+          name: outcome.bitten.survivor.name,
+          tier: outcome.bitten.survivor.tier,
         });
       });
 

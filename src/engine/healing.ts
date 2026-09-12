@@ -37,6 +37,7 @@ import { occupants } from './base';
 import type { Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
 import { facilityProduction } from './production';
+import { hungerPenalty } from './feeding';
 import { maxHp } from './survivor';
 
 export type HealingViolationCode = 'health-going-spare' | 'nothing-to-share';
@@ -85,10 +86,11 @@ export function healingPool(campaign: Campaign): number {
   const base = campaign.base;
   if (base === null) return 0;
 
+  const penalty = hungerPenalty(campaign);
   let total = 0;
 
   for (const occupant of occupants(base)) {
-    for (const line of facilityProduction(occupant, staffOf(campaign, occupant.slotId))) {
+    for (const line of facilityProduction(occupant, staffOf(campaign, occupant.slotId), penalty)) {
       if (line.outputs.includes('health')) total += line.amount;
     }
   }

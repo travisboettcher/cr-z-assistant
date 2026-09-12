@@ -34,10 +34,19 @@ import { TIER_LABELS } from './tierLabels';
 
 export interface SurvivorSheetProps {
   readonly survivor: Survivor;
+  /**
+   * The community's hunger penalty (pg. 22).
+   *
+   * A prop rather than something read from context, because it is the reason
+   * the numbers on this sheet can differ from the numbers stored against the
+   * survivor — and a sheet that fetched it quietly would hide exactly the
+   * thing worth being obvious.
+   */
+  readonly penalty: number;
   readonly onClose: () => void;
 }
 
-export function SurvivorSheet({ survivor, onClose }: SurvivorSheetProps) {
+export function SurvivorSheet({ survivor, penalty, onClose }: SurvivorSheetProps) {
   const headingId = useId();
 
   return (
@@ -66,7 +75,7 @@ export function SurvivorSheet({ survivor, onClose }: SurvivorSheetProps) {
 
       <Violations survivor={survivor} />
 
-      <Vitals survivor={survivor} />
+      <Vitals survivor={survivor} penalty={penalty} />
 
       <Stats survivor={survivor} />
 
@@ -79,7 +88,7 @@ export function SurvivorSheet({ survivor, onClose }: SurvivorSheetProps) {
        */}
       <CommonSkills survivor={survivor} />
 
-      <Skills survivor={survivor} />
+      <Skills survivor={survivor} penalty={penalty} />
     </section>
   );
 }
@@ -113,7 +122,7 @@ function Violations({ survivor }: { readonly survivor: Survivor }) {
 }
 
 /** HP, Inventory Slots and XP — the three numbers checked most often mid-turn. */
-function Vitals({ survivor }: { readonly survivor: Survivor }) {
+function Vitals({ survivor, penalty }: { readonly survivor: Survivor; readonly penalty: number }) {
   const { dispatch } = useCampaign();
 
   return (
@@ -138,7 +147,9 @@ function Vitals({ survivor }: { readonly survivor: Survivor }) {
         </p>
         {/* Tier plus the Carry Score, so this moves when Strength does. What
             goes in the slots is Phase 5. */}
-        <p className="mt-1 text-2xl font-semibold tabular-nums">{inventorySlots(survivor)}</p>
+        <p className="mt-1 text-2xl font-semibold tabular-nums">
+          {inventorySlots(survivor, penalty)}
+        </p>
       </div>
 
       {/*
@@ -496,7 +507,7 @@ function CommonSkills({ survivor }: { readonly survivor: Survivor }) {
   );
 }
 
-function Skills({ survivor }: { readonly survivor: Survivor }) {
+function Skills({ survivor, penalty }: { readonly survivor: Survivor; readonly penalty: number }) {
   const { dispatch } = useCampaign();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const confirmId = useId();
@@ -545,6 +556,7 @@ function Skills({ survivor }: { readonly survivor: Survivor }) {
           <SkillGroup
             key={stat}
             stat={stat}
+            penalty={penalty}
             survivor={survivor}
             onTake={take}
             onBuy={(skill) => {
@@ -606,12 +618,13 @@ function Skills({ survivor }: { readonly survivor: Survivor }) {
 interface SkillGroupProps {
   readonly stat: Stat;
   readonly survivor: Survivor;
+  readonly penalty: number;
   readonly onTake: (skill: Skill) => void;
   readonly onBuy: (skill: Skill) => void;
   readonly onDrop: (skill: Skill) => void;
 }
 
-function SkillGroup({ stat, survivor, onTake, onBuy, onDrop }: SkillGroupProps) {
+function SkillGroup({ stat, survivor, penalty, onTake, onBuy, onDrop }: SkillGroupProps) {
   const governed = SKILLS.filter((skill) => SKILL_STATS[skill] === stat);
 
   return (
@@ -642,7 +655,7 @@ function SkillGroup({ stat, survivor, onTake, onBuy, onDrop }: SkillGroupProps) 
         <tbody>
           {governed.map((skill) => {
             const level = survivor.skills[skill];
-            const score = skillScore(survivor, skill);
+            const score = skillScore(survivor, skill, penalty);
 
             return (
               <tr key={skill} className="border-t border-stone-100 dark:border-stone-800">

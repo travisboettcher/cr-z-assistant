@@ -22,6 +22,7 @@ import { ImportCampaign } from './ImportCampaign';
 import { SectionNav } from './SectionNav';
 import { SurvivorRoster } from './SurvivorRoster';
 import { SurvivorSheet } from './SurvivorSheet';
+import { hungerPenalty } from '../engine/feeding';
 
 export function App() {
   const { state } = useCampaign();
@@ -88,6 +89,7 @@ export function App() {
             {openSurvivor !== undefined && (
               <SurvivorSheet
                 survivor={openSurvivor}
+                penalty={hungerPenalty(state.campaign)}
                 onClose={() => {
                   setOpenSheetId(null);
                 }}

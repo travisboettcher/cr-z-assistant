@@ -256,6 +256,25 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       rare: anyAmount,
     }),
     fc.record({
+      kind: fc.constant('survivors-fed' as const),
+      required: anyCount,
+      hunger: anyCount,
+    }),
+    fc.record({
+      kind: fc.constant('rot-checked' as const),
+      survivor: anyId,
+      name: anyName,
+      roll: fc.constantFrom(...D10_RESULTS),
+      target: anyAmount,
+      passed: fc.boolean(),
+    }),
+    fc.record({
+      kind: fc.constant('survivor-bitten' as const),
+      survivor: anyId,
+      name: anyName,
+      damage: fc.integer({ min: 1, max: 9 }),
+    }),
+    fc.record({
       kind: fc.constant('health-restored' as const),
       survivor: anyId,
       name: anyName,

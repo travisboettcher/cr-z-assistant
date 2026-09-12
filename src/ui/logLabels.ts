@@ -105,6 +105,26 @@ export function describeEvent(event: CampaignEvent): EventLabel {
       };
     }
 
+    case 'survivors-fed':
+      return {
+        text:
+          event.hunger === 0
+            ? `The community ate its ${String(event.required)} Food.`
+            : `The community ate, ${String(event.hunger)} Food short of the ${String(event.required)} it needed.`,
+        pages: 22,
+      };
+
+    case 'rot-checked':
+      return {
+        text: event.passed
+          ? `${event.name} held on, rolling a ${String(event.roll)} against ${String(event.target)}.`
+          : `${event.name} turned, rolling a ${String(event.roll)} against ${String(event.target)}.`,
+        pages: 22,
+      };
+
+    case 'survivor-bitten':
+      return { text: `${event.name} was bitten for ${String(event.damage)} Damage.`, pages: 22 };
+
     case 'health-restored':
       return {
         text: `${event.name} recovered ${event.health} Health ${HEALTH_SOURCE_PHRASES[event.source]}.`,

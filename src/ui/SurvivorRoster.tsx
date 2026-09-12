@@ -19,6 +19,7 @@ import { TIERS, type Tier } from '../data/tiers';
 import type { Campaign, Survivor } from '../engine/campaign';
 import { communityViolations } from '../engine/legality';
 import { communityTierLevels, inventorySlots, maxHp } from '../engine/survivor';
+import { hungerPenalty } from '../engine/feeding';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
@@ -148,6 +149,7 @@ export function SurvivorRoster({ campaign, onOpenSheet }: SurvivorRosterProps) {
             <RosterRow
               key={survivor.id}
               survivor={survivor}
+              penalty={hungerPenalty(campaign)}
               onRename={(newName) => {
                 dispatch({ type: 'survivor/renamed', id: survivor.id, name: newName });
               }}
@@ -388,6 +390,8 @@ function CommunityBudget({ campaign }: { readonly campaign: Campaign }) {
 }
 
 interface RosterRowProps {
+  /** The community's hunger penalty (pg. 22), which moves the Carry Score. */
+  readonly penalty: number;
   readonly survivor: Survivor;
   readonly onRename: (name: string) => void;
   readonly onRemove: () => void;
@@ -399,7 +403,7 @@ interface RosterRowProps {
  * tablet an always-editable field beside a table is one stray thumb away from
  * quietly renaming somebody.
  */
-function RosterRow({ survivor, onRename, onRemove, onOpenSheet }: RosterRowProps) {
+function RosterRow({ survivor, penalty, onRename, onRemove, onOpenSheet }: RosterRowProps) {
   const fieldId = useId();
   const [draft, setDraft] = useState<string | null>(null);
 
@@ -457,7 +461,7 @@ function RosterRow({ survivor, onRename, onRemove, onOpenSheet }: RosterRowProps
         </div>
         <div>
           <dt className="text-stone-500 dark:text-stone-400">Slots</dt>
-          <dd className="font-semibold tabular-nums">{inventorySlots(survivor)}</dd>
+          <dd className="font-semibold tabular-nums">{inventorySlots(survivor, penalty)}</dd>
         </div>
       </dl>
 

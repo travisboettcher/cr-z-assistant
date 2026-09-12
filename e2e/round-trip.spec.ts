@@ -1164,3 +1164,101 @@ test('a Clinic’s Health is shared out unequally, because equally means this', 
     page.getByRole('region', { name: 'Turn 2' }).getByText(/wounds are healed/i),
   ).toBeVisible();
 });
+
+/**
+ * Z3-9's headline acceptance, executed: one Food short changes numbers on three
+ * different screens, and not one survivor record moves.
+ *
+ * This is the change the whole architecture was built to absorb. A unit test
+ * can prove `skillScore` takes a parameter; only a journey can prove that the
+ * roster, the sheet and the base all read the same number and that the file
+ * written afterwards still holds the stats the player typed in.
+ */
+test('a hungry community rolls worse everywhere, and nothing is written down', async ({ page }) => {
+  await startCampaign(page, 'Cedar Hollow');
+
+  await page.getByLabel(/choose a base/i).selectOption({ label: 'Small Town Home — Tier 1' });
+  await page.getByRole('button', { name: /claim this base/i }).click();
+
+  // Three Heroes eat six a turn (pg. 22). With empty stores that is a shortfall
+  // of six against a head count of three: a penalty of three (ruling 1).
+  for (const name of ['Nell Haig', 'Tomas Ford', 'Ada Poole']) {
+    await page.getByLabel(/survivor name/i).fill(name);
+    await page.getByLabel(/^tier$/i).selectOption('4');
+    await page.getByRole('button', { name: /add survivor/i }).click();
+  }
+
+  const roster = page.getByRole('region', { name: /community/i });
+  await roster
+    .getByRole('listitem')
+    .filter({ hasText: 'Nell Haig' })
+    .getByRole('button', { name: /^sheet$/i })
+    .click();
+  const nell = page.getByRole('region', { name: 'Nell Haig' });
+  await nell
+    .getByRole('row', { name: /^Medicine\b/ })
+    .getByRole('button', { name: /^take\b/i })
+    .click();
+
+  // A Tier 4's Cooperation is 1, so Medicine freshly taken is a Score of 1.
+  await expect(nell.getByRole('row', { name: /^Medicine\b/ })).toContainText('1');
+  await nell.getByRole('button', { name: /^close sheet$/i }).click();
+
+  // Walk to the Feed step with nothing in the stores.
+  await skipToPhase(page, 'Management');
+  await page.getByRole('button', { name: 'Next: Feed your Survivors' }).click();
+
+  const walk = page.getByRole('region', { name: 'Turn 1' });
+  await expect(walk).toContainText('6 Hunger');
+  await expect(walk).toContainText('stats drop by 3');
+
+  await walk.getByRole('button', { name: /feed the community/i }).click();
+  await expect(walk).toContainText('Food is eaten');
+
+  /*
+   * Three off every stat. Nell's Cooperation was 1, so her Medicine Score is
+   * floored at 0 — and the roster's Inventory Slots move too, because Carry is
+   * a Score as well (pg. 14).
+   */
+  await roster
+    .getByRole('listitem')
+    .filter({ hasText: 'Nell Haig' })
+    .getByRole('button', { name: /^sheet$/i })
+    .click();
+  await expect(
+    page.getByRole('region', { name: 'Nell Haig' }).getByRole('row', { name: /^Medicine\b/ }),
+  ).toContainText('0');
+  await page
+    .getByRole('region', { name: 'Nell Haig' })
+    .getByRole('button', { name: /^close sheet$/i })
+    .click();
+
+  const exported = await exportCampaign(page);
+
+  // The acceptance itself: every stat in the file is what the Tier handed out,
+  // unreduced. The penalty reached three screens and no survivor record.
+  expect(
+    (JSON.parse(exported.text).survivors as { name: string; stats: Record<string, number> }[]).map(
+      (survivor) => [survivor.name, survivor.stats.cooperation],
+    ),
+  ).toEqual([
+    ['Nell Haig', 1],
+    ['Tomas Ford', 1],
+    ['Ada Poole', 1],
+  ]);
+
+  await waitForAutosave(page, 'Cedar Hollow');
+  await page.reload();
+
+  // And the penalty survives the reload, because it is derived from the log
+  // rather than held in a component.
+  await page
+    .getByRole('region', { name: /community/i })
+    .getByRole('listitem')
+    .filter({ hasText: 'Nell Haig' })
+    .getByRole('button', { name: /^sheet$/i })
+    .click();
+  await expect(
+    page.getByRole('region', { name: 'Nell Haig' }).getByRole('row', { name: /^Medicine\b/ }),
+  ).toContainText('0');
+});

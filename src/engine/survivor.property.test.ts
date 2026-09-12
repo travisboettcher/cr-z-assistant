@@ -1,5 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
+import { NO_PENALTY } from './production';
 import { SKILLS } from '../data/skills';
 import { survivorArbitrary } from '../test/arbitraries';
 import { inventorySlots, labor, maxHp, skillScore } from './survivor';
@@ -31,7 +32,7 @@ describe('derived survivor values', () => {
         for (const skill of SKILLS) {
           const held = skill in survivor.skills;
 
-          expect(skillScore(survivor, skill) === null).toBe(!held);
+          expect(skillScore(survivor, skill, NO_PENALTY) === null).toBe(!held);
         }
       }),
       RUNS,
@@ -42,7 +43,7 @@ describe('derived survivor values', () => {
     fc.assert(
       fc.property(survivorArbitrary(), (survivor) => {
         for (const skill of SKILLS) {
-          const score = skillScore(survivor, skill);
+          const score = skillScore(survivor, skill, NO_PENALTY);
           const level = survivor.skills[skill];
 
           if (score === null || level === undefined) continue;
@@ -64,7 +65,7 @@ describe('derived survivor values', () => {
   it('never make Inventory Slots, health or labor negative', () => {
     fc.assert(
       fc.property(survivorArbitrary(), (survivor) => {
-        expect(inventorySlots(survivor)).toBeGreaterThanOrEqual(0);
+        expect(inventorySlots(survivor, NO_PENALTY)).toBeGreaterThanOrEqual(0);
         expect(maxHp(survivor)).toBeGreaterThan(0);
         expect(labor(survivor)).toBeGreaterThan(0);
       }),
@@ -86,7 +87,9 @@ describe('derived survivor values', () => {
 
         if (!('carry' in survivor.skills)) return;
 
-        expect(inventorySlots(survivor)).toBeGreaterThanOrEqual(inventorySlots(withoutCarry));
+        expect(inventorySlots(survivor, NO_PENALTY)).toBeGreaterThanOrEqual(
+          inventorySlots(withoutCarry, NO_PENALTY),
+        );
       }),
       RUNS,
     );

@@ -10,7 +10,13 @@
  * React, enforced by `no-restricted-imports` in `eslint.config.js`.
  */
 
-import { COMMON_SKILL_START_SCORE, MIN_SKILL_LEVEL, SKILL_STATS, type Skill } from '../data/skills';
+import {
+  COMMON_SKILL_START_SCORE,
+  MIN_SKILL_LEVEL,
+  SKILL_STATS,
+  type Skill,
+  type Stat,
+} from '../data/skills';
 import type { D10Result } from '../data/dice';
 import {
   PLAYERS_CHOICE,
@@ -38,12 +44,33 @@ import type { Stats, Survivor } from './campaign';
  * cannot make the check. Returning null forces every screen to render the
  * difference instead of quietly showing a score nobody has.
  */
-export function skillScore(survivor: Survivor, skill: Skill): number | null {
+export function skillScore(survivor: Survivor, skill: Skill, penalty: number): number | null {
   const level = survivor.skills[skill];
 
   if (level === undefined) return null;
 
-  return survivor.stats[SKILL_STATS[skill]] + level;
+  return statValue(survivor, SKILL_STATS[skill], penalty) + level;
+}
+
+/**
+ * One of a survivor's four stats, after the hunger penalty (pg. 22).
+ *
+ * **The penalty is a parameter, not a field.** A starving community's stats are
+ * lower for the rest of the turn, and the whole architecture was built so that
+ * costs one function: nothing is written to any survivor, so nothing has to be
+ * written back when the community eats again. `feeding.ts` works out the
+ * number; everything that reads a stat takes it.
+ *
+ * It has no default. A default of zero would let a caller that ought to pass
+ * the penalty forget to, and be wrong silently — the failure this story is most
+ * likely to ship. Required, the typechecker names every call site instead.
+ *
+ * Floored at zero: a penalty of five against a Tier 4's array of [4, 3, 2, 1]
+ * would otherwise produce negative Skill Scores, which nothing in the book
+ * contemplates. See ruling 1 in `docs/phase-3-stories.md`.
+ */
+export function statValue(survivor: Survivor, stat: Stat, penalty: number): number {
+  return Math.max(0, survivor.stats[stat] - penalty);
 }
 
 /** Health points (pg. 7). */
@@ -65,8 +92,10 @@ export function labor(survivor: Survivor): number {
  * The rulebook's own example is exactly this case: a Tier 4 with Strength 3 and
  * Carry freshly taken at level 0 carries seven items, not four.
  */
-export function inventorySlots(survivor: Survivor): number {
-  const carry = skillScore(survivor, 'carry');
+export function inventorySlots(survivor: Survivor, penalty: number): number {
+  // Takes the penalty because the Carry *Score* is a stat plus a level, so a
+  // starving community carries less as well as rolling worse (pg. 14, 22).
+  const carry = skillScore(survivor, 'carry', penalty);
 
   return TIER_RULES[survivor.tier].baseInventorySlots + (carry ?? 0);
 }

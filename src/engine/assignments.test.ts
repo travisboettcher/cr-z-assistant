@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { NO_PENALTY } from './production';
 import {
   createNewCampaign,
   type Assignment,
@@ -238,9 +239,11 @@ describe('utilitiesScore', () => {
     // The Kitchen genuinely makes something with them in it, and none of it is
     // a utility.
     expect(
-      facilityProduction(occupants(farm()).find((one) => one.slotId === 'kitchen') as never, [
-        cook,
-      ]),
+      facilityProduction(
+        occupants(farm()).find((one) => one.slotId === 'kitchen') as never,
+        [cook],
+        NO_PENALTY,
+      ),
     ).not.toEqual([]);
     expect(utilitiesScore(campaign)).toBe(0);
   });
