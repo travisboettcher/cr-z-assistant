@@ -1262,3 +1262,112 @@ test('a hungry community rolls worse everywhere, and nothing is written down', a
     page.getByRole('region', { name: 'Nell Haig' }).getByRole('row', { name: /^Medicine\b/ }),
   ).toContainText('0');
 });
+
+/**
+ * Z3-10's acceptance, executed: the whole Management Phase in one walk, ending
+ * with the horde called and somebody walking out — and both surviving a save.
+ *
+ * The cascade is the thing most worth an end-to-end test in the repo. Every
+ * link is a different module and every number is derived, so the only way to
+ * know they agree is to walk a real turn and watch one shortfall become a
+ * missing survivor.
+ */
+test('a turn ends with the horde called and somebody walking out', async ({ page }) => {
+  await startCampaign(page, 'Cedar Hollow');
+
+  // No base: nowhere to sleep, so every survivor is a point of Exhaustion.
+  for (let at = 0; at < 8; at += 1) {
+    await page.getByLabel(/survivor name/i).fill(`Survivor ${String(at)}`);
+    await page.getByLabel(/^tier$/i).selectOption('1');
+    await page.getByRole('button', { name: /add survivor/i }).click();
+  }
+
+  // All eight on the project team, which is eight of the Siege Threat.
+  await skipToPhase(page, 'Planning');
+  await page.getByRole('button', { name: 'Next: Assign Project Team' }).click();
+  const team = page.getByRole('group', { name: /on the project team/i });
+  for (const box of await team.getByRole('checkbox').all()) {
+    await box.check();
+  }
+
+  await page.getByRole('button', { name: 'Next: Assign Rest and Healing' }).click();
+  await page.getByRole('button', { name: 'Next: Assign Mission Team' }).click();
+  await page.getByRole('button', { name: 'Next: Check for Rot' }).click();
+
+  const walk = page.getByRole('region', { name: 'Turn 1' });
+
+  await expect(walk).toContainText('Nobody is at 0 Health');
+  await page.getByRole('button', { name: 'Next: Feed your Survivors' }).click();
+
+  // Eight Rookies eat eight and there is nothing, so eight Hunger — and the
+  // head count absorbs all of it, so no stat penalty (ruling 1).
+  await expect(walk).toContainText('8 Hunger');
+  await expect(walk).toContainText('large enough to absorb it');
+  await walk.getByRole('button', { name: /feed the community/i }).click();
+
+  await page.getByRole('button', { name: 'Next: Assign Beds' }).click();
+  await expect(walk).toContainText('8 Exhaustion');
+
+  await page.getByRole('button', { name: 'Next: Calculate Unrest' }).click();
+  await expect(walk).toContainText('8 Hunger + 8 Exhaustion = 16 Unrest');
+
+  await page.getByRole('button', { name: 'Next: Check Storage' }).click();
+  await expect(walk).toContainText('Nothing is over the cap');
+
+  // Eight on the project team, and turn 1 so no quiet turns yet.
+  await page.getByRole('button', { name: 'Next: Check the Horde' }).click();
+  await expect(walk).toContainText('+8 on the project team');
+  await expect(walk).toContainText('Siege Threat 8');
+
+  await walk.getByLabel(/^rolled$/i).selectOption('8');
+  await expect(walk).toContainText('The horde comes');
+  await walk.getByRole('button', { name: /check the horde/i }).click();
+  await expect(walk).toContainText('Next turn’s mission is a Siege Defense');
+
+  // Sixteen Unrest and eight Siege Threat is well over ten.
+  await page.getByRole('button', { name: 'Next: Departures' }).click();
+  await expect(walk).toContainText('Unrest plus Siege Threat is 24');
+
+  await walk
+    .getByRole('button', { name: /send away/i })
+    .first()
+    .click();
+
+  await expect(page.getByRole('region', { name: /community/i }).getByRole('listitem')).toHaveCount(
+    7,
+  );
+
+  /*
+   * The ordering trap, on screen: the departure took a survivor off the project
+   * team, so the Siege Threat that was rolled against a moment ago is not the
+   * one the *next* departure is measured by. Fifteen Unrest and seven threat.
+   */
+  await expect(walk).toContainText('Unrest plus Siege Threat is 22');
+
+  const exported = await exportCampaign(page);
+  expect(JSON.parse(exported.text)).toMatchObject({ turn: 1, lastSiegeTurn: 2 });
+
+  // End the turn, and the Mission Phase says what the horde decided.
+  await page.getByRole('button', { name: 'End turn 1' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'End turn 1' }).click();
+
+  await expect(page.getByRole('region', { name: 'Turn 2' })).toContainText(
+    'This turn’s mission is a Siege Defense',
+  );
+
+  await waitForAutosave(page, 'Cedar Hollow');
+  await page.reload();
+
+  // The flag is a stored turn number, so it survives the reload and still gates
+  // the Mission Phase.
+  await expect(page.getByRole('region', { name: 'Turn 2' })).toContainText(
+    'This turn’s mission is a Siege Defense',
+  );
+
+  await startFreshCampaign(page, 'Millbrook');
+  await page.setInputFiles('input[type="file"]', exported.path);
+  await page.getByRole('button', { name: /replace it/i }).click();
+
+  const reExported = await exportCampaign(page);
+  expect(reExported.text).toBe(exported.text);
+});

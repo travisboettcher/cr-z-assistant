@@ -208,6 +208,189 @@ describe('Check for Rot', () => {
   });
 });
 
+describe('Calculate Unrest', () => {
+  it('adds the two terms up and shows the working', () => {
+    // Six Rookies in a base that sleeps four: two Exhaustion, no Hunger.
+    open(
+      management({
+        step: 'calculate-unrest',
+        survivors: Array.from({ length: 6 }, (_, at) =>
+          createSurvivor(`Survivor ${String(at)}`, 1, { id: `survivor-${String(at)}` }),
+        ),
+      }),
+    );
+
+    expect(walk().textContent).toContain('0 Hunger + 2 Exhaustion = 2 Unrest');
+  });
+
+  /** pg. 23: Exhaustion above the mission team's size takes one survivor off it. */
+  it('offers to take somebody off an overworked mission team', async () => {
+    const user = open(
+      management({
+        step: 'calculate-unrest',
+        survivors: Array.from({ length: 6 }, (_, at) =>
+          createSurvivor(`Survivor ${String(at)}`, 1, { id: `survivor-${String(at)}` }),
+        ),
+        assignments: { 'survivor-0': { task: 'mission', team: 1 } },
+      }),
+    );
+
+    expect(walk().textContent).toContain('Exhaustion is above the mission team’s 1');
+
+    await user.click(within(walk()).getByRole('button', { name: /take off/i }));
+
+    // Off the team, and the warning goes with them: an empty team is not an
+    // overworked one.
+    expect(walk().textContent).not.toContain('Exhaustion is above');
+  });
+
+  it('says nothing about a mission team big enough for the Exhaustion', () => {
+    open(
+      management({
+        step: 'calculate-unrest',
+        assignments: { [EARL]: { task: 'mission', team: 1 } },
+      }),
+    );
+
+    expect(walk().textContent).not.toContain('Exhaustion is above');
+  });
+});
+
+describe('Check Storage', () => {
+  const onTheStep = (overrides: Partial<Campaign> = {}) =>
+    management({ step: 'check-storage', base: { id: 'greasy-spoon', slots: {} }, ...overrides });
+
+  it('says so when nothing is over the cap', () => {
+    open(onTheStep());
+
+    expect(walk().textContent).toContain('Nothing is over the cap');
+  });
+
+  it('names what is about to be lost, and loses it once', async () => {
+    const user = open(onTheStep({ materials: { food: 9, fuel: 0, hardware: 0, rare: 0 } }));
+
+    expect(walk().textContent).toContain('−3 Food');
+
+    await user.click(within(walk()).getByRole('button', { name: /lose the surplus/i }));
+
+    expect(screen.getByLabelText(/^food$/i)).toHaveValue(6);
+    expect(walk().textContent).toContain('Storage is checked for this turn');
+    expect(within(walk()).queryByRole('button', { name: /lose the surplus/i })).toBeNull();
+  });
+
+  it('leaves Rare alone, however much of it there is', () => {
+    open(onTheStep({ materials: { food: 0, fuel: 0, hardware: 0, rare: 99 } }));
+
+    expect(walk().textContent).toContain('Nothing is over the cap');
+  });
+});
+
+describe('Check the Horde', () => {
+  const onTheStep = (overrides: Partial<Campaign> = {}) =>
+    management({ step: 'check-the-horde', ...overrides });
+
+  it('breaks the Siege Threat into the four terms it is made of', () => {
+    open(onTheStep({ assignments: { [EARL]: { task: 'project' } } }));
+
+    expect(walk().textContent).toContain('+1 on the project team');
+    expect(walk().textContent).toContain('+2 turns since the last siege');
+    expect(walk().textContent).toContain('Siege Threat 3');
+  });
+
+  it('says what the entered roll would mean, before it means it', async () => {
+    const user = open(onTheStep());
+
+    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '9');
+    expect(walk().textContent).toContain('Not this turn');
+
+    // Two turns of quiet is a threat of 2, so a 10 makes 12 — still short of
+    // the sixteen the rule wants.
+    expect(walk().textContent).not.toContain('The horde comes');
+  });
+
+  it('calls the siege for next turn when the roll is high enough', async () => {
+    // Eight on the project team is eight, plus two turns of quiet.
+    const busy = onTheStep({
+      survivors: Array.from({ length: 8 }, (_, at) =>
+        createSurvivor(`Survivor ${String(at)}`, 1, { id: `survivor-${String(at)}` }),
+      ),
+      assignments: Object.fromEntries(
+        Array.from({ length: 8 }, (_, at) => [`survivor-${String(at)}`, { task: 'project' }]),
+      ),
+    });
+    const user = open(busy);
+
+    expect(walk().textContent).toContain('Siege Threat 10');
+
+    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '6');
+    expect(walk().textContent).toContain('The horde comes');
+
+    await user.click(within(walk()).getByRole('button', { name: /check the horde/i }));
+
+    expect(walk().textContent).toContain('Next turn’s mission is a Siege Defense');
+    expect(within(walk()).queryByRole('button', { name: /check the horde/i })).toBeNull();
+  });
+
+  it('records a quiet turn as a quiet turn', async () => {
+    const user = open(onTheStep());
+
+    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '5');
+    await user.click(within(walk()).getByRole('button', { name: /check the horde/i }));
+
+    expect(walk().textContent).toContain('The horde stayed away');
+  });
+});
+
+describe('Departures', () => {
+  /** Eight Rookies with nowhere to sleep: eight Unrest and two turns of quiet. */
+  const crowded = (overrides: Partial<Campaign> = {}) =>
+    management({
+      step: 'departures',
+      base: null,
+      survivors: Array.from({ length: 8 }, (_, at) =>
+        createSurvivor(`Survivor ${String(at)}`, 1, { id: `survivor-${String(at)}` }),
+      ),
+      ...overrides,
+    });
+
+  it('says the community holds together when it does', () => {
+    open(management({ step: 'departures' }));
+
+    expect(walk().textContent).toContain('Nobody is leaving');
+  });
+
+  it('offers the lowest Tier, and sends one away', async () => {
+    const user = open(crowded());
+
+    expect(walk().textContent).toContain('Unrest plus Siege Threat is 10');
+
+    await user.click(
+      within(walk()).getAllByRole('button', { name: /send away/i })[0] as HTMLElement,
+    );
+
+    expect(
+      within(screen.getByRole('region', { name: /community/i })).getAllByRole('listitem'),
+    ).toHaveLength(7);
+
+    // And it stops there: seven survivors is seven Unrest, which with two turns
+    // of quiet is nine — under the threshold.
+    expect(walk().textContent).toContain('Nobody is leaving');
+  });
+
+  it('says so when everybody left is in no state to walk anywhere', () => {
+    open(
+      crowded({
+        survivors: Array.from({ length: 9 }, (_, at) => ({
+          ...createSurvivor(`Survivor ${String(at)}`, 1, { id: `survivor-${String(at)}` }),
+          currentHp: 0,
+        })),
+      }),
+    );
+
+    expect(walk().textContent).toContain('in no state to walk anywhere');
+  });
+});
+
 /**
  * The story's headline acceptance, driven through the screens: one press in the
  * Feed step changes what the base says it produces, and nothing is written to a

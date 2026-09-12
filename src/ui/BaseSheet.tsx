@@ -15,16 +15,11 @@
 
 import { STORED_MATERIALS } from '../data/materials';
 import { UTILITIES } from '../data/facilities';
-import {
-  beds,
-  flatUtilitiesGenerated,
-  maxHeroes,
-  siegeThreatFromBase,
-  storageCaps,
-} from '../engine/base';
+import { beds, flatUtilitiesGenerated, maxHeroes, storageCaps } from '../engine/base';
 import type { Campaign } from '../engine/campaign';
 import { assignedCount, staffedSpent } from '../engine/utilities';
 import { utilitiesScore } from '../engine/assignments';
+import { siegeThreat } from '../engine/siege';
 import { UTILITY_LABELS } from './baseLabels';
 import { PageRef } from './PageRef';
 
@@ -81,7 +76,7 @@ export function BaseSheet({ campaign }: BaseSheetProps) {
   const flat = flatUtilitiesGenerated(base);
   const heroes = campaign.survivors.filter((survivor) => survivor.tier === 4).length;
   const cap = maxHeroes(base);
-  const siege = siegeThreatFromBase(base);
+  const siege = siegeThreat(campaign);
 
   return (
     <dl className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3">
@@ -109,12 +104,16 @@ export function BaseSheet({ campaign }: BaseSheetProps) {
         />
       ))}
 
+      {/*
+       * The total, since Z3-10. Through Z2-3's `siegeThreatFromBase` and the
+       * three terms the Planning Phase's assignments made computable — the
+       * breakdown is on the Check the Horde step, because that is where a
+       * player is deciding what to do about it.
+       */}
       <Figure
         label="Siege Threat"
         value={siege === 0 ? '0' : `${siege > 0 ? '+' : ''}${String(siege)}`}
-        // Staffed facilities and the project team add to this in Phase 3, so
-        // saying "the base's own" keeps it from reading as a total.
-        note="From the base itself"
+        note={undefined}
         pages={23}
       />
 

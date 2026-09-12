@@ -125,6 +125,31 @@ export function describeEvent(event: CampaignEvent): EventLabel {
     case 'survivor-bitten':
       return { text: `${event.name} was bitten for ${String(event.damage)} Damage.`, pages: 22 };
 
+    case 'storage-checked': {
+      const lost = MATERIALS.filter(
+        (material) => material !== 'rare' && event[material as 'food' | 'fuel' | 'hardware'] !== 0,
+      ).map(
+        (material) =>
+          `${String(event[material as 'food' | 'fuel' | 'hardware'])} ${MATERIAL_LABELS[material]}`,
+      );
+
+      return {
+        text:
+          lost.length === 0
+            ? 'Checked storage: nothing was over the cap.'
+            : `Lost over the cap: ${lost.join(', ')}.`,
+        pages: 23,
+      };
+    }
+
+    case 'horde-checked':
+      return {
+        text: event.siege
+          ? `The horde came: a ${String(event.roll)} against a Siege Threat of ${String(event.threat)}. Next turn is a Siege Defense.`
+          : `The horde stayed away: a ${String(event.roll)} against a Siege Threat of ${String(event.threat)}.`,
+        pages: 23,
+      };
+
     case 'health-restored':
       return {
         text: `${event.name} recovered ${event.health} Health ${HEALTH_SOURCE_PHRASES[event.source]}.`,

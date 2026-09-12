@@ -274,6 +274,16 @@ const EVENT_FIELDS: Record<
     ['name', 'name'],
     ['damage', 'countFromOne'],
   ],
+  'storage-checked': [
+    ['food', 'count'],
+    ['fuel', 'count'],
+    ['hardware', 'count'],
+  ],
+  'horde-checked': [
+    ['roll', 'roll'],
+    ['threat', 'amount'],
+    ['siege', 'flag'],
+  ],
   'health-restored': [
     ['survivor', 'id'],
     ['name', 'name'],

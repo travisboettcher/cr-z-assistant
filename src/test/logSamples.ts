@@ -38,6 +38,11 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   // (ruling 2) — so the validator has to accept a target no count would.
   { kind: 'rot-checked', ...SURVIVOR, roll: 10, target: -1, passed: true },
   { kind: 'survivor-bitten', ...SURVIVOR, damage: 1 },
+  { kind: 'storage-checked', food: 2, fuel: 0, hardware: 0 },
+  { kind: 'horde-checked', roll: 9, threat: 4, siege: false },
+  // A base built for defence can drive the threat below zero (pg. 73), so the
+  // validator has to accept a negative where no count would.
+  { kind: 'horde-checked', roll: 10, threat: -3, siege: false },
   { kind: 'survivor-added', ...SURVIVOR, tier: 3 },
   { kind: 'survivor-recruited', ...SURVIVOR, tier: 2, roll: 6 },
   { kind: 'survivor-left', ...SURVIVOR, tier: 1 },

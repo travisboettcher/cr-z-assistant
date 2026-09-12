@@ -48,6 +48,9 @@ import { checkXpAward, withXpAwarded } from '../engine/experience';
 import { healthAwards, withWoundsHealed, woundsHealed } from '../engine/healing';
 import { foodRequired, hungerIfFedNow, survivorsFed, withSurvivorsFed } from '../engine/feeding';
 import { rotOutcome, rotTarget, withRotApplied } from '../engine/rot';
+import { overCap, storageChecked, withStorageChecked } from '../engine/storage';
+import { hordeChecked, siegeThreat, siegeTriggered, withSiegeCalled } from '../engine/siege';
+import { departureCandidates, withDeparture } from '../engine/departures';
 import { ROT_BITE_DAMAGE } from '../data/turn';
 import { XP_AWARD, type XpSource } from '../data/turn';
 import type { Assignment, Campaign, Stats, Survivor } from '../engine/campaign';
@@ -312,6 +315,29 @@ export type CampaignAction =
    * Refused when this turn already has an entry.
    */
   | { readonly type: 'management/survivorsFed'; readonly at: string }
+  /**
+   * Lose whatever is over the base's caps (pg. 23).
+   *
+   * Refused when this turn already has an entry: the step destroys materials
+   * and the walk can go back over it.
+   */
+  | { readonly type: 'management/storageChecked'; readonly at: string }
+  /**
+   * Roll against the horde (pg. 23).
+   *
+   * The roll comes from the table. Refused when this turn already has an
+   * entry — a second roll is a second chance at a siege, and the walk offers
+   * one every time a player steps back.
+   */
+  | { readonly type: 'management/hordeChecked'; readonly roll: D10Result; readonly at: string }
+  /**
+   * Send one survivor away (pg. 23).
+   *
+   * Carries who, because a tie is the player's choice. Not guarded against
+   * repeats: the pressure is recomputed after each departure, and a community
+   * still over the threshold with somebody still to lose genuinely loses them.
+   */
+  | { readonly type: 'management/departed'; readonly survivor: string; readonly at: string }
   /**
    * Resolve one survivor's Rot check (pg. 22).
    *
@@ -665,6 +691,51 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
           kind: 'survivors-fed',
           required: foodRequired(campaign),
           hunger: hungerIfFedNow(campaign),
+        });
+      });
+
+    case 'management/storageChecked':
+      return withCampaign(state, (campaign) => {
+        if (storageChecked(campaign)) return campaign;
+
+        const spilled = overCap(campaign);
+
+        return logged(withStorageChecked(campaign), action.at, {
+          kind: 'storage-checked',
+          ...spilled,
+        });
+      });
+
+    case 'management/hordeChecked':
+      return withCampaign(state, (campaign) => {
+        if (hordeChecked(campaign)) return campaign;
+
+        const threat = siegeThreat(campaign);
+        const siege = siegeTriggered(action.roll, threat);
+
+        return logged(siege ? withSiegeCalled(campaign) : campaign, action.at, {
+          kind: 'horde-checked',
+          roll: action.roll,
+          threat,
+          siege,
+        });
+      });
+
+    case 'management/departed':
+      return withCampaign(state, (campaign) => {
+        // Asked here rather than trusted from the screen, and asked of *this*
+        // campaign: a second departure is checked against a pressure the first
+        // one already changed.
+        const leaving = departureCandidates(campaign).find(
+          (candidate) => candidate.id === action.survivor,
+        );
+        if (leaving === undefined) return campaign;
+
+        return logged(withDeparture(campaign, action.survivor), action.at, {
+          kind: 'survivor-left',
+          survivor: leaving.id,
+          name: leaving.name,
+          tier: leaving.tier,
         });
       });
 

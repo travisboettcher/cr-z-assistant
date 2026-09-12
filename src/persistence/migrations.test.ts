@@ -426,7 +426,7 @@ describe('the v7 to v8 assignments default', () => {
       expect(
         Object.keys(result.campaign.assignments).length,
         `${fixture.path} came forward with the wrong assignments`,
-      ).toBe(fixture.version === 8 ? 3 : 0);
+      ).toBe(fixture.version >= 8 ? 3 : 0);
     }
   });
 

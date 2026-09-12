@@ -68,6 +68,7 @@ describe('createNewCampaign', () => {
       'base',
       'createdAt',
       'id',
+      'lastSiegeTurn',
       'log',
       'materials',
       'name',

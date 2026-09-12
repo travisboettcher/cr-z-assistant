@@ -122,6 +122,21 @@ export function exhaustion(campaign: Campaign): number {
   return Math.max(0, campaign.survivors.length - sleeping);
 }
 
+/**
+ * The community's Unrest — Hunger plus Exhaustion (pg. 23).
+ *
+ * The whole of step 4, and one line because both terms already exist. Here
+ * rather than in a module of its own because it is the *sum* of what this one
+ * computes, and a `unrest.ts` holding one addition would be a file to open on
+ * the way to the two numbers that matter.
+ *
+ * Never stored. Both terms are recomputed from scratch every Management Phase
+ * — the book says so twice — and so is this.
+ */
+export function unrest(campaign: Campaign): number {
+  return hunger(campaign) + exhaustion(campaign);
+}
+
 /** Whether this turn's Feed step has already run. */
 export function survivorsFed(campaign: Campaign): boolean {
   return campaign.log.some(

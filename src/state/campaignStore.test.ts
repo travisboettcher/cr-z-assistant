@@ -1466,6 +1466,45 @@ describe('what earns a line in the log', () => {
       // A Hero eats two (pg. 22), and there is nothing to eat.
       entry: entry(3, 'mission', { kind: 'survivors-fed', required: 2, hunger: 2 }),
     },
+    'management/storageChecked': {
+      // The Greasy Spoon stores six Food; this campaign holds eight.
+      state: openState({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        turn: 3,
+        materials: { food: 8, fuel: 0, hardware: 0, rare: 0 },
+        base: { id: 'greasy-spoon', slots: {} },
+      }),
+      action: { type: 'management/storageChecked', at: AT },
+      entry: entry(3, 'mission', { kind: 'storage-checked', food: 2, fuel: 0, hardware: 0 }),
+    },
+    'management/hordeChecked': {
+      // No base and nobody assigned, on turn 3: three terms are zero and the
+      // fourth is the two turns since play began.
+      state: openState({ ...createNewCampaign('Cedar Hollow', FIXED), turn: 3 }),
+      action: { type: 'management/hordeChecked', at: AT, roll: 9 },
+      entry: entry(3, 'mission', { kind: 'horde-checked', roll: 9, threat: 2, siege: false }),
+    },
+    'management/departed': {
+      // Six Exhaustion with no base to sleep in is six Unrest, which with two
+      // turns of quiet is over the threshold of ten.
+      state: openState({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        turn: 3,
+        survivors: [
+          createSurvivor('Ruby Vance', 4, { id: DECOY }),
+          ...Array.from({ length: 8 }, (_, at) =>
+            createSurvivor(`Crowd ${String(at)}`, 4, { id: `crowd-${String(at)}` }),
+          ),
+          createSurvivor('Marcus Webb', 1, { id: LOGGED_SURVIVOR }),
+        ],
+      }),
+      action: { type: 'management/departed', at: AT, survivor: LOGGED_SURVIVOR },
+      entry: entry(3, 'mission', {
+        kind: 'survivor-left',
+        ...WEBB,
+        tier: 1,
+      }),
+    },
     'management/rotChecked': {
       // A survivor at 0 Health who passes: one entry, nobody removed. The
       // failing path removes people and is tested on its own below, where the
@@ -1980,6 +2019,67 @@ describe('the Management Phase', () => {
     // A Hero eats two, so nine becomes seven and stays there.
     expect(expectOpen(twice).materials.food).toBe(7);
     expect(expectOpen(twice).log).toHaveLength(1);
+  });
+
+  it('refuses to spill the same stores twice in one turn', () => {
+    const overflowing = openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      turn: 3,
+      materials: { food: 9, fuel: 0, hardware: 0, rare: 0 },
+      base: { id: 'greasy-spoon', slots: {} },
+    });
+
+    const once = campaignReducer(overflowing, { type: 'management/storageChecked', at: AT });
+    const twice = campaignReducer(once, { type: 'management/storageChecked', at: AT });
+
+    // Down to the Greasy Spoon's six, and no further on a second press.
+    expect(expectOpen(twice).materials.food).toBe(6);
+    expect(expectOpen(twice).log).toHaveLength(1);
+  });
+
+  it('refuses a second roll against the horde in one turn', () => {
+    const quiet = openState({ ...createNewCampaign('Cedar Hollow', FIXED), turn: 3 });
+
+    // A 10 against a threat of 2 is short of sixteen; a second roll would be a
+    // second chance at a siege, which is what the guard is for.
+    const once = campaignReducer(quiet, { type: 'management/hordeChecked', at: AT, roll: 10 });
+    const twice = campaignReducer(once, { type: 'management/hordeChecked', at: AT, roll: 10 });
+
+    expect(expectOpen(twice).log).toHaveLength(1);
+  });
+
+  /**
+   * The candidates are recomputed from the campaign in front of the reducer, so
+   * a survivor the rules would not send away cannot be sent away by a stale
+   * screen — or by a second press after the first departure took the pressure
+   * back under the threshold.
+   */
+  it('refuses to send away somebody the rules do not offer', () => {
+    const crowded = openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      turn: 3,
+      survivors: [
+        createSurvivor('Ruby Vance', 4, { id: DECOY }),
+        ...Array.from({ length: 8 }, (_, at) =>
+          createSurvivor(`Crowd ${String(at)}`, 4, { id: `crowd-${String(at)}` }),
+        ),
+        createSurvivor('Marcus Webb', 1, { id: CHECKED }),
+      ],
+    });
+
+    // Ruby is a Hero and Marcus a Rookie, so only Marcus is on the list.
+    expect(
+      campaignReducer(crowded, { type: 'management/departed', at: AT, survivor: DECOY }),
+    ).toEqual(crowded);
+
+    const once = campaignReducer(crowded, {
+      type: 'management/departed',
+      at: AT,
+      survivor: CHECKED,
+    });
+
+    expect(expectOpen(once).survivors).toHaveLength(9);
+    expect(expectOpen(once).log).toHaveLength(1);
   });
 
   it('says nothing about a Rot check on somebody the community does not hold', () => {

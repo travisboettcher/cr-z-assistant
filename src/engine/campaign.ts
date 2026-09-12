@@ -32,7 +32,7 @@ import type { LogEntry } from './log';
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 8;
+export const CURRENT_SCHEMA_VERSION = 9;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -263,6 +263,22 @@ export interface Campaign {
 
   materials: Materials;
 
+  /**
+   * The turn whose Mission Phase is or was a Siege Defense, or `null` for a
+   * community the horde has never come for (pg. 23).
+   *
+   * **Stored because it is a primitive fact, not a derived one**: nothing else
+   * in the campaign records that a siege happened, and "turns since the last
+   * siege" — a term of Siege Threat — is worked out *from* it rather than the
+   * other way round. The same field answers both questions the rule asks, which
+   * is why it is a turn number rather than a flag: a boolean would have to be
+   * cleared by somebody, and a turn number simply stops being this turn.
+   *
+   * Set to the turn **after** the check that triggered it, because that is the
+   * turn the siege is fought on.
+   */
+  lastSiegeTurn: number | null;
+
   survivors: readonly Survivor[];
 
   /**
@@ -342,6 +358,8 @@ export function createNewCampaign(name: string, options: NewCampaignOptions = {}
     step: FIRST_STEP_OF_TURN,
     // All zero. Starting material counts are a rule, and Phase 0 ships none.
     materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+    // The horde has never come for a community that has not played a turn.
+    lastSiegeTurn: null,
     survivors: [],
     // False, so a new campaign gets the ten-tier-level check while it is being
     // built. The v2 → v3 migration deliberately answers `true` instead — see
