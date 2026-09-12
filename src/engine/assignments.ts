@@ -32,6 +32,7 @@
  */
 
 import { occupants } from './base';
+import { hungerPenalty } from './feeding';
 import type { Assignment, Campaign, Survivor } from './campaign';
 import { facilityProduction, type ProductionLine } from './production';
 import { labor } from './survivor';
@@ -184,10 +185,11 @@ export function utilitiesScore(campaign: Campaign): number {
   const base = campaign.base;
   if (base === null) return 0;
 
+  const penalty = hungerPenalty(campaign);
   let total = 0;
 
   for (const occupant of occupants(base)) {
-    for (const line of facilityProduction(occupant, staffOf(campaign, occupant.slotId))) {
+    for (const line of facilityProduction(occupant, staffOf(campaign, occupant.slotId), penalty)) {
       if (splitsAcrossPools(line)) total += line.amount;
     }
   }

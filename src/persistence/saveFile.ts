@@ -258,6 +258,22 @@ const EVENT_FIELDS: Record<
     ['hardware', 'amount'],
     ['rare', 'amount'],
   ],
+  'survivors-fed': [
+    ['required', 'count'],
+    ['hunger', 'count'],
+  ],
+  'rot-checked': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['roll', 'roll'],
+    ['target', 'amount'],
+    ['passed', 'flag'],
+  ],
+  'survivor-bitten': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['damage', 'countFromOne'],
+  ],
   'health-restored': [
     ['survivor', 'id'],
     ['name', 'name'],

@@ -1452,6 +1452,44 @@ describe('what earns a line in the log', () => {
         rare: HOBBY_FARM_PRODUCTION.rare,
       }),
     },
+    'management/survivorsFed': {
+      // Its own campaign, because `rich()` has Food and a roster that eats less
+      // than it holds — the entry would record no Hunger and the interesting
+      // half of this event would go untested.
+      state: openState({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        turn: 3,
+        survivors: [createSurvivor('Marcus Webb', 4, { id: LOGGED_SURVIVOR })],
+        materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+      }),
+      action: { type: 'management/survivorsFed', at: AT },
+      // A Hero eats two (pg. 22), and there is nothing to eat.
+      entry: entry(3, 'mission', { kind: 'survivors-fed', required: 2, hunger: 2 }),
+    },
+    'management/rotChecked': {
+      // A survivor at 0 Health who passes: one entry, nobody removed. The
+      // failing path removes people and is tested on its own below, where the
+      // several entries it writes can be asserted in order.
+      state: openState({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        turn: 3,
+        survivors: [{ ...createSurvivor('Marcus Webb', 2, { id: LOGGED_SURVIVOR }), currentHp: 0 }],
+      }),
+      action: {
+        type: 'management/rotChecked',
+        at: AT,
+        survivor: LOGGED_SURVIVOR,
+        roll: 10,
+        bitten: null,
+      },
+      entry: entry(3, 'mission', {
+        kind: 'rot-checked',
+        ...WEBB,
+        roll: 10,
+        target: 12,
+        passed: true,
+      }),
+    },
     'advancement/woundsHealed': {
       // Its own campaign, because `rich()` has nobody wounded and nobody
       // healing — the step would be a no-op there and "records nothing" would

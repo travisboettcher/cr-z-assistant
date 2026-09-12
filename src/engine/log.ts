@@ -107,6 +107,38 @@ export type CampaignEvent =
    * missing here is XP the app would offer twice.
    */
   /**
+   * The community ate, and went this far short (pg. 22).
+   *
+   * **Load-bearing twice over.** `survivorsFed` reads it to keep the step from
+   * running twice, and `hunger` reads the most recent one to know what the
+   * community is going short by — which feeding cannot recompute afterwards,
+   * because eating is destructive and four Food against ten required looks
+   * afterwards exactly like nine against ten.
+   */
+  | { readonly kind: 'survivors-fed'; readonly required: number; readonly hunger: number }
+  /**
+   * A survivor at 0 Health made their Rot check (pg. 22).
+   *
+   * Every check, passed or failed, because the roll and the target are what a
+   * player will want to look back at — and a step that only recorded the
+   * failures would read as though nobody else had been in danger.
+   */
+  | {
+      readonly kind: 'rot-checked';
+      readonly survivor: string;
+      readonly name: string;
+      readonly roll: D10Result;
+      readonly target: number;
+      readonly passed: boolean;
+    }
+  /** A turning survivor bit somebody being healed beside them (pg. 22). */
+  | {
+      readonly kind: 'survivor-bitten';
+      readonly survivor: string;
+      readonly name: string;
+      readonly damage: number;
+    }
+  /**
    * Health went to a survivor, in the Heal Wounds step (pg. 19).
    *
    * One entry per survivor rather than one for the step, because who was

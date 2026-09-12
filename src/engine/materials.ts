@@ -40,6 +40,7 @@ import { missionTeam, staffOf } from './assignments';
 import type { Campaign } from './campaign';
 import type { Check, Violation } from './checks';
 import { facilityProduction } from './production';
+import { hungerPenalty } from './feeding';
 import { skillScore } from './survivor';
 
 export type MaterialsViolationCode = 'not-enough-substitution' | 'over-storage-cap';
@@ -106,8 +107,10 @@ export function baseProduction(campaign: Campaign): Materials {
 
   if (base === null) return total;
 
+  const penalty = hungerPenalty(campaign);
+
   for (const occupant of occupants(base)) {
-    for (const line of facilityProduction(occupant, staffOf(campaign, occupant.slotId))) {
+    for (const line of facilityProduction(occupant, staffOf(campaign, occupant.slotId), penalty)) {
       for (const output of line.outputs) {
         if (isMaterial(output)) total[output] += line.amount;
       }
@@ -129,8 +132,10 @@ function isMaterial(output: string): output is Material {
  * null contributes nothing.
  */
 export function substitutionUses(campaign: Campaign, skill: SubstitutionSkill): number {
+  const penalty = hungerPenalty(campaign);
+
   return missionTeam(campaign).reduce(
-    (total, survivor) => total + (skillScore(survivor, skill) ?? 0),
+    (total, survivor) => total + (skillScore(survivor, skill, penalty) ?? 0),
     0,
   );
 }

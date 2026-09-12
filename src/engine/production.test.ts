@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { NO_PENALTY } from './production';
 import { occupants, type Occupant } from './base';
 import { createNewCampaign, type Base, type Survivor } from './campaign';
 import { facilityProduction, wantsStaff } from './production';
@@ -37,7 +38,7 @@ describe('facilityProduction, unstaffed', () => {
       'front-yard',
     );
 
-    expect(facilityProduction(dry)).toEqual([
+    expect(facilityProduction(dry, [], NO_PENALTY)).toEqual([
       {
         outputs: ['food'],
         amount: 1,
@@ -47,7 +48,7 @@ describe('facilityProduction, unstaffed', () => {
         missingSkill: false,
       },
     ]);
-    expect(facilityProduction(wet)[0]?.amount).toBe(3);
+    expect(facilityProduction(wet, [], NO_PENALTY)[0]?.amount).toBe(3);
   });
 
   it('produces an upgrade’s number with nobody in the facility', () => {
@@ -60,7 +61,9 @@ describe('facilityProduction, unstaffed', () => {
       'garage',
     );
 
-    const fuel = facilityProduction(workshop).filter((line) => line.outputs[0] === 'fuel');
+    const fuel = facilityProduction(workshop, [], NO_PENALTY).filter(
+      (line) => line.outputs[0] === 'fuel',
+    );
 
     expect(fuel).toEqual([
       {
@@ -76,7 +79,7 @@ describe('facilityProduction, unstaffed', () => {
 
   it('reports a staffed line as zero and needing someone', () => {
     const kitchen = at(home(), 'kitchen');
-    const [line] = facilityProduction(kitchen);
+    const [line] = facilityProduction(kitchen, [], NO_PENALTY);
 
     expect(line).toMatchObject({
       outputs: ['food'],
@@ -91,7 +94,9 @@ describe('facilityProduction, unstaffed', () => {
     // off — the distinction `working` exists to make.
     const kitchen = at(home({ kitchen: { upgrades: ['biofuel-lab'] } }), 'kitchen');
 
-    expect(facilityProduction(kitchen).some((line) => line.outputs[0] === 'fuel')).toBe(false);
+    expect(
+      facilityProduction(kitchen, [], NO_PENALTY).some((line) => line.outputs[0] === 'fuel'),
+    ).toBe(false);
   });
 });
 
@@ -103,7 +108,7 @@ describe('facilityProduction, staffed', () => {
     // The whole line, not two of its fields: `missingSkill` on a cook who can
     // cook is the one that would go unnoticed, and it is the difference between
     // "makes five Food" and "makes five Food, but they cannot cook".
-    expect(facilityProduction(kitchen, [cook('Carla', 2, 3)])[0]).toEqual({
+    expect(facilityProduction(kitchen, [cook('Carla', 2, 3)], NO_PENALTY)[0]).toEqual({
       outputs: ['food'],
       amount: 5,
       halved: false,
@@ -118,7 +123,7 @@ describe('facilityProduction, staffed', () => {
     // to zero — the difference between "halved" and "unmet" (pg. 72).
     const dry = at(home(), 'kitchen');
 
-    expect(facilityProduction(dry, [cook('Carla', 2, 3)])[0]).toMatchObject({
+    expect(facilityProduction(dry, [cook('Carla', 2, 3)], NO_PENALTY)[0]).toMatchObject({
       amount: 3,
       halved: true,
     });
@@ -127,15 +132,15 @@ describe('facilityProduction, staffed', () => {
   it('changes with the person previewed', () => {
     const kitchen = at(home({ kitchen: { water: true } }), 'kitchen');
 
-    expect(facilityProduction(kitchen, [cook('Carla', 2, 3)])[0]?.amount).toBe(5);
-    expect(facilityProduction(kitchen, [cook('Earl', 1, 1)])[0]?.amount).toBe(2);
+    expect(facilityProduction(kitchen, [cook('Carla', 2, 3)], NO_PENALTY)[0]?.amount).toBe(5);
+    expect(facilityProduction(kitchen, [cook('Earl', 1, 1)], NO_PENALTY)[0]?.amount).toBe(2);
   });
 
   it('tells nobody assigned apart from the wrong person assigned', () => {
     const kitchen = at(home({ kitchen: { water: true } }), 'kitchen');
 
-    const nobody = facilityProduction(kitchen, [])[0];
-    const wrong = facilityProduction(kitchen, [labourer('Ruby')])[0];
+    const nobody = facilityProduction(kitchen, [], NO_PENALTY)[0];
+    const wrong = facilityProduction(kitchen, [labourer('Ruby')], NO_PENALTY)[0];
 
     // Both make nothing, and a player can only fix the one they can see.
     expect(nobody).toMatchObject({ amount: 0, missingSkill: false });
@@ -161,7 +166,7 @@ describe('facilityProduction, staffed', () => {
       return { ...survivor, stats: { ...survivor.stats, cooperation: 1 }, skills: { medicine } };
     };
 
-    const health = facilityProduction(clinic, [medic('A', 2), medic('B', 1)]).find(
+    const health = facilityProduction(clinic, [medic('A', 2), medic('B', 1)], NO_PENALTY).find(
       (line) => line.outputs[0] === 'health',
     );
 
@@ -176,9 +181,11 @@ describe('facilityProduction, staffed', () => {
     );
 
     const engineer = createSurvivor('Vee', 4, { id: 'vee' });
-    const line = facilityProduction(station, [
-      { ...engineer, stats: { ...engineer.stats, cooperation: 2 }, skills: { utilities: 1 } },
-    ])[0];
+    const line = facilityProduction(
+      station,
+      [{ ...engineer, stats: { ...engineer.stats, cooperation: 2 }, skills: { utilities: 1 } }],
+      NO_PENALTY,
+    )[0];
 
     // One amount over two outputs, not a row each — the book's "in any mix".
     // The whole line, because a Utility Station is the one staffed facility
@@ -217,7 +224,7 @@ describe('Siege Threat as production', () => {
     );
 
     const flat = (occupant: Occupant) =>
-      facilityProduction(occupant).filter(
+      facilityProduction(occupant, [], NO_PENALTY).filter(
         (line) => line.outputs[0] === 'siege-threat' && !line.staffed,
       );
 
@@ -242,13 +249,17 @@ describe('Siege Threat as production', () => {
     );
 
     const lookout = createSurvivor('Sam', 4, { id: 'sam' });
-    const staffed = facilityProduction(tower, [
-      {
-        ...lookout,
-        stats: { ...lookout.stats, dexterity: 2, intelligence: 1 },
-        skills: { 'long-guns': 1, traps: 2 },
-      },
-    ]).find((line) => line.staffed);
+    const staffed = facilityProduction(
+      tower,
+      [
+        {
+          ...lookout,
+          stats: { ...lookout.stats, dexterity: 2, intelligence: 1 },
+          skills: { 'long-guns': 1, traps: 2 },
+        },
+      ],
+      NO_PENALTY,
+    ).find((line) => line.staffed);
 
     // Long Guns is 3 and Traps is 3; the best is 3, and summing would say 6.
     expect(staffed).toEqual({
@@ -267,8 +278,10 @@ describe('Siege Threat as production', () => {
       'front-yard',
     );
 
-    const nobody = facilityProduction(tower).find((line) => line.staffed);
-    const unskilled = facilityProduction(tower, [labourer('Ruby')]).find((line) => line.staffed);
+    const nobody = facilityProduction(tower, [], NO_PENALTY).find((line) => line.staffed);
+    const unskilled = facilityProduction(tower, [labourer('Ruby')], NO_PENALTY).find(
+      (line) => line.staffed,
+    );
 
     // Both reduce nothing, and only one of them is a mistake the player made.
     expect(nobody).toMatchObject({ amount: -0, missingSkill: false });
@@ -284,9 +297,11 @@ describe('Siege Threat as production', () => {
     );
 
     const archer = createSurvivor('Ann', 4, { id: 'ann' });
-    const line = facilityProduction(tower, [
-      { ...archer, stats: { ...archer.stats, dexterity: 3 }, skills: { archery: 1 } },
-    ]).find((candidate) => candidate.staffed);
+    const line = facilityProduction(
+      tower,
+      [{ ...archer, stats: { ...archer.stats, dexterity: 3 }, skills: { archery: 1 } }],
+      NO_PENALTY,
+    ).find((candidate) => candidate.staffed);
 
     expect(line).toMatchObject({ amount: -4, missingSkill: false });
   });
@@ -307,7 +322,7 @@ describe('nothing about a preview reaches the campaign', () => {
     const before = structuredClone(base);
     const campaign = { ...createNewCampaign('Cedar Hollow'), base };
 
-    facilityProduction(at(base, 'kitchen'), [cook('Carla', 2, 3)]);
+    facilityProduction(at(base, 'kitchen'), [cook('Carla', 2, 3)], NO_PENALTY);
 
     expect(campaign.base).toEqual(before);
   });

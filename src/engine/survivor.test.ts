@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { NO_PENALTY } from './production';
 import { D10_RESULTS } from '../data/dice';
 import { SKILLS } from '../data/skills';
 import type { Survivor } from './campaign';
@@ -10,6 +11,7 @@ import {
   maxHp,
   recruitSurvivor,
   skillScore,
+  statValue,
 } from './survivor';
 
 /**
@@ -45,20 +47,64 @@ const CARLA = {
   xp: 0,
 } satisfies Survivor;
 
+/**
+ * The hunger penalty, from the reader's end (pg. 22).
+ *
+ * `feeding.ts` works out the number; what matters here is that a Score moves
+ * when it does, and that nothing about the survivor changes to make it move.
+ * That is the whole point of the penalty being a parameter.
+ */
+describe('the hunger penalty', () => {
+  it('takes the penalty off the governing stat, not off the level', () => {
+    // Tactics is Intelligence 4 plus a level of 0.
+    expect(skillScore(EARL, 'tactics', 0)).toBe(4);
+    expect(skillScore(EARL, 'tactics', 1)).toBe(3);
+    expect(skillScore(EARL, 'tactics', 3)).toBe(1);
+  });
+
+  it('floors a stat at zero rather than going negative', () => {
+    // Cooperation 1 against a penalty of five is nothing, not minus four.
+    expect(statValue(EARL, 'cooperation', 5)).toBe(0);
+    expect(statValue(EARL, 'strength', 5)).toBe(0);
+  });
+
+  it('still has nothing to say about a skill the survivor never took', () => {
+    // A penalty cannot turn "no Score" into a Score of zero (pg. 8).
+    expect(skillScore(CARLA, 'carry', 0)).toBeNull();
+    expect(skillScore(CARLA, 'carry', 3)).toBeNull();
+  });
+
+  it('moves the Inventory Slots as well, because Carry is a Score', () => {
+    // Tier 4 plus Strength 3: seven slots fed, six one point hungry (pg. 14).
+    expect(inventorySlots(EARL, 0)).toBe(7);
+    expect(inventorySlots(EARL, 1)).toBe(6);
+  });
+
+  it('leaves the survivor’s own record untouched', () => {
+    const before = structuredClone(EARL);
+
+    skillScore(EARL, 'tactics', 3);
+    statValue(EARL, 'strength', 3);
+    inventorySlots(EARL, 3);
+
+    expect(EARL).toEqual(before);
+  });
+});
+
 describe('skillScore', () => {
   it('adds the skill level to its governing stat', () => {
     // Heavy Weapon is governed by Strength: 3 + 0.
-    expect(skillScore(EARL, 'heavy-weapon')).toBe(3);
+    expect(skillScore(EARL, 'heavy-weapon', NO_PENALTY)).toBe(3);
     // Tactics by Intelligence: 4 + 0.
-    expect(skillScore(EARL, 'tactics')).toBe(4);
+    expect(skillScore(EARL, 'tactics', NO_PENALTY)).toBe(4);
     // Archery by Dexterity: 3 + 0.
-    expect(skillScore(CARLA, 'archery')).toBe(3);
+    expect(skillScore(CARLA, 'archery', NO_PENALTY)).toBe(3);
   });
 
   it('counts the level as well as the stat', () => {
     const trained = { ...EARL, skills: { ...EARL.skills, tactics: 3 } } satisfies Survivor;
 
-    expect(skillScore(trained, 'tactics')).toBe(7);
+    expect(skillScore(trained, 'tactics', NO_PENALTY)).toBe(7);
   });
 
   /**
@@ -67,8 +113,8 @@ describe('skillScore', () => {
    * cannot make a Bladed Weapon check at all, because he does not have the skill.
    */
   it('is null for a skill the survivor does not have, not zero and not the bare stat', () => {
-    expect(skillScore(EARL, 'blade-weapon')).toBeNull();
-    expect(skillScore(CARLA, 'carry')).toBeNull();
+    expect(skillScore(EARL, 'blade-weapon', NO_PENALTY)).toBeNull();
+    expect(skillScore(CARLA, 'carry', NO_PENALTY)).toBeNull();
   });
 });
 
@@ -89,21 +135,21 @@ describe('inventorySlots', () => {
    * the answer is 7 — which is the number pg. 14 prints.
    */
   it('adds the carry score, not the carry level', () => {
-    expect(inventorySlots(EARL)).toBe(7);
+    expect(inventorySlots(EARL, NO_PENALTY)).toBe(7);
   });
 
   it('is the bare tier for a survivor without the carry skill', () => {
-    expect(inventorySlots(CARLA)).toBe(3);
+    expect(inventorySlots(CARLA, NO_PENALTY)).toBe(3);
   });
 
   it('grows with the carry level and with strength', () => {
     const trained = { ...EARL, skills: { ...EARL.skills, carry: 2 } } satisfies Survivor;
     const stronger = { ...trained, stats: { ...EARL.stats, strength: 4 } } satisfies Survivor;
 
-    expect(inventorySlots(trained)).toBe(9);
+    expect(inventorySlots(trained, NO_PENALTY)).toBe(9);
     // Carrying capacity moves when Strength moves, which is the whole reason
     // the rule reads Score rather than level.
-    expect(inventorySlots(stronger)).toBe(10);
+    expect(inventorySlots(stronger, NO_PENALTY)).toBe(10);
   });
 });
 
@@ -147,7 +193,7 @@ describe('createSurvivor', () => {
 
     expect(maxHp(hero)).toBe(4);
     // No Carry skill yet, so Inventory Slots are the bare tier.
-    expect(inventorySlots(hero)).toBe(4);
+    expect(inventorySlots(hero, NO_PENALTY)).toBe(4);
   });
 });
 
