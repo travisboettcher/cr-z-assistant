@@ -188,38 +188,35 @@ describe('siegeDue and withSiegeCalled', () => {
 });
 
 describe('hordeCame', () => {
-  const rolled = (turn: number, siege: boolean): LogEntry => ({
-    turn,
-    phase: 'management',
-    at: AT,
-    event: { kind: 'horde-checked', roll: 6, threat: 10, siege },
-  });
-
-  it('is false before the roll', () => {
+  it('is false for a community the horde has never found', () => {
     expect(hordeCame(community())).toBe(false);
   });
 
-  it('is false for a roll that left the horde where it was', () => {
-    expect(hordeCame(community({ log: [rolled(3, false)] }))).toBe(false);
+  it('is true on the turn the check called one for the next', () => {
+    expect(hordeCame(withSiegeCalled(community({ turn: 3 })))).toBe(true);
   });
 
-  it('is true for the roll that brought them', () => {
-    expect(hordeCame(community({ log: [rolled(3, true)] }))).toBe(true);
+  it('is false again on the turn the siege is fought', () => {
+    expect(hordeCame(community({ turn: 4, lastSiegeTurn: 4 }))).toBe(false);
   });
 
-  it('ignores last turn’s siege, which is over', () => {
-    expect(hordeCame(community({ log: [rolled(2, true)] }))).toBe(false);
+  it('is false once the siege is behind the community', () => {
+    expect(hordeCame(community({ turn: 6, lastSiegeTurn: 4 }))).toBe(false);
   });
 
   /**
-   * The distinction this function exists for: on the turn of the check the
-   * horde has come and nothing is *due*, because the siege is fought next turn.
+   * The distinction both functions exist for. On the turn of the check the
+   * horde has come and nothing is yet *due*; on the turn after, the reverse.
+   * A screen that used one for the other reads the turn wrong in both.
    */
-  it('is true on the turn `siegeDue` is still false', () => {
-    const called = { ...withSiegeCalled(community()), log: [rolled(3, true)] };
+  it('is the opposite reading of the field `siegeDue` reads', () => {
+    const called = withSiegeCalled(community({ turn: 3 }));
 
     expect(hordeCame(called)).toBe(true);
     expect(siegeDue(called)).toBe(false);
+
+    expect(hordeCame({ ...called, turn: 4 })).toBe(false);
+    expect(siegeDue({ ...called, turn: 4 })).toBe(true);
   });
 });
 

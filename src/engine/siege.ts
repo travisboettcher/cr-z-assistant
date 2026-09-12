@@ -104,16 +104,19 @@ export function hordeChecked(campaign: Campaign): boolean {
 /**
  * Whether this turn's roll brought the horde.
  *
- * Read off the entry rather than from `siegeDue`, which answers a different
- * question and answers it `false` here: the siege called by this turn's check
- * is fought *next* turn, so on the turn of the check nothing is due. A screen
- * reporting what just happened has to read the record of what happened.
+ * The other reading of the same field: `siegeDue` asks whether a siege is
+ * fought *this* turn, and this asks whether one has been called for the next.
+ * They are both false in between, which is the whole reason both exist — a
+ * screen reporting the outcome of the check it just ran cannot use `siegeDue`,
+ * because on the turn of the check nothing is yet due.
+ *
+ * An earlier draft read the log for the entry the check wrote, which needed a
+ * `kind` guard the typechecker wanted and nothing could reach: no other event
+ * carries a `siege` field, so the guard could never be the reason the answer
+ * came out false.
  */
 export function hordeCame(campaign: Campaign): boolean {
-  return campaign.log.some(
-    (entry) =>
-      entry.turn === campaign.turn && entry.event.kind === 'horde-checked' && entry.event.siege,
-  );
+  return campaign.lastSiegeTurn === campaign.turn + 1;
 }
 
 /**

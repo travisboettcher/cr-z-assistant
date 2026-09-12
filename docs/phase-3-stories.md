@@ -904,6 +904,18 @@ all: the screen says so rather than silently doing nothing.
 creates in the Advancement Phase is lost here, a whole phase later, exactly as that story said it
 would be. Rare is never trimmed, because the book gives it no cap.
 
+**What the mutation run found.** Four of the five survivors were the shape this phase keeps
+producing and now catches quickly: guards in the reducer with no store test — a second Check
+Storage, a second roll against the horde, a departure the rules do not offer, and a `find` that a
+single-candidate fixture could not tell from one that ignored its predicate. All four have a test,
+each verified against the mutant it was written for, with a decoy Hero in front of the Rookie.
+
+The fifth was better news. `hordeCame` read the log for the entry the check wrote, which needed a
+`kind` guard the typechecker wanted and nothing could reach: no other event carries a `siege`
+field, so the guard could never be the reason the answer came out false. It is
+`lastSiegeTurn === turn + 1` now — the other reading of the field `siegeDue` reads, with no log
+walk at all. Two readings of one number, and both exist because they are false in between.
+
 **What the plan owes the queue.** The story's departure rule also "takes their Tier off the turn's
 unused Labor, running a project unfinished if that goes negative". There is no project to run
 unfinished until [Z3-11](#z3-11--the-project-queue) exists, so that half lands there — the
