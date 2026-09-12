@@ -700,18 +700,18 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
         const bitten = logged(turned, action.at, {
           kind: 'survivor-bitten',
-          survivor: outcome.bitten.id,
-          name: outcome.bitten.name,
+          survivor: outcome.bitten.survivor.id,
+          name: outcome.bitten.survivor.name,
           damage: ROT_BITE_DAMAGE,
         });
 
-        if (!outcome.bittenDies) return bitten;
+        if (!outcome.bitten.dies) return bitten;
 
         return logged(bitten, action.at, {
           kind: 'survivor-left',
-          survivor: outcome.bitten.id,
-          name: outcome.bitten.name,
-          tier: outcome.bitten.tier,
+          survivor: outcome.bitten.survivor.id,
+          name: outcome.bitten.survivor.name,
+          tier: outcome.bitten.survivor.tier,
         });
       });
 

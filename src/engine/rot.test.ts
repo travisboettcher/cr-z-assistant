@@ -185,7 +185,7 @@ describe('rotOutcome and withRotApplied', () => {
   it('costs nothing at all when the check passes', () => {
     const outcome = rotOutcome(clinicful(), 'turning', 10, 'healed');
 
-    expect(outcome).toEqual({ turned: null, bitten: null, bittenDies: false });
+    expect(outcome).toEqual({ turned: null, bitten: null });
     expect(withRotApplied(clinicful(), outcome)).toEqual(clinicful());
   });
 
@@ -207,8 +207,8 @@ describe('rotOutcome and withRotApplied', () => {
     const outcome = rotOutcome(clinicful(), 'turning', 1, 'healed');
     const after = withRotApplied(clinicful(), outcome);
 
-    expect(outcome.bitten?.id).toBe('healed');
-    expect(outcome.bittenDies).toBe(false);
+    expect(outcome.bitten?.survivor.id).toBe('healed');
+    expect(outcome.bitten?.dies).toBe(false);
     expect(after.survivors).toEqual([{ ...at('healed', 'Healed', 1) }]);
   });
 
@@ -220,7 +220,7 @@ describe('rotOutcome and withRotApplied', () => {
     });
     const outcome = rotOutcome(barely, 'turning', 1, 'healed');
 
-    expect(outcome.bittenDies).toBe(true);
+    expect(outcome.bitten?.dies).toBe(true);
     expect(withRotApplied(barely, outcome).survivors).toEqual([]);
     expect(withRotApplied(barely, outcome).assignments).toEqual({});
   });
@@ -242,11 +242,7 @@ describe('rotOutcome and withRotApplied', () => {
   });
 
   it('says nothing about a survivor the community does not hold', () => {
-    expect(rotOutcome(clinicful(), 'nobody', 1, null)).toEqual({
-      turned: null,
-      bitten: null,
-      bittenDies: false,
-    });
+    expect(rotOutcome(clinicful(), 'nobody', 1, null)).toEqual({ turned: null, bitten: null });
   });
 
   it('leaves everything else about the campaign alone', () => {

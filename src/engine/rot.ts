@@ -101,9 +101,17 @@ export function rotCheckPasses(survivor: Survivor, roll: D10Result, target: numb
 export interface RotOutcome {
   /** The survivor who turned, or `null` when the check passed. */
   readonly turned: Survivor | null;
-  /** Who they bit, and whether the bite finishes them. */
-  readonly bitten: Survivor | null;
-  readonly bittenDies: boolean;
+
+  /**
+   * Who they bit and whether it finishes them, or `null` where nobody was
+   * bitten.
+   *
+   * One field rather than a survivor beside a `bittenDies` flag, because the
+   * flag could not be true without the survivor and every reader had to say so
+   * again — a guard the typechecker wanted and no test could reach. Nested,
+   * the invariant is in the type.
+   */
+  readonly bitten: { readonly survivor: Survivor; readonly dies: boolean } | null;
 }
 
 /**
@@ -122,16 +130,19 @@ export function rotOutcome(
   const survivor = campaign.survivors.find((candidate) => candidate.id === survivorId);
 
   if (survivor === undefined || rotCheckPasses(survivor, roll, rotTarget(campaign))) {
-    return { turned: null, bitten: null, bittenDies: false };
+    return { turned: null, bitten: null };
   }
 
-  const bitten =
-    biteCandidates(campaign, survivorId).find((candidate) => candidate.id === bittenId) ?? null;
+  const bitten = biteCandidates(campaign, survivorId).find(
+    (candidate) => candidate.id === bittenId,
+  );
 
   return {
     turned: survivor,
-    bitten,
-    bittenDies: bitten !== null && bitten.currentHp - ROT_BITE_DAMAGE <= 0,
+    bitten:
+      bitten === undefined
+        ? null
+        : { survivor: bitten, dies: bitten.currentHp - ROT_BITE_DAMAGE <= 0 },
   };
 }
 
@@ -146,14 +157,14 @@ export function withRotApplied(campaign: Campaign, outcome: RotOutcome): Campaig
   if (outcome.turned === null) return campaign;
 
   const gone = new Set([outcome.turned.id]);
-  if (outcome.bittenDies && outcome.bitten !== null) gone.add(outcome.bitten.id);
+  if (outcome.bitten?.dies === true) gone.add(outcome.bitten.survivor.id);
 
   return {
     ...campaign,
     survivors: campaign.survivors
       .filter((survivor) => !gone.has(survivor.id))
       .map((survivor) =>
-        survivor.id === outcome.bitten?.id
+        survivor.id === outcome.bitten?.survivor.id
           ? { ...survivor, currentHp: survivor.currentHp - ROT_BITE_DAMAGE }
           : survivor,
       ),

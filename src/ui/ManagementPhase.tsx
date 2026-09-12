@@ -165,7 +165,7 @@ function RotCheck({
           : `${name} turns and is removed.` +
             (outcome.bitten === null
               ? ''
-              : ` ${outcome.bitten.name} is bitten${outcome.bittenDies ? ' and removed too' : ''}.`)}
+              : ` ${outcome.bitten.survivor.name} is bitten${outcome.bitten.dies ? ' and removed too' : ''}.`)}
       </p>
 
       <button

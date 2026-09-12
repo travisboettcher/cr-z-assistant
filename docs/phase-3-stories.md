@@ -808,6 +808,26 @@ The screen lists the candidates and the player picks, defaulting to nobody — t
 every other place the rules leave a choice open. The turning survivor is excluded from their own
 candidate list.
 
+**What the mutation run found.** `campaignStore.ts` came back with **nine uncovered mutants**,
+having been at 100 the story before — the whole failing-Rot branch had no store test at all. The
+UI tests drove it through the app, which is not the same thing: a reducer that removes survivors
+deserves its own table of what it writes, in order. It has one now, and the fixture keeps a decoy
+survivor in front of the one being checked, because a `find` that ignored its predicate would
+otherwise return the right person anyway.
+
+`feeding.ts` came back at 90.70, and the finding was the same shape as Z3-8's: a hand-rolled loop
+walking the log backwards by index. Two of its mutants hung the runner rather than failing it, and
+two more were optional chains on a subscript that could not miss. Collecting the shortfalls with
+`flatMap` and taking the last says the same thing with no index to get wrong, and the test that
+holds it needs *three* entries — with two, "the last" and "the second" are the same position and a
+reader that took either would agree with itself.
+
+`rot.ts` gave up the same unreachable guard this phase keeps producing: a `bittenDies` boolean
+beside a nullable `bitten`, where the flag could not be true without the survivor and every reader
+had to say so again. `RotOutcome.bitten` is now `{ survivor, dies } | null`, so the invariant is in
+the type and there is nothing left to check twice. Each new test was run against the mutant it was
+written for before being kept.
+
 **A survivor who passes their check is still at 0 Health.** Holding on is not being healed, so the
 form stays and the history records what happened. That is the honest reading and it is asserted,
 because "the form went away" would have been an easy and wrong way to show success.

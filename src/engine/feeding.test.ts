@@ -93,6 +93,17 @@ describe('hunger', () => {
     expect(hunger(withLog(carried, [fed(2, 10, 6), fed(3, 10, 1)]))).toBe(1);
   });
 
+  /**
+   * Three turns rather than two, which is not padding: with only two entries
+   * "the last" and "the second" are the same index, and a reader that took
+   * either would agree with itself.
+   */
+  it('takes the last of several, not the second', () => {
+    const three = withLog(community(5, 4, 0), [fed(1, 10, 2), fed(2, 10, 7), fed(3, 10, 4)]);
+
+    expect(hunger(three)).toBe(4);
+  });
+
   it('ignores other events entirely', () => {
     const other: LogEntry = { turn: 3, phase: 'management', at: AT, event: { kind: 'turn-began' } };
 
@@ -177,6 +188,14 @@ describe('survivorsFed', () => {
 
   it('is true once this turn has an entry', () => {
     expect(survivorsFed(withLog(community(5, 4), [fed(3, 10, 0)]))).toBe(true);
+  });
+
+  it('ignores this turn’s other events', () => {
+    // A turn can be full of entries without the community having eaten, so the
+    // kind has to be checked as well as the turn.
+    const busy: LogEntry = { turn: 3, phase: 'management', at: AT, event: { kind: 'turn-began' } };
+
+    expect(survivorsFed(withLog(community(5, 4), [busy]))).toBe(false);
   });
 
   it('ignores last turn’s entry, which `hunger` still reads', () => {

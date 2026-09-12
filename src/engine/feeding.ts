@@ -71,15 +71,16 @@ export function hungerIfFedNow(campaign: Campaign): number {
  * answer: nobody has gone hungry yet.
  */
 export function hunger(campaign: Campaign): number {
-  // Backwards, because the most recent entry is the one in force. A campaign
-  // accumulates one of these per turn and only the last has any effect.
-  for (let at = campaign.log.length - 1; at >= 0; at -= 1) {
-    const event = campaign.log[at]?.event;
+  // Every shortfall the campaign has ever recorded, and then the last of them.
+  // An earlier draft walked the log backwards by index, which needed an
+  // optional chain on a subscript that could not miss and hung the test runner
+  // under every mutant that reversed the walk. Collecting and taking the last
+  // says the same thing with no index to get wrong.
+  const shortfalls = campaign.log.flatMap((entry) =>
+    entry.event.kind === 'survivors-fed' ? [entry.event.hunger] : [],
+  );
 
-    if (event?.kind === 'survivors-fed') return event.hunger;
-  }
-
-  return 0;
+  return shortfalls.at(-1) ?? 0;
 }
 
 /**

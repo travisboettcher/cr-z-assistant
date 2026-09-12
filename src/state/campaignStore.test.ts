@@ -1931,3 +1931,134 @@ describe('the Advancement Phase steps', () => {
     ).toEqual(before);
   });
 });
+
+/**
+ * The Management Phase's two steps, and the branch that removes people.
+ *
+ * **Two survivors in every fixture, and the one being checked is second.**
+ * The reducer finds them by id, and with a roster of one a `find` that
+ * ignored its predicate would return the right person anyway — the gap two
+ * mutants lived in during Z3-2 and one more lived in here.
+ */
+describe('the Management Phase', () => {
+  const CHECKED = '6b1f0a9c-77d2-4e35-91b8-0d4c2a5e83f7';
+  const DECOY = '0f3d8b51-4a26-4c19-b73e-8e5109cf2a64';
+
+  /** A Citizen at 0 Health in the Clinic, with somebody being healed beside them. */
+  function dying(bystanderHp: number): CampaignState {
+    return openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      turn: 3,
+      survivors: [
+        { ...createSurvivor('Ruby Vance', 4, { id: DECOY }), currentHp: bystanderHp },
+        { ...createSurvivor('Marcus Webb', 2, { id: CHECKED }), currentHp: 0 },
+      ],
+      assignments: { [DECOY]: { task: 'healing' }, [CHECKED]: { task: 'healing' } },
+    });
+  }
+
+  const check = (roll: 1 | 10, bitten: string | null) =>
+    ({
+      type: 'management/rotChecked',
+      at: AT,
+      survivor: CHECKED,
+      roll,
+      bitten,
+    }) as const;
+
+  it('refuses a second helping of Food in the same turn', () => {
+    const hungry = openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      turn: 3,
+      survivors: [createSurvivor('Marcus Webb', 4, { id: CHECKED })],
+      materials: { food: 9, fuel: 0, hardware: 0, rare: 0 },
+    });
+
+    const once = campaignReducer(hungry, { type: 'management/survivorsFed', at: AT });
+    const twice = campaignReducer(once, { type: 'management/survivorsFed', at: AT });
+
+    // A Hero eats two, so nine becomes seven and stays there.
+    expect(expectOpen(twice).materials.food).toBe(7);
+    expect(expectOpen(twice).log).toHaveLength(1);
+  });
+
+  it('says nothing about a Rot check on somebody the community does not hold', () => {
+    const before = dying(2);
+
+    expect(campaignReducer(before, { ...check(1, null), survivor: 'nobody' })).toEqual(before);
+  });
+
+  it('records a check that holds, and removes nobody', () => {
+    const after = expectOpen(campaignReducer(dying(2), check(10, DECOY)));
+
+    expect(after.survivors).toHaveLength(2);
+    expect(after.log.map((line) => line.event)).toEqual([
+      {
+        kind: 'rot-checked',
+        survivor: CHECKED,
+        name: 'Marcus Webb',
+        roll: 10,
+        target: 12,
+        passed: true,
+      },
+    ]);
+  });
+
+  it('records a check that fails, and the survivor who left with it', () => {
+    const after = expectOpen(campaignReducer(dying(2), check(1, null)));
+
+    expect(after.survivors.map((survivor) => survivor.id)).toEqual([DECOY]);
+    expect(after.log.map((line) => line.event)).toEqual([
+      {
+        kind: 'rot-checked',
+        survivor: CHECKED,
+        name: 'Marcus Webb',
+        roll: 1,
+        target: 12,
+        passed: false,
+      },
+      { kind: 'survivor-left', survivor: CHECKED, name: 'Marcus Webb', tier: 2 },
+    ]);
+  });
+
+  it('records the bite as well, where somebody takes one and lives', () => {
+    const after = expectOpen(campaignReducer(dying(2), check(1, DECOY)));
+
+    expect(after.survivors).toEqual([
+      { ...createSurvivor('Ruby Vance', 4, { id: DECOY }), currentHp: 1 },
+    ]);
+    expect(after.log.map((line) => line.event)).toEqual([
+      {
+        kind: 'rot-checked',
+        survivor: CHECKED,
+        name: 'Marcus Webb',
+        roll: 1,
+        target: 12,
+        passed: false,
+      },
+      { kind: 'survivor-left', survivor: CHECKED, name: 'Marcus Webb', tier: 2 },
+      { kind: 'survivor-bitten', survivor: DECOY, name: 'Ruby Vance', damage: 1 },
+    ]);
+  });
+
+  /** The worst case: one failed check, two survivors gone, four entries. */
+  it('records both departures where the bite finishes them', () => {
+    const after = expectOpen(campaignReducer(dying(1), check(1, DECOY)));
+
+    expect(after.survivors).toEqual([]);
+    expect(after.assignments).toEqual({});
+    expect(after.log.map((line) => line.event)).toEqual([
+      {
+        kind: 'rot-checked',
+        survivor: CHECKED,
+        name: 'Marcus Webb',
+        roll: 1,
+        target: 12,
+        passed: false,
+      },
+      { kind: 'survivor-left', survivor: CHECKED, name: 'Marcus Webb', tier: 2 },
+      { kind: 'survivor-bitten', survivor: DECOY, name: 'Ruby Vance', damage: 1 },
+      { kind: 'survivor-left', survivor: DECOY, name: 'Ruby Vance', tier: 4 },
+    ]);
+  });
+});
