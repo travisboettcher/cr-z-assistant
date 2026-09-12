@@ -28,7 +28,9 @@ import {
 import { AssignUtilities } from './AssignUtilities';
 import { BaseSheet } from './BaseSheet';
 import { FacilityWork } from './FacilityWork';
-import { laborPool } from '../engine/assignments';
+import { laborAvailable, queuedFor } from '../engine/projects';
+import { describeProject } from './projectLabels';
+import { useCampaign } from '../state/useCampaign';
 import { BuildFacility } from './BuildFacility';
 import { ClearSlot } from './ClearSlot';
 import { UpgradeFacility } from './UpgradeFacility';
@@ -72,6 +74,50 @@ function upgradeSummary(occupant: Occupant): string | null {
   return `${names.join(', ')} — ${String(used)} of 3, ${room}`;
 }
 
+/**
+ * What this slot has on order, and the way back out of it.
+ *
+ * Rendered on every card whatever state the slot is in, and above the verb
+ * rather than below it: a slot with a Workshop on order still offers "Build in
+ * Garage", because ordering twice is legal and the base is what says otherwise
+ * a turn later. The line is what stops the second order being a surprise.
+ */
+function QueuedProjects({
+  campaign,
+  slot,
+}: {
+  readonly campaign: Campaign;
+  readonly slot: string;
+}) {
+  const { dispatch } = useCampaign();
+  const queued = queuedFor(campaign, slot);
+
+  if (queued.length === 0) return null;
+
+  return (
+    <ul className="mt-2 flex flex-col gap-1">
+      {queued.map(({ at, project }) => (
+        // Keyed by position in the queue, because two identical orders for one
+        // slot are two orders and have no identity of their own.
+        <li key={at} className="flex flex-wrap items-baseline gap-x-2 text-sm">
+          <span className="text-stone-600 dark:text-stone-400">
+            On order: {describeProject(project)}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              dispatch({ type: 'project/cancelled', at, when: new Date().toISOString() });
+            }}
+            className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 px-3 text-sm font-medium dark:border-stone-700`}
+          >
+            Cancel {describeProject(project)}
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 interface SlotCardProps {
   readonly campaign: Campaign;
   readonly slot: BaseSlot;
@@ -113,6 +159,8 @@ function SlotCard({
           {SLOT_KIND_LABELS[slot.kind]}
         </span>
       </div>
+
+      <QueuedProjects campaign={campaign} slot={slot.id} />
 
       {occupant !== undefined && (
         <>
@@ -249,11 +297,11 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
       <div className="mt-4 rounded-lg border border-stone-200 p-4 dark:border-stone-800">
         <p className="text-sm">
           <span className="font-medium">Labor available: </span>
-          <span className="tabular-nums">{laborPool(campaign)}</span>
+          <span className="tabular-nums">{laborAvailable(campaign)}</span>
         </p>
         <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-          The summed Tier levels of the project team. Whatever is left at the end of the turn is
-          lost <PageRef pages={20} />
+          The summed Tier levels of the project team, less what this turn has already ordered.
+          Whatever is left at the end of the turn is lost <PageRef pages={20} />
         </p>
         {/*
          * Read here, assigned in the Planning Phase. Z3-5 put the team's own

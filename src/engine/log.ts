@@ -139,6 +139,20 @@ export type CampaignEvent =
       readonly damage: number;
     }
   /**
+   * A project was ordered in the Planning Phase (pg. 20).
+   *
+   * Three kinds, mirroring the three `*-built` entries the Advancement Phase
+   * writes when they finish — so a campaign's history reads "ordered a
+   * Workshop for the Garage" on one turn and "built a Workshop in the Garage"
+   * on the next, which is what actually happened. Collapsing the six into
+   * three would have made a turn's history say a thing was built twice.
+   */
+  | { readonly kind: 'facility-ordered'; readonly slot: string; readonly facility: FacilityId }
+  | { readonly kind: 'upgrade-ordered'; readonly slot: string; readonly upgrade: UpgradeId }
+  | { readonly kind: 'clearing-ordered'; readonly slot: string }
+  /** A queued project was cancelled before it was finished, and its Hardware came back. */
+  | { readonly kind: 'project-cancelled'; readonly slot: string }
+  /**
    * The stores were trimmed to the base's caps (pg. 23).
    *
    * Carries what was **lost**, not what is left: the counts that remain are on

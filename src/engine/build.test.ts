@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Base, type Campaign } from './campaign';
-import { buildableFacilities, checkBuild, withFacilityBuilt } from './build';
+import { buildableFacilities, checkBuild } from './build';
 import { projectTeamWorth } from '../test/campaigns';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
@@ -129,69 +129,6 @@ describe('checkBuild', () => {
       blockers: [],
       warnings: [],
     });
-  });
-});
-
-describe('withFacilityBuilt', () => {
-  it('builds, records the turn, and spends the Hardware', () => {
-    const after = withFacilityBuilt(campaignWith(smallTownHome()), {
-      slot: 'garage',
-      facility: 'workshop',
-    });
-
-    expect(after.base?.slots.garage).toEqual({
-      built: { facility: 'workshop', builtOnTurn: 4 },
-    });
-    expect(after.materials.hardware).toBe(17);
-  });
-
-  it('leaves the project team alone: Labor is generated, not held', () => {
-    const before = campaignWith(smallTownHome());
-    const after = withFacilityBuilt(before, { slot: 'garage', facility: 'workshop' });
-
-    expect(after.materials).toEqual({ ...before.materials, hardware: 17 });
-  });
-
-  it('keeps what the slot already recorded', () => {
-    const cleared = campaignWith({
-      id: 'hobby-farm',
-      slots: { 'ruined-chicken-coop': { cleared: true } },
-    });
-    const after = withFacilityBuilt(cleared, {
-      slot: 'ruined-chicken-coop',
-      facility: 'garden',
-    });
-
-    // Clearing is a fact about the slot that a build must not erase.
-    expect(after.base?.slots['ruined-chicken-coop']).toEqual({
-      cleared: true,
-      built: { facility: 'garden', builtOnTurn: 4 },
-    });
-  });
-
-  it('refuses a blocked build and changes nothing at all', () => {
-    const poor = campaignWith(smallTownHome(), {
-      materials: { food: 0, fuel: 0, hardware: 1, rare: 0 },
-    });
-
-    expect(withFacilityBuilt(poor, { slot: 'garage', facility: 'workshop' })).toBe(poor);
-  });
-
-  it('builds through a warning, because proceeding past one is the player’s call', () => {
-    const after = withFacilityBuilt(campaignWith(smallTownHome()), {
-      slot: 'garage',
-      facility: 'garden',
-    });
-
-    // A Garden in an indoor slot: illegal, overridable, and once overridden it
-    // is built. It keeps reporting the violation for as long as it stands.
-    expect(after.base?.slots.garage?.built?.facility).toBe('garden');
-  });
-
-  it('does nothing to a campaign with no base', () => {
-    const none = campaignWith(null);
-
-    expect(withFacilityBuilt(none, { slot: 'garage', facility: 'workshop' })).toBe(none);
   });
 });
 

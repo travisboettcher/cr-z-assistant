@@ -13,7 +13,7 @@
  */
 
 import type { ReactNode } from 'react';
-import { PROJECT_STEP } from '../data/turn';
+import { ORDER_STEP } from '../data/turn';
 import type { Campaign } from '../engine/campaign';
 import type { Check } from '../engine/checks';
 import { permitted } from '../engine/checks';
@@ -24,7 +24,7 @@ import { FOCUS_RING, TOUCH_TARGET } from './styles';
 export interface SlotActionProps<Code extends string> {
   /** The picker, or nothing where the verb has nothing to choose. */
   readonly children?: ReactNode;
-  /** For the note about which step projects belong to (pg. 19). */
+  /** For the note about which step projects are ordered in (pg. 20). */
   readonly campaign: Campaign;
   readonly cost: { readonly hardware: number; readonly labor: number };
   readonly check: Check<Code>;
@@ -71,18 +71,20 @@ export function SlotAction<Code extends string>({
       )}
 
       {/*
-       * Projects are ordered in the Planning Phase and finish in the next
-       * Advancement Phase (pg. 20, 19). Phase 2 shipped building as something
-       * you could do at any moment, and taking that away now would break every
-       * campaign mid-turn — so the app says which step this belongs to and
-       * leaves the button alone. A note rather than a `Check` code, because it
-       * is the same sentence for all three verbs and would otherwise be a
-       * fourth member of three separate closed unions.
+       * Projects are *ordered* in the Planning Phase and finish in the next
+       * Advancement Phase (pp. 20, 19) — so this note moved with Z3-11, from
+       * the step that used to build to the step that now orders. Phase 2
+       * shipped building as something you could do at any moment, and taking
+       * that away now would break every campaign mid-turn, so the app says
+       * which step this belongs to and leaves the button alone. A note rather
+       * than a `Check` code, because it is the same sentence for all three
+       * verbs and would otherwise be a fourth member of three separate closed
+       * unions.
        */}
-      {campaign.step !== PROJECT_STEP && (
+      {campaign.step !== ORDER_STEP && (
         <p className="mt-2 text-sm text-amber-800 dark:text-amber-300">
-          Projects belong to {STEP_LABELS[PROJECT_STEP]}, and the turn is at{' '}
-          {STEP_LABELS[campaign.step]}. <PageRef pages={19} />
+          Projects are ordered in {STEP_LABELS[ORDER_STEP]}, and the turn is at{' '}
+          {STEP_LABELS[campaign.step]}. <PageRef pages={20} />
         </p>
       )}
 

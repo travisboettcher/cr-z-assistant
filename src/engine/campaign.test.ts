@@ -72,6 +72,7 @@ describe('createNewCampaign', () => {
       'log',
       'materials',
       'name',
+      'projects',
       'schemaVersion',
       'startingCommunityBuilt',
       'step',

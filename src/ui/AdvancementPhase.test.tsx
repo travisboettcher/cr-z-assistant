@@ -359,46 +359,77 @@ describe('Heal Wounds', () => {
   });
 });
 
-describe('the steps that point somewhere else', () => {
-  it.each([
-    ['create-new-survivors', /strangers rescued on the mission/i],
-    ['add-facilities-and-upgrades', /this is the step projects finish in/i],
-  ] as const)('says what %s is for', (step, says) => {
-    open(advancement({ step }));
+describe('the step that points somewhere else', () => {
+  it('says what create-new-survivors is for', () => {
+    open(advancement({ step: 'create-new-survivors' }));
 
-    expect(within(walk()).getByText(says)).toBeTruthy();
+    expect(within(walk()).getByText(/strangers rescued on the mission/i)).toBeTruthy();
   });
 });
 
-describe('building outside the step it belongs to', () => {
-  it('says which step projects belong to, and builds anyway', async () => {
-    const user = open(
-      advancement({
-        step: 'character-advancement',
-        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
-        // Somebody to do the work, since Z3-5 made Labor the project team's.
-        assignments: { [EARL]: { task: 'project' } },
-      }),
-    );
+/**
+ * Step 5, which Z3-11 turned from a pointer into the step itself: the projects
+ * ordered in the last Planning Phase land here (pg. 19).
+ */
+describe('Add Facilities and Upgrades', () => {
+  const queued = (orderedOnTurn: number): Campaign =>
+    advancement({
+      step: 'add-facilities-and-upgrades',
+      materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+      projects: [
+        { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn },
+        { kind: 'upgrade', slot: 'kitchen', upgrade: 'gas-range', orderedOnTurn },
+      ],
+    });
 
-    await user.click(screen.getByRole('button', { name: /build in garage/i }));
+  it('says nothing was ordered when the queue is empty', () => {
+    open(advancement({ step: 'add-facilities-and-upgrades' }));
 
-    expect(screen.getByText(/projects belong to add facilities and upgrades/i)).toBeTruthy();
-    expect(screen.getByRole('button', { name: /build here/i })).toBeEnabled();
+    expect(within(walk()).getByText(/nothing was ordered/i)).toBeTruthy();
   });
 
-  it('says nothing on the step projects actually belong to', async () => {
-    const user = open(
+  it('says so when everything in the queue was ordered this turn', () => {
+    open(queued(3));
+
+    expect(within(walk()).getByText(/ordered this turn, and finishes next turn/i)).toBeTruthy();
+  });
+
+  it('names what is about to finish before anything is pressed', () => {
+    open(queued(2));
+
+    expect(within(walk()).getByText(/workshop in the garage/i)).toBeTruthy();
+    expect(within(walk()).getByText(/gas range on the kitchen/i)).toBeTruthy();
+  });
+
+  it('finishes them, and the base has them afterwards', async () => {
+    const user = open(queued(2));
+
+    await user.click(within(walk()).getByRole('button', { name: /finish 2 projects/i }));
+
+    const map = screen.getByRole('region', { name: /small town home/i });
+    expect(within(map).getByText(/^workshop$/i)).toBeTruthy();
+    expect(within(map).getByText(/gas range — 1 of 3/i)).toBeTruthy();
+  });
+
+  /** Nothing is spent here, so the step has nothing left to offer afterwards. */
+  it('has nothing to finish once it has been pressed', async () => {
+    const user = open(queued(2));
+
+    await user.click(within(walk()).getByRole('button', { name: /finish 2 projects/i }));
+
+    expect(within(walk()).queryByRole('button', { name: /^finish /i })).toBeNull();
+    expect(within(walk()).getByText(/nothing was ordered/i)).toBeTruthy();
+  });
+
+  it('names one project in the singular', () => {
+    open(
       advancement({
         step: 'add-facilities-and-upgrades',
-        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
-        assignments: { [EARL]: { task: 'project' } },
+        projects: [{ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 2 }],
       }),
     );
 
-    await user.click(screen.getByRole('button', { name: /build in garage/i }));
-
-    expect(screen.queryByText(/projects belong to/i)).toBeNull();
+    expect(within(walk()).getByRole('button', { name: /finish the project/i })).toBeTruthy();
   });
 });
 
