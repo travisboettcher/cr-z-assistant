@@ -162,3 +162,35 @@ describe('the Planning Phase steps', () => {
     expect(within(walk()).getByText(/no base, so there is nothing to staff/i)).toBeTruthy();
   });
 });
+
+/**
+ * Z3-11 moved this note with the verb it is about. Projects are ordered in the
+ * Planning Phase now (pg. 20) and finish in the next Advancement Phase, so the
+ * step the app points at is this phase's rather than that one's.
+ */
+describe('ordering outside the step it belongs to', () => {
+  const ready = (step: Campaign['step']): Campaign =>
+    planning({
+      step,
+      materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+      // Somebody to do the work, since Z3-5 made Labor the project team's.
+      assignments: { [EARL]: { task: 'project' } },
+    });
+
+  it('says which step orders belong to, and orders anyway', async () => {
+    const user = open(ready('assign-mission-team'));
+
+    await user.click(screen.getByRole('button', { name: /build in garage/i }));
+
+    expect(screen.getByText(/ordered in assign project team/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /order the build/i })).toBeEnabled();
+  });
+
+  it('says nothing on the step orders actually belong to', async () => {
+    const user = open(ready('assign-project-team'));
+
+    await user.click(screen.getByRole('button', { name: /build in garage/i }));
+
+    expect(screen.queryByText(/are ordered in/i)).toBeNull();
+  });
+});

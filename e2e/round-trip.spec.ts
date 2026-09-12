@@ -62,6 +62,18 @@ async function hireProjectTeam(page: Page) {
   }
 
   await skipToPhase(page, 'Planning');
+  await assignProjectTeam(page);
+}
+
+/**
+ * Puts everybody on the project team, from wherever the turn currently is.
+ *
+ * Separate from hiring since Z3-11, because a journey that orders a project and
+ * then orders another one after it lands has crossed a turn boundary — and the
+ * top of a Planning Phase clears last turn's tasks (pg. 20). The roster does
+ * not need hiring again; the team does need assigning again.
+ */
+async function assignProjectTeam(page: Page) {
   await page.getByRole('button', { name: 'Next: Assign Project Team' }).click();
 
   const team = page.getByRole('group', { name: /on the project team/i });
@@ -71,52 +83,89 @@ async function hireProjectTeam(page: Page) {
 }
 
 /**
- * Builds a Utility Station into the front yard and puts a Utilities worker in
- * it, which is what a utility pool is made of since Z3-5.
+ * Ends the turn and finishes everything ordered on it (pp. 20, 19).
  *
- * The staffed half of the pool is the combined Utilities Score of whoever is
- * working a Station (pg. 20, 72), and it was a number typed above the slot map
- * until this story. So a journey that assigns a point of Power now has to
- * build the thing that generates it and staff it — which is the real journey,
- * and worth having end to end once.
+ * Since Z3-11 a project is ordered in one turn and lands in the next turn's
+ * Advancement Phase, so every journey that used to press one button now spans a
+ * turn boundary. This is that turn, walked the way a player walks it: forward
+ * to the end of the turn, over the confirmation, and into Step 5 of the next
+ * Advancement Phase, where the queue empties.
+ *
+ * Walked step by step rather than phase by phase, because callers arrive here
+ * from wherever their own story left the turn and the phase button is hidden on
+ * the last step of a phase — where "Next" makes the same move. Bounded by the
+ * length of a turn, so a walk that never reaches the end fails rather than
+ * hangs.
+ */
+async function finishProjects(page: Page, turn: number) {
+  const end = page.getByRole('button', { name: `End turn ${String(turn)}` });
+  const STEPS_IN_A_TURN = 19;
+
+  for (let step = 0; step < STEPS_IN_A_TURN && (await end.count()) === 0; step += 1) {
+    await page.getByRole('button', { name: /^next: /i }).click();
+  }
+
+  await end.click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: `End turn ${String(turn)}` })
+    .click();
+
+  await page.getByRole('button', { name: 'Skip to Advancement' }).click();
+  for (const step of [
+    'Create New Survivors',
+    'Add Materials to Storage',
+    'Heal Wounds',
+    'Add Facilities and Upgrades',
+  ]) {
+    await page.getByRole('button', { name: `Next: ${step}` }).click();
+  }
+
+  await page.getByRole('button', { name: /^finish (the project|\d+ projects)$/i }).click();
+}
+
+/**
+ * Adds the Hero who will work a Utility Station, and teaches them Utilities.
+ *
+ * The staffed half of the utility pool is the combined Utilities Score of
+ * whoever is working a Station (pg. 20, 72), and it was a number typed above
+ * the slot map until Z3-5. So a journey that assigns a point of Power now has
+ * to build the thing that generates it and staff it — which is the real
+ * journey, and worth having end to end once.
  *
  * The worker is a Hero, and has to be: a Skill Score is the governing stat plus
  * the level (pg. 8), Utilities is governed by Cooperation, and the Tier stat
  * arrays only put anything in Cooperation at Tier 4. A Rookie who has learnt
  * Utilities still has a Score of zero — which is a real state the app models,
  * and a useless one to build a pool out of.
- *
- * `hireProjectTeam` must have run first: the Station costs 3 Hardware and 3
- * Labor.
  */
-async function staffAUtilityStation(page: Page, slot = 'front yard') {
-  const worker = 'Sam Reyes';
+const UTILITY_WORKER = 'Sam Reyes';
 
-  await page.getByLabel(/survivor name/i).fill(worker);
+async function hireAUtilityWorker(page: Page) {
+  await page.getByLabel(/survivor name/i).fill(UTILITY_WORKER);
   await page.getByLabel(/^tier$/i).selectOption('4');
   await page.getByRole('button', { name: /add survivor/i }).click();
-
-  await page.getByRole('button', { name: new RegExp(`build in ${slot}`, 'i') }).click();
-  await page.getByLabel(/^facility$/i).selectOption({ label: 'Utility Station' });
-  await page.getByRole('button', { name: /build here/i }).click();
 
   await page
     .getByRole('region', { name: /community/i })
     .getByRole('listitem')
-    .filter({ hasText: worker })
+    .filter({ hasText: UTILITY_WORKER })
     .getByRole('button', { name: /^sheet$/i })
     .click();
-  const sheet = page.getByRole('region', { name: worker });
+  const sheet = page.getByRole('region', { name: UTILITY_WORKER });
   await sheet
     .getByRole('row', { name: /^Utilities\b/ })
     .getByRole('button', { name: /^take\b/i })
     .click();
   await sheet.getByRole('button', { name: /^close sheet$/i }).click();
+}
 
+/** Puts the utility worker into a Station that is already standing. */
+async function staffTheUtilityStation(page: Page, slot: string) {
   await page.getByRole('button', { name: new RegExp(`upgrade ${slot}`, 'i') }).click();
   await page
     .getByRole('group', { name: /working here/i })
-    .getByRole('checkbox', { name: new RegExp(worker, 'i') })
+    .getByRole('checkbox', { name: new RegExp(UTILITY_WORKER, 'i') })
     .check();
   await page.getByRole('button', { name: /^cancel$/i }).click();
 }
@@ -631,7 +680,9 @@ test('the campaign log records what happened, and survives the round trip', asyn
  * makes a build possible at all, so it is part of the journey rather than
  * setup: a Build button that can never be pressed would not be worth shipping.
  */
-test('a facility is built into a slot, and the build survives the round trip', async ({ page }) => {
+test('a facility is ordered, finishes a turn later, and survives the round trip', async ({
+  page,
+}) => {
   await startCampaign(page, 'Cedar Hollow');
 
   await page.getByLabel(/choose a base/i).selectOption({ label: 'Small Town Home — Tier 1' });
@@ -643,12 +694,18 @@ test('a facility is built into a slot, and the build survives the round trip', a
   await page.getByRole('button', { name: /build in garage/i }).click();
   await page.getByLabel(/^facility$/i).selectOption({ label: 'Workshop' });
   await expect(page.getByText(/3 Hardware · 2 Labor/i)).toBeVisible();
-  await page.getByRole('button', { name: /build here/i }).click();
+  await page.getByRole('button', { name: /order the build/i }).click();
 
   const map = page.getByRole('region', { name: 'Small Town Home' });
-  await expect(map).toContainText('Workshop');
-  // Spent, not merely recorded.
+  // On order rather than built: the Hardware is gone and the garage is not.
+  await expect(map).toContainText(/on order: workshop in the garage/i);
+  await expect(map).toContainText(/empty — ready to build in/i);
   await expect(page.getByLabel(/^hardware$/i)).toHaveValue('6');
+
+  await finishProjects(page, 1);
+
+  await expect(map).toContainText('Workshop');
+  await expect(map).not.toContainText(/on order:/i);
 
   const exported = await exportCampaign(page);
   expect(JSON.parse(exported.text)).toMatchObject({
@@ -671,11 +728,15 @@ test('a facility is built into a slot, and the build survives the round trip', a
 });
 
 /**
- * Z2-6's acceptance, and the one rule in Phase 2 that needs two turns to show.
+ * Z2-6's acceptance, and the rule that needs two turns to show.
  *
  * A facility built this turn refuses an upgrade until the next one, which is
  * the whole reason `builtOnTurn` is stored: without it the rule cannot survive
  * a reload, and this is the journey that would notice.
+ *
+ * Z3-11 made the rule *reachable*: a project finishes in the Advancement Phase
+ * and the Planning Phase comes after it in the same turn, so the Workshop that
+ * went up this turn is offered an upgrade this turn and refuses it.
  */
 test('an upgrade waits for the turn after its facility went up', async ({ page }) => {
   await startCampaign(page, 'Cedar Hollow');
@@ -686,29 +747,37 @@ test('an upgrade waits for the turn after its facility went up', async ({ page }
   await page.getByLabel(/^hardware$/i).fill('12');
   await hireProjectTeam(page);
 
+  // Two orders on one turn, priced against one Labor pool: a Workshop is 2 and
+  // a Gas Range 1, against the team's 5.
   await page.getByRole('button', { name: /build in garage/i }).click();
   await page.getByLabel(/^facility$/i).selectOption({ label: 'Workshop' });
-  await page.getByRole('button', { name: /build here/i }).click();
+  await page.getByRole('button', { name: /order the build/i }).click();
 
-  // Same turn: held, with an override rather than a flat refusal.
+  await page.getByRole('button', { name: /upgrade kitchen/i }).click();
+  await page.getByLabel(/^upgrade$/i).selectOption({ label: 'Gas Range' });
+  await page.getByRole('button', { name: /order the upgrade/i }).click();
+
+  await finishProjects(page, 1);
+
+  const map = page.getByRole('region', { name: 'Small Town Home' });
+  await expect(map).toContainText('Workshop');
+  await expect(map).toContainText('Gas Range — 1 of 3, room for 2 more');
+
+  // The Workshop went up this turn, in the step just walked through: held, with
+  // an override rather than a flat refusal.
   await page.getByRole('button', { name: /upgrade garage/i }).click();
   await expect(page.getByText(/went up this turn/i)).toBeVisible();
-  await expect(page.getByRole('button', { name: /add upgrade/i })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /order the upgrade/i })).toBeDisabled();
 
   // A built-in was never built, so the same rule never touches it.
   await page.getByRole('button', { name: /upgrade kitchen/i }).click();
   await expect(page.getByText(/went up this turn/i)).not.toBeVisible();
-  await page.getByLabel(/^upgrade$/i).selectOption({ label: 'Gas Range' });
-  await page.getByRole('button', { name: /add upgrade/i }).click();
-
-  const map = page.getByRole('region', { name: 'Small Town Home' });
-  await expect(map).toContainText('Gas Range — 1 of 3, room for 2 more');
 
   const exported = await exportCampaign(page);
   expect(JSON.parse(exported.text)).toMatchObject({
     base: {
       slots: {
-        garage: { built: { facility: 'workshop', builtOnTurn: 1 } },
+        garage: { built: { facility: 'workshop', builtOnTurn: 2 } },
         kitchen: { upgrades: ['gas-range'] },
       },
     },
@@ -726,23 +795,34 @@ test('an upgrade waits for the turn after its facility went up', async ({ page }
    * own: Phase 2 shipped this rule with no way to satisfy it. The turn walk is
    * what finally lets a player get to the turn after.
    *
-   * Hiring the team left the campaign in the Planning Phase, so one skip
-   * reaches the last phase of the turn — and the skip off *that* asks first,
-   * because ending a turn is the one move that cannot be walked back.
+   * The move off the Management Phase asks first, because ending a turn is the
+   * one move that cannot be walked back.
    */
+  await page.getByRole('button', { name: 'Next: Assign Facility Staff' }).click();
   await page.getByRole('button', { name: 'Skip to Management' }).click();
-  await page.getByRole('button', { name: 'End turn 1' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'End turn 1' }).click();
+  await page.getByRole('button', { name: 'End turn 2' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'End turn 2' }).click();
 
-  await expect(page.getByRole('region', { name: 'Turn 2' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Turn 3' })).toBeVisible();
 
   // The garage's upgrade form is still open from before the turn ended, and it
   // now reads differently: a new turn, so the Workshop is no longer the thing
   // that just went up.
-  await hireProjectTeam(page);
   await expect(page.getByText(/went up this turn/i)).not.toBeVisible();
+
+  // Turn 3's own project team, because the top of a Planning Phase clears last
+  // turn's tasks (pg. 20) — so the Labor a Metal Shop costs has to be assigned
+  // again before it can be ordered.
+  await skipToPhase(page, 'Planning');
+  await assignProjectTeam(page);
+
+  // The garage's form is still the open one, so there is no toggle to press.
   await page.getByLabel(/^upgrade$/i).selectOption({ label: 'Metal Shop' });
-  await page.getByRole('button', { name: /add upgrade/i }).click();
+  await page.getByRole('button', { name: /order the upgrade/i }).click();
+
+  await expect(map).toContainText(/on order: metal shop on the garage/i);
+
+  await finishProjects(page, 3);
 
   await expect(map).toContainText('Metal Shop');
 });
@@ -766,10 +846,15 @@ test('a cleared slot builds like an empty one of its own kind', async ({ page })
   await expect(map).toContainText('Blocked — 2 Labor to clear, and yields 2 hardware');
 
   await page.getByRole('button', { name: /clear ruined chicken coop/i }).click();
-  await page.getByRole('button', { name: /clear it/i }).click();
+  await page.getByRole('button', { name: /order the clearing/i }).click();
 
-  // The yield arrives in storage, which is the only way Phase 2 gains Hardware
-  // other than typing it in.
+  // Ordered, not cleared: the rubble is still there and so is what is in it.
+  await expect(map).toContainText(/on order: clearing the ruined chicken coop/i);
+  await expect(page.getByLabel(/^hardware$/i)).toHaveValue('0');
+
+  await finishProjects(page, 1);
+
+  // The yield arrives when the work is done, a turn after it was ordered.
   await expect(page.getByLabel(/^hardware$/i)).toHaveValue('2');
   await expect(map).toContainText('Cleared — ready to build in');
 
@@ -782,7 +867,9 @@ test('a cleared slot builds like an empty one of its own kind', async ({ page })
 
   await page.getByLabel(/^facility$/i).selectOption({ label: 'Garden' });
   await expect(page.getByText(/needs an indoor slot/i)).not.toBeVisible();
-  await page.getByRole('button', { name: /build here/i }).click();
+  await page.getByRole('button', { name: /order the build/i }).click();
+
+  await finishProjects(page, 2);
 
   await expect(map).toContainText('Garden');
 
@@ -817,29 +904,47 @@ test('a point of Power covers a facility and its upgrades, and survives the roun
   await page.getByRole('button', { name: /claim this base/i }).click();
 
   await page.getByLabel(/^hardware$/i).fill('20');
+  await hireAUtilityWorker(page);
   await hireProjectTeam(page);
-  await staffAUtilityStation(page);
 
-  // A Storage Area with two upgrades on it: three things, one point of Power.
+  /*
+   * Turn 1's whole Labor budget, in two orders: a Utility Station is 3 and a
+   * Storage Area 2, against the team's 5.
+   */
+  await page.getByRole('button', { name: /build in front yard/i }).click();
+  await page.getByLabel(/^facility$/i).selectOption({ label: 'Utility Station' });
+  await page.getByRole('button', { name: /order the build/i }).click();
+
   await page.getByRole('button', { name: /build in garage/i }).click();
   await page.getByLabel(/^facility$/i).selectOption({ label: 'Storage Area' });
-  await page.getByRole('button', { name: /build here/i }).click();
+  await page.getByRole('button', { name: /order the build/i }).click();
+
+  await finishProjects(page, 1);
 
   /*
    * Both upgrades go on through the override, and they have to: an upgrade may
-   * not be built the same turn as its facility (pg. 54), and **Phase 2 has no
-   * way to advance the turn** — the turn engine is Phase 3. So until then the
-   * only facilities that can be upgraded without waving the rule through are
-   * the ones the base came with, which is a consequence of the phase boundary
-   * rather than of this story.
+   * not be built the same turn as its facility (pg. 54), and the Storage Area
+   * went up in the step this journey has just walked through. Waiting a turn
+   * for each would be two more turn boundaries in a test about Power.
+   *
+   * Ordered here, in turn 2's Advancement Phase, because the project team that
+   * pays for them is still turn 1's: tasks expire at the top of a Planning
+   * Phase (pg. 20), and this turn's has not begun.
    */
   for (const upgrade of ['Refrigeration', 'Shelving']) {
     await page.getByRole('button', { name: /upgrade garage/i }).click();
     await page.getByLabel(/^upgrade$/i).selectOption({ label: upgrade });
     await expect(page.getByText(/went up this turn/i)).toBeVisible();
-    await page.getByLabel(/add it anyway/i).check();
-    await page.getByRole('button', { name: /add upgrade/i }).click();
+    await page.getByLabel(/order it anyway/i).check();
+    await page.getByRole('button', { name: /order the upgrade/i }).click();
   }
+
+  await finishProjects(page, 2);
+
+  // Turn 3's Planning Phase staffs the Station, because turn 2's staffing
+  // expired with turn 2.
+  await page.getByRole('button', { name: 'Next: Assign Facility Staff' }).click();
+  await staffTheUtilityStation(page, 'front yard');
 
   await page.getByRole('button', { name: /upgrade garage/i }).click();
   await page.getByRole('checkbox', { name: 'Power' }).check();
@@ -900,12 +1005,28 @@ test('the base sheet totals the base, and staffing it is written down', async ({
   await hireProjectTeam(page);
   await expect(page.getByLabel(/^heroes$/i)).toHaveText('1 / 1');
 
-  // Power turns the built-in Refrigeration on, which is the parenthetical the
-  // book prints for this base: 6/6(8)/6. The point comes out of a Station
-  // somebody is working, rather than a number typed in.
-  // Adds a second Hero, which takes the community over the base's cap of one.
-  // That is a violation the roster reports rather than one this test is about.
-  await staffAUtilityStation(page, 'parking lot 1');
+  /*
+   * Power turns the built-in Refrigeration on, which is the parenthetical the
+   * book prints for this base: 6/6(8)/6. The point comes out of a Station
+   * somebody is working, rather than a number typed in — so the Station is
+   * ordered on turn 1, stands on turn 2, and is staffed in turn 2's Planning
+   * Phase, which is where staffing belongs (pg. 20).
+   *
+   * The worker is a second Hero, which takes the community over the base's cap
+   * of one. That is a violation the roster reports rather than one this test is
+   * about.
+   */
+  await hireAUtilityWorker(page);
+
+  await page.getByRole('button', { name: /build in parking lot 1/i }).click();
+  await page.getByLabel(/^facility$/i).selectOption({ label: 'Utility Station' });
+  await page.getByRole('button', { name: /order the build/i }).click();
+
+  await finishProjects(page, 1);
+
+  await page.getByRole('button', { name: 'Next: Assign Facility Staff' }).click();
+  await staffTheUtilityStation(page, 'parking lot 1');
+
   await page.getByRole('button', { name: /upgrade storage area/i }).click();
   await page.getByRole('checkbox', { name: 'Power' }).check();
   await expect(page.getByLabel(/food stored/i)).toHaveText('0 / 8');
@@ -1059,7 +1180,7 @@ test('a Clinic’s Health is shared out unequally, because equally means this', 
 
   await page.getByRole('button', { name: /build in garage/i }).click();
   await page.getByLabel(/^facility$/i).selectOption({ label: 'Medical Clinic' });
-  await page.getByRole('button', { name: /build here/i }).click();
+  await page.getByRole('button', { name: /order the build/i }).click();
 
   /*
    * Nell learns Medicine and trains it to level 4, which is what the Clinic's
@@ -1106,8 +1227,19 @@ test('a Clinic’s Health is shared out unequally, because equally means this', 
     await hurt.getByRole('button', { name: /^close sheet$/i }).click();
   }
 
-  // Back one step to staff the Clinic, which is Planning Step 1 (pg. 20).
-  await page.getByRole('button', { name: 'Back to Assign Facility Staff' }).click();
+  /*
+   * Three turns, and Z3-11 is why. The Clinic is ordered on turn 1 and finishes
+   * in turn 2's Advancement Phase — which is *after* Heal Wounds, the step that
+   * would want it. So the Clinic that heals somebody is staffed in turn 2's
+   * Planning Phase and pays out in turn 3, and a journey that tried to do it in
+   * one turn would be testing a rule the book does not have.
+   */
+  await finishProjects(page, 1);
+  await expect(page.getByRole('region', { name: 'Small Town Home' })).toContainText(
+    'Medical Clinic',
+  );
+
+  await page.getByRole('button', { name: 'Next: Assign Facility Staff' }).click();
   await page
     .getByRole('group', { name: /medical clinic/i })
     .getByRole('checkbox', { name: /nell/i })
@@ -1121,15 +1253,15 @@ test('a Clinic’s Health is shared out unequally, because equally means this', 
 
   await page.getByRole('button', { name: 'Next: Assign Mission Team' }).click();
   await page.getByRole('button', { name: 'Next: Check for Rot' }).click();
-  await page.getByRole('button', { name: 'End turn 1' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'End turn 1' }).click();
+  await page.getByRole('button', { name: 'End turn 2' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'End turn 2' }).click();
 
   await page.getByRole('button', { name: 'Skip to Advancement' }).click();
   for (const step of ['Create New Survivors', 'Add Materials to Storage', 'Heal Wounds']) {
     await page.getByRole('button', { name: `Next: ${step}` }).click();
   }
 
-  const walk = page.getByRole('region', { name: 'Turn 2' });
+  const walk = page.getByRole('region', { name: 'Turn 3' });
 
   // Three points. Ada needs one and takes one, then fills up and drops out;
   // Tomas needs three and takes the other two. A division would have given them
@@ -1161,7 +1293,7 @@ test('a Clinic’s Health is shared out unequally, because equally means this', 
   // Not repeatable across a reload: what makes it so is the log, not this
   // component.
   await expect(
-    page.getByRole('region', { name: 'Turn 2' }).getByText(/wounds are healed/i),
+    page.getByRole('region', { name: 'Turn 3' }).getByText(/wounds are healed/i),
   ).toBeVisible();
 });
 
@@ -1363,6 +1495,105 @@ test('a turn ends with the horde called and somebody walking out', async ({ page
   await expect(page.getByRole('region', { name: 'Turn 2' })).toContainText(
     'This turn’s mission is a Siege Defense',
   );
+
+  await startFreshCampaign(page, 'Millbrook');
+  await page.setInputFiles('input[type="file"]', exported.path);
+  await page.getByRole('button', { name: /replace it/i }).click();
+
+  const reExported = await exportCampaign(page);
+  expect(reExported.text).toBe(exported.text);
+});
+
+/**
+ * Z3-11's acceptance: the queue, from the order to the thing standing there.
+ *
+ * What the other journeys exercise incidentally, this one is about. A turn's
+ * Labor is a budget rather than a formality — the second order is priced
+ * against what the first one left, what is not spent by the end of the turn is
+ * gone (pg. 20), and an order taken back gives its Hardware up again. Then the
+ * Advancement Phase of the next turn turns the queue into a base (pg. 19).
+ */
+test('a turn’s Labor is a budget, and the queue survives the round trip', async ({ page }) => {
+  await startCampaign(page, 'Cedar Hollow');
+
+  await page.getByLabel(/choose a base/i).selectOption({ label: 'Small Town Home — Tier 1' });
+  await page.getByRole('button', { name: /claim this base/i }).click();
+
+  await page.getByLabel(/^hardware$/i).fill('12');
+  // A Hero and a Rookie: five Labor for the turn.
+  await hireProjectTeam(page);
+
+  const map = page.getByRole('region', { name: 'Small Town Home' });
+  await expect(map).toContainText('Labor available: 5');
+
+  // A Workshop is 3 Hardware and 2 Labor. Both leave the moment it is ordered —
+  // the Hardware from the stores, the Labor from what is left to order with.
+  await page.getByRole('button', { name: /build in garage/i }).click();
+  await page.getByLabel(/^facility$/i).selectOption({ label: 'Workshop' });
+  await page.getByRole('button', { name: /order the build/i }).click();
+
+  await expect(map).toContainText(/on order: workshop in the garage/i);
+  await expect(map).toContainText('Labor available: 3');
+  await expect(page.getByLabel(/^hardware$/i)).toHaveValue('9');
+
+  // A Watchtower is 3 Hardware and 2 Labor as well, which the turn can still
+  // afford — and leaves one Labor, which will simply be lost.
+  await page.getByRole('button', { name: /build in front yard/i }).click();
+  await page.getByLabel(/^facility$/i).selectOption({ label: 'Watchtower' });
+  await page.getByRole('button', { name: /order the build/i }).click();
+
+  await expect(map).toContainText('Labor available: 1');
+
+  // A third order is refused by what the first two committed, not by anything
+  // stored: one Labor is left and a Bunk Room wants two.
+  await page.getByRole('button', { name: /build in garage/i }).click();
+  await page.getByLabel(/^facility$/i).selectOption({ label: 'Bunk Room' });
+  await expect(page.getByText(/costs 2 labor and 1 is available/i)).toBeVisible();
+  await expect(page.getByRole('button', { name: /order the build/i })).toBeDisabled();
+  await page.getByRole('button', { name: /^cancel$/i }).click();
+
+  // Taking an order back gives up both: the Hardware returns to the stores and
+  // the Labor it had committed is available again.
+  await map.getByRole('button', { name: /cancel watchtower in the front yard/i }).click();
+
+  await expect(map).not.toContainText(/on order: watchtower/i);
+  await expect(map).toContainText('Labor available: 3');
+  // Twelve, less the Workshop's three, with the Watchtower's three returned.
+  await expect(page.getByLabel(/^hardware$/i)).toHaveValue('9');
+
+  // The queue is stored, so it survives a reload with the turn it was ordered
+  // on — which is what says when it is due.
+  const queued = await exportCampaign(page);
+  expect(JSON.parse(queued.text).projects).toEqual([
+    { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 1 },
+  ]);
+
+  await waitForAutosave(page, 'Cedar Hollow');
+  await page.reload();
+  await expect(page.getByRole('region', { name: 'Small Town Home' })).toContainText(
+    /on order: workshop in the garage/i,
+  );
+
+  await finishProjects(page, 1);
+
+  // Built, off the queue, and nothing further was charged for it.
+  const built = page.getByRole('region', { name: 'Small Town Home' });
+  await expect(built).toContainText('Workshop');
+  await expect(built).not.toContainText(/on order:/i);
+  await expect(page.getByLabel(/^hardware$/i)).toHaveValue('9');
+
+  // And the history says both halves, a turn apart.
+  const history = page.getByRole('region', { name: 'History' });
+  await expect(history).toContainText('Ordered a Workshop for the Garage');
+  await expect(history).toContainText('Built a Workshop in the Garage');
+  await expect(history).toContainText('Cancelled the Front Yard project');
+
+  const exported = await exportCampaign(page);
+  expect(JSON.parse(exported.text)).toMatchObject({
+    turn: 2,
+    projects: [],
+    base: { slots: { garage: { built: { facility: 'workshop', builtOnTurn: 2 } } } },
+  });
 
   await startFreshCampaign(page, 'Millbrook');
   await page.setInputFiles('input[type="file"]', exported.path);

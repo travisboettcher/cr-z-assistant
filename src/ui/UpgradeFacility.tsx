@@ -54,13 +54,12 @@ export function UpgradeFacility({ campaign, slot, onUpgraded }: UpgradeFacilityP
       onOverride={(overridden) => {
         setOverriddenFor(overridden ? chosen : null);
       }}
-      label="Add upgrade"
-      overrideLabel="Add it anyway"
+      label="Order the upgrade"
+      overrideLabel="Order it anyway"
       onCommit={() => {
         dispatch({
-          type: 'upgrade/built',
-          slot,
-          upgrade: chosen,
+          type: 'project/ordered',
+          project: { kind: 'upgrade', slot, upgrade: chosen },
           at: new Date().toISOString(),
         });
         onUpgraded();

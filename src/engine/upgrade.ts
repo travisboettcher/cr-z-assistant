@@ -21,8 +21,8 @@
  */
 
 import { MAX_UPGRADES_PER_FACILITY, type Upgrade, type UpgradeId } from '../data/facilities';
-import { occupants, upgradesRemaining, upgradesUsed, type Occupant } from './base';
-import { laborPool } from './assignments';
+import { occupantAt, upgradesRemaining, upgradesUsed } from './base';
+import { laborAvailable } from './projects';
 import type { Check, Violation } from './checks';
 import type { Campaign } from './campaign';
 
@@ -49,12 +49,6 @@ export interface UpgradeRequest {
 }
 
 /** The occupant of a slot, or undefined when nothing stands there. */
-function occupantAt(campaign: Campaign, slot: string): Occupant | undefined {
-  if (campaign.base === null) return undefined;
-
-  return occupants(campaign.base).find((occupant) => occupant.slotId === slot);
-}
-
 /**
  * The upgrades this slot's facility offers, or an empty list.
  *
@@ -116,7 +110,7 @@ export function checkUpgrade(campaign: Campaign, request: UpgradeRequest): Upgra
     });
   }
 
-  const available = laborPool(campaign);
+  const available = laborAvailable(campaign);
 
   if (available < upgrade.cost.labor) {
     blockers.push({
@@ -180,54 +174,4 @@ export function checkUpgrade(campaign: Campaign, request: UpgradeRequest): Upgra
   }
 
   return { blockers, warnings };
-}
-
-/**
- * The campaign with the upgrade added and its Hardware spent.
- *
- * Appended to the slot's own list rather than replacing anything: repeats are
- * legal, and the base's shipped upgrades live in the layout and are not the
- * player's to edit. Returns the campaign unchanged when anything blocks it,
- * the same way `withFacilityBuilt` and the advancement purchases do.
- */
-export function withUpgradeBuilt(campaign: Campaign, request: UpgradeRequest): Campaign {
-  // Redundant with `checkUpgrade`, and kept because it is what narrows `base`
-  // for the spread below. A mutant that removes it survives for that reason: a
-  // type guard in front of a check that already rejects the value, which is the
-  // equivalent-mutant shape the README describes. `build.ts` has the same one.
-  const base = campaign.base;
-  if (base === null) return campaign;
-
-  // Resolved before the blockers are consulted rather than after, so this is
-  // the only lookup and the only narrowing. Doing it the other way round left
-  // an unreachable second copy of three of `checkUpgrade`'s own refusals.
-  const occupant = occupantAt(campaign, request.slot);
-  const upgrade = occupant?.facility.upgrades.find((candidate) => candidate.id === request.upgrade);
-  // Narrowing again, and equivalent again: `checkUpgrade` blocks every case
-  // that lands here — an empty slot, an upgrade of another facility — so
-  // removing this changes no answer. It stays because `upgrade.cost` below
-  // needs it, and the reorder above is what made the *lookup* itself testable.
-  if (upgrade === undefined) return campaign;
-
-  if (checkUpgrade(campaign, request).blockers.length > 0) return campaign;
-
-  const state = base.slots[request.slot];
-
-  return {
-    ...campaign,
-    materials: {
-      ...campaign.materials,
-      hardware: campaign.materials.hardware - upgrade.cost.hardware,
-    },
-    base: {
-      ...base,
-      slots: {
-        ...base.slots,
-        [request.slot]: {
-          ...state,
-          upgrades: [...(state?.upgrades ?? []), request.upgrade],
-        },
-      },
-    },
-  };
 }

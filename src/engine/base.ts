@@ -42,7 +42,7 @@ import {
   type Utility,
 } from '../data/facilities';
 import { STORAGE_ABOVE_TIER, STORED_MATERIALS, type StoredMaterial } from '../data/materials';
-import type { Base } from './campaign';
+import type { Base, Campaign } from './campaign';
 
 /**
  * A facility standing in a slot, with everything needed to work out what it
@@ -191,6 +191,36 @@ function supplied(entry: Facility | Upgrade, occupant: Occupant): boolean {
  * stores are switched off by the same rule, and two copies of that rule would
  * be two places for it to drift.
  */
+/**
+ * What clearing this slot costs and gives, or `undefined` where there is no
+ * rubble in it.
+ *
+ * Lived in `clearing.ts` until Z3-11, which needed the cost of a *queued*
+ * clearing project from a module `clearing.ts` itself imports. Here, it is what
+ * it always was — a question about the base's layout — and the cycle does not
+ * arise.
+ */
+export function clearingProject(campaign: Campaign, slot: string) {
+  if (campaign.base === null) return undefined;
+
+  const found = layoutOf(campaign.base).find((candidate) => candidate.id === slot);
+
+  return found?.state === 'clearing-project' ? found : undefined;
+}
+
+/**
+ * Whatever is built in one slot, or `undefined` for an empty or blocked one.
+ *
+ * Lived in `upgrade.ts` until Z3-11 needed the same lookup to decide whether a
+ * queued project still has somewhere to land. One "what is in this slot" rather
+ * than two.
+ */
+export function occupantAt(campaign: Campaign, slot: string): Occupant | undefined {
+  if (campaign.base === null) return undefined;
+
+  return occupants(campaign.base).find((occupant) => occupant.slotId === slot);
+}
+
 export function working(occupant: Occupant): readonly (Facility | Upgrade)[] {
   return [occupant.facility, ...occupant.upgrades].filter((entry) => supplied(entry, occupant));
 }

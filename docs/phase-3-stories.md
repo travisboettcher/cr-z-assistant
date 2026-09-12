@@ -955,8 +955,64 @@ screens being finished.
 - Ordering more than the Labor pool covers is refused, and what is left is visible while there is
   still time to spend it.
 
-**Open question for the table:** whether a project ordered and then cancelled in the same Planning
-Phase returns its Labor. The book does not say, and both readings are defensible.
+**Cancelling an order returns its Hardware, and its Labor was never gone.** This was an open
+question when the story was written — the book does not say — and the app rules on it: an order is a
+decision made on a screen within a phase, and a decision a player cannot take back is a trap rather
+than a rule. The Hardware comes back to the stores. The Labor needs no refund at all, because
+nothing ever deducted it: `laborCommitted` simply stops counting a project that has left the queue.
+
+**`orderedOnTurn` is why nothing else is stored.** One field on each queued project answers both
+questions the rule asks. *Which turn's Labor paid for this*, so what is left to spend is arithmetic
+over the queue — `laborPool` less the cost of everything ordered this turn — rather than a running
+total somebody has to remember to decrement, which would be a derived value living on the persisted
+shape. And *when the project is due*: the Advancement Phase of any turn after the one it was ordered
+in.
+
+**Hardware is spent on ordering; Labor is merely counted.** Hardware is a material and leaves the
+stores when the order is placed (pg. 20), so a community cannot queue five Workshops on one
+Workshop's worth of it. Labor is not a material and has nowhere to leave from — it is a property of
+who is on the project team this turn — so it is *checked* against what the queue has already
+committed rather than deducted from anything. That difference is also what makes cancelling
+straightforward.
+
+**A clearing project's yield arrives when the work is done**, not when it is ordered. It is the one
+place the timing visibly matters on screen: the rubble is still there for a turn, and so are the two
+Hardware in it.
+
+**Six event kinds for three verbs.** A project is ordered on one turn and finished on the next, and
+both are things that happened. A campaign's history reads "Ordered a Workshop for the Garage" and
+then, a turn later, "Built a Workshop in the Garage". Three events reused for both would have made
+one turn's history claim the same thing twice.
+
+**A completed project that can no longer happen is dropped silently, and says nothing.** The queue
+is a record of what was ordered, not a promise the base will still have room: Z1-7's override lets a
+player build into a slot a project was queued for. Those projects are dropped rather than applied —
+and `completeProjects` returns *which* ones landed alongside the campaign, precisely so the log
+cannot claim a Workshop that is not there. That is why it is not named `with…` like every other
+builder in the engine.
+
+**No "already completed" guard, unlike every other destructive step in the Advancement Phase**, and
+none is needed. Completing takes what it finished off the queue, so a second press has nothing due
+and changes nothing. The guard the other steps need exists because they spend a resource that is
+still there to spend again; this one consumes the only thing it reads.
+
+**The three Phase 2 builders are gone.** `withFacilityBuilt`, `withUpgradeBuilt` and `withSlotCleared`
+did ordering and completing in one move, which is the thing this story says is two moves. The three
+*checks* stay exactly where they were — `checkOrder` in `src/engine/orders.ts` delegates to them —
+because what may go in a slot did not change. `orders.ts` is a separate module from `projects.ts`
+only to break an import cycle: `build.ts` reads `laborAvailable` from `projects.ts`, so the checks
+cannot live there.
+
+**The note about which step projects belong to moved with the verb.** It pointed at Add Facilities
+and Upgrades, the step that used to build; it points at Assign Project Team now, the step that
+orders. Both constants live in `src/data/turn.ts` so the screen that takes an order, the screen that
+finishes one, and the note cannot disagree.
+
+**The turn boundary is now load-bearing in the journeys, and that is the story working.** A Medical
+Clinic ordered on turn 1 finishes in turn 2's Advancement Phase — which is *after* Heal Wounds — so
+the Clinic that heals somebody is staffed in turn 2's Planning Phase and pays out in turn 3. The
+end-to-end suite walks it. A journey that did it in one turn would be testing a rule the book does
+not have.
 
 ---
 

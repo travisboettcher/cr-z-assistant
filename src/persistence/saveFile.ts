@@ -23,7 +23,7 @@ import { TIERS } from '../data/tiers';
 import { MATERIALS } from '../data/materials';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { CAMPAIGN_PHASES, HEALTH_SOURCES, XP_SOURCES } from '../data/turn';
-import type { Assignment, Campaign } from '../engine/campaign';
+import type { Assignment, Campaign, Project } from '../engine/campaign';
 import type { CampaignEventKind } from '../engine/log';
 import { TURN_SEQUENCE } from '../engine/turn';
 import { migrate, type MigrationErrorReason } from './migrations';
@@ -274,6 +274,16 @@ const EVENT_FIELDS: Record<
     ['name', 'name'],
     ['damage', 'countFromOne'],
   ],
+  'facility-ordered': [
+    ['slot', 'id'],
+    ['facility', 'facility'],
+  ],
+  'upgrade-ordered': [
+    ['slot', 'id'],
+    ['upgrade', 'upgrade'],
+  ],
+  'clearing-ordered': [['slot', 'id']],
+  'project-cancelled': [['slot', 'id']],
   'storage-checked': [
     ['food', 'count'],
     ['fuel', 'count'],
@@ -438,6 +448,52 @@ function describeAssignmentProblem(value: unknown): string | null {
 }
 
 /**
+ * The fields each kind of project carries, and how to check each one.
+ *
+ * A full `Record` over the kinds, so a project kind added to `campaign.ts`
+ * without a line here fails the typecheck rather than sailing through
+ * validation unchecked — the same guarantee `EVENT_FIELDS` gives log events.
+ * Every kind carries a slot and the turn it was ordered on; only two carry
+ * anything else.
+ */
+const PROJECT_FIELDS: Record<
+  Project['kind'],
+  readonly (readonly [field: string, check: EventFieldCheck])[]
+> = {
+  facility: [['facility', 'facility']],
+  upgrade: [['upgrade', 'upgrade']],
+  clearing: [],
+};
+
+/**
+ * Names the first thing structurally wrong with one queued project, or `null`.
+ *
+ * **Shape, not legality**, like everything else here. A project queued for a
+ * slot the base does not have, or for a facility the slot could not hold, is a
+ * rule the screens report rather than a damaged file — and Z1-7's override
+ * means a campaign can genuinely hold one. What this refuses is a project that
+ * refers to nothing: a kind this version has never heard of, or a facility id
+ * that is not in the catalogue.
+ */
+function describeProjectProblem(value: unknown): string | null {
+  if (!isRecord(value)) return 'is not a project';
+
+  const kind = value.kind;
+  if (typeof kind !== 'string' || !isKeyOf(PROJECT_FIELDS, kind)) {
+    return `is a kind of project this version does not know: ${String(kind)}`;
+  }
+
+  if (!EVENT_FIELD_CHECKS.id(value.slot)) return 'does not say which slot it is for';
+  if (!isCountFromOne(value.orderedOnTurn)) return 'does not say which turn it was ordered on';
+
+  for (const [field, check] of PROJECT_FIELDS[kind as Project['kind']]) {
+    if (!EVENT_FIELD_CHECKS[check](value[field])) return `has an unreadable ${field}`;
+  }
+
+  return null;
+}
+
+/**
  * Names the first thing wrong with a would-be current-shape `Campaign`, or
  * `null` if there is nothing wrong with it.
  *
@@ -518,6 +574,16 @@ function describeCampaignProblem(value: unknown): string | null {
 
     const problem = describeAssignmentProblem(assignment);
     if (problem !== null) return `the task it gives to ${id} ${problem}`;
+  }
+
+  if (!Array.isArray(value.projects)) return 'its project queue is missing';
+  for (const [index, project] of value.projects.entries()) {
+    const problem = describeProjectProblem(project);
+    // Positional, like log entries: a project whose damaged field is the one
+    // that says what it is cannot be pointed at by what it is.
+    if (problem !== null) {
+      return `project ${index + 1} of ${value.projects.length} ${problem}`;
+    }
   }
 
   if (!Array.isArray(value.log)) return 'its campaign log is missing';

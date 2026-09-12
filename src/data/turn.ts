@@ -107,13 +107,16 @@ export const TURN_STEPS = {
 export type TurnStepId = (typeof TURN_STEPS)[CampaignPhase][number]['id'];
 
 /**
- * The step a project finishes in (pg. 19).
+ * The two steps a project passes through: ordered in one, finished in the other
+ * (pp. 20, 19).
  *
- * Named here rather than typed out wherever the app mentions it, so the one
- * screen that builds and the one that says when to build cannot disagree.
- * Facilities, upgrades and cleared slots are all the same kind of thing to the
- * book — a project, ordered in the Planning Phase and completed here.
+ * Named here rather than typed out wherever the app mentions it, so the screen
+ * that takes an order, the screen that finishes one, and the note that says
+ * when each belongs cannot disagree. Facilities, upgrades and cleared slots are
+ * all the same kind of thing to the book — a project — which is why one pair of
+ * constants covers all three verbs.
  */
+export const ORDER_STEP: TurnStepId = 'assign-project-team';
 export const PROJECT_STEP: TurnStepId = 'add-facilities-and-upgrades';
 
 /**

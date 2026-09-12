@@ -13,7 +13,8 @@
  */
 
 import type { Campaign } from '../engine/campaign';
-import { checkClearing, clearingProject } from '../engine/clearing';
+import { clearingProject } from '../engine/base';
+import { checkClearing } from '../engine/clearing';
 import { useCampaign } from '../state/useCampaign';
 import { SlotAction } from './SlotAction';
 
@@ -44,10 +45,14 @@ export function ClearSlot({ campaign, slot, onCleared }: ClearSlotProps) {
       onOverride={() => {
         /* no warnings to override */
       }}
-      label="Clear it"
-      overrideLabel="Clear it anyway"
+      label="Order the clearing"
+      overrideLabel="Order it anyway"
       onCommit={() => {
-        dispatch({ type: 'slot/cleared', slot, at: new Date().toISOString() });
+        dispatch({
+          type: 'project/ordered',
+          project: { kind: 'clearing', slot },
+          at: new Date().toISOString(),
+        });
         onCleared();
       }}
     />

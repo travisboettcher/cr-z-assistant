@@ -19,8 +19,8 @@
  */
 
 import { MATERIALS, type Material } from '../data/materials';
-import { layoutOf } from './base';
-import { laborPool } from './assignments';
+import { clearingProject, layoutOf } from './base';
+import { laborAvailable } from './projects';
 import type { Check, Violation } from './checks';
 import type { Campaign } from './campaign';
 
@@ -34,15 +34,6 @@ export type ClearingCheck = Check<ClearingViolationCode>;
 export interface ClearingRequest {
   readonly slot: string;
   /** Labor available this turn, entered by hand — see `build.ts`. */
-}
-
-/** What clearing this slot costs and gives, or undefined where there is no project. */
-export function clearingProject(campaign: Campaign, slot: string) {
-  if (campaign.base === null) return undefined;
-
-  const found = layoutOf(campaign.base).find((candidate) => candidate.id === slot);
-
-  return found?.state === 'clearing-project' ? found : undefined;
 }
 
 /** Everything wrong with clearing this slot, or two empty lists. */
@@ -89,7 +80,7 @@ export function checkClearing(campaign: Campaign, request: ClearingRequest): Cle
     };
   }
 
-  const available = laborPool(campaign);
+  const available = laborAvailable(campaign);
 
   if (available < slot.labor) {
     return {
@@ -105,54 +96,6 @@ export function checkClearing(campaign: Campaign, request: ClearingRequest): Cle
   }
 
   return { blockers: [], warnings: [] };
-}
-
-/**
- * The campaign with the slot cleared and whatever the project gave back added.
- *
- * **The equipment a project yields is not added**, and the screen says so. The
- * Outdoor Sports Shop's Inventory slot gives four standard weapons, and Phase 5
- * owns the item catalogue — there is no Inventory to put them in, and inventing
- * an item id now would be designing that catalogue from the wrong end. The
- * materials it can honour, it honours.
- *
- * No storage cap is applied to what arrives, for the reason a hand-entered
- * material count is not capped either: Check Storage is a Management Phase step
- * (pg. 23) and over-storage has consequences this app does not model.
- */
-export function withSlotCleared(campaign: Campaign, request: ClearingRequest): Campaign {
-  // Two narrowings that `checkClearing` below already covers, kept because they
-  // are what give `base` and `project` their types for the work that follows.
-  // Mutants that remove either survive for that reason — type guards standing
-  // in front of a check that already rejects the value, the equivalent-mutant
-  // shape the README describes. `build.ts` and `upgrade.ts` have the same.
-  const base = campaign.base;
-  if (base === null) return campaign;
-
-  const project = clearingProject(campaign, request.slot);
-  if (project === undefined) return campaign;
-
-  if (checkClearing(campaign, request).blockers.length > 0) return campaign;
-
-  const gained = { ...campaign.materials };
-  for (const material of MATERIALS) {
-    // `yields` is optional on the type and present on all three projects the
-    // roster has, so the guard is unexercised by data rather than unnecessary:
-    // a project that gives nothing back is a shape the book allows.
-    gained[material] += project.yields?.materials?.[material] ?? 0;
-  }
-
-  return {
-    ...campaign,
-    materials: gained,
-    base: {
-      ...base,
-      slots: {
-        ...base.slots,
-        [request.slot]: { ...base.slots[request.slot], cleared: true },
-      },
-    },
-  };
 }
 
 /** The materials a project gives back, as pairs, for a screen to render. */

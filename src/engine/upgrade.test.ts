@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Base, type Campaign } from './campaign';
-import { checkUpgrade, upgradesFor, withUpgradeBuilt } from './upgrade';
+import { checkUpgrade, upgradesFor } from './upgrade';
 import { projectTeamWorth } from '../test/campaigns';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
@@ -206,82 +206,5 @@ describe('checkUpgrade', () => {
 
     expect(codes(check.blockers)).toEqual(['no-base']);
     expect(check.warnings).toEqual([]);
-  });
-});
-
-describe('withUpgradeBuilt', () => {
-  it('adds the upgrade and spends its Hardware', () => {
-    const after = withUpgradeBuilt(campaignWith(home()), {
-      slot: 'kitchen',
-      upgrade: 'gas-range',
-    });
-
-    expect(after.base?.slots.kitchen?.upgrades).toEqual(['gas-range']);
-    // A Gas Range costs 2 Hardware.
-    expect(after.materials.hardware).toBe(18);
-  });
-
-  it('appends rather than replaces, so repeats stack', () => {
-    const after = withUpgradeBuilt(
-      campaignWith(home({ 'bunk-room-1': { upgrades: ['extra-bed'] } })),
-      {
-        slot: 'bunk-room-1',
-        upgrade: 'extra-bed',
-      },
-    );
-
-    expect(after.base?.slots['bunk-room-1']?.upgrades).toEqual(['extra-bed', 'extra-bed']);
-  });
-
-  it('keeps what else the slot recorded', () => {
-    const after = withUpgradeBuilt(
-      campaignWith(home({ kitchen: { power: true, cleared: true } })),
-      { slot: 'kitchen', upgrade: 'gas-range' },
-    );
-
-    expect(after.base?.slots.kitchen).toEqual({
-      power: true,
-      cleared: true,
-      upgrades: ['gas-range'],
-    });
-  });
-
-  it('spends what the chosen upgrade costs, not what the first one does', () => {
-    // A Biofuel Lab is the Kitchen's third upgrade and costs 3 Hardware where
-    // the Refrigerator costs 2 — so picking the wrong entry is visible here.
-    const after = withUpgradeBuilt(campaignWith(home()), {
-      slot: 'kitchen',
-      upgrade: 'biofuel-lab',
-    });
-
-    expect(after.base?.slots.kitchen?.upgrades).toEqual(['biofuel-lab']);
-    expect(after.materials.hardware).toBe(17);
-  });
-
-  it('does nothing to a slot with nothing in it', () => {
-    const empty = campaignWith(home());
-
-    expect(withUpgradeBuilt(empty, { slot: 'garage', upgrade: 'gas-range' })).toBe(empty);
-  });
-
-  it('refuses a blocked upgrade and changes nothing at all', () => {
-    const poor = campaignWith(home(), { materials: { food: 0, fuel: 0, hardware: 0, rare: 0 } });
-
-    expect(withUpgradeBuilt(poor, { slot: 'kitchen', upgrade: 'gas-range' })).toBe(poor);
-  });
-
-  it('goes through a warning, because proceeding past one is the player’s call', () => {
-    const full = campaignWith(
-      home({ kitchen: { upgrades: ['gas-range', 'gas-range', 'gas-range'] } }),
-    );
-    const after = withUpgradeBuilt(full, { slot: 'kitchen', upgrade: 'gas-range' });
-
-    expect(after.base?.slots.kitchen?.upgrades).toHaveLength(4);
-  });
-
-  it('does nothing to a campaign with no base', () => {
-    const none = campaignWith(null);
-
-    expect(withUpgradeBuilt(none, { slot: 'kitchen', upgrade: 'gas-range' })).toBe(none);
   });
 });
