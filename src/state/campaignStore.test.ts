@@ -1459,6 +1459,56 @@ describe('utility/toggled', () => {
  * what makes the rule true — a screen that hides the button is a screen, and
  * the action is still dispatchable.
  */
+/**
+ * pg. 19, 54: a community's first base starts at the maximum of every capped
+ * material. A *later* base starts with only what was carried over, which is
+ * Phase 4's Claim a New Base — and `base === null` is exactly what makes this
+ * the first.
+ */
+describe('base/claimed stocks the first base', () => {
+  const empty = (): CampaignState => openState(createNewCampaign('Cedar Hollow', FIXED));
+
+  const claim = (base: 'small-town-home' | 'greasy-spoon'): CampaignAction => ({
+    type: 'base/claimed',
+    at: AT,
+    base,
+  });
+
+  it('fills every capped material to its cap', () => {
+    const after = expectOpen(campaignReducer(empty(), claim('small-town-home')));
+
+    expect(after.materials).toEqual({ food: 4, fuel: 4, hardware: 4, rare: 0 });
+  });
+
+  /** Rare has no cap (pg. 54), so nothing is invented for it. */
+  it('leaves Rare alone, which the book gives no cap', () => {
+    const after = expectOpen(campaignReducer(empty(), claim('greasy-spoon')));
+
+    expect(after.materials.rare).toBe(0);
+    expect(after.materials.food).toBe(6);
+  });
+
+  it('records the stocking, so found materials have a source', () => {
+    const after = expectOpen(campaignReducer(empty(), claim('small-town-home')));
+
+    expect(after.log.map((written) => written.event.kind)).toEqual([
+      'base-claimed',
+      'base-stocked',
+    ]);
+  });
+
+  /**
+   * The rule is about the *first* base. Replacing one is Claim a New Base and
+   * is refused here entirely, so there is no second stocking to get wrong —
+   * but the refusal is what makes that true, and it is worth pinning.
+   */
+  it('does nothing at all for a community that already has a base', () => {
+    const once = campaignReducer(empty(), claim('small-town-home'));
+
+    expect(campaignReducer(once, claim('greasy-spoon'))).toEqual(once);
+  });
+});
+
 describe('the steps that may only run once a turn', () => {
   const AT2 = '2026-09-08T22:00:00.000Z';
   const WEBB = '6b1f0a9c-77d2-4e35-91b8-0d4c2a5e83f7';
@@ -1696,8 +1746,14 @@ describe('what earns a line in the log', () => {
 
   interface Policy {
     readonly action: CampaignAction;
-    /** The entry it must leave behind, or `null` for what the log ignores. */
-    readonly entry: LogEntry | null;
+    /**
+     * The entry it must leave behind, or `null` for what the log ignores.
+     *
+     * A list where one action is two things that happened — claiming a base
+     * also stocks it — because "what earns a line" is a claim about the whole
+     * log the action leaves, not about its first line.
+     */
+    readonly entry: LogEntry | readonly LogEntry[] | null;
     /** For the one action that needs a campaign without a base. */
     readonly state?: CampaignState;
   }
@@ -1783,7 +1839,13 @@ describe('what earns a line in the log', () => {
     'base/claimed': {
       action: { type: 'base/claimed', at: AT, base: 'small-town-home' },
       state: openState(),
-      entry: entry(1, 'mission', { kind: 'base-claimed', base: 'small-town-home' }),
+      // Two things happened: the community claimed a base, and its first base
+      // arrived stocked to its caps (pg. 19). A Tier 1 base stores four of
+      // each.
+      entry: [
+        entry(1, 'mission', { kind: 'base-claimed', base: 'small-town-home' }),
+        entry(1, 'mission', { kind: 'base-stocked', food: 4, fuel: 4, hardware: 4 }),
+      ],
     },
     'project/ordered': {
       action: {
@@ -2083,7 +2145,10 @@ describe('what earns a line in the log', () => {
 
       // Every starting state here has an empty log, so the whole log is the
       // assertion rather than a diff against what was already there.
-      expect(after.log).toEqual(policy.entry === null ? [] : [policy.entry]);
+      const expected =
+        policy.entry === null ? [] : Array.isArray(policy.entry) ? policy.entry : [policy.entry];
+
+      expect(after.log).toEqual(expected);
     });
   }
 

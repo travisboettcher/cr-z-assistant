@@ -13,7 +13,7 @@ import { useCampaign } from '../state/useCampaign';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
 export function StartNewCampaign() {
-  const { dispatch, unsavedChanges } = useCampaign();
+  const { dispatch, unsavedChanges, everExported } = useCampaign();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const headingId = useId();
   const nameId = useId();
@@ -65,11 +65,18 @@ export function StartNewCampaign() {
         {/*
          * Only warned about when there is something to lose. A warning shown
          * every time is one nobody reads by the third campaign.
+         *
+         * "Nothing is lost" is the sentence that has to be earned, and it was
+         * not: a campaign restored from the autosave and never exported read
+         * as matching a file, so this offered to destroy the only copy while
+         * promising the opposite.
          */}
         <p className="mt-2 text-stone-600 dark:text-stone-400">
-          {unsavedChanges
-            ? 'The campaign you have open has changed since your last export. Starting a new one replaces the browser’s copy, and those changes will be gone.'
-            : 'This closes the campaign you have open. It matches your last exported file, so nothing is lost.'}
+          {!everExported
+            ? 'The campaign you have open has never been exported. Starting a new one replaces the browser’s copy, and it will be gone.'
+            : unsavedChanges
+              ? 'The campaign you have open has changed since your last export. Starting a new one replaces the browser’s copy, and those changes will be gone.'
+              : 'This closes the campaign you have open. It matches your last exported file, so nothing is lost.'}
         </p>
 
         <form onSubmit={handleSubmit} className="mt-5">

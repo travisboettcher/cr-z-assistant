@@ -51,6 +51,7 @@
  */
 
 import { FOOD_EATEN_PER_TURN } from '../data/turn';
+import { suppliedOccupants } from './utilities';
 import { beds } from './base';
 import type { Campaign } from './campaign';
 
@@ -175,7 +176,7 @@ export function penaltyFor(shortfall: number, population: number): number {
  */
 export function exhaustion(campaign: Campaign): number {
   const base = campaign.base;
-  const sleeping = base === null ? 0 : beds(base);
+  const sleeping = base === null ? 0 : beds(base, suppliedOccupants(campaign));
 
   return Math.max(0, campaign.survivors.length - sleeping);
 }

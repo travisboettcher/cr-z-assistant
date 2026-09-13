@@ -560,8 +560,9 @@ describe('the base sheet', () => {
   it('shows storage against the cap, and says when it is over', async () => {
     const user = await claimed();
 
-    // Tier 1 plus its built-in Storage Area is 6 for each material.
-    expect(screen.getByRole('definition', { name: /food stored/i })).toHaveTextContent('0 / 6');
+    // Tier 1 plus its built-in Storage Area is 6 for each material — and a
+    // community's first base arrives holding its maximum of each (pg. 19).
+    expect(screen.getByRole('definition', { name: /food stored/i })).toHaveTextContent('6 / 6');
 
     await user.clear(screen.getByLabelText(/^food$/i));
     await user.type(screen.getByLabelText(/^food$/i), '9');

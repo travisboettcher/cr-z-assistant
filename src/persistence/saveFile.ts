@@ -377,6 +377,11 @@ const EVENT_FIELDS: Record<
     ['score', 'count'],
   ],
   'base-claimed': [['base', 'base']],
+  'base-stocked': [
+    ['food', 'count'],
+    ['fuel', 'count'],
+    ['hardware', 'count'],
+  ],
   'facility-built': [
     ['slot', 'id'],
     ['facility', 'facility'],

@@ -10,6 +10,15 @@ export const TIERS = [1, 2, 3, 4] as const;
 export type Tier = (typeof TIERS)[number];
 
 /**
+ * The Tier that counts as a Hero (pg. 7).
+ *
+ * Named because two rules turn on it and neither should spell it `4`: a base
+ * caps how many a community may hold, and only one may go on any single
+ * mission.
+ */
+export const HERO_TIER: Tier = 4;
+
+/**
  * The stat values a survivor of this Tier receives, highest first. An *ordered
  * list of values to assign*, not a record keyed by stat: the player chooses
  * which stat gets which value (pg. 7).

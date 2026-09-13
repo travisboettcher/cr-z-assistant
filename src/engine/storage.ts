@@ -20,6 +20,7 @@
  */
 
 import { STORED_MATERIALS, type StoredMaterial } from '../data/materials';
+import { suppliedOccupants } from './utilities';
 import { storageCaps } from './base';
 import type { Campaign } from './campaign';
 
@@ -30,7 +31,7 @@ export function overCap(campaign: Campaign): Record<StoredMaterial, number> {
 
   if (base === null) return spilled;
 
-  const caps = storageCaps(base);
+  const caps = storageCaps(base, suppliedOccupants(campaign));
 
   for (const material of STORED_MATERIALS) {
     spilled[material] = Math.max(0, campaign.materials[material] - caps[material]);
