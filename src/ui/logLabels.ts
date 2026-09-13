@@ -234,6 +234,12 @@ export function describeEvent(event: CampaignEvent): EventLabel {
         pages: 18,
       };
 
+    case 'base-stocked':
+      return {
+        text: `The base was stocked to its caps: ${String(event.food)} Food, ${String(event.fuel)} Fuel, ${String(event.hardware)} Hardware.`,
+        pages: 19,
+      };
+
     case 'base-claimed':
       return { text: `Claimed the ${BASE_LABELS[event.base]} as a base.` };
 

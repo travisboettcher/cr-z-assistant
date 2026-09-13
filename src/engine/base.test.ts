@@ -444,3 +444,23 @@ describe('siegeThreatReduction', () => {
     expect(siegeThreatReduction(occupantOf(tower()), [lookout(3)], 2)).toBe(4);
   });
 });
+
+/**
+ * pg. 19, 54: a community's **first** base starts at the maximum of every
+ * capped material. The app left it at 0/0/0 and never mentioned the rule, so a
+ * player who did not know it started three material types short.
+ *
+ * The caps themselves are asserted all over this file; what this pins is the
+ * number the claim should hand over, since that is what the reducer copies.
+ */
+describe('what a first base arrives holding', () => {
+  it('is the cap of every stored material, and nothing about Rare', () => {
+    // A Tier 1 base stores Tier + 3 of each.
+    expect(storageCaps(claimed('small-town-home'))).toEqual({ food: 4, fuel: 4, hardware: 4 });
+  });
+
+  /** A base with a Storage Area is higher, and the claim follows it. */
+  it('follows the base’s own facilities rather than its Tier alone', () => {
+    expect(storageCaps(claimed('greasy-spoon')).food).toBe(6);
+  });
+});

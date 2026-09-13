@@ -26,6 +26,7 @@
  */
 
 import { TURN_STEPS } from '../data/turn';
+import { HERO_TIER } from '../data/tiers';
 import { occupants } from './base';
 import type { Assignment, Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
@@ -39,6 +40,7 @@ export type PlanningViolationCode =
   | 'someone-else-resting'
   | 'no-medical-clinic'
   | 'injured-on-a-mission'
+  | 'a-second-hero-on-one-mission'
   | 'someone-else-scavenging'
   | 'scavenging-needs-the-mission-skipped';
 
@@ -164,7 +166,7 @@ function warningsFor(
     case 'healing':
       return healingWarnings(campaign, survivor);
     case 'mission':
-      return missionWarnings(survivor);
+      return missionWarnings(campaign, survivor, assignment.team);
     case 'scavenging':
       return scavengingWarnings(campaign, survivor);
     // Anybody may be on the project team: it is the task with no eligibility
@@ -251,16 +253,54 @@ function healingWarnings(campaign: Campaign, survivor: Survivor): readonly Plann
   return warnings;
 }
 
-function missionWarnings(survivor: Survivor): readonly PlanningViolation[] {
-  if (!isInjured(survivor)) return [];
+function missionWarnings(
+  campaign: Campaign,
+  survivor: Survivor,
+  team: number,
+): readonly PlanningViolation[] {
+  const warnings: PlanningViolation[] = [];
 
-  return [
-    {
+  if (isInjured(survivor)) {
+    warnings.push({
       code: 'injured-on-a-mission',
       message: 'Injured survivors cannot be sent on a mission.',
       pages: 21,
-    },
-  ];
+    });
+  }
+
+  /*
+   * Only one Hero may be on any single mission (pg. 7). **Per team, not per
+   * community** — the base's Hero cap is a different rule and is enforced
+   * elsewhere — so two Heroes split across two mission teams is legal and this
+   * says nothing about it.
+   *
+   * It will be load-bearing beyond legality once Phase 4 computes mission
+   * setup: team Tier points scale the zombie count for every mission, so a
+   * two-Hero team is a materially different setup as well as an illegal one.
+   *
+   * A warning rather than a refusal, like everything else in this phase.
+   */
+  const hero = othersOnTeam(campaign, survivor.id, team).find(
+    (candidate) => candidate.tier === HERO_TIER,
+  );
+
+  if (survivor.tier === HERO_TIER && hero !== undefined) {
+    warnings.push({
+      code: 'a-second-hero-on-one-mission',
+      message: `Only one Hero may go on a mission, and ${hero.name} is.`,
+      pages: 7,
+    });
+  }
+
+  return warnings;
+}
+
+/** Everybody else already on this mission team. */
+function othersOnTeam(campaign: Campaign, survivor: string, team: number): readonly Survivor[] {
+  return survivorsDoing(
+    campaign,
+    (assignment) => assignment.task === 'mission' && assignment.team === team,
+  ).filter((candidate) => candidate.id !== survivor);
 }
 
 function scavengingWarnings(campaign: Campaign, survivor: Survivor): readonly PlanningViolation[] {

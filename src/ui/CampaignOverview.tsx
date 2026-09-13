@@ -21,7 +21,7 @@ export interface CampaignOverviewProps {
 }
 
 export function CampaignOverview({ campaign }: CampaignOverviewProps) {
-  const { unsavedChanges, markExported, autosaveError, dispatch } = useCampaign();
+  const { unsavedChanges, everExported, markExported, autosaveError, dispatch } = useCampaign();
   const materialsId = useId();
 
   return (
@@ -103,11 +103,18 @@ export function CampaignOverview({ campaign }: CampaignOverviewProps) {
          * takes with it, and the exported file is the one that lasts. Calling
          * the autosave "saved" without that qualifier is how someone
          * eventually loses a campaign.
+         *
+         * Three states rather than two, because "changed since your last
+         * export" is not true of a campaign that has never had one — and the
+         * restore path used to seed itself from the autosave, so a campaign
+         * written nowhere reported that it matched a file.
          */}
         <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">
-          {unsavedChanges
-            ? 'Changed since your last export. The browser is keeping a copy, but only an exported file survives clearing your browser data.'
-            : 'Matches your last exported file.'}
+          {!everExported
+            ? 'Never exported. The browser is keeping a copy, but only an exported file survives clearing your browser data.'
+            : unsavedChanges
+              ? 'Changed since your last export. The browser is keeping a copy, but only an exported file survives clearing your browser data.'
+              : 'Matches your last exported file.'}
         </p>
 
         {autosaveError !== null && (
