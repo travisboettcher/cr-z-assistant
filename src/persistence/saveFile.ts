@@ -236,6 +236,16 @@ const EVENT_FIELD_CHECKS = {
     (isRecord(value) &&
       Object.values(value).every((one) => describeAssignmentProblem(one) === null)),
   tier: (value: unknown) => TIERS.some((tier) => tier === value),
+  // A trade's two halves: some of the four materials, each a whole count of
+  // one or more. Partial because a trade names only what it moves, and every
+  // amount positive because the entry records the spend as it was paid rather
+  // than as a negative — "2 Fuel for 1 Food" is one trade, not two movements.
+  materialAmounts: (value: unknown) =>
+    isRecord(value) &&
+    Object.entries(value).every(
+      ([material, amount]) =>
+        (MATERIALS as readonly string[]).includes(material) && isCountFromOne(amount),
+    ),
   roll: (value: unknown) => D10_RESULTS.some((result) => result === value),
   skill: (value: unknown) => typeof value === 'string' && isKeyOf(SKILL_STATS, value),
   commonSkill: (value: unknown) => COMMON_SKILLS.some((skill) => skill === value),
@@ -270,6 +280,12 @@ const EVENT_FIELDS: Record<
     ['fuel', 'amount'],
     ['hardware', 'amount'],
     ['rare', 'amount'],
+  ],
+  'materials-converted': [
+    ['slot', 'id'],
+    ['source', 'id'],
+    ['spent', 'materialAmounts'],
+    ['gained', 'materialAmounts'],
   ],
   'survivors-fed': [
     ['required', 'count'],

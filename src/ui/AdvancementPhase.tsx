@@ -14,7 +14,7 @@
  */
 
 import { useState } from 'react';
-import { MATERIALS, type Material } from '../data/materials';
+import { MATERIALS, type Material, type Materials } from '../data/materials';
 import { D10_RESULTS, type D10Result } from '../data/dice';
 import {
   SUBSTITUTION_SKILLS,
@@ -35,12 +35,20 @@ import {
   substitutionsSpent,
   type MaterialRoll,
 } from '../engine/materials';
+import {
+  checkConversion,
+  conversions,
+  gainedBy,
+  spentBy,
+  timesConverted,
+  type Conversion,
+} from '../engine/conversions';
 import { checkXpAward, xpPools, type XpPoolEmptiness } from '../engine/experience';
 import { checkHealing, healingPool, healthAwards, woundsHealed } from '../engine/healing';
 import { dueProjects, isDue } from '../engine/projects';
 import { describeProject } from './projectLabels';
 import { useCampaign } from '../state/useCampaign';
-import { MATERIAL_LABELS } from './baseLabels';
+import { MATERIAL_LABELS, builtThingLabel, slotLabel } from './baseLabels';
 import { PageRef } from './PageRef';
 import { SKILL_LABELS } from './skillLabels';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
@@ -189,10 +197,14 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
       </p>
 
       {done ? (
-        <p className="mt-3 text-sm font-medium">
-          This turn’s materials are already in storage. Stepping back through the walk will not add
-          them twice.
-        </p>
+        <>
+          <p className="mt-3 text-sm font-medium">
+            This turn’s materials are already in storage. Stepping back through the walk will not
+            add them twice.
+          </p>
+
+          <Conversions campaign={campaign} />
+        </>
       ) : (
         <>
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -298,6 +310,96 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
       )}
     </>
   );
+}
+
+/**
+ * The same step's second half: materials traded for other materials (pg. 19).
+ *
+ * **Shown only once the haul is in**, which is the book's ordering rather than
+ * a convenience: pg. 19 applies conversions in this step, after production has
+ * been added. Offering them first would let a player spend Fuel the base is
+ * about to make.
+ *
+ * Nothing is automatic. A trade is worth taking some turns and not others, and
+ * a base with both a Gas Range and a Biofuel Lab can run either way in the same
+ * turn — so each one is a button, and the ones pressed are the ones applied.
+ *
+ * The Generator and the Well Pump also carry a conversion and are deliberately
+ * absent: they buy a point of Power or Water, and a point bought here would be
+ * cleared by this same turn's Planning Phase one phase later. `conversions.ts`
+ * has the whole of that reasoning.
+ */
+function Conversions({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+  const available = conversions(campaign);
+
+  if (available.length === 0) return null;
+
+  return (
+    <>
+      <p className="mt-5 text-sm font-medium">
+        Conversions <PageRef pages={19} />
+      </p>
+      <p className={`mt-1 ${HINT}`}>
+        Applied after the haul, and only if you want them. Each press is one trade.
+      </p>
+
+      <ul className="mt-2 flex flex-col gap-2">
+        {available.map((conversion) => {
+          const { blockers } = checkConversion(campaign, conversion);
+          const cap = conversion.exchange.maxPerTurn;
+          const run = timesConverted(campaign, conversion);
+
+          return (
+            <li
+              key={`${conversion.slot}-${conversion.source.id}`}
+              className="flex flex-wrap items-center gap-2 text-sm"
+            >
+              <button
+                type="button"
+                disabled={blockers.length > 0}
+                className={SMALL_BUTTON}
+                onClick={() => {
+                  dispatch({
+                    type: 'advancement/materialsConverted',
+                    slot: conversion.slot,
+                    source: conversion.source.id,
+                    at: new Date().toISOString(),
+                  });
+                }}
+              >
+                {describeTrade(conversion)}
+              </button>
+              <span className="text-xs text-stone-500 dark:text-stone-400">
+                {converterName(conversion)}
+                {cap === undefined ? '' : `, ${String(run)} of ${String(cap)} this turn`}
+              </span>
+              {blockers.map((blocker) => (
+                <span key={blocker.code} className="text-xs text-amber-700 dark:text-amber-300">
+                  {blocker.message}
+                </span>
+              ))}
+            </li>
+          );
+        })}
+      </ul>
+    </>
+  );
+}
+
+/** "2 Fuel → 1 Food", built from the same amounts the trade spends and gains. */
+function describeTrade(conversion: Conversion): string {
+  const list = (amounts: Materials) =>
+    MATERIALS.filter((material) => amounts[material] !== 0)
+      .map((material) => `${String(amounts[material])} ${MATERIAL_LABELS[material]}`)
+      .join(', ');
+
+  return `${list(spentBy(conversion))} → ${list(gainedBy(conversion))}`;
+}
+
+/** Which slot it is in, so two Kitchens with a Gas Range each can be told apart. */
+function converterName(conversion: Conversion): string {
+  return `${builtThingLabel(conversion.source.id)} in the ${slotLabel(conversion.slot)}`;
 }
 
 /**

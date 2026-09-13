@@ -43,6 +43,7 @@ import {
   withMaterialsAdded,
   type MaterialRoll,
 } from '../engine/materials';
+import { checkConversion, conversions, withConversion } from '../engine/conversions';
 import { checkXpAward, withXpAwarded } from '../engine/experience';
 import { healthAwards, withWoundsHealed, woundsHealed } from '../engine/healing';
 import { foodRequired, hungerIfFedNow, survivorsFed, withSurvivorsFed } from '../engine/feeding';
@@ -302,6 +303,23 @@ export type CampaignAction =
   | {
       readonly type: 'advancement/materialsAdded';
       readonly rolls: readonly MaterialRoll[];
+      readonly at: string;
+    }
+  /**
+   * Run one facility or upgrade's conversion (pg. 19, 72–73).
+   *
+   * Named by where it lives rather than by what it trades: a base can hold two
+   * Kitchens, each with its own Gas Range and its own per-turn allowance, and
+   * "2 Fuel for 1 Food" does not say which one was used.
+   *
+   * Refused when the materials are not there or the book's cap for this turn
+   * is spent. Both are blockers rather than warnings — a store cannot go
+   * negative, and a stated cap is a rule rather than advice.
+   */
+  | {
+      readonly type: 'advancement/materialsConverted';
+      readonly slot: string;
+      readonly source: string;
       readonly at: string;
     }
   /**
@@ -714,6 +732,24 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         return logged(withMaterialsAdded(campaign, adding), action.at, {
           kind: 'materials-added',
           ...adding,
+        });
+      });
+
+    case 'advancement/materialsConverted':
+      return withCampaign(state, (campaign) => {
+        const conversion = conversions(campaign).find(
+          (candidate) => candidate.slot === action.slot && candidate.source.id === action.source,
+        );
+
+        if (conversion === undefined) return campaign;
+        if (checkConversion(campaign, conversion).blockers.length > 0) return campaign;
+
+        return logged(withConversion(campaign, conversion), action.at, {
+          kind: 'materials-converted',
+          slot: conversion.slot,
+          source: conversion.source.id,
+          spent: conversion.exchange.spend,
+          gained: conversion.exchange.gain as Partial<Record<Material, number>>,
         });
       });
 
