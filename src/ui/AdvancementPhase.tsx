@@ -96,7 +96,19 @@ function CharacterAdvancement({ campaign }: { readonly campaign: Campaign }) {
 
       <ul className="mt-3 flex flex-col gap-4">
         {pools.map((pool) => {
-          const left = pool.total - pool.awarded;
+          /*
+           * Floored, and the floor is the belt rather than the braces. What
+           * used to put it below zero was the Planning Phase clearing the
+           * mission team out from under an award already given — "-2 of 0
+           * left" beside "nobody is on a mission team", two statements
+           * contradicting each other and one of them impossible (issue #95).
+           * That is fixed at the root, in `beforePlanning`. A pool can still
+           * shrink under an award by a route nothing can stop — taking a
+           * survivor off the roster after their point was handed out — and a
+           * negative count of things left to hand out is not a state a screen
+           * can ask anybody to act on.
+           */
+          const left = Math.max(0, pool.total - pool.awarded);
 
           return (
             <li key={pool.source}>

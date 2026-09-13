@@ -1149,6 +1149,85 @@ test('a turn’s XP and materials are taken in the steps that award them', async
 });
 
 /**
+ * Playtest findings M17 and H1 (issues #116 and #95), which are one gap seen
+ * twice: **who went on a mission was never a fact of the turn**, only a live
+ * assignment, so turn 1 never had one and any turn could lose the one it had.
+ *
+ * Turn 1 first. The mission team is assigned at the end of a turn for the turn
+ * after it, so on turn 1 nothing had ever assigned one and the Advancement
+ * Phase said so out loud — while the First Mission (pg. 75) is played on turn 1
+ * by definition and every survivor on it earns a point (pg. 18).
+ *
+ * Then the losing half. "Skip to Planning" sits on every Advancement step and
+ * clears the assignments the phase behind it is reading; the playtest went
+ * forward, stepped back, and found a turn where nobody had done anything —
+ * with the pool reading "-2 of 0 left" beside "nobody is on a mission team".
+ */
+test('turn 1 knows who went, and a step out to Planning does not forget', async ({ page }) => {
+  await startCampaign(page, 'Cedar Hollow');
+
+  await page.getByLabel(/choose a base/i).selectOption({ label: 'Small Town Home — Tier 1' });
+  await page.getByRole('button', { name: /claim this base/i }).click();
+
+  await addSurvivor(page, 'Earl Rhodes', '4');
+  await addSurvivor(page, 'Ruby Vance', '1');
+
+  // Turn 1's Mission Phase, where the First Mission's team is chosen — the only
+  // turn that asks, because every later one was answered in Planning.
+  const walk = page.getByRole('region', { name: 'Turn 1' });
+  await walk
+    .getByRole('group', { name: /on the first mission/i })
+    .getByRole('checkbox', { name: /earl/i })
+    .check();
+
+  await page.getByRole('button', { name: 'Skip to Advancement' }).click();
+  await expect(walk.getByText(/for going on the mission/i)).toContainText('1 of 1');
+
+  await walk
+    .getByRole('button', { name: /\+1 xp/i })
+    .first()
+    .click();
+  await expect(walk.getByText(/for going on the mission/i)).toContainText('0 of 1');
+
+  // Forward into Planning — which really does clear the board, and must — then
+  // back through the phase it was read in.
+  await page.getByRole('button', { name: 'Skip to Planning' }).click();
+  await expect(walk.getByText(/with nothing to do/i)).toBeVisible();
+
+  for (const step of [
+    'Back to Add Facilities and Upgrades',
+    'Back to Heal Wounds',
+    'Back to Add Materials to Storage',
+    'Back to Create New Survivors',
+    'Back to Character Advancement',
+  ]) {
+    await page.getByRole('button', { name: step }).click();
+  }
+
+  await expect(walk.getByText(/for going on the mission/i)).toContainText('0 of 1');
+  await expect(walk.getByText(/nobody is on a mission team/i)).toHaveCount(0);
+
+  // And it is in the file, so the fact outlives the session that recorded it.
+  await waitForAutosave(page, 'Cedar Hollow');
+  const exported = await exportCampaign(page);
+  expect(JSON.parse(exported.text).log).toContainEqual(
+    expect.objectContaining({
+      event: expect.objectContaining({
+        kind: 'planning-began',
+        cleared: { [JSON.parse(exported.text).survivors[0].id]: { task: 'mission', team: 1 } },
+      }),
+    }),
+  );
+
+  await startFreshCampaign(page, 'Millbrook');
+  await page.setInputFiles('input[type="file"]', exported.path);
+  await page.getByRole('button', { name: /replace it/i }).click();
+
+  const reExported = await exportCampaign(page);
+  expect(reExported.text).toBe(exported.text);
+});
+
+/**
  * Z3-8's acceptance, executed: a pool shared equally, and the rule that makes
  * it an algorithm rather than a division.
  *

@@ -49,7 +49,7 @@ import { phaseOf } from './turn';
 // `LogEntry` from here. Both directions are erased at compile time, so there is
 // no runtime cycle — and the alternative, a third module holding one of them,
 // would separate `Campaign` from the shape of its own field.
-import type { Campaign } from './campaign';
+import type { Assignment, Campaign } from './campaign';
 
 /**
  * One thing that happened.
@@ -74,13 +74,27 @@ export type CampaignEvent =
   /**
    * The Planning Phase cleared last turn's tasks and utility points (pg. 20).
    *
-   * Carries nothing: which turn is the entry's own, and how many assignments
-   * went is not a fact about the campaign so much as about the turn before it.
-   * **This entry is load-bearing rather than decorative** — `planningHasBegun`
-   * reads it back to make sure the clearing happens once a turn, so stepping
-   * back and forward through the walk cannot destroy the planning just done.
+   * **Load-bearing twice over, and it used to carry nothing.**
+   * `planningHasBegun` reads it back so the clearing happens once a turn,
+   * which is what lets the walk go backwards and forwards without destroying
+   * the planning just done.
+   *
+   * `cleared` is the other half, and the note that used to sit here — "how
+   * many assignments went is not a fact about the campaign so much as about
+   * the turn before it" — had it exactly backwards. Who went on the mission,
+   * who staffed the Kitchen and who was resting are the facts the *Advancement
+   * Phase* is reading, and they lived only in `assignments`, which this step
+   * empties. So skipping forward to Planning from an unfinished Advancement
+   * step destroyed them, and stepping back showed a turn where nobody had done
+   * anything (issue #95). Recording what was cleared is the same move as
+   * `survivors-fed` carrying its own Hunger: the entry keeps the number the
+   * step was read against.
+   *
+   * Optional because entries written before this existed do not have it, and
+   * a turn whose Planning has not begun has nothing to record. A reader with
+   * neither falls back to the live assignments, which is where they still are.
    */
-  | { readonly kind: 'planning-began' }
+  | { readonly kind: 'planning-began'; readonly cleared?: Record<string, Assignment> }
   /**
    * A turn's materials went into storage (pg. 18–19).
    *

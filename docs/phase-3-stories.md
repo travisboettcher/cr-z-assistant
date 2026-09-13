@@ -181,13 +181,32 @@ this turn is a decision, and decisions persist. It is also *this turn's* decisio
 Step 1 clears last turn's — along with the utility assignments Phase 2 deliberately left standing
 with a note pointing here.
 
-**One assignment field serves three readers, and the turn order is why.** The book has Heal
-Wounds and Add Facilities reading assignments made in the *previous* Planning Phase, and Check
-for Rot reading assignments made in *this* one — which reads like the app needs to keep a history.
-It does not. The Advancement Phase of turn N+1 runs *before* the Planning Phase of turn N+1, and
-the Management Phase runs *after* it, so clearing at the top of Planning means a single current
-`assignments` field is already the right answer at all three moments. Worth writing down, because
-"store last turn's assignments too" is a plausible-looking wrong turn that costs a schema field.
+**One assignment field serves three readers, and the turn order is why — as far as it goes.** The
+book has Heal Wounds and Add Facilities reading assignments made in the *previous* Planning Phase,
+and Check for Rot reading assignments made in *this* one, which reads like the app needs to keep a
+history. The Advancement Phase of turn N+1 runs *before* the Planning Phase of turn N+1 and the
+Management Phase runs *after* it, so clearing at the top of Planning means a single current
+`assignments` field is the right answer at all three moments — **while the walk only ever goes
+forwards.**
+
+It does not. Z3-3 sells backwards navigation as a feature, and "Skip to Planning" sits on every
+Advancement step. Going forward and stepping back put the Advancement Phase behind a clear that
+had already happened: a turn where nobody went on a mission, nobody staffed a Kitchen and nobody
+was resting, with the Health those steps owed gone for good and an XP pool counting down past zero
+(issue #95). The conclusion above was drawn from the turn *sequence* and the walk is not a
+sequence.
+
+So the `planning-began` entry now carries the assignments it cleared, and `beforePlanning` rewinds
+to them. **This is not "store last turn's assignments too"** — that wrong turn is still a wrong
+turn, and would cost a schema field that goes stale. It is the log recording what happened, which
+is what the log is for, and it is the same move as `survivors-fed` carrying its own Hunger. The
+reading stays derived.
+
+**Turn 1 has no previous Planning Phase, and the First Mission is still played on it** (pg. 75).
+The gap was silent: no mission XP (pg. 18) and no substitutions (pg. 12), with the screen stating
+there was no mission team as though that were a fact about the turn rather than about the app
+(issue #116). The Mission Phase of turn 1, and only turn 1, records who went — an ordinary
+`mission` assignment, so every reader downstream is the one that already existed.
 
 **One task per survivor is structural, not validated.** The rule (pg. 20) is that each survivor
 is assigned to exactly one task. Modelled as a map from survivor id to one assignment, a second

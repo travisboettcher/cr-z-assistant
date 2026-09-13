@@ -124,14 +124,54 @@ export function projectTeam(campaign: Campaign): readonly Survivor[] {
 }
 
 /**
+ * The campaign as the Advancement Phase is entitled to read it.
+ *
+ * **Two questions share one field, and this is the one that separates them.**
+ * `assignments` answers "who is doing what" — but the Advancement Phase asks
+ * "who did what on the turn that just played", and the Planning Phase of the
+ * same turn overwrites the answer. Ordinarily that is fine, because Advancement
+ * runs first. It stopped being fine the moment the walk let a player skip
+ * forward to Planning from an unfinished Advancement step and then come back:
+ * the clear had happened, and the steps behind them showed a turn where nobody
+ * went on a mission, nobody staffed a Kitchen and nobody was resting — with the
+ * Health those steps owed gone for good (issue #95).
+ *
+ * So the `planning-began` entry records what it cleared, and this rewinds to
+ * it. Derived from the log rather than kept in a second field, like everything
+ * else here: the entry is the record of the clearing, and the assignments it
+ * carries are what the clearing was *of*.
+ *
+ * A turn whose Planning has not begun is already showing the right answer and
+ * comes back untouched — which includes turn 1, where the Mission Phase records
+ * who played the First Mission (pg. 75) and no Planning Phase has ever run.
+ * Applying this twice changes nothing, so a caller that has already rewound
+ * costs only the work.
+ */
+export function beforePlanning(campaign: Campaign): Campaign {
+  const cleared = campaign.log
+    .flatMap((entry) =>
+      entry.turn === campaign.turn && entry.event.kind === 'planning-began'
+        ? [entry.event.cleared]
+        : [],
+    )
+    .at(0);
+
+  // `undefined` twice over, and both mean "nothing to rewind to": no clearing
+  // this turn, or one logged by a build from before the entry carried it.
+  return cleared === undefined ? campaign : { ...campaign, assignments: cleared };
+}
+
+/**
  * Everybody on a mission team (pg. 21).
  *
  * **Read in the Advancement Phase, written in the Planning one, and that is the
  * point.** The Planning Phase of a turn assigns *next* turn's team (pg. 21), and
  * the reset that clears assignments runs at the top of the Planning Phase — so
  * when the Advancement Phase asks who was on the mission that just played, the
- * answer is still sitting in `assignments`. Clearing at the top of the turn
- * instead would have destroyed it one step before it was needed.
+ * answer is still sitting in `assignments` — or, once that clear has happened,
+ * in the entry that recorded it. Callers in the Advancement Phase reach this
+ * through `beforePlanning` for that reason; callers in the Management Phase,
+ * which runs *after* the clear and means the team going out next, do not.
  *
  * Every team, not one: the assignment carries a team number the app does not
  * yet write anything but 1 into, and "who went on the mission" is the question

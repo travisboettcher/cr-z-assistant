@@ -492,7 +492,21 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
          * opposite of that.
          */
         if (move.step === FIRST_PLANNING_STEP && !planningHasBegun(moved)) {
-          return logged(withPlanningReset(moved), action.at, { kind: 'planning-began' });
+          /*
+           * The entry carries what it cleared. Everything the Advancement
+           * Phase reads about the turn just played — who went on the mission,
+           * who staffed the Kitchen, who was resting — lived only in
+           * `assignments`, and this is the step that empties them. Skipping
+           * forward to Planning from an unfinished Advancement step therefore
+           * destroyed the turn's own facts, and stepping back showed a turn
+           * where nobody had done anything (issue #95). Written here rather
+           * than read back from anywhere, because after this line the only
+           * copy is gone.
+           */
+          return logged(withPlanningReset(moved), action.at, {
+            kind: 'planning-began',
+            cleared: moved.assignments,
+          });
         }
 
         if (move.endsTurn) return logged(moved, action.at, { kind: 'turn-began' });

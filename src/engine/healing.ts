@@ -32,7 +32,7 @@
  */
 
 import { REST_HEALTH, type HealthSource } from '../data/turn';
-import { staffOf, survivorsDoing } from './assignments';
+import { beforePlanning, staffOf, survivorsDoing } from './assignments';
 import { occupants } from './base';
 import type { Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
@@ -89,8 +89,12 @@ export function healingPool(campaign: Campaign): number {
   const penalty = hungerPenalty(campaign);
   let total = 0;
 
+  // Staffed last Planning Phase, read this Advancement one — so it is asked of
+  // the campaign as it stood before this turn's Planning cleared the answer.
+  const staffed = beforePlanning(campaign);
+
   for (const occupant of occupants(base)) {
-    for (const line of facilityProduction(occupant, staffOf(campaign, occupant.slotId), penalty)) {
+    for (const line of facilityProduction(occupant, staffOf(staffed, occupant.slotId), penalty)) {
       if (line.outputs.includes('health')) total += line.amount;
     }
   }
@@ -98,14 +102,24 @@ export function healingPool(campaign: Campaign): number {
   return total;
 }
 
-/** Everybody the Planning Phase put in front of the Medical Clinic (pg. 21). */
+/**
+ * Everybody the *previous* Planning Phase put in front of the Medical Clinic
+ * (pg. 21).
+ *
+ * Previous, and `beforePlanning` is what makes that word true once this turn's
+ * Planning Phase has been entered. The two survivors this step owes a point to
+ * were assigned a turn ago, and the assignment is gone by the time a player
+ * steps back into Heal Wounds from Planning — which is exactly how two people
+ * lost the Health the rules owed them and then faced a Rot check at 0 (issue
+ * #95).
+ */
 export function beingHealed(campaign: Campaign): readonly Survivor[] {
-  return survivorsDoing(campaign, (assignment) => assignment.task === 'healing');
+  return survivorsDoing(beforePlanning(campaign), (assignment) => assignment.task === 'healing');
 }
 
 /** Whoever is resting, and takes a point nobody else can use (pg. 21). */
 export function resting(campaign: Campaign): readonly Survivor[] {
-  return survivorsDoing(campaign, (assignment) => assignment.task === 'rest');
+  return survivorsDoing(beforePlanning(campaign), (assignment) => assignment.task === 'rest');
 }
 
 /**
