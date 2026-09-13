@@ -456,11 +456,17 @@ describe('siegeThreatReduction', () => {
 describe('what a first base arrives holding', () => {
   it('is the cap of every stored material, and nothing about Rare', () => {
     // A Tier 1 base stores Tier + 3 of each.
-    expect(storageCaps(claimed('small-town-home'))).toEqual({ food: 4, fuel: 4, hardware: 4 });
+    const base = claimed('small-town-home');
+
+    expect(storageCaps(base, occupants(base))).toEqual({ food: 4, fuel: 4, hardware: 4 });
   });
 
   /** A base with a Storage Area is higher, and the claim follows it. */
   it('follows the base’s own facilities rather than its Tier alone', () => {
-    expect(storageCaps(claimed('greasy-spoon')).food).toBe(6);
+    const base = claimed('greasy-spoon');
+
+    // Six rather than eight: the built-in Refrigeration wants Power, and a
+    // base nobody is staffing yet has none.
+    expect(storageCaps(base, occupants(base)).food).toBe(6);
   });
 });

@@ -1206,9 +1206,10 @@ test('a Gas Range turns Fuel into Food, after the haul and not before', async ({
   await walk.getByRole('button', { name: /add to storage/i }).click();
   await walk.getByRole('button', { name: /2 fuel → 1 food/i }).click();
 
-  // The Gas Range makes a Food of its own as well (pg. 72), so the haul left
-  // one there and the trade bought the second.
-  await expect(page.getByLabel(/^food$/i)).toHaveValue('2');
+  // Four from the base arriving stocked to its Food cap (pg. 19, 54), one the
+  // Gas Range produced itself (pg. 72), and one the trade bought.
+  await expect(page.getByLabel(/^food$/i)).toHaveValue('6');
+  // Four typed in above, less the two the trade spent.
   await expect(page.getByLabel(/^fuel$/i)).toHaveValue('2');
 
   await expect(page.getByRole('region', { name: 'History' })).toContainText(
@@ -1217,7 +1218,7 @@ test('a Gas Range turns Fuel into Food, after the haul and not before', async ({
 
   await waitForAutosave(page, 'Cedar Hollow');
   const exported = await exportCampaign(page);
-  expect(JSON.parse(exported.text)).toMatchObject({ materials: { food: 2, fuel: 2 } });
+  expect(JSON.parse(exported.text)).toMatchObject({ materials: { food: 6, fuel: 2 } });
 
   await startFreshCampaign(page, 'Millbrook');
   await page.setInputFiles('input[type="file"]', exported.path);
