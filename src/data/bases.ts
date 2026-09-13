@@ -128,6 +128,29 @@ export type BaseSlot = {
  * the fields its rule needs, and the phase that owns that system matches on the
  * id. Nothing in Phase 2 reads any but `curtain-wall` and `white-noise`.
  */
+/**
+ * Every base special, and which phase reads it.
+ *
+ * A `Record` rather than a comment, so a special added to `BaseSpecial` without
+ * a decision here fails the typecheck — the same guarantee `EVENT_FIELDS` gives
+ * log events. `rules.test.ts` asserts that everything marked `3` actually has a
+ * consumer, which is the check that was missing: five of the seven were correct
+ * in this file and read by nothing, and the comment saying so went stale
+ * without anything noticing.
+ */
+export const BASE_SPECIAL_PHASE = {
+  'curtain-wall': 3,
+  'white-noise': 3,
+  'dam-utilities': 3,
+  catwalks: 3,
+  /** Equipment build costs — Phase 5 owns the item catalogue. */
+  'blacksmithing-tools': 5,
+  /** Starting Inventory — Phase 5. */
+  'turnout-gear': 5,
+  /** Forces a mission, which Phase 4 owns. */
+  'ring-the-bell': 4,
+} as const satisfies Record<BaseSpecial['id'], number>;
+
 export type BaseSpecial =
   | {
       /** Halves the Labor cost of building these weapon types. Phase 5. */

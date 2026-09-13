@@ -14,6 +14,7 @@
  */
 
 import { STORED_MATERIALS } from '../data/materials';
+import { suppliedOccupants } from '../engine/utilities';
 import { UTILITIES } from '../data/facilities';
 import { beds, flatUtilitiesGenerated, maxHeroes, storageCaps } from '../engine/base';
 import type { Campaign } from '../engine/campaign';
@@ -72,7 +73,8 @@ export function BaseSheet({ campaign }: BaseSheetProps) {
   const base = campaign.base;
   if (base === null) return null;
 
-  const caps = storageCaps(base);
+  const standing = suppliedOccupants(campaign);
+  const caps = storageCaps(base, standing);
   const flat = flatUtilitiesGenerated(base);
   const heroes = campaign.survivors.filter((survivor) => survivor.tier === 4).length;
   const cap = maxHeroes(base);
@@ -80,7 +82,7 @@ export function BaseSheet({ campaign }: BaseSheetProps) {
 
   return (
     <dl className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3">
-      <Figure label="Beds" value={String(beds(base))} note={undefined} pages={23} />
+      <Figure label="Beds" value={String(beds(base, standing))} note={undefined} pages={23} />
 
       {STORED_MATERIALS.map((material) => (
         <Figure

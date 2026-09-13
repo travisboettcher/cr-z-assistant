@@ -17,7 +17,14 @@ import {
   type Stat,
 } from './skills';
 import { STARTING_COMMUNITY_TIER_LEVELS, TIERS, TIER_RULES, type Tier } from './tiers';
-import { BASES, BASE_IDS, maxHeroes, type BaseId, type BaseSlot } from './bases';
+import {
+  BASES,
+  BASE_IDS,
+  maxHeroes,
+  type BaseId,
+  type BaseSlot,
+  BASE_SPECIAL_PHASE,
+} from './bases';
 import {
   FACILITIES,
   FACILITY_IDS,
@@ -572,5 +579,52 @@ describe('the campaign turn', () => {
 
   it('builds Siege Threat out of five distinct terms', () => {
     expect(new Set(SIEGE_THREAT_TERMS).size).toBe(5);
+  });
+});
+
+/**
+ * Playtest finding M3, generalised into a check.
+ *
+ * Five of the seven base specials were correctly transcribed and read by
+ * nothing, and `bases.ts` said so in a comment that went stale without anything
+ * noticing. `BASE_SPECIAL_PHASE` records which phase owns each; this asserts
+ * that everything claimed for Phase 3 actually has a consumer, by grepping the
+ * engine for the id.
+ *
+ * Grep rather than a call, deliberately: the point is "somebody reads this at
+ * all", and a test that called each reader would need to know which function
+ * each special lives in — which is exactly the knowledge that went stale.
+ */
+describe('base specials', () => {
+  // Read through Vite rather than `fs`: this suite runs in jsdom, where
+  // `import.meta.url` is not a file URL, and `?raw` is the bundler's own way of
+  // asking for a module's text.
+  const engine = Object.values(
+    import.meta.glob('../engine/*.ts', { query: '?raw', eager: true, import: 'default' }),
+  )
+    .filter((source): source is string => typeof source === 'string')
+    .join('\n');
+
+  it('has a phase recorded for every special the roster uses', () => {
+    const used = new Set(BASE_IDS.flatMap((id) => BASES[id].specials.map((special) => special.id)));
+
+    for (const id of used) {
+      expect(BASE_SPECIAL_PHASE).toHaveProperty(id);
+    }
+  });
+
+  it.each(
+    Object.entries(BASE_SPECIAL_PHASE)
+      .filter(([, phase]) => phase === 3)
+      .map(([id]) => id),
+  )('%s is read by the engine, because Phase 3 owns it', (id) => {
+    expect(engine).toContain(`'${id}'`);
+  });
+
+  /** And the deferrals are deferrals rather than omissions nobody noticed. */
+  it('leaves the later-phase specials to their phases', () => {
+    expect(BASE_SPECIAL_PHASE['blacksmithing-tools']).toBe(5);
+    expect(BASE_SPECIAL_PHASE['turnout-gear']).toBe(5);
+    expect(BASE_SPECIAL_PHASE['ring-the-bell']).toBe(4);
   });
 });
