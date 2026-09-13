@@ -321,6 +321,21 @@ export type CampaignEvent =
       readonly score: number;
     }
   | { readonly kind: 'base-claimed'; readonly base: BaseId }
+  /**
+   * A community's first base arrived stocked to its caps (pg. 19, 54).
+   *
+   * Its own entry rather than a clause on `base-claimed`, because it is a
+   * second thing that happened and a player who finds four Food they did not
+   * enter deserves to see where they came from. Only ever written for the
+   * first base: a later one starts with what was carried over, which is Phase
+   * 4's Claim a New Base.
+   */
+  | {
+      readonly kind: 'base-stocked';
+      readonly food: number;
+      readonly fuel: number;
+      readonly hardware: number;
+    }
   | { readonly kind: 'facility-built'; readonly slot: string; readonly facility: FacilityId }
   | { readonly kind: 'upgrade-built'; readonly slot: string; readonly upgrade: UpgradeId }
   | { readonly kind: 'slot-cleared'; readonly slot: string };

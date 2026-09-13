@@ -28,6 +28,7 @@
  */
 
 import { MATERIALS, STORED_MATERIALS, type Material, type Materials } from '../data/materials';
+import { suppliedOccupants } from './utilities';
 import {
   MATERIAL_ROLL_TABLE,
   MATERIAL_SUBSTITUTIONS,
@@ -194,7 +195,7 @@ export function checkMaterials(campaign: Campaign, rolls: readonly MaterialRoll[
 
   if (base !== null) {
     const adding = combined(recovered(rolls), baseProduction(campaign));
-    const caps = storageCaps(base);
+    const caps = storageCaps(base, suppliedOccupants(campaign));
 
     // Rare has no cap in the book (pg. 54), so `STORED_MATERIALS` is the list
     // rather than `MATERIALS` — a cap for it would be this app inventing one.

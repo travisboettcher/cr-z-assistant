@@ -31,6 +31,7 @@
  * would be churn.
  */
 
+import { BASES } from '../data/bases';
 import { occupantAt, occupants, staffCapacity } from './base';
 import { hungerPenalty } from './feeding';
 import type { Assignment, Campaign, Survivor } from './campaign';
@@ -144,11 +145,36 @@ export function missionTeam(campaign: Campaign): readonly Survivor[] {
 /**
  * The Labor the project team generates this turn (pg. 20).
  *
- * The sum of their Tier levels, and nothing else — the pool is not reduced by
- * what has been built, for the reason in this module's own note above.
+ * The sum of their Tier levels, plus whatever the base adds — the pool is not
+ * reduced by what has been ordered, for the reason in this module's own note
+ * above; `laborAvailable` in `projects.ts` is what subtracts.
  */
 export function laborPool(campaign: Campaign): number {
-  return projectTeam(campaign).reduce((total, survivor) => total + labor(survivor), 0);
+  const team = projectTeam(campaign);
+  const generated = team.reduce((total, survivor) => total + labor(survivor), 0);
+
+  return generated + baseLabor(campaign, team.length > 0);
+}
+
+/**
+ * What the base itself adds to the Labor pool.
+ *
+ * The Hydroelectric Dam's Catwalks: +2 a turn, and only while somebody is on
+ * the project team (pg. 61) — which is why `working` is a parameter rather
+ * than something this reads for itself. Nothing consumed the special until the
+ * September playtest found the Dam's pool reading 3 where the book says 5.
+ */
+function baseLabor(campaign: Campaign, working: boolean): number {
+  const base = campaign.base;
+  if (base === null) return 0;
+
+  return BASES[base.id].specials.reduce(
+    (total, special) =>
+      special.id === 'catwalks' && (working || !special.needsProjectTeam)
+        ? total + special.labor
+        : total,
+    0,
+  );
 }
 
 /**

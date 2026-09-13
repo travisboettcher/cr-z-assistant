@@ -29,6 +29,7 @@
  */
 
 import { SIEGE_THREAT_TERMS, SIEGE_TRIGGER, type SiegeThreatTerm } from '../data/turn';
+import { suppliedOccupants } from './utilities';
 import type { D10Result } from '../data/dice';
 import { projectTeam, staffOf, staffedFacilityCount } from './assignments';
 import { occupants, siegeThreatFromBase, siegeThreatReduction } from './base';
@@ -91,7 +92,7 @@ export function siegeThreatTerms(campaign: Campaign): Record<SiegeThreatTerm, nu
   return {
     'staffed-facilities': staffedFacilityCount(campaign),
     'project-team': projectTeam(campaign).length,
-    'base-features': base === null ? 0 : siegeThreatFromBase(base),
+    'base-features': base === null ? 0 : siegeThreatFromBase(base, suppliedOccupants(campaign)),
     'turns-since-last-siege': turnsSinceLastSiege(campaign),
     'watched-from-above': watchedFromAbove(campaign),
   };

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { createNewCampaign, type Assignment, type Base, type Campaign } from './campaign';
+import {
+  createNewCampaign,
+  type Assignment,
+  type Base,
+  type Campaign,
+  type Survivor,
+} from './campaign';
 import { createSurvivor } from './survivor';
 import { checkAssignment, planningHasBegun, unassigned, withPlanningReset } from './planning';
 import type { LogEntry } from './log';
@@ -329,5 +335,68 @@ describe('checkAssignment', () => {
         ),
       ).toEqual(['scavenging-needs-the-mission-skipped']);
     });
+  });
+});
+
+/**
+ * pg. 7: only one Hero may be on any single mission. No violation code existed
+ * for it, and the playtest put two Tier 4s on one team in silence.
+ *
+ * Per *team*, not per community — the base's Hero cap (`maxHeroes`) is a
+ * different rule, correctly implemented elsewhere, and splitting two Heroes
+ * across two teams is legal.
+ */
+describe('a second Hero on one mission', () => {
+  const hero = (id: string, name: string): Survivor => createSurvivor(name, 4, { id });
+
+  const codes = (campaign: Campaign, survivor: string, team: number) =>
+    checkAssignment(campaign, survivor, { task: 'mission', team }).warnings.map(
+      (warning) => warning.code,
+    );
+
+  const withTeam = (assignments: Record<string, Assignment>): Campaign => ({
+    ...createNewCampaign('Cedar Hollow', FIXED),
+    survivors: [
+      hero('earl', 'Earl Rhodes'),
+      hero('nell', 'Nell Haig'),
+      createSurvivor('Ruby Vance', 1, { id: 'ruby' }),
+    ],
+    assignments,
+  });
+
+  it('warns, naming the Hero already going', () => {
+    const campaign = withTeam({ nell: { task: 'mission', team: 1 } });
+
+    expect(codes(campaign, 'earl', 1)).toContain('a-second-hero-on-one-mission');
+    expect(
+      checkAssignment(campaign, 'earl', { task: 'mission', team: 1 }).warnings.map(
+        (warning) => warning.message,
+      ),
+    ).toContain('Only one Hero may go on a mission, and Nell Haig is.');
+  });
+
+  it('says nothing about two Heroes on two different teams', () => {
+    const campaign = withTeam({ nell: { task: 'mission', team: 2 } });
+
+    expect(codes(campaign, 'earl', 1)).not.toContain('a-second-hero-on-one-mission');
+  });
+
+  it('says nothing about a Hero going with somebody who is not one', () => {
+    const campaign = withTeam({ ruby: { task: 'mission', team: 1 } });
+
+    expect(codes(campaign, 'earl', 1)).not.toContain('a-second-hero-on-one-mission');
+  });
+
+  /** The Hero already on the team is not their own second Hero. */
+  it('says nothing about the Hero who is already on it', () => {
+    const campaign = withTeam({ earl: { task: 'mission', team: 1 } });
+
+    expect(codes(campaign, 'earl', 1)).not.toContain('a-second-hero-on-one-mission');
+  });
+
+  it('warns and refuses nothing, like the rest of this phase', () => {
+    const campaign = withTeam({ nell: { task: 'mission', team: 1 } });
+
+    expect(checkAssignment(campaign, 'earl', { task: 'mission', team: 1 }).blockers).toEqual([]);
   });
 });

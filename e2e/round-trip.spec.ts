@@ -658,16 +658,18 @@ test('the campaign log records what happened, and survives the round trip', asyn
   await page.getByLabel(/choose a base/i).selectOption({ label: 'Hobby Farm — Tier 2' });
   await page.getByRole('button', { name: /claim this base/i }).click();
 
-  // Newest first, so the claim is above the start it was claimed for.
-  await expect(history.getByRole('listitem').first()).toContainText('Claimed the Hobby Farm');
-  await expect(history.getByRole('listitem')).toHaveCount(2);
+  // Newest first, and claiming a first base is two things that happened: the
+  // claim, and the stocking it brings with it (pg. 19).
+  await expect(history.getByRole('listitem').first()).toContainText('stocked to its caps');
+  await expect(history.getByRole('listitem').nth(1)).toContainText('Claimed the Hobby Farm');
+  await expect(history.getByRole('listitem')).toHaveCount(3);
 
   await page.getByLabel(/^hardware$/i).fill('6');
   await expect(page.getByLabel(/^hardware$/i)).toHaveValue('6');
-  await expect(history.getByRole('listitem')).toHaveCount(2);
+  await expect(history.getByRole('listitem')).toHaveCount(3);
 
   const exported = await exportCampaign(page);
-  expect(JSON.parse(exported.text).log).toHaveLength(2);
+  expect(JSON.parse(exported.text).log).toHaveLength(3);
 
   await startFreshCampaign(page, 'Elsewhere');
   await page.setInputFiles('input[type="file"]', exported.path);
@@ -858,13 +860,15 @@ test('a cleared slot builds like an empty one of its own kind', async ({ page })
   await page.getByRole('button', { name: /order the clearing/i }).click();
 
   // Ordered, not cleared: the rubble is still there and so is what is in it.
+  // The Hobby Farm arrives stocked to its caps (pg. 19), so the yield is
+  // measured as a change rather than against zero.
   await expect(map).toContainText(/on order: clearing the ruined chicken coop/i);
-  await expect(page.getByLabel(/^hardware$/i)).toHaveValue('0');
+  await expect(page.getByLabel(/^hardware$/i)).toHaveValue('9');
 
   await finishProjects(page, 1);
 
   // The yield arrives when the work is done, a turn after it was ordered.
-  await expect(page.getByLabel(/^hardware$/i)).toHaveValue('2');
+  await expect(page.getByLabel(/^hardware$/i)).toHaveValue('11');
   await expect(map).toContainText('Cleared — ready to build in');
 
   await page.getByRole('button', { name: /build in ruined chicken coop/i }).click();
@@ -1005,9 +1009,10 @@ test('the base sheet totals the base, and staffing it is written down', async ({
   await page.getByRole('button', { name: /claim this base/i }).click();
 
   // The roster's own figures, on screen: three beds, a Tier 1 base with a
-  // built-in Storage Area storing 6, and one Hero allowed.
+  // built-in Storage Area storing 6, and one Hero allowed. A first base
+  // arrives holding its maximum of each (pg. 19), so the Food reads full.
   await expect(page.getByLabel(/^beds$/i)).toHaveText('3');
-  await expect(page.getByLabel(/food stored/i)).toHaveText('0 / 6');
+  await expect(page.getByLabel(/food stored/i)).toHaveText('6 / 6');
   await expect(page.getByLabel(/^heroes$/i)).toHaveText('0 / 1');
 
   await page.getByLabel(/^hardware$/i).fill('20');
@@ -1038,7 +1043,7 @@ test('the base sheet totals the base, and staffing it is written down', async ({
 
   await page.getByRole('button', { name: /upgrade storage area/i }).click();
   await page.getByRole('checkbox', { name: 'Power' }).check();
-  await expect(page.getByLabel(/food stored/i)).toHaveText('0 / 8');
+  await expect(page.getByLabel(/food stored/i)).toHaveText('6 / 8');
   await page.getByRole('button', { name: /^cancel$/i }).click();
 
   const beforeStaffing = await exportCampaign(page);
@@ -1131,12 +1136,14 @@ test('a turn’s XP and materials are taken in the steps that award them', async
 
   await walk.getByRole('button', { name: /add to storage/i }).click();
   await expect(walk.getByText(/already in storage/i)).toBeVisible();
-  await expect(page.getByLabel(/^food$/i)).toHaveValue('1');
+  // The Small Town Home arrived stocked to 4 Food (pg. 19), so the roll adds
+  // to that rather than to nothing. Rare has no cap and so no stocking.
+  await expect(page.getByLabel(/^food$/i)).toHaveValue('5');
   await expect(page.getByLabel(/^rare$/i)).toHaveValue('1');
 
   const exported = await exportCampaign(page);
   expect(JSON.parse(exported.text)).toMatchObject({
-    materials: { food: 1, rare: 1 },
+    materials: { food: 5, rare: 1 },
     survivors: [{ name: 'Earl Rhodes', xp: 1 }, { name: 'Ruby Vance' }],
   });
 
@@ -1275,9 +1282,10 @@ test('a Gas Range turns Fuel into Food, after the haul and not before', async ({
   await walk.getByRole('button', { name: /add to storage/i }).click();
   await walk.getByRole('button', { name: /2 fuel → 1 food/i }).click();
 
-  // The Gas Range makes a Food of its own as well (pg. 72), so the haul left
-  // one there and the trade bought the second.
-  await expect(page.getByLabel(/^food$/i)).toHaveValue('2');
+  // Four from the base arriving stocked to its Food cap (pg. 19, 54), one the
+  // Gas Range produced itself (pg. 72), and one the trade bought.
+  await expect(page.getByLabel(/^food$/i)).toHaveValue('6');
+  // Four typed in above, less the two the trade spent.
   await expect(page.getByLabel(/^fuel$/i)).toHaveValue('2');
 
   await expect(page.getByRole('region', { name: 'History' })).toContainText(
@@ -1286,7 +1294,7 @@ test('a Gas Range turns Fuel into Food, after the haul and not before', async ({
 
   await waitForAutosave(page, 'Cedar Hollow');
   const exported = await exportCampaign(page);
-  expect(JSON.parse(exported.text)).toMatchObject({ materials: { food: 2, fuel: 2 } });
+  expect(JSON.parse(exported.text)).toMatchObject({ materials: { food: 6, fuel: 2 } });
 
   await startFreshCampaign(page, 'Millbrook');
   await page.setInputFiles('input[type="file"]', exported.path);
@@ -1459,6 +1467,10 @@ test('a hungry community rolls worse everywhere, and nothing is written down', a
 
   await page.getByLabel(/choose a base/i).selectOption({ label: 'Small Town Home — Tier 1' });
   await page.getByRole('button', { name: /claim this base/i }).click();
+
+  // The base arrived stocked to its caps (pg. 19), and this journey is about
+  // starvation — so the stores are emptied first, deliberately and on screen.
+  await page.getByLabel(/^food$/i).fill('0');
 
   // Three Heroes eat six a turn (pg. 22). With empty stores that is a shortfall
   // of six against a head count of three: a penalty of three (ruling 1).
