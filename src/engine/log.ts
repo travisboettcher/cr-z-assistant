@@ -41,6 +41,7 @@
 import type { BaseId } from '../data/bases';
 import type { D10Result } from '../data/dice';
 import type { FacilityId, UpgradeId } from '../data/facilities';
+import type { Material } from '../data/materials';
 import type { CommonSkill, Skill } from '../data/skills';
 import type { Tier } from '../data/tiers';
 import type { CampaignPhase, HealthSource, XpSource } from '../data/turn';
@@ -98,6 +99,27 @@ export type CampaignEvent =
       readonly fuel: number;
       readonly hardware: number;
       readonly rare: number;
+    }
+  /**
+   * A facility or upgrade traded materials for other materials (pg. 19, 72–73).
+   *
+   * **Load-bearing**, like the two above: where the book states a cap per turn
+   * — the Generator's and the Well Pump's 3 — this is what counts against it,
+   * so the entry carries the slot and the source rather than only the amounts.
+   * Two Kitchens with a Gas Range each are two allowances, and a counter on
+   * the campaign would be one more thing to clear at the top of a turn.
+   *
+   * The spend is recorded as it was paid rather than as a negative amount: a
+   * player reading the history wants "2 Fuel for 1 Food", which is a trade,
+   * not a pair of unrelated movements.
+   */
+  | {
+      readonly kind: 'materials-converted';
+      readonly slot: string;
+      /** The facility or upgrade whose table row this is. */
+      readonly source: string;
+      readonly spent: Partial<Record<Material, number>>;
+      readonly gained: Partial<Record<Material, number>>;
     }
   /**
    * XP went to a survivor, from one of the four sources pg. 18 names.

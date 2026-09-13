@@ -189,6 +189,20 @@ the Management Phase runs *after* it, so clearing at the top of Planning means a
 `assignments` field is already the right answer at all three moments. Worth writing down, because
 "store last turn's assignments too" is a plausible-looking wrong turn that costs a schema field.
 
+**Conversions are two features, and only one of them is this phase's.** pg. 19 applies facility
+and upgrade conversions in Add Materials to Storage, and `Effects.exchange` has carried them
+since Phase 2 with nothing reading it (issue #108) — a Gas Range paid for in Hardware and Labor
+that could not be used. The material trades land in Advancement Step 3, after production,
+because that is where the book puts them and because converting before the haul would spend
+Fuel the base has not made yet.
+
+The Generator's and the Well Pump's trades buy a *utility* rather than a material, and they are
+not Advancement's. A point of Power lasts until the next turn's Planning Phase (pg. 20, 67), and
+this turn's Planning Phase — which clears the pools — runs one phase after Add Materials, so a
+point bought there would be wiped minutes later. They belong to the Planning Phase's utility
+step and are marked as such in the data, with a test that fails if a third utility trade is
+transcribed without deciding where it runs.
+
 **One task per survivor is structural, not validated.** The rule (pg. 20) is that each survivor
 is assigned to exactly one task. Modelled as a map from survivor id to one assignment, a second
 assignment is unrepresentable rather than merely invalid — the same move that put upgrades inside
