@@ -138,6 +138,18 @@ export function SurvivorRoster({ campaign, onOpenSheet }: SurvivorRosterProps) {
 
       <RecruitForm />
 
+      {hungerPenalty(campaign) > 0 && (
+        // The roster is what a player reads at the table, a phase and several
+        // steps from the Feed screen that explained the penalty. Every Score
+        // below is already lower; without this the roster shows a consequence
+        // with no cause.
+        <p className="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          The community is going hungry, so every stat is{' '}
+          <span className="tabular-nums">{hungerPenalty(campaign)}</span> lower until the next
+          Management Phase <PageRef pages={22} />
+        </p>
+      )}
+
       {campaign.survivors.length === 0 ? (
         <p className="mt-6 text-stone-600 dark:text-stone-400">
           No survivors yet. A starting community is built from ten tier levels{' '}

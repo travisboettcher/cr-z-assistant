@@ -42,7 +42,8 @@ import {
   type Utility,
 } from '../data/facilities';
 import { STORAGE_ABOVE_TIER, STORED_MATERIALS, type StoredMaterial } from '../data/materials';
-import type { Base, Campaign } from './campaign';
+import type { Base, Campaign, Survivor } from './campaign';
+import { skillScore } from './survivor';
 
 /**
  * A facility standing in a slot, with everything needed to work out what it
@@ -277,6 +278,61 @@ export function beds(base: Base): number {
   }
 
   return total;
+}
+
+/**
+ * How many survivors this facility takes (pg. 54, 72–73).
+ *
+ * One, unless an upgrade widens it — the Med Lab, the Study Room and the Watch
+ * Post each add one, which is what `extraStaff` was transcribed for. **Zero for
+ * a facility that takes no staff at all**: a Bunk Room's two beds are a flat
+ * effect with no skill named, so a survivor put in one is an assignment the
+ * rules do not contemplate.
+ *
+ * Read by `staffOf`, so every consumer of a slot's staff gets the cap without
+ * asking for it. Nothing read `extraStaff` at all until the September playtest
+ * found three survivors on a bare Medical Clinic making +5 Health, and two
+ * Medicine-8 staff driving a Rot check target to −4.
+ */
+export function staffCapacity(occupant: Occupant): number {
+  if (!occupant.facility.staffed) return 0;
+
+  // Through `working` rather than `upgrades`, because an upgrade whose
+  // requirements are unmet produces no effect at all (pg. 54) — and widening
+  // the staffing *is* the Med Lab's effect. A Med Lab without Power and Water
+  // is a room nobody can work in, not a second seat.
+  return working(occupant).reduce((room, entry) => room + (entry.effects.extraStaff ?? 0), 1);
+}
+
+/**
+ * What a staffed Watchtower takes off Siege Threat (pg. 73).
+ *
+ * The best of Long Guns, Handguns, Archery and Traps across its staff — the
+ * best *one* Score, not the sum, which is what `reducedByBestOf` spells and why
+ * it is a list of skills rather than a number. Zero for an empty slot, which is
+ * why the whole facility is worth building and staffing rather than building.
+ *
+ * Separate from `siegeThreatFromBase` because it needs the Planning Phase's
+ * assignments, and that function takes a `Base`. The comment there always said
+ * Phase 3 would sum this with the rest; it shipped without doing it, so a
+ * staffed Watchtower *raised* Siege Threat by one through the staffed-facility
+ * count and subtracted nothing.
+ */
+export function siegeThreatReduction(
+  occupant: Occupant,
+  staff: readonly Survivor[],
+  penalty: number,
+): number {
+  const best = working(occupant).flatMap(
+    (entry) => entry.effects.siegeThreat?.reducedByBestOf ?? [],
+  );
+  if (best.length === 0 || staff.length === 0) return 0;
+
+  const scores = staff.flatMap((survivor) =>
+    best.map((skill) => skillScore(survivor, skill, penalty) ?? 0),
+  );
+
+  return Math.max(...scores, 0);
 }
 
 /**

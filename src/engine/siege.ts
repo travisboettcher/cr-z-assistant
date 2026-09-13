@@ -30,8 +30,9 @@
 
 import { SIEGE_THREAT_TERMS, SIEGE_TRIGGER, type SiegeThreatTerm } from '../data/turn';
 import type { D10Result } from '../data/dice';
-import { projectTeam, staffedFacilityCount } from './assignments';
-import { siegeThreatFromBase } from './base';
+import { projectTeam, staffOf, staffedFacilityCount } from './assignments';
+import { occupants, siegeThreatFromBase, siegeThreatReduction } from './base';
+import { hungerPenalty } from './feeding';
 import type { Campaign } from './campaign';
 
 /**
@@ -92,7 +93,38 @@ export function siegeThreatTerms(campaign: Campaign): Record<SiegeThreatTerm, nu
     'project-team': projectTeam(campaign).length,
     'base-features': base === null ? 0 : siegeThreatFromBase(base),
     'turns-since-last-siege': turnsSinceLastSiege(campaign),
+    'watched-from-above': watchedFromAbove(campaign),
   };
+}
+
+/**
+ * What every staffed Watchtower on the base takes off the threat (pg. 73).
+ *
+ * Negative, because it is a term of a sum rather than a magnitude — the screen
+ * names it as a reduction by showing the sign.
+ *
+ * Summed across slots and best-of within each, which is the distinction
+ * `reducedByBestOf` spells: two lookouts in one tower give the better of their
+ * Scores, two towers give both.
+ *
+ * The hunger penalty reaches it, like every other Score in the community — a
+ * starving lookout watches worse.
+ */
+function watchedFromAbove(campaign: Campaign): number {
+  const base = campaign.base;
+  if (base === null) return 0;
+
+  const penalty = hungerPenalty(campaign);
+  const reduction = occupants(base).reduce(
+    (total, occupant) =>
+      total + siegeThreatReduction(occupant, staffOf(campaign, occupant.slotId), penalty),
+    0,
+  );
+
+  // Negated only when there is something to negate. `-0` is a distinct value
+  // that serialises as `-0`, and the round-trip property test rejects one on
+  // purpose — a term that is simply absent should read as plain zero.
+  return reduction === 0 ? 0 : -reduction;
 }
 
 /**

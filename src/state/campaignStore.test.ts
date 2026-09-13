@@ -1371,6 +1371,188 @@ describe('utility/toggled', () => {
  * the test asserts that too: an action that changed nothing would satisfy
  * "records nothing" for entirely the wrong reason.
  */
+/**
+ * The three Management steps the September playtest could press twice.
+ *
+ * Feed, Check Storage, Check the Horde, Add Materials and Heal Wounds all
+ * opened with a guard from the day they shipped. These three did not, and each
+ * one is destructive: Departures sends a survivor away, the Rot check can kill
+ * two, and the Exhaustion penalty empties a mission team.
+ *
+ * They are here rather than only in the UI because a guard in the reducer is
+ * what makes the rule true — a screen that hides the button is a screen, and
+ * the action is still dispatchable.
+ */
+describe('the steps that may only run once a turn', () => {
+  const AT2 = '2026-09-08T22:00:00.000Z';
+  const WEBB = '6b1f0a9c-77d2-4e35-91b8-0d4c2a5e83f7';
+  const RUBY = '0f3d8b51-4a26-4c19-b73e-8e5109cf2a64';
+
+  /** Nine Tier 1 survivors and no base: nine Unrest, two turns of quiet. */
+  const crowd = (): CampaignState =>
+    openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      turn: 3,
+      survivors: Array.from({ length: 9 }, (_, at) =>
+        createSurvivor(`Survivor ${String(at)}`, 1, { id: `survivor-${String(at)}` }),
+      ),
+    });
+
+  describe('management/departed', () => {
+    const send = (survivor: string, at: string): CampaignAction => ({
+      type: 'management/departed',
+      survivor,
+      at,
+    });
+
+    it('sends one survivor away', () => {
+      const after = expectOpen(campaignReducer(crowd(), send('survivor-0', AT)));
+
+      expect(after.survivors).toHaveLength(8);
+    });
+
+    /**
+     * Pressure stays over the threshold after the first departure here — eight
+     * survivors is eight Unrest, plus two turns of quiet is ten — so the step
+     * would have gone on offering names. The playtest saw two leave in one
+     * step, and a four-person community offered three.
+     */
+    it('refuses a second departure in the same turn, however high the pressure', () => {
+      const once = campaignReducer(crowd(), send('survivor-0', AT));
+      const twice = campaignReducer(once, send('survivor-1', AT2));
+
+      expect(expectOpen(twice)).toEqual(expectOpen(once));
+      expect(expectOpen(twice).survivors).toHaveLength(8);
+    });
+
+    it('lets the next turn send somebody away again', () => {
+      const once = expectOpen(campaignReducer(crowd(), send('survivor-0', AT)));
+      const later = campaignReducer(openState({ ...once, turn: 4 }), send('survivor-1', AT2));
+
+      expect(expectOpen(later).survivors).toHaveLength(7);
+    });
+
+    /**
+     * The guard reads `survivor-departed`, so a Rot death — which writes
+     * `survivor-left` in the same phase — must not cancel the step.
+     */
+    it('is not blocked by somebody dying of Rot in the same phase', () => {
+      const died = openState({
+        ...expectOpen(crowd()),
+        log: [
+          {
+            turn: 3,
+            phase: 'management',
+            at: AT,
+            event: {
+              kind: 'survivor-left',
+              survivor: 'survivor-8',
+              name: 'Survivor 8',
+              tier: 1,
+            },
+          },
+        ],
+      });
+
+      expect(expectOpen(campaignReducer(died, send('survivor-0', AT2))).survivors).toHaveLength(8);
+    });
+  });
+
+  describe('management/rotChecked', () => {
+    const dying = (): CampaignState =>
+      openState({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        turn: 3,
+        survivors: [
+          { ...createSurvivor('Ruby Vance', 2, { id: RUBY }), currentHp: 0 },
+          { ...createSurvivor('Marcus Webb', 2, { id: WEBB }), currentHp: 0 },
+        ],
+      });
+
+    const check = (survivor: string, roll: 1 | 10, at: string): CampaignAction => ({
+      type: 'management/rotChecked',
+      survivor,
+      roll,
+      bitten: null,
+      at,
+    });
+
+    /**
+     * The exact shape the playtest saw: passing at 10, then dying at 1. A
+     * natural 10 always succeeds and a natural 1 always fails (pg. 8), so the
+     * second press is a second answer to a question already answered.
+     */
+    it('refuses a second check for the same survivor', () => {
+      const passed = campaignReducer(dying(), check(WEBB, 10, AT));
+      const again = campaignReducer(passed, check(WEBB, 1, AT2));
+
+      expect(expectOpen(again)).toEqual(expectOpen(passed));
+      expect(expectOpen(again).survivors).toHaveLength(2);
+    });
+
+    /** Per survivor, not per step: everybody at 0 Health gets their own check. */
+    it('still checks the other survivor at 0 Health', () => {
+      const passed = campaignReducer(dying(), check(WEBB, 10, AT));
+      const both = campaignReducer(passed, check(RUBY, 1, AT2));
+
+      expect(expectOpen(both).survivors.map((survivor) => survivor.id)).toEqual([WEBB]);
+    });
+  });
+
+  describe('management/teamReduced', () => {
+    /** Six survivors, no base, so Exhaustion is six against a team of two. */
+    const tired = (): CampaignState =>
+      openState({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        turn: 3,
+        survivors: Array.from({ length: 6 }, (_, at) =>
+          createSurvivor(`Survivor ${String(at)}`, 1, { id: `survivor-${String(at)}` }),
+        ),
+        assignments: {
+          'survivor-0': { task: 'mission', team: 1 },
+          'survivor-1': { task: 'mission', team: 1 },
+        },
+      });
+
+    const take = (survivor: string, at: string): CampaignAction => ({
+      type: 'management/teamReduced',
+      survivor,
+      at,
+    });
+
+    it('takes one survivor off the mission team', () => {
+      const after = expectOpen(campaignReducer(tired(), take('survivor-0', AT)));
+
+      expect(after.assignments['survivor-0']).toBeUndefined();
+      expect(after.assignments['survivor-1']).toEqual({ task: 'mission', team: 1 });
+    });
+
+    /**
+     * Taking somebody off does not lower the Exhaustion that called for it —
+     * beds and population are unchanged — so without the guard the condition
+     * stays true and the step empties the team.
+     */
+    it('refuses a second removal in the same turn', () => {
+      const once = campaignReducer(tired(), take('survivor-0', AT));
+      const twice = campaignReducer(once, take('survivor-1', AT2));
+
+      expect(expectOpen(twice)).toEqual(expectOpen(once));
+    });
+
+    it('does nothing for somebody who is not on the mission team', () => {
+      const before = tired();
+
+      expect(campaignReducer(before, take('survivor-5', AT))).toEqual(before);
+    });
+
+    it('does nothing when no campaign is open', () => {
+      expect(campaignReducer(INITIAL_CAMPAIGN_STATE, take('survivor-0', AT))).toEqual(
+        INITIAL_CAMPAIGN_STATE,
+      );
+    });
+  });
+});
+
 describe('what earns a line in the log', () => {
   const LOGGED_SURVIVOR = '6b1f0a9c-77d2-4e35-91b8-0d4c2a5e83f7';
   const DECOY = '0f3d8b51-4a26-4c19-b73e-8e5109cf2a64';
@@ -1626,8 +1808,15 @@ describe('what earns a line in the log', () => {
         materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
       }),
       action: { type: 'management/survivorsFed', at: AT },
-      // A Hero eats two (pg. 22), and there is nothing to eat.
-      entry: entry(3, 'mission', { kind: 'survivors-fed', required: 2, hunger: 2 }),
+      // A Hero eats two (pg. 22), and there is nothing to eat. The head count
+      // rides along, because the penalty is fixed here and must not be
+      // re-priced by a departure later in the turn.
+      entry: entry(3, 'mission', {
+        kind: 'survivors-fed',
+        required: 2,
+        hunger: 2,
+        population: 1,
+      }),
     },
     'management/storageChecked': {
       // The Greasy Spoon stores six Food; this campaign holds eight.
@@ -1662,11 +1851,29 @@ describe('what earns a line in the log', () => {
         ],
       }),
       action: { type: 'management/departed', at: AT, survivor: LOGGED_SURVIVOR },
+      // Its own kind, not the `survivor-left` a Rot death writes: the guard
+      // reads this entry, and a Rot death in the same phase would otherwise
+      // read as a departure that had already happened.
       entry: entry(3, 'mission', {
-        kind: 'survivor-left',
+        kind: 'survivor-departed',
         ...WEBB,
         tier: 1,
       }),
+    },
+    'management/teamReduced': {
+      // Marcus is on the mission team, and there are no beds anywhere, so
+      // Exhaustion is the whole head count and comfortably above the team's one.
+      state: openState({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        turn: 3,
+        survivors: [
+          createSurvivor('Ruby Vance', 4, { id: DECOY }),
+          createSurvivor('Marcus Webb', 2, { id: LOGGED_SURVIVOR }),
+        ],
+        assignments: { [LOGGED_SURVIVOR]: { task: 'mission', team: 1 } },
+      }),
+      action: { type: 'management/teamReduced', at: AT, survivor: LOGGED_SURVIVOR },
+      entry: entry(3, 'mission', { kind: 'mission-team-reduced', ...WEBB }),
     },
     'management/rotChecked': {
       // A survivor at 0 Health who passes: one entry, nobody removed. The

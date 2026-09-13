@@ -222,6 +222,10 @@ const EVENT_FIELD_CHECKS = {
   xpSource: (value: unknown) => XP_SOURCES.some((source) => source === value),
   healthSource: (value: unknown) => HEALTH_SOURCES.some((source) => source === value),
   flag: (value: unknown) => typeof value === 'boolean',
+  // For a field an older entry legitimately does not carry. Absent is a real
+  // answer here and a damaged one everywhere else, which is why it is its own
+  // check rather than a flag on the loop below.
+  optionalCount: (value: unknown) => value === undefined || isCountFromZero(value),
   tier: (value: unknown) => TIERS.some((tier) => tier === value),
   roll: (value: unknown) => D10_RESULTS.some((result) => result === value),
   skill: (value: unknown) => typeof value === 'string' && isKeyOf(SKILL_STATS, value),
@@ -261,6 +265,9 @@ const EVENT_FIELDS: Record<
   'survivors-fed': [
     ['required', 'count'],
     ['hunger', 'count'],
+    // Recorded since the hunger penalty stopped being re-priced by a later
+    // departure; entries written before that do not carry it.
+    ['population', 'optionalCount'],
   ],
   'rot-checked': [
     ['survivor', 'id'],
@@ -321,6 +328,15 @@ const EVENT_FIELDS: Record<
     ['survivor', 'id'],
     ['name', 'name'],
     ['tier', 'tier'],
+  ],
+  'survivor-departed': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['tier', 'tier'],
+  ],
+  'mission-team-reduced': [
+    ['survivor', 'id'],
+    ['name', 'name'],
   ],
   'survivor-promoted': [
     ['survivor', 'id'],

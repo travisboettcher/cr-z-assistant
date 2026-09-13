@@ -117,6 +117,16 @@ export type TurnStepId = (typeof TURN_STEPS)[CampaignPhase][number]['id'];
  * constants covers all three verbs.
  */
 export const ORDER_STEP: TurnStepId = 'assign-project-team';
+
+/**
+ * The step facility staff are assigned in (pg. 20).
+ *
+ * Named beside the two above because the base screen carries a staffing control
+ * as well as build controls, and both need to say which step they belong to —
+ * tasks expire at the top of a Planning Phase, so one assigned earlier in the
+ * turn is wiped.
+ */
+export const STAFF_STEP: TurnStepId = 'assign-facility-staff';
 export const PROJECT_STEP: TurnStepId = 'add-facilities-and-upgrades';
 
 /**
@@ -344,6 +354,11 @@ export const SIEGE_THREAT_TERMS = [
   'project-team',
   'base-features',
   'turns-since-last-siege',
+  // Negative, and the only term that is. A staffed Watchtower subtracts its
+  // lookout's best of Long Guns / Handguns / Archery / Traps (pg. 73) — the
+  // facility's whole purpose, and unread by anything until the September
+  // playtest found that staffing one *raised* the threat by 1.
+  'watched-from-above',
 ] as const;
 
 export type SiegeThreatTerm = (typeof SIEGE_THREAT_TERMS)[number];

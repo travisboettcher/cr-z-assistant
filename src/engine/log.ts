@@ -115,7 +115,20 @@ export type CampaignEvent =
    * because eating is destructive and four Food against ten required looks
    * afterwards exactly like nine against ten.
    */
-  | { readonly kind: 'survivors-fed'; readonly required: number; readonly hunger: number }
+  | {
+      readonly kind: 'survivors-fed';
+      readonly required: number;
+      readonly hunger: number;
+      /**
+       * The head count the shortfall was measured against (pg. 22, ruling 1).
+       *
+       * Recorded because the penalty is fixed at this step and held until the
+       * next Management Phase, so a departure later in the same turn must not
+       * re-price it. Optional only because entries written before this was
+       * recorded do not carry it and cannot be given it honestly.
+       */
+      readonly population?: number;
+    }
   /**
    * A survivor at 0 Health made their Rot check (pg. 22).
    *
@@ -137,6 +150,35 @@ export type CampaignEvent =
       readonly survivor: string;
       readonly name: string;
       readonly damage: number;
+    }
+  /**
+   * The lowest-Tier survivor walked out at Departures (pg. 23).
+   *
+   * Its own kind rather than the `survivor-left` a Rot death writes, and the
+   * distinction is load-bearing rather than editorial: `someoneDeparted` reads
+   * it to keep the step from running twice, and a Rot death in the same phase
+   * would otherwise look exactly like a departure that had already happened.
+   * It reads better too — somebody who walked out and somebody who turned in
+   * the night did not leave the community the same way.
+   */
+  | {
+      readonly kind: 'survivor-departed';
+      readonly survivor: string;
+      readonly name: string;
+      readonly tier: Tier;
+    }
+  /**
+   * Exhaustion took a survivor off the mission team at Assign Beds (pg. 23).
+   *
+   * Recorded because it is the only thing that stops the step offering the
+   * same removal again — the rule takes **one** survivor off, and Exhaustion
+   * does not fall when they go, so nothing in the campaign says it has already
+   * happened.
+   */
+  | {
+      readonly kind: 'mission-team-reduced';
+      readonly survivor: string;
+      readonly name: string;
     }
   /**
    * A project was ordered in the Planning Phase (pg. 20).

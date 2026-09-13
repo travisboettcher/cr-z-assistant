@@ -35,7 +35,7 @@ import {
   substitutionsSpent,
   type MaterialRoll,
 } from '../engine/materials';
-import { checkXpAward, xpPools } from '../engine/experience';
+import { checkXpAward, xpPools, type XpPoolEmptiness } from '../engine/experience';
 import { checkHealing, healingPool, healthAwards, woundsHealed } from '../engine/healing';
 import { dueProjects, isDue } from '../engine/projects';
 import { describeProject } from './projectLabels';
@@ -108,7 +108,9 @@ function CharacterAdvancement({ campaign }: { readonly campaign: Campaign }) {
               </p>
 
               {pool.total === 0 ? (
-                <p className={`mt-1 ${HINT}`}>{XP_SOURCE_EMPTY[pool.source]}</p>
+                <p className={`mt-1 ${HINT}`}>
+                  {pool.emptyBecause === undefined ? null : XP_POOL_EMPTY[pool.emptyBecause]}
+                </p>
               ) : (
                 <ul className="mt-1 flex flex-col gap-1">
                   {pool.eligible.map((survivor) => {
@@ -431,11 +433,14 @@ const XP_SOURCE_LABELS: Record<XpSource, string> = {
  * turns, and a player deciding whether the app is wrong needs to know which
  * one they are in.
  */
-const XP_SOURCE_EMPTY: Record<XpSource, string> = {
-  mission: 'Nobody is on a mission team, so there is no mission XP this turn.',
-  discretionary: 'A Teacher on the mission takes this point and hands it out instead.',
-  'mission-teaching': 'Nobody on the mission team has Teaching.',
-  'training-room': 'No staffed Training Room, so nothing to teach with.',
+const XP_POOL_EMPTY: Record<XpPoolEmptiness, string> = {
+  'nobody-went': 'Nobody is on a mission team, so there is no mission XP this turn.',
+  'replaced-by-teaching': 'A Teacher on the mission takes this point and hands it out instead.',
+  'nobody-qualifies': 'Nobody on the mission team has Teaching.',
+  'score-is-nothing':
+    'Somebody on the mission team has Teaching, but their combined Score comes to nothing — so this replaces the discretionary point and hands out none.',
+  'nowhere-to-teach': 'No staffed Training Room, so nothing to teach with.',
+  'wrong-person': 'The Training Room is staffed by somebody without Teaching.',
 };
 
 /**

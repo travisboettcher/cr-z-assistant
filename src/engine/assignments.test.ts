@@ -19,6 +19,7 @@ import {
   survivorsDoing,
   taskOf,
   utilitiesScore,
+  assignedTo,
 } from './assignments';
 import { generatingUtilities, utilityWorker } from '../test/campaigns';
 
@@ -108,15 +109,40 @@ describe('taskOf and survivorsDoing', () => {
 
 describe('staffOf', () => {
   it('gives the slot its own staff and nobody else’s', () => {
-    const campaign = community({
-      [EARL]: { task: 'staff', slot: 'kitchen' },
-      [CARLA]: { task: 'staff', slot: 'garden' },
-      [RUBY]: { task: 'staff', slot: 'kitchen' },
-    });
+    const campaign = community(
+      {
+        [EARL]: { task: 'staff', slot: 'kitchen' },
+        [CARLA]: { task: 'staff', slot: 'utility-station' },
+        [RUBY]: { task: 'staff', slot: 'kitchen' },
+      },
+      farm(),
+    );
 
-    expect(staffOf(campaign, 'kitchen').map((one) => one.id)).toEqual([EARL, RUBY]);
-    expect(staffOf(campaign, 'garden').map((one) => one.id)).toEqual([CARLA]);
+    // A Kitchen takes one (pg. 54) and no upgrade here widens it, so Ruby is
+    // assigned and not working. `assignedTo` is what a screen reports with.
+    expect(staffOf(campaign, 'kitchen').map((one) => one.id)).toEqual([EARL]);
+    expect(assignedTo(campaign, 'kitchen').map((one) => one.id)).toEqual([EARL, RUBY]);
+    expect(staffOf(campaign, 'utility-station').map((one) => one.id)).toEqual([CARLA]);
     expect(staffOf(campaign, 'front-yard')).toEqual([]);
+  });
+
+  /** No base, no facility, and so nobody working one. */
+  it('is nobody before a base is claimed', () => {
+    expect(staffOf(community({ [EARL]: { task: 'staff', slot: 'kitchen' } }), 'kitchen')).toEqual(
+      [],
+    );
+  });
+
+  /**
+   * pg. 54: a staffed facility takes one survivor unless an upgrade widens it.
+   * Nothing read `extraStaff` until the September playtest put three on a bare
+   * Medical Clinic and got five Health out of it.
+   */
+  it('takes nobody at all for a facility that is not staffed', () => {
+    const campaign = community({ [EARL]: { task: 'staff', slot: 'bunk-room-1' } }, farm());
+
+    expect(staffOf(campaign, 'bunk-room-1')).toEqual([]);
+    expect(assignedTo(campaign, 'bunk-room-1').map((one) => one.id)).toEqual([EARL]);
   });
 });
 
@@ -158,11 +184,26 @@ describe('staffedFacilityCount', () => {
 
   it('counts each staffed slot once, across several', () => {
     const campaign = community(
-      { [EARL]: { task: 'staff', slot: 'kitchen' }, [CARLA]: { task: 'staff', slot: 'garden' } },
+      {
+        [EARL]: { task: 'staff', slot: 'kitchen' },
+        [CARLA]: { task: 'staff', slot: 'utility-station' },
+      },
       farm(),
     );
 
     expect(staffedFacilityCount(campaign)).toBe(2);
+  });
+
+  /**
+   * The Garden's Food is a flat effect with no skill named, so it is
+   * `staffed: false` and a survivor put in one is an assignment the rules do
+   * not contemplate (pg. 54). It counted anyway until capacity had a reader —
+   * so staffing a Bunk Room did nothing *and* cost a point of Siege Threat.
+   */
+  it('does not count a facility that takes no staff', () => {
+    const campaign = community({ [CARLA]: { task: 'staff', slot: 'garden' } }, farm());
+
+    expect(staffedFacilityCount(campaign)).toBe(0);
   });
 
   it('ignores an assignment to a slot with nothing built in it', () => {
@@ -186,7 +227,12 @@ describe('utilitiesScore', () => {
     expect(utilitiesScore(campaign)).toBe(3);
   });
 
-  it('sums a Station worked by more than one', () => {
+  /**
+   * A Utility Station takes one survivor and has no upgrade that widens it
+   * (pg. 54, 72–73), so a second is assigned and not working. This asserted the
+   * sum of both until capacity had a reader.
+   */
+  it('counts only the one a Station takes, whoever else is assigned', () => {
     const one = utilityWorker(2);
     const two = { ...utilityWorker(1), id: 'second' };
 
@@ -199,7 +245,7 @@ describe('utilitiesScore', () => {
       },
     };
 
-    expect(utilitiesScore(campaign)).toBe(3);
+    expect(utilitiesScore(campaign)).toBe(2);
   });
 
   it('is zero with nobody in the Station', () => {

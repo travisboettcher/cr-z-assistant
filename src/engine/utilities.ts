@@ -119,17 +119,40 @@ export function checkUtility(campaign: Campaign, request: UtilityRequest): Utili
     });
   }
 
-  // The facility and its upgrades together, because a point covers all of them:
-  // a Storage Area wants nothing, but its Refrigeration wants Power.
-  //
-  // "Needs nothing" is checked outright rather than smoothed into an empty
-  // array: a `?? []` here would be swallowed by `includes`, which answers false
-  // for whatever it is handed, leaving nothing able to tell the fallback from a
-  // list of junk.
+  /*
+   * The facility and its upgrades together, because a point covers all of them:
+   * a Storage Area wants nothing, but its Refrigeration wants Power.
+   *
+   * **Three ways to want a utility, not one.** An entry can *require* it and
+   * produce nothing at all without it; a production line can be *halved*
+   * without it; and a flat line can produce *more* with it. Reading only the
+   * first told a player the point "would do no work" on a Kitchen — three lines
+   * above that same screen saying "halved for want of a utility" — and on a
+   * Garden, where Water takes it from 1 Food to 3.
+   *
+   * The distinction between requiring and halving is real and stays real
+   * (`facilities.ts` insists on it): an unmet *requirement* produces nothing,
+   * halving produces less. What they have in common is only that the point is
+   * worth spending, which is the one question this warning asks.
+   *
+   * "Needs nothing" is checked outright rather than smoothed into an empty
+   * array: a `?? []` here would be swallowed by `includes`, which answers false
+   * for whatever it is handed, leaving nothing able to tell the fallback from a
+   * list of junk.
+   */
   const wanted = [occupant.facility, ...occupant.upgrades].some((entry) => {
     const needs = entry.requires?.utilities;
+    if (needs !== undefined && needs.includes(request.utility)) return true;
 
-    return needs !== undefined && needs.includes(request.utility);
+    // Narrowed by kind rather than probed for a field: `staffed-split` is the
+    // Utility Station, which has neither — its Score *is* the split, so it is
+    // never halved and never doubled.
+    return (entry.effects.production ?? []).some((line) => {
+      if (line.kind === 'flat') return line.withUtility?.utility === request.utility;
+      if (line.kind === 'staffed') return line.halvedWithout === request.utility;
+
+      return false;
+    });
   });
 
   if (!wanted) {

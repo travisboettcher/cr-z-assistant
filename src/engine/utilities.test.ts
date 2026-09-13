@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { storageCaps } from './base';
 import { createNewCampaign, type Base, type Campaign } from './campaign';
+import type { FacilityId, Utility } from '../data/facilities';
 import { generatingUtilities } from '../test/campaigns';
 import {
   assignedCount,
@@ -257,5 +258,58 @@ describe('what a supplied utility switches on', () => {
     const powered = withUtilityToggled(campaign, { slot: 'garage', utility: 'power' });
 
     expect(storageCaps(powered.base as Base).food).toBe(8);
+  });
+});
+
+/**
+ * Three ways a facility can want a utility, and `checkUtility` read one.
+ *
+ * Playtest finding M15: the Kitchen's Water toggle carried "Nothing here uses
+ * it, so the point would do no work" three lines above the same screen saying
+ * "halved for want of a utility", and the Garden's said the same where Water
+ * takes it from 1 Food to 3.
+ */
+describe('what counts as wanting a utility', () => {
+  const withFacility = (facility: FacilityId, slot = 'garage'): Campaign => ({
+    ...createNewCampaign('Cedar Hollow', FIXED),
+    base: { id: 'small-town-home', slots: { [slot]: { built: { facility, builtOnTurn: 1 } } } },
+  });
+
+  const notNeeded = (campaign: Campaign, utility: Utility, slot = 'garage') =>
+    checkUtility(campaign, { slot, utility }).warnings.some(
+      (warning) => warning.code === 'not-needed',
+    );
+
+  /** The Storage Area's Refrigeration *requires* Power — the case that worked. */
+  it('says nothing for a facility whose upgrade requires it', () => {
+    const fridge: Campaign = {
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      base: {
+        id: 'small-town-home',
+        slots: {
+          garage: {
+            built: { facility: 'storage-area', builtOnTurn: 1 },
+            upgrades: ['refrigeration'],
+          },
+        },
+      },
+    };
+
+    expect(notNeeded(fridge, 'power')).toBe(false);
+  });
+
+  /** The Kitchen is halved without Water — less, not nothing. */
+  it('says nothing for a facility whose output is halved without it', () => {
+    expect(notNeeded(withFacility('kitchen'), 'water')).toBe(false);
+  });
+
+  /** The Garden makes 1 Food, or 3 with Water. */
+  it('says nothing for a facility that produces more with it', () => {
+    expect(notNeeded(withFacility('garden', 'front-yard'), 'water', 'front-yard')).toBe(false);
+  });
+
+  /** And still warns where the point genuinely changes nothing. */
+  it('still warns where nothing in the slot reads the utility', () => {
+    expect(notNeeded(withFacility('kitchen'), 'power')).toBe(true);
   });
 });

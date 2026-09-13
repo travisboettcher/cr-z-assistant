@@ -17,8 +17,8 @@
 
 import type { Campaign } from '../engine/campaign';
 import type { TurnStepId } from '../data/turn';
-import { occupants } from '../engine/base';
-import { laborPool, utilitiesScore } from '../engine/assignments';
+import { occupants, staffCapacity, type Occupant } from '../engine/base';
+import { assignedTo, laborPool, utilitiesScore } from '../engine/assignments';
 import { unassigned } from '../engine/planning';
 import { AssignTask } from './AssignTask';
 import { FACILITY_LABELS, slotLabel } from './baseLabels';
@@ -114,6 +114,46 @@ export function PlanningPhase({ campaign, step }: PlanningPhaseProps) {
 }
 
 /**
+ * One slot's staffing control, and what it does with more people than it takes.
+ *
+ * A facility takes one survivor unless an upgrade widens it (pg. 54, 72–73).
+ * The control does not refuse the extra — this phase warns rather than blocks,
+ * and a save can arrive over capacity — but silently ignoring somebody is how a
+ * player ends up with a Clinic they think is double-staffed. So it says who is
+ * actually working and who is standing about.
+ */
+function FacilitySlotStaff({
+  campaign,
+  occupant,
+}: {
+  readonly campaign: Campaign;
+  readonly occupant: Occupant;
+}) {
+  const room = staffCapacity(occupant);
+  const assigned = assignedTo(campaign, occupant.slotId);
+  const spare = assigned.slice(room);
+
+  return (
+    <>
+      <AssignTask
+        campaign={campaign}
+        task={{ task: 'staff', slot: occupant.slotId }}
+        legend={`${FACILITY_LABELS[occupant.facility.id]} — ${slotLabel(occupant.slotId)}`}
+        pages="72–73"
+      />
+
+      {spare.length > 0 && (
+        <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+          Takes <span className="tabular-nums">{room}</span>, so{' '}
+          {spare.map((survivor) => survivor.name).join(', ')} {spare.length === 1 ? 'is' : 'are'}{' '}
+          assigned here and not working <PageRef pages={54} />
+        </p>
+      )}
+    </>
+  );
+}
+
+/**
  * Step 1, which is a task per slot rather than one for the phase — and the
  * step that decides the utility pool.
  *
@@ -140,7 +180,16 @@ function FacilityStaff({ campaign }: { readonly campaign: Campaign }) {
     );
   }
 
-  const built = occupants(base);
+  /*
+   * Only facilities that take staff (pg. 54). A Bunk Room's two beds are a flat
+   * effect with no skill named, so a survivor put in one does nothing the rules
+   * contemplate — and used to cost a point of Siege Threat for the privilege,
+   * because the count saw an occupied slot.
+   *
+   * The base screen's own slot card has always gated this control; the two
+   * screens simply disagreed, and the data agreed with the card.
+   */
+  const built = occupants(base).filter((occupant) => staffCapacity(occupant) > 0);
 
   return (
     <>
@@ -155,13 +204,7 @@ function FacilityStaff({ campaign }: { readonly campaign: Campaign }) {
         <p className="mt-3 text-sm text-stone-600 dark:text-stone-400">Nothing is built yet.</p>
       ) : (
         built.map((occupant) => (
-          <AssignTask
-            key={occupant.slotId}
-            campaign={campaign}
-            task={{ task: 'staff', slot: occupant.slotId }}
-            legend={`${FACILITY_LABELS[occupant.facility.id]} — ${slotLabel(occupant.slotId)}`}
-            pages="72–73"
-          />
+          <FacilitySlotStaff key={occupant.slotId} campaign={campaign} occupant={occupant} />
         ))
       )}
     </>

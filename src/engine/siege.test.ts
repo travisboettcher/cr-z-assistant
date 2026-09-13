@@ -145,6 +145,7 @@ describe('siegeThreatTerms', () => {
       'project-team',
       'staffed-facilities',
       'turns-since-last-siege',
+      'watched-from-above',
     ]);
   });
 });
@@ -301,5 +302,48 @@ describe('a siege called at step 6 and the threat step 7 reads', () => {
   /** And starts counting again from the siege, not from the start of play. */
   it('counts from the siege on the turns after it', () => {
     expect(turnsSinceLastSiege(community({ turn: 8, log: [rolled(5, true)] }))).toBe(2);
+  });
+});
+
+/**
+ * #98's acceptance: the Watchtower's whole purpose reaching the total.
+ *
+ * The slot card computed the `−best score` line correctly from the day it
+ * shipped; nothing summed it. So staffing one **raised** Siege Threat by 1 —
+ * the staffed-facility count charged for it and the reduction never arrived.
+ */
+describe('a staffed Watchtower', () => {
+  const tower = (): Campaign =>
+    community({
+      turn: 5,
+      base: {
+        id: 'small-town-home',
+        slots: { 'front-yard': { built: { facility: 'watchtower', builtOnTurn: 1 } } },
+      },
+    });
+
+  /** A Tier 4's Dexterity is 3; Long Guns at level 3 is a Score of 6. */
+  const lookout = () => ({
+    ...createSurvivor('Nell Haig', 4, { id: 'lookout' }),
+    skills: { 'long-guns': 3 },
+  });
+
+  it('takes its lookout’s best Score off the threat', () => {
+    const empty = tower();
+    const watched = staffedWith(empty, 'front-yard', [lookout()]);
+
+    expect(siegeThreatTerms(watched)['watched-from-above']).toBe(-6);
+    // The tower is staffed now, so the facility count adds one — and the
+    // reduction is what the facility is for.
+    expect(siegeThreat(watched)).toBe(siegeThreat(empty) + 1 - 6);
+  });
+
+  it('takes nothing off while nobody is watching', () => {
+    expect(siegeThreatTerms(tower())['watched-from-above']).toBe(0);
+  });
+
+  /** It can take the whole threat below zero, which the sum does not clamp. */
+  it('can make a community safer than an empty one', () => {
+    expect(siegeThreat(staffedWith(tower(), 'front-yard', [lookout()]))).toBeLessThan(0);
   });
 });

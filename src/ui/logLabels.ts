@@ -192,6 +192,18 @@ export function describeEvent(event: CampaignEvent): EventLabel {
     case 'survivor-left':
       return { text: `${event.name}, a ${TIER_LABELS[event.tier]}, left the community.` };
 
+    case 'survivor-departed':
+      return {
+        text: `${event.name}, a ${TIER_LABELS[event.tier]}, walked out over the Unrest.`,
+        pages: 23,
+      };
+
+    case 'mission-team-reduced':
+      return {
+        text: `${event.name} was too exhausted to go out, and came off the mission team.`,
+        pages: 23,
+      };
+
     case 'survivor-promoted':
       return { text: `${event.name} was promoted to ${TIER_LABELS[event.tier]}.`, pages: 18 };
 
