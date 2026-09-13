@@ -27,6 +27,13 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   // Negative, because a facility that eats Food can outweigh the haul (pg. 55)
   // and the validator has to accept an amount no other event's field would.
   { kind: 'materials-added', food: -2, fuel: 0, hardware: 0, rare: 0 },
+  {
+    kind: 'materials-converted',
+    slot: 'kitchen',
+    source: 'gas-range',
+    spent: { fuel: 2 },
+    gained: { food: 1 },
+  },
   { kind: 'xp-awarded', ...SURVIVOR, amount: 1, source: 'mission' },
   { kind: 'xp-awarded', ...SURVIVOR, amount: 2, source: 'mission-teaching' },
   { kind: 'health-restored', ...SURVIVOR, health: 2, source: 'facility' },

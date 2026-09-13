@@ -142,3 +142,22 @@ export function slotLabel(id: string): string {
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 }
+
+/**
+ * The name of a facility *or* an upgrade, given only its id.
+ *
+ * One question the two maps answer between them, for the callers that hold an
+ * id without knowing which kind it is — a conversion lives on either (pg. 19),
+ * and the log entry that records one keeps the id alone.
+ *
+ * `Object.hasOwn` rather than a lookup with `??`: `UPGRADE_LABELS['toString']`
+ * is a function, and an id read out of a save file is a string somebody could
+ * have typed.
+ */
+export function builtThingLabel(id: string): string {
+  for (const labels of [FACILITY_LABELS, UPGRADE_LABELS] as Record<string, string>[]) {
+    if (Object.hasOwn(labels, id)) return labels[id] as string;
+  }
+
+  return id;
+}

@@ -91,25 +91,11 @@ async function assignProjectTeam(page: Page) {
  * to the end of the turn, over the confirmation, and into Step 5 of the next
  * Advancement Phase, where the queue empties.
  *
- * Walked step by step rather than phase by phase, because callers arrive here
- * from wherever their own story left the turn and the phase button is hidden on
- * the last step of a phase — where "Next" makes the same move. Bounded by the
- * length of a turn, so a walk that never reaches the end fails rather than
- * hangs.
+ * The walk to the end of the turn is `endTheTurn`, shared with the journeys
+ * that need to cross a turn boundary without finishing anything.
  */
 async function finishProjects(page: Page, turn: number) {
-  const end = page.getByRole('button', { name: `End turn ${String(turn)}` });
-  const STEPS_IN_A_TURN = 19;
-
-  for (let step = 0; step < STEPS_IN_A_TURN && (await end.count()) === 0; step += 1) {
-    await page.getByRole('button', { name: /^next: /i }).click();
-  }
-
-  await end.click();
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: `End turn ${String(turn)}` })
-    .click();
+  await endTheTurn(page, turn);
 
   await page.getByRole('button', { name: 'Skip to Advancement' }).click();
   for (const step of [
@@ -168,6 +154,29 @@ async function staffTheUtilityStation(page: Page, slot: string) {
     .getByRole('checkbox', { name: new RegExp(UTILITY_WORKER, 'i') })
     .check();
   await page.getByRole('button', { name: /^cancel$/i }).click();
+}
+
+/**
+ * Walks to the end of a turn and confirms, from wherever the walk is standing.
+ *
+ * Step by step rather than phase by phase, because callers arrive from wherever
+ * their own story left the turn and the phase button is hidden on the last step
+ * of a phase — where "Next" makes the same move. Bounded by the length of a
+ * turn, so a walk that never reaches the end fails rather than hangs.
+ */
+async function endTheTurn(page: Page, turn: number) {
+  const end = page.getByRole('button', { name: `End turn ${String(turn)}` });
+  const STEPS_IN_A_TURN = 19;
+
+  for (let step = 0; step < STEPS_IN_A_TURN && (await end.count()) === 0; step += 1) {
+    await page.getByRole('button', { name: /^next: /i }).click();
+  }
+
+  await end.click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: `End turn ${String(turn)}` })
+    .click();
 }
 
 /**
@@ -1222,6 +1231,69 @@ test('material rolls survive a reload, and storing nothing asks first', async ({
 
   await expect(walk.getByText(/already in storage/i)).toBeVisible();
   await expect(page.getByLabel(/^rare$/i)).toHaveValue('1');
+});
+
+/**
+ * Issue #108: `Effects.exchange` sat in the catalogue from Phase 2 with nothing
+ * reading it, so a community holding Fuel and short of Food could not use a Gas
+ * Range it had paid 2 Hardware and 1 Labor for — which is exactly where the
+ * September playtest found itself.
+ *
+ * Worth a journey because the ordering is the rule: pg. 19 applies conversions
+ * in this step, after production. The trade is not on offer until the haul is
+ * in, and the storage counts on the overview are the proof it ran.
+ */
+test('a Gas Range turns Fuel into Food, after the haul and not before', async ({ page }) => {
+  await startCampaign(page, 'Cedar Hollow');
+
+  await page.getByLabel(/choose a base/i).selectOption({ label: 'Small Town Home — Tier 1' });
+  await page.getByRole('button', { name: /claim this base/i }).click();
+
+  await page.getByLabel(/^hardware$/i).fill('2');
+  await page.getByLabel(/^fuel$/i).fill('4');
+  await hireProjectTeam(page);
+
+  // A Gas Range on the built-in Kitchen, ordered this turn and standing the next.
+  await page.getByRole('button', { name: /upgrade kitchen/i }).click();
+  await page.getByLabel(/^upgrade$/i).selectOption({ label: 'Gas Range' });
+  await page.getByRole('button', { name: /order the upgrade/i }).click();
+
+  // Ordered on turn 1, finished in turn 2's Add Facilities — which is the step
+  // *after* Add Materials, so the trade is first on offer on turn 3.
+  await finishProjects(page, 1);
+  await endTheTurn(page, 2);
+
+  await page.getByRole('button', { name: 'Skip to Advancement' }).click();
+  await page.getByRole('button', { name: 'Next: Create New Survivors' }).click();
+  await page.getByRole('button', { name: 'Next: Add Materials to Storage' }).click();
+
+  const walk = page.getByRole('region', { name: 'Turn 3' });
+
+  // Nothing to trade with until the haul lands.
+  await expect(walk.getByRole('button', { name: /2 fuel → 1 food/i })).toHaveCount(0);
+
+  await walk.getByRole('button', { name: /add to storage/i }).click();
+  await walk.getByRole('button', { name: /2 fuel → 1 food/i }).click();
+
+  // The Gas Range makes a Food of its own as well (pg. 72), so the haul left
+  // one there and the trade bought the second.
+  await expect(page.getByLabel(/^food$/i)).toHaveValue('2');
+  await expect(page.getByLabel(/^fuel$/i)).toHaveValue('2');
+
+  await expect(page.getByRole('region', { name: 'History' })).toContainText(
+    'The Gas Range traded 2 Fuel for 1 Food.',
+  );
+
+  await waitForAutosave(page, 'Cedar Hollow');
+  const exported = await exportCampaign(page);
+  expect(JSON.parse(exported.text)).toMatchObject({ materials: { food: 2, fuel: 2 } });
+
+  await startFreshCampaign(page, 'Millbrook');
+  await page.setInputFiles('input[type="file"]', exported.path);
+  await page.getByRole('button', { name: /replace it/i }).click();
+
+  const reExported = await exportCampaign(page);
+  expect(reExported.text).toBe(exported.text);
 });
 
 /**

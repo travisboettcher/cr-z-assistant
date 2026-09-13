@@ -16,12 +16,13 @@
  * `log.ts` a compile error here instead of a blank line in someone's history.
  */
 
-import { MATERIALS } from '../data/materials';
+import { MATERIALS, type Material } from '../data/materials';
 import { XP_SOURCE_PAGES, type HealthSource, type XpSource } from '../data/turn';
 import type { CampaignEvent, LogEntry } from '../engine/log';
 import {
   BASE_LABELS,
   FACILITY_LABELS,
+  builtThingLabel,
   MATERIAL_LABELS,
   UPGRADE_LABELS,
   slotLabel,
@@ -102,6 +103,20 @@ export function describeEvent(event: CampaignEvent): EventLabel {
             ? 'Added nothing to storage this turn.'
             : `Added to storage: ${moved.join(', ')}.`,
         pages: '18–19',
+      };
+    }
+
+    case 'materials-converted': {
+      const of = (amounts: Partial<Record<Material, number>>) =>
+        MATERIALS.filter((material) => (amounts[material] ?? 0) !== 0)
+          .map((material) => `${String(amounts[material])} ${MATERIAL_LABELS[material]}`)
+          .join(', ');
+
+      return {
+        // Named by the thing that did it, because a base can hold two of them
+        // and the history is where a player checks a per-turn allowance.
+        text: `The ${builtThingLabel(event.source)} traded ${of(event.spent)} for ${of(event.gained)}.`,
+        pages: 19,
       };
     }
 
