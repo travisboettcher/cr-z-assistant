@@ -24,7 +24,7 @@ import {
 import type { Campaign } from '../engine/campaign';
 import {
   exhaustion,
-  foodRequired,
+  foodRequiredAsFed,
   hunger,
   hungerIfFedNow,
   penaltyFor,
@@ -235,7 +235,10 @@ function Feed({ campaign }: { readonly campaign: Campaign }) {
   const { dispatch } = useCampaign();
 
   const done = survivorsFed(campaign);
-  const required = foodRequired(campaign);
+  // Both halves off the same source: live beside live before the step has run,
+  // recorded beside recorded after — never one of each, which is how this
+  // printed "eats 6 Food… 8 Hunger".
+  const required = foodRequiredAsFed(campaign);
   const short = done ? hunger(campaign) : hungerIfFedNow(campaign);
   const penalty = penaltyFor(short, campaign.survivors.length);
 
