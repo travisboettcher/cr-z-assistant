@@ -1488,7 +1488,17 @@ test('a turn ends with the horde called and somebody walking out', async ({ page
   await expect(walk).toContainText('Unrest plus Siege Threat is 22');
 
   const exported = await exportCampaign(page);
-  expect(JSON.parse(exported.text)).toMatchObject({ turn: 1, lastSiegeTurn: 2 });
+  // The siege is recorded by the horde check's own entry and nowhere else: a
+  // field beside it would have to hold the turn the siege is fought on, which
+  // is exactly what destroyed the previous siege's turn before v11.
+  const saved = JSON.parse(exported.text) as {
+    turn: number;
+    log: { turn: number; event: { kind: string; siege?: boolean } }[];
+  };
+  expect(saved.turn).toBe(1);
+  expect(saved.log.filter((entry) => entry.event.kind === 'horde-checked')).toMatchObject([
+    { turn: 1, event: { siege: true } },
+  ]);
 
   // End the turn, and the Mission Phase says what the horde decided.
   await page.getByRole('button', { name: 'End turn 1' }).click();
