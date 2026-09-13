@@ -1,8 +1,9 @@
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign, type Survivor } from '../engine/campaign';
 import { createSurvivor } from '../engine/survivor';
+import { PENDING_ROLLS_KEY } from '../persistence/pendingRolls';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
 
@@ -256,6 +257,131 @@ describe('Add Materials to Storage', () => {
 
     expect(within(walk()).queryByText(/rolled 4/i)).toBeNull();
     expect(within(walk()).getByText(/\+0 Food/)).toBeTruthy();
+  });
+
+  /**
+   * The bug in issue #96, driven the way it was found: the dice were in
+   * component state and nowhere else, so a discarded tab lost a mission's haul
+   * while the step stayed armed. `cleanup()` and a second `open` of the *same*
+   * campaign is exactly a reload — nothing about the campaign changed, because
+   * the rolls were never part of it.
+   */
+  it('brings the rolls back after a reload', async () => {
+    const campaign = onTheStep();
+    const user = open(campaign);
+
+    const rolled = within(walk()).getByLabelText(/^rolled$/i);
+    await user.selectOptions(rolled, '7');
+    await user.selectOptions(rolled, '8');
+
+    expect(within(walk()).getByText(/\+2 Hardware/)).toBeTruthy();
+
+    cleanup();
+    open(campaign);
+
+    expect(within(walk()).getByText(/\+2 Hardware/)).toBeTruthy();
+    expect(within(walk()).getAllByText(/^rolled [78]$/i)).toHaveLength(2);
+  });
+
+  it('brings a forced result back with its roll', async () => {
+    const campaign = onTheStep({
+      survivors: [
+        {
+          ...createSurvivor('Earl Rhodes', 4, { id: EARL }),
+          stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: 2 },
+          skills: { mechanics: 0 },
+        },
+      ],
+    });
+    const user = open(campaign);
+
+    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '4');
+    const [forcer] = within(walk()).getAllByLabelText(/force the result of this roll/i);
+    await user.selectOptions(forcer as HTMLElement, 'mechanics:hardware');
+
+    cleanup();
+    open(campaign);
+
+    expect(within(walk()).getByText(/\+1 Hardware/)).toBeTruthy();
+    expect(within(walk()).getByText(/\+0 Food/)).toBeTruthy();
+  });
+
+  /**
+   * The stamp, through the screen: input belongs to one campaign and one turn,
+   * so a reload after ending the turn must not hand this turn's step last
+   * turn's dice.
+   */
+  it('does not offer input left behind by another turn', async () => {
+    const user = open(onTheStep());
+
+    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '7');
+
+    cleanup();
+    open(onTheStep({ turn: 4 }));
+
+    expect(within(walk()).queryByText(/^rolled 7$/i)).toBeNull();
+    expect(within(walk()).getByText(/\+0 Hardware/)).toBeTruthy();
+  });
+
+  it('has nothing left over once the haul is in storage', async () => {
+    const user = open(onTheStep());
+
+    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '7');
+    await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
+
+    expect(localStorage.getItem(PENDING_ROLLS_KEY)).toBeNull();
+  });
+
+  /**
+   * The second half of #96. Committing zero rolls is legitimate — a turn with
+   * no mission still adds the base's production — so the button cannot be
+   * disabled at zero. What it can do is ask, and only in the shape the bug
+   * takes: somebody went out and nothing was entered.
+   */
+  it('asks before storing nothing when a mission team went out', async () => {
+    const user = open(onTheStep());
+
+    await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
+
+    expect(
+      screen.getByRole('heading', { name: /add nothing the mission recovered/i }),
+    ).toBeTruthy();
+    expect(screen.getByText(/1 survivor went out this turn/i)).toBeTruthy();
+    expect(within(walk()).queryByText(/already in storage/i)).toBeNull();
+  });
+
+  it('leaves the step armed when the question is declined', async () => {
+    const user = open(onTheStep());
+
+    await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
+    await user.click(screen.getByRole('button', { name: /enter the rolls/i }));
+
+    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '10');
+    await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
+
+    expect(screen.getByLabelText(/^rare$/i)).toHaveValue(1);
+  });
+
+  it('stores the base’s production alone when the question is accepted', async () => {
+    const user = open(onTheStep());
+
+    await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
+    await user.click(screen.getByRole('button', { name: /add production only/i }));
+
+    expect(within(walk()).getByText(/already in storage/i)).toBeTruthy();
+  });
+
+  /**
+   * No mission, no question. A community that stayed home has an empty roll
+   * list as its ordinary answer, and a dialog there would be a confirmation
+   * players learn to click through.
+   */
+  it('asks nothing when nobody went out', async () => {
+    const user = open(onTheStep({ assignments: {} }));
+
+    await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
+
+    expect(within(walk()).getByText(/already in storage/i)).toBeTruthy();
   });
 
   it('reports a haul over the cap and stores all of it anyway', async () => {

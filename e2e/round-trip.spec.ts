@@ -1149,6 +1149,82 @@ test('a turn’s XP and materials are taken in the steps that award them', async
 });
 
 /**
+ * Issue #96, driven the way the playtest found it.
+ *
+ * The dice were in component state and nowhere else, so a discarded tab lost a
+ * mission's whole haul while the step stayed armed — and Add to storage then
+ * wrote "added nothing" into the log with no undo. The unit test remounts the
+ * component, which is the same event as far as React is concerned; this is the
+ * one that proves the storage is real, in a browser that actually threw the
+ * page away. It is also the only place the confirmation is a real modal rather
+ * than the stand-in jsdom is given.
+ */
+test('material rolls survive a reload, and storing nothing asks first', async ({ page }) => {
+  await startCampaign(page, 'Cedar Hollow');
+
+  await page.getByLabel(/choose a base/i).selectOption({ label: 'Small Town Home — Tier 1' });
+  await page.getByRole('button', { name: /claim this base/i }).click();
+
+  await addSurvivor(page, 'Earl Rhodes', '4');
+
+  // Turn 1's Planning Phase sends Earl out, so turn 2's Advancement Phase has
+  // a mission team to ask about.
+  await skipToPhase(page, 'Planning');
+  await page.getByRole('button', { name: 'Next: Assign Project Team' }).click();
+  await page.getByRole('button', { name: 'Next: Assign Rest and Healing' }).click();
+  await page.getByRole('button', { name: 'Next: Assign Mission Team' }).click();
+  await page
+    .getByRole('group', { name: /on the mission team/i })
+    .getByRole('checkbox', { name: /earl/i })
+    .check();
+
+  await page.getByRole('button', { name: 'Next: Check for Rot' }).click();
+  await page.getByRole('button', { name: 'End turn 1' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'End turn 1' }).click();
+
+  await page.getByRole('button', { name: 'Skip to Advancement' }).click();
+  await page.getByRole('button', { name: 'Next: Create New Survivors' }).click();
+  await page.getByRole('button', { name: 'Next: Add Materials to Storage' }).click();
+
+  const walk = page.getByRole('region', { name: 'Turn 2' });
+  const rolled = walk.getByLabel(/^rolled$/i);
+  await rolled.selectOption('7');
+  await rolled.selectOption('8');
+  await expect(walk.getByText(/\+2 Hardware/)).toBeVisible();
+
+  await waitForAutosave(page, 'Cedar Hollow');
+  await page.reload();
+
+  // The haul is still on the screen, and the step is still the one it was on.
+  await expect(walk.getByText(/\+2 Hardware/)).toBeVisible();
+  await expect(walk.getByText(/^Rolled 7$/)).toBeVisible();
+
+  // Taking them back off is the state worth a question: somebody went out and
+  // nothing is entered, which is the shape the lost rolls left behind.
+  await walk
+    .getByRole('button', { name: /^remove$/i })
+    .first()
+    .click();
+  await walk
+    .getByRole('button', { name: /^remove$/i })
+    .first()
+    .click();
+  await walk.getByRole('button', { name: /add to storage/i }).click();
+
+  const asking = page.getByRole('dialog', { name: /add nothing the mission recovered/i });
+  await expect(asking).toBeVisible();
+  await asking.getByRole('button', { name: /enter the rolls/i }).click();
+  await expect(asking).toBeHidden();
+
+  // Declining left the step armed, which is the point of asking at all.
+  await rolled.selectOption('10');
+  await walk.getByRole('button', { name: /add to storage/i }).click();
+
+  await expect(walk.getByText(/already in storage/i)).toBeVisible();
+  await expect(page.getByLabel(/^rare$/i)).toHaveValue('1');
+});
+
+/**
  * Z3-8's acceptance, executed: a pool shared equally, and the rule that makes
  * it an algorithm rather than a division.
  *
