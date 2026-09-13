@@ -295,6 +295,74 @@ describe('Add Materials to Storage', () => {
   });
 });
 
+/**
+ * Issue #108: `Effects.exchange` had been in the catalogue since Phase 2 and
+ * nothing read it, so a community holding Fuel and short of Food could not use
+ * a Gas Range it had paid 2 Hardware and 1 Labor for.
+ */
+describe('conversions', () => {
+  /** The Small Town Home's built-in Kitchen, with a Gas Range on it. */
+  const withGasRange = (overrides: Partial<Campaign> = {}) =>
+    advancement({
+      step: 'add-materials-to-storage',
+      materials: { food: 0, fuel: 4, hardware: 0, rare: 0 },
+      base: { id: 'small-town-home', slots: { kitchen: { upgrades: ['gas-range'] } } },
+      ...overrides,
+    });
+
+  const trade = () => within(walk()).getByRole('button', { name: /2 fuel → 1 food/i });
+
+  /**
+   * pg. 19 applies conversions in this step, *after* production. Offering them
+   * first would let a player spend Fuel the base is about to make.
+   */
+  it('waits until the haul is in', async () => {
+    const user = open(withGasRange());
+
+    expect(within(walk()).queryByRole('button', { name: /2 fuel → 1 food/i })).toBeNull();
+
+    await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
+
+    expect(trade()).toBeTruthy();
+  });
+
+  it('runs the trade, and says where it came from', async () => {
+    const user = open(withGasRange());
+
+    await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
+    await user.click(trade());
+
+    // The Gas Range produces a Food of its own as well (pg. 72), so Add to
+    // storage left one there before the trade added the second.
+    expect(screen.getByLabelText(/^food$/i)).toHaveValue(2);
+    expect(screen.getByLabelText(/^fuel$/i)).toHaveValue(2);
+    expect(within(walk()).getByText(/gas range in the kitchen/i)).toBeTruthy();
+  });
+
+  it('runs it again while the Fuel lasts, and then refuses', async () => {
+    const user = open(withGasRange());
+
+    await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
+    await user.click(trade());
+    await user.click(trade());
+
+    expect(screen.getByLabelText(/^food$/i)).toHaveValue(3);
+    expect(screen.getByLabelText(/^fuel$/i)).toHaveValue(0);
+
+    // A store cannot go negative, so this is a refusal rather than a warning.
+    expect(trade()).toBeDisabled();
+    expect(within(walk()).getByText(/not enough fuel in storage/i)).toBeTruthy();
+  });
+
+  it('says nothing at all when the base has no conversion to offer', async () => {
+    const user = open(withGasRange({ base: { id: 'small-town-home', slots: {} } }));
+
+    await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
+
+    expect(within(walk()).queryByText(/^conversions$/i)).toBeNull();
+  });
+});
+
 describe('Heal Wounds', () => {
   /**
    * A staffed Medical Clinic with Water, so the pool is the medic's Medicine

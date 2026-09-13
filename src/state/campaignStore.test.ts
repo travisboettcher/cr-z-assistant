@@ -1877,6 +1877,28 @@ describe('what earns a line in the log', () => {
         rare: HOBBY_FARM_PRODUCTION.rare,
       }),
     },
+    'advancement/materialsConverted': {
+      // Its own campaign: `rich()` holds one Fuel and a Gas Range trades two.
+      // The Hobby Farm's built-in Kitchen is where the upgrade goes.
+      state: openState({
+        ...expectOpen(rich()),
+        materials: { food: 0, fuel: 2, hardware: 0, rare: 0 },
+        base: { id: 'hobby-farm', slots: { kitchen: { upgrades: ['gas-range'] } } },
+      }),
+      action: {
+        type: 'advancement/materialsConverted',
+        at: AT,
+        slot: 'kitchen',
+        source: 'gas-range',
+      },
+      entry: entry(3, 'mission', {
+        kind: 'materials-converted',
+        slot: 'kitchen',
+        source: 'gas-range',
+        spent: { fuel: 2 },
+        gained: { food: 1 },
+      }),
+    },
     'management/survivorsFed': {
       // Its own campaign, because `rich()` has Food and a roster that eats less
       // than it holds — the entry would record no Hunger and the interesting
