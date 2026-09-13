@@ -32,7 +32,7 @@ import {
   unrest,
 } from '../engine/feeding';
 import { beds } from '../engine/base';
-import { missionTeam } from '../engine/assignments';
+import { missionTeam, missionTeamReduced } from '../engine/assignments';
 import {
   hordeCame,
   hordeChecked,
@@ -41,7 +41,12 @@ import {
   siegeTriggered,
 } from '../engine/siege';
 import { anythingOverCap, overCap, storageChecked } from '../engine/storage';
-import { departureCandidates, departurePressure, someoneIsLeaving } from '../engine/departures';
+import {
+  departureCandidates,
+  departurePressure,
+  someoneDeparted,
+  someoneIsLeaving,
+} from '../engine/departures';
 import { MATERIAL_LABELS } from './baseLabels';
 import { STORED_MATERIALS } from '../data/materials';
 import { biteCandidates, mustCheck, rotOutcome, rotTarget } from '../engine/rot';
@@ -127,9 +132,23 @@ function RotCheck({
   const candidates = biteCandidates(campaign, survivorId);
   const [bitten, setBitten] = useState<string>('');
 
+  /*
+   * **The bite is not optional.** pg. 22: the survivor "turns in the night and
+   * bites another survivor before being destroyed" — so where a candidate
+   * exists, one of them is bitten. The control used to default to nobody and
+   * offer it as a choice, which let a failed check skip the 1 Damage entirely.
+   *
+   * Who is bitten is still the player's, which is why this is a picker at all.
+   * Falling back to the first candidate rather than holding the choice in state
+   * also survives the list changing underneath it: a candidate who leaves the
+   * healing assignment stops being selectable, and the answer stays valid.
+   */
+  const chosen =
+    candidates.find((candidate) => candidate.id === bitten)?.id ?? candidates[0]?.id ?? null;
+
   // Shown before the press, so a player can see what the roll they are about to
   // enter would cost before it costs it.
-  const outcome = rotOutcome(campaign, survivorId, roll, bitten === '' ? null : bitten);
+  const outcome = rotOutcome(campaign, survivorId, roll, chosen);
 
   return (
     <div className="rounded-lg border border-stone-200 p-3 dark:border-stone-700">
@@ -161,13 +180,12 @@ function RotCheck({
             </label>
             <select
               id={`rot-bite-${survivorId}`}
-              value={bitten}
+              value={chosen ?? ''}
               className={FIELD}
               onChange={(changed) => {
                 setBitten(changed.target.value);
               }}
             >
-              <option value="">nobody</option>
               {candidates.map((candidate) => (
                 <option key={candidate.id} value={candidate.id}>
                   {candidate.name}
@@ -195,7 +213,7 @@ function RotCheck({
             type: 'management/rotChecked',
             survivor: survivorId,
             roll,
-            bitten: bitten === '' ? null : bitten,
+            bitten: chosen,
             at: new Date().toISOString(),
           });
         }}
@@ -285,16 +303,32 @@ function Feed({ campaign }: { readonly campaign: Campaign }) {
 }
 
 /**
- * Step 3: the only one of the three that changes nothing.
+ * Step 3: Exhaustion, and the one consequence the book prints under it.
  *
- * Exhaustion is population against beds, both readable at any moment, so there
- * is nothing to apply and nothing to guard — it returns to zero the instant a
- * Bunk Room goes up.
+ * The Exhaustion *number* changes nothing and is counted from scratch every
+ * turn — population against beds, both readable at any moment, back to zero the
+ * instant a Bunk Room goes up. The **penalty** is a real edit, and it belongs
+ * here rather than on Calculate Unrest where it used to sit: pg. 23 prints it
+ * under Assign Beds, beside the number it follows from.
  */
 function AssignBeds({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+
   const base = campaign.base;
   const sleeping = base === null ? 0 : beds(base);
   const short = exhaustion(campaign);
+  const team = missionTeam(campaign);
+
+  // Exhaustion above the mission team's size takes one survivor off it
+  // (pg. 23). Offered rather than done, because *which* one is a decision and
+  // because taking somebody off a team without being asked is the kind of
+  // silent edit this app does not make.
+  //
+  // Once, though. Taking somebody off does not lower the Exhaustion that called
+  // for it — beds and population are unchanged — so the condition stays true
+  // and the step went on offering the next name until the team was empty.
+  const overworked = short > team.length && team.length > 0;
+  const reduced = missionTeamReduced(campaign);
 
   return (
     <>
@@ -315,33 +349,61 @@ function AssignBeds({ campaign }: { readonly campaign: Campaign }) {
       </p>
 
       <p className={`mt-1 ${HINT}`}>
-        Nothing to apply: this is counted again from scratch every turn, and never added to what it
-        was <PageRef pages={23} />
+        The number itself is counted again from scratch every turn, and never added to what it was{' '}
+        <PageRef pages={23} />
       </p>
+
+      {reduced ? (
+        <p className="mt-3 text-sm font-medium">
+          Somebody has already come off the mission team this turn. The rule takes one.
+        </p>
+      ) : (
+        overworked && (
+          <>
+            <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">
+              Exhaustion is above the mission team’s{' '}
+              <span className="tabular-nums">{team.length}</span>, so one survivor comes off it and
+              is idle for the turn <PageRef pages={23} />
+            </p>
+
+            <ul className="mt-2 flex flex-col gap-1">
+              {team.map((survivor) => (
+                <li key={survivor.id} className="flex items-center gap-2 text-sm">
+                  <button
+                    type="button"
+                    className={SMALL_BUTTON}
+                    onClick={() => {
+                      dispatch({
+                        type: 'management/teamReduced',
+                        survivor: survivor.id,
+                        at: new Date().toISOString(),
+                      });
+                    }}
+                  >
+                    Take off
+                  </button>
+                  <span>{survivor.name}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )
+      )}
     </>
   );
 }
 
 /**
- * Step 4: the two numbers added up, and the one consequence they have here.
+ * Step 4: the two numbers added up, and nothing to apply.
  *
- * Nothing to apply — Unrest is read by the two steps that follow and by
- * nothing else — so this is a screen that explains rather than acts. The
- * exception is the exhaustion penalty, which is a real edit and is offered as
- * one.
+ * Unrest is read by the two steps that follow and by nothing else, so this is a
+ * screen that explains rather than acts. The exhaustion penalty used to sit
+ * here and has moved to Assign Beds, which is the step the rule is printed
+ * under and the step that computes the Exhaustion it follows from (pg. 23).
  */
 function CalculateUnrest({ campaign }: { readonly campaign: Campaign }) {
-  const { dispatch } = useCampaign();
-
   const short = hunger(campaign);
   const tired = exhaustion(campaign);
-  const team = missionTeam(campaign);
-
-  // Exhaustion above the mission team's size takes one survivor off it
-  // (pg. 23). Offered rather than done, because *which* one is a decision and
-  // because taking somebody off a team without being asked is the kind of
-  // silent edit this app does not make.
-  const overworked = tired > team.length && team.length > 0;
 
   return (
     <>
@@ -353,33 +415,6 @@ function CalculateUnrest({ campaign }: { readonly campaign: Campaign }) {
       <p className="mt-3 text-sm font-medium tabular-nums">
         {short} Hunger + {tired} Exhaustion = {unrest(campaign)} Unrest
       </p>
-
-      {overworked && (
-        <>
-          <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">
-            Exhaustion is above the mission team’s{' '}
-            <span className="tabular-nums">{team.length}</span>, so one survivor comes off it{' '}
-            <PageRef pages={23} />
-          </p>
-
-          <ul className="mt-2 flex flex-col gap-1">
-            {team.map((survivor) => (
-              <li key={survivor.id} className="flex items-center gap-2 text-sm">
-                <button
-                  type="button"
-                  className={SMALL_BUTTON}
-                  onClick={() => {
-                    dispatch({ type: 'assignment/cleared', survivor: survivor.id });
-                  }}
-                >
-                  Take off
-                </button>
-                <span>{survivor.name}</span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
     </>
   );
 }
@@ -522,16 +557,21 @@ function CheckTheHorde({ campaign }: { readonly campaign: Campaign }) {
 /**
  * Step 7: somebody walks, and the player says who.
  *
- * The candidates are recomputed after every departure, which is the whole
- * ordering trap made visible: a survivor leaving unstaffs whatever they were
- * working and shrinks the project team, so the pressure the *next* departure is
- * checked against is not the one this screen showed a moment ago.
+ * **One departure, and then the step reports what it did.** The rule sends the
+ * lowest-Tier survivor away (pg. 23), singular — and a departure lowers the
+ * very pressure that called for it, by unstaffing whatever they were working
+ * and shrinking the project team. So a screen that re-derived afterwards would
+ * offer a second name against a number the first departure had already moved,
+ * and then, once the pressure fell under the threshold, announce that the
+ * community holds together one line below the log entry saying somebody left.
+ * It did both, until the step started reading its own record.
  */
 function Departures({ campaign }: { readonly campaign: Campaign }) {
   const { dispatch } = useCampaign();
 
   const pressure = departurePressure(campaign);
   const candidates = departureCandidates(campaign);
+  const departed = someoneDeparted(campaign);
 
   return (
     <>
@@ -541,7 +581,12 @@ function Departures({ campaign }: { readonly campaign: Campaign }) {
         survivor leaves — and a tie is yours to break <PageRef pages={23} />
       </p>
 
-      {!someoneIsLeaving(campaign) ? (
+      {departed ? (
+        <p className="mt-3 text-sm font-medium">
+          Somebody has already left this turn. The rules send one survivor away, however far over
+          the threshold the pressure is.
+        </p>
+      ) : !someoneIsLeaving(campaign) ? (
         <p className="mt-3 text-sm font-medium">Nobody is leaving. The community holds together.</p>
       ) : candidates.length === 0 ? (
         <p className="mt-3 text-sm font-medium">

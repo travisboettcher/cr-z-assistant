@@ -4,6 +4,7 @@ import { createSurvivor } from './survivor';
 import {
   departureCandidates,
   departurePressure,
+  someoneDeparted,
   someoneIsLeaving,
   withDeparture,
 } from './departures';
@@ -207,5 +208,48 @@ describe('one Food, all the way down', () => {
 
     expect(departurePressure(after)).toBe(9);
     expect(someoneIsLeaving(after)).toBe(false);
+  });
+});
+
+/**
+ * The rule sends **one** (pg. 23), and nothing in the campaign says it has
+ * happened — a departure lowers the very pressure that called for it. So the
+ * step reads its own record, like every other destructive step in this phase.
+ */
+describe('someoneDeparted', () => {
+  const left = (turn: number): LogEntry => ({
+    turn,
+    phase: 'management',
+    at: AT,
+    event: { kind: 'survivor-departed', survivor: 'webb', name: 'Marcus Webb', tier: 1 },
+  });
+
+  it('is false before anybody has walked out', () => {
+    expect(someoneDeparted(community())).toBe(false);
+  });
+
+  it('is true once this turn has sent somebody away', () => {
+    expect(someoneDeparted(community([], { log: [left(3)] }))).toBe(true);
+  });
+
+  it('ignores a departure from an earlier turn', () => {
+    expect(someoneDeparted(community([], { log: [left(2)] }))).toBe(false);
+  });
+
+  /**
+   * The distinction the separate event kind exists for. A Rot death writes
+   * `survivor-left` in the same Management Phase, and if the guard read that
+   * instead, somebody turning in the night would silently cancel the
+   * Departures step.
+   */
+  it('ignores a Rot death, which is not somebody walking out', () => {
+    const died: LogEntry = {
+      turn: 3,
+      phase: 'management',
+      at: AT,
+      event: { kind: 'survivor-left', survivor: 'webb', name: 'Marcus Webb', tier: 1 },
+    };
+
+    expect(someoneDeparted(community([], { log: [died] }))).toBe(false);
   });
 });

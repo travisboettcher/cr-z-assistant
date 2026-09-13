@@ -11,6 +11,7 @@ import {
   biteCandidates,
   mustCheck,
   rotCheckPasses,
+  rotCheckResolved,
   rotOutcome,
   rotTarget,
   withRotApplied,
@@ -315,5 +316,46 @@ describe('the hunger penalty touches no survivor record', () => {
 
     expect(rotTarget(hungry)).toBeGreaterThan(rotTarget(fed));
     expect(hungry.survivors).toEqual(fed.survivors);
+  });
+});
+
+/**
+ * Per survivor rather than per step, unlike every other guard in this phase:
+ * the step resolves one check for each survivor at 0 Health, so "already done"
+ * is a question about a person. Without it the same survivor was observed
+ * passing at 10 and then dying at 1, both entries in the log.
+ */
+describe('rotCheckResolved', () => {
+  const checked = (turn: number, survivor: string): LogEntry => ({
+    turn,
+    phase: 'management',
+    at: AT,
+    event: {
+      kind: 'rot-checked',
+      survivor,
+      name: 'Marcus Webb',
+      roll: 5,
+      target: 12,
+      passed: true,
+    },
+  });
+
+  const withLog = (log: readonly LogEntry[]): Campaign => ({ ...community(), log });
+
+  it('is false before the check', () => {
+    expect(rotCheckResolved(community(), 'webb')).toBe(false);
+  });
+
+  it('is true once this survivor has been checked this turn', () => {
+    expect(rotCheckResolved(withLog([checked(3, 'webb')]), 'webb')).toBe(true);
+  });
+
+  /** The decoy: somebody else's check is not this survivor's. */
+  it('is false for a survivor whose check has not run', () => {
+    expect(rotCheckResolved(withLog([checked(3, 'ada')]), 'webb')).toBe(false);
+  });
+
+  it('ignores a check from an earlier turn', () => {
+    expect(rotCheckResolved(withLog([checked(2, 'webb')]), 'webb')).toBe(false);
   });
 });
