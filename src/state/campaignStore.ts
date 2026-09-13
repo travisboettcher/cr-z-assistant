@@ -51,6 +51,7 @@ import { overCap, storageChecked, withStorageChecked } from '../engine/storage';
 import { hordeChecked, siegeThreat, siegeTriggered, withSiegeCalled } from '../engine/siege';
 import { departureCandidates, someoneDeparted, withDeparture } from '../engine/departures';
 import { missionTeam, missionTeamReduced } from '../engine/assignments';
+import { storageCaps } from '../engine/base';
 import { ROT_BITE_DAMAGE } from '../data/turn';
 import { XP_AWARD, type XpSource } from '../data/turn';
 import type { Assignment, Campaign, ProjectOrder, Stats, Survivor } from '../engine/campaign';
@@ -676,14 +677,37 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
      * mis-dispatch and a wiped base.
      */
     case 'base/claimed':
-      return withCampaign(state, (campaign) =>
-        campaign.base === null
-          ? logged({ ...campaign, base: { id: action.base, slots: {} } }, action.at, {
-              kind: 'base-claimed',
-              base: action.base,
-            })
-          : campaign,
-      );
+      return withCampaign(state, (campaign) => {
+        // Refuses a base for a community that already has one: replacing a base
+        // is Claim a New Base, which is a mission and Phase 4's.
+        if (campaign.base !== null) return campaign;
+
+        const base = { id: action.base, slots: {} };
+
+        /*
+         * **The first base arrives full** (pg. 19, 54). A community that
+         * reaches one stocks every capped material to its maximum; a *later*
+         * base starts with only what was carried over, and that is Phase 4's
+         * Claim a New Base. Only the first is in scope, and `base === null`
+         * above is exactly what makes this the first.
+         *
+         * It matters more than it sounds: a starting community of ten Tier
+         * points eats six Food a turn against a Tier 1 cap of four, so
+         * beginning at zero rather than four changes the whole opening — and
+         * it is the pressure the opening is designed around. The app already
+         * knew the caps and showed "0 / 4" beside them.
+         */
+        const stocked = { ...campaign.materials, ...storageCaps(base) };
+
+        return logged(
+          logged({ ...campaign, base, materials: stocked }, action.at, {
+            kind: 'base-claimed',
+            base: action.base,
+          }),
+          action.at,
+          { kind: 'base-stocked', ...storageCaps(base) },
+        );
+      });
 
     case 'campaign/materialSet':
       return withCampaign(state, (campaign) => ({
