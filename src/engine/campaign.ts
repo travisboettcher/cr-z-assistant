@@ -32,7 +32,7 @@ import type { LogEntry } from './log';
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 10;
+export const CURRENT_SCHEMA_VERSION = 11;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -297,22 +297,6 @@ export interface Campaign {
   materials: Materials;
 
   /**
-   * The turn whose Mission Phase is or was a Siege Defense, or `null` for a
-   * community the horde has never come for (pg. 23).
-   *
-   * **Stored because it is a primitive fact, not a derived one**: nothing else
-   * in the campaign records that a siege happened, and "turns since the last
-   * siege" — a term of Siege Threat — is worked out *from* it rather than the
-   * other way round. The same field answers both questions the rule asks, which
-   * is why it is a turn number rather than a flag: a boolean would have to be
-   * cleared by somebody, and a turn number simply stops being this turn.
-   *
-   * Set to the turn **after** the check that triggered it, because that is the
-   * turn the siege is fought on.
-   */
-  lastSiegeTurn: number | null;
-
-  /**
    * What the community has ordered and not yet finished (pp. 20, 19).
    *
    * **Ordered**, so an array rather than a record: the book calls it a queue,
@@ -404,7 +388,6 @@ export function createNewCampaign(name: string, options: NewCampaignOptions = {}
     // All zero. Starting material counts are a rule, and Phase 0 ships none.
     materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
     // The horde has never come for a community that has not played a turn.
-    lastSiegeTurn: null,
     // Nothing ordered: a community's first Planning Phase is where a queue
     // starts.
     projects: [],

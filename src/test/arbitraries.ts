@@ -473,7 +473,6 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
       step: fc.constantFrom(...TURN_SEQUENCE),
       // Null as often as a number, because "never besieged" is the state most
       // campaigns are in and the one a round trip most easily loses.
-      lastSiegeTurn: fc.option(fc.integer({ min: 1, max: 9999 }), { nil: null }),
       origin: fc.constantFrom(...CAMPAIGN_ORIGINS),
       materials: materialsArbitrary(),
       survivors: fc.array(survivorArbitrary(), { maxLength: 6 }),
@@ -497,7 +496,6 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
         'createdAt',
         'turn',
         'step',
-        'lastSiegeTurn',
         'projects',
         'materials',
         'survivors',

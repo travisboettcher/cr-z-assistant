@@ -1,0 +1,292 @@
+{
+  "schemaVersion": 11,
+  "id": "7c4a9e02-6b58-4d31-9f27-3e8b5d0a1c64",
+  "name": "Cedar Hollow",
+  "createdAt": "2026-08-30T00:00:00.000Z",
+  "origin": "cosmic-horror",
+  "turn": 3,
+  "step": "assign-rest-and-healing",
+  "materials": {
+    "food": 4,
+    "fuel": 2,
+    "hardware": 7,
+    "rare": 1
+  },
+  "survivors": [
+    {
+      "id": "b7e41f28-3c60-4d95-8a12-6f0e9d4c7b53",
+      "name": "Earl Rhodes",
+      "tier": 4,
+      "stats": {
+        "strength": 3,
+        "dexterity": 2,
+        "intelligence": 4,
+        "cooperation": 1
+      },
+      "skills": {
+        "heavy-weapon": 2,
+        "carry": 1,
+        "scavenge": 1,
+        "tactics": 3
+      },
+      "move": 7,
+      "defense": 6,
+      "currentHp": 3,
+      "xp": 5
+    },
+    {
+      "id": "d2c93a75-1e48-4f60-b8d7-5a3e0c96f41b",
+      "name": "Carla Proust",
+      "tier": 3,
+      "stats": {
+        "strength": 1,
+        "dexterity": 3,
+        "intelligence": 2,
+        "cooperation": 0
+      },
+      "skills": {
+        "archery": 2,
+        "stealth": 1,
+        "enter": 0
+      },
+      "move": 6,
+      "defense": 6,
+      "currentHp": 3,
+      "xp": 0
+    },
+    {
+      "id": "f60b2d84-9a17-4c3e-85d0-2b7f1e6a9c48",
+      "name": "Ruby Vance",
+      "tier": 1,
+      "stats": {
+        "strength": 0,
+        "dexterity": 1,
+        "intelligence": 0,
+        "cooperation": 0
+      },
+      "skills": {
+        "handguns": 1
+      },
+      "move": 6,
+      "defense": 6,
+      "currentHp": 0,
+      "xp": 2
+    },
+    {
+      "id": "1a5c7e93-2d64-4b08-a7f1-9c30e5b284d7",
+      "name": "Marcus Webb",
+      "tier": 3,
+      "stats": {
+        "strength": 2,
+        "dexterity": 3,
+        "intelligence": 1,
+        "cooperation": 0
+      },
+      "skills": {
+        "break": 0,
+        "scout": 0,
+        "medicine": 0
+      },
+      "move": 6,
+      "defense": 6,
+      "currentHp": 3,
+      "xp": 1
+    }
+  ],
+  "startingCommunityBuilt": true,
+  "base": {
+    "id": "hobby-farm",
+    "slots": {
+      "kitchen": {
+        "upgrades": ["gas-range"],
+        "water": true
+      },
+      "garden": {
+        "water": true
+      },
+      "ruined-chicken-coop": {
+        "cleared": true
+      },
+      "front-yard": {
+        "built": {
+          "facility": "watchtower",
+          "builtOnTurn": 2
+        },
+        "upgrades": ["spotlight"],
+        "power": true
+      }
+    }
+  },
+  "assignments": {
+    "b7e41f28-3c60-4d95-8a12-6f0e9d4c7b53": {
+      "task": "staff",
+      "slot": "kitchen"
+    },
+    "d2c93a75-1e48-4f60-b8d7-5a3e0c96f41b": {
+      "task": "mission",
+      "team": 1
+    },
+    "f60b2d84-9a17-4c3e-85d0-2b7f1e6a9c48": {
+      "task": "healing"
+    }
+  },
+  "projects": [
+    {
+      "kind": "facility",
+      "facility": "workshop",
+      "orderedOnTurn": 3,
+      "slot": "garage"
+    },
+    {
+      "kind": "upgrade",
+      "orderedOnTurn": 3,
+      "slot": "kitchen",
+      "upgrade": "gas-range"
+    },
+    {
+      "kind": "clearing",
+      "orderedOnTurn": 3,
+      "slot": "front-yard"
+    }
+  ],
+  "log": [
+    {
+      "turn": 1,
+      "phase": "mission",
+      "at": "2026-08-30T00:05:00.000Z",
+      "event": {
+        "kind": "campaign-started",
+        "name": "Cedar Hollow"
+      }
+    },
+    {
+      "turn": 1,
+      "phase": "mission",
+      "at": "2026-08-30T00:07:12.000Z",
+      "event": {
+        "kind": "survivor-added",
+        "name": "Earl Rhodes",
+        "survivor": "b7e41f28-3c60-4d95-8a12-6f0e9d4c7b53",
+        "tier": 3
+      }
+    },
+    {
+      "turn": 1,
+      "phase": "mission",
+      "at": "2026-08-30T00:09:40.000Z",
+      "event": {
+        "kind": "starting-community-settled",
+        "built": true
+      }
+    },
+    {
+      "turn": 1,
+      "phase": "planning",
+      "at": "2026-08-30T00:22:03.000Z",
+      "event": {
+        "kind": "base-claimed",
+        "base": "hobby-farm"
+      }
+    },
+    {
+      "turn": 2,
+      "phase": "mission",
+      "at": "2026-08-31T19:02:00.000Z",
+      "event": {
+        "kind": "turn-began"
+      }
+    },
+    {
+      "turn": 2,
+      "phase": "advancement",
+      "at": "2026-08-31T19:14:38.000Z",
+      "event": {
+        "kind": "survivor-recruited",
+        "name": "Ruby Vance",
+        "roll": 4,
+        "survivor": "f60b2d84-9a17-4c3e-85d0-2b7f1e6a9c48",
+        "tier": 1
+      }
+    },
+    {
+      "turn": 2,
+      "phase": "advancement",
+      "at": "2026-08-31T19:20:55.000Z",
+      "event": {
+        "kind": "slot-cleared",
+        "slot": "ruined-chicken-coop"
+      }
+    },
+    {
+      "turn": 2,
+      "phase": "advancement",
+      "at": "2026-08-31T19:26:11.000Z",
+      "event": {
+        "kind": "facility-built",
+        "facility": "watchtower",
+        "slot": "front-yard"
+      }
+    },
+    {
+      "turn": 2,
+      "phase": "advancement",
+      "at": "2026-08-31T19:31:07.000Z",
+      "event": {
+        "kind": "survivor-promoted",
+        "name": "Earl Rhodes",
+        "survivor": "b7e41f28-3c60-4d95-8a12-6f0e9d4c7b53",
+        "tier": 4
+      }
+    },
+    {
+      "turn": 3,
+      "phase": "mission",
+      "at": "2026-09-01T18:40:00.000Z",
+      "event": {
+        "kind": "turn-began"
+      }
+    },
+    {
+      "turn": 3,
+      "phase": "advancement",
+      "at": "2026-09-01T18:52:19.000Z",
+      "event": {
+        "kind": "upgrade-built",
+        "slot": "front-yard",
+        "upgrade": "spotlight"
+      }
+    },
+    {
+      "turn": 3,
+      "phase": "advancement",
+      "at": "2026-09-01T18:58:44.000Z",
+      "event": {
+        "kind": "skill-level-bought",
+        "level": 2,
+        "name": "Carla Proust",
+        "skill": "archery",
+        "survivor": "d2c93a75-1e48-4f60-b8d7-5a3e0c96f41b"
+      }
+    },
+    {
+      "turn": 3,
+      "phase": "advancement",
+      "at": "2026-09-01T19:03:02.000Z",
+      "event": {
+        "kind": "common-skill-bought",
+        "name": "Earl Rhodes",
+        "score": 7,
+        "skill": "move",
+        "survivor": "b7e41f28-3c60-4d95-8a12-6f0e9d4c7b53"
+      }
+    },
+    {
+      "turn": 3,
+      "phase": "planning",
+      "at": "2026-09-01T19:09:30.000Z",
+      "event": {
+        "kind": "phase-entered"
+      }
+    }
+  ]
+}

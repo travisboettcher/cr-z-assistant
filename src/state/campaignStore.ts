@@ -48,7 +48,7 @@ import { healthAwards, withWoundsHealed, woundsHealed } from '../engine/healing'
 import { foodRequired, hungerIfFedNow, survivorsFed, withSurvivorsFed } from '../engine/feeding';
 import { rotOutcome, rotTarget, withRotApplied } from '../engine/rot';
 import { overCap, storageChecked, withStorageChecked } from '../engine/storage';
-import { hordeChecked, siegeThreat, siegeTriggered, withSiegeCalled } from '../engine/siege';
+import { hordeChecked, siegeThreat, siegeTriggered } from '../engine/siege';
 import { departureCandidates, withDeparture } from '../engine/departures';
 import { ROT_BITE_DAMAGE } from '../data/turn';
 import { XP_AWARD, type XpSource } from '../data/turn';
@@ -723,7 +723,12 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         const threat = siegeThreat(campaign);
         const siege = siegeTriggered(action.roll, threat);
 
-        return logged(siege ? withSiegeCalled(campaign) : campaign, action.at, {
+        // The entry is the whole record: a siege called on this turn is fought
+        // on the next, which `siege.ts` works out from the turn stamped here.
+        // Nothing is written onto the campaign, because a forward-dated field
+        // beside it destroyed the previous siege's turn — and with it the
+        // Siege Threat term that Departures reads two steps later.
+        return logged(campaign, action.at, {
           kind: 'horde-checked',
           roll: action.roll,
           threat,
