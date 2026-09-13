@@ -39,6 +39,10 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'rot-checked', ...SURVIVOR, roll: 10, target: -1, passed: true },
   { kind: 'survivor-bitten', ...SURVIVOR, damage: 1 },
   { kind: 'storage-checked', food: 2, fuel: 0, hardware: 0 },
+  { kind: 'facility-ordered', slot: 'garage', facility: 'workshop' },
+  { kind: 'upgrade-ordered', slot: 'kitchen', upgrade: 'gas-range' },
+  { kind: 'clearing-ordered', slot: 'front-yard' },
+  { kind: 'project-cancelled', slot: 'garage' },
   { kind: 'horde-checked', roll: 9, threat: 4, siege: false },
   // A base built for defence can drive the threat below zero (pg. 73), so the
   // validator has to accept a negative where no count would.

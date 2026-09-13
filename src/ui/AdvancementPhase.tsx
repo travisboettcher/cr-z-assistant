@@ -37,6 +37,8 @@ import {
 } from '../engine/materials';
 import { checkXpAward, xpPools } from '../engine/experience';
 import { checkHealing, healingPool, healthAwards, woundsHealed } from '../engine/healing';
+import { dueProjects, isDue } from '../engine/projects';
+import { describeProject } from './projectLabels';
 import { useCampaign } from '../state/useCampaign';
 import { MATERIAL_LABELS } from './baseLabels';
 import { PageRef } from './PageRef';
@@ -68,13 +70,7 @@ export function AdvancementPhase({ campaign, step }: AdvancementPhaseProps) {
 
       {step === 'heal-wounds' && <HealWounds campaign={campaign} />}
 
-      {step === 'add-facilities-and-upgrades' && (
-        <p className={HINT}>
-          This is the step projects finish in. Build, upgrade and clear on the base below — the app
-          lets you do it on any step, and says so where it happens rather than refusing
-          <PageRef pages={19} />
-        </p>
-      )}
+      {step === 'add-facilities-and-upgrades' && <FinishProjects campaign={campaign} />}
     </div>
   );
 }
@@ -441,3 +437,57 @@ const XP_SOURCE_EMPTY: Record<XpSource, string> = {
   'mission-teaching': 'Nobody on the mission team has Teaching.',
   'training-room': 'No staffed Training Room, so nothing to teach with.',
 };
+
+/**
+ * Step 5: the projects the last Planning Phase ordered actually happen.
+ *
+ * Named before they are applied, because this is the step where a base changes
+ * shape and a player should be able to see what is about to change. Nothing is
+ * pressed for them: the walk can be stepped through by accident.
+ */
+function FinishProjects({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+
+  const due = dueProjects(campaign);
+  const waiting = campaign.projects.filter((project) => !isDue(campaign, project));
+
+  return (
+    <>
+      <p className={HINT}>
+        Projects ordered in a Planning Phase finish here, the turn after they were ordered{' '}
+        <PageRef pages={19} />
+      </p>
+
+      {due.length === 0 ? (
+        <p className={`mt-3 ${HINT}`}>
+          {waiting.length === 0
+            ? 'Nothing was ordered, so nothing finishes this turn.'
+            : 'Everything in the queue was ordered this turn, and finishes next turn.'}
+        </p>
+      ) : (
+        <>
+          <p className="mt-3 text-sm font-medium">Finishing now</p>
+          <ul className="mt-1 flex flex-col gap-0.5">
+            {due.map((project, at) => (
+              // Index-keyed: two identical orders for one slot are two orders
+              // and have no identity of their own.
+              <li key={at} className={HINT}>
+                {describeProject(project)}
+              </li>
+            ))}
+          </ul>
+
+          <button
+            type="button"
+            className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+            onClick={() => {
+              dispatch({ type: 'advancement/projectsCompleted', at: new Date().toISOString() });
+            }}
+          >
+            Finish {due.length === 1 ? 'the project' : `${String(due.length)} projects`}
+          </button>
+        </>
+      )}
+    </>
+  );
+}

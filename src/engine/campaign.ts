@@ -32,7 +32,7 @@ import type { LogEntry } from './log';
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 9;
+export const CURRENT_SCHEMA_VERSION = 10;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -223,6 +223,39 @@ export type Assignment =
    */
   | { readonly task: 'scavenging' };
 
+/**
+ * A project the community has ordered but not yet finished (pp. 20, 19).
+ *
+ * Projects are **ordered during the Planning Phase and completed in the next
+ * Advancement Phase**, which is what makes a turn's Labor a decision rather
+ * than a formality. Until Z3-11 the app built everything the instant the button
+ * was pressed, because no phase existed to order it in.
+ *
+ * `orderedOnTurn` is the load-bearing field and the reason nothing else has to
+ * be stored: it says which turn's Labor paid for this, so "what is left to
+ * spend" is arithmetic over the queue rather than a running total somebody has
+ * to remember to decrement. It is also what decides when the project is due —
+ * the Advancement Phase after the one it was ordered in.
+ *
+ * Three kinds because the book has three, and they are one union because the
+ * queue is one queue: a slot with a clearing project ordered for it cannot also
+ * have a facility ordered into it, and a union makes that one question.
+ */
+export type ProjectOrder =
+  | { readonly kind: 'facility'; readonly slot: string; readonly facility: FacilityId }
+  | { readonly kind: 'upgrade'; readonly slot: string; readonly upgrade: UpgradeId }
+  | { readonly kind: 'clearing'; readonly slot: string };
+
+/**
+ * The order plus the turn it was placed on.
+ *
+ * An intersection rather than three members each repeating `orderedOnTurn`,
+ * which also gives the screens a name for the half they can supply: a dialog
+ * knows what it is ordering and has no business naming the turn, so
+ * `project/ordered` carries a `ProjectOrder` and the reducer stamps the rest.
+ */
+export type Project = ProjectOrder & { readonly orderedOnTurn: number };
+
 export interface Campaign {
   /** Which version of the persisted shape this campaign was written in. */
   schemaVersion: number;
@@ -278,6 +311,18 @@ export interface Campaign {
    * turn the siege is fought on.
    */
   lastSiegeTurn: number | null;
+
+  /**
+   * What the community has ordered and not yet finished (pp. 20, 19).
+   *
+   * **Ordered**, so an array rather than a record: the book calls it a queue,
+   * and two projects for the same slot in the same turn have a first and a
+   * second. Empty at the top of every campaign and for every save written
+   * before v10 — what a campaign had already built was already built, and
+   * inventing a queue from it would be claiming work that is finished is still
+   * to do.
+   */
+  projects: readonly Project[];
 
   survivors: readonly Survivor[];
 
@@ -360,6 +405,9 @@ export function createNewCampaign(name: string, options: NewCampaignOptions = {}
     materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
     // The horde has never come for a community that has not played a turn.
     lastSiegeTurn: null,
+    // Nothing ordered: a community's first Planning Phase is where a queue
+    // starts.
+    projects: [],
     survivors: [],
     // False, so a new campaign gets the ten-tier-level check while it is being
     // built. The v2 → v3 migration deliberately answers `true` instead — see

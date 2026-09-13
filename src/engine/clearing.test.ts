@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { clearingProject } from './base';
 import { createNewCampaign, type Base, type Campaign } from './campaign';
-import { checkClearing, clearingProject, clearingYield, withSlotCleared } from './clearing';
+import { checkClearing, clearingYield } from './clearing';
 import { projectTeamWorth } from '../test/campaigns';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
@@ -105,60 +106,5 @@ describe('checkClearing', () => {
     const exact = campaignWith(farm(), { ...projectTeamWorth(2) });
 
     expect(checkClearing(exact, { slot: 'ruined-chicken-coop' }).blockers).toEqual([]);
-  });
-});
-
-describe('withSlotCleared', () => {
-  it('records the clearing and adds what it yields', () => {
-    const after = withSlotCleared(campaignWith(farm()), {
-      slot: 'ruined-chicken-coop',
-    });
-
-    expect(after.base?.slots['ruined-chicken-coop']).toEqual({ cleared: true });
-    // Only Hardware moves; a project that credited every material would show up
-    // in the three that did not change.
-    expect(after.materials).toEqual({ food: 1, fuel: 2, hardware: 5, rare: 4 });
-  });
-
-  it('adds nothing for a project whose yield this version cannot hold', () => {
-    // The Outdoor Sports Shop's Inventory slot gives four standard weapons, and
-    // Phase 5 owns the item catalogue. The clearing still happens.
-    const after = withSlotCleared(campaignWith(shop()), { slot: 'inventory' });
-
-    expect(after.base?.slots.inventory).toEqual({ cleared: true });
-    expect(after.materials).toEqual({ food: 1, fuel: 2, hardware: 3, rare: 4 });
-  });
-
-  it('keeps what else the slot recorded', () => {
-    const after = withSlotCleared(campaignWith(farm({ 'ruined-chicken-coop': { power: true } })), {
-      slot: 'ruined-chicken-coop',
-    });
-
-    expect(after.base?.slots['ruined-chicken-coop']).toEqual({ power: true, cleared: true });
-  });
-
-  it('refuses a blocked clearing and changes nothing at all', () => {
-    // One Labor against a two-Labor project: the pool is the project team's
-    // now, so a refusal is arranged on the roster rather than in the request.
-    const poor = campaignWith(farm(), { ...projectTeamWorth(1) });
-
-    expect(withSlotCleared(poor, { slot: 'ruined-chicken-coop' })).toBe(poor);
-  });
-
-  it('does nothing to a slot with no project, or a campaign with no base', () => {
-    const noProject = campaignWith(farm());
-    const noBase = campaignWith(null);
-
-    expect(withSlotCleared(noProject, { slot: 'front-yard' })).toBe(noProject);
-    expect(withSlotCleared(noBase, { slot: 'ruined-chicken-coop' })).toBe(noBase);
-  });
-
-  it('clears once and refuses the second time', () => {
-    const once = withSlotCleared(campaignWith(farm()), { slot: 'ruined-chicken-coop' });
-    const twice = withSlotCleared(once, { slot: 'ruined-chicken-coop' });
-
-    // Otherwise the yield is a Hardware fountain.
-    expect(twice).toBe(once);
-    expect(twice.materials.hardware).toBe(5);
   });
 });

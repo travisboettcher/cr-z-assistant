@@ -21,16 +21,15 @@
  */
 
 import type { BaseId } from '../data/bases';
-import type { FacilityId, UpgradeId, Utility } from '../data/facilities';
+import type { Utility } from '../data/facilities';
 import type { Material } from '../data/materials';
 import type { D10Result } from '../data/dice';
 import type { FieldRecruitTier } from '../data/recruitTable';
 import { MIN_SKILL_LEVEL, type CommonSkill, type Skill, type Stat } from '../data/skills';
 import type { Tier } from '../data/tiers';
 import { withCommonSkillBought, withSkillLevelBought, withTierBought } from '../engine/advancement';
-import { withFacilityBuilt } from '../engine/build';
-import { withSlotCleared } from '../engine/clearing';
-import { withUpgradeBuilt } from '../engine/upgrade';
+import { completeProjects, withProjectCancelled, withProjectOrdered } from '../engine/projects';
+import { builtEvent, checkOrder, orderedEvent } from '../engine/orders';
 import { withUtilityToggled } from '../engine/utilities';
 import { createNewCampaign } from '../engine/campaign';
 import { logged, type CampaignEvent } from '../engine/log';
@@ -53,7 +52,7 @@ import { hordeChecked, siegeThreat, siegeTriggered, withSiegeCalled } from '../e
 import { departureCandidates, withDeparture } from '../engine/departures';
 import { ROT_BITE_DAMAGE } from '../data/turn';
 import { XP_AWARD, type XpSource } from '../data/turn';
-import type { Assignment, Campaign, Stats, Survivor } from '../engine/campaign';
+import type { Assignment, Campaign, ProjectOrder, Stats, Survivor } from '../engine/campaign';
 import { createSurvivor, recruitSurvivor } from '../engine/survivor';
 
 /**
@@ -404,21 +403,32 @@ export type CampaignAction =
     }
   /** Take a survivor's task away, leaving them unassigned. */
   | { readonly type: 'assignment/cleared'; readonly survivor: string }
+  /**
+   * Order a project into the queue, spending its Hardware (pg. 20).
+   *
+   * **Not built: ordered.** Since Z3-11 the base changes in the *next*
+   * Advancement Phase, which is the rule that makes a turn's Labor a decision.
+   * The three actions this replaced applied their work the instant they were
+   * dispatched, because no phase existed to order it in.
+   *
+   * `orderedOnTurn` is filled in by the reducer rather than carried, because it
+   * is the campaign's own turn and a screen that could name a different one
+   * could order a project into the past.
+   */
   | {
-      readonly type: 'facility/built';
-      readonly slot: string;
-      readonly facility: FacilityId;
+      readonly type: 'project/ordered';
+      readonly project: ProjectOrder;
       readonly at: string;
     }
-  /** Adds an upgrade to whatever stands in the slot. */
-  | {
-      readonly type: 'upgrade/built';
-      readonly slot: string;
-      readonly upgrade: UpgradeId;
-      readonly at: string;
-    }
-  /** Clears the rubble out of a slot, adding back whatever the project yields. */
-  | { readonly type: 'slot/cleared'; readonly slot: string; readonly at: string }
+  /**
+   * Take one project back out of the queue, and its Hardware with it.
+   *
+   * By position, because two identical Gas Ranges ordered for the same Kitchen
+   * in one turn are two orders — see `withProjectCancelled`.
+   */
+  | { readonly type: 'project/cancelled'; readonly at: number; readonly when: string }
+  /** Finish everything the last Planning Phase ordered (pg. 19). */
+  | { readonly type: 'advancement/projectsCompleted'; readonly at: string }
   /**
    * Puts a point of Power or Water on a slot, or takes it off.
    *
@@ -837,33 +847,42 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
      * Hardware the community does not have by forgetting to ask — there is
      * nothing here to forget.
      */
-    case 'facility/built':
-      return withCampaign(state, (campaign) =>
-        loggedIfChanged(
-          campaign,
-          withFacilityBuilt(campaign, { slot: action.slot, facility: action.facility }),
-          action.at,
-          { kind: 'facility-built', slot: action.slot, facility: action.facility },
-        ),
-      );
+    case 'project/ordered':
+      return withCampaign(state, (campaign) => {
+        const project = { ...action.project, orderedOnTurn: campaign.turn };
 
-    case 'upgrade/built':
-      return withCampaign(state, (campaign) =>
-        loggedIfChanged(
-          campaign,
-          withUpgradeBuilt(campaign, { slot: action.slot, upgrade: action.upgrade }),
-          action.at,
-          { kind: 'upgrade-built', slot: action.slot, upgrade: action.upgrade },
-        ),
-      );
+        // Asked here rather than trusted from the screen, exactly as the three
+        // actions this replaced did: the check knows what is already queued
+        // and what Labor is left, and a stale screen does not.
+        if (checkOrder(campaign, project).blockers.length > 0) return campaign;
 
-    case 'slot/cleared':
-      return withCampaign(state, (campaign) =>
-        loggedIfChanged(campaign, withSlotCleared(campaign, { slot: action.slot }), action.at, {
-          kind: 'slot-cleared',
-          slot: action.slot,
-        }),
-      );
+        return logged(withProjectOrdered(campaign, project), action.at, orderedEvent(project));
+      });
+
+    case 'project/cancelled':
+      return withCampaign(state, (campaign) => {
+        const project = campaign.projects[action.at];
+        if (project === undefined) return campaign;
+
+        return logged(withProjectCancelled(campaign, action.at), action.when, {
+          kind: 'project-cancelled',
+          slot: project.slot,
+        });
+      });
+
+    case 'advancement/projectsCompleted':
+      return withCampaign(state, (campaign) => {
+        const { campaign: finished, completed } = completeProjects(campaign);
+
+        // One entry per project that actually landed — a project dropped for a
+        // slot that filled under it says nothing, rather than claiming a
+        // Workshop that is not there. Folded rather than pushed, because
+        // `logged` stamps against the campaign it appends to.
+        return completed.reduce(
+          (so_far, project) => logged(so_far, action.at, builtEvent(project)),
+          finished,
+        );
+      });
 
     case 'assignment/set':
       return withCampaign(state, (campaign) => ({
@@ -955,23 +974,6 @@ function withoutAssignment(
   delete remaining[survivor];
 
   return remaining;
-}
-
-/**
- * The campaign the edit produced, with an entry on it — unless the edit
- * refused, in which case neither.
- *
- * Reference equality is the test, and it is exact rather than a heuristic:
- * every `with*` in `src/engine` returns the campaign it was given when a
- * blocker stops it, so `after === before` is that refusal and nothing else.
- */
-function loggedIfChanged(
-  before: Campaign,
-  after: Campaign,
-  at: string,
-  event: CampaignEvent,
-): Campaign {
-  return after === before ? before : logged(after, at, event);
 }
 
 /**

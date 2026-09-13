@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { CampaignPhase, TurnStepId } from '../data/turn';
 import { TURN_SEQUENCE } from '../engine/turn';
 import { createNewCampaign } from '../engine/campaign';
-import type { Campaign } from '../engine/campaign';
+import type { Campaign, ProjectOrder } from '../engine/campaign';
+import { laborAvailable } from '../engine/projects';
 import type { CampaignEvent, LogEntry } from '../engine/log';
 import { createSurvivor, recruitSurvivor } from '../engine/survivor';
 import { generatingUtilities, projectTeamWorth } from '../test/campaigns';
@@ -968,57 +969,299 @@ describe('base/claimed', () => {
   });
 });
 
-describe('facility/built', () => {
-  /** A claimed base with Hardware to spend, on a turn worth recording. */
+describe('project/ordered', () => {
+  /** A claimed base with Hardware to spend and a project team to spend Labor. */
   function withBase(): CampaignState {
     return openState({
       ...createNewCampaign('Cedar Hollow', FIXED),
       materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
       turn: 3,
       base: { id: 'small-town-home', slots: {} },
-      // Labor to pay with: the pool is the project team's since Z3-5.
       ...projectTeamWorth(5),
     });
   }
 
-  it('builds the facility and spends its Hardware', () => {
-    const state = campaignReducer(withBase(), {
-      type: 'facility/built',
-      at: AT,
-      slot: 'garage',
-      facility: 'workshop',
-    });
-    const campaign = expectOpen(state);
+  const order = (project: ProjectOrder): CampaignAction => ({
+    type: 'project/ordered',
+    at: AT,
+    project,
+  });
 
-    expect(campaign.base?.slots.garage).toEqual({
-      built: { facility: 'workshop', builtOnTurn: 3 },
-    });
+  it('queues the project against this turn and spends its Hardware', () => {
+    const campaign = expectOpen(
+      campaignReducer(
+        withBase(),
+        order({ kind: 'facility', slot: 'garage', facility: 'workshop' }),
+      ),
+    );
+
+    expect(campaign.projects).toEqual([
+      { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+    ]);
     expect(campaign.materials.hardware).toBe(6);
   });
 
-  it('does nothing when the build is blocked', () => {
-    // Delegated wholesale to `withFacilityBuilt`, which re-runs its own check —
-    // so the reducer cannot spend Hardware by forgetting to ask.
+  /** The whole point of the queue: nothing lands on the base until next turn. */
+  it('leaves the base exactly as it found it', () => {
+    const campaign = expectOpen(
+      campaignReducer(
+        withBase(),
+        order({ kind: 'facility', slot: 'garage', facility: 'workshop' }),
+      ),
+    );
+
+    expect(campaign.base?.slots).toEqual({});
+  });
+
+  it('stamps the turn the order was placed on rather than trusting the screen', () => {
+    const later = openState({ ...expectOpen(withBase()), turn: 7 });
+    const campaign = expectOpen(
+      campaignReducer(later, order({ kind: 'facility', slot: 'garage', facility: 'workshop' })),
+    );
+
+    expect(campaign.projects[0]?.orderedOnTurn).toBe(7);
+  });
+
+  it('does nothing when the order is blocked', () => {
+    // Delegated wholesale to `checkOrder`, which the reducer re-runs — so it
+    // cannot spend Hardware by forgetting to ask.
     const before = withBase();
-    const state = campaignReducer(before, {
-      type: 'facility/built',
-      at: AT,
-      slot: 'kitchen',
-      facility: 'workshop',
-    });
+    const state = campaignReducer(
+      before,
+      order({ kind: 'facility', slot: 'kitchen', facility: 'workshop' }),
+    );
 
     expect(expectOpen(state)).toEqual(expectOpen(before));
   });
 
+  /**
+   * The arithmetic the queue exists for. Two Workshops cost four Labor and this
+   * team makes three, so the second order is refused by what the first one
+   * committed rather than by anything stored.
+   */
+  it('prices the second order against what the first one left', () => {
+    const thin = openState({ ...expectOpen(withBase()), ...projectTeamWorth(3) });
+    const once = campaignReducer(
+      thin,
+      order({ kind: 'facility', slot: 'garage', facility: 'workshop' }),
+    );
+    const twice = campaignReducer(
+      once,
+      order({ kind: 'facility', slot: 'front-yard', facility: 'workshop' }),
+    );
+
+    expect(expectOpen(twice).projects).toHaveLength(1);
+    expect(expectOpen(twice).materials.hardware).toBe(6);
+  });
+
+  it('orders an upgrade and a clearing by the same action', () => {
+    const farm = openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+      turn: 3,
+      base: { id: 'hobby-farm', slots: {} },
+      ...projectTeamWorth(9),
+    });
+    const upgraded = campaignReducer(
+      farm,
+      order({ kind: 'upgrade', slot: 'kitchen', upgrade: 'gas-range' }),
+    );
+    const cleared = campaignReducer(
+      upgraded,
+      order({ kind: 'clearing', slot: 'ruined-chicken-coop' }),
+    );
+
+    expect(expectOpen(cleared).projects).toEqual([
+      { kind: 'upgrade', slot: 'kitchen', upgrade: 'gas-range', orderedOnTurn: 3 },
+      { kind: 'clearing', slot: 'ruined-chicken-coop', orderedOnTurn: 3 },
+    ]);
+    // The Gas Range's two Hardware; a clearing project costs none.
+    expect(expectOpen(cleared).materials.hardware).toBe(7);
+  });
+
+  /** A clearing pays out when the work is done, not when it is ordered. */
+  it('credits nothing for a clearing project until it is finished', () => {
+    const farm = openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      materials: { food: 0, fuel: 0, hardware: 1, rare: 0 },
+      turn: 3,
+      base: { id: 'hobby-farm', slots: {} },
+      ...projectTeamWorth(5),
+    });
+
+    expect(
+      expectOpen(campaignReducer(farm, order({ kind: 'clearing', slot: 'ruined-chicken-coop' })))
+        .materials.hardware,
+    ).toBe(1);
+  });
+
   it('does nothing when no campaign is open', () => {
     expect(
-      campaignReducer(INITIAL_CAMPAIGN_STATE, {
-        type: 'facility/built',
-        at: AT,
-        slot: 'garage',
-        facility: 'workshop',
-      }),
+      campaignReducer(
+        INITIAL_CAMPAIGN_STATE,
+        order({ kind: 'facility', slot: 'garage', facility: 'workshop' }),
+      ),
     ).toEqual(INITIAL_CAMPAIGN_STATE);
+  });
+});
+
+describe('project/cancelled', () => {
+  /** Two orders in the queue, so cancelling by position has a wrong answer. */
+  function ordered(): CampaignState {
+    const base = openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+      turn: 3,
+      base: { id: 'small-town-home', slots: {} },
+      ...projectTeamWorth(9),
+    });
+    const one = campaignReducer(base, {
+      type: 'project/ordered',
+      at: AT,
+      project: { kind: 'facility', slot: 'garage', facility: 'workshop' },
+    });
+
+    return campaignReducer(one, {
+      type: 'project/ordered',
+      at: AT,
+      project: { kind: 'facility', slot: 'front-yard', facility: 'watchtower' },
+    });
+  }
+
+  it('takes the named order out and gives its Hardware back', () => {
+    const campaign = expectOpen(
+      campaignReducer(ordered(), { type: 'project/cancelled', at: 0, when: AT }),
+    );
+
+    expect(campaign.projects.map((project) => project.slot)).toEqual(['front-yard']);
+    // Nine, less three each for the Workshop and the Watchtower, and the
+    // Workshop's three returned.
+    expect(campaign.materials.hardware).toBe(6);
+  });
+
+  it('cancels the one at that position rather than the first it finds', () => {
+    const campaign = expectOpen(
+      campaignReducer(ordered(), { type: 'project/cancelled', at: 1, when: AT }),
+    );
+
+    expect(campaign.projects.map((project) => project.slot)).toEqual(['garage']);
+  });
+
+  /** Labor was never deducted, so a cancellation frees it by arithmetic alone. */
+  it('gives back the Labor the order had committed', () => {
+    const before = expectOpen(ordered());
+    const after = expectOpen(
+      campaignReducer(ordered(), { type: 'project/cancelled', at: 0, when: AT }),
+    );
+
+    expect(laborAvailable(after)).toBe(laborAvailable(before) + 2);
+  });
+
+  it('does nothing for a position the queue does not have', () => {
+    const before = ordered();
+
+    expect(campaignReducer(before, { type: 'project/cancelled', at: 4, when: AT })).toEqual(before);
+  });
+
+  it('does nothing when no campaign is open', () => {
+    expect(
+      campaignReducer(INITIAL_CAMPAIGN_STATE, { type: 'project/cancelled', at: 0, when: AT }),
+    ).toEqual(INITIAL_CAMPAIGN_STATE);
+  });
+});
+
+describe('advancement/projectsCompleted', () => {
+  /** A queue ordered on turn 2, seen from turn 3's Advancement Phase. */
+  function due(): CampaignState {
+    return openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+      turn: 3,
+      base: { id: 'hobby-farm', slots: {} },
+      projects: [
+        { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: 2 },
+        { kind: 'clearing', slot: 'ruined-chicken-coop', orderedOnTurn: 2 },
+      ],
+    });
+  }
+
+  const finish: CampaignAction = { type: 'advancement/projectsCompleted', at: AT };
+
+  it('puts every due project on the base and empties the queue', () => {
+    const campaign = expectOpen(campaignReducer(due(), finish));
+
+    expect(campaign.base?.slots['front-yard']).toEqual({
+      built: { facility: 'watchtower', builtOnTurn: 3 },
+    });
+    expect(campaign.base?.slots['ruined-chicken-coop']).toEqual({ cleared: true });
+    expect(campaign.projects).toEqual([]);
+  });
+
+  /** The clearing's yield arrives here, a turn after it was ordered. */
+  it('credits what a clearing project gave back', () => {
+    expect(expectOpen(campaignReducer(due(), finish)).materials.hardware).toBe(2);
+  });
+
+  it('leaves this turn’s own orders in the queue', () => {
+    const mixed = openState({
+      ...expectOpen(due()),
+      projects: [
+        { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: 2 },
+        { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+      ],
+    });
+    const campaign = expectOpen(campaignReducer(mixed, finish));
+
+    expect(campaign.projects).toEqual([
+      { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+    ]);
+    expect(campaign.base?.slots.garage).toBeUndefined();
+  });
+
+  /**
+   * The log must not claim a Workshop that is not there. The Garage filled
+   * under the order — Z1-7's override lets a player build into a slot a queued
+   * project wanted — so the project is dropped and says nothing.
+   */
+  it('says nothing about a project the base no longer has room for', () => {
+    const taken = openState({
+      ...expectOpen(due()),
+      base: {
+        id: 'hobby-farm',
+        slots: { 'front-yard': { built: { facility: 'garden', builtOnTurn: 2 } } },
+      },
+      projects: [
+        { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: 2 },
+      ],
+    });
+    const campaign = expectOpen(campaignReducer(taken, finish));
+
+    expect(campaign.base?.slots['front-yard']?.built?.facility).toBe('garden');
+    expect(campaign.projects).toEqual([]);
+    expect(campaign.log).toEqual([]);
+  });
+
+  it('writes one entry per project, in the order they were ordered', () => {
+    expect(
+      expectOpen(campaignReducer(due(), finish)).log.map((written) => written.event.kind),
+    ).toEqual(['facility-built', 'slot-cleared']);
+  });
+
+  /** Nothing is spent here, so a second press has nothing left to find. */
+  it('changes nothing the second time, because the first emptied the queue', () => {
+    const once = campaignReducer(due(), finish);
+
+    expect(campaignReducer(once, finish)).toEqual(once);
+  });
+
+  it('does nothing when nothing is due', () => {
+    const before = openState({ ...expectOpen(due()), projects: [] });
+
+    expect(campaignReducer(before, finish)).toEqual(before);
+  });
+
+  it('does nothing when no campaign is open', () => {
+    expect(campaignReducer(INITIAL_CAMPAIGN_STATE, finish)).toEqual(INITIAL_CAMPAIGN_STATE);
   });
 });
 
@@ -1051,100 +1294,6 @@ describe('campaign/materialSet', () => {
         type: 'campaign/materialSet',
         material: 'food',
         count: 3,
-      }),
-    ).toEqual(INITIAL_CAMPAIGN_STATE);
-  });
-});
-
-describe('upgrade/built', () => {
-  const kitchen = (): CampaignState =>
-    openState({
-      ...createNewCampaign('Cedar Hollow', FIXED),
-      materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
-      turn: 3,
-      base: { id: 'small-town-home', slots: {} },
-      ...projectTeamWorth(5),
-    });
-
-  it('adds the upgrade and spends its Hardware', () => {
-    const state = campaignReducer(kitchen(), {
-      type: 'upgrade/built',
-      at: AT,
-      slot: 'kitchen',
-      upgrade: 'gas-range',
-    });
-    const campaign = expectOpen(state);
-
-    expect(campaign.base?.slots.kitchen?.upgrades).toEqual(['gas-range']);
-    expect(campaign.materials.hardware).toBe(7);
-  });
-
-  it('does nothing when the upgrade is blocked', () => {
-    const before = kitchen();
-    // A Spotlight belongs to a Watchtower, not a Kitchen.
-    const state = campaignReducer(before, {
-      type: 'upgrade/built',
-      at: AT,
-      slot: 'kitchen',
-      upgrade: 'spotlight',
-    });
-
-    expect(expectOpen(state)).toEqual(expectOpen(before));
-  });
-
-  it('does nothing when no campaign is open', () => {
-    expect(
-      campaignReducer(INITIAL_CAMPAIGN_STATE, {
-        type: 'upgrade/built',
-        at: AT,
-        slot: 'kitchen',
-        upgrade: 'gas-range',
-      }),
-    ).toEqual(INITIAL_CAMPAIGN_STATE);
-  });
-});
-
-describe('slot/cleared', () => {
-  const farm = (): CampaignState =>
-    openState({
-      ...createNewCampaign('Cedar Hollow', FIXED),
-      materials: { food: 0, fuel: 0, hardware: 1, rare: 0 },
-      base: { id: 'hobby-farm', slots: {} },
-      ...projectTeamWorth(5),
-    });
-
-  it('clears the slot and credits what the project yields', () => {
-    const campaign = expectOpen(
-      campaignReducer(farm(), {
-        type: 'slot/cleared',
-        at: AT,
-        slot: 'ruined-chicken-coop',
-      }),
-    );
-
-    expect(campaign.base?.slots['ruined-chicken-coop']).toEqual({ cleared: true });
-    expect(campaign.materials.hardware).toBe(3);
-  });
-
-  it('does nothing when the clearing is blocked', () => {
-    // One Labor against a two-Labor project: the pool is the project team's, so
-    // a refusal is arranged on the roster rather than in the action.
-    const before = openState({ ...expectOpen(farm()), ...projectTeamWorth(1) });
-    const state = campaignReducer(before, {
-      type: 'slot/cleared',
-      at: AT,
-      slot: 'ruined-chicken-coop',
-    });
-
-    expect(expectOpen(state)).toEqual(expectOpen(before));
-  });
-
-  it('does nothing when no campaign is open', () => {
-    expect(
-      campaignReducer(INITIAL_CAMPAIGN_STATE, {
-        type: 'slot/cleared',
-        at: AT,
-        slot: 'ruined-chicken-coop',
       }),
     ).toEqual(INITIAL_CAMPAIGN_STATE);
   });
@@ -1263,6 +1412,16 @@ describe('what earns a line in the log', () => {
     });
   }
 
+  /** `rich()` with one Watchtower already in the queue, ordered on `turn`. */
+  function queued(turn: number): CampaignState {
+    return openState({
+      ...expectOpen(rich()),
+      projects: [
+        { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: turn },
+      ],
+    });
+  }
+
   /** The survivor fields every survivor event carries, as `rich()` has them. */
   const WEBB = { survivor: LOGGED_SURVIVOR, name: 'Marcus Webb' } as const;
 
@@ -1364,30 +1523,34 @@ describe('what earns a line in the log', () => {
       state: openState(),
       entry: entry(1, 'mission', { kind: 'base-claimed', base: 'small-town-home' }),
     },
-    'facility/built': {
+    'project/ordered': {
       action: {
-        type: 'facility/built',
+        type: 'project/ordered',
         at: AT,
+        project: { kind: 'facility', slot: 'front-yard', facility: 'watchtower' },
+      },
+      // Ordered, not built: the Watchtower is a turn away, and the entry says
+      // which of the two happened.
+      entry: entry(3, 'mission', {
+        kind: 'facility-ordered',
         slot: 'front-yard',
         facility: 'watchtower',
-      },
+      }),
+    },
+    'project/cancelled': {
+      state: queued(3),
+      action: { type: 'project/cancelled', at: 0, when: AT },
+      entry: entry(3, 'mission', { kind: 'project-cancelled', slot: 'front-yard' }),
+    },
+    'advancement/projectsCompleted': {
+      // Ordered last turn, so this turn's Advancement Phase finishes it.
+      state: queued(2),
+      action: { type: 'advancement/projectsCompleted', at: AT },
       entry: entry(3, 'mission', {
         kind: 'facility-built',
         slot: 'front-yard',
         facility: 'watchtower',
       }),
-    },
-    'upgrade/built': {
-      action: { type: 'upgrade/built', at: AT, slot: 'kitchen', upgrade: 'gas-range' },
-      entry: entry(3, 'mission', {
-        kind: 'upgrade-built',
-        slot: 'kitchen',
-        upgrade: 'gas-range',
-      }),
-    },
-    'slot/cleared': {
-      action: { type: 'slot/cleared', at: AT, slot: 'ruined-chicken-coop' },
-      entry: entry(3, 'mission', { kind: 'slot-cleared', slot: 'ruined-chicken-coop' }),
     },
 
     // Below: everything the log deliberately ignores.
@@ -1667,7 +1830,7 @@ describe('what earns a line in the log', () => {
       expect(after).toEqual(before);
     });
 
-    it('a build the community cannot pay for', () => {
+    it('an order the community cannot pay for', () => {
       const poor = openState({
         ...expectOpen(rich()),
         materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
@@ -1676,10 +1839,9 @@ describe('what earns a line in the log', () => {
 
       const after = expectOpen(
         campaignReducer(poor, {
-          type: 'facility/built',
+          type: 'project/ordered',
           at: AT,
-          slot: 'front-yard',
-          facility: 'watchtower',
+          project: { kind: 'facility', slot: 'front-yard', facility: 'watchtower' },
         }),
       );
 

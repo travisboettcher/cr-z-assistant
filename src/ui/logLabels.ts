@@ -125,6 +125,24 @@ export function describeEvent(event: CampaignEvent): EventLabel {
     case 'survivor-bitten':
       return { text: `${event.name} was bitten for ${String(event.damage)} Damage.`, pages: 22 };
 
+    case 'facility-ordered':
+      return {
+        text: `Ordered a ${FACILITY_LABELS[event.facility]} for the ${slotLabel(event.slot)}.`,
+        pages: 20,
+      };
+
+    case 'upgrade-ordered':
+      return {
+        text: `Ordered a ${UPGRADE_LABELS[event.upgrade]} for the ${slotLabel(event.slot)}.`,
+        pages: 20,
+      };
+
+    case 'clearing-ordered':
+      return { text: `Ordered the ${slotLabel(event.slot)} cleared.`, pages: 20 };
+
+    case 'project-cancelled':
+      return { text: `Cancelled the ${slotLabel(event.slot)} project.`, pages: 20 };
+
     case 'storage-checked': {
       const lost = MATERIALS.filter(
         (material) => material !== 'rare' && event[material as 'food' | 'fuel' | 'hardware'] !== 0,

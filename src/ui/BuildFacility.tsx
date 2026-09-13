@@ -48,13 +48,12 @@ export function BuildFacility({ campaign, slot, onBuilt }: BuildFacilityProps) {
       onOverride={(overridden) => {
         setOverriddenFor(overridden ? choice : null);
       }}
-      label="Build here"
-      overrideLabel="Build it anyway"
+      label="Order the build"
+      overrideLabel="Order it anyway"
       onCommit={() => {
         dispatch({
-          type: 'facility/built',
-          slot,
-          facility: choice,
+          type: 'project/ordered',
+          project: { kind: 'facility', slot, facility: choice },
           at: new Date().toISOString(),
         });
         onBuilt();

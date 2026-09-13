@@ -241,6 +241,25 @@ const siegesBecameRecorded: MigrationStep = {
   up: (previous) => ({ ...previous, lastSiegeTurn: null }),
 };
 
+/**
+ * v9 → v10: the project queue.
+ *
+ * Empty for every existing campaign, and that is the truthful answer rather
+ * than a convenient one. What a v9 save had built was built — the button
+ * applied it the moment it was pressed — so reconstructing a queue from the
+ * base would be claiming that finished work is still to do, and would put a
+ * facility on the map twice the first time the Advancement Phase ran.
+ *
+ * The consequence worth knowing before the first turn after an update: a
+ * campaign mid-Planning-Phase has no orders in flight, because it never could
+ * have. Anything the player meant to build they have already built.
+ */
+const projectsBecameQueued: MigrationStep = {
+  from: 9,
+  to: 10,
+  up: (previous) => ({ ...previous, projects: [] }),
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -251,6 +270,7 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   stepReplacedPhase,
   assignmentsBecameReal,
   siegesBecameRecorded,
+  projectsBecameQueued,
 ];
 
 /** Why a save could not be brought forward. */
