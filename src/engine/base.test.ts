@@ -125,13 +125,13 @@ describe('storageCaps', () => {
     for (const id of BASE_IDS) {
       const printed = PRINTED[id];
 
-      expect([id, storageCaps(claimed(id))]).toEqual([
+      expect([id, storageCaps(claimed(id), occupants(claimed(id)))]).toEqual([
         id,
         { hardware: printed.unpowered[0], food: printed.unpowered[1], fuel: printed.unpowered[2] },
       ]);
 
       const supplied = printed.supplied ?? printed.unpowered;
-      expect([id, storageCaps(fullySupplied(id))]).toEqual([
+      expect([id, storageCaps(fullySupplied(id), occupants(fullySupplied(id)))]).toEqual([
         id,
         { hardware: supplied[0], food: supplied[1], fuel: supplied[2] },
       ]);
@@ -145,7 +145,7 @@ describe('storageCaps', () => {
 
     // Tier 1 is 4 across; the Storage Area adds 2 to each and the Fuel Tank 2
     // more to Fuel alone.
-    expect(storageCaps(base)).toEqual({ hardware: 6, food: 6, fuel: 8 });
+    expect(storageCaps(base, occupants(base))).toEqual({ hardware: 6, food: 6, fuel: 8 });
   });
 
   it('gives no storage at all for a facility whose utility is missing', () => {
@@ -162,35 +162,35 @@ describe('storageCaps', () => {
 
     // The Storage Area itself needs nothing, so it works either way; only the
     // Refrigeration switches off.
-    expect(storageCaps(unpowered).food).toBe(6);
-    expect(storageCaps(powered).food).toBe(8);
+    expect(storageCaps(unpowered, occupants(unpowered)).food).toBe(6);
+    expect(storageCaps(powered, occupants(powered)).food).toBe(8);
   });
 });
 
 describe('beds', () => {
   it('counts a base’s own bunk rooms and their upgrades', () => {
     // Two bunk rooms at two beds each.
-    expect(beds(claimed('small-town-home'))).toBe(4);
+    expect(beds(claimed('small-town-home'), occupants(claimed('small-town-home')))).toBe(4);
 
     // Both of the Summer Camp's ship two Extra Beds: four beds each.
-    expect(beds(claimed('summer-camp'))).toBe(8);
+    expect(beds(claimed('summer-camp'), occupants(claimed('summer-camp')))).toBe(8);
   });
 
   it('counts the Regional Firehouse’s eight, which the roster states outright', () => {
-    expect(beds(claimed('regional-firehouse'))).toBe(8);
+    expect(beds(claimed('regional-firehouse'), occupants(claimed('regional-firehouse')))).toBe(8);
   });
 
   it('adds one per indoor bunk room at the Hydroelectric Dam', () => {
     // The Dam ships none, so White Noise is worth nothing until the player
     // builds one — and then it is worth one bed per bunk room, not one bed.
-    expect(beds(claimed('hydroelectric-dam'))).toBe(0);
+    expect(beds(claimed('hydroelectric-dam'), occupants(claimed('hydroelectric-dam')))).toBe(0);
 
     const withBunks = withSlots('hydroelectric-dam', {
       'turbine-room-1': { built: { facility: 'bunk-room', builtOnTurn: 2 } },
       'turbine-room-2': { built: { facility: 'bunk-room', builtOnTurn: 2 } },
     });
 
-    expect(beds(withBunks)).toBe(6);
+    expect(beds(withBunks, occupants(withBunks))).toBe(6);
   });
 
   it('does not give White Noise to a bunk room in an outdoor slot', () => {
@@ -200,7 +200,7 @@ describe('beds', () => {
       'parking-lot': { built: { facility: 'bunk-room', builtOnTurn: 2 } },
     });
 
-    expect(beds(outdoors)).toBe(2);
+    expect(beds(outdoors, occupants(outdoors))).toBe(2);
   });
 
   it('counts a player’s Extra Beds, repeats included', () => {
@@ -208,31 +208,40 @@ describe('beds', () => {
       'bunk-room-1': { upgrades: ['extra-bed', 'extra-bed'] },
     });
 
-    expect(beds(base)).toBe(6);
+    expect(beds(base, occupants(base))).toBe(6);
   });
 });
 
 describe('siegeThreatFromBase', () => {
   it('is zero for a base with nothing that touches it', () => {
-    expect(siegeThreatFromBase(claimed('small-town-home'))).toBe(0);
+    expect(
+      siegeThreatFromBase(claimed('small-town-home'), occupants(claimed('small-town-home'))),
+    ).toBe(0);
   });
 
   it('counts the Renaissance Festival’s Curtain Wall', () => {
-    expect(siegeThreatFromBase(claimed('renaissance-festival'))).toBe(-3);
+    expect(
+      siegeThreatFromBase(
+        claimed('renaissance-festival'),
+        occupants(claimed('renaissance-festival')),
+      ),
+    ).toBe(-3);
   });
 
   it('counts a Spotlight only while it has Power', () => {
     const dark = withSlots('rural-church', { watchtower: { upgrades: ['spotlight'] } });
     const lit = withSlots('rural-church', { watchtower: { upgrades: ['spotlight'], power: true } });
 
-    expect(siegeThreatFromBase(dark)).toBe(0);
-    expect(siegeThreatFromBase(lit)).toBe(-1);
+    expect(siegeThreatFromBase(dark, occupants(dark))).toBe(0);
+    expect(siegeThreatFromBase(lit, occupants(lit))).toBe(-1);
   });
 
   it('leaves out the Watchtower’s own reduction, which needs staff', () => {
     // The Rural Church ships a Watchtower. Its contribution is the staff's best
     // score, and staffing is Phase 3 — so the base's own number is unaffected.
-    expect(siegeThreatFromBase(claimed('rural-church'))).toBe(0);
+    expect(siegeThreatFromBase(claimed('rural-church'), occupants(claimed('rural-church')))).toBe(
+      0,
+    );
   });
 });
 
