@@ -1626,8 +1626,15 @@ describe('what earns a line in the log', () => {
         materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
       }),
       action: { type: 'management/survivorsFed', at: AT },
-      // A Hero eats two (pg. 22), and there is nothing to eat.
-      entry: entry(3, 'mission', { kind: 'survivors-fed', required: 2, hunger: 2 }),
+      // A Hero eats two (pg. 22), and there is nothing to eat. The head count
+      // rides along, because the penalty is fixed here and must not be
+      // re-priced by a departure later in the turn.
+      entry: entry(3, 'mission', {
+        kind: 'survivors-fed',
+        required: 2,
+        hunger: 2,
+        population: 1,
+      }),
     },
     'management/storageChecked': {
       // The Greasy Spoon stores six Food; this campaign holds eight.

@@ -115,7 +115,20 @@ export type CampaignEvent =
    * because eating is destructive and four Food against ten required looks
    * afterwards exactly like nine against ten.
    */
-  | { readonly kind: 'survivors-fed'; readonly required: number; readonly hunger: number }
+  | {
+      readonly kind: 'survivors-fed';
+      readonly required: number;
+      readonly hunger: number;
+      /**
+       * The head count the shortfall was measured against (pg. 22, ruling 1).
+       *
+       * Recorded because the penalty is fixed at this step and held until the
+       * next Management Phase, so a departure later in the same turn must not
+       * re-price it. Optional only because entries written before this was
+       * recorded do not carry it and cannot be given it honestly.
+       */
+      readonly population?: number;
+    }
   /**
    * A survivor at 0 Health made their Rot check (pg. 22).
    *
