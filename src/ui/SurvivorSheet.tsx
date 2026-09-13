@@ -25,7 +25,7 @@ import {
 } from '../engine/advancement';
 import type { Survivor } from '../engine/campaign';
 import { skillSlotsAreFull, survivorViolations, withStatValue } from '../engine/legality';
-import { inventorySlots, maxHp, skillScore } from '../engine/survivor';
+import { inventorySlots, maxHp, skillScore, statValue } from '../engine/survivor';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
 import { COMMON_SKILL_LABELS, SKILL_LABELS, STAT_LABELS } from './skillLabels';
@@ -75,9 +75,11 @@ export function SurvivorSheet({ survivor, penalty, onClose }: SurvivorSheetProps
 
       <Violations survivor={survivor} />
 
+      <Starving penalty={penalty} />
+
       <Vitals survivor={survivor} penalty={penalty} />
 
-      <Stats survivor={survivor} />
+      <Stats survivor={survivor} penalty={penalty} />
 
       {/*
        * Move and Defense are laid out apart from the twenty, not folded in
@@ -399,7 +401,28 @@ function Promote({ survivor }: { readonly survivor: Survivor }) {
   );
 }
 
-function Stats({ survivor }: { readonly survivor: Survivor }) {
+/**
+ * That the community is going hungry, on the screen the penalty is visible on.
+ *
+ * The Feed step explains this well, and the Feed step is a phase and several
+ * steps away from the sheet a player reads at the table mid-mission. Without
+ * this, the sheet showed Cooperation 3 and a Mechanics Score of 1 directly
+ * under its own sentence saying a Score is the skill's level plus its governing
+ * stat — which reads as the app being broken rather than as the rule working.
+ */
+function Starving({ penalty }: { readonly penalty: number }) {
+  if (penalty === 0) return null;
+
+  return (
+    <p className="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+      The community is going hungry, so every stat is{' '}
+      <span className="tabular-nums">{penalty}</span> lower until the next Management Phase — and
+      every Score and Inventory Slot count with it <PageRef pages={22} />
+    </p>
+  );
+}
+
+function Stats({ survivor, penalty }: { readonly survivor: Survivor; readonly penalty: number }) {
   const { dispatch } = useCampaign();
   const groupId = useId();
 
@@ -424,6 +447,14 @@ function Stats({ survivor }: { readonly survivor: Survivor }) {
             >
               {STAT_LABELS[stat]}
             </label>
+            {penalty > 0 && (
+              // The select holds the stored stat, because that is what it
+              // edits. What the rest of the sheet computes with is this.
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                <span className="tabular-nums">{statValue(survivor, stat, penalty)}</span> while the
+                community is hungry
+              </p>
+            )}
             <select
               id={`${groupId}-${stat}`}
               value={survivor.stats[stat]}

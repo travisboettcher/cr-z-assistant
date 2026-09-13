@@ -654,3 +654,43 @@ describe('staffing a facility', () => {
     expect(screen.queryByRole('group', { name: /working here/i })).not.toBeInTheDocument();
   });
 });
+
+/**
+ * Playtest finding M12: the base screen's staffing control is visible in every
+ * phase, and staffing assigned before the turn reaches Planning is wiped by the
+ * planning reset — silently. The build controls on the same card have always
+ * said which step they belong to; this one said nothing.
+ */
+describe('staffing from the base screen', () => {
+  const atStep = (step: Campaign['step']): Campaign => ({
+    ...createNewCampaign('Cedar Hollow'),
+    turn: 2,
+    step,
+    survivors: [createSurvivor('Earl Rhodes', 4, { id: 'earl' })],
+    base: { id: 'small-town-home', slots: {} },
+  });
+
+  it('says when the assignment will be thrown away', async () => {
+    const user = openWith(atStep('character-advancement'));
+    await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
+
+    expect(screen.getByText(/staff are assigned in assign facility staff/i)).toBeInTheDocument();
+    expect(screen.getByText(/cleared when the planning phase begins/i)).toBeInTheDocument();
+  });
+
+  it('says nothing on the step staffing belongs to', async () => {
+    const user = openWith(atStep('assign-facility-staff'));
+    await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
+
+    expect(screen.queryByText(/staff are assigned in/i)).not.toBeInTheDocument();
+  });
+
+  /** The control itself stays: Z3-6 guides rather than refuses. */
+  it('still lets the assignment be made', async () => {
+    const user = openWith(atStep('character-advancement'));
+    await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
+
+    const working = screen.getByRole('group', { name: /working here/i });
+    expect(within(working).getByRole('checkbox', { name: /earl/i })).toBeEnabled();
+  });
+});

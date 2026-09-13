@@ -117,6 +117,16 @@ export type TurnStepId = (typeof TURN_STEPS)[CampaignPhase][number]['id'];
  * constants covers all three verbs.
  */
 export const ORDER_STEP: TurnStepId = 'assign-project-team';
+
+/**
+ * The step facility staff are assigned in (pg. 20).
+ *
+ * Named beside the two above because the base screen carries a staffing control
+ * as well as build controls, and both need to say which step they belong to —
+ * tasks expire at the top of a Planning Phase, so one assigned earlier in the
+ * turn is wiped.
+ */
+export const STAFF_STEP: TurnStepId = 'assign-facility-staff';
 export const PROJECT_STEP: TurnStepId = 'add-facilities-and-upgrades';
 
 /**

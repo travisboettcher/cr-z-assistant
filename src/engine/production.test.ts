@@ -327,3 +327,38 @@ describe('nothing about a preview reaches the campaign', () => {
     expect(campaign.base).toEqual(before);
   });
 });
+
+/**
+ * Playtest finding: the Distillery's built-in Utility Station is a locked
+ * built-in producing a flat 2 Water and needing no staff (ruling R4). The base
+ * sheet showed the 2 Water; the slot card said the facility produced nothing.
+ * Two screens, two answers, from the same data.
+ *
+ * The flat output belongs to the *slot* rather than to the facility in it — a
+ * Utility Station's own production is skill-named — so it lives on the layout
+ * and `facilityProduction` was not reading it.
+ */
+describe('a slot with a flat output of its own', () => {
+  const distillery = (): Occupant =>
+    occupants({ id: 'distillery', slots: {} }).find(
+      (occupant) => occupant.facility.id === 'utility-station',
+    ) as Occupant;
+
+  it('reports it on the card, with nobody in the slot', () => {
+    const lines = facilityProduction(distillery(), [], 0);
+
+    expect(lines).toContainEqual({
+      outputs: ['water'],
+      amount: 2,
+      halved: false,
+      staffed: false,
+      restrictedToStat: undefined,
+      missingSkill: false,
+    });
+  });
+
+  /** And the facility is still separately staffable, which is the other half. */
+  it('still offers the Station its own staffed line', () => {
+    expect(facilityProduction(distillery(), [], 0).some((line) => line.staffed)).toBe(true);
+  });
+});

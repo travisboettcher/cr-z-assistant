@@ -14,6 +14,9 @@
  */
 
 import type { Occupant } from '../engine/base';
+import { STAFF_STEP } from '../data/turn';
+import { PageRef } from './PageRef';
+import { STEP_LABELS } from './turnLabels';
 import type { Campaign } from '../engine/campaign';
 import { staffOf } from '../engine/assignments';
 import { hungerPenalty } from '../engine/feeding';
@@ -51,12 +54,30 @@ export function FacilityWork({ campaign, occupant }: FacilityWorkProps) {
        * survivor to one would be offering to waste them.
        */}
       {wantsStaff(occupant) && (
-        <AssignTask
-          campaign={campaign}
-          task={{ task: 'staff', slot: occupant.slotId }}
-          legend="Working here"
-          pages="72–73"
-        />
+        <>
+          <AssignTask
+            campaign={campaign}
+            task={{ task: 'staff', slot: occupant.slotId }}
+            legend="Working here"
+            pages="72–73"
+          />
+
+          {/*
+           * The same note the build controls on this card already carry, for
+           * the same reason. Tasks expire at the top of a Planning Phase
+           * (pg. 20), so staffing assigned here before the turn reaches
+           * Planning is wiped — silently, until the September playtest found
+           * it. Z3-6 guides rather than refuses, so this says what will
+           * happen rather than taking the control away.
+           */}
+          {campaign.step !== STAFF_STEP && (
+            <p className="mt-2 text-sm text-amber-800 dark:text-amber-300">
+              Staff are assigned in {STEP_LABELS[STAFF_STEP]}, and the turn is at{' '}
+              {STEP_LABELS[campaign.step]} — so this will be cleared when the Planning Phase begins.{' '}
+              <PageRef pages={20} />
+            </p>
+          )}
+        </>
       )}
 
       <p className="mt-3 text-sm font-medium">Produces</p>
