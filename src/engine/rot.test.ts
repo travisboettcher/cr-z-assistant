@@ -56,6 +56,19 @@ describe('rotTarget', () => {
     slots: { garage: { built: { facility: 'medical-clinic', builtOnTurn: 1 } } },
   });
 
+  /** The same Clinic with a Med Lab, powered and watered so it applies. */
+  const medLab = (): Base => ({
+    id: 'small-town-home',
+    slots: {
+      garage: {
+        built: { facility: 'medical-clinic', builtOnTurn: 1 },
+        upgrades: ['med-lab'],
+        power: true,
+        water: true,
+      },
+    },
+  });
+
   const medic = (score: number): Survivor => ({
     ...createSurvivor('Nell Haig', 4, { id: 'medic' }),
     stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: score },
@@ -74,13 +87,28 @@ describe('rotTarget', () => {
     expect(rotTarget(staffedWith(community([], {}, clinic()), 'garage', [medic(3)]))).toBe(9);
   });
 
+  /**
+   * A Clinic takes one survivor; a Med Lab adds the second (pg. 54, 72). The
+   * scores then sum rather than the better winning — which is the distinction
+   * worth a test, and was unreachable while capacity had no reader at all.
+   */
   it('sums two medics rather than taking the better of them', () => {
-    const both = staffedWith(community([], {}, clinic()), 'garage', [
+    const both = staffedWith(community([], {}, medLab()), 'garage', [
       medic(3),
       { ...medic(2), id: 'other', name: 'Ada Poole' },
     ]);
 
     expect(rotTarget(both)).toBe(7);
+  });
+
+  /** And the second medic does nothing at all without the Med Lab. */
+  it('counts only the one a bare Clinic takes', () => {
+    const both = staffedWith(community([], {}, clinic()), 'garage', [
+      medic(3),
+      { ...medic(2), id: 'other', name: 'Ada Poole' },
+    ]);
+
+    expect(rotTarget(both)).toBe(9);
   });
 
   it('counts nobody working anything else', () => {
@@ -97,11 +125,12 @@ describe('rotTarget', () => {
    * check becoming a certainty, and clamping would be inventing a rule.
    */
   it('has no floor, and will go below zero for a well-staffed Clinic', () => {
-    const crowded = staffedWith(community([], {}, clinic()), 'garage', [
-      medic(4),
-      { ...medic(4), id: 'two', name: 'Two' },
-      { ...medic(4), id: 'three', name: 'Three' },
-      { ...medic(4), id: 'four', name: 'Four' },
+    // A Med Lab's two seats, both filled by somebody very good at Medicine.
+    // This used to pile four medics into a bare Clinic, which is not a state
+    // the rules allow and is no longer one the engine counts.
+    const crowded = staffedWith(community([], {}, medLab()), 'garage', [
+      medic(8),
+      { ...medic(8), id: 'two', name: 'Two' },
     ]);
 
     expect(rotTarget(crowded)).toBe(-4);

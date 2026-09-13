@@ -31,7 +31,7 @@
  * would be churn.
  */
 
-import { occupants } from './base';
+import { occupantAt, occupants, staffCapacity } from './base';
 import { hungerPenalty } from './feeding';
 import type { Assignment, Campaign, Survivor } from './campaign';
 import { facilityProduction, type ProductionLine } from './production';
@@ -85,11 +85,36 @@ export function survivorsDoing(
   });
 }
 
-/** Whoever is working this slot's facility (pg. 20). */
+/**
+ * Whoever is working this slot's facility, up to what it takes (pg. 20, 54).
+ *
+ * **Capped here rather than at each consumer**, so production, the Rot check's
+ * Medicine total and the Watchtower's reduction all get the limit without
+ * asking for it. A facility takes one survivor unless an upgrade widens it, and
+ * nothing enforced that until the September playtest put three on a bare
+ * Medical Clinic and got +5 Health out of it.
+ *
+ * The excess is **ignored rather than refused**, which is this app's usual
+ * shape: the Planning screen warns, and a save that arrived over capacity opens
+ * and is described rather than rejected. Roster order decides who counts, which
+ * is arbitrary but stable — and the screen names whoever is doing nothing, so
+ * the answer is visible rather than merely consistent.
+ */
 export function staffOf(campaign: Campaign, slot: string): readonly Survivor[] {
   // Through `sameTask` rather than matching the tag and the slot again here.
   // Two places answering "is this the same job" is one place too many, and the
   // copy was the one a mutant could survive in.
+  const assigned = survivorsDoing(campaign, (assignment) =>
+    sameTask(assignment, { task: 'staff', slot }),
+  );
+
+  const occupant = occupantAt(campaign, slot);
+
+  return occupant === undefined ? [] : assigned.slice(0, staffCapacity(occupant));
+}
+
+/** Whoever is assigned to this slot, over capacity or not — for a screen to report. */
+export function assignedTo(campaign: Campaign, slot: string): readonly Survivor[] {
   return survivorsDoing(campaign, (assignment) => sameTask(assignment, { task: 'staff', slot }));
 }
 
