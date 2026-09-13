@@ -103,6 +103,28 @@ export function facilityProduction(
   const lines: ProductionLine[] = [];
   const supplied = (utility: Utility) => occupant[utility];
 
+  /*
+   * The layout's own flat output, which belongs to the *slot* rather than to
+   * the facility in it — the Distillery's Utility Station makes 2 Water with
+   * nobody in it (spec ruling R4), and a Utility Station's own production is
+   * skill-named rather than flat.
+   *
+   * `flatUtilitiesGenerated` has always counted this, so the base sheet showed
+   * the 2 Water while the slot card said the facility produced nothing: two
+   * screens, two answers, from the same data. First because it is a property of
+   * the slot standing there, before anything the facility or its upgrades do.
+   */
+  if (occupant.flatOutput !== undefined) {
+    lines.push({
+      outputs: [occupant.flatOutput.output],
+      amount: occupant.flatOutput.amount,
+      halved: false,
+      staffed: false,
+      restrictedToStat: undefined,
+      missingSkill: false,
+    });
+  }
+
   for (const entry of working(occupant)) {
     for (const production of entry.effects.production ?? []) {
       if (production.kind === 'flat') {

@@ -60,6 +60,28 @@ export type XpViolation = Violation<XpViolationCode>;
 export type XpCheck = Check<XpViolationCode>;
 
 /** One source of XP this turn, sized for this campaign. */
+/**
+ * The reasons a pool can be empty, which are not one per source.
+ *
+ * `nobody-qualifies` and `wrong-person` are the distinction `production.ts`
+ * already draws for facility output, and for the same reason: "nobody is
+ * assigned" and "the wrong person is assigned" are different problems, and a
+ * player can only fix the one they are actually in.
+ */
+export type XpPoolEmptiness =
+  /** No mission team at all, so nothing to award for going out. */
+  | 'nobody-went'
+  /** A Teacher went, so this point is replaced rather than absent (pg. 12). */
+  | 'replaced-by-teaching'
+  /** Nobody who went can teach — no Teaching skill anywhere on the team. */
+  | 'nobody-qualifies'
+  /** Somebody can teach, but their Score comes to nothing. */
+  | 'score-is-nothing'
+  /** No staffed Training Room to teach in. */
+  | 'nowhere-to-teach'
+  /** A staffed Training Room, worked by somebody without Teaching. */
+  | 'wrong-person';
+
 export interface XpPool {
   readonly source: XpSource;
 
@@ -82,6 +104,22 @@ export interface XpPool {
 
   /** The page this source's rule is printed on, for the reader who wants it. */
   readonly pages: number;
+
+  /**
+   * Why the pool is empty, where it is — so the screen can say the true one.
+   *
+   * Keyed on the reason rather than on the source, which is the whole of
+   * playtest finding M5. One sentence per source had to cover every way a pool
+   * could come out at zero, so the Teaching pool said "nobody on the mission
+   * team has Teaching" when a Rookie with Teaching at level 0 *was* on it, and
+   * the Training Room pool said "no staffed Training Room" about a Training
+   * Room that was staffed — by somebody without the skill. Both were
+   * contradicted by the roster on the same screen.
+   *
+   * `undefined` when the pool has something in it, so a screen cannot render a
+   * reason for an emptiness that is not there.
+   */
+  readonly emptyBecause: XpPoolEmptiness | undefined;
 
   /** Who may draw on it (pg. 18, 12, 70). */
   readonly eligible: readonly Survivor[];
@@ -179,6 +217,26 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
     'training-room': offTheMission,
   };
 
+  /*
+   * Why each pool is empty, asked of the campaign rather than of the source.
+   *
+   * `teaching` is the summed Score; `canTeach` is whether anybody on the team
+   * *has* the skill at all. pg. 12 triggers the replacement on a Teacher being
+   * on the team, and the Score is how many survivors get a point — so a Teacher
+   * whose Score is zero replaces the discretionary point and hands out nothing.
+   * That reading is arguably the table's; the *message* is not, and it said
+   * nobody on the team had Teaching while somebody did.
+   */
+  const canTeach = team.some((survivor) => survivor.skills['teaching'] !== undefined);
+  const roomIsStaffed = trainingRoomIsStaffed(campaign);
+
+  const emptiness: Record<XpSource, XpPoolEmptiness> = {
+    mission: 'nobody-went',
+    discretionary: 'replaced-by-teaching',
+    'mission-teaching': canTeach ? 'score-is-nothing' : 'nobody-qualifies',
+    'training-room': roomIsStaffed ? 'wrong-person' : 'nowhere-to-teach',
+  };
+
   return XP_SOURCES.map((source) => ({
     source,
     total: totals[source],
@@ -186,7 +244,25 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
     capPerSurvivor: caps[source],
     pages: XP_SOURCE_PAGES[source],
     eligible: eligible[source],
+    emptyBecause: totals[source] === 0 ? emptiness[source] : undefined,
   }));
+}
+
+/**
+ * Whether a Training Room has somebody in it, whatever they can do.
+ *
+ * Separate from what it produces, because that is the distinction the empty
+ * message kept getting wrong: a Training Room staffed by a survivor whose only
+ * skill is Rationing produces no XP and is not "no staffed Training Room".
+ */
+function trainingRoomIsStaffed(campaign: Campaign): boolean {
+  const base = campaign.base;
+  if (base === null) return false;
+
+  return occupants(base).some(
+    (occupant) =>
+      occupant.facility.id === 'training-room' && staffOf(campaign, occupant.slotId).length > 0,
+  );
 }
 
 /** One pool by name, which is what every caller that knows the source wants. */
