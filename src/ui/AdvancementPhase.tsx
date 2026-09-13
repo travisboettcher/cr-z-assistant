@@ -40,7 +40,11 @@ import { checkXpAward, xpPools, type XpPoolEmptiness } from '../engine/experienc
 import { checkHealing, healingPool, healthAwards, woundsHealed } from '../engine/healing';
 import { dueProjects, isDue } from '../engine/projects';
 import { describeProject } from './projectLabels';
-import { clearPendingRolls, readPendingRolls, writePendingRolls } from '../persistence/pendingRolls';
+import {
+  clearPendingRolls,
+  readPendingRolls,
+  writePendingRolls,
+} from '../persistence/pendingRolls';
 import { useCampaign } from '../state/useCampaign';
 import { MATERIAL_LABELS } from './baseLabels';
 import { PageRef } from './PageRef';
