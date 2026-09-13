@@ -882,16 +882,30 @@ not permission for a value computed in one to survive the next.
 - The siege flag survives a save and gates the next turn's Mission Phase.
 - Storage loss takes each material to its own cap and no further, and logs what was lost.
 
-**One field answers both questions the siege rule asks.** `lastSiegeTurn` is the turn whose
-Mission Phase is or was a Siege Defense, and it is stored because nothing else in a campaign
-records that a siege happened — "turns since the last siege" is worked out *from* it rather than
-the other way round. A turn number rather than a flag, because a flag would need somebody to clear
-it and a turn number simply stops being this turn.
+**One field tried to answer both questions the siege rule asks, and could not.** As shipped,
+`lastSiegeTurn` was the turn whose Mission Phase is or was a Siege Defense, stored on the campaign,
+with "turns since the last siege" worked out from it. The check set it to the turn **after** the
+roll, because that is the turn the siege is fought on — which leaves a window where the field is in
+the future, and `turnsSinceLastSiege` was clamped at zero to cover it. The clamp was reasoned about
+here as *preventing* a lowered Siege Threat at the Departures step two steps later.
 
-The check sets it to the turn **after** the roll, because that is the turn the siege is fought on.
-That leaves a window where `lastSiegeTurn` is in the future, so `turnsSinceLastSiege` is clamped at
-zero: "minus one turns since" would otherwise *lower* the Siege Threat that the Departures step two
-steps later reads.
+**It did the opposite, and the September playtest found it** ([#103](https://github.com/travisboettcher/cr-z-assistant/issues/103)).
+The clamp stopped the term going to −1 and let it go to 0, which was the whole of the damage:
+calling a siege at step 6 collapsed the term for the rest of that Management Phase, so Departures at
+step 7 tested a pressure lower than the horde had just been rolled against. Observed falling 12 → 8
+inside one phase, which saved a survivor from leaving. `siege.test.ts` asserted the 0 as correct, so
+the test encoded the bug rather than catching it — a test can only catch what it claims.
+
+The fix was to stop storing it. A siege is **derived from the log**: the `horde-checked` entry the
+check already writes carries its own turn and whether it triggered, and a siege called on turn N is
+fought on turn N + 1. `turnsSinceLastSiege` counts from the latest siege turn that is not in the
+future, `siegeDue` and `hordeCame` ask whether one falls on this turn or the next, and no clamp is
+needed because a filtered maximum cannot exceed the turn it is subtracted from. Schema v11 drops the
+field; nothing is lost, because every write to it happened in the same reducer step as the entry.
+
+The general lesson is the architecture rule the repo already had: **derived is never stored.** One
+field cannot hold both "when the last siege was fought" and "when the next one is", and writing the
+second over the first is how the history was lost.
 
 **`siegeDue` and `hordeCame` are different questions, and conflating them was a real bug.** The
 screen first reported the outcome of the check with `siegeDue`, which is false on the turn of the
@@ -902,7 +916,14 @@ what just happened has to read the record of what happened.
 runs after Check the Horde and removes a survivor, which retroactively unstaffs whatever they were
 working and shrinks the project team — two of the four terms. So the Siege Threat step 6 rolled
 against is not the one step 7 must use, and a second departure is measured against a number the
-first one changed. Both the engine test and the e2e journey assert the drop.
+first one changed. Both the engine test and the e2e journey assert the drop. (A *second departure*
+is no longer possible — the rule sends one, and
+[#99](https://github.com/travisboettcher/cr-z-assistant/issues/99) fixed the step that offered more
+— but the drop is still real, and still the reason nothing may cache the sum.)
+
+That paragraph was right about departures and wrong two lines away: the *check itself* moved the
+threat, through the stored field above. Worth keeping both halves visible, because "nothing here is
+cached" was true of the four terms and untrue of the field they were summed with.
 
 **The exhaustion penalty is offered, not done.** Exhaustion above the mission team's size takes one
 survivor off it (pg. 23), and *which* one is a decision. Taking somebody off a team without being
