@@ -30,6 +30,20 @@
  *
  * Origin and mission requirements are gates on *building* the thing, not
  * conditions on operating it, so they do not appear here either.
+ *
+ * ## Why three functions here take an occupant list
+ *
+ * `beds`, `storageCaps` and `siegeThreatFromBase` are gated by utilities, and
+ * whether a slot *has* a utility is not a fact about the base: a point with no
+ * generator behind it does not count, and the Hydroelectric Dam supplies
+ * everything once the community's combined Utilities Score is high enough. Both
+ * need the roster, so both live in `utilities.ts` — which imports this module,
+ * so this one cannot ask.
+ *
+ * So they take the resolved list rather than reading it. `suppliedOccupants` is
+ * what every campaign-level caller should pass; `occupants(base)` alone answers
+ * the narrower question of what is standing where, which is all the build and
+ * layout checks need.
  */
 
 import { BASES, maxHeroes as maxHeroesForTier, type BaseSlot } from '../data/bases';
@@ -234,12 +248,15 @@ export function working(occupant: Occupant): readonly (Facility | Upgrade)[] {
  * Refrigeration takes its Food cap from 6 to 8 only while the base has Power.
  * The book's own roster prints both numbers.
  */
-export function storageCaps(base: Base): Record<StoredMaterial, number> {
+export function storageCaps(
+  base: Base,
+  standing: readonly Occupant[],
+): Record<StoredMaterial, number> {
   const caps = Object.fromEntries(
     STORED_MATERIALS.map((material) => [material, BASES[base.id].tier + STORAGE_ABOVE_TIER]),
   ) as Record<StoredMaterial, number>;
 
-  for (const occupant of occupants(base)) {
+  for (const occupant of standing) {
     for (const entry of working(occupant)) {
       for (const material of STORED_MATERIALS) {
         caps[material] += entry.effects.storage?.[material] ?? 0;
@@ -258,12 +275,12 @@ export function storageCaps(base: Base): Record<StoredMaterial, number> {
  * ships no bunk rooms of its own, and which of its indoor slots hold one is
  * something the player decides later.
  */
-export function beds(base: Base): number {
+export function beds(base: Base, standing: readonly Occupant[]): number {
   const whiteNoise = BASES[base.id].specials.find((special) => special.id === 'white-noise');
 
   let total = 0;
 
-  for (const occupant of occupants(base)) {
+  for (const occupant of standing) {
     for (const entry of working(occupant)) {
       total += entry.effects.beds ?? 0;
     }
@@ -344,14 +361,14 @@ export function siegeThreatReduction(
  * this with those; computing a "total" here would be a number that is wrong in
  * every campaign that has staffed anything.
  */
-export function siegeThreatFromBase(base: Base): number {
+export function siegeThreatFromBase(base: Base, standing: readonly Occupant[]): number {
   let total = 0;
 
   for (const special of BASES[base.id].specials) {
     if (special.id === 'curtain-wall') total += special.siegeThreat.perTurn ?? 0;
   }
 
-  for (const occupant of occupants(base)) {
+  for (const occupant of standing) {
     for (const entry of working(occupant)) {
       total += entry.effects.siegeThreat?.perTurn ?? 0;
     }

@@ -56,9 +56,11 @@ describe('the campaign log on screen', () => {
 
     const lines = within(history()).getAllByRole('listitem');
 
-    // Newest first: the base is above the campaign it was claimed for.
-    expect(lines[0]?.textContent).toMatch(/claimed the hobby farm/i);
-    expect(lines[1]?.textContent).toMatch(/started the campaign/i);
+    // Newest first, and claiming a first base is two things that happened: the
+    // claim, and the stocking it brings with it (pg. 19).
+    expect(lines[0]?.textContent).toMatch(/stocked to its caps/i);
+    expect(lines[1]?.textContent).toMatch(/claimed the hobby farm/i);
+    expect(lines[2]?.textContent).toMatch(/started the campaign/i);
   });
 
   /**

@@ -384,3 +384,29 @@ describe('utilitiesScore', () => {
     expect(utilitiesScore(community())).toBe(0);
   });
 });
+
+/**
+ * The Hydroelectric Dam's Catwalks: +2 Labor a turn, provided at least one
+ * survivor is on the project team (pg. 61). Nothing consumed it until the
+ * September playtest found the Dam's pool reading 3 where the book says 5.
+ */
+describe('a base that adds to the Labor pool', () => {
+  const dam = (assignments: Record<string, Assignment> = {}): Campaign => ({
+    ...community(assignments),
+    base: { id: 'hydroelectric-dam', slots: {} },
+  });
+
+  it('adds its Labor to a team that is working', () => {
+    // Carla is a Tier 2, so two of her own plus the Catwalks' two.
+    expect(laborPool(dam({ [CARLA]: { task: 'project' } }))).toBe(4);
+  });
+
+  it('adds nothing while nobody is on the project team', () => {
+    expect(laborPool(dam())).toBe(0);
+    expect(laborPool(dam({ [CARLA]: { task: 'staff', slot: 'kitchen' } }))).toBe(0);
+  });
+
+  it('is not a rule any other base has', () => {
+    expect(laborPool(community({ [CARLA]: { task: 'project' } }))).toBe(2);
+  });
+});

@@ -60,14 +60,25 @@ export function CampaignProvider({ children, initialState }: CampaignProviderPro
   const [autosaveError, setAutosaveError] = useState<string | null>(null);
 
   /**
-   * The serialized text of the file this campaign last matched — from an
-   * export, an import, or the autosave it was restored from. `null` means
-   * there is no such file, which is the honest state of a campaign someone
-   * just created.
+   * The serialized text of the file this campaign last matched — from an export
+   * or an import. `null` means there is no such file, which is the honest state
+   * of a campaign someone just created.
+   *
+   * **A restored autosave is not a file.** This seeded itself from whatever the
+   * autosave held, so a campaign that had never been written anywhere reported
+   * "Matches your last exported file." after a reload, and the
+   * start-a-new-campaign dialog said "nothing is lost" about the only copy
+   * there was. The comment a few lines below already drew the distinction the
+   * seeding ignored: the browser copy is a convenience that a cleared browser
+   * takes with it, and the exported file is the one that lasts.
+   *
+   * The cost is that a restored campaign nobody has touched reads as unsaved,
+   * which is the honest answer — it *is* unsaved, in the sense the footer
+   * means. Recording that an export happened would need it in the save file,
+   * and a flag about the file inside the file is a worse shape than a sentence
+   * that errs toward "export it again".
    */
-  const [exportedText, setExportedText] = useState<string | null>(() =>
-    restored.state.status === 'open' ? serializeCampaign(restored.state.campaign) : null,
-  );
+  const [exportedText, setExportedText] = useState<string | null>(null);
 
   const currentText = state.status === 'open' ? serializeCampaign(state.campaign) : null;
 
@@ -130,6 +141,7 @@ export function CampaignProvider({ children, initialState }: CampaignProviderPro
       state,
       dispatch,
       unsavedChanges: currentText !== null && currentText !== exportedText,
+      everExported: exportedText !== null,
       markExported,
       restoreError: restored.error,
       autosaveError,

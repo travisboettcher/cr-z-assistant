@@ -13,6 +13,7 @@
  */
 
 import { useState } from 'react';
+import { suppliedOccupants } from '../engine/utilities';
 import { D10_RESULTS, type D10Result } from '../data/dice';
 import {
   DEPARTURE_THRESHOLD,
@@ -315,7 +316,7 @@ function AssignBeds({ campaign }: { readonly campaign: Campaign }) {
   const { dispatch } = useCampaign();
 
   const base = campaign.base;
-  const sleeping = base === null ? 0 : beds(base);
+  const sleeping = base === null ? 0 : beds(base, suppliedOccupants(campaign));
   const short = exhaustion(campaign);
   const team = missionTeam(campaign);
 
