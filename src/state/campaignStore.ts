@@ -701,6 +701,9 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
           kind: 'survivors-fed',
           required: foodRequired(campaign),
           hunger: hungerIfFedNow(campaign),
+          // The head count at the moment of eating, because the penalty is
+          // fixed here and held until the next Management Phase (pg. 22).
+          population: campaign.survivors.length,
         });
       });
 

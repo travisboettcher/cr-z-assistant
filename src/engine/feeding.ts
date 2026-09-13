@@ -34,9 +34,18 @@
  * and it is not a stored derived value: what a community went short by on a
  * given turn is a fact about that turn, exactly like what went into storage.
  *
- * Reading the most *recent* entry rather than this turn's is what makes the
- * penalty last "until the next Management Phase" — through the Mission,
- * Advancement and Planning Phases that follow it.
+ * **Two readers, two different questions, and collapsing them was a bug.**
+ * `hunger` is this turn's shortfall and is the term of Unrest (pg. 23): a turn
+ * whose Feed step has not run has no Hunger, because Hunger is recalculated
+ * each turn and is not cumulative. `hungerPenalty` is the stat penalty, and it
+ * reads the most *recent* entry wherever it sits, which is what makes it last
+ * "until the next Management Phase" — through the Mission, Advancement and
+ * Planning Phases that follow it.
+ *
+ * One function served both until the September playtest, and it answered the
+ * penalty's question. So a turn that skipped Feed fed the *previous* turn's
+ * shortfall into Unrest, Departures and the threshold that sends somebody
+ * away — observed as 9 Hunger on turn 7, carried from turn 6.
  *
  * Pure, like the rest of `src/engine`.
  */
@@ -65,22 +74,35 @@ export function hungerIfFedNow(campaign: Campaign): number {
 }
 
 /**
- * What the community went short by when it last ate (pg. 22).
+ * The Feed entries this campaign has written, oldest first.
  *
- * Zero for a campaign that has never reached a Feed step, which is the honest
- * answer: nobody has gone hungry yet.
+ * Collected and indexed from the end rather than walked backwards. An earlier
+ * draft did the latter, which needed an optional chain on a subscript that
+ * could not miss and hung the test runner under every mutant that reversed the
+ * walk.
+ */
+function feedings(campaign: Campaign, thisTurnOnly: boolean) {
+  return campaign.log.flatMap((entry) =>
+    entry.event.kind === 'survivors-fed' && (!thisTurnOnly || entry.turn === campaign.turn)
+      ? [entry.event]
+      : [],
+  );
+}
+
+/**
+ * What the community went short by when it ate **this turn** (pg. 22).
+ *
+ * Zero before this turn's Feed step has run, which is the honest answer twice
+ * over: nobody has gone hungry yet, and Hunger is recalculated each turn rather
+ * than carried — "not cumulative" is the rule in as many words.
+ *
+ * This is the term of Unrest, and the turn filter is the whole of the fix.
+ * Without one it reported the previous turn's shortfall to a step that had not
+ * eaten yet, and Unrest, Departures and the threshold that sends somebody away
+ * all believed it.
  */
 export function hunger(campaign: Campaign): number {
-  // Every shortfall the campaign has ever recorded, and then the last of them.
-  // An earlier draft walked the log backwards by index, which needed an
-  // optional chain on a subscript that could not miss and hung the test runner
-  // under every mutant that reversed the walk. Collecting and taking the last
-  // says the same thing with no index to get wrong.
-  const shortfalls = campaign.log.flatMap((entry) =>
-    entry.event.kind === 'survivors-fed' ? [entry.event.hunger] : [],
-  );
-
-  return shortfalls.at(-1) ?? 0;
+  return feedings(campaign, true).at(-1)?.hunger ?? 0;
 }
 
 /**
@@ -90,9 +112,27 @@ export function hunger(campaign: Campaign): number {
  * `statValue` floors the result at zero as well — the two clamps answer
  * different questions and both are load-bearing: this one is "is there a
  * penalty at all", and that one is "can a stat go below zero".
+ *
+ * **Both terms are the ones the Feed step saw.** pg. 22 takes the shortfall and
+ * the head count together at Feed and holds the result until the next
+ * Management Phase, so anything that changes the roster afterwards — a
+ * departure, a Rot death, a recruit — must not re-price a penalty already in
+ * force. Pairing a recorded shortfall with a live population did exactly that,
+ * and in the wrong direction: losing a survivor made the same food shortage
+ * hurt the people left *more*.
  */
 export function hungerPenalty(campaign: Campaign): number {
-  return penaltyFor(hunger(campaign), campaign.survivors.length);
+  // The most recent entry from anywhere in the log, unlike `hunger` — that is
+  // what carries the penalty through the three phases after the one that set
+  // it, which is what "until the next Management Phase" means.
+  const fed = feedings(campaign, false).at(-1);
+  if (fed === undefined) return 0;
+
+  // `population` is absent from entries written before it was recorded. The
+  // live head count is the only number available for those, and is what they
+  // were read with anyway — so an old save behaves exactly as it did rather
+  // than acquiring a new answer on load.
+  return penaltyFor(fed.hunger, fed.population ?? campaign.survivors.length);
 }
 
 /**

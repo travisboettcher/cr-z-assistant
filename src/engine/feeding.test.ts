@@ -36,11 +36,16 @@ function community(
   };
 }
 
-const fed = (turn: number, required: number, short: number): LogEntry => ({
+const fed = (turn: number, required: number, short: number, population?: number): LogEntry => ({
   turn,
   phase: 'management',
   at: AT,
-  event: { kind: 'survivors-fed', required, hunger: short },
+  event: {
+    kind: 'survivors-fed',
+    required,
+    hunger: short,
+    ...(population === undefined ? {} : { population }),
+  },
 });
 
 const withLog = (campaign: Campaign, log: readonly LogEntry[]): Campaign => ({ ...campaign, log });
@@ -82,14 +87,19 @@ describe('hunger', () => {
   });
 
   /**
-   * The penalty lasts "until the next Management Phase" (pg. 22), which is
-   * three phases of the following turn — so `hunger` reads the most recent
-   * entry rather than this turn's.
+   * Hunger is the term of Unrest, and pg. 22 recalculates it each turn — "not
+   * cumulative", in as many words. A turn that has not eaten yet has none.
+   *
+   * This read the most recent entry from anywhere in the log until the
+   * September playtest, so a turn whose Feed step had not run reported the
+   * previous turn's shortfall to Unrest, Departures and the threshold that
+   * sends somebody away. The *penalty* still carries — that is
+   * `hungerPenalty`, and it is a different question.
    */
-  it('carries last turn’s shortfall into this turn, until this turn eats', () => {
+  it('is nothing this turn until this turn eats, whatever last turn went short', () => {
     const carried = withLog(community(5, 4, 0), [fed(2, 10, 6)]);
 
-    expect(hunger(carried)).toBe(6);
+    expect(hunger(carried)).toBe(0);
     expect(hunger(withLog(carried, [fed(2, 10, 6), fed(3, 10, 1)]))).toBe(1);
   });
 
@@ -156,6 +166,48 @@ describe('the hunger penalty', () => {
   it('is nothing for a community that has never eaten', () => {
     expect(hungerPenalty(community(5, 4, 0))).toBe(0);
   });
+
+  /**
+   * The other half of the split. `hunger` is this turn's and is the term of
+   * Unrest; the penalty lasts "until the next Management Phase" (pg. 22), which
+   * is the three phases of the following turn — so it reads the most recent
+   * entry wherever it sits, and a turn that has not eaten yet still carries it.
+   */
+  it('carries into the next turn, where Hunger itself does not', () => {
+    const carried: Campaign = { ...withLog(community(5, 4, 0), [fed(3, 10, 10)]), turn: 4 };
+
+    expect(hunger(carried)).toBe(0);
+    expect(hungerPenalty(carried)).toBe(5);
+  });
+
+  /**
+   * pg. 22 takes the shortfall and the head count together at Feed and holds
+   * the result. Pairing a recorded shortfall with a live population re-priced a
+   * penalty already in force — and backwards: losing a survivor made the same
+   * food shortage hurt the people left *more*.
+   */
+  it('uses the head count the Feed step saw, not the one left afterwards', () => {
+    const atFeed = withLog(community(4, 4, 0), [fed(3, 8, 6, 4)]);
+    const afterDeparture: Campaign = {
+      ...atFeed,
+      survivors: atFeed.survivors.slice(1),
+    };
+
+    expect(hungerPenalty(atFeed)).toBe(2);
+    expect(hungerPenalty(afterDeparture)).toBe(2);
+  });
+
+  /**
+   * An entry written before the head count was recorded cannot be given one
+   * honestly, so it keeps the behaviour it was read with. A save does not
+   * acquire a different answer by being loaded into a newer build.
+   */
+  it('falls back to the live head count for an entry that carries none', () => {
+    const older = withLog(community(4, 4, 0), [fed(3, 8, 6)]);
+
+    expect(hungerPenalty(older)).toBe(2);
+    expect(hungerPenalty({ ...older, survivors: older.survivors.slice(1) })).toBe(3);
+  });
 });
 
 describe('exhaustion', () => {
@@ -209,11 +261,11 @@ describe('survivorsFed', () => {
     expect(survivorsFed(withLog(community(5, 4), [busy]))).toBe(false);
   });
 
-  it('ignores last turn’s entry, which `hunger` still reads', () => {
+  it('ignores last turn’s entry, and so does `hunger`', () => {
     const carried = withLog(community(5, 4), [fed(2, 10, 6)]);
 
     expect(survivorsFed(carried)).toBe(false);
-    expect(hunger(carried)).toBe(6);
+    expect(hunger(carried)).toBe(0);
   });
 });
 
