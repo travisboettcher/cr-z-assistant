@@ -31,7 +31,7 @@
  * Pure, like the rest of `src/engine`.
  */
 
-import { REST_HEALTH, type HealthSource } from '../data/turn';
+import { REST_HEALTH, SURVIVORS_RESTING_PER_TURN, type HealthSource } from '../data/turn';
 import { staffOf, survivorsDoing } from './assignments';
 import { occupants } from './base';
 import type { Campaign, Survivor } from './campaign';
@@ -40,7 +40,8 @@ import { facilityProduction } from './production';
 import { hungerPenalty } from './feeding';
 import { maxHp } from './survivor';
 
-export type HealingViolationCode = 'health-going-spare' | 'nothing-to-share';
+export type HealingViolationCode =
+  'health-going-spare' | 'nothing-to-share' | 'more-than-one-resting';
 
 export type HealingViolation = Violation<HealingViolationCode>;
 
@@ -194,6 +195,23 @@ export function goingSpare(campaign: Campaign): number {
 export function checkHealing(campaign: Campaign): HealingCheck {
   const warnings: HealingViolation[] = [];
   const spare = goingSpare(campaign);
+  const resters = resting(campaign);
+
+  /*
+   * Only one survivor may rest a turn (pg. 21). The Planning Phase warns rather
+   * than refuses, which is a deliberate ruling and not the problem — the
+   * problem was that this step then paid *both* points out in silence, a phase
+   * and four steps later, where nobody was looking at the warning any more. A
+   * rule broken on purpose should still say so at the moment it costs
+   * something.
+   */
+  if (resters.length > SURVIVORS_RESTING_PER_TURN) {
+    warnings.push({
+      code: 'more-than-one-resting',
+      message: `${resters.length} survivors are resting, and each is taking a point. The book allows ${SURVIVORS_RESTING_PER_TURN} a turn.`,
+      pages: 21,
+    });
+  }
 
   if (spare > 0 && beingHealed(campaign).length === 0) {
     warnings.push({

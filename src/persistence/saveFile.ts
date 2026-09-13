@@ -228,6 +228,11 @@ const EVENT_FIELD_CHECKS = {
   optionalCount: (value: unknown) => value === undefined || isCountFromZero(value),
   tier: (value: unknown) => TIERS.some((tier) => tier === value),
   roll: (value: unknown) => D10_RESULTS.some((result) => result === value),
+  // A Rookie is recruited without one (pg. 7), and an entry written before the
+  // form stopped offering the die carries one that did nothing. Both are
+  // readable campaigns; only a roll that is not a d10 result is damage.
+  optionalRoll: (value: unknown) =>
+    value === undefined || D10_RESULTS.some((result) => result === value),
   skill: (value: unknown) => typeof value === 'string' && isKeyOf(SKILL_STATS, value),
   commonSkill: (value: unknown) => COMMON_SKILLS.some((skill) => skill === value),
   base: (value: unknown) => typeof value === 'string' && isKeyOf(BASES, value),
@@ -322,7 +327,7 @@ const EVENT_FIELDS: Record<
     ['survivor', 'id'],
     ['name', 'name'],
     ['tier', 'tier'],
-    ['roll', 'roll'],
+    ['roll', 'optionalRoll'],
   ],
   'survivor-left': [
     ['survivor', 'id'],

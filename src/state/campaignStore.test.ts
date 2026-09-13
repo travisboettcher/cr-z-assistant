@@ -656,6 +656,82 @@ describe('survivor/recruited', () => {
 
     expect(expectOpen(state).survivors.map((s) => s.name)).toEqual(['Earl Rhodes', 'Carla Proust']);
   });
+
+  /**
+   * A Rookie's single skill is never randomly generated (pg. 7), so no roll is
+   * sent and none is recorded. The log cannot be edited, and it used to say a
+   * die had chosen a skill the survivor did not have.
+   */
+  it('records no roll for a Rookie, because none was thrown', () => {
+    const campaign = expectOpen(
+      campaignReducer(openState(), {
+        type: 'survivor/recruited',
+        at: AT,
+        name: 'Ruby Vance',
+        tier: 1,
+        id: SURVIVOR_ID,
+      }),
+    );
+
+    expect(campaign.survivors[0]?.skills).toEqual({});
+    expect(campaign.log[0]?.event).toEqual({
+      kind: 'survivor-recruited',
+      survivor: SURVIVOR_ID,
+      name: 'Ruby Vance',
+      tier: 1,
+    });
+    expect(campaign.log[0]?.event).not.toHaveProperty('roll');
+  });
+
+  /**
+   * The ten-tier-level budget is a rule about *building* a starting community
+   * (pg. 13). Somebody found on a mission is proof the campaign is past that,
+   * and the playtest was told its community "spends 11" for doing the thing
+   * Rescue Strangers exists to do.
+   */
+  it('settles the starting community, because finding somebody means play began', () => {
+    const campaign = expectOpen(
+      campaignReducer(openState(), {
+        type: 'survivor/recruited',
+        at: AT,
+        name: 'Carla Proust',
+        tier: 3,
+        roll: 6,
+        id: SURVIVOR_ID,
+      }),
+    );
+
+    expect(campaign.startingCommunityBuilt).toBe(true);
+    // Said out loud, where the player can see a switch thrown on their behalf.
+    expect(campaign.log.at(-1)?.event).toEqual({
+      kind: 'starting-community-settled',
+      built: true,
+    });
+  });
+
+  it('says it once, and not again for the next recruit', () => {
+    let state = campaignReducer(openState(), {
+      type: 'survivor/recruited',
+      at: AT,
+      name: 'Carla Proust',
+      tier: 3,
+      roll: 6,
+      id: SURVIVOR_ID,
+    });
+    state = campaignReducer(state, {
+      type: 'survivor/recruited',
+      at: AT,
+      name: 'Ruby Vance',
+      tier: 1,
+      id: OTHER_SURVIVOR_ID,
+    });
+
+    const settlings = expectOpen(state).log.filter(
+      (logged) => logged.event.kind === 'starting-community-settled',
+    );
+
+    expect(settlings).toHaveLength(1);
+  });
 });
 
 describe('spending experience', () => {
@@ -1663,6 +1739,10 @@ describe('what earns a line in the log', () => {
         roll: 6,
         id: 'carla',
       },
+      // Already settled, so this leaves the one entry. A recruit into a
+      // community still being built settles it as well, and that second entry
+      // has its own test below.
+      state: openState({ ...expectOpen(rich()), startingCommunityBuilt: true }),
       entry: entry(3, 'mission', {
         kind: 'survivor-recruited',
         survivor: 'carla',

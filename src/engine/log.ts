@@ -260,8 +260,16 @@ export type CampaignEvent =
       readonly survivor: string;
       readonly name: string;
       readonly tier: Tier;
-      /** The d10 that chose their first skill (pg. 15) — part of the story. */
-      readonly roll: D10Result;
+      /**
+       * The d10 that chose their first skill (pg. 15) — part of the story.
+       *
+       * Absent for a Rookie, who does not roll for one at all (pg. 7). It used
+       * to be recorded anyway, from a control the form should not have been
+       * offering, and the entry then said a die had chosen a skill the survivor
+       * did not have. The log is append-only by design, so a sentence that was
+       * never true stayed true-looking forever.
+       */
+      readonly roll?: D10Result;
     }
   | {
       readonly kind: 'survivor-left';
