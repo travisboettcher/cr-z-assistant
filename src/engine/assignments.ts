@@ -196,3 +196,18 @@ export function utilitiesScore(campaign: Campaign): number {
 
   return total;
 }
+
+/**
+ * Whether Exhaustion has already taken somebody off the mission team this turn
+ * (pg. 23).
+ *
+ * The rule removes **one**, and removing them does not lower the Exhaustion
+ * that called for it — population against beds is unchanged by who is on which
+ * team. So nothing in the campaign distinguishes "the penalty has been applied"
+ * from "the penalty is still owed", and the log is what does.
+ */
+export function missionTeamReduced(campaign: Campaign): boolean {
+  return campaign.log.some(
+    (entry) => entry.turn === campaign.turn && entry.event.kind === 'mission-team-reduced',
+  );
+}

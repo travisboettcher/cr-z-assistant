@@ -176,3 +176,22 @@ export function withRotApplied(campaign: Campaign, outcome: RotOutcome): Campaig
     ),
   };
 }
+
+/**
+ * Whether this survivor's Rot check has already been resolved this turn
+ * (pg. 22).
+ *
+ * Per survivor rather than per step, unlike Feed or Check Storage: the step
+ * resolves one check for each survivor at 0 Health, so "already done" is a
+ * question about a person and not about the phase. Without it the same
+ * survivor can be checked twice — observed passing at 10 and then dying at 1,
+ * both entries in the log.
+ */
+export function rotCheckResolved(campaign: Campaign, survivorId: string): boolean {
+  return campaign.log.some(
+    (entry) =>
+      entry.turn === campaign.turn &&
+      entry.event.kind === 'rot-checked' &&
+      entry.event.survivor === survivorId,
+  );
+}

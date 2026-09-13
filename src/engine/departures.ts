@@ -77,3 +77,21 @@ export function withDeparture(campaign: Campaign, survivorId: string): Campaign 
     ),
   };
 }
+
+/**
+ * Whether somebody has already walked out this turn (pg. 23).
+ *
+ * The rule sends **one**: "the lowest-Tier survivor at the base leaves the
+ * community." Nothing in the campaign says it has happened — a departure
+ * lowers the pressure it was measured against, so re-deriving `someoneIsLeaving`
+ * afterwards answers a different question than the step asked. Read off the
+ * log, like every other destructive step in this phase.
+ *
+ * Reads `survivor-departed` rather than `survivor-left`, so a Rot death in the
+ * same Management Phase does not read as a departure that already happened.
+ */
+export function someoneDeparted(campaign: Campaign): boolean {
+  return campaign.log.some(
+    (entry) => entry.turn === campaign.turn && entry.event.kind === 'survivor-departed',
+  );
+}

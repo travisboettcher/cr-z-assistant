@@ -46,10 +46,11 @@ import {
 import { checkXpAward, withXpAwarded } from '../engine/experience';
 import { healthAwards, withWoundsHealed, woundsHealed } from '../engine/healing';
 import { foodRequired, hungerIfFedNow, survivorsFed, withSurvivorsFed } from '../engine/feeding';
-import { rotOutcome, rotTarget, withRotApplied } from '../engine/rot';
+import { rotCheckResolved, rotOutcome, rotTarget, withRotApplied } from '../engine/rot';
 import { overCap, storageChecked, withStorageChecked } from '../engine/storage';
 import { hordeChecked, siegeThreat, siegeTriggered, withSiegeCalled } from '../engine/siege';
-import { departureCandidates, withDeparture } from '../engine/departures';
+import { departureCandidates, someoneDeparted, withDeparture } from '../engine/departures';
+import { missionTeam, missionTeamReduced } from '../engine/assignments';
 import { ROT_BITE_DAMAGE } from '../data/turn';
 import { XP_AWARD, type XpSource } from '../data/turn';
 import type { Assignment, Campaign, ProjectOrder, Stats, Survivor } from '../engine/campaign';
@@ -337,6 +338,15 @@ export type CampaignAction =
    * still over the threshold with somebody still to lose genuinely loses them.
    */
   | { readonly type: 'management/departed'; readonly survivor: string; readonly at: string }
+  /**
+   * Take one survivor off the mission team, because Exhaustion is above its
+   * size (pg. 23).
+   *
+   * Its own action rather than `assignment/cleared`, which is what the screen
+   * used to dispatch: that one is an ordinary edit with no record and no
+   * guard, so the step offered the same removal until the team was empty.
+   */
+  | { readonly type: 'management/teamReduced'; readonly survivor: string; readonly at: string }
   /**
    * Resolve one survivor's Rot check (pg. 22).
    *
@@ -733,24 +743,49 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
     case 'management/departed':
       return withCampaign(state, (campaign) => {
-        // Asked here rather than trusted from the screen, and asked of *this*
-        // campaign: a second departure is checked against a pressure the first
-        // one already changed.
+        // The rule sends one (pg. 23). Nothing in the campaign says it has
+        // happened — a departure lowers the very pressure it was measured
+        // against, so re-deriving `someoneIsLeaving` afterwards answers a
+        // different question. Hence the log, like every other step here.
+        if (someoneDeparted(campaign)) return campaign;
+
+        // Asked of *this* campaign rather than trusted from the screen.
         const leaving = departureCandidates(campaign).find(
           (candidate) => candidate.id === action.survivor,
         );
         if (leaving === undefined) return campaign;
 
         return logged(withDeparture(campaign, action.survivor), action.at, {
-          kind: 'survivor-left',
+          kind: 'survivor-departed',
           survivor: leaving.id,
           name: leaving.name,
           tier: leaving.tier,
         });
       });
 
+    case 'management/teamReduced':
+      return withCampaign(state, (campaign) => {
+        // One survivor, once (pg. 23). Exhaustion does not fall when they come
+        // off the team, so without the record the step offers the same removal
+        // until the team is empty.
+        if (missionTeamReduced(campaign)) return campaign;
+
+        const tired = missionTeam(campaign).find((candidate) => candidate.id === action.survivor);
+        if (tired === undefined) return campaign;
+
+        return logged(
+          { ...campaign, assignments: withoutAssignment(campaign.assignments, action.survivor) },
+          action.at,
+          { kind: 'mission-team-reduced', survivor: tired.id, name: tired.name },
+        );
+      });
+
     case 'management/rotChecked':
       return withCampaign(state, (campaign) => {
+        // Per survivor rather than per step: this one resolves a check for each
+        // survivor at 0 Health, so "already done" is a question about a person.
+        if (rotCheckResolved(campaign, action.survivor)) return campaign;
+
         const survivor = campaign.survivors.find((candidate) => candidate.id === action.survivor);
         if (survivor === undefined) return campaign;
 

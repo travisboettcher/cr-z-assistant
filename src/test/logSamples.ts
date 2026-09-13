@@ -50,6 +50,8 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'survivor-added', ...SURVIVOR, tier: 3 },
   { kind: 'survivor-recruited', ...SURVIVOR, tier: 2, roll: 6 },
   { kind: 'survivor-left', ...SURVIVOR, tier: 1 },
+  { kind: 'survivor-departed', ...SURVIVOR, tier: 1 },
+  { kind: 'mission-team-reduced', ...SURVIVOR },
   { kind: 'survivor-promoted', ...SURVIVOR, tier: 4 },
   { kind: 'skill-level-bought', ...SURVIVOR, skill: 'archery', level: 2 },
   { kind: 'common-skill-bought', ...SURVIVOR, skill: 'move', score: 7 },

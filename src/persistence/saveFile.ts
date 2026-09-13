@@ -322,6 +322,15 @@ const EVENT_FIELDS: Record<
     ['name', 'name'],
     ['tier', 'tier'],
   ],
+  'survivor-departed': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['tier', 'tier'],
+  ],
+  'mission-team-reduced': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+  ],
   'survivor-promoted': [
     ['survivor', 'id'],
     ['name', 'name'],
