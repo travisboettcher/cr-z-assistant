@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BASES, BASE_IDS, type BaseId } from '../data/bases';
-import { FACILITIES, type Facility, type Upgrade } from '../data/facilities';
+import { FACILITIES, type Facility, type Upgrade, type UpgradeId } from '../data/facilities';
 import type { Base, SlotState } from './campaign';
 import {
   beds,
@@ -9,10 +9,15 @@ import {
   maxHeroes,
   occupants,
   siegeThreatFromBase,
+  siegeThreatReduction,
+  staffCapacity,
   storageCaps,
   upgradesRemaining,
   upgradesUsed,
+  type Occupant,
 } from './base';
+import { createSurvivor } from './survivor';
+import type { Survivor } from './campaign';
 
 /** A base with nothing done to it — the state a claim leaves behind. */
 const claimed = (id: BaseId): Base => ({ id, slots: {} });
@@ -328,5 +333,105 @@ describe('maxHeroes', () => {
     for (const id of BASE_IDS) {
       expect([id, maxHeroes(claimed(id))]).toEqual([id, BASES[id].tier]);
     }
+  });
+});
+
+/**
+ * pg. 54: a staffed facility takes one survivor unless an upgrade widens it.
+ * `extraStaff` was transcribed for exactly this and read by nothing until the
+ * September playtest found three survivors on a bare Medical Clinic making five
+ * Health, and a Rot check target of −4.
+ */
+describe('staffCapacity', () => {
+  const occupantOf = (base: Base, slot: string) =>
+    occupants(base).find((occupant) => occupant.slotId === slot) as Occupant;
+
+  const clinic = (upgrades: readonly UpgradeId[] = [], supplied = false): Base => ({
+    id: 'small-town-home',
+    slots: {
+      garage: {
+        built: { facility: 'medical-clinic', builtOnTurn: 1 },
+        upgrades: [...upgrades],
+        ...(supplied ? { power: true, water: true } : {}),
+      },
+    },
+  });
+
+  it('is one for a staffed facility with nothing widening it', () => {
+    expect(staffCapacity(occupantOf(clinic(), 'garage'))).toBe(1);
+  });
+
+  it('is nothing at all for a facility that takes no staff', () => {
+    // A Bunk Room's two beds are flat, with no skill named.
+    expect(staffCapacity(occupantOf({ id: 'small-town-home', slots: {} }, 'bunk-room-1'))).toBe(0);
+  });
+
+  it('widens by one for each upgrade that says so', () => {
+    expect(staffCapacity(occupantOf(clinic(['med-lab'], true), 'garage'))).toBe(2);
+  });
+
+  /**
+   * An upgrade whose requirements are unmet produces no effect at all (pg. 54),
+   * and widening the staffing *is* the Med Lab's effect. A Med Lab without
+   * Power and Water is a room nobody can work in, not a second seat.
+   */
+  it('does not widen for an upgrade that has not got its utilities', () => {
+    expect(staffCapacity(occupantOf(clinic(['med-lab']), 'garage'))).toBe(1);
+  });
+});
+
+/**
+ * pg. 73, and the whole purpose of the facility: a staffed Watchtower subtracts
+ * its lookout's best of Long Guns / Handguns / Archery / Traps. Nothing
+ * consumed `reducedByBestOf` until the September playtest found that staffing
+ * one *raised* Siege Threat by 1, through the staffed-facility count.
+ */
+describe('siegeThreatReduction', () => {
+  const tower = (upgrades: readonly UpgradeId[] = []): Base => ({
+    id: 'small-town-home',
+    slots: {
+      'front-yard': { built: { facility: 'watchtower', builtOnTurn: 1 }, upgrades: [...upgrades] },
+    },
+  });
+
+  const occupantOf = (base: Base) =>
+    occupants(base).find((occupant) => occupant.slotId === 'front-yard') as Occupant;
+
+  /** Long Guns is governed by Dexterity, which a Tier 4 has 2 of. */
+  const lookout = (level: number, id = 'lookout'): Survivor => ({
+    ...createSurvivor('Nell Haig', 4, { id }),
+    skills: { 'long-guns': level },
+  });
+
+  it('is nothing for a tower nobody is watching from', () => {
+    expect(siegeThreatReduction(occupantOf(tower()), [], 0)).toBe(0);
+  });
+
+  it('is the staff’s Score in the skill the facility names', () => {
+    // A Tier 4's Dexterity is 3, plus level 3.
+    expect(siegeThreatReduction(occupantOf(tower()), [lookout(3)], 0)).toBe(6);
+  });
+
+  /** The best of the four, not the sum — which is what `reducedByBestOf` says. */
+  it('takes the best of two lookouts rather than adding them', () => {
+    const both = [lookout(3), { ...lookout(1, 'other'), name: 'Ada Poole' }];
+
+    expect(siegeThreatReduction(occupantOf(tower()), both, 0)).toBe(6);
+  });
+
+  it('is nothing for a facility with no such effect', () => {
+    const kitchen: Base = {
+      id: 'small-town-home',
+      slots: { garage: { built: { facility: 'kitchen', builtOnTurn: 1 } } },
+    };
+    const occupant = occupants(kitchen).find((one) => one.slotId === 'garage') as Occupant;
+
+    expect(siegeThreatReduction(occupant, [lookout(3)], 0)).toBe(0);
+  });
+
+  /** A starving lookout watches worse, like every other Score in the community. */
+  it('drops with the hunger penalty', () => {
+    // Dexterity 3 less the penalty of 2, plus level 3.
+    expect(siegeThreatReduction(occupantOf(tower()), [lookout(3)], 2)).toBe(4);
   });
 });

@@ -344,6 +344,11 @@ export const SIEGE_THREAT_TERMS = [
   'project-team',
   'base-features',
   'turns-since-last-siege',
+  // Negative, and the only term that is. A staffed Watchtower subtracts its
+  // lookout's best of Long Guns / Handguns / Archery / Traps (pg. 73) — the
+  // facility's whole purpose, and unread by anything until the September
+  // playtest found that staffing one *raised* the threat by 1.
+  'watched-from-above',
 ] as const;
 
 export type SiegeThreatTerm = (typeof SIEGE_THREAT_TERMS)[number];

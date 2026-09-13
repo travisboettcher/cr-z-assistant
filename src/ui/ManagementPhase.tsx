@@ -586,4 +586,5 @@ const SIEGE_TERM_LABELS: Record<SiegeThreatTerm, string> = {
   'project-team': 'on the project team',
   'base-features': 'from the base itself',
   'turns-since-last-siege': 'turns since the last siege',
+  'watched-from-above': 'watched from a staffed Watchtower',
 };

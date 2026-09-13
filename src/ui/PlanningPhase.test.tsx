@@ -164,6 +164,47 @@ describe('the Planning Phase steps', () => {
 });
 
 /**
+ * pg. 54: a staffed facility takes one survivor unless an upgrade widens it,
+ * and a facility with no skill in its effect takes none at all.
+ *
+ * The base screen's slot card has always gated its staffing control on this.
+ * The Planning screen offered one for every occupant, so a Bunk Room could be
+ * "staffed" — doing nothing, and costing a point of Siege Threat for it.
+ */
+describe('which facilities can be staffed', () => {
+  it('offers a control only where the facility takes staff', () => {
+    open(planning());
+
+    // The Small Town Home ships two Bunk Rooms and a Kitchen. Only the Kitchen
+    // names a skill.
+    expect(within(walk()).getByRole('group', { name: /kitchen — kitchen/i })).toBeTruthy();
+    expect(within(walk()).queryByRole('group', { name: /bunk room/i })).toBeNull();
+  });
+
+  it('says who is assigned to a full facility and not working', () => {
+    open(
+      planning({
+        assignments: {
+          [EARL]: { task: 'staff', slot: 'kitchen' },
+          [CARLA]: { task: 'staff', slot: 'kitchen' },
+        },
+      }),
+    );
+
+    // The capacity is its own element, so the sentence is matched on the region.
+    expect(walk().textContent).toContain(
+      'Takes 1, so Carla Proust is assigned here and not working',
+    );
+  });
+
+  it('says nothing when the facility has room', () => {
+    open(planning({ assignments: { [EARL]: { task: 'staff', slot: 'kitchen' } } }));
+
+    expect(within(walk()).queryByText(/not working/i)).toBeNull();
+  });
+});
+
+/**
  * Z3-11 moved this note with the verb it is about. Projects are ordered in the
  * Planning Phase now (pg. 20) and finish in the next Advancement Phase, so the
  * step the app points at is this phase's rather than that one's.
