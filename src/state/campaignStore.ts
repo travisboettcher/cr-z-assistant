@@ -30,7 +30,7 @@ import type { Tier } from '../data/tiers';
 import { withCommonSkillBought, withSkillLevelBought, withTierBought } from '../engine/advancement';
 import { completeProjects, withProjectCancelled, withProjectOrdered } from '../engine/projects';
 import { builtEvent, checkOrder, orderedEvent } from '../engine/orders';
-import { withUtilityToggled } from '../engine/utilities';
+import { suppliedOccupants, withUtilityToggled } from '../engine/utilities';
 import { createNewCampaign } from '../engine/campaign';
 import { logged, type CampaignEvent } from '../engine/log';
 import { advance, reverse, type AdvanceBy } from '../engine/turn';
@@ -715,15 +715,22 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
          * it is the pressure the opening is designed around. The app already
          * knew the caps and showed "0 / 4" beside them.
          */
-        const stocked = { ...campaign.materials, ...storageCaps(base) };
+        // The caps of the base as it stands the moment it is claimed. Since
+        // #127 that is a question about the roster as well as the layout —
+        // a facility whose Power is not backed does not raise a cap — so the
+        // occupants are resolved against the campaign the claim produces
+        // rather than read off the layout alone.
+        const claimed = { ...campaign, base };
+        const caps = storageCaps(base, suppliedOccupants(claimed));
+        const stocked = { ...campaign.materials, ...caps };
 
         return logged(
-          logged({ ...campaign, base, materials: stocked }, action.at, {
+          logged({ ...claimed, materials: stocked }, action.at, {
             kind: 'base-claimed',
             base: action.base,
           }),
           action.at,
-          { kind: 'base-stocked', ...storageCaps(base) },
+          { kind: 'base-stocked', ...caps },
         );
       });
 
