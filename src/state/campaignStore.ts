@@ -188,7 +188,13 @@ export type CampaignAction =
       readonly type: 'survivor/recruited';
       readonly name: string;
       readonly tier: FieldRecruitTier;
-      readonly roll: D10Result;
+      /**
+       * Absent for a Rookie, whose single skill is never randomly generated
+       * (pg. 7). The form does not offer the die at that Tier, and the entry
+       * this writes does not claim one was thrown — the log cannot be edited,
+       * so a roll recorded there is permanent whether or not it did anything.
+       */
+      readonly roll?: D10Result;
       readonly id: string;
       readonly at: string;
     }
@@ -277,16 +283,20 @@ export type CampaignAction =
   /**
    * Sets one material count by hand.
    *
-   * Materials are produced and spent by the Advancement and Management Phases,
-   * which are Phase 3. Until then nothing in the app can put a single Hardware
-   * into a community — and a base screen whose Build button can never be
-   * pressed is the "nothing is usable until everything works" failure the
-   * delivery plan exists to avoid. So the player types what is on their
-   * worksheet, exactly as Phase 1 let them type XP.
+   * It was the only way to get a Hardware into a community before Phase 3 gave
+   * the Advancement and Management Phases somewhere to produce and spend them
+   * — a base screen whose Build button could never be pressed is the "nothing
+   * is usable until everything works" failure the delivery plan exists to
+   * avoid. It stays now for the reason Phase 1's XP field stays: the table is
+   * the authority, and a player correcting the record should not have to walk
+   * a turn backwards to do it.
    *
-   * No cap is enforced. Check Storage is a Management Phase step (pg. 23) and
-   * over-storage has consequences this app does not model yet; refusing the
-   * number would be inventing a rule rather than recording one.
+   * No cap is enforced, and that is now a decision rather than a gap. Check
+   * Storage (pg. 23) is a Management Phase step this app does model since
+   * Z3-10, and what it does with a haul over the cap is lose the surplus *at
+   * that step* — so a count typed above the cap is a real state the campaign
+   * passes through, and refusing it here would be enforcing the rule one phase
+   * early.
    */
   | { readonly type: 'campaign/materialSet'; readonly material: Material; readonly count: number }
   /**
@@ -562,8 +572,8 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
      * removals, and a stale index renames the wrong person.
      */
     case 'survivor/recruited':
-      return withCampaign(state, (campaign) =>
-        logged(
+      return withCampaign(state, (campaign) => {
+        const recruited = logged(
           {
             ...campaign,
             survivors: [
@@ -572,15 +582,36 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
             ],
           },
           action.at,
+          // Spread rather than `roll: action.roll`: `exactOptionalPropertyTypes`
+          // makes a present-but-undefined `roll` a different thing from an
+          // absent one, and only the absent one is true.
           {
             kind: 'survivor-recruited',
             survivor: action.id,
             name: action.name,
             tier: action.tier,
-            roll: action.roll,
+            ...(action.roll === undefined ? {} : { roll: action.roll }),
           },
-        ),
-      );
+        );
+
+        /*
+         * A survivor found in the field is proof the campaign is past building
+         * its starting community: the ten-tier-level budget is a rule about
+         * *building* one (pg. 13), and Rescue Strangers exists to grow it past
+         * that (pg. 15). The playtest recruited through this app's own form and
+         * was told the community "spends 11" — growth reported as an error.
+         *
+         * A second entry rather than a quiet flag, and only when it changes:
+         * the switch is the player's to throw, and one thrown on their behalf
+         * should say so where they can see it.
+         */
+        return recruited.startingCommunityBuilt
+          ? recruited
+          : logged({ ...recruited, startingCommunityBuilt: true }, action.at, {
+              kind: 'starting-community-settled',
+              built: true,
+            });
+      });
 
     case 'survivor/renamed':
       return editSurvivor(state, action.id, (survivor) => ({ ...survivor, name: action.name }));

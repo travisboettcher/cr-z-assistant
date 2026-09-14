@@ -1,0 +1,14 @@
+{
+  "name": "County Road Z — Campaign Tracker",
+  "short_name": "County Road Z",
+  "description": "The Community Layer of a County Road Z campaign, turn by turn.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1c1917",
+  "theme_color": "#1c1917",
+  "icons": [
+    { "src": "/icon.svg", "type": "image/svg+xml", "sizes": "any" },
+    { "src": "/apple-touch-icon.png", "type": "image/png", "sizes": "180x180" }
+  ]
+}
