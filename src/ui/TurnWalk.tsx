@@ -19,9 +19,10 @@ import { advance, phaseOf, positionOf, reverse } from '../engine/turn';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
 import { AdvancementPhase } from './AdvancementPhase';
+import { FirstMission } from './FirstMission';
 import { ManagementPhase } from './ManagementPhase';
 import { PlanningPhase } from './PlanningPhase';
-import { siegeDue } from '../engine/siege';
+import { FIRST_TURN, siegeDue } from '../engine/siege';
 import { PHASE_LABELS, STEP_LABELS } from './turnLabels';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
@@ -200,6 +201,17 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
               <p className="mt-4 text-sm font-medium text-amber-800 dark:text-amber-300">
                 The horde came. This turn’s mission is a Siege Defense <PageRef pages={23} />
               </p>
+            )}
+
+            {/*
+             * The second thing the Mission Phase knows, and only on turn 1:
+             * nothing has assigned a mission team yet, because the phase that
+             * does runs at the end of a turn for the turn after it. Ahead of
+             * Phase 4 building this phase properly, because the whole of turn
+             * 1's Advancement Phase is wrong without it — see `FirstMission`.
+             */}
+            {phase === 'mission' && campaign.turn === FIRST_TURN && (
+              <FirstMission campaign={campaign} />
             )}
 
             <p className="mt-4 text-sm text-stone-600 dark:text-stone-400">

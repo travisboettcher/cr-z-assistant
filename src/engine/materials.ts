@@ -37,7 +37,7 @@ import {
 } from '../data/turn';
 import type { D10Result } from '../data/dice';
 import { occupants, storageCaps } from './base';
-import { missionTeam, staffOf } from './assignments';
+import { beforePlanning, missionTeam, staffOf } from './assignments';
 import type { Campaign } from './campaign';
 import type { Check, Violation } from './checks';
 import { facilityProduction } from './production';
@@ -110,8 +110,12 @@ export function baseProduction(campaign: Campaign): Materials {
 
   const penalty = hungerPenalty(campaign);
 
+  // Staffed last Planning Phase, read this Advancement one — so it is asked of
+  // the campaign as it stood before this turn's Planning cleared the answer.
+  const staffed = beforePlanning(campaign);
+
   for (const occupant of occupants(base)) {
-    for (const line of facilityProduction(occupant, staffOf(campaign, occupant.slotId), penalty)) {
+    for (const line of facilityProduction(occupant, staffOf(staffed, occupant.slotId), penalty)) {
       for (const output of line.outputs) {
         if (isMaterial(output)) total[output] += line.amount;
       }
@@ -135,7 +139,7 @@ function isMaterial(output: string): output is Material {
 export function substitutionUses(campaign: Campaign, skill: SubstitutionSkill): number {
   const penalty = hungerPenalty(campaign);
 
-  return missionTeam(campaign).reduce(
+  return missionTeam(beforePlanning(campaign)).reduce(
     (total, survivor) => total + (skillScore(survivor, skill, penalty) ?? 0),
     0,
   );
