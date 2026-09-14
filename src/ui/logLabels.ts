@@ -200,7 +200,12 @@ export function describeEvent(event: CampaignEvent): EventLabel {
 
     case 'survivor-recruited':
       return {
-        text: `${event.name} was recruited as a ${TIER_LABELS[event.tier]}, rolling a ${event.roll}.`,
+        // A Rookie is recruited without a roll, so the sentence stops where the
+        // story does rather than reporting a die nobody threw.
+        text:
+          event.roll === undefined
+            ? `${event.name} was recruited as a ${TIER_LABELS[event.tier]}.`
+            : `${event.name} was recruited as a ${TIER_LABELS[event.tier]}, rolling a ${event.roll}.`,
         pages: 15,
       };
 

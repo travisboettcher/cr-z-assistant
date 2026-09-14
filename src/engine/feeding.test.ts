@@ -4,6 +4,7 @@ import { createSurvivor } from './survivor';
 import {
   exhaustion,
   foodRequired,
+  foodRequiredAsFed,
   hunger,
   hungerIfFedNow,
   hungerPenalty,
@@ -49,6 +50,29 @@ const fed = (turn: number, required: number, short: number, population?: number)
 });
 
 const withLog = (campaign: Campaign, log: readonly LogEntry[]): Campaign => ({ ...campaign, log });
+
+describe('foodRequiredAsFed', () => {
+  /**
+   * The Feed screen printed a recorded shortfall beside a live requirement and
+   * could produce arithmetic no campaign can: "eats 6 Food… 8 Hunger". Anything
+   * that changes the roster after the step moves one half and not the other.
+   */
+  it('is what the step recorded, not what the roster needs now', () => {
+    // Six survivors ate and went two short; two have since walked out.
+    const after = withLog(community(4, 1), [fed(3, 6, 2)]);
+
+    expect(foodRequired(after)).toBe(4);
+    expect(foodRequiredAsFed(after)).toBe(6);
+  });
+
+  it('is the live requirement before the step has run, which is the same number', () => {
+    expect(foodRequiredAsFed(community(5, 1))).toBe(5);
+  });
+
+  it('ignores a previous turn’s feeding, like every other reader here', () => {
+    expect(foodRequiredAsFed(withLog(community(4, 1), [fed(2, 6, 2)]))).toBe(4);
+  });
+});
 
 describe('foodRequired', () => {
   /** Tiers 1 and 2 eat one, Tiers 3 and 4 eat two (pg. 22). */

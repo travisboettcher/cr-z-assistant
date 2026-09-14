@@ -24,17 +24,25 @@ edition renamed, and the rules recorded for later phases.
 
 ## What works today
 
-Phase 0 — the skeleton. You can create a campaign, and save and load it as a `.json` file.
+Phases 0 to 3 — a campaign you can actually play the Community Layer of, turn by turn.
 
-- **Export** writes a readable, stably-ordered `.json`. This is the durable save.
-- **Import** reads one back, with a real message for every way a file can be wrong.
-- **Autosave** keeps a copy in the browser so a closed tab does not cost a turn. It is a
-  convenience layer — a cleared browser takes it with it, and only an exported file survives.
-- A **schema version and migration chain**, so a campaign started now still opens after the
-  data model grows.
+- **Saving** (Phase 0). Export writes a readable, stably-ordered `.json`; that is the durable
+  save. Import reads one back with a real message for every way a file can be wrong. Autosave
+  keeps a copy in the browser so a closed tab does not cost a turn — a convenience layer that a
+  cleared browser takes with it. A schema version and migration chain mean a campaign started
+  now still opens after the data model grows.
+- **Survivors** (Phase 1). A roster with Tiers, stats, skills and Health; a character sheet that
+  computes Scores rather than storing them; experience spent on levels and promotions.
+- **A base** (Phase 2). Claim one, build facilities and upgrades into its slots, clear what is in
+  the way, assign Power and Water. Rules that a table may play differently warn rather than
+  refuse, and every refusal can be overridden on purpose.
+- **The turn** (Phase 3). All nineteen steps of the four phases, walked forwards and backwards:
+  assignments, projects and Labor, XP, materials and substitutions, healing, feeding, Unrest, the
+  horde and departures.
 
-Survivors, base building, the turn engine, missions and equipment are later phases. See
-[`docs/phase-0-stories.md`](docs/phase-0-stories.md) for how Phase 0 was broken down.
+Missions and equipment are later phases. Each phase's breakdown is in `docs/` —
+[Phase 0](docs/phase-0-stories.md), [Phase 1](docs/phase-1-stories.md),
+[Phase 2](docs/phase-2-stories.md), [Phase 3](docs/phase-3-stories.md).
 
 ## Running it
 
