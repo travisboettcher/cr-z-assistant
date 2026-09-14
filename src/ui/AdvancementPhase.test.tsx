@@ -141,6 +141,25 @@ describe('Character Advancement', () => {
   });
 });
 
+describe('naming the award buttons', () => {
+  /**
+   * Three pools can be on screen at once, and every award button used to read
+   * as "+1 XP" on its own — the pool and the survivor were beside it in text a
+   * screen reader announces separately, if at all. Every other button in the
+   * app carries its whole sentence.
+   */
+  it('says who is being given the point, and out of which pool', () => {
+    open(advancement());
+
+    expect(
+      screen.getByRole('button', { name: /\+1 xp earl rhodes for going on the mission/i }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: /\+1 xp carla proust the discretionary point/i }),
+    ).toBeTruthy();
+  });
+});
+
 describe('Add Materials to Storage', () => {
   const onTheStep = (overrides: Partial<Campaign> = {}) =>
     advancement({ step: 'add-materials-to-storage', ...overrides });

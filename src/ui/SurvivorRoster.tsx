@@ -14,7 +14,11 @@
 import { useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { D10_RESULTS, type D10Result } from '../data/dice';
-import { FIELD_RECRUITABLE_TIERS, type FieldRecruitTier } from '../data/recruitTable';
+import {
+  FIELD_RECRUITABLE_TIERS,
+  rollsForSkill,
+  type FieldRecruitTier,
+} from '../data/recruitTable';
 import { TIERS, type Tier } from '../data/tiers';
 import type { Campaign, Survivor } from '../engine/campaign';
 import { communityViolations } from '../engine/legality';
@@ -254,7 +258,9 @@ function RecruitForm() {
       type: 'survivor/recruited',
       name: trimmed,
       tier,
-      roll,
+      // Omitted rather than sent and ignored: a Rookie does not roll, and the
+      // log entry this writes is permanent.
+      ...(rollsForSkill(tier) ? { roll } : {}),
       id: crypto.randomUUID(),
       at: new Date().toISOString(),
     });
@@ -268,8 +274,13 @@ function RecruitForm() {
       </summary>
 
       <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">
-        A survivor found on a mission arrives with one skill already rolled. Heroes are never
-        recruited this way. <PageRef pages={15} />
+        {rollsForSkill(tier)
+          ? 'A survivor found on a mission arrives with one skill already rolled.'
+          : // The Rookie case, said rather than left to be inferred from a
+            // control that has gone: the roll is not missing, it is not part of
+            // the rule, and the survivor arrives with a skill slot to fill.
+            'A Rookie’s single skill is never rolled — they arrive with a slot to fill on their sheet.'}{' '}
+        Heroes are never recruited this way. <PageRef pages={rollsForSkill(tier) ? 15 : '7, 15'} />
       </p>
 
       <form onSubmit={handleRecruit} className="mt-4 flex flex-wrap items-end gap-3">
@@ -303,7 +314,7 @@ function RecruitForm() {
           </select>
         </div>
 
-        <div>
+        <div hidden={!rollsForSkill(tier)}>
           <label htmlFor={rollId} className="block text-sm font-medium">
             Skill roll
           </label>

@@ -101,6 +101,16 @@ function CharacterAdvancement({ campaign }: { readonly campaign: Campaign }) {
   const { dispatch } = useCampaign();
   const pools = xpPools(campaign);
 
+  /*
+   * Three pools can be on screen at once, and every award button read as
+   * "+1 XP" to a screen reader — the pool and the survivor were in adjacent
+   * text only. Rather than repeat both into a hidden label, each button points
+   * at the two elements that already say them: the accessible name comes out
+   * "+1 XP Earl Rhodes For going on the mission" with nothing duplicated in the
+   * DOM to go stale or to catch a text query twice.
+   */
+  const ids = useId();
+
   return (
     <>
       <p className={HINT}>
@@ -114,7 +124,7 @@ function CharacterAdvancement({ campaign }: { readonly campaign: Campaign }) {
 
           return (
             <li key={pool.source}>
-              <p className="text-sm font-medium">
+              <p className="text-sm font-medium" id={`${ids}-${pool.source}`}>
                 {XP_SOURCE_LABELS[pool.source]}{' '}
                 <span className="font-normal text-stone-600 tabular-nums dark:text-stone-400">
                   — {left} of {pool.total} left
@@ -129,11 +139,15 @@ function CharacterAdvancement({ campaign }: { readonly campaign: Campaign }) {
                 <ul className="mt-1 flex flex-col gap-1">
                   {pool.eligible.map((survivor) => {
                     const { blockers } = checkXpAward(campaign, survivor.id, pool.source);
+                    const buttonId = `${ids}-${pool.source}-${survivor.id}`;
+                    const nameId = `${buttonId}-who`;
 
                     return (
                       <li key={survivor.id} className="flex items-center gap-2 text-sm">
                         <button
                           type="button"
+                          id={buttonId}
+                          aria-labelledby={`${buttonId} ${nameId} ${ids}-${pool.source}`}
                           disabled={blockers.length > 0}
                           className={SMALL_BUTTON}
                           onClick={() => {
@@ -147,7 +161,7 @@ function CharacterAdvancement({ campaign }: { readonly campaign: Campaign }) {
                         >
                           +1 XP
                         </button>
-                        <span>{survivor.name}</span>
+                        <span id={nameId}>{survivor.name}</span>
                         <span className="text-xs text-stone-500 tabular-nums dark:text-stone-400">
                           {survivor.xp} XP
                         </span>

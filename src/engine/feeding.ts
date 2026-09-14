@@ -107,6 +107,24 @@ export function hunger(campaign: Campaign): number {
 }
 
 /**
+ * What the community was recorded as needing when it ate **this turn**.
+ *
+ * Falls back to the live requirement before the step has run, which is the same
+ * number — nothing has been recorded yet, and `foodRequired` is what the step is
+ * about to eat.
+ *
+ * It exists because the Feed screen was printing half a recorded fact beside
+ * half a live one: "eats 6 Food… 8 Hunger", which is arithmetic no campaign can
+ * produce. Anything that changes the roster after the step — a departure, a Rot
+ * death, a recruit — moves the live requirement while the recorded shortfall
+ * stays put, and the pair stops adding up. Both halves now come off the same
+ * entry, the same fix `hungerPenalty` needed for the same reason.
+ */
+export function foodRequiredAsFed(campaign: Campaign): number {
+  return feedings(campaign, true).at(-1)?.required ?? foodRequired(campaign);
+}
+
+/**
  * How much every stat in the community is reduced by (pg. 22, ruling 1).
  *
  * Zero unless the shortfall is larger than the head count. Never negative, and

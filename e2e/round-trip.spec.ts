@@ -241,6 +241,40 @@ test.beforeEach(async ({ page }) => {
   await page.reload();
 });
 
+/**
+ * The only console error anywhere in the September playtest: a 404 for
+ * `/favicon.ico` on every page load, on an app whose stated device is a tablet
+ * standing next to a table. Cheap to fix, cheap to keep fixed, and the kind of
+ * thing that hides the next error by teaching everyone to ignore the console.
+ *
+ * Asserted against the built bundle, which is what the suite serves, so it
+ * covers the `public/` assets actually shipping as well as the tags naming
+ * them.
+ */
+test('loads without a console error or a missing file', async ({ page }) => {
+  const problems: string[] = [];
+
+  page.on('console', (message) => {
+    if (message.type() === 'error') problems.push(`console: ${message.text()}`);
+  });
+  page.on('requestfailed', (request) => problems.push(`failed: ${request.url()}`));
+  page.on('response', (response) => {
+    if (response.status() >= 400) problems.push(`${String(response.status())}: ${response.url()}`);
+  });
+
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+  // The icon is fetched lazily by some browsers, so it is asked for directly
+  // rather than waited for — a link tag pointing at nothing is the same bug.
+  for (const asset of ['/icon.svg', '/apple-touch-icon.png', '/manifest.webmanifest']) {
+    const response = await page.request.get(asset);
+    expect(response.status(), asset).toBe(200);
+  }
+
+  expect(problems).toEqual([]);
+});
+
 test('a campaign survives export, a reload, and import', async ({ page }) => {
   await startCampaign(page, 'Cedar Hollow');
 
