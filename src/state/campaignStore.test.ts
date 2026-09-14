@@ -192,10 +192,13 @@ describe('walking the turn', () => {
     //
     // One entry, not two. "Started planning" already says the Planning Phase
     // is open, the same way "turn 4 began" says the Mission Phase is.
+    // `cleared` is an empty record rather than absent: this campaign has
+    // nobody assigned to anything, and "the step ran and there was nothing to
+    // clear" is a different fact from "no step has run".
     expect(after).toEqual({
       ...before,
       step: 'assign-facility-staff',
-      log: [entry(1, 'planning', { kind: 'planning-began' })],
+      log: [entry(1, 'planning', { kind: 'planning-began', cleared: {} })],
     });
   });
 
@@ -225,7 +228,14 @@ describe('walking the turn', () => {
       // record was a utility goes away entirely, because absent is what
       // untouched means.
       expect(after.base?.slots).toEqual({ garage: { upgrades: ['gas-range'] } });
-      expect(after.log.at(-1)?.event).toEqual({ kind: 'planning-began' });
+
+      // The entry carries what it cleared, because after this step there is no
+      // other copy and the Advancement Phase behind it is still entitled to
+      // read it (issue #95).
+      expect(after.log.at(-1)?.event).toEqual({
+        kind: 'planning-began',
+        cleared: { earl: { task: 'project' } },
+      });
     });
 
     it('does not clear again when the walk steps back and forward', () => {

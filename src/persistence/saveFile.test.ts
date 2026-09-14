@@ -701,6 +701,21 @@ describe('a campaign whose log is damaged', () => {
     expect(result.campaign.log).toEqual([good]);
   });
 
+  /**
+   * Both shapes of the entry that records a Planning Phase clearing what came
+   * before it: one written by a build that carried the assignments, and one
+   * written before it did. Neither is damaged, and a reader that demanded the
+   * field would refuse every campaign saved before issue #95 was fixed.
+   */
+  it.each([
+    ['carrying what it cleared', { kind: 'planning-began', cleared: { earl: { task: 'rest' } } }],
+    ['carrying nothing, as older saves do', { kind: 'planning-began' }],
+  ])('accepts a Planning Phase entry %s', (_name, event) => {
+    const result = parseCampaignFile(savedWith({ log: [{ ...good, event }] }));
+
+    expect(result.ok).toBe(true);
+  });
+
   it.each([
     ['not a list at all', 5, /campaign log is missing/i],
     ['an entry that is not an object', [7], /is not a log entry/i],
@@ -741,6 +756,24 @@ describe('a campaign whose log is damaged', () => {
       'an entry whose kind is a real one in a box',
       [{ ...good, event: { kind: ['turn-began'] } }],
       /does not know about/i,
+    ],
+    // The assignments a `planning-began` entry cleared. An older entry carries
+    // nothing, which is accepted below; anything present has to be readable,
+    // because the Advancement Phase reads it back as though it were live.
+    [
+      'a clearing that is not a set of assignments',
+      [{ ...good, event: { kind: 'planning-began', cleared: 'everything' } }],
+      /unreadable cleared/i,
+    ],
+    [
+      'a clearing naming a task this version does not know',
+      [{ ...good, event: { kind: 'planning-began', cleared: { earl: { task: 'foraging' } } } }],
+      /unreadable cleared/i,
+    ],
+    [
+      'a clearing whose staffing does not say where',
+      [{ ...good, event: { kind: 'planning-began', cleared: { earl: { task: 'staff' } } } }],
+      /unreadable cleared/i,
     ],
     // The field loop: a kind this version knows, carrying a field it cannot
     // read. Nothing above reaches past the discriminant.

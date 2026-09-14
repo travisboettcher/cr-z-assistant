@@ -45,7 +45,7 @@ import {
   XP_SOURCE_PAGES,
   type XpSource,
 } from '../data/turn';
-import { missionTeam, staffOf } from './assignments';
+import { beforePlanning, missionTeam, staffOf } from './assignments';
 import { occupants } from './base';
 import type { Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
@@ -129,7 +129,7 @@ export interface XpPool {
 export function missionTeaching(campaign: Campaign): number {
   const penalty = hungerPenalty(campaign);
 
-  return missionTeam(campaign).reduce(
+  return missionTeam(beforePlanning(campaign)).reduce(
     (total, survivor) => total + (skillScore(survivor, 'teaching', penalty) ?? 0),
     0,
   );
@@ -149,8 +149,12 @@ export function trainingRoomXp(campaign: Campaign): number {
   const penalty = hungerPenalty(campaign);
   let total = 0;
 
+  // Staffed last Planning Phase, read this Advancement one — so it is asked of
+  // the campaign as it stood before this turn's Planning cleared the answer.
+  const staffed = beforePlanning(campaign);
+
   for (const occupant of occupants(base)) {
-    for (const line of facilityProduction(occupant, staffOf(campaign, occupant.slotId), penalty)) {
+    for (const line of facilityProduction(occupant, staffOf(staffed, occupant.slotId), penalty)) {
       if (line.restrictedToStat !== undefined) continue;
       if (line.outputs.includes('xp')) total += line.amount;
     }
@@ -183,7 +187,7 @@ export function awardedThisTurn(
  * out" is more useful than a row that is not there.
  */
 export function xpPools(campaign: Campaign): readonly XpPool[] {
-  const team = missionTeam(campaign);
+  const team = missionTeam(beforePlanning(campaign));
   const teaching = missionTeaching(campaign);
   const onTheMission = new Set(team.map((survivor) => survivor.id));
   const offTheMission = campaign.survivors.filter((survivor) => !onTheMission.has(survivor.id));
@@ -261,7 +265,8 @@ function trainingRoomIsStaffed(campaign: Campaign): boolean {
 
   return occupants(base).some(
     (occupant) =>
-      occupant.facility.id === 'training-room' && staffOf(campaign, occupant.slotId).length > 0,
+      occupant.facility.id === 'training-room' &&
+      staffOf(beforePlanning(campaign), occupant.slotId).length > 0,
   );
 }
 

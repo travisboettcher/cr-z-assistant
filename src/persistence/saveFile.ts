@@ -226,6 +226,15 @@ const EVENT_FIELD_CHECKS = {
   // answer here and a damaged one everywhere else, which is why it is its own
   // check rather than a flag on the loop below.
   optionalCount: (value: unknown) => value === undefined || isCountFromZero(value),
+  // What a `planning-began` entry cleared, or nothing at all for one written
+  // before it carried anything. Deliberately **not** checked against the roster
+  // the way the campaign's own `assignments` are: this is history, and the turn
+  // it records can name somebody who has since walked out (pg. 23) or been
+  // taken off by hand.
+  optionalAssignments: (value: unknown) =>
+    value === undefined ||
+    (isRecord(value) &&
+      Object.values(value).every((one) => describeAssignmentProblem(one) === null)),
   tier: (value: unknown) => TIERS.some((tier) => tier === value),
   // A trade's two halves: some of the four materials, each a whole count of
   // one or more. Partial because a trade names only what it moves, and every
@@ -270,7 +279,7 @@ const EVENT_FIELDS: Record<
   'phase-entered': [],
   'turn-began': [],
   'starting-community-settled': [['built', 'flag']],
-  'planning-began': [],
+  'planning-began': [['cleared', 'optionalAssignments']],
   'materials-added': [
     ['food', 'amount'],
     ['fuel', 'amount'],

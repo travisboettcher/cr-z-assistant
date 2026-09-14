@@ -520,6 +520,155 @@ describe('Add Facilities and Upgrades', () => {
   });
 });
 
+/**
+ * Playtest finding H1 (issue #95), driven through the walk that caused it.
+ *
+ * "Skip to Planning" sits on every Advancement step and clears the assignments
+ * the phase behind it is reading. The playtest lost two survivors' Health that
+ * way — permanently, and both then faced a Rot check at 0 — so these walk the
+ * repro rather than arranging the end state.
+ */
+describe('stepping out to the Planning Phase and back', () => {
+  const skipToPlanning = () => screen.getByRole('button', { name: /^skip to planning$/i });
+  const back = (step: RegExp) => screen.getByRole('button', { name: step });
+
+  /** Turn 3, mid-Advancement: Earl went out, Nell is healing, Gil staffs the Kitchen. */
+  function midTurn(step: Campaign['step']): Campaign {
+    return advancement({
+      step,
+      survivors: [
+        createSurvivor('Earl Rhodes', 4, { id: EARL }),
+        { ...createSurvivor('Nell Haig', 2, { id: 'nell' }), currentHp: 1 },
+        {
+          ...createSurvivor('Gil Okonkwo', 4, { id: 'gil' }),
+          stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: 2 },
+          skills: { rationing: 0 },
+        },
+      ],
+      assignments: {
+        [EARL]: { task: 'mission', team: 1 },
+        nell: { task: 'rest' },
+        gil: { task: 'staff', slot: 'kitchen' },
+      },
+      base: { id: 'small-town-home', slots: {} },
+    });
+  }
+
+  it('still owes the resting survivor the Health the rules owed them', async () => {
+    const user = open(midTurn('heal-wounds'));
+
+    expect(within(walk()).getByText(/Nell Haig \+1 Health/)).toBeTruthy();
+
+    await user.click(skipToPlanning());
+    await user.click(back(/^back to add facilities and upgrades$/i));
+    await user.click(back(/^back to heal wounds$/i));
+
+    expect(within(walk()).getByText(/Nell Haig \+1 Health/)).toBeTruthy();
+    expect(within(walk()).queryByText(/nobody has a wound this step can close/i)).toBeNull();
+  });
+
+  it('still knows who went on the mission', async () => {
+    const user = open(midTurn('character-advancement'));
+
+    expect(within(walk()).getByText(/for going on the mission/i)).toHaveTextContent('1 of 1');
+
+    await user.click(skipToPlanning());
+    for (const step of [
+      /^back to add facilities and upgrades$/i,
+      /^back to heal wounds$/i,
+      /^back to add materials to storage$/i,
+      /^back to create new survivors$/i,
+      /^back to character advancement$/i,
+    ]) {
+      await user.click(back(step));
+    }
+
+    expect(within(walk()).getByText(/for going on the mission/i)).toHaveTextContent('1 of 1');
+    expect(within(walk()).queryByText(/nobody is on a mission team/i)).toBeNull();
+  });
+
+  /**
+   * The pool going negative was the visible symptom — "-2 of 0 left" beside
+   * "nobody is on a mission team". The award is taken *before* the skip, so
+   * `awarded` is 1 against a total the clear used to drop to 0.
+   */
+  it('never counts down past nothing', async () => {
+    const user = open(midTurn('character-advancement'));
+
+    await user.click(award(/for going on the mission/i, /earl/i));
+    await user.click(skipToPlanning());
+    for (const step of [
+      /^back to add facilities and upgrades$/i,
+      /^back to heal wounds$/i,
+      /^back to add materials to storage$/i,
+      /^back to create new survivors$/i,
+      /^back to character advancement$/i,
+    ]) {
+      await user.click(back(step));
+    }
+
+    expect(within(walk()).getByText(/for going on the mission/i)).toHaveTextContent('0 of 1');
+    expect(within(walk()).queryByText(/-\d+ of/)).toBeNull();
+  });
+
+  /**
+   * The floor under the counter, for the one way a pool can still shrink under
+   * an award: the survivor it was given to leaves the roster afterwards. The
+   * root cause is fixed above, so this is the belt rather than the braces —
+   * but "-1 of 0 left" is not a state a screen can ask anybody to act on.
+   */
+  it('shows nothing left rather than a negative, if a pool shrinks under an award', () => {
+    open(
+      advancement({
+        step: 'character-advancement',
+        assignments: {},
+        log: [
+          {
+            turn: 3,
+            phase: 'advancement',
+            at: '2026-08-30T00:00:00.000Z',
+            event: {
+              kind: 'xp-awarded',
+              survivor: 'someone-who-left',
+              name: 'Zed Marrow',
+              amount: 1,
+              source: 'mission',
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(within(walk()).getByText(/for going on the mission/i)).toHaveTextContent('0 of 0');
+  });
+
+  it('still counts the Kitchen its staff were working', async () => {
+    const user = open(midTurn('add-materials-to-storage'));
+
+    // The Small Town Home's built-in Kitchen, staffed by Gil: +1 Food.
+    expect(within(walk()).getByText(/\+1 Food/)).toBeTruthy();
+
+    await user.click(skipToPlanning());
+    await user.click(back(/^back to add facilities and upgrades$/i));
+    await user.click(back(/^back to heal wounds$/i));
+    await user.click(back(/^back to add materials to storage$/i));
+
+    expect(within(walk()).getByText(/\+1 Food/)).toBeTruthy();
+  });
+
+  /**
+   * The other direction, which must keep working: the clear is real, and the
+   * Planning Phase in front of it is assigning next turn from a clean slate.
+   */
+  it('leaves the Planning Phase itself looking at an empty board', async () => {
+    const user = open(midTurn('heal-wounds'));
+
+    await user.click(skipToPlanning());
+
+    expect(screen.getByText(/3 with nothing to do/i)).toBeTruthy();
+  });
+});
+
 describe('walking through the phase', () => {
   it('changes what the step shows without leaving the phase', async () => {
     const user = open(advancement());

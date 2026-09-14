@@ -7,10 +7,12 @@ import {
   type Campaign,
   type Survivor,
 } from './campaign';
+import type { LogEntry } from './log';
 import { createSurvivor } from './survivor';
 import { flatUtilitiesGenerated, occupants } from './base';
 import { facilityProduction } from './production';
 import {
+  beforePlanning,
   laborPool,
   projectTeam,
   sameTask,
@@ -75,6 +77,76 @@ describe('sameTask', () => {
   it('never matches across tasks, whatever they carry', () => {
     expect(sameTask({ task: 'staff', slot: 'kitchen' }, { task: 'project' })).toBe(false);
     expect(sameTask({ task: 'scavenging' }, { task: 'mission', team: 1 })).toBe(false);
+  });
+});
+
+describe('beforePlanning', () => {
+  const AT = '2026-08-30T00:00:00.000Z';
+
+  /** A turn-3 campaign that has assigned somebody, and a log to put under it. */
+  function turnThree(assignments: Record<string, Assignment>, log: readonly LogEntry[]): Campaign {
+    return { ...community(assignments), turn: 3, log };
+  }
+
+  const began = (turn: number, cleared?: Record<string, Assignment>): LogEntry => ({
+    turn,
+    phase: 'planning',
+    at: AT,
+    event: cleared === undefined ? { kind: 'planning-began' } : { kind: 'planning-began', cleared },
+  });
+
+  it('leaves a turn whose Planning has not begun exactly as it is', () => {
+    const campaign = turnThree({ [EARL]: { task: 'mission', team: 1 } }, []);
+
+    expect(beforePlanning(campaign)).toBe(campaign);
+  });
+
+  /**
+   * The whole of issue #95 in one assertion. Earl went on the mission; this
+   * turn's Planning Phase has since cleared that and put Carla on the project
+   * team. The Advancement Phase is still owed the first answer.
+   */
+  it('rewinds to what this turn’s Planning cleared', () => {
+    const campaign = turnThree({ [CARLA]: { task: 'project' } }, [
+      began(3, { [EARL]: { task: 'mission', team: 1 } }),
+    ]);
+
+    expect(beforePlanning(campaign).assignments).toEqual({ [EARL]: { task: 'mission', team: 1 } });
+    // The campaign itself is untouched — this is a reading, not a correction.
+    expect(campaign.assignments).toEqual({ [CARLA]: { task: 'project' } });
+  });
+
+  it('ignores a clearing from a previous turn', () => {
+    const campaign = turnThree({ [CARLA]: { task: 'project' } }, [
+      began(2, { [EARL]: { task: 'mission', team: 1 } }),
+    ]);
+
+    expect(beforePlanning(campaign).assignments).toEqual({ [CARLA]: { task: 'project' } });
+  });
+
+  /**
+   * A save written before the entry carried anything. There is nothing to
+   * rewind to, and the live assignments are where they have always been — the
+   * old behaviour, which is the right fallback rather than an empty roster.
+   */
+  it('leaves an entry that recorded nothing alone', () => {
+    const campaign = turnThree({ [CARLA]: { task: 'project' } }, [began(3)]);
+
+    expect(beforePlanning(campaign)).toBe(campaign);
+  });
+
+  it('rewinds to an empty set, which is not the same as nothing to rewind to', () => {
+    const campaign = turnThree({ [CARLA]: { task: 'project' } }, [began(3, {})]);
+
+    expect(beforePlanning(campaign).assignments).toEqual({});
+  });
+
+  it('is the same answer applied twice, so a caller cannot double-count it', () => {
+    const campaign = turnThree({ [CARLA]: { task: 'project' } }, [
+      began(3, { [EARL]: { task: 'mission', team: 1 } }),
+    ]);
+
+    expect(beforePlanning(beforePlanning(campaign))).toEqual(beforePlanning(campaign));
   });
 });
 
