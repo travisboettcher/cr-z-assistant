@@ -24,6 +24,14 @@
  * would hand this turn's step somebody else's dice. The stamp is checked on
  * read and a mismatch is discarded, which makes going stale the default rather
  * than something a caller has to remember to do.
+ *
+ * ## One `try` per entry point, and no guard beside it
+ *
+ * `globalThis.localStorage` is reached inside the `try` rather than behind a
+ * null check, because reading the property is itself what throws when a
+ * browser has storage switched off. A guard as well would be a second road to
+ * the same silence — and one no test can tell from its absence, which a
+ * mutation run says out loud.
  */
 
 import { D10_RESULTS, type D10Result } from '../data/dice';
@@ -40,14 +48,6 @@ interface Pending {
   readonly rolls: readonly MaterialRoll[];
 }
 
-function storage(): Storage | null {
-  try {
-    return globalThis.localStorage ?? null;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Remember the rolls entered so far for this campaign and turn.
  *
@@ -59,7 +59,7 @@ function storage(): Storage | null {
 export function writePendingRolls(campaign: string, turn: number, rolls: readonly MaterialRoll[]) {
   try {
     const pending: Pending = { campaign, turn, rolls };
-    storage()?.setItem(PENDING_ROLLS_KEY, JSON.stringify(pending));
+    globalThis.localStorage.setItem(PENDING_ROLLS_KEY, JSON.stringify(pending));
   } catch {
     // Quota, private browsing, or no API at all. The step still works; a
     // reload just costs what it cost before.
@@ -75,8 +75,17 @@ function isSkill(value: unknown): value is SubstitutionSkill {
   return SUBSTITUTION_SKILLS.some((skill) => skill === value);
 }
 
-function isMaterial(value: unknown): value is Material {
-  return MATERIALS.some((material) => material === value);
+/**
+ * The material this skill is allowed to force to, when the stored value names
+ * one (pg. 12).
+ *
+ * One question and not two. Asking whether the value is in the catalogue and
+ * then whether the book permits the pairing looks like belt and braces, but a
+ * skill's list is made of materials: the first question can only ever agree
+ * with the second, so only the second is asked.
+ */
+function forcedMaterial(skill: SubstitutionSkill, value: unknown): Material | undefined {
+  return MATERIALS.find((material) => material === value && canForce(skill, material));
 }
 
 /**
@@ -85,12 +94,15 @@ function isMaterial(value: unknown): value is Material {
  * Validated rather than trusted, like every other thing read back from
  * storage: the entry is hand-editable, survives a version change, and a bad
  * `forced` skill would otherwise reach `substitutionsSpent` as a string
- * nothing in the catalogue matches. `canForce` is checked too, so a pairing
- * the book does not allow cannot come back through the side door that the
- * picker closes on screen.
+ * nothing in the catalogue matches. The pairing is checked too, so one the
+ * book does not allow cannot come back through the side door that the picker
+ * closes on screen.
  */
 function readRoll(value: unknown): MaterialRoll | undefined {
-  if (typeof value !== 'object' || value === null) return undefined;
+  // `null` is the only shape that has to be turned away before the fields are
+  // read. Every other non-object reads back as a missing `roll` and fails the
+  // check below on its own; reading a field off `null` throws instead.
+  if (value === null) return undefined;
 
   const { roll, forced } = value as { roll?: unknown; forced?: unknown };
   if (!isRoll(roll)) return undefined;
@@ -99,13 +111,15 @@ function readRoll(value: unknown): MaterialRoll | undefined {
   // `exactOptionalPropertyTypes` treats those as different types, and the
   // second one is not a `MaterialRoll`.
   if (forced === undefined) return { roll };
+  if (forced === null) return undefined;
 
-  if (typeof forced !== 'object' || forced === null) return undefined;
   const { skill, material } = forced as { skill?: unknown; material?: unknown };
-  if (!isSkill(skill) || !isMaterial(material)) return undefined;
-  if (!canForce(skill, material)) return undefined;
+  if (!isSkill(skill)) return undefined;
 
-  return { roll, forced: { skill, material } };
+  const permitted = forcedMaterial(skill, material);
+  if (permitted === undefined) return undefined;
+
+  return { roll, forced: { skill, material: permitted } };
 }
 
 /**
@@ -115,24 +129,19 @@ function readRoll(value: unknown): MaterialRoll | undefined {
  * another campaign's — so it comes back empty rather than as a failure.
  */
 export function readPendingRolls(campaign: string, turn: number): readonly MaterialRoll[] {
-  let text: string | null;
-
-  try {
-    text = storage()?.getItem(PENDING_ROLLS_KEY) ?? null;
-  } catch {
-    return [];
-  }
-
-  if (text === null) return [];
-
   let stored: unknown;
+
   try {
-    stored = JSON.parse(text);
+    // An absent key reads back as `null`, and the text `null` parses to the
+    // `null` the shape check below already refuses. So nothing written yet
+    // needs no branch of its own — it arrives as the same unreadable entry
+    // that a hand-edited one does.
+    stored = JSON.parse(globalThis.localStorage.getItem(PENDING_ROLLS_KEY) ?? 'null');
   } catch {
     return [];
   }
 
-  if (typeof stored !== 'object' || stored === null) return [];
+  if (stored === null) return [];
 
   const pending = stored as Partial<Pending>;
   if (pending.campaign !== campaign || pending.turn !== turn) return [];
@@ -147,7 +156,7 @@ export function readPendingRolls(campaign: string, turn: number): readonly Mater
 
 export function clearPendingRolls(): void {
   try {
-    storage()?.removeItem(PENDING_ROLLS_KEY);
+    globalThis.localStorage.removeItem(PENDING_ROLLS_KEY);
   } catch {
     // Either gone or unreachable, and both leave the campaign correct.
   }

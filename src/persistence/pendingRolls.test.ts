@@ -79,6 +79,17 @@ describe('readPendingRolls', () => {
     expect(readPendingRolls('cedar', 3)).toEqual([]);
   });
 
+  /**
+   * `null` is JSON too, and the only stored value whose fields cannot be read
+   * at all — every other entry that is not a stamped object answers the stamp
+   * with `undefined` instead of throwing.
+   */
+  it('is empty when the entry is the literal null', () => {
+    localStorage.setItem(PENDING_ROLLS_KEY, 'null');
+
+    expect(readPendingRolls('cedar', 3)).toEqual([]);
+  });
+
   it('is empty when the stamp matches but the rolls are not a list', () => {
     localStorage.setItem(
       PENDING_ROLLS_KEY,
@@ -122,6 +133,7 @@ describe('readPendingRolls', () => {
 
   it.each([
     ['a roll that is not an object', 7],
+    ['a roll that is null', null],
     ['a roll outside the d10', { roll: 0 }],
     ['a forced result that is not an object', { roll: 7, forced: 'rationing' }],
     ['a forced result that is null', { roll: 7, forced: null }],
