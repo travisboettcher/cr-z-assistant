@@ -13,7 +13,7 @@
  * short way to the screen that does it.
  */
 
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { MATERIALS, type Material, type Materials } from '../data/materials';
 import { D10_RESULTS, type D10Result } from '../data/dice';
 import {
@@ -35,6 +35,7 @@ import {
   substitutionsSpent,
   type MaterialRoll,
 } from '../engine/materials';
+import { missionTeam } from '../engine/assignments';
 import {
   checkConversion,
   conversions,
@@ -47,6 +48,11 @@ import { checkXpAward, xpPools, type XpPoolEmptiness } from '../engine/experienc
 import { checkHealing, healingPool, healthAwards, woundsHealed } from '../engine/healing';
 import { dueProjects, isDue } from '../engine/projects';
 import { describeProject } from './projectLabels';
+import {
+  clearPendingRolls,
+  readPendingRolls,
+  writePendingRolls,
+} from '../persistence/pendingRolls';
 import { useCampaign } from '../state/useCampaign';
 import { MATERIAL_LABELS, builtThingLabel, slotLabel } from './baseLabels';
 import { PageRef } from './PageRef';
@@ -187,16 +193,52 @@ function CharacterAdvancement({ campaign }: { readonly campaign: Campaign }) {
 /**
  * Step 3: the mission's rolls plus what the base made, accepted once.
  *
- * The rolls live in this component and nowhere else. They are a die on a table
- * — what the campaign records is the haul, and once it is in storage the rolls
- * are history. Storing them would be storing something derived from an event
- * that has already happened.
+ * The rolls are not part of the campaign. They are a die on a table — what the
+ * campaign records is the haul, and once it is in storage the rolls are
+ * history. Storing them on `Campaign` would put half-finished input in an
+ * exported file.
+ *
+ * They are not *only* in this component either, which is what the old version
+ * of this note got wrong. Component state does not survive a reload, and a
+ * tablet discarding a background tab is ordinary here — so a whole mission's
+ * haul went missing while the step stayed armed, and pressing Add to storage
+ * then locked the turn on nothing (issue #96). `pendingRolls` keeps them
+ * beside the autosave: same storage, same silence on failure, its own key,
+ * and nothing added to the file that lasts.
  */
 function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
   const { dispatch } = useCampaign();
-  const [rolls, setRolls] = useState<readonly MaterialRoll[]>([]);
+  const emptyId = useId();
+  const emptyRef = useRef<HTMLDialogElement>(null);
+
+  /*
+   * Seeded from the store, never synced with it. The store is a backup of this
+   * state rather than a second source of truth: a reload is a remount, which
+   * is exactly when the backup is wanted, and nothing else writes the key.
+   */
+  const [rolls, setRolls] = useState<readonly MaterialRoll[]>(() =>
+    readPendingRolls(campaign.id, campaign.turn),
+  );
+
+  function remember(next: readonly MaterialRoll[]) {
+    setRolls(next);
+    writePendingRolls(campaign.id, campaign.turn, next);
+  }
+
+  function commit() {
+    dispatch({
+      type: 'advancement/materialsAdded',
+      rolls,
+      at: new Date().toISOString(),
+    });
+    // Cleared on commit rather than left to go stale on the turn stamp: the
+    // rolls are spent, and a player who steps back should see the step's own
+    // "already in storage" message and not a list offering to add them again.
+    clearPendingRolls();
+  }
 
   const done = materialsAdded(campaign);
+  const team = missionTeam(campaign);
   const fromMission = recovered(rolls);
   const fromBase = baseProduction(campaign);
   const total = combined(fromMission, fromBase);
@@ -231,7 +273,7 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
               className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 px-3 dark:border-stone-600 dark:bg-stone-800`}
               onChange={(changed) => {
                 const roll = Number(changed.target.value) as D10Result;
-                setRolls((before) => [...before, { roll }]);
+                remember([...rolls, { roll }]);
                 changed.target.value = '';
               }}
             >
@@ -259,8 +301,8 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
                     entry={entry}
                     spent={spent}
                     onChange={(forced) => {
-                      setRolls((before) =>
-                        before.map((candidate, at) =>
+                      remember(
+                        rolls.map((candidate, at) =>
                           at === index
                             ? forced === null
                               ? { roll: candidate.roll }
@@ -274,7 +316,7 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
                     type="button"
                     className={SMALL_BUTTON}
                     onClick={() => {
-                      setRolls((before) => before.filter((_, at) => at !== index));
+                      remember(rolls.filter((_, at) => at !== index));
                     }}
                   >
                     Remove
@@ -311,15 +353,56 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
             type="button"
             className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
             onClick={() => {
-              dispatch({
-                type: 'advancement/materialsAdded',
-                rolls,
-                at: new Date().toISOString(),
-              });
+              // Zero rolls is legitimate — a turn with no mission still adds
+              // the base's production — so the button is never disabled. It
+              // is only worth a question when somebody went out and came back
+              // with nothing entered, which is the shape of the lost-rolls
+              // bug rather than a rule.
+              if (rolls.length === 0 && team.length > 0) {
+                emptyRef.current?.showModal();
+                return;
+              }
+
+              commit();
             }}
           >
             Add to storage
           </button>
+
+          <dialog
+            ref={emptyRef}
+            aria-labelledby={emptyId}
+            className="m-auto max-w-md rounded-xl bg-white p-6 text-stone-900 backdrop:bg-stone-950/50 dark:bg-stone-900 dark:text-stone-100"
+          >
+            <h2 id={emptyId} className="text-xl font-semibold">
+              Add nothing the mission recovered?
+            </h2>
+            <p className="mt-2 text-stone-600 dark:text-stone-400">
+              {team.length} survivor{team.length === 1 ? '' : 's'} went out this turn and no rolls
+              are entered. Only the base’s production goes into storage, and this step does not run
+              again this turn.
+            </p>
+
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => emptyRef.current?.close()}
+                className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 px-5 font-medium hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800`}
+              >
+                Enter the rolls
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  emptyRef.current?.close();
+                  commit();
+                }}
+                className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg bg-amber-600 px-5 font-semibold text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+              >
+                Add production only
+              </button>
+            </div>
+          </dialog>
         </>
       )}
     </>
