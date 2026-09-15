@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Base, type Campaign } from './campaign';
-import { checkUpgrade, costOfUpgrade, upgradesFor, upgradesReplaced } from './upgrade';
+import { checkUpgrade, upgradeOrder, upgradesFor } from './upgrade';
 import { projectTeamWorth, withPlanningBegun } from '../test/campaigns';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
@@ -204,7 +204,7 @@ describe('checkUpgrade', () => {
 
     expect(check).toEqual({ blockers: [], warnings: [] });
     expect(
-      upgradesReplaced(campaignWith(base), { slot: 'front-yard', upgrade: 'greenhouse' }),
+      upgradeOrder(campaignWith(base), { slot: 'front-yard', upgrade: 'greenhouse' }).replaces,
     ).toEqual(['fence']);
   });
 
@@ -216,8 +216,8 @@ describe('checkUpgrade', () => {
     const bare = home({ 'front-yard': { built: { facility: 'garden', builtOnTurn: 1 } } });
     const request = { slot: 'front-yard', upgrade: 'greenhouse' } as const;
 
-    expect(costOfUpgrade(campaignWith(bare), request)).toEqual({ hardware: 4, labor: 4 });
-    expect(costOfUpgrade(campaignWith(fenced), request)).toEqual({ hardware: 3, labor: 4 });
+    expect(upgradeOrder(campaignWith(bare), request).cost).toEqual({ hardware: 4, labor: 4 });
+    expect(upgradeOrder(campaignWith(fenced), request).cost).toEqual({ hardware: 3, labor: 4 });
 
     // Three is enough over a Fence and not enough over a bare Garden, which is
     // the whole of what the discount does.
@@ -235,10 +235,26 @@ describe('checkUpgrade', () => {
     const bare = home({ 'front-yard': { built: { facility: 'garden', builtOnTurn: 1 } } });
 
     expect(
-      upgradesReplaced(campaignWith(bare), { slot: 'front-yard', upgrade: 'greenhouse' }),
+      upgradeOrder(campaignWith(bare), { slot: 'front-yard', upgrade: 'greenhouse' }).replaces,
     ).toEqual([]);
-    expect(upgradesReplaced(campaignWith(bare), { slot: 'garage', upgrade: 'greenhouse' })).toEqual(
-      [],
+  });
+
+  /**
+   * Two shapes a queue outliving its slot can ask about, and neither is an
+   * error: the screen wants a number for whatever it is showing, and nothing
+   * is the truthful one.
+   */
+  it('costs nothing and replaces nothing where there is no such facility or upgrade', () => {
+    const bare = home({ 'front-yard': { built: { facility: 'garden', builtOnTurn: 1 } } });
+    const nothing = { cost: { hardware: 0, labor: 0 }, replaces: [] };
+
+    // An empty slot, and then a Garden asked about an upgrade the Storage Area
+    // owns.
+    expect(upgradeOrder(campaignWith(bare), { slot: 'garage', upgrade: 'greenhouse' })).toEqual(
+      nothing,
+    );
+    expect(upgradeOrder(campaignWith(bare), { slot: 'front-yard', upgrade: 'shelving' })).toEqual(
+      nothing,
     );
   });
 

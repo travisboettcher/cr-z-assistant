@@ -99,22 +99,31 @@ export function layoutOf(base: Base): readonly BaseSlot[] {
  * ## The mutants that survive here, and why
  *
  * Per the README: the deliverable is the surviving mutants, not the score, and
- * each gets a test or a written reason. Four survive, all of them for the same
- * reason and all in the same shape — an empty-array fallback (`?? []`, and the
+ * each gets a test or a written reason. Ten survive, in two families.
+ *
+ * **Five are a fed filter.** An empty-array fallback (`?? []`, and the
  * non-built-in branch's `shipped`) replaced by an array holding one junk
- * string, or the `kind !== 'flat'` guard removed.
+ * string, or the `kind !== 'flat'` guard removed. Three filters downstream
+ * already reject exactly what the mutant injects: `resolveUpgrades` drops any
+ * id that is not one of the facility's own upgrades, `flatUtilitiesGenerated`
+ * drops any production that is not a flat Power or Water, and `replacedBy`
+ * keeps only installed upgrades whose id the exclusion list actually names. A
+ * junk upgrade id and a non-flat production are precisely the values those
+ * filters exist to discard, so injecting one changes no answer.
  *
- * They are equivalent because two filters downstream already reject exactly
- * what the mutant injects: `resolveUpgrades` drops any id that is not one of
- * the facility's own upgrades, and `flatUtilitiesGenerated` drops any
- * production that is not a flat Power or Water. A junk upgrade id and a
- * non-flat production are precisely the values those filters exist to discard,
- * so injecting one changes no answer.
+ * Those filters are load-bearing rather than defensive: a save may
+ * legitimately hold an upgrade recorded against the wrong facility, because
+ * the parser accepts that on purpose. Removing one to win a mutant would trade
+ * a real behaviour for a number.
  *
- * Both filters are load-bearing rather than defensive: a save may legitimately
- * hold an upgrade recorded against the wrong facility, because the parser
- * accepts that on purpose. Removing either to win three mutants would trade a
- * real behaviour for a number.
+ * **Four are one early return that cannot change an answer** —
+ * `siegeThreatReduction`'s `best.length === 0 || staff.length === 0`. Take the
+ * guard away in any of its four forms and the `flatMap` below produces no
+ * scores, which `Math.max(...scores, 0)` already answers with the same zero.
+ * It stays because reading "nothing reduces it, or nobody is working it" at
+ * the top is worth more than the four mutants, and because the alternative —
+ * deleting it — would leave the zero looking like arithmetic rather than a
+ * rule.
  */
 
 /**

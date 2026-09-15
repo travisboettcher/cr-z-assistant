@@ -338,6 +338,27 @@ describe('replacing an upgrade', () => {
   });
 
   /**
+   * A queue can outlive the slot it was ordered for: Z1-7's override lets a
+   * player clear a slot and build something else into it, and the Gas Range
+   * queued for the Kitchen is then an upgrade the Garden standing there does
+   * not offer. It replaces nothing and still goes on, which is what the queue
+   * has always done with a slot that changed under it.
+   */
+  it('replaces nothing for an upgrade the facility does not offer', () => {
+    const swapped = community({
+      base: {
+        id: 'hobby-farm',
+        slots: { 'front-yard': { built: { facility: 'garden', builtOnTurn: 1 } } },
+      },
+      projects: [{ kind: 'upgrade', slot: 'front-yard', upgrade: 'gas-range', orderedOnTurn: 2 }],
+    });
+
+    const { campaign } = completeProjects(swapped);
+
+    expect(campaign.base?.slots['front-yard']?.upgrades).toEqual(['gas-range']);
+  });
+
+  /**
    * Two Fences is a state only an override reaches — `one-per-facility` is a
    * warning — and the discount follows the rule per upgrade replaced rather
    * than capping at one, because that is what the field says it is.

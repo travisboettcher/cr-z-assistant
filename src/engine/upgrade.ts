@@ -26,7 +26,7 @@
  * prices *replacing* a Fence with a Greenhouse a Hardware cheaper (pp. 72–73), so
  * ordering one onto the other is the ordinary way to do it and not a rule the
  * table is playing past. `replacedBy` and `upgradeCost` in `base.ts` are what
- * it does instead, and `upgradesReplaced` below is what a screen says about it.
+ * it does instead, and `upgradeOrder` below is what a screen says about it.
  */
 
 import {
@@ -173,31 +173,32 @@ export function checkUpgrade(campaign: Campaign, request: UpgradeRequest): Upgra
 }
 
 /**
- * What ordering this upgrade would take off the facility (pp. 72–73).
+ * What ordering this upgrade would cost, and what it would take off
+ * (pp. 72–73).
  *
- * For the screen that shows the cost, because a Greenhouse a Hardware cheaper
- * than the catalogue says needs the sentence that explains it — and because a
- * Fence quietly disappearing a turn later would be the app doing something it
- * never said it would.
+ * The pair together rather than a function each, because they are one
+ * question: a Greenhouse a Hardware cheaper than the catalogue says is
+ * cheaper *for* the Fence it replaces, and a screen showing one number without
+ * the other sentence would be the app taking something off the base without
+ * saying so.
+ *
+ * Nothing on both counts for a slot that holds no such facility or no such
+ * upgrade, which a queue outliving a rebuilt slot can ask about.
  */
-export function upgradesReplaced(
+export function upgradeOrder(
   campaign: Campaign,
   request: UpgradeRequest,
-): readonly UpgradeId[] {
+): { readonly cost: Cost; readonly replaces: readonly UpgradeId[] } {
   const occupant = occupantAt(campaign, request.slot);
-  const upgrade = occupant?.facility.upgrades.find((candidate) => candidate.id === request.upgrade);
+  if (occupant === undefined) return NOTHING_ORDERED;
 
-  if (occupant === undefined || upgrade === undefined) return [];
+  const upgrade = occupant.facility.upgrades.find((candidate) => candidate.id === request.upgrade);
+  if (upgrade === undefined) return NOTHING_ORDERED;
 
-  return replacedBy(occupant, upgrade).map((installed) => installed.id);
+  return {
+    cost: upgradeCost(occupant, upgrade),
+    replaces: replacedBy(occupant, upgrade).map((installed) => installed.id),
+  };
 }
 
-/** What this upgrade costs on this slot, discount and all — for the same screen. */
-export function costOfUpgrade(campaign: Campaign, request: UpgradeRequest): Cost {
-  const occupant = occupantAt(campaign, request.slot);
-  const upgrade = occupant?.facility.upgrades.find((candidate) => candidate.id === request.upgrade);
-
-  if (occupant === undefined || upgrade === undefined) return { hardware: 0, labor: 0 };
-
-  return upgradeCost(occupant, upgrade);
-}
+const NOTHING_ORDERED = { cost: { hardware: 0, labor: 0 }, replaces: [] } as const;

@@ -55,10 +55,6 @@ export function projectCost(
 
   if (project.kind === 'upgrade') {
     const occupant = occupantAt(campaign, project.slot);
-    const upgrade = occupant?.facility.upgrades.find(
-      (candidate) => candidate.id === project.upgrade,
-    );
-
     // Nothing, for an upgrade of a facility that is no longer there. A queue is
     // a record of what was ordered and the base can change under it — Z1-7's
     // override lets a player clear a slot with an upgrade queued for it — and
@@ -70,7 +66,16 @@ export function projectCost(
     // onto a bare Garden (pp. 72–73). Asked again on a cancellation, which is what
     // makes the refund the same number as the spend: the Fence is still there,
     // because nothing can take it off until this project finishes.
-    if (occupant === undefined || upgrade === undefined) return NOTHING;
+    // Two guards rather than one `||`, and resolved in this order rather than
+    // through an optional chain: an `occupant?.` would make the first check
+    // redundant with the second, which is a line no test can tell from its
+    // absence.
+    if (occupant === undefined) return NOTHING;
+
+    const upgrade = occupant.facility.upgrades.find(
+      (candidate) => candidate.id === project.upgrade,
+    );
+    if (upgrade === undefined) return NOTHING;
 
     return upgradeCost(occupant, upgrade);
   }
@@ -349,6 +354,11 @@ export function completeProjects(campaign: Campaign): {
        * slot rather than trusting the queue. An upgrade the facility does not
        * offer replaces nothing and still goes on, which is what a queue
        * outliving a rebuilt slot has always done.
+       *
+       * The empty fallback survives mutation, in the same family as the four
+       * in `base.ts`: the filter below keeps only installed upgrades this list
+       * does *not* name, so a junk id injected into it names nothing and
+       * removes nothing.
        */
       const ordered = standing.facility.upgrades.find(
         (candidate) => candidate.id === project.upgrade,

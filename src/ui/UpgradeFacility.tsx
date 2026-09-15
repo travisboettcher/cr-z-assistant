@@ -9,7 +9,7 @@
 import { useId, useState } from 'react';
 import type { UpgradeId } from '../data/facilities';
 import type { Campaign } from '../engine/campaign';
-import { checkUpgrade, costOfUpgrade, upgradesFor, upgradesReplaced } from '../engine/upgrade';
+import { checkUpgrade, upgradeOrder, upgradesFor } from '../engine/upgrade';
 import { useCampaign } from '../state/useCampaign';
 import { UPGRADE_LABELS } from './baseLabels';
 import { PageRef } from './PageRef';
@@ -48,8 +48,7 @@ export function UpgradeFacility({ campaign, slot, onUpgraded }: UpgradeFacilityP
   // Priced against the slot rather than off the catalogue: a Greenhouse
   // ordered onto a Fence costs a Hardware less than one ordered onto a bare
   // Garden (pp. 72–73), and the number here is the number the order will spend.
-  const cost = costOfUpgrade(campaign, { slot, upgrade: chosen });
-  const replaced = upgradesReplaced(campaign, { slot, upgrade: chosen });
+  const { cost, replaces } = upgradeOrder(campaign, { slot, upgrade: chosen });
 
   return (
     <SlotAction
@@ -96,9 +95,9 @@ export function UpgradeFacility({ campaign, slot, onUpgraded }: UpgradeFacilityP
          * of putting something on it, and a Fence that vanished a turn later
          * without warning would be the app doing what it never said.
          */}
-        {replaced.length > 0 && (
+        {replaces.length > 0 && (
           <p className="text-sm text-stone-600 dark:text-stone-400">
-            Replaces the {replaced.map((installed) => UPGRADE_LABELS[installed]).join(', the ')},
+            Replaces the {replaces.map((installed) => UPGRADE_LABELS[installed]).join(', the ')},
             which comes off when the work is done <PageRef pages="72–73" />
           </p>
         )}
