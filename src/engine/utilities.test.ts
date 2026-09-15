@@ -12,6 +12,7 @@ import {
   suppliesEveryFacility,
   shortfall,
   staffedSpent,
+  utilityCapacity,
   withUtilityToggled,
 } from './utilities';
 
@@ -75,6 +76,65 @@ describe('assignedCount and shortfall', () => {
     expect(shortfall(base, 'water')).toBe(1);
     expect(shortfall(base, 'power')).toBe(1);
     expect(staffedSpent(base)).toBe(2);
+  });
+});
+
+/**
+ * The base sheet's denominator. It printed flat generation alone, so a point a
+ * staffed Station was generating read as `Power assigned 1 / 0 flat` — an
+ * over-assignment reported about a legal assignment, with the Station right
+ * there on the same screen.
+ */
+describe('utilityCapacity', () => {
+  it('is nothing without a base', () => {
+    expect(utilityCapacity(campaignWith(null), 'power')).toBe(0);
+  });
+
+  it('is the flat generation when nobody is working a Station', () => {
+    // The Distillery makes 2 Water flat and no Power at all.
+    expect(utilityCapacity(campaignWith(distillery()), 'water')).toBe(2);
+    expect(utilityCapacity(campaignWith(distillery()), 'power')).toBe(0);
+  });
+
+  it('counts the staffed Score, which is the half the old denominator dropped', () => {
+    const staffed = generating(campaignWith(home()), 2);
+
+    expect(utilityCapacity(staffed, 'power')).toBe(2);
+    expect(utilityCapacity(staffed, 'water')).toBe(2);
+  });
+
+  /**
+   * The two pools share the staffed half and only the staffed half: flat Power
+   * cannot become Water, but a staffed point can be either — so spending one
+   * on Water is what takes it away from Power.
+   */
+  it('takes what the other pool is already spending off the shared Score', () => {
+    const watered = generating(campaignWith(home({ kitchen: { water: true } })), 2);
+
+    expect(utilityCapacity(watered, 'water')).toBe(2);
+    expect(utilityCapacity(watered, 'power')).toBe(1);
+  });
+
+  it('does not let the other pool take flat generation with it', () => {
+    // Two Water assigned against the Distillery's two flat: the staffed Score
+    // is untouched, so Power still has all of it.
+    // Staffed into the Distillery's own built-in Station, because `generating`
+    // puts one in the front yard and the Distillery has no such slot.
+    const flatlyWatered = generatingUtilities(
+      campaignWith(distillery({ 'tasting-room': { water: true }, 'break-room': { water: true } })),
+      2,
+      'utility-station',
+    );
+
+    expect(utilityCapacity(flatlyWatered, 'power')).toBe(2);
+  });
+
+  it('never goes below nothing, whatever a save holds', () => {
+    const overspent = campaignWith(
+      home({ kitchen: { water: true }, 'bunk-room-1': { water: true } }),
+    );
+
+    expect(utilityCapacity(overspent, 'power')).toBe(0);
   });
 });
 

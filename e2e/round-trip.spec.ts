@@ -1036,8 +1036,13 @@ test('a point of Power covers a facility and its upgrades, and survives the roun
   await page.getByRole('button', { name: /upgrade garage/i }).click();
   await page.getByRole('checkbox', { name: 'Power' }).check();
 
-  // One point for all three, not one each.
-  await expect(page.getByLabel(/power assigned/i)).toHaveText('1 / 0 flat');
+  /*
+   * One point for all three, not one each — and the sheet counts it against
+   * what the base can back rather than against flat generation alone. It read
+   * `1 / 0 flat` until #119's last item: an over-assignment reported about a
+   * legal assignment, with the Station generating it two rows further down.
+   */
+  await expect(page.getByLabel(/power assigned/i)).toHaveText('1 / 1');
   await expect(page.getByLabel(/score spent/i)).toHaveText('1 / 1');
 
   const exported = await exportCampaign(page);
