@@ -44,6 +44,12 @@ Missions and equipment are later phases. Each phase's breakdown is in `docs/` �
 [Phase 0](docs/phase-0-stories.md), [Phase 1](docs/phase-1-stories.md),
 [Phase 2](docs/phase-2-stories.md), [Phase 3](docs/phase-3-stories.md).
 
+A separate question — what it would take to build a computer *game* on these rules rather than a
+tracker beside them — is scoped in
+[`docs/computer-adaptation.md`](docs/computer-adaptation.md). It is a scoping document about a
+hypothetical licensed product, not a plan this repository is executing; nothing about what is
+above changes.
+
 ## Running it
 
 ```sh
