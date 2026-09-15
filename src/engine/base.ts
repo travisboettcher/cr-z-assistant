@@ -50,6 +50,7 @@ import { BASES, maxHeroes as maxHeroesForTier, type BaseSlot } from '../data/bas
 import {
   FACILITIES,
   MAX_UPGRADES_PER_FACILITY,
+  type Cost,
   type Facility,
   type SlotKind,
   type Upgrade,
@@ -431,6 +432,47 @@ export function upgradesRemaining(occupant: Occupant): number {
   if (!occupant.upgradable) return 0;
 
   return Math.max(0, MAX_UPGRADES_PER_FACILITY - upgradesUsed(occupant));
+}
+
+/**
+ * The upgrades already on this facility that a new one would replace (pp. 72–73).
+ *
+ * `excludes` says two upgrades cannot sit on one facility together, and the
+ * Greenhouse — the only one that has it — excludes the Fence. That is not a
+ * refusal: the book prices *replacing* a Fence with a Greenhouse a Hardware
+ * cheaper, which is a rule about what happens when you order one onto the
+ * other, not a rule against it. So an order that excludes something installed
+ * takes it off, and `upgradeCost` below is the other half of the same
+ * sentence.
+ *
+ * A list rather than one, because the exclusion is a list and nothing caps how
+ * many of the excluded upgrade a facility holds — `maxPerFacility` is a
+ * warning a table may play past.
+ */
+export function replacedBy(occupant: Occupant, upgrade: Upgrade): readonly Upgrade[] {
+  const excludes = upgrade.constraints?.excludes ?? [];
+
+  return occupant.upgrades.filter((installed) => excludes.includes(installed.id));
+}
+
+/**
+ * What an upgrade costs on this particular facility (pp. 72–73).
+ *
+ * The catalogue price, less the replacement discount for each upgrade it takes
+ * off — the Greenhouse's one Hardware for the Fence it stands in for. Never
+ * below nothing: a discount larger than the price would be the stores paying a
+ * community to build, which no rule says and no screen should show.
+ *
+ * Labor is untouched. The book discounts the materials, not the work.
+ */
+export function upgradeCost(occupant: Occupant, upgrade: Upgrade): Cost {
+  const discount = upgrade.constraints?.replacementDiscount ?? 0;
+  const replaced = replacedBy(occupant, upgrade).length;
+
+  return {
+    hardware: Math.max(0, upgrade.cost.hardware - discount * replaced),
+    labor: upgrade.cost.labor,
+  };
 }
 
 /**

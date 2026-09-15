@@ -137,6 +137,12 @@ export function describeEvent(event: CampaignEvent): EventLabel {
         pages: 22,
       };
 
+    case 'bite-restrained':
+      return {
+        text: `The Restraints held ${event.name}, and nobody was bitten.`,
+        pages: '72–73',
+      };
+
     case 'survivor-bitten':
       return { text: `${event.name} was bitten for ${String(event.damage)} Damage.`, pages: 22 };
 

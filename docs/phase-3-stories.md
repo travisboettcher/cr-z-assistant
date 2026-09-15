@@ -259,7 +259,7 @@ than as a short file.
 
 ## Rulings the book leaves open
 
-Five places where the printed text does not decide the answer. Each needs a table ruling before
+Six places where the printed text does not decide the answer. Each needs a table ruling before
 the story that depends on it, and each is recorded here rather than settled quietly in code — a
 house rule that lives in a function is indistinguishable from a rule.
 
@@ -309,6 +309,18 @@ house rule that lives in a function is indistinguishable from a rule.
    may staff a facility or join a project team, forfeiting healing; an *injured* one may not join
    a mission team. If they are one state the rules are consistent and restrictive; if they are
    two the book never defines the second.
+6. **How often a set of Restraints works (pp. 72–73,
+   [#119](https://github.com/travisboettcher/cr-z-assistant/issues/119)) — RULED.** "Each set
+   prevents one turned survivor from biting" gives a count and no duration. **The ruling is per
+   turn:** a set holds one survivor each night rather than one ever. The alternative — a set used
+   up the first time it works — would make the upgrade worth buying once and worth nothing
+   afterwards, which no other upgrade in the book behaves like, and the book calls it equipment
+   bolted to a Clinic rather than a supply. Counted off the log, so two sets hold two survivors in
+   one turn and no more.
+
+   The spread rather than a page, because the two transcriptions of this upgrade disagree:
+   `facilities.ts` recorded it as pg. 73 and the September playtest read it off pg. 72. Narrow it
+   next time the book is open.
 
 ---
 

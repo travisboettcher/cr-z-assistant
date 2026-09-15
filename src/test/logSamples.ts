@@ -44,6 +44,7 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   // A Clinic can drive the target below zero, which the book leaves unclamped
   // (ruling 2) — so the validator has to accept a target no count would.
   { kind: 'rot-checked', ...SURVIVOR, roll: 10, target: -1, passed: true },
+  { kind: 'bite-restrained', ...SURVIVOR },
   { kind: 'survivor-bitten', ...SURVIVOR, damage: 1 },
   { kind: 'storage-checked', food: 2, fuel: 0, hardware: 0 },
   { kind: 'facility-ordered', slot: 'garage', facility: 'workshop' },

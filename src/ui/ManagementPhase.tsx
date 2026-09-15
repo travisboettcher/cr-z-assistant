@@ -50,7 +50,7 @@ import {
 } from '../engine/departures';
 import { MATERIAL_LABELS } from './baseLabels';
 import { STORED_MATERIALS } from '../data/materials';
-import { biteCandidates, mustCheck, rotOutcome, rotTarget } from '../engine/rot';
+import { biteCandidates, mustCheck, restraintsFree, rotOutcome, rotTarget } from '../engine/rot';
 import { laborShortfall, orderedThisTurn, projectCost } from '../engine/projects';
 import { describeProject } from './projectLabels';
 import { useCampaign } from '../state/useCampaign';
@@ -96,6 +96,7 @@ export function ManagementPhase({ campaign, step }: ManagementPhaseProps) {
 function CheckForRot({ campaign }: { readonly campaign: Campaign }) {
   const dying = mustCheck(campaign);
   const target = rotTarget(campaign);
+  const held = restraintsFree(campaign);
 
   return (
     <>
@@ -104,6 +105,20 @@ function CheckForRot({ campaign }: { readonly campaign: Campaign }) {
         twelve, less the Medical Clinic’s combined Medicine. Roll a d10 and add their Tier; a
         natural 1 always fails and a natural 10 always holds <PageRef pages={22} />
       </p>
+
+      {/*
+       * Said at the step rather than on a card, because what it explains is a
+       * control that is *missing* from the cards: with a set free there is no
+       * bite to choose, and a player who cannot see why would go looking for
+       * the picker they had last turn.
+       */}
+      {held > 0 && (
+        <p className={`mt-2 ${HINT}`}>
+          The Medical Clinic&rsquo;s Restraints hold <span className="tabular-nums">{held}</span>{' '}
+          more turned survivor{held === 1 ? '' : 's'} this turn, and a survivor they hold bites
+          nobody <PageRef pages="72–73" />
+        </p>
+      )}
 
       {dying.length === 0 ? (
         <p className={`mt-3 ${HINT}`}>Nobody is at 0 Health. Nothing to check.</p>
@@ -149,6 +164,11 @@ function RotCheck({
   const chosen =
     candidates.find((candidate) => candidate.id === bitten)?.id ?? candidates[0]?.id ?? null;
 
+  // A set of Restraints holds one turned survivor and the bite does not happen
+  // (pp. 72–73), so there is nothing to choose between — and the engine decides it
+  // either way, which is why this only takes the picker away.
+  const held = restraintsFree(campaign) > 0;
+
   // Shown before the press, so a player can see what the roll they are about to
   // enter would cost before it costs it.
   const outcome = rotOutcome(campaign, survivorId, roll, chosen);
@@ -176,7 +196,7 @@ function RotCheck({
           ))}
         </select>
 
-        {candidates.length > 0 && (
+        {candidates.length > 0 && !held && (
           <>
             <label className="text-sm" htmlFor={`rot-bite-${survivorId}`}>
               Bites
@@ -203,6 +223,7 @@ function RotCheck({
         {outcome.turned === null
           ? `${name} holds on.`
           : `${name} turns and is removed.` +
+            (outcome.restrained ? ' The Restraints hold them, and nobody is bitten.' : '') +
             (outcome.bitten === null
               ? ''
               : ` ${outcome.bitten.survivor.name} is bitten${outcome.bitten.dies ? ' and removed too' : ''}.`)}

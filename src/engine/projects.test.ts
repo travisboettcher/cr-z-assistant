@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign, type Project } from './campaign';
+import type { UpgradeId } from '../data/facilities';
 import {
   completeProjects,
   dueProjects,
@@ -263,6 +264,86 @@ describe('isDue and dueProjects', () => {
     const campaign = community({ projects: [{ ...WORKSHOP, orderedOnTurn: 2 }, GAS_RANGE] });
 
     expect(dueProjects(campaign)).toEqual([{ ...WORKSHOP, orderedOnTurn: 2 }]);
+  });
+});
+
+/**
+ * The Greenhouse is the only upgrade in the catalogue that excludes another,
+ * and the book prices *replacing* a Fence with one a Hardware cheaper (pg. 72)
+ * — so ordering it onto a Fence is the ordinary way to get one, and the Fence
+ * comes off when the work is done rather than when the order is placed.
+ */
+describe('replacing an upgrade', () => {
+  const GREENHOUSE: Project = {
+    kind: 'upgrade',
+    slot: 'front-yard',
+    upgrade: 'greenhouse',
+    orderedOnTurn: 2,
+  };
+
+  /**
+   * A Garden the player built, so its upgrades are exactly the ones named —
+   * unlike the Hobby Farm's own Garden, which arrives with a Fence in the
+   * layout and is the subject of its own test below.
+   */
+  const fenced = (upgrades: readonly UpgradeId[] = ['fence']): Campaign =>
+    community({
+      base: {
+        id: 'hobby-farm',
+        slots: {
+          'front-yard': { built: { facility: 'garden', builtOnTurn: 1 }, upgrades: [...upgrades] },
+        },
+      },
+      projects: [GREENHOUSE],
+    });
+
+  it('prices it a Hardware under the catalogue over what it replaces', () => {
+    expect(projectCost(fenced(), GREENHOUSE)).toEqual({ hardware: 3, labor: 4 });
+    expect(projectCost(fenced([]), GREENHOUSE)).toEqual({ hardware: 4, labor: 4 });
+  });
+
+  it('takes the Fence off when the work is done, and nothing else with it', () => {
+    const { campaign, completed } = completeProjects(fenced(['fence', 'herb-plot']));
+
+    expect(completed).toEqual([GREENHOUSE]);
+    expect(campaign.base?.slots['front-yard']?.upgrades).toEqual(['herb-plot', 'greenhouse']);
+  });
+
+  it('leaves the Fence standing until then', () => {
+    expect(fenced().base?.slots['front-yard']?.upgrades).toEqual(['fence']);
+  });
+
+  /** A Garden with no Fence takes the Greenhouse and loses nothing. */
+  it('replaces nothing where there was nothing to replace', () => {
+    const { campaign } = completeProjects(fenced([]));
+
+    expect(campaign.base?.slots['front-yard']?.upgrades).toEqual(['greenhouse']);
+  });
+
+  /**
+   * The Hobby Farm's Garden comes Fenced (pg. 54), and a Fence in the layout is
+   * as much a Fence as one the community built — `occupants` resolves both into
+   * one list, which is the whole reason it exists.
+   */
+  it('replaces a Fence the base itself came with', () => {
+    const farm = community({
+      base: { id: 'hobby-farm', slots: {} },
+      projects: [{ ...GREENHOUSE, slot: 'garden' }],
+    });
+
+    expect(projectCost(farm, { ...GREENHOUSE, slot: 'garden' })).toEqual({
+      hardware: 3,
+      labor: 4,
+    });
+  });
+
+  /**
+   * Two Fences is a state only an override reaches — `one-per-facility` is a
+   * warning — and the discount follows the rule per upgrade replaced rather
+   * than capping at one, because that is what the field says it is.
+   */
+  it('discounts once for each Fence it takes off', () => {
+    expect(projectCost(fenced(['fence', 'fence']), GREENHOUSE)).toEqual({ hardware: 2, labor: 4 });
   });
 });
 

@@ -9,9 +9,10 @@
 import { useId, useState } from 'react';
 import type { UpgradeId } from '../data/facilities';
 import type { Campaign } from '../engine/campaign';
-import { checkUpgrade, upgradesFor } from '../engine/upgrade';
+import { checkUpgrade, costOfUpgrade, upgradesFor, upgradesReplaced } from '../engine/upgrade';
 import { useCampaign } from '../state/useCampaign';
 import { UPGRADE_LABELS } from './baseLabels';
+import { PageRef } from './PageRef';
 import { SlotAction } from './SlotAction';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
@@ -42,13 +43,18 @@ export function UpgradeFacility({ campaign, slot, onUpgraded }: UpgradeFacilityP
     );
   }
 
-  const upgrade = offered.find((candidate) => candidate.id === chosen);
   const check = checkUpgrade(campaign, { slot, upgrade: chosen });
+
+  // Priced against the slot rather than off the catalogue: a Greenhouse
+  // ordered onto a Fence costs a Hardware less than one ordered onto a bare
+  // Garden (pp. 72–73), and the number here is the number the order will spend.
+  const cost = costOfUpgrade(campaign, { slot, upgrade: chosen });
+  const replaced = upgradesReplaced(campaign, { slot, upgrade: chosen });
 
   return (
     <SlotAction
       campaign={campaign}
-      cost={upgrade?.cost ?? { hardware: 0, labor: 0 }}
+      cost={cost}
       check={check}
       overridden={overriddenFor === chosen}
       onOverride={(overridden) => {
@@ -83,6 +89,19 @@ export function UpgradeFacility({ campaign, slot, onUpgraded }: UpgradeFacilityP
             </option>
           ))}
         </select>
+
+        {/*
+         * Said before the order, not discovered after it. This is the only
+         * thing in the app that takes something off the base as a side effect
+         * of putting something on it, and a Fence that vanished a turn later
+         * without warning would be the app doing what it never said.
+         */}
+        {replaced.length > 0 && (
+          <p className="text-sm text-stone-600 dark:text-stone-400">
+            Replaces the {replaced.map((installed) => UPGRADE_LABELS[installed]).join(', the ')},
+            which comes off when the work is done <PageRef pages="72–73" />
+          </p>
+        )}
       </div>
     </SlotAction>
   );

@@ -270,6 +270,11 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       passed: fc.boolean(),
     }),
     fc.record({
+      kind: fc.constant('bite-restrained' as const),
+      survivor: anyId,
+      name: anyName,
+    }),
+    fc.record({
       kind: fc.constant('survivor-bitten' as const),
       survivor: anyId,
       name: anyName,

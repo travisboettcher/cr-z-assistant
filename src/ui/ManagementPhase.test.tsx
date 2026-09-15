@@ -216,6 +216,79 @@ describe('Check for Rot', () => {
     );
   });
 
+  /**
+   * The Medical Clinic's Restraints, which sat in the catalogue with no reader
+   * until now: "each set prevents one turned survivor from biting" (pg. 72).
+   * The survivor still turns and is still removed — what a set prevents is the
+   * bite, so the picker goes away rather than gaining a "nobody".
+   */
+  describe('with Restraints in the Clinic', () => {
+    const restrained = (overrides: Partial<Campaign> = {}): Campaign =>
+      dying({
+        base: {
+          id: 'small-town-home',
+          slots: {
+            garage: {
+              built: { facility: 'medical-clinic', builtOnTurn: 1 },
+              upgrades: ['restraints'],
+            },
+          },
+        },
+        ...overrides,
+      });
+
+    it('says a set is free and offers nobody to bite', () => {
+      open(restrained());
+
+      expect(walk().textContent).toContain('hold 1 more turned survivor this turn');
+      expect(within(walk()).queryByLabelText(/^bites$/i)).toBeNull();
+    });
+
+    it('holds the survivor who turns, and Carla keeps her Health', async () => {
+      const user = open(restrained());
+
+      await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '1');
+      expect(walk().textContent).toContain('The Restraints hold them, and nobody is bitten');
+
+      await user.click(within(walk()).getByRole('button', { name: /resolve earl/i }));
+
+      // Earl is gone all the same; Carla is untouched.
+      expect(
+        within(screen.getByRole('region', { name: /community/i })).getAllByRole('listitem'),
+      ).toHaveLength(1);
+      expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
+        'The Restraints held Earl Rhodes',
+      );
+    });
+
+    /** One set holds one survivor: the second turning of the turn bites. */
+    it('offers the bite again once the set is used', async () => {
+      const user = open(
+        restrained({
+          survivors: [
+            { ...createSurvivor('Earl Rhodes', 2, { id: EARL }), currentHp: 0 },
+            { ...createSurvivor('Carla Proust', 4, { id: CARLA }), currentHp: 2 },
+            { ...createSurvivor('Nell Haig', 2, { id: 'nell' }), currentHp: 0 },
+          ],
+          assignments: {
+            [EARL]: { task: 'healing' },
+            [CARLA]: { task: 'healing' },
+            nell: { task: 'healing' },
+          },
+        }),
+      );
+
+      await user.selectOptions(
+        within(walk()).getAllByLabelText(/^rolled$/i)[0] as HTMLElement,
+        '1',
+      );
+      await user.click(within(walk()).getByRole('button', { name: /resolve earl/i }));
+
+      expect(within(walk()).getByLabelText(/^bites$/i)).toBeTruthy();
+      expect(walk().textContent).not.toContain('more turned survivor this turn');
+    });
+  });
+
   it('offers no way to bite nobody while a candidate is being healed', () => {
     open(dying());
 

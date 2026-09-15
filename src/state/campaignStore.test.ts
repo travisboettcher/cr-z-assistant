@@ -1752,6 +1752,74 @@ describe('the steps that may only run once a turn', () => {
 
       expect(expectOpen(both).survivors.map((survivor) => survivor.id)).toEqual([WEBB]);
     });
+
+    /**
+     * A Clinic with one set of Restraints and two survivors turning (pg. 72):
+     * the first is held, the second bites, because a set holds one apiece.
+     * The count comes off the log, so the reducer has to write the entry for
+     * the second check to be priced against it.
+     */
+    describe('with Restraints in the Clinic', () => {
+      const clinic = (): CampaignState =>
+        openState({
+          ...expectOpen(dying()),
+          survivors: [
+            ...expectOpen(dying()).survivors,
+            createSurvivor('Nell Haig', 2, { id: 'nell' }),
+          ],
+          assignments: {
+            [RUBY]: { task: 'healing' },
+            [WEBB]: { task: 'healing' },
+            nell: { task: 'healing' },
+          },
+          base: {
+            id: 'small-town-home',
+            slots: {
+              garage: {
+                built: { facility: 'medical-clinic', builtOnTurn: 1 },
+                upgrades: ['restraints'],
+              },
+            },
+          },
+        });
+
+      const bite = (survivor: string, bitten: string | null, at: string): CampaignAction => ({
+        type: 'management/rotChecked',
+        survivor,
+        roll: 1,
+        bitten,
+        at,
+      });
+
+      it('writes the hold down instead of the bite', () => {
+        const after = expectOpen(campaignReducer(clinic(), bite(WEBB, 'nell', AT)));
+
+        expect(after.log.map((entry) => entry.event.kind)).toEqual([
+          'rot-checked',
+          'survivor-left',
+          'bite-restrained',
+        ]);
+        // Held, not spared: the survivor still turns, and Nell keeps both her
+        // points of Health.
+        expect(after.survivors.map((survivor) => survivor.id)).toEqual([RUBY, 'nell']);
+        expect(after.survivors.find((survivor) => survivor.id === 'nell')?.currentHp).toBe(2);
+      });
+
+      it('has nothing left for the second survivor to turn', () => {
+        const held = campaignReducer(clinic(), bite(WEBB, 'nell', AT));
+        const after = expectOpen(campaignReducer(held, bite(RUBY, 'nell', AT2)));
+
+        expect(after.log.map((entry) => entry.event.kind)).toEqual([
+          'rot-checked',
+          'survivor-left',
+          'bite-restrained',
+          'rot-checked',
+          'survivor-left',
+          'survivor-bitten',
+        ]);
+        expect(after.survivors.find((survivor) => survivor.id === 'nell')?.currentHp).toBe(1);
+      });
+    });
   });
 
   describe('management/teamReduced', () => {

@@ -37,9 +37,9 @@
  * Pure, like the rest of `src/engine`.
  */
 
-import { FACILITIES, type Facility, type Upgrade } from '../data/facilities';
+import { FACILITIES, type Facility } from '../data/facilities';
 import { laborPool } from './assignments';
-import { clearingProject, occupantAt } from './base';
+import { clearingProject, occupantAt, replacedBy, upgradeCost } from './base';
 import type { Campaign, Project } from './campaign';
 import type { Violation } from './checks';
 import { planningHasBegun } from './planning';
@@ -54,14 +54,25 @@ export function projectCost(
   }
 
   if (project.kind === 'upgrade') {
-    const upgrade = upgradeIn(campaign, project.slot, project.upgrade);
+    const occupant = occupantAt(campaign, project.slot);
+    const upgrade = occupant?.facility.upgrades.find(
+      (candidate) => candidate.id === project.upgrade,
+    );
 
     // Nothing, for an upgrade of a facility that is no longer there. A queue is
     // a record of what was ordered and the base can change under it — Z1-7's
     // override lets a player clear a slot with an upgrade queued for it — and
     // charging for an upgrade that cannot happen would be worse than charging
     // nothing.
-    return upgrade?.cost ?? NOTHING;
+    //
+    // Priced against the slot rather than off the catalogue, because a
+    // Greenhouse ordered onto a Fence costs a Hardware less than one ordered
+    // onto a bare Garden (pp. 72–73). Asked again on a cancellation, which is what
+    // makes the refund the same number as the spend: the Fence is still there,
+    // because nothing can take it off until this project finishes.
+    if (occupant === undefined || upgrade === undefined) return NOTHING;
+
+    return upgradeCost(occupant, upgrade);
   }
 
   const clearing = clearingProject(campaign, project.slot);
@@ -70,10 +81,6 @@ export function projectCost(
 }
 
 const NOTHING = { hardware: 0, labor: 0 } as const;
-
-function upgradeIn(campaign: Campaign, slot: string, id: string): Upgrade | undefined {
-  return occupantAt(campaign, slot)?.facility.upgrades.find((candidate) => candidate.id === id);
-}
 
 /** One queued project and where it sits, which is how it is cancelled. */
 export interface QueuedProject {
@@ -314,11 +321,12 @@ export function completeProjects(campaign: Campaign): {
 
   for (const project of dueProjects(campaign)) {
     const state = slots[project.slot] ?? {};
-    const occupied =
-      occupantAt({ ...campaign, base: { ...base, slots } }, project.slot) !== undefined;
+    // The occupant rather than a boolean, because the upgrade branch below
+    // needs what is standing there and not only whether anything is.
+    const standing = occupantAt({ ...campaign, base: { ...base, slots } }, project.slot);
 
     if (project.kind === 'facility') {
-      if (occupied) continue;
+      if (standing !== undefined) continue;
 
       slots = {
         ...slots,
@@ -328,11 +336,35 @@ export function completeProjects(campaign: Campaign): {
         },
       };
     } else if (project.kind === 'upgrade') {
-      if (!occupied) continue;
+      if (standing === undefined) continue;
+
+      /*
+       * An upgrade that excludes one already installed replaces it (pp. 72–73):
+       * the Greenhouse stands where the Fence stood, and the Fence comes off
+       * here rather than at ordering, because until the work is done the Fence
+       * is still what the Garden has.
+       *
+       * Read against the base as it stands now, not as it stood when the order
+       * was placed — which is the same reason the whole loop re-checks the
+       * slot rather than trusting the queue. An upgrade the facility does not
+       * offer replaces nothing and still goes on, which is what a queue
+       * outliving a rebuilt slot has always done.
+       */
+      const ordered = standing.facility.upgrades.find(
+        (candidate) => candidate.id === project.upgrade,
+      );
+      const gone =
+        ordered === undefined ? [] : replacedBy(standing, ordered).map((upgrade) => upgrade.id);
 
       slots = {
         ...slots,
-        [project.slot]: { ...state, upgrades: [...(state.upgrades ?? []), project.upgrade] },
+        [project.slot]: {
+          ...state,
+          upgrades: [
+            ...(state.upgrades ?? []).filter((installed) => !gone.includes(installed)),
+            project.upgrade,
+          ],
+        },
       };
     } else {
       const clearing = clearingProject(campaign, project.slot);

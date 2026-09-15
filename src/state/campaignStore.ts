@@ -947,6 +947,20 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
           tier: outcome.turned.tier,
         });
 
+        /*
+         * A set of Restraints held them (pg. 72). Written down because
+         * `restraintsFree` counts these back — a turn with two sets holds two
+         * survivors and no more, and nothing else on the campaign remembers
+         * that the first one was held.
+         */
+        if (outcome.restrained) {
+          return logged(turned, action.at, {
+            kind: 'bite-restrained',
+            survivor: outcome.turned.id,
+            name: outcome.turned.name,
+          });
+        }
+
         if (outcome.bitten === null) return turned;
 
         const bitten = logged(turned, action.at, {

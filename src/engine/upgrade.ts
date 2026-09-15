@@ -18,10 +18,24 @@
  *   constraint, and a built-in the base locks. Each is a rule a player may
  *   decide their table plays differently, and each keeps reporting for as long
  *   as it stands.
+ *
+ * ## One warning that was a wrong statement
+ *
+ * An upgrade excluding one already installed used to warn that it "cannot sit
+ * alongside one the facility already has", which is not what the book says. It
+ * prices *replacing* a Fence with a Greenhouse a Hardware cheaper (pp. 72–73), so
+ * ordering one onto the other is the ordinary way to do it and not a rule the
+ * table is playing past. `replacedBy` and `upgradeCost` in `base.ts` are what
+ * it does instead, and `upgradesReplaced` below is what a screen says about it.
  */
 
-import { MAX_UPGRADES_PER_FACILITY, type Upgrade, type UpgradeId } from '../data/facilities';
-import { occupantAt, upgradesRemaining, upgradesUsed } from './base';
+import {
+  MAX_UPGRADES_PER_FACILITY,
+  type Cost,
+  type Upgrade,
+  type UpgradeId,
+} from '../data/facilities';
+import { occupantAt, replacedBy, upgradeCost, upgradesRemaining, upgradesUsed } from './base';
 import { laborRefusal } from './projects';
 import type { Check, Violation } from './checks';
 import type { Campaign } from './campaign';
@@ -35,8 +49,7 @@ export type UpgradeViolationCode =
   | 'facility-locked'
   | 'built-this-turn'
   | 'cap-reached'
-  | 'one-per-facility'
-  | 'excluded-by-another';
+  | 'one-per-facility';
 
 export type UpgradeViolation = Violation<UpgradeViolationCode>;
 
@@ -102,15 +115,19 @@ export function checkUpgrade(campaign: Campaign, request: UpgradeRequest): Upgra
     };
   }
 
-  if (campaign.materials.hardware < upgrade.cost.hardware) {
+  // What it costs *here*, which is not always the catalogue price: an upgrade
+  // that replaces one already installed is discounted for it (pp. 72–73).
+  const cost = upgradeCost(occupant, upgrade);
+
+  if (campaign.materials.hardware < cost.hardware) {
     blockers.push({
       code: 'not-enough-hardware',
-      message: `Costs ${String(upgrade.cost.hardware)} Hardware and the community has ${String(campaign.materials.hardware)}.`,
+      message: `Costs ${String(cost.hardware)} Hardware and the community has ${String(campaign.materials.hardware)}.`,
       pages: '72–73',
     });
   }
 
-  const labor = laborRefusal(campaign, upgrade.cost.labor, '72–73');
+  const labor = laborRefusal(campaign, cost.labor, '72–73');
   if (labor !== undefined) blockers.push(labor);
 
   if (!occupant.upgradable) {
@@ -152,19 +169,35 @@ export function checkUpgrade(campaign: Campaign, request: UpgradeRequest): Upgra
     });
   }
 
-  const excludes = upgrade.constraints?.excludes;
-  const excluded =
-    excludes === undefined
-      ? []
-      : excludes.filter((other) => occupant.upgrades.some((installed) => installed.id === other));
-
-  if (excluded.length > 0) {
-    warnings.push({
-      code: 'excluded-by-another',
-      message: 'This upgrade cannot sit alongside one the facility already has.',
-      pages: '72–73',
-    });
-  }
-
   return { blockers, warnings };
+}
+
+/**
+ * What ordering this upgrade would take off the facility (pp. 72–73).
+ *
+ * For the screen that shows the cost, because a Greenhouse a Hardware cheaper
+ * than the catalogue says needs the sentence that explains it — and because a
+ * Fence quietly disappearing a turn later would be the app doing something it
+ * never said it would.
+ */
+export function upgradesReplaced(
+  campaign: Campaign,
+  request: UpgradeRequest,
+): readonly UpgradeId[] {
+  const occupant = occupantAt(campaign, request.slot);
+  const upgrade = occupant?.facility.upgrades.find((candidate) => candidate.id === request.upgrade);
+
+  if (occupant === undefined || upgrade === undefined) return [];
+
+  return replacedBy(occupant, upgrade).map((installed) => installed.id);
+}
+
+/** What this upgrade costs on this slot, discount and all — for the same screen. */
+export function costOfUpgrade(campaign: Campaign, request: UpgradeRequest): Cost {
+  const occupant = occupantAt(campaign, request.slot);
+  const upgrade = occupant?.facility.upgrades.find((candidate) => candidate.id === request.upgrade);
+
+  if (occupant === undefined || upgrade === undefined) return { hardware: 0, labor: 0 };
+
+  return upgradeCost(occupant, upgrade);
 }

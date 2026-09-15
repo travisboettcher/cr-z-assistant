@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { BASES, BASE_IDS } from '../data/bases';
+import type { UpgradeId } from '../data/facilities';
 import { createNewCampaign, type Campaign } from '../engine/campaign';
 import { createSurvivor } from '../engine/survivor';
 import { generatingUtilities, projectTeamWorth, withPlanningBegun } from '../test/campaigns';
@@ -373,6 +374,67 @@ describe('upgrading a facility', () => {
     expect(within(card as HTMLElement).getByText(/room for 3 upgrades/i)).toBeInTheDocument();
     // A Gas Range costs 2 Hardware, spent when the order is placed.
     expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(7);
+  });
+
+  /**
+   * The Greenhouse is the only upgrade that excludes another, and the book
+   * prices replacing a Fence with one a Hardware cheaper (pg. 72). Both halves
+   * are on the form, because a Fence disappearing a turn later without the
+   * screen having said so would be the app doing what it never said.
+   */
+  it('says what a Greenhouse replaces, and prices it a Hardware cheaper', async () => {
+    const fenced = (upgrades: readonly UpgradeId[]) =>
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        // Past the turn the Garden went up, so the same-turn rule is not what
+        // this test is about (pg. 54).
+        turn: 3,
+        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        base: {
+          id: 'small-town-home',
+          slots: {
+            'front-yard': {
+              built: { facility: 'garden', builtOnTurn: 1 },
+              upgrades: [...upgrades],
+            },
+          },
+        },
+        ...projectTeamWorth(5),
+      });
+
+    const user = openWith(fenced(['fence']));
+
+    await user.click(screen.getByRole('button', { name: /upgrade front yard/i }));
+    await user.selectOptions(screen.getByLabelText(/^upgrade$/i), ['Greenhouse']);
+
+    expect(screen.getByText(/replaces the fence/i)).toBeInTheDocument();
+    // Four Hardware in the catalogue, three over a Fence.
+    expect(screen.getByText(/3 Hardware/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /order the upgrade/i }));
+
+    expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(6);
+  });
+
+  it('says nothing about replacing where there is no Fence to replace', async () => {
+    const user = openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        turn: 3,
+        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        base: {
+          id: 'small-town-home',
+          slots: { 'front-yard': { built: { facility: 'garden', builtOnTurn: 1 } } },
+        },
+        ...projectTeamWorth(5),
+      }),
+    );
+
+    await user.click(screen.getByRole('button', { name: /upgrade front yard/i }));
+    await user.selectOptions(screen.getByLabelText(/^upgrade$/i), ['Greenhouse']);
+
+    expect(screen.queryByText(/replaces the fence/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/4 Hardware/)).toBeInTheDocument();
   });
 
   /**
