@@ -6,26 +6,30 @@ import {
   isDue,
   laborAvailable,
   laborCommitted,
+  laborRefusal,
+  laborShortfall,
+  laborThisTurn,
+  orderedThisTurn,
   projectCost,
   queuedFor,
   withProjectCancelled,
   withProjectOrdered,
 } from './projects';
 import { laborPool } from './assignments';
-import { projectTeamWorth } from '../test/campaigns';
+import { projectTeamWorth, withPlanningBegun } from '../test/campaigns';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 
 /** A community on turn 3 with Hardware, a project team, and a base to work on. */
 function community(overrides: Partial<Campaign> = {}): Campaign {
-  return {
+  return withPlanningBegun({
     ...createNewCampaign('Cedar Hollow', FIXED),
     turn: 3,
     materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
     base: { id: 'hobby-farm', slots: {} },
     ...projectTeamWorth(6),
     ...overrides,
-  };
+  });
 }
 
 const WORKSHOP: Project = {
@@ -145,6 +149,103 @@ describe('laborCommitted and laborAvailable', () => {
     const campaign = community({ projects: [WORKSHOP, WORKSHOP, WORKSHOP, WORKSHOP] });
 
     expect(laborAvailable(campaign)).toBe(-2);
+  });
+});
+
+describe('laborThisTurn', () => {
+  it('is what the project team generates once this turn has planned', () => {
+    expect(laborThisTurn(community())).toBe(6);
+  });
+
+  /**
+   * The other half of issue #97, and the half that leaked across a turn
+   * boundary. Assignments live until the top of the next Planning Phase clears
+   * them (pg. 20), so a campaign in its Mission or Advancement Phase is still
+   * carrying last turn's team — and before this, that team's Labor funded a
+   * whole turn of building for free, every turn.
+   */
+  it('is nothing before this turn’s Planning Phase, whoever is still assigned', () => {
+    const lastTurns = { ...community(), log: [] };
+
+    // The team is right there on the campaign, and worth nothing to this turn.
+    expect(lastTurns.assignments).toEqual(community().assignments);
+    expect(laborThisTurn(lastTurns)).toBe(0);
+    expect(laborAvailable(lastTurns)).toBe(0);
+  });
+
+  it('reads this turn’s Planning and not another turn’s', () => {
+    const planned = community();
+    const later = { ...planned, turn: planned.turn + 1 };
+
+    expect(laborThisTurn(later)).toBe(0);
+  });
+});
+
+describe('laborShortfall', () => {
+  it('is nothing while the queue fits the pool', () => {
+    expect(laborShortfall(community())).toBe(0);
+    expect(laborShortfall(community({ projects: [WORKSHOP, GAS_RANGE] }))).toBe(0);
+  });
+
+  /**
+   * What a departure leaves behind (pg. 23): a Tier comes off the turn's unused
+   * Labor, and there was not enough unused Labor to take it from.
+   */
+  it('is what the queue is over by once the pool shrinks under it', () => {
+    const ordered = community({ projects: [WORKSHOP, WORKSHOP, WORKSHOP] });
+    const short = { ...ordered, ...projectTeamWorth(4) };
+
+    expect(laborShortfall(ordered)).toBe(0);
+    expect(laborShortfall(short)).toBe(2);
+  });
+
+  it('is nothing rather than everything before this turn has planned', () => {
+    expect(laborShortfall({ ...community(), log: [] })).toBe(0);
+  });
+});
+
+describe('orderedThisTurn', () => {
+  it('carries each order’s position in the whole queue', () => {
+    const campaign = community({ projects: [{ ...WORKSHOP, orderedOnTurn: 2 }, GAS_RANGE] });
+
+    expect(orderedThisTurn(campaign)).toEqual([{ at: 1, project: GAS_RANGE }]);
+  });
+
+  it('is empty for a turn that has ordered nothing', () => {
+    expect(orderedThisTurn(community())).toEqual([]);
+  });
+});
+
+describe('laborRefusal', () => {
+  it('is nothing at all when the Labor is there', () => {
+    expect(laborRefusal(community(), 6, 54)).toBeUndefined();
+  });
+
+  it('names what is left when the turn has spent it down', () => {
+    const spent = community({ projects: [WORKSHOP, WORKSHOP] });
+
+    expect(laborRefusal(spent, 3, '72–73')).toEqual({
+      code: 'not-enough-labor',
+      message: 'Costs 3 Labor and 2 is available.',
+      pages: '72–73',
+    });
+  });
+
+  /**
+   * A different sentence for a different zero. "0 is available" beside a
+   * project team the roster is still showing reads as a bug rather than as a
+   * step not yet walked to, which is the whole reason this is not one message
+   * with a number in it.
+   */
+  it('names the step instead when the pool is not this turn’s', () => {
+    const refusal = laborRefusal({ ...community(), log: [] }, 2, '72–73');
+
+    expect(refusal?.message).toMatch(/assigned in the Planning Phase/i);
+    expect(refusal?.pages).toBe(20);
+  });
+
+  it('refuses nothing for a project that costs no Labor, planned or not', () => {
+    expect(laborRefusal({ ...community(), log: [] }, 0, 54)).toBeUndefined();
   });
 });
 

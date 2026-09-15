@@ -13,22 +13,20 @@
  * generates. A cached pool would be wrong for a whole turn and look right the
  * entire time.
  *
- * ## What is *not* here: Labor spent
+ * ## What is *not* here: Labor spent, and Labor whose turn has passed
  *
- * `laborPool` is what the project team generates. It is not reduced by what has
- * already been built this turn, and Phase 2's hand-entered number was not
- * either — so this story changes where the number comes from without changing
- * what is tracked.
+ * `laborPool` is what the project team generates, and it is neither of the two
+ * numbers a screen asking "can this be ordered" wants. It is not reduced by
+ * what this turn has already ordered — `laborCommitted` in `projects.ts` is
+ * that — and it does not ask whose turn the team belongs to, which
+ * `laborThisTurn` beside it does.
  *
- * Spending it down needs something this app does not have yet. Facilities
- * record the turn they went up, but upgrades and cleared slots record nothing,
- * so "what has this turn's Labor already paid for" is not recoverable. The book
- * has the real shape: projects are *ordered* during the Planning Phase and
- * complete in the next Advancement Phase (pg. 20, 19), which is a queue rather
- * than a running total — and it belongs to
- * [Z3-7](../../docs/phase-3-stories.md#z3-7--the-advancement-phase), which owns
- * that step. Adding a turn stamp to every upgrade now, to replace it there,
- * would be churn.
+ * Both live there because both are questions about the *queue*, and this
+ * module knows only about tasks. The second one is worth naming because it is
+ * not obvious: `assignments` holds last turn's tasks right up until the top of
+ * the next Planning Phase clears them (pg. 20), so for two whole phases the
+ * team on the campaign is the one that was paid for a turn ago. Reading
+ * `laborPool` in those phases and calling it this turn's budget was issue #97.
  */
 
 import { BASES } from '../data/bases';
@@ -183,11 +181,13 @@ export function missionTeam(campaign: Campaign): readonly Survivor[] {
 }
 
 /**
- * The Labor the project team generates this turn (pg. 20).
+ * The Labor the project team on the campaign generates (pg. 20).
  *
- * The sum of their Tier levels, plus whatever the base adds — the pool is not
- * reduced by what has been ordered, for the reason in this module's own note
- * above; `laborAvailable` in `projects.ts` is what subtracts.
+ * The sum of their Tier levels, plus whatever the base adds. Two things it is
+ * deliberately not, both in `projects.ts` and both for the reason in this
+ * module's note above: it is not reduced by what has been ordered
+ * (`laborAvailable` subtracts), and it does not ask which turn assigned this
+ * team (`laborThisTurn` does). A caller pricing an order wants that one.
  */
 export function laborPool(campaign: Campaign): number {
   const team = projectTeam(campaign);

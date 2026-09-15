@@ -29,6 +29,7 @@ import { AssignUtilities } from './AssignUtilities';
 import { BaseSheet } from './BaseSheet';
 import { FacilityWork } from './FacilityWork';
 import { laborAvailable, queuedFor } from '../engine/projects';
+import { planningHasBegun } from '../engine/planning';
 import { describeProject } from './projectLabels';
 import { useCampaign } from '../state/useCampaign';
 import { BuildFacility } from './BuildFacility';
@@ -299,19 +300,34 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
           <span className="font-medium">Labor available: </span>
           <span className="tabular-nums">{laborAvailable(campaign)}</span>
         </p>
-        <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-          The summed Tier levels of the project team, less what this turn has already ordered.
-          Whatever is left at the end of the turn is lost <PageRef pages={20} />
-        </p>
         {/*
+         * Two sentences for one number, because a zero has two reasons and a
+         * player cannot act on the wrong one. A pool spent down is a turn's
+         * decisions; a pool that is not this turn's yet is a step they have
+         * not walked to — and last turn's team is still on the roster screen
+         * while it says so, which is exactly when "0" reads as a bug.
+         *
          * Read here, assigned in the Planning Phase. Z3-5 put the team's own
          * control here because nothing else could make the number move yet;
          * Z3-6 gave it the step the book puts it in, and two controls for one
          * decision on one page is worse than a walk to the right one.
          */}
-        <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-          Who is on it is Planning Step 2, above.
-        </p>
+        {planningHasBegun(campaign) ? (
+          <>
+            <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+              The summed Tier levels of the project team, less what this turn has already ordered.
+              Whatever is left at the end of the turn is lost <PageRef pages={20} />
+            </p>
+            <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+              Who is on it is Planning Step 2, above.
+            </p>
+          </>
+        ) : (
+          <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+            None until this turn&rsquo;s Planning Phase assigns a project team. Last turn&rsquo;s
+            was spent on last turn&rsquo;s work <PageRef pages={20} />
+          </p>
+        )}
       </div>
 
       {/*

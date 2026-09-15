@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign } from '../engine/campaign';
 import { createSurvivor } from '../engine/survivor';
+import { withPlanningBegun } from '../test/campaigns';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
 
@@ -15,9 +16,16 @@ const CARLA = 'carla';
  * Reaching the Planning Phase by pressing Next is a journey the e2e suite
  * drives; what these are about is what the phase's four steps do once you are
  * in one.
+ *
+ * It carries the `planning-began` entry the walk writes on the way into the
+ * first step, because that record is not decoration: a turn's Labor is not
+ * there to spend until this turn's Planning Phase has assigned the team that
+ * generates it (pg. 20). A campaign standing on a Planning step without the
+ * entry is a state the app cannot reach, and the screens would price orders
+ * against nothing.
  */
 function planning(overrides: Partial<Campaign> = {}): Campaign {
-  return {
+  return withPlanningBegun({
     ...createNewCampaign('Cedar Hollow'),
     turn: 3,
     step: 'assign-facility-staff',
@@ -27,7 +35,7 @@ function planning(overrides: Partial<Campaign> = {}): Campaign {
     ],
     base: { id: 'small-town-home', slots: {} },
     ...overrides,
-  };
+  });
 }
 
 function open(campaign: Campaign) {

@@ -107,6 +107,7 @@ describe('the event samples', () => {
     'upgrade-ordered': true,
     'clearing-ordered': true,
     'project-cancelled': true,
+    'project-unfinished': true,
     'horde-checked': true,
     'survivor-added': true,
     'survivor-recruited': true,

@@ -287,6 +287,7 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
     }),
     fc.record({ kind: fc.constant('clearing-ordered' as const), slot: anyId }),
     fc.record({ kind: fc.constant('project-cancelled' as const), slot: anyId }),
+    fc.record({ kind: fc.constant('project-unfinished' as const), slot: anyId }),
     fc.record({
       kind: fc.constant('storage-checked' as const),
       food: anyCount,

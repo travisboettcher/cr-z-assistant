@@ -40,6 +40,35 @@ export function projectTeamWorth(labor: number): {
 }
 
 /**
+ * The campaign with this turn's Planning Phase on the record.
+ *
+ * Ordering a project is paid for by the team *this* turn assigned, and nothing
+ * says a turn's Planning has happened except the `planning-began` entry the
+ * walk writes (pg. 20) — so a fixture that hands a campaign a project team and
+ * expects to spend its Labor has to have walked that far. Stamped with the
+ * campaign's own turn, so a fixture that moves the turn moves this with it.
+ *
+ * The phase is the Planning one for the same reason: an entry claiming the
+ * clearing happened during the Mission Phase would be a record of something
+ * that cannot occur, and these campaigns are read by the screens as well as by
+ * the engine.
+ */
+export function withPlanningBegun(campaign: Campaign): Campaign {
+  return {
+    ...campaign,
+    log: [
+      ...campaign.log,
+      {
+        turn: campaign.turn,
+        phase: 'planning',
+        at: '2026-08-30T00:00:00.000Z',
+        event: { kind: 'planning-began' },
+      },
+    ],
+  };
+}
+
+/**
  * The campaign with somebody working a slot.
  *
  * Adds them to the roster as well, because an assignment naming a survivor the

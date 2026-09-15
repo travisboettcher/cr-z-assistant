@@ -2,19 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign, type Project } from './campaign';
 import { builtEvent, checkOrder, orderedEvent } from './orders';
 import { withProjectOrdered } from './projects';
-import { projectTeamWorth } from '../test/campaigns';
+import { projectTeamWorth, withPlanningBegun } from '../test/campaigns';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 
 function community(overrides: Partial<Campaign> = {}): Campaign {
-  return {
+  return withPlanningBegun({
     ...createNewCampaign('Cedar Hollow', FIXED),
     turn: 3,
     materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
     base: { id: 'hobby-farm', slots: {} },
     ...projectTeamWorth(6),
     ...overrides,
-  };
+  });
 }
 
 const WORKSHOP: Project = {

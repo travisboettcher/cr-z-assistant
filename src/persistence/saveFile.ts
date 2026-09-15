@@ -321,6 +321,7 @@ const EVENT_FIELDS: Record<
   ],
   'clearing-ordered': [['slot', 'id']],
   'project-cancelled': [['slot', 'id']],
+  'project-unfinished': [['slot', 'id']],
   'storage-checked': [
     ['food', 'count'],
     ['fuel', 'count'],

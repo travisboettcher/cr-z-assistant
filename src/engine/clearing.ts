@@ -20,7 +20,7 @@
 
 import { MATERIALS, type Material } from '../data/materials';
 import { clearingProject, layoutOf } from './base';
-import { laborAvailable } from './projects';
+import { laborRefusal } from './projects';
 import type { Check, Violation } from './checks';
 import type { Campaign } from './campaign';
 
@@ -80,20 +80,9 @@ export function checkClearing(campaign: Campaign, request: ClearingRequest): Cle
     };
   }
 
-  const available = laborAvailable(campaign);
+  const labor = laborRefusal(campaign, slot.labor, 54);
 
-  if (available < slot.labor) {
-    return {
-      blockers: [
-        {
-          code: 'not-enough-labor',
-          message: `Costs ${String(slot.labor)} Labor and ${String(available)} is available.`,
-          pages: 54,
-        },
-      ],
-      warnings: [],
-    };
-  }
+  if (labor !== undefined) return { blockers: [labor], warnings: [] };
 
   return { blockers: [], warnings: [] };
 }
