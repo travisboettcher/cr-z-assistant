@@ -181,13 +181,46 @@ this turn is a decision, and decisions persist. It is also *this turn's* decisio
 Step 1 clears last turn's — along with the utility assignments Phase 2 deliberately left standing
 with a note pointing here.
 
-**One assignment field serves three readers, and the turn order is why.** The book has Heal
-Wounds and Add Facilities reading assignments made in the *previous* Planning Phase, and Check
-for Rot reading assignments made in *this* one — which reads like the app needs to keep a history.
-It does not. The Advancement Phase of turn N+1 runs *before* the Planning Phase of turn N+1, and
-the Management Phase runs *after* it, so clearing at the top of Planning means a single current
-`assignments` field is already the right answer at all three moments. Worth writing down, because
-"store last turn's assignments too" is a plausible-looking wrong turn that costs a schema field.
+**One assignment field serves three readers, and the turn order is why — as far as it goes.** The
+book has Heal Wounds and Add Facilities reading assignments made in the *previous* Planning Phase,
+and Check for Rot reading assignments made in *this* one, which reads like the app needs to keep a
+history. The Advancement Phase of turn N+1 runs *before* the Planning Phase of turn N+1 and the
+Management Phase runs *after* it, so clearing at the top of Planning means a single current
+`assignments` field is the right answer at all three moments — **while the walk only ever goes
+forwards.**
+
+It does not. Z3-3 sells backwards navigation as a feature, and "Skip to Planning" sits on every
+Advancement step. Going forward and stepping back put the Advancement Phase behind a clear that
+had already happened: a turn where nobody went on a mission, nobody staffed a Kitchen and nobody
+was resting, with the Health those steps owed gone for good and an XP pool counting down past zero
+(issue #95). The conclusion above was drawn from the turn *sequence* and the walk is not a
+sequence.
+
+So the `planning-began` entry now carries the assignments it cleared, and `beforePlanning` rewinds
+to them. **This is not "store last turn's assignments too"** — that wrong turn is still a wrong
+turn, and would cost a schema field that goes stale. It is the log recording what happened, which
+is what the log is for, and it is the same move as `survivors-fed` carrying its own Hunger. The
+reading stays derived.
+
+**Turn 1 has no previous Planning Phase, and the First Mission is still played on it** (pg. 75).
+The gap was silent: no mission XP (pg. 18) and no substitutions (pg. 12), with the screen stating
+there was no mission team as though that were a fact about the turn rather than about the app
+(issue #116). The Mission Phase of turn 1, and only turn 1, records who went — an ordinary
+`mission` assignment, so every reader downstream is the one that already existed.
+
+**Conversions are two features, and only one of them is this phase's.** pg. 19 applies facility
+and upgrade conversions in Add Materials to Storage, and `Effects.exchange` has carried them
+since Phase 2 with nothing reading it (issue #108) — a Gas Range paid for in Hardware and Labor
+that could not be used. The material trades land in Advancement Step 3, after production,
+because that is where the book puts them and because converting before the haul would spend
+Fuel the base has not made yet.
+
+The Generator's and the Well Pump's trades buy a *utility* rather than a material, and they are
+not Advancement's. A point of Power lasts until the next turn's Planning Phase (pg. 20, 67), and
+this turn's Planning Phase — which clears the pools — runs one phase after Add Materials, so a
+point bought there would be wiped minutes later. They belong to the Planning Phase's utility
+step and are marked as such in the data, with a test that fails if a third utility trade is
+transcribed without deciding where it runs.
 
 **One task per survivor is structural, not validated.** The rule (pg. 20) is that each survivor
 is assigned to exactly one task. Modelled as a map from survivor id to one assignment, a second
@@ -226,7 +259,7 @@ than as a short file.
 
 ## Rulings the book leaves open
 
-Five places where the printed text does not decide the answer. Each needs a table ruling before
+Six places where the printed text does not decide the answer. Each needs a table ruling before
 the story that depends on it, and each is recorded here rather than settled quietly in code — a
 house rule that lives in a function is indistinguishable from a rule.
 
@@ -276,6 +309,18 @@ house rule that lives in a function is indistinguishable from a rule.
    may staff a facility or join a project team, forfeiting healing; an *injured* one may not join
    a mission team. If they are one state the rules are consistent and restrictive; if they are
    two the book never defines the second.
+6. **How often a set of Restraints works (pp. 72–73,
+   [#119](https://github.com/travisboettcher/cr-z-assistant/issues/119)) — RULED.** "Each set
+   prevents one turned survivor from biting" gives a count and no duration. **The ruling is per
+   turn:** a set holds one survivor each night rather than one ever. The alternative — a set used
+   up the first time it works — would make the upgrade worth buying once and worth nothing
+   afterwards, which no other upgrade in the book behaves like, and the book calls it equipment
+   bolted to a Clinic rather than a supply. Counted off the log, so two sets hold two survivors in
+   one turn and no more.
+
+   The spread rather than a page, because the two transcriptions of this upgrade disagree:
+   `facilities.ts` recorded it as pg. 73 and the September playtest read it off pg. 72. Narrow it
+   next time the book is open.
 
 ---
 
@@ -868,16 +913,30 @@ not permission for a value computed in one to survive the next.
 - The siege flag survives a save and gates the next turn's Mission Phase.
 - Storage loss takes each material to its own cap and no further, and logs what was lost.
 
-**One field answers both questions the siege rule asks.** `lastSiegeTurn` is the turn whose
-Mission Phase is or was a Siege Defense, and it is stored because nothing else in a campaign
-records that a siege happened — "turns since the last siege" is worked out *from* it rather than
-the other way round. A turn number rather than a flag, because a flag would need somebody to clear
-it and a turn number simply stops being this turn.
+**One field tried to answer both questions the siege rule asks, and could not.** As shipped,
+`lastSiegeTurn` was the turn whose Mission Phase is or was a Siege Defense, stored on the campaign,
+with "turns since the last siege" worked out from it. The check set it to the turn **after** the
+roll, because that is the turn the siege is fought on — which leaves a window where the field is in
+the future, and `turnsSinceLastSiege` was clamped at zero to cover it. The clamp was reasoned about
+here as *preventing* a lowered Siege Threat at the Departures step two steps later.
 
-The check sets it to the turn **after** the roll, because that is the turn the siege is fought on.
-That leaves a window where `lastSiegeTurn` is in the future, so `turnsSinceLastSiege` is clamped at
-zero: "minus one turns since" would otherwise *lower* the Siege Threat that the Departures step two
-steps later reads.
+**It did the opposite, and the September playtest found it** ([#103](https://github.com/travisboettcher/cr-z-assistant/issues/103)).
+The clamp stopped the term going to −1 and let it go to 0, which was the whole of the damage:
+calling a siege at step 6 collapsed the term for the rest of that Management Phase, so Departures at
+step 7 tested a pressure lower than the horde had just been rolled against. Observed falling 12 → 8
+inside one phase, which saved a survivor from leaving. `siege.test.ts` asserted the 0 as correct, so
+the test encoded the bug rather than catching it — a test can only catch what it claims.
+
+The fix was to stop storing it. A siege is **derived from the log**: the `horde-checked` entry the
+check already writes carries its own turn and whether it triggered, and a siege called on turn N is
+fought on turn N + 1. `turnsSinceLastSiege` counts from the latest siege turn that is not in the
+future, `siegeDue` and `hordeCame` ask whether one falls on this turn or the next, and no clamp is
+needed because a filtered maximum cannot exceed the turn it is subtracted from. Schema v11 drops the
+field; nothing is lost, because every write to it happened in the same reducer step as the entry.
+
+The general lesson is the architecture rule the repo already had: **derived is never stored.** One
+field cannot hold both "when the last siege was fought" and "when the next one is", and writing the
+second over the first is how the history was lost.
 
 **`siegeDue` and `hordeCame` are different questions, and conflating them was a real bug.** The
 screen first reported the outcome of the check with `siegeDue`, which is false on the turn of the
@@ -888,7 +947,14 @@ what just happened has to read the record of what happened.
 runs after Check the Horde and removes a survivor, which retroactively unstaffs whatever they were
 working and shrinks the project team — two of the four terms. So the Siege Threat step 6 rolled
 against is not the one step 7 must use, and a second departure is measured against a number the
-first one changed. Both the engine test and the e2e journey assert the drop.
+first one changed. Both the engine test and the e2e journey assert the drop. (A *second departure*
+is no longer possible — the rule sends one, and
+[#99](https://github.com/travisboettcher/cr-z-assistant/issues/99) fixed the step that offered more
+— but the drop is still real, and still the reason nothing may cache the sum.)
+
+That paragraph was right about departures and wrong two lines away: the *check itself* moved the
+threat, through the stored field above. Worth keeping both halves visible, because "nothing here is
+cached" was true of the four terms and untrue of the field they were summed with.
 
 **The exhaustion penalty is offered, not done.** Exhaustion above the mission team's size takes one
 survivor off it (pg. 23), and *which* one is a decision. Taking somebody off a team without being
@@ -955,8 +1021,93 @@ screens being finished.
 - Ordering more than the Labor pool covers is refused, and what is left is visible while there is
   still time to spend it.
 
-**Open question for the table:** whether a project ordered and then cancelled in the same Planning
-Phase returns its Labor. The book does not say, and both readings are defensible.
+**Cancelling an order returns its Hardware, and its Labor was never gone.** This was an open
+question when the story was written — the book does not say — and the app rules on it: an order is a
+decision made on a screen within a phase, and a decision a player cannot take back is a trap rather
+than a rule. The Hardware comes back to the stores. The Labor needs no refund at all, because
+nothing ever deducted it: `laborCommitted` simply stops counting a project that has left the queue.
+
+**`orderedOnTurn` is why nothing else is stored.** One field on each queued project answers both
+questions the rule asks. *Which turn's Labor paid for this*, so what is left to spend is arithmetic
+over the queue — `laborPool` less the cost of everything ordered this turn — rather than a running
+total somebody has to remember to decrement, which would be a derived value living on the persisted
+shape. And *when the project is due*: the Advancement Phase of any turn after the one it was ordered
+in.
+
+**Hardware is spent on ordering; Labor is merely counted.** Hardware is a material and leaves the
+stores when the order is placed (pg. 20), so a community cannot queue five Workshops on one
+Workshop's worth of it. Labor is not a material and has nowhere to leave from — it is a property of
+who is on the project team this turn — so it is *checked* against what the queue has already
+committed rather than deducted from anything. That difference is also what makes cancelling
+straightforward.
+
+**A clearing project's yield arrives when the work is done**, not when it is ordered. It is the one
+place the timing visibly matters on screen: the rubble is still there for a turn, and so are the two
+Hardware in it.
+
+**Six event kinds for three verbs.** A project is ordered on one turn and finished on the next, and
+both are things that happened. A campaign's history reads "Ordered a Workshop for the Garage" and
+then, a turn later, "Built a Workshop in the Garage". Three events reused for both would have made
+one turn's history claim the same thing twice.
+
+**A completed project that can no longer happen is dropped silently, and says nothing.** The queue
+is a record of what was ordered, not a promise the base will still have room: Z1-7's override lets a
+player build into a slot a project was queued for. Those projects are dropped rather than applied —
+and `completeProjects` returns *which* ones landed alongside the campaign, precisely so the log
+cannot claim a Workshop that is not there. That is why it is not named `with…` like every other
+builder in the engine.
+
+**No "already completed" guard, unlike every other destructive step in the Advancement Phase**, and
+none is needed. Completing takes what it finished off the queue, so a second press has nothing due
+and changes nothing. The guard the other steps need exists because they spend a resource that is
+still there to spend again; this one consumes the only thing it reads.
+
+**The three Phase 2 builders are gone.** `withFacilityBuilt`, `withUpgradeBuilt` and `withSlotCleared`
+did ordering and completing in one move, which is the thing this story says is two moves. The three
+*checks* stay exactly where they were — `checkOrder` in `src/engine/orders.ts` delegates to them —
+because what may go in a slot did not change. `orders.ts` is a separate module from `projects.ts`
+only to break an import cycle: `build.ts` reads `laborAvailable` from `projects.ts`, so the checks
+cannot live there.
+
+**The note about which step projects belong to moved with the verb.** It pointed at Add Facilities
+and Upgrades, the step that used to build; it points at Assign Project Team now, the step that
+orders. Both constants live in `src/data/turn.ts` so the screen that takes an order, the screen that
+finishes one, and the note cannot disagree.
+
+**The turn boundary is now load-bearing in the journeys, and that is the story working.** A Medical
+Clinic ordered on turn 1 finishes in turn 2's Advancement Phase — which is *after* Heal Wounds — so
+the Clinic that heals somebody is staffed in turn 2's Planning Phase and pays out in turn 3. The
+end-to-end suite walks it. A journey that did it in one turn would be testing a rule the book does
+not have.
+
+**The pool the story priced against was not turn-scoped, and the queue was only half the fix**
+([#97](https://github.com/travisboettcher/cr-z-assistant/issues/97)). `laborCommitted` made a second
+order cost what the first one left, which is the half this story wrote down. What neither it nor
+Z3-5 noticed is that `laborPool` reads `assignments`, and a survivor's task lives until the *top of
+the next Planning Phase* clears it (pg. 20) — two phases into the following turn. So a team assigned
+in turn 2 was still a live budget through turn 3's Mission and Advancement Phases, and the September
+playtest bought 3 Labor of upgrades with a 2-Labor team a turn after it was assigned. `laborThisTurn`
+is the guard: zero until this turn's Planning Phase has begun, read off the same `planning-began`
+entry the walk uses to clear the tasks once. Two journeys were ordering projects in exactly that gap
+and had comments explaining why it worked.
+
+**The other half of the departure rule finally has something to act on.** Z3-10 owed the queue "their
+Tier comes off the turn's unused Labor, running a project unfinished if that goes negative" (pg. 23).
+The subtraction turns out to need no code at all — the pool is the team's summed Tiers and the leaver
+is off the team the moment they walk, so `laborAvailable` has already fallen by exactly their Tier.
+What needed writing is the consequence: `laborShortfall` names the state, and the Departures step
+offers this turn's orders and asks which one goes unfinished. **Offered, never done**, like the
+exhaustion penalty beside it — the rule says a project goes unfinished and does not say which, and
+picking one would be the app making up a rule at the moment it takes something away. It keeps asking
+while the queue is still short, because a Tier 4 walking out of a turn with nothing unused can outrun
+a single order and the rule that a turn cannot spend more Labor than it has does not stop applying
+for that.
+
+**`project-unfinished` is its own log entry rather than a second `project-cancelled`.** The campaign
+change is identical — the project leaves the queue and its Hardware comes back, following the ruling
+already made for cancelling — and what happened at the table is not: one is a player changing their
+mind and the other is the rule taking the choice away and leaving them only the choice of which. The
+log is permanent and uneditable, which is the whole argument.
 
 ---
 

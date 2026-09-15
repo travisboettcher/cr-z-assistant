@@ -21,7 +21,7 @@ import type { D10Result } from '../data/dice';
 import {
   PLAYERS_CHOICE,
   RECRUIT_SKILL_TABLE,
-  TIERS_WITH_ROLLED_SKILL,
+  rollsForSkill,
   type FieldRecruitTier,
 } from '../data/recruitTable';
 import { TIER_RULES, type Tier } from '../data/tiers';
@@ -156,13 +156,16 @@ export interface NewSurvivorOptions {
 export function recruitSurvivor(
   name: string,
   tier: FieldRecruitTier,
-  roll: D10Result,
+  roll: D10Result | undefined,
   options: NewSurvivorOptions = {},
 ): Survivor {
   const recruit = createSurvivor(name, tier, options);
 
-  // A Rookie's single skill is never randomly generated (pg. 7).
-  if (!TIERS_WITH_ROLLED_SKILL.some((rolls) => rolls === tier)) return recruit;
+  // A Rookie's single skill is never randomly generated (pg. 7), so no roll is
+  // asked for and none is accepted — and a tier that does roll, recruited
+  // without one, is simply one skill short, which is the state a 10 leaves them
+  // in and the sheet already reports.
+  if (roll === undefined || !rollsForSkill(tier)) return recruit;
 
   const rolled = RECRUIT_SKILL_TABLE[roll];
 

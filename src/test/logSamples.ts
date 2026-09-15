@@ -27,6 +27,13 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   // Negative, because a facility that eats Food can outweigh the haul (pg. 55)
   // and the validator has to accept an amount no other event's field would.
   { kind: 'materials-added', food: -2, fuel: 0, hardware: 0, rare: 0 },
+  {
+    kind: 'materials-converted',
+    slot: 'kitchen',
+    source: 'gas-range',
+    spent: { fuel: 2 },
+    gained: { food: 1 },
+  },
   { kind: 'xp-awarded', ...SURVIVOR, amount: 1, source: 'mission' },
   { kind: 'xp-awarded', ...SURVIVOR, amount: 2, source: 'mission-teaching' },
   { kind: 'health-restored', ...SURVIVOR, health: 2, source: 'facility' },
@@ -37,8 +44,14 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   // A Clinic can drive the target below zero, which the book leaves unclamped
   // (ruling 2) — so the validator has to accept a target no count would.
   { kind: 'rot-checked', ...SURVIVOR, roll: 10, target: -1, passed: true },
+  { kind: 'bite-restrained', ...SURVIVOR },
   { kind: 'survivor-bitten', ...SURVIVOR, damage: 1 },
   { kind: 'storage-checked', food: 2, fuel: 0, hardware: 0 },
+  { kind: 'facility-ordered', slot: 'garage', facility: 'workshop' },
+  { kind: 'upgrade-ordered', slot: 'kitchen', upgrade: 'gas-range' },
+  { kind: 'clearing-ordered', slot: 'front-yard' },
+  { kind: 'project-cancelled', slot: 'garage' },
+  { kind: 'project-unfinished', slot: 'garage' },
   { kind: 'horde-checked', roll: 9, threat: 4, siege: false },
   // A base built for defence can drive the threat below zero (pg. 73), so the
   // validator has to accept a negative where no count would.
@@ -46,10 +59,13 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'survivor-added', ...SURVIVOR, tier: 3 },
   { kind: 'survivor-recruited', ...SURVIVOR, tier: 2, roll: 6 },
   { kind: 'survivor-left', ...SURVIVOR, tier: 1 },
+  { kind: 'survivor-departed', ...SURVIVOR, tier: 1 },
+  { kind: 'mission-team-reduced', ...SURVIVOR },
   { kind: 'survivor-promoted', ...SURVIVOR, tier: 4 },
   { kind: 'skill-level-bought', ...SURVIVOR, skill: 'archery', level: 2 },
   { kind: 'common-skill-bought', ...SURVIVOR, skill: 'move', score: 7 },
   { kind: 'base-claimed', base: 'hobby-farm' },
+  { kind: 'base-stocked', food: 4, fuel: 4, hardware: 4 },
   { kind: 'facility-built', slot: 'front-yard', facility: 'watchtower' },
   { kind: 'upgrade-built', slot: 'kitchen', upgrade: 'gas-range' },
   { kind: 'slot-cleared', slot: 'ruined-chicken-coop' },

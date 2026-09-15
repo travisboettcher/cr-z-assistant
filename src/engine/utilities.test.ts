@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { storageCaps } from './base';
-import { createNewCampaign, type Base, type Campaign } from './campaign';
+import { createNewCampaign, type Base, type Campaign, type Survivor } from './campaign';
+import { createSurvivor } from './survivor';
+import type { FacilityId, Utility } from '../data/facilities';
 import { generatingUtilities } from '../test/campaigns';
 import {
   assignedCount,
   checkUtility,
+  communityUtilities,
+  suppliedOccupants,
+  suppliesEveryFacility,
   shortfall,
   staffedSpent,
   withUtilityToggled,
@@ -252,10 +257,155 @@ describe('what a supplied utility switches on', () => {
     });
     const campaign = generating(campaignWith(base), 1);
 
-    expect(storageCaps(base).food).toBe(6);
+    expect(storageCaps(base, suppliedOccupants(campaign)).food).toBe(6);
 
     const powered = withUtilityToggled(campaign, { slot: 'garage', utility: 'power' });
 
-    expect(storageCaps(powered.base as Base).food).toBe(8);
+    expect(storageCaps(powered.base as Base, suppliedOccupants(powered)).food).toBe(8);
+  });
+
+  /**
+   * Playtest finding M11: the point outlived the survivor generating it. The
+   * Greasy Spoon's Food cap held at 8 on the strength of a Refrigeration
+   * powered by nobody, with the score panel reading `1 / 0` and no warning.
+   *
+   * Assignment is a player decision that persists on the slot; generation is
+   * not, and the two come apart the moment the Station empties.
+   */
+  it('stops applying once the survivor generating the point stops staffing', () => {
+    const base = home({
+      garage: { built: { facility: 'storage-area', builtOnTurn: 1 }, upgrades: ['refrigeration'] },
+    });
+    const powered = withUtilityToggled(generating(campaignWith(base), 1), {
+      slot: 'garage',
+      utility: 'power',
+    });
+
+    expect(storageCaps(powered.base as Base, suppliedOccupants(powered)).food).toBe(8);
+
+    // The point is still assigned — the slot still carries the flag — and it is
+    // no longer backed by anything.
+    const abandoned: Campaign = { ...powered, assignments: {} };
+
+    expect(abandoned.base?.slots.garage?.power).toBe(true);
+    expect(storageCaps(abandoned.base as Base, suppliedOccupants(abandoned)).food).toBe(6);
+  });
+});
+
+/**
+ * Three ways a facility can want a utility, and `checkUtility` read one.
+ *
+ * Playtest finding M15: the Kitchen's Water toggle carried "Nothing here uses
+ * it, so the point would do no work" three lines above the same screen saying
+ * "halved for want of a utility", and the Garden's said the same where Water
+ * takes it from 1 Food to 3.
+ */
+describe('what counts as wanting a utility', () => {
+  const withFacility = (facility: FacilityId, slot = 'garage'): Campaign => ({
+    ...createNewCampaign('Cedar Hollow', FIXED),
+    base: { id: 'small-town-home', slots: { [slot]: { built: { facility, builtOnTurn: 1 } } } },
+  });
+
+  const notNeeded = (campaign: Campaign, utility: Utility, slot = 'garage') =>
+    checkUtility(campaign, { slot, utility }).warnings.some(
+      (warning) => warning.code === 'not-needed',
+    );
+
+  /** The Storage Area's Refrigeration *requires* Power — the case that worked. */
+  it('says nothing for a facility whose upgrade requires it', () => {
+    const fridge: Campaign = {
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      base: {
+        id: 'small-town-home',
+        slots: {
+          garage: {
+            built: { facility: 'storage-area', builtOnTurn: 1 },
+            upgrades: ['refrigeration'],
+          },
+        },
+      },
+    };
+
+    expect(notNeeded(fridge, 'power')).toBe(false);
+  });
+
+  /** The Kitchen is halved without Water — less, not nothing. */
+  it('says nothing for a facility whose output is halved without it', () => {
+    expect(notNeeded(withFacility('kitchen'), 'water')).toBe(false);
+  });
+
+  /** The Garden makes 1 Food, or 3 with Water. */
+  it('says nothing for a facility that produces more with it', () => {
+    expect(notNeeded(withFacility('garden', 'front-yard'), 'water', 'front-yard')).toBe(false);
+  });
+
+  /** And still warns where the point genuinely changes nothing. */
+  it('still warns where nothing in the slot reads the utility', () => {
+    expect(notNeeded(withFacility('kitchen'), 'power')).toBe(true);
+  });
+});
+
+/**
+ * The Hydroelectric Dam's two Phase 3 specials, which nothing read.
+ *
+ * Of the seven base specials, only `curtain-wall` and `white-noise` had
+ * consumers; `bases.ts` said so in its own comment and Phase 3 did not add the
+ * rest. Two of the missing ones are Phase 3's own rules, so choosing the Dam
+ * gave a player strictly less than the book says.
+ */
+describe('the Hydroelectric Dam', () => {
+  const dam = (survivors: readonly Survivor[] = []): Campaign => ({
+    ...createNewCampaign('Cedar Hollow', FIXED),
+    survivors,
+    base: { id: 'hydroelectric-dam', slots: {} },
+  });
+
+  /** A Tier 4's Cooperation is 1, so Utilities at level `n` is a Score of 1 + n. */
+  const engineer = (level: number, id: string): Survivor => ({
+    ...createSurvivor('Sam Reyes', 4, { id }),
+    skills: { utilities: level },
+  });
+
+  describe('dam-utilities', () => {
+    it('supplies every facility once the community reaches the threshold', () => {
+      // Two engineers at Score 4 apiece: a combined 8, over the 6 it asks for.
+      const supplied = dam([engineer(3, 'one'), engineer(3, 'two')]);
+
+      expect(communityUtilities(supplied)).toBe(8);
+      expect(suppliesEveryFacility(supplied)).toBe(true);
+      expect(
+        suppliedOccupants(supplied).every((occupant) => occupant.power && occupant.water),
+      ).toBe(true);
+    });
+
+    it('supplies nothing below the threshold', () => {
+      const short = dam([engineer(3, 'one')]);
+
+      expect(communityUtilities(short)).toBe(4);
+      expect(suppliesEveryFacility(short)).toBe(false);
+      expect(suppliedOccupants(short).some((occupant) => occupant.power)).toBe(false);
+    });
+
+    /**
+     * It counts the whole community, not just whoever staffs a Station — which
+     * is the distinction that makes it reachable at all. The Dam ships no
+     * Utility Station slot and no flat generation, so nothing else could ever
+     * power anything there.
+     */
+    it('counts survivors who are staffing nothing', () => {
+      const idle = dam([engineer(3, 'one'), engineer(3, 'two')]);
+
+      expect(idle.assignments).toEqual({});
+      expect(suppliesEveryFacility(idle)).toBe(true);
+    });
+
+    it('is not a rule any other base has', () => {
+      const home: Campaign = {
+        ...dam([engineer(3, 'one'), engineer(3, 'two')]),
+        base: { id: 'small-town-home', slots: {} },
+      };
+
+      expect(suppliesEveryFacility(home)).toBe(false);
+    });
   });
 });

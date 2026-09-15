@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BASES, BASE_IDS, type BaseId } from '../data/bases';
-import { FACILITIES, type Facility, type Upgrade } from '../data/facilities';
+import { FACILITIES, type Facility, type Upgrade, type UpgradeId } from '../data/facilities';
 import type { Base, SlotState } from './campaign';
 import {
   beds,
@@ -9,10 +9,15 @@ import {
   maxHeroes,
   occupants,
   siegeThreatFromBase,
+  siegeThreatReduction,
+  staffCapacity,
   storageCaps,
   upgradesRemaining,
   upgradesUsed,
+  type Occupant,
 } from './base';
+import { createSurvivor } from './survivor';
+import type { Survivor } from './campaign';
 
 /** A base with nothing done to it — the state a claim leaves behind. */
 const claimed = (id: BaseId): Base => ({ id, slots: {} });
@@ -120,13 +125,13 @@ describe('storageCaps', () => {
     for (const id of BASE_IDS) {
       const printed = PRINTED[id];
 
-      expect([id, storageCaps(claimed(id))]).toEqual([
+      expect([id, storageCaps(claimed(id), occupants(claimed(id)))]).toEqual([
         id,
         { hardware: printed.unpowered[0], food: printed.unpowered[1], fuel: printed.unpowered[2] },
       ]);
 
       const supplied = printed.supplied ?? printed.unpowered;
-      expect([id, storageCaps(fullySupplied(id))]).toEqual([
+      expect([id, storageCaps(fullySupplied(id), occupants(fullySupplied(id)))]).toEqual([
         id,
         { hardware: supplied[0], food: supplied[1], fuel: supplied[2] },
       ]);
@@ -140,7 +145,7 @@ describe('storageCaps', () => {
 
     // Tier 1 is 4 across; the Storage Area adds 2 to each and the Fuel Tank 2
     // more to Fuel alone.
-    expect(storageCaps(base)).toEqual({ hardware: 6, food: 6, fuel: 8 });
+    expect(storageCaps(base, occupants(base))).toEqual({ hardware: 6, food: 6, fuel: 8 });
   });
 
   it('gives no storage at all for a facility whose utility is missing', () => {
@@ -157,35 +162,35 @@ describe('storageCaps', () => {
 
     // The Storage Area itself needs nothing, so it works either way; only the
     // Refrigeration switches off.
-    expect(storageCaps(unpowered).food).toBe(6);
-    expect(storageCaps(powered).food).toBe(8);
+    expect(storageCaps(unpowered, occupants(unpowered)).food).toBe(6);
+    expect(storageCaps(powered, occupants(powered)).food).toBe(8);
   });
 });
 
 describe('beds', () => {
   it('counts a base’s own bunk rooms and their upgrades', () => {
     // Two bunk rooms at two beds each.
-    expect(beds(claimed('small-town-home'))).toBe(4);
+    expect(beds(claimed('small-town-home'), occupants(claimed('small-town-home')))).toBe(4);
 
     // Both of the Summer Camp's ship two Extra Beds: four beds each.
-    expect(beds(claimed('summer-camp'))).toBe(8);
+    expect(beds(claimed('summer-camp'), occupants(claimed('summer-camp')))).toBe(8);
   });
 
   it('counts the Regional Firehouse’s eight, which the roster states outright', () => {
-    expect(beds(claimed('regional-firehouse'))).toBe(8);
+    expect(beds(claimed('regional-firehouse'), occupants(claimed('regional-firehouse')))).toBe(8);
   });
 
   it('adds one per indoor bunk room at the Hydroelectric Dam', () => {
     // The Dam ships none, so White Noise is worth nothing until the player
     // builds one — and then it is worth one bed per bunk room, not one bed.
-    expect(beds(claimed('hydroelectric-dam'))).toBe(0);
+    expect(beds(claimed('hydroelectric-dam'), occupants(claimed('hydroelectric-dam')))).toBe(0);
 
     const withBunks = withSlots('hydroelectric-dam', {
       'turbine-room-1': { built: { facility: 'bunk-room', builtOnTurn: 2 } },
       'turbine-room-2': { built: { facility: 'bunk-room', builtOnTurn: 2 } },
     });
 
-    expect(beds(withBunks)).toBe(6);
+    expect(beds(withBunks, occupants(withBunks))).toBe(6);
   });
 
   it('does not give White Noise to a bunk room in an outdoor slot', () => {
@@ -195,7 +200,7 @@ describe('beds', () => {
       'parking-lot': { built: { facility: 'bunk-room', builtOnTurn: 2 } },
     });
 
-    expect(beds(outdoors)).toBe(2);
+    expect(beds(outdoors, occupants(outdoors))).toBe(2);
   });
 
   it('counts a player’s Extra Beds, repeats included', () => {
@@ -203,31 +208,40 @@ describe('beds', () => {
       'bunk-room-1': { upgrades: ['extra-bed', 'extra-bed'] },
     });
 
-    expect(beds(base)).toBe(6);
+    expect(beds(base, occupants(base))).toBe(6);
   });
 });
 
 describe('siegeThreatFromBase', () => {
   it('is zero for a base with nothing that touches it', () => {
-    expect(siegeThreatFromBase(claimed('small-town-home'))).toBe(0);
+    expect(
+      siegeThreatFromBase(claimed('small-town-home'), occupants(claimed('small-town-home'))),
+    ).toBe(0);
   });
 
   it('counts the Renaissance Festival’s Curtain Wall', () => {
-    expect(siegeThreatFromBase(claimed('renaissance-festival'))).toBe(-3);
+    expect(
+      siegeThreatFromBase(
+        claimed('renaissance-festival'),
+        occupants(claimed('renaissance-festival')),
+      ),
+    ).toBe(-3);
   });
 
   it('counts a Spotlight only while it has Power', () => {
     const dark = withSlots('rural-church', { watchtower: { upgrades: ['spotlight'] } });
     const lit = withSlots('rural-church', { watchtower: { upgrades: ['spotlight'], power: true } });
 
-    expect(siegeThreatFromBase(dark)).toBe(0);
-    expect(siegeThreatFromBase(lit)).toBe(-1);
+    expect(siegeThreatFromBase(dark, occupants(dark))).toBe(0);
+    expect(siegeThreatFromBase(lit, occupants(lit))).toBe(-1);
   });
 
   it('leaves out the Watchtower’s own reduction, which needs staff', () => {
     // The Rural Church ships a Watchtower. Its contribution is the staff's best
     // score, and staffing is Phase 3 — so the base's own number is unaffected.
-    expect(siegeThreatFromBase(claimed('rural-church'))).toBe(0);
+    expect(siegeThreatFromBase(claimed('rural-church'), occupants(claimed('rural-church')))).toBe(
+      0,
+    );
   });
 });
 
@@ -328,5 +342,131 @@ describe('maxHeroes', () => {
     for (const id of BASE_IDS) {
       expect([id, maxHeroes(claimed(id))]).toEqual([id, BASES[id].tier]);
     }
+  });
+});
+
+/**
+ * pg. 54: a staffed facility takes one survivor unless an upgrade widens it.
+ * `extraStaff` was transcribed for exactly this and read by nothing until the
+ * September playtest found three survivors on a bare Medical Clinic making five
+ * Health, and a Rot check target of −4.
+ */
+describe('staffCapacity', () => {
+  const occupantOf = (base: Base, slot: string) =>
+    occupants(base).find((occupant) => occupant.slotId === slot) as Occupant;
+
+  const clinic = (upgrades: readonly UpgradeId[] = [], supplied = false): Base => ({
+    id: 'small-town-home',
+    slots: {
+      garage: {
+        built: { facility: 'medical-clinic', builtOnTurn: 1 },
+        upgrades: [...upgrades],
+        ...(supplied ? { power: true, water: true } : {}),
+      },
+    },
+  });
+
+  it('is one for a staffed facility with nothing widening it', () => {
+    expect(staffCapacity(occupantOf(clinic(), 'garage'))).toBe(1);
+  });
+
+  it('is nothing at all for a facility that takes no staff', () => {
+    // A Bunk Room's two beds are flat, with no skill named.
+    expect(staffCapacity(occupantOf({ id: 'small-town-home', slots: {} }, 'bunk-room-1'))).toBe(0);
+  });
+
+  it('widens by one for each upgrade that says so', () => {
+    expect(staffCapacity(occupantOf(clinic(['med-lab'], true), 'garage'))).toBe(2);
+  });
+
+  /**
+   * An upgrade whose requirements are unmet produces no effect at all (pg. 54),
+   * and widening the staffing *is* the Med Lab's effect. A Med Lab without
+   * Power and Water is a room nobody can work in, not a second seat.
+   */
+  it('does not widen for an upgrade that has not got its utilities', () => {
+    expect(staffCapacity(occupantOf(clinic(['med-lab']), 'garage'))).toBe(1);
+  });
+});
+
+/**
+ * pg. 73, and the whole purpose of the facility: a staffed Watchtower subtracts
+ * its lookout's best of Long Guns / Handguns / Archery / Traps. Nothing
+ * consumed `reducedByBestOf` until the September playtest found that staffing
+ * one *raised* Siege Threat by 1, through the staffed-facility count.
+ */
+describe('siegeThreatReduction', () => {
+  const tower = (upgrades: readonly UpgradeId[] = []): Base => ({
+    id: 'small-town-home',
+    slots: {
+      'front-yard': { built: { facility: 'watchtower', builtOnTurn: 1 }, upgrades: [...upgrades] },
+    },
+  });
+
+  const occupantOf = (base: Base) =>
+    occupants(base).find((occupant) => occupant.slotId === 'front-yard') as Occupant;
+
+  /** Long Guns is governed by Dexterity, which a Tier 4 has 2 of. */
+  const lookout = (level: number, id = 'lookout'): Survivor => ({
+    ...createSurvivor('Nell Haig', 4, { id }),
+    skills: { 'long-guns': level },
+  });
+
+  it('is nothing for a tower nobody is watching from', () => {
+    expect(siegeThreatReduction(occupantOf(tower()), [], 0)).toBe(0);
+  });
+
+  it('is the staff’s Score in the skill the facility names', () => {
+    // A Tier 4's Dexterity is 3, plus level 3.
+    expect(siegeThreatReduction(occupantOf(tower()), [lookout(3)], 0)).toBe(6);
+  });
+
+  /** The best of the four, not the sum — which is what `reducedByBestOf` says. */
+  it('takes the best of two lookouts rather than adding them', () => {
+    const both = [lookout(3), { ...lookout(1, 'other'), name: 'Ada Poole' }];
+
+    expect(siegeThreatReduction(occupantOf(tower()), both, 0)).toBe(6);
+  });
+
+  it('is nothing for a facility with no such effect', () => {
+    const kitchen: Base = {
+      id: 'small-town-home',
+      slots: { garage: { built: { facility: 'kitchen', builtOnTurn: 1 } } },
+    };
+    const occupant = occupants(kitchen).find((one) => one.slotId === 'garage') as Occupant;
+
+    expect(siegeThreatReduction(occupant, [lookout(3)], 0)).toBe(0);
+  });
+
+  /** A starving lookout watches worse, like every other Score in the community. */
+  it('drops with the hunger penalty', () => {
+    // Dexterity 3 less the penalty of 2, plus level 3.
+    expect(siegeThreatReduction(occupantOf(tower()), [lookout(3)], 2)).toBe(4);
+  });
+});
+
+/**
+ * pg. 19, 54: a community's **first** base starts at the maximum of every
+ * capped material. The app left it at 0/0/0 and never mentioned the rule, so a
+ * player who did not know it started three material types short.
+ *
+ * The caps themselves are asserted all over this file; what this pins is the
+ * number the claim should hand over, since that is what the reducer copies.
+ */
+describe('what a first base arrives holding', () => {
+  it('is the cap of every stored material, and nothing about Rare', () => {
+    // A Tier 1 base stores Tier + 3 of each.
+    const base = claimed('small-town-home');
+
+    expect(storageCaps(base, occupants(base))).toEqual({ food: 4, fuel: 4, hardware: 4 });
+  });
+
+  /** A base with a Storage Area is higher, and the claim follows it. */
+  it('follows the base’s own facilities rather than its Tier alone', () => {
+    const base = claimed('greasy-spoon');
+
+    // Six rather than eight: the built-in Refrigeration wants Power, and a
+    // base nobody is staffing yet has none.
+    expect(storageCaps(base, occupants(base)).food).toBe(6);
   });
 });

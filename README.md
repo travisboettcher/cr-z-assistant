@@ -24,17 +24,25 @@ edition renamed, and the rules recorded for later phases.
 
 ## What works today
 
-Phase 0 — the skeleton. You can create a campaign, and save and load it as a `.json` file.
+Phases 0 to 3 — a campaign you can actually play the Community Layer of, turn by turn.
 
-- **Export** writes a readable, stably-ordered `.json`. This is the durable save.
-- **Import** reads one back, with a real message for every way a file can be wrong.
-- **Autosave** keeps a copy in the browser so a closed tab does not cost a turn. It is a
-  convenience layer — a cleared browser takes it with it, and only an exported file survives.
-- A **schema version and migration chain**, so a campaign started now still opens after the
-  data model grows.
+- **Saving** (Phase 0). Export writes a readable, stably-ordered `.json`; that is the durable
+  save. Import reads one back with a real message for every way a file can be wrong. Autosave
+  keeps a copy in the browser so a closed tab does not cost a turn — a convenience layer that a
+  cleared browser takes with it. A schema version and migration chain mean a campaign started
+  now still opens after the data model grows.
+- **Survivors** (Phase 1). A roster with Tiers, stats, skills and Health; a character sheet that
+  computes Scores rather than storing them; experience spent on levels and promotions.
+- **A base** (Phase 2). Claim one, build facilities and upgrades into its slots, clear what is in
+  the way, assign Power and Water. Rules that a table may play differently warn rather than
+  refuse, and every refusal can be overridden on purpose.
+- **The turn** (Phase 3). All nineteen steps of the four phases, walked forwards and backwards:
+  assignments, projects and Labor, XP, materials and substitutions, healing, feeding, Unrest, the
+  horde and departures.
 
-Survivors, base building, the turn engine, missions and equipment are later phases. See
-[`docs/phase-0-stories.md`](docs/phase-0-stories.md) for how Phase 0 was broken down.
+Missions and equipment are later phases. Each phase's breakdown is in `docs/` —
+[Phase 0](docs/phase-0-stories.md), [Phase 1](docs/phase-1-stories.md),
+[Phase 2](docs/phase-2-stories.md), [Phase 3](docs/phase-3-stories.md).
 
 ## Running it
 
@@ -159,3 +167,21 @@ Three things about reading the score:
 Neither replaces the tests built from the rulebook's own worked characters (pg. 13–15). Those
 check the app against the *rules*; these check the tests against the *code*. A perfect mutation
 score on a function implementing the wrong rule is still the wrong rule.
+
+## License
+
+The code is dual-licensed under either
+
+- [MIT](LICENSE-MIT), or
+- [Apache License 2.0](LICENSE-APACHE)
+
+at your option. Pick whichever fits what you are doing; you do not have to satisfy both. This is
+the same arrangement the Rust project uses, and it is here for the same reason: MIT is the one
+almost everybody already understands, and Apache-2.0 carries an explicit patent grant for anyone
+whose employer asks about that before they are allowed to contribute.
+
+**That covers this project's own work, and not the game.** *County Road Z* is copyright Jordan
+Heckman, published by Modiphius Entertainment — its rules, names, statistics and page references
+appear here as factual reference so the app can compute state against a book you own, and no
+license to them is granted or implied, because none is mine to grant. [`NOTICE`](NOTICE) states
+where the line falls and why the app ships no rule text. A fork inherits that position unchanged.

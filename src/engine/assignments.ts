@@ -13,25 +13,24 @@
  * generates. A cached pool would be wrong for a whole turn and look right the
  * entire time.
  *
- * ## What is *not* here: Labor spent
+ * ## What is *not* here: Labor spent, and Labor whose turn has passed
  *
- * `laborPool` is what the project team generates. It is not reduced by what has
- * already been built this turn, and Phase 2's hand-entered number was not
- * either — so this story changes where the number comes from without changing
- * what is tracked.
+ * `laborPool` is what the project team generates, and it is neither of the two
+ * numbers a screen asking "can this be ordered" wants. It is not reduced by
+ * what this turn has already ordered — `laborCommitted` in `projects.ts` is
+ * that — and it does not ask whose turn the team belongs to, which
+ * `laborThisTurn` beside it does.
  *
- * Spending it down needs something this app does not have yet. Facilities
- * record the turn they went up, but upgrades and cleared slots record nothing,
- * so "what has this turn's Labor already paid for" is not recoverable. The book
- * has the real shape: projects are *ordered* during the Planning Phase and
- * complete in the next Advancement Phase (pg. 20, 19), which is a queue rather
- * than a running total — and it belongs to
- * [Z3-7](../../docs/phase-3-stories.md#z3-7--the-advancement-phase), which owns
- * that step. Adding a turn stamp to every upgrade now, to replace it there,
- * would be churn.
+ * Both live there because both are questions about the *queue*, and this
+ * module knows only about tasks. The second one is worth naming because it is
+ * not obvious: `assignments` holds last turn's tasks right up until the top of
+ * the next Planning Phase clears them (pg. 20), so for two whole phases the
+ * team on the campaign is the one that was paid for a turn ago. Reading
+ * `laborPool` in those phases and calling it this turn's budget was issue #97.
  */
 
-import { occupants } from './base';
+import { BASES } from '../data/bases';
+import { occupantAt, occupants, staffCapacity } from './base';
 import { hungerPenalty } from './feeding';
 import type { Assignment, Campaign, Survivor } from './campaign';
 import { facilityProduction, type ProductionLine } from './production';
@@ -85,11 +84,36 @@ export function survivorsDoing(
   });
 }
 
-/** Whoever is working this slot's facility (pg. 20). */
+/**
+ * Whoever is working this slot's facility, up to what it takes (pg. 20, 54).
+ *
+ * **Capped here rather than at each consumer**, so production, the Rot check's
+ * Medicine total and the Watchtower's reduction all get the limit without
+ * asking for it. A facility takes one survivor unless an upgrade widens it, and
+ * nothing enforced that until the September playtest put three on a bare
+ * Medical Clinic and got +5 Health out of it.
+ *
+ * The excess is **ignored rather than refused**, which is this app's usual
+ * shape: the Planning screen warns, and a save that arrived over capacity opens
+ * and is described rather than rejected. Roster order decides who counts, which
+ * is arbitrary but stable — and the screen names whoever is doing nothing, so
+ * the answer is visible rather than merely consistent.
+ */
 export function staffOf(campaign: Campaign, slot: string): readonly Survivor[] {
   // Through `sameTask` rather than matching the tag and the slot again here.
   // Two places answering "is this the same job" is one place too many, and the
   // copy was the one a mutant could survive in.
+  const assigned = survivorsDoing(campaign, (assignment) =>
+    sameTask(assignment, { task: 'staff', slot }),
+  );
+
+  const occupant = occupantAt(campaign, slot);
+
+  return occupant === undefined ? [] : assigned.slice(0, staffCapacity(occupant));
+}
+
+/** Whoever is assigned to this slot, over capacity or not — for a screen to report. */
+export function assignedTo(campaign: Campaign, slot: string): readonly Survivor[] {
   return survivorsDoing(campaign, (assignment) => sameTask(assignment, { task: 'staff', slot }));
 }
 
@@ -99,14 +123,54 @@ export function projectTeam(campaign: Campaign): readonly Survivor[] {
 }
 
 /**
+ * The campaign as the Advancement Phase is entitled to read it.
+ *
+ * **Two questions share one field, and this is the one that separates them.**
+ * `assignments` answers "who is doing what" — but the Advancement Phase asks
+ * "who did what on the turn that just played", and the Planning Phase of the
+ * same turn overwrites the answer. Ordinarily that is fine, because Advancement
+ * runs first. It stopped being fine the moment the walk let a player skip
+ * forward to Planning from an unfinished Advancement step and then come back:
+ * the clear had happened, and the steps behind them showed a turn where nobody
+ * went on a mission, nobody staffed a Kitchen and nobody was resting — with the
+ * Health those steps owed gone for good (issue #95).
+ *
+ * So the `planning-began` entry records what it cleared, and this rewinds to
+ * it. Derived from the log rather than kept in a second field, like everything
+ * else here: the entry is the record of the clearing, and the assignments it
+ * carries are what the clearing was *of*.
+ *
+ * A turn whose Planning has not begun is already showing the right answer and
+ * comes back untouched — which includes turn 1, where the Mission Phase records
+ * who played the First Mission (pg. 75) and no Planning Phase has ever run.
+ * Applying this twice changes nothing, so a caller that has already rewound
+ * costs only the work.
+ */
+export function beforePlanning(campaign: Campaign): Campaign {
+  const cleared = campaign.log
+    .flatMap((entry) =>
+      entry.turn === campaign.turn && entry.event.kind === 'planning-began'
+        ? [entry.event.cleared]
+        : [],
+    )
+    .at(0);
+
+  // `undefined` twice over, and both mean "nothing to rewind to": no clearing
+  // this turn, or one logged by a build from before the entry carried it.
+  return cleared === undefined ? campaign : { ...campaign, assignments: cleared };
+}
+
+/**
  * Everybody on a mission team (pg. 21).
  *
  * **Read in the Advancement Phase, written in the Planning one, and that is the
  * point.** The Planning Phase of a turn assigns *next* turn's team (pg. 21), and
  * the reset that clears assignments runs at the top of the Planning Phase — so
  * when the Advancement Phase asks who was on the mission that just played, the
- * answer is still sitting in `assignments`. Clearing at the top of the turn
- * instead would have destroyed it one step before it was needed.
+ * answer is still sitting in `assignments` — or, once that clear has happened,
+ * in the entry that recorded it. Callers in the Advancement Phase reach this
+ * through `beforePlanning` for that reason; callers in the Management Phase,
+ * which runs *after* the clear and means the team going out next, do not.
  *
  * Every team, not one: the assignment carries a team number the app does not
  * yet write anything but 1 into, and "who went on the mission" is the question
@@ -117,13 +181,40 @@ export function missionTeam(campaign: Campaign): readonly Survivor[] {
 }
 
 /**
- * The Labor the project team generates this turn (pg. 20).
+ * The Labor the project team on the campaign generates (pg. 20).
  *
- * The sum of their Tier levels, and nothing else — the pool is not reduced by
- * what has been built, for the reason in this module's own note above.
+ * The sum of their Tier levels, plus whatever the base adds. Two things it is
+ * deliberately not, both in `projects.ts` and both for the reason in this
+ * module's note above: it is not reduced by what has been ordered
+ * (`laborAvailable` subtracts), and it does not ask which turn assigned this
+ * team (`laborThisTurn` does). A caller pricing an order wants that one.
  */
 export function laborPool(campaign: Campaign): number {
-  return projectTeam(campaign).reduce((total, survivor) => total + labor(survivor), 0);
+  const team = projectTeam(campaign);
+  const generated = team.reduce((total, survivor) => total + labor(survivor), 0);
+
+  return generated + baseLabor(campaign, team.length > 0);
+}
+
+/**
+ * What the base itself adds to the Labor pool.
+ *
+ * The Hydroelectric Dam's Catwalks: +2 a turn, and only while somebody is on
+ * the project team (pg. 61) — which is why `working` is a parameter rather
+ * than something this reads for itself. Nothing consumed the special until the
+ * September playtest found the Dam's pool reading 3 where the book says 5.
+ */
+function baseLabor(campaign: Campaign, working: boolean): number {
+  const base = campaign.base;
+  if (base === null) return 0;
+
+  return BASES[base.id].specials.reduce(
+    (total, special) =>
+      special.id === 'catwalks' && (working || !special.needsProjectTeam)
+        ? total + special.labor
+        : total,
+    0,
+  );
 }
 
 /**
@@ -195,4 +286,19 @@ export function utilitiesScore(campaign: Campaign): number {
   }
 
   return total;
+}
+
+/**
+ * Whether Exhaustion has already taken somebody off the mission team this turn
+ * (pg. 23).
+ *
+ * The rule removes **one**, and removing them does not lower the Exhaustion
+ * that called for it — population against beds is unchanged by who is on which
+ * team. So nothing in the campaign distinguishes "the penalty has been applied"
+ * from "the penalty is still owed", and the log is what does.
+ */
+export function missionTeamReduced(campaign: Campaign): boolean {
+  return campaign.log.some(
+    (entry) => entry.turn === campaign.turn && entry.event.kind === 'mission-team-reduced',
+  );
 }

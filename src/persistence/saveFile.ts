@@ -23,7 +23,7 @@ import { TIERS } from '../data/tiers';
 import { MATERIALS } from '../data/materials';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { CAMPAIGN_PHASES, HEALTH_SOURCES, XP_SOURCES } from '../data/turn';
-import type { Assignment, Campaign } from '../engine/campaign';
+import type { Assignment, Campaign, Project } from '../engine/campaign';
 import type { CampaignEventKind } from '../engine/log';
 import { TURN_SEQUENCE } from '../engine/turn';
 import { migrate, type MigrationErrorReason } from './migrations';
@@ -222,8 +222,36 @@ const EVENT_FIELD_CHECKS = {
   xpSource: (value: unknown) => XP_SOURCES.some((source) => source === value),
   healthSource: (value: unknown) => HEALTH_SOURCES.some((source) => source === value),
   flag: (value: unknown) => typeof value === 'boolean',
+  // For a field an older entry legitimately does not carry. Absent is a real
+  // answer here and a damaged one everywhere else, which is why it is its own
+  // check rather than a flag on the loop below.
+  optionalCount: (value: unknown) => value === undefined || isCountFromZero(value),
+  // What a `planning-began` entry cleared, or nothing at all for one written
+  // before it carried anything. Deliberately **not** checked against the roster
+  // the way the campaign's own `assignments` are: this is history, and the turn
+  // it records can name somebody who has since walked out (pg. 23) or been
+  // taken off by hand.
+  optionalAssignments: (value: unknown) =>
+    value === undefined ||
+    (isRecord(value) &&
+      Object.values(value).every((one) => describeAssignmentProblem(one) === null)),
   tier: (value: unknown) => TIERS.some((tier) => tier === value),
+  // A trade's two halves: some of the four materials, each a whole count of
+  // one or more. Partial because a trade names only what it moves, and every
+  // amount positive because the entry records the spend as it was paid rather
+  // than as a negative — "2 Fuel for 1 Food" is one trade, not two movements.
+  materialAmounts: (value: unknown) =>
+    isRecord(value) &&
+    Object.entries(value).every(
+      ([material, amount]) =>
+        (MATERIALS as readonly string[]).includes(material) && isCountFromOne(amount),
+    ),
   roll: (value: unknown) => D10_RESULTS.some((result) => result === value),
+  // A Rookie is recruited without one (pg. 7), and an entry written before the
+  // form stopped offering the die carries one that did nothing. Both are
+  // readable campaigns; only a roll that is not a d10 result is damage.
+  optionalRoll: (value: unknown) =>
+    value === undefined || D10_RESULTS.some((result) => result === value),
   skill: (value: unknown) => typeof value === 'string' && isKeyOf(SKILL_STATS, value),
   commonSkill: (value: unknown) => COMMON_SKILLS.some((skill) => skill === value),
   base: (value: unknown) => typeof value === 'string' && isKeyOf(BASES, value),
@@ -251,16 +279,25 @@ const EVENT_FIELDS: Record<
   'phase-entered': [],
   'turn-began': [],
   'starting-community-settled': [['built', 'flag']],
-  'planning-began': [],
+  'planning-began': [['cleared', 'optionalAssignments']],
   'materials-added': [
     ['food', 'amount'],
     ['fuel', 'amount'],
     ['hardware', 'amount'],
     ['rare', 'amount'],
   ],
+  'materials-converted': [
+    ['slot', 'id'],
+    ['source', 'id'],
+    ['spent', 'materialAmounts'],
+    ['gained', 'materialAmounts'],
+  ],
   'survivors-fed': [
     ['required', 'count'],
     ['hunger', 'count'],
+    // Recorded since the hunger penalty stopped being re-priced by a later
+    // departure; entries written before that do not carry it.
+    ['population', 'optionalCount'],
   ],
   'rot-checked': [
     ['survivor', 'id'],
@@ -269,11 +306,26 @@ const EVENT_FIELDS: Record<
     ['target', 'amount'],
     ['passed', 'flag'],
   ],
+  'bite-restrained': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+  ],
   'survivor-bitten': [
     ['survivor', 'id'],
     ['name', 'name'],
     ['damage', 'countFromOne'],
   ],
+  'facility-ordered': [
+    ['slot', 'id'],
+    ['facility', 'facility'],
+  ],
+  'upgrade-ordered': [
+    ['slot', 'id'],
+    ['upgrade', 'upgrade'],
+  ],
+  'clearing-ordered': [['slot', 'id']],
+  'project-cancelled': [['slot', 'id']],
+  'project-unfinished': [['slot', 'id']],
   'storage-checked': [
     ['food', 'count'],
     ['fuel', 'count'],
@@ -305,12 +357,21 @@ const EVENT_FIELDS: Record<
     ['survivor', 'id'],
     ['name', 'name'],
     ['tier', 'tier'],
-    ['roll', 'roll'],
+    ['roll', 'optionalRoll'],
   ],
   'survivor-left': [
     ['survivor', 'id'],
     ['name', 'name'],
     ['tier', 'tier'],
+  ],
+  'survivor-departed': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['tier', 'tier'],
+  ],
+  'mission-team-reduced': [
+    ['survivor', 'id'],
+    ['name', 'name'],
   ],
   'survivor-promoted': [
     ['survivor', 'id'],
@@ -330,6 +391,11 @@ const EVENT_FIELDS: Record<
     ['score', 'count'],
   ],
   'base-claimed': [['base', 'base']],
+  'base-stocked': [
+    ['food', 'count'],
+    ['fuel', 'count'],
+    ['hardware', 'count'],
+  ],
   'facility-built': [
     ['slot', 'id'],
     ['facility', 'facility'],
@@ -438,6 +504,52 @@ function describeAssignmentProblem(value: unknown): string | null {
 }
 
 /**
+ * The fields each kind of project carries, and how to check each one.
+ *
+ * A full `Record` over the kinds, so a project kind added to `campaign.ts`
+ * without a line here fails the typecheck rather than sailing through
+ * validation unchecked — the same guarantee `EVENT_FIELDS` gives log events.
+ * Every kind carries a slot and the turn it was ordered on; only two carry
+ * anything else.
+ */
+const PROJECT_FIELDS: Record<
+  Project['kind'],
+  readonly (readonly [field: string, check: EventFieldCheck])[]
+> = {
+  facility: [['facility', 'facility']],
+  upgrade: [['upgrade', 'upgrade']],
+  clearing: [],
+};
+
+/**
+ * Names the first thing structurally wrong with one queued project, or `null`.
+ *
+ * **Shape, not legality**, like everything else here. A project queued for a
+ * slot the base does not have, or for a facility the slot could not hold, is a
+ * rule the screens report rather than a damaged file — and Z1-7's override
+ * means a campaign can genuinely hold one. What this refuses is a project that
+ * refers to nothing: a kind this version has never heard of, or a facility id
+ * that is not in the catalogue.
+ */
+function describeProjectProblem(value: unknown): string | null {
+  if (!isRecord(value)) return 'is not a project';
+
+  const kind = value.kind;
+  if (typeof kind !== 'string' || !isKeyOf(PROJECT_FIELDS, kind)) {
+    return `is a kind of project this version does not know: ${String(kind)}`;
+  }
+
+  if (!EVENT_FIELD_CHECKS.id(value.slot)) return 'does not say which slot it is for';
+  if (!isCountFromOne(value.orderedOnTurn)) return 'does not say which turn it was ordered on';
+
+  for (const [field, check] of PROJECT_FIELDS[kind as Project['kind']]) {
+    if (!EVENT_FIELD_CHECKS[check](value[field])) return `has an unreadable ${field}`;
+  }
+
+  return null;
+}
+
+/**
  * Names the first thing wrong with a would-be current-shape `Campaign`, or
  * `null` if there is nothing wrong with it.
  *
@@ -518,6 +630,16 @@ function describeCampaignProblem(value: unknown): string | null {
 
     const problem = describeAssignmentProblem(assignment);
     if (problem !== null) return `the task it gives to ${id} ${problem}`;
+  }
+
+  if (!Array.isArray(value.projects)) return 'its project queue is missing';
+  for (const [index, project] of value.projects.entries()) {
+    const problem = describeProjectProblem(project);
+    // Positional, like log entries: a project whose damaged field is the one
+    // that says what it is cannot be pointed at by what it is.
+    if (problem !== null) {
+      return `project ${index + 1} of ${value.projects.length} ${problem}`;
+    }
   }
 
   if (!Array.isArray(value.log)) return 'its campaign log is missing';

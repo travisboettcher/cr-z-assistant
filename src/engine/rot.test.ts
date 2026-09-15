@@ -6,11 +6,15 @@ import {
   type Campaign,
   type Survivor,
 } from './campaign';
+import type { UpgradeId } from '../data/facilities';
 import { createSurvivor } from './survivor';
 import {
   biteCandidates,
   mustCheck,
+  restraints,
+  restraintsFree,
   rotCheckPasses,
+  rotCheckResolved,
   rotOutcome,
   rotTarget,
   withRotApplied,
@@ -56,6 +60,19 @@ describe('rotTarget', () => {
     slots: { garage: { built: { facility: 'medical-clinic', builtOnTurn: 1 } } },
   });
 
+  /** The same Clinic with a Med Lab, powered and watered so it applies. */
+  const medLab = (): Base => ({
+    id: 'small-town-home',
+    slots: {
+      garage: {
+        built: { facility: 'medical-clinic', builtOnTurn: 1 },
+        upgrades: ['med-lab'],
+        power: true,
+        water: true,
+      },
+    },
+  });
+
   const medic = (score: number): Survivor => ({
     ...createSurvivor('Nell Haig', 4, { id: 'medic' }),
     stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: score },
@@ -74,13 +91,28 @@ describe('rotTarget', () => {
     expect(rotTarget(staffedWith(community([], {}, clinic()), 'garage', [medic(3)]))).toBe(9);
   });
 
+  /**
+   * A Clinic takes one survivor; a Med Lab adds the second (pg. 54, 72). The
+   * scores then sum rather than the better winning — which is the distinction
+   * worth a test, and was unreachable while capacity had no reader at all.
+   */
   it('sums two medics rather than taking the better of them', () => {
-    const both = staffedWith(community([], {}, clinic()), 'garage', [
+    const both = staffedWith(community([], {}, medLab()), 'garage', [
       medic(3),
       { ...medic(2), id: 'other', name: 'Ada Poole' },
     ]);
 
     expect(rotTarget(both)).toBe(7);
+  });
+
+  /** And the second medic does nothing at all without the Med Lab. */
+  it('counts only the one a bare Clinic takes', () => {
+    const both = staffedWith(community([], {}, clinic()), 'garage', [
+      medic(3),
+      { ...medic(2), id: 'other', name: 'Ada Poole' },
+    ]);
+
+    expect(rotTarget(both)).toBe(9);
   });
 
   it('counts nobody working anything else', () => {
@@ -97,11 +129,12 @@ describe('rotTarget', () => {
    * check becoming a certainty, and clamping would be inventing a rule.
    */
   it('has no floor, and will go below zero for a well-staffed Clinic', () => {
-    const crowded = staffedWith(community([], {}, clinic()), 'garage', [
-      medic(4),
-      { ...medic(4), id: 'two', name: 'Two' },
-      { ...medic(4), id: 'three', name: 'Three' },
-      { ...medic(4), id: 'four', name: 'Four' },
+    // A Med Lab's two seats, both filled by somebody very good at Medicine.
+    // This used to pile four medics into a bare Clinic, which is not a state
+    // the rules allow and is no longer one the engine counts.
+    const crowded = staffedWith(community([], {}, medLab()), 'garage', [
+      medic(8),
+      { ...medic(8), id: 'two', name: 'Two' },
     ]);
 
     expect(rotTarget(crowded)).toBe(-4);
@@ -174,6 +207,71 @@ describe('biteCandidates', () => {
   });
 });
 
+/**
+ * `preventsBiting` sat in the catalogue from Phase 2 with no reader anywhere,
+ * which is the shape most of the September playtest's findings took: the
+ * transcription was right and nothing summed it.
+ */
+describe('restraints and restraintsFree', () => {
+  const clinic = (upgrades: readonly UpgradeId[]): Base => ({
+    id: 'small-town-home',
+    slots: {
+      garage: { built: { facility: 'medical-clinic', builtOnTurn: 1 }, upgrades: [...upgrades] },
+    },
+  });
+
+  const held = (turn: number, survivor: string): LogEntry => ({
+    turn,
+    phase: 'management',
+    at: AT,
+    event: { kind: 'bite-restrained', survivor, name: 'Marcus Webb' },
+  });
+
+  it('is nothing without a base, and nothing for a Clinic without a set', () => {
+    expect(restraints(community())).toBe(0);
+    expect(restraints(community([], {}, clinic([])))).toBe(0);
+  });
+
+  /**
+   * Counted off `preventsBiting` rather than by the upgrade's name, so two sets
+   * hold two survivors — which is what the field says and not what counting
+   * upgrades would assume.
+   */
+  it('counts what each set prevents, across every set installed', () => {
+    expect(restraints(community([], {}, clinic(['restraints'])))).toBe(1);
+    expect(restraints(community([], {}, clinic(['restraints', 'restraints'])))).toBe(2);
+  });
+
+  it('ignores an upgrade that prevents nothing', () => {
+    expect(restraints(community([], {}, clinic(['med-lab', 'recovery-room'])))).toBe(0);
+  });
+
+  it('is spent down by this turn’s holds and no other turn’s', () => {
+    const two = community([], {}, clinic(['restraints', 'restraints']));
+
+    // The decoy is a check this turn that held nobody: a count that asked only
+    // "is this entry this turn's" would take it for a set spent.
+    const decoy: LogEntry = {
+      turn: 3,
+      phase: 'management',
+      at: AT,
+      event: { kind: 'rot-checked', survivor: 'a', name: 'A', roll: 10, target: 12, passed: true },
+    };
+
+    expect(restraintsFree({ ...two, log: [decoy, held(3, 'a')] })).toBe(1);
+    expect(restraintsFree({ ...two, log: [held(3, 'a'), held(3, 'b')] })).toBe(0);
+    // Last turn's holds are last turn's: a set is equipment, not a consumable.
+    expect(restraintsFree({ ...two, log: [held(2, 'a'), held(2, 'b')] })).toBe(2);
+  });
+
+  /** A Clinic torn down between the hold and the question, which a save can hold. */
+  it('never goes below nothing', () => {
+    const none = community([], {}, clinic([]));
+
+    expect(restraintsFree({ ...none, log: [held(3, 'a')] })).toBe(0);
+  });
+});
+
 describe('rotOutcome and withRotApplied', () => {
   /** Turning at 0 Health, one survivor being healed beside them at 2. */
   const clinicful = () =>
@@ -182,10 +280,21 @@ describe('rotOutcome and withRotApplied', () => {
       healed: { task: 'healing' },
     });
 
+  /** The same two, with a Clinic that has one set of Restraints (pg. 72). */
+  const restrained = (): Campaign => ({
+    ...clinicful(),
+    base: {
+      id: 'small-town-home',
+      slots: {
+        garage: { built: { facility: 'medical-clinic', builtOnTurn: 1 }, upgrades: ['restraints'] },
+      },
+    },
+  });
+
   it('costs nothing at all when the check passes', () => {
     const outcome = rotOutcome(clinicful(), 'turning', 10, 'healed');
 
-    expect(outcome).toEqual({ turned: null, bitten: null });
+    expect(outcome).toEqual({ turned: null, bitten: null, restrained: false });
     expect(withRotApplied(clinicful(), outcome)).toEqual(clinicful());
   });
 
@@ -241,8 +350,71 @@ describe('rotOutcome and withRotApplied', () => {
     expect(rotOutcome(elsewhere, 'turning', 1, 'busy').bitten).toBeNull();
   });
 
+  /**
+   * The other half of the rule the Restraints exist for (pg. 72): the survivor
+   * still turns and is still removed — what a set prevents is the bite.
+   */
+  it('holds the turning survivor so nobody is bitten', () => {
+    const outcome = rotOutcome(restrained(), 'turning', 1, 'healed');
+    const after = withRotApplied(restrained(), outcome);
+
+    expect(outcome.turned?.id).toBe('turning');
+    expect(outcome.restrained).toBe(true);
+    expect(outcome.bitten).toBeNull();
+
+    // Removed all the same, and the survivor beside them keeps their Health.
+    expect(after.survivors.map((survivor) => survivor.id)).toEqual(['healed']);
+    expect(after.survivors[0]?.currentHp).toBe(2);
+  });
+
+  it('bites again once the turn’s sets are used up', () => {
+    const spent: Campaign = {
+      ...restrained(),
+      log: [
+        {
+          turn: 3,
+          phase: 'management',
+          at: AT,
+          event: { kind: 'bite-restrained', survivor: 'somebody', name: 'Somebody' },
+        },
+      ],
+    };
+
+    const outcome = rotOutcome(spent, 'turning', 1, 'healed');
+
+    expect(outcome.restrained).toBe(false);
+    expect(outcome.bitten?.survivor.id).toBe('healed');
+  });
+
+  /**
+   * Nothing to prevent, so nothing spent. A set held back for a turning
+   * survivor nobody was standing beside would leave the next one unheld for
+   * nothing.
+   */
+  it('spends no set where there was nobody to bite', () => {
+    const alone: Campaign = {
+      ...restrained(),
+      survivors: [at('turning', 'Turning', 0)],
+      assignments: { turning: { task: 'healing' } },
+    };
+
+    const outcome = rotOutcome(alone, 'turning', 1, null);
+
+    expect(outcome.turned?.id).toBe('turning');
+    expect(outcome.restrained).toBe(false);
+    expect(outcome.bitten).toBeNull();
+  });
+
+  it('holds nobody when the check passes', () => {
+    expect(rotOutcome(restrained(), 'turning', 10, 'healed').restrained).toBe(false);
+  });
+
   it('says nothing about a survivor the community does not hold', () => {
-    expect(rotOutcome(clinicful(), 'nobody', 1, null)).toEqual({ turned: null, bitten: null });
+    expect(rotOutcome(clinicful(), 'nobody', 1, null)).toEqual({
+      turned: null,
+      bitten: null,
+      restrained: false,
+    });
   });
 
   it('leaves everything else about the campaign alone', () => {
@@ -286,5 +458,46 @@ describe('the hunger penalty touches no survivor record', () => {
 
     expect(rotTarget(hungry)).toBeGreaterThan(rotTarget(fed));
     expect(hungry.survivors).toEqual(fed.survivors);
+  });
+});
+
+/**
+ * Per survivor rather than per step, unlike every other guard in this phase:
+ * the step resolves one check for each survivor at 0 Health, so "already done"
+ * is a question about a person. Without it the same survivor was observed
+ * passing at 10 and then dying at 1, both entries in the log.
+ */
+describe('rotCheckResolved', () => {
+  const checked = (turn: number, survivor: string): LogEntry => ({
+    turn,
+    phase: 'management',
+    at: AT,
+    event: {
+      kind: 'rot-checked',
+      survivor,
+      name: 'Marcus Webb',
+      roll: 5,
+      target: 12,
+      passed: true,
+    },
+  });
+
+  const withLog = (log: readonly LogEntry[]): Campaign => ({ ...community(), log });
+
+  it('is false before the check', () => {
+    expect(rotCheckResolved(community(), 'webb')).toBe(false);
+  });
+
+  it('is true once this survivor has been checked this turn', () => {
+    expect(rotCheckResolved(withLog([checked(3, 'webb')]), 'webb')).toBe(true);
+  });
+
+  /** The decoy: somebody else's check is not this survivor's. */
+  it('is false for a survivor whose check has not run', () => {
+    expect(rotCheckResolved(withLog([checked(3, 'ada')]), 'webb')).toBe(false);
+  });
+
+  it('ignores a check from an earlier turn', () => {
+    expect(rotCheckResolved(withLog([checked(2, 'webb')]), 'webb')).toBe(false);
   });
 });

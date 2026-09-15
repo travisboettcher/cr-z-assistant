@@ -24,7 +24,11 @@
  * fits inside the staffed Score.
  */
 
-import type { Utility } from '../data/facilities';
+import { UTILITIES, type Utility } from '../data/facilities';
+import { BASES } from '../data/bases';
+import { hungerPenalty } from './feeding';
+import { skillScore } from './survivor';
+import type { Occupant } from './base';
 import { flatUtilitiesGenerated, layoutOf, occupants } from './base';
 import { utilitiesScore } from './assignments';
 import type { Base, Campaign } from './campaign';
@@ -65,6 +69,116 @@ export function shortfall(base: Base, utility: Utility): number {
  */
 export function staffedSpent(base: Base): number {
   return shortfall(base, 'power') + shortfall(base, 'water');
+}
+
+/**
+ * The community's combined Utilities Score (pg. 61).
+ *
+ * Every survivor who has the skill, whether or not they are working a Station —
+ * which is what makes it different from `utilitiesScore`, the pool that only
+ * staffed Stations generate. The Hydroelectric Dam's special is the one rule
+ * that reads it.
+ */
+export function communityUtilities(campaign: Campaign): number {
+  const penalty = hungerPenalty(campaign);
+
+  return campaign.survivors.reduce(
+    (total, survivor) => total + (skillScore(survivor, 'utilities', penalty) ?? 0),
+    0,
+  );
+}
+
+/**
+ * Whether the base supplies every facility regardless of assignment (pg. 61).
+ *
+ * The Hydroelectric Dam's special, and the only way that base ever powers
+ * anything: it ships no Utility Station slot and no flat generation, so without
+ * this it can never supply a utility at all. Observed at a combined Utilities of
+ * 7 with the Workshop still reading "halved for want of a utility".
+ */
+export function suppliesEveryFacility(campaign: Campaign): boolean {
+  const base = campaign.base;
+  if (base === null) return false;
+
+  return BASES[base.id].specials.some(
+    (special) =>
+      special.id === 'dam-utilities' &&
+      communityUtilities(campaign) >= special.suppliesAllAtCombinedUtilities,
+  );
+}
+
+/** The key a slot's point of one utility is remembered by. */
+const pointKey = (slot: string, utility: Utility) => `${slot}:${utility}`;
+
+/**
+ * Which assigned points the base can actually back this turn.
+ *
+ * Assignment is a player decision that persists on the slot; **generation is
+ * not**, and the two come apart the moment the survivor generating a point
+ * stops staffing the Station. The point stayed assigned and kept paying out —
+ * the Greasy Spoon's Food cap held at 8 on the strength of a Refrigeration
+ * powered by nobody.
+ *
+ * Flat generation backs its own points first, because it arrives whether anyone
+ * works for it. What is left draws on the staffed Score, which both pools share,
+ * in layout order — arbitrary but stable, and the same order the screen lists
+ * slots in.
+ */
+function backedPoints(campaign: Campaign): ReadonlySet<string> {
+  const base = campaign.base;
+  if (base === null) return new Set();
+
+  const flat = flatUtilitiesGenerated(base);
+  const backed = new Set<string>();
+  let staffed = utilitiesScore(campaign);
+
+  for (const utility of UTILITIES) {
+    let free = flat[utility];
+
+    for (const slot of layoutOf(base)) {
+      if (base.slots[slot.id]?.[utility] !== true) continue;
+
+      if (free > 0) {
+        free -= 1;
+      } else if (staffed > 0) {
+        staffed -= 1;
+      } else {
+        continue;
+      }
+
+      backed.add(pointKey(slot.id, utility));
+    }
+  }
+
+  return backed;
+}
+
+/**
+ * The base's occupants with their utilities resolved as they actually are.
+ *
+ * **The single place a slot's Power and Water stop being a stored flag and
+ * become this turn's answer.** Two rules meet here and nowhere else: a point
+ * with no generator behind it does not count, and the Hydroelectric Dam
+ * supplies everything once the community's combined Utilities Score is high
+ * enough. Everything downstream — what a facility produces, how much it stores,
+ * how many beds it makes — reads `Occupant.power` and `Occupant.water`, so
+ * resolving them here is what makes both rules reach all of it.
+ */
+export function suppliedOccupants(campaign: Campaign): readonly Occupant[] {
+  const base = campaign.base;
+  if (base === null) return [];
+
+  if (suppliesEveryFacility(campaign)) {
+    return occupants(base).map((occupant) => ({ ...occupant, power: true, water: true }));
+  }
+
+  const backed = backedPoints(campaign);
+
+  return occupants(base).map((occupant) => ({
+    ...occupant,
+    power: backed.has(pointKey(occupant.slotId, 'power')),
+    water: backed.has(pointKey(occupant.slotId, 'water')),
+  }));
 }
 
 /** Everything wrong with putting a point of this utility on this slot. */
@@ -119,17 +233,40 @@ export function checkUtility(campaign: Campaign, request: UtilityRequest): Utili
     });
   }
 
-  // The facility and its upgrades together, because a point covers all of them:
-  // a Storage Area wants nothing, but its Refrigeration wants Power.
-  //
-  // "Needs nothing" is checked outright rather than smoothed into an empty
-  // array: a `?? []` here would be swallowed by `includes`, which answers false
-  // for whatever it is handed, leaving nothing able to tell the fallback from a
-  // list of junk.
+  /*
+   * The facility and its upgrades together, because a point covers all of them:
+   * a Storage Area wants nothing, but its Refrigeration wants Power.
+   *
+   * **Three ways to want a utility, not one.** An entry can *require* it and
+   * produce nothing at all without it; a production line can be *halved*
+   * without it; and a flat line can produce *more* with it. Reading only the
+   * first told a player the point "would do no work" on a Kitchen — three lines
+   * above that same screen saying "halved for want of a utility" — and on a
+   * Garden, where Water takes it from 1 Food to 3.
+   *
+   * The distinction between requiring and halving is real and stays real
+   * (`facilities.ts` insists on it): an unmet *requirement* produces nothing,
+   * halving produces less. What they have in common is only that the point is
+   * worth spending, which is the one question this warning asks.
+   *
+   * "Needs nothing" is checked outright rather than smoothed into an empty
+   * array: a `?? []` here would be swallowed by `includes`, which answers false
+   * for whatever it is handed, leaving nothing able to tell the fallback from a
+   * list of junk.
+   */
   const wanted = [occupant.facility, ...occupant.upgrades].some((entry) => {
     const needs = entry.requires?.utilities;
+    if (needs !== undefined && needs.includes(request.utility)) return true;
 
-    return needs !== undefined && needs.includes(request.utility);
+    // Narrowed by kind rather than probed for a field: `staffed-split` is the
+    // Utility Station, which has neither — its Score *is* the split, so it is
+    // never halved and never doubled.
+    return (entry.effects.production ?? []).some((line) => {
+      if (line.kind === 'flat') return line.withUtility?.utility === request.utility;
+      if (line.kind === 'staffed') return line.halvedWithout === request.utility;
+
+      return false;
+    });
   });
 
   if (!wanted) {

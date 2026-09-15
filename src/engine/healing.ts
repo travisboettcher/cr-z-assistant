@@ -31,8 +31,8 @@
  * Pure, like the rest of `src/engine`.
  */
 
-import { REST_HEALTH, type HealthSource } from '../data/turn';
-import { staffOf, survivorsDoing } from './assignments';
+import { REST_HEALTH, SURVIVORS_RESTING_PER_TURN, type HealthSource } from '../data/turn';
+import { beforePlanning, staffOf, survivorsDoing } from './assignments';
 import { occupants } from './base';
 import type { Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
@@ -40,7 +40,8 @@ import { facilityProduction } from './production';
 import { hungerPenalty } from './feeding';
 import { maxHp } from './survivor';
 
-export type HealingViolationCode = 'health-going-spare' | 'nothing-to-share';
+export type HealingViolationCode =
+  'health-going-spare' | 'nothing-to-share' | 'more-than-one-resting';
 
 export type HealingViolation = Violation<HealingViolationCode>;
 
@@ -89,8 +90,12 @@ export function healingPool(campaign: Campaign): number {
   const penalty = hungerPenalty(campaign);
   let total = 0;
 
+  // Staffed last Planning Phase, read this Advancement one — so it is asked of
+  // the campaign as it stood before this turn's Planning cleared the answer.
+  const staffed = beforePlanning(campaign);
+
   for (const occupant of occupants(base)) {
-    for (const line of facilityProduction(occupant, staffOf(campaign, occupant.slotId), penalty)) {
+    for (const line of facilityProduction(occupant, staffOf(staffed, occupant.slotId), penalty)) {
       if (line.outputs.includes('health')) total += line.amount;
     }
   }
@@ -98,14 +103,24 @@ export function healingPool(campaign: Campaign): number {
   return total;
 }
 
-/** Everybody the Planning Phase put in front of the Medical Clinic (pg. 21). */
+/**
+ * Everybody the *previous* Planning Phase put in front of the Medical Clinic
+ * (pg. 21).
+ *
+ * Previous, and `beforePlanning` is what makes that word true once this turn's
+ * Planning Phase has been entered. The two survivors this step owes a point to
+ * were assigned a turn ago, and the assignment is gone by the time a player
+ * steps back into Heal Wounds from Planning — which is exactly how two people
+ * lost the Health the rules owed them and then faced a Rot check at 0 (issue
+ * #95).
+ */
 export function beingHealed(campaign: Campaign): readonly Survivor[] {
-  return survivorsDoing(campaign, (assignment) => assignment.task === 'healing');
+  return survivorsDoing(beforePlanning(campaign), (assignment) => assignment.task === 'healing');
 }
 
 /** Whoever is resting, and takes a point nobody else can use (pg. 21). */
 export function resting(campaign: Campaign): readonly Survivor[] {
-  return survivorsDoing(campaign, (assignment) => assignment.task === 'rest');
+  return survivorsDoing(beforePlanning(campaign), (assignment) => assignment.task === 'rest');
 }
 
 /**
@@ -194,6 +209,23 @@ export function goingSpare(campaign: Campaign): number {
 export function checkHealing(campaign: Campaign): HealingCheck {
   const warnings: HealingViolation[] = [];
   const spare = goingSpare(campaign);
+  const resters = resting(campaign);
+
+  /*
+   * Only one survivor may rest a turn (pg. 21). The Planning Phase warns rather
+   * than refuses, which is a deliberate ruling and not the problem — the
+   * problem was that this step then paid *both* points out in silence, a phase
+   * and four steps later, where nobody was looking at the warning any more. A
+   * rule broken on purpose should still say so at the moment it costs
+   * something.
+   */
+  if (resters.length > SURVIVORS_RESTING_PER_TURN) {
+    warnings.push({
+      code: 'more-than-one-resting',
+      message: `${resters.length} survivors are resting, and each is taking a point. The book allows ${SURVIVORS_RESTING_PER_TURN} a turn.`,
+      pages: 21,
+    });
+  }
 
   if (spare > 0 && beingHealed(campaign).length === 0) {
     warnings.push({

@@ -53,3 +53,17 @@ export type FieldRecruitTier = (typeof FIELD_RECRUITABLE_TIERS)[number];
  * never randomly generated (pg. 7).
  */
 export const TIERS_WITH_ROLLED_SKILL = [2, 3] as const satisfies readonly Tier[];
+
+/**
+ * Whether a recruit at this Tier takes a skill off the table at all.
+ *
+ * A predicate rather than the list, because three places now ask — the engine
+ * that builds the recruit, the form that offers the die, and the entry that
+ * records what happened — and the playtest found them disagreeing: the engine
+ * ignored the roll for a Rookie while the screen asked for one and the log
+ * wrote it down permanently, so a player who rolled a 1 was told they had been
+ * given Blunt Weapon and then handed a survivor with no skills at all.
+ */
+export function rollsForSkill(tier: Tier): boolean {
+  return TIERS_WITH_ROLLED_SKILL.some((rolls) => rolls === tier);
+}

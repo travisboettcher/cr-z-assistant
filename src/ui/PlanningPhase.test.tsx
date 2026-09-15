@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign } from '../engine/campaign';
 import { createSurvivor } from '../engine/survivor';
+import { withPlanningBegun } from '../test/campaigns';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
 
@@ -15,9 +16,16 @@ const CARLA = 'carla';
  * Reaching the Planning Phase by pressing Next is a journey the e2e suite
  * drives; what these are about is what the phase's four steps do once you are
  * in one.
+ *
+ * It carries the `planning-began` entry the walk writes on the way into the
+ * first step, because that record is not decoration: a turn's Labor is not
+ * there to spend until this turn's Planning Phase has assigned the team that
+ * generates it (pg. 20). A campaign standing on a Planning step without the
+ * entry is a state the app cannot reach, and the screens would price orders
+ * against nothing.
  */
 function planning(overrides: Partial<Campaign> = {}): Campaign {
-  return {
+  return withPlanningBegun({
     ...createNewCampaign('Cedar Hollow'),
     turn: 3,
     step: 'assign-facility-staff',
@@ -27,7 +35,7 @@ function planning(overrides: Partial<Campaign> = {}): Campaign {
     ],
     base: { id: 'small-town-home', slots: {} },
     ...overrides,
-  };
+  });
 }
 
 function open(campaign: Campaign) {
@@ -160,5 +168,78 @@ describe('the Planning Phase steps', () => {
     open(planning({ base: null }));
 
     expect(within(walk()).getByText(/no base, so there is nothing to staff/i)).toBeTruthy();
+  });
+});
+
+/**
+ * pg. 54: a staffed facility takes one survivor unless an upgrade widens it,
+ * and a facility with no skill in its effect takes none at all.
+ *
+ * The base screen's slot card has always gated its staffing control on this.
+ * The Planning screen offered one for every occupant, so a Bunk Room could be
+ * "staffed" — doing nothing, and costing a point of Siege Threat for it.
+ */
+describe('which facilities can be staffed', () => {
+  it('offers a control only where the facility takes staff', () => {
+    open(planning());
+
+    // The Small Town Home ships two Bunk Rooms and a Kitchen. Only the Kitchen
+    // names a skill.
+    expect(within(walk()).getByRole('group', { name: /kitchen — kitchen/i })).toBeTruthy();
+    expect(within(walk()).queryByRole('group', { name: /bunk room/i })).toBeNull();
+  });
+
+  it('says who is assigned to a full facility and not working', () => {
+    open(
+      planning({
+        assignments: {
+          [EARL]: { task: 'staff', slot: 'kitchen' },
+          [CARLA]: { task: 'staff', slot: 'kitchen' },
+        },
+      }),
+    );
+
+    // The capacity is its own element, so the sentence is matched on the region.
+    expect(walk().textContent).toContain(
+      'Takes 1, so Carla Proust is assigned here and not working',
+    );
+  });
+
+  it('says nothing when the facility has room', () => {
+    open(planning({ assignments: { [EARL]: { task: 'staff', slot: 'kitchen' } } }));
+
+    expect(within(walk()).queryByText(/not working/i)).toBeNull();
+  });
+});
+
+/**
+ * Z3-11 moved this note with the verb it is about. Projects are ordered in the
+ * Planning Phase now (pg. 20) and finish in the next Advancement Phase, so the
+ * step the app points at is this phase's rather than that one's.
+ */
+describe('ordering outside the step it belongs to', () => {
+  const ready = (step: Campaign['step']): Campaign =>
+    planning({
+      step,
+      materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+      // Somebody to do the work, since Z3-5 made Labor the project team's.
+      assignments: { [EARL]: { task: 'project' } },
+    });
+
+  it('says which step orders belong to, and orders anyway', async () => {
+    const user = open(ready('assign-mission-team'));
+
+    await user.click(screen.getByRole('button', { name: /build in garage/i }));
+
+    expect(screen.getByText(/ordered in assign project team/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /order the build/i })).toBeEnabled();
+  });
+
+  it('says nothing on the step orders actually belong to', async () => {
+    const user = open(ready('assign-project-team'));
+
+    await user.click(screen.getByRole('button', { name: /build in garage/i }));
+
+    expect(screen.queryByText(/are ordered in/i)).toBeNull();
   });
 });

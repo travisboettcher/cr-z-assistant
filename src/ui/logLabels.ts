@@ -16,12 +16,13 @@
  * `log.ts` a compile error here instead of a blank line in someone's history.
  */
 
-import { MATERIALS } from '../data/materials';
+import { MATERIALS, type Material } from '../data/materials';
 import { XP_SOURCE_PAGES, type HealthSource, type XpSource } from '../data/turn';
 import type { CampaignEvent, LogEntry } from '../engine/log';
 import {
   BASE_LABELS,
   FACILITY_LABELS,
+  builtThingLabel,
   MATERIAL_LABELS,
   UPGRADE_LABELS,
   slotLabel,
@@ -105,6 +106,20 @@ export function describeEvent(event: CampaignEvent): EventLabel {
       };
     }
 
+    case 'materials-converted': {
+      const of = (amounts: Partial<Record<Material, number>>) =>
+        MATERIALS.filter((material) => (amounts[material] ?? 0) !== 0)
+          .map((material) => `${String(amounts[material])} ${MATERIAL_LABELS[material]}`)
+          .join(', ');
+
+      return {
+        // Named by the thing that did it, because a base can hold two of them
+        // and the history is where a player checks a per-turn allowance.
+        text: `The ${builtThingLabel(event.source)} traded ${of(event.spent)} for ${of(event.gained)}.`,
+        pages: 19,
+      };
+    }
+
     case 'survivors-fed':
       return {
         text:
@@ -122,8 +137,38 @@ export function describeEvent(event: CampaignEvent): EventLabel {
         pages: 22,
       };
 
+    case 'bite-restrained':
+      return {
+        text: `The Restraints held ${event.name}, and nobody was bitten.`,
+        pages: '72–73',
+      };
+
     case 'survivor-bitten':
       return { text: `${event.name} was bitten for ${String(event.damage)} Damage.`, pages: 22 };
+
+    case 'facility-ordered':
+      return {
+        text: `Ordered a ${FACILITY_LABELS[event.facility]} for the ${slotLabel(event.slot)}.`,
+        pages: 20,
+      };
+
+    case 'upgrade-ordered':
+      return {
+        text: `Ordered a ${UPGRADE_LABELS[event.upgrade]} for the ${slotLabel(event.slot)}.`,
+        pages: 20,
+      };
+
+    case 'clearing-ordered':
+      return { text: `Ordered the ${slotLabel(event.slot)} cleared.`, pages: 20 };
+
+    case 'project-cancelled':
+      return { text: `Cancelled the ${slotLabel(event.slot)} project.`, pages: 20 };
+
+    case 'project-unfinished':
+      return {
+        text: `The ${slotLabel(event.slot)} project went unfinished — the Labor for it left the community.`,
+        pages: 23,
+      };
 
     case 'storage-checked': {
       const lost = MATERIALS.filter(
@@ -167,12 +212,29 @@ export function describeEvent(event: CampaignEvent): EventLabel {
 
     case 'survivor-recruited':
       return {
-        text: `${event.name} was recruited as a ${TIER_LABELS[event.tier]}, rolling a ${event.roll}.`,
+        // A Rookie is recruited without a roll, so the sentence stops where the
+        // story does rather than reporting a die nobody threw.
+        text:
+          event.roll === undefined
+            ? `${event.name} was recruited as a ${TIER_LABELS[event.tier]}.`
+            : `${event.name} was recruited as a ${TIER_LABELS[event.tier]}, rolling a ${event.roll}.`,
         pages: 15,
       };
 
     case 'survivor-left':
       return { text: `${event.name}, a ${TIER_LABELS[event.tier]}, left the community.` };
+
+    case 'survivor-departed':
+      return {
+        text: `${event.name}, a ${TIER_LABELS[event.tier]}, walked out over the Unrest.`,
+        pages: 23,
+      };
+
+    case 'mission-team-reduced':
+      return {
+        text: `${event.name} was too exhausted to go out, and came off the mission team.`,
+        pages: 23,
+      };
 
     case 'survivor-promoted':
       return { text: `${event.name} was promoted to ${TIER_LABELS[event.tier]}.`, pages: 18 };
@@ -187,6 +249,12 @@ export function describeEvent(event: CampaignEvent): EventLabel {
       return {
         text: `${event.name} raised ${COMMON_SKILL_LABELS[event.skill]} to ${event.score}.`,
         pages: 18,
+      };
+
+    case 'base-stocked':
+      return {
+        text: `The base was stocked to its caps: ${String(event.food)} Food, ${String(event.fuel)} Fuel, ${String(event.hardware)} Hardware.`,
+        pages: 19,
       };
 
     case 'base-claimed':

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Base, type Campaign } from './campaign';
-import { checkUpgrade, upgradesFor, withUpgradeBuilt } from './upgrade';
-import { projectTeamWorth } from '../test/campaigns';
+import { checkUpgrade, upgradeOrder, upgradesFor } from './upgrade';
+import { projectTeamWorth, withPlanningBegun } from '../test/campaigns';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 
 function campaignWith(base: Base | null, overrides: Partial<Campaign> = {}): Campaign {
-  return {
+  return withPlanningBegun({
     ...createNewCampaign('Cedar Hollow', FIXED),
     materials: { food: 0, fuel: 0, hardware: 20, rare: 0 },
     // A project team big enough that Labor is never the thing under test. The
@@ -16,7 +16,7 @@ function campaignWith(base: Base | null, overrides: Partial<Campaign> = {}): Cam
     turn: 4,
     base,
     ...overrides,
-  };
+  });
 }
 
 const codes = (violations: readonly { code: string }[]) => violations.map(({ code }) => code);
@@ -180,7 +180,13 @@ describe('checkUpgrade', () => {
     ).toEqual(['one-per-facility']);
   });
 
-  it('warns that a Greenhouse cannot sit alongside the Fence it excludes', () => {
+  /**
+   * The Greenhouse *replaces* the Fence rather than being refused beside it
+   * (pg. 72), so nothing here is a rule the table is playing past. This used to
+   * warn that the two "cannot sit alongside" each other, which is a sentence
+   * the book does not contain.
+   */
+  it('finds nothing wrong with a Greenhouse over the Fence it replaces', () => {
     // The Garden holds an upgrade that is not excluded alongside the one that
     // is, so a check that asks "are they *all* the excluded one" gets a
     // different answer from one that asks "is any of them".
@@ -191,11 +197,65 @@ describe('checkUpgrade', () => {
       },
     });
 
+    const check = checkUpgrade(campaignWith(base), {
+      slot: 'front-yard',
+      upgrade: 'greenhouse',
+    });
+
+    expect(check).toEqual({ blockers: [], warnings: [] });
     expect(
-      codes(
-        checkUpgrade(campaignWith(base), { slot: 'front-yard', upgrade: 'greenhouse' }).warnings,
-      ),
-    ).toEqual(['excluded-by-another']);
+      upgradeOrder(campaignWith(base), { slot: 'front-yard', upgrade: 'greenhouse' }).replaces,
+    ).toEqual(['fence']);
+  });
+
+  /** Four Hardware, less the one the Fence it stands in for is worth (pg. 72). */
+  it('prices a Greenhouse a Hardware cheaper over a Fence, and refuses it below that', () => {
+    const fenced = home({
+      'front-yard': { built: { facility: 'garden', builtOnTurn: 1 }, upgrades: ['fence'] },
+    });
+    const bare = home({ 'front-yard': { built: { facility: 'garden', builtOnTurn: 1 } } });
+    const request = { slot: 'front-yard', upgrade: 'greenhouse' } as const;
+
+    expect(upgradeOrder(campaignWith(bare), request).cost).toEqual({ hardware: 4, labor: 4 });
+    expect(upgradeOrder(campaignWith(fenced), request).cost).toEqual({ hardware: 3, labor: 4 });
+
+    // Three is enough over a Fence and not enough over a bare Garden, which is
+    // the whole of what the discount does.
+    const three = { food: 0, fuel: 0, hardware: 3, rare: 0 };
+
+    expect(
+      codes(checkUpgrade(campaignWith(fenced, { materials: three }), request).blockers),
+    ).toEqual([]);
+    expect(codes(checkUpgrade(campaignWith(bare, { materials: three }), request).blockers)).toEqual(
+      ['not-enough-hardware'],
+    );
+  });
+
+  it('replaces nothing where there is nothing it excludes', () => {
+    const bare = home({ 'front-yard': { built: { facility: 'garden', builtOnTurn: 1 } } });
+
+    expect(
+      upgradeOrder(campaignWith(bare), { slot: 'front-yard', upgrade: 'greenhouse' }).replaces,
+    ).toEqual([]);
+  });
+
+  /**
+   * Two shapes a queue outliving its slot can ask about, and neither is an
+   * error: the screen wants a number for whatever it is showing, and nothing
+   * is the truthful one.
+   */
+  it('costs nothing and replaces nothing where there is no such facility or upgrade', () => {
+    const bare = home({ 'front-yard': { built: { facility: 'garden', builtOnTurn: 1 } } });
+    const nothing = { cost: { hardware: 0, labor: 0 }, replaces: [] };
+
+    // An empty slot, and then a Garden asked about an upgrade the Storage Area
+    // owns.
+    expect(upgradeOrder(campaignWith(bare), { slot: 'garage', upgrade: 'greenhouse' })).toEqual(
+      nothing,
+    );
+    expect(upgradeOrder(campaignWith(bare), { slot: 'front-yard', upgrade: 'shelving' })).toEqual(
+      nothing,
+    );
   });
 
   it('refuses a campaign with no base', () => {
@@ -206,82 +266,5 @@ describe('checkUpgrade', () => {
 
     expect(codes(check.blockers)).toEqual(['no-base']);
     expect(check.warnings).toEqual([]);
-  });
-});
-
-describe('withUpgradeBuilt', () => {
-  it('adds the upgrade and spends its Hardware', () => {
-    const after = withUpgradeBuilt(campaignWith(home()), {
-      slot: 'kitchen',
-      upgrade: 'gas-range',
-    });
-
-    expect(after.base?.slots.kitchen?.upgrades).toEqual(['gas-range']);
-    // A Gas Range costs 2 Hardware.
-    expect(after.materials.hardware).toBe(18);
-  });
-
-  it('appends rather than replaces, so repeats stack', () => {
-    const after = withUpgradeBuilt(
-      campaignWith(home({ 'bunk-room-1': { upgrades: ['extra-bed'] } })),
-      {
-        slot: 'bunk-room-1',
-        upgrade: 'extra-bed',
-      },
-    );
-
-    expect(after.base?.slots['bunk-room-1']?.upgrades).toEqual(['extra-bed', 'extra-bed']);
-  });
-
-  it('keeps what else the slot recorded', () => {
-    const after = withUpgradeBuilt(
-      campaignWith(home({ kitchen: { power: true, cleared: true } })),
-      { slot: 'kitchen', upgrade: 'gas-range' },
-    );
-
-    expect(after.base?.slots.kitchen).toEqual({
-      power: true,
-      cleared: true,
-      upgrades: ['gas-range'],
-    });
-  });
-
-  it('spends what the chosen upgrade costs, not what the first one does', () => {
-    // A Biofuel Lab is the Kitchen's third upgrade and costs 3 Hardware where
-    // the Refrigerator costs 2 — so picking the wrong entry is visible here.
-    const after = withUpgradeBuilt(campaignWith(home()), {
-      slot: 'kitchen',
-      upgrade: 'biofuel-lab',
-    });
-
-    expect(after.base?.slots.kitchen?.upgrades).toEqual(['biofuel-lab']);
-    expect(after.materials.hardware).toBe(17);
-  });
-
-  it('does nothing to a slot with nothing in it', () => {
-    const empty = campaignWith(home());
-
-    expect(withUpgradeBuilt(empty, { slot: 'garage', upgrade: 'gas-range' })).toBe(empty);
-  });
-
-  it('refuses a blocked upgrade and changes nothing at all', () => {
-    const poor = campaignWith(home(), { materials: { food: 0, fuel: 0, hardware: 0, rare: 0 } });
-
-    expect(withUpgradeBuilt(poor, { slot: 'kitchen', upgrade: 'gas-range' })).toBe(poor);
-  });
-
-  it('goes through a warning, because proceeding past one is the player’s call', () => {
-    const full = campaignWith(
-      home({ kitchen: { upgrades: ['gas-range', 'gas-range', 'gas-range'] } }),
-    );
-    const after = withUpgradeBuilt(full, { slot: 'kitchen', upgrade: 'gas-range' });
-
-    expect(after.base?.slots.kitchen?.upgrades).toHaveLength(4);
-  });
-
-  it('does nothing to a campaign with no base', () => {
-    const none = campaignWith(null);
-
-    expect(withUpgradeBuilt(none, { slot: 'kitchen', upgrade: 'gas-range' })).toBe(none);
   });
 });

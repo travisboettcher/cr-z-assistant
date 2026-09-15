@@ -33,6 +33,7 @@ import type {
   Assignment,
   Base,
   Campaign,
+  Project,
   SkillLevels,
   SlotState,
   Stats,
@@ -269,11 +270,29 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       passed: fc.boolean(),
     }),
     fc.record({
+      kind: fc.constant('bite-restrained' as const),
+      survivor: anyId,
+      name: anyName,
+    }),
+    fc.record({
       kind: fc.constant('survivor-bitten' as const),
       survivor: anyId,
       name: anyName,
       damage: fc.integer({ min: 1, max: 9 }),
     }),
+    fc.record({
+      kind: fc.constant('facility-ordered' as const),
+      slot: anyId,
+      facility: fc.constantFrom(...FACILITY_IDS),
+    }),
+    fc.record({
+      kind: fc.constant('upgrade-ordered' as const),
+      slot: anyId,
+      upgrade: fc.constantFrom(...UPGRADE_IDS),
+    }),
+    fc.record({ kind: fc.constant('clearing-ordered' as const), slot: anyId }),
+    fc.record({ kind: fc.constant('project-cancelled' as const), slot: anyId }),
+    fc.record({ kind: fc.constant('project-unfinished' as const), slot: anyId }),
     fc.record({
       kind: fc.constant('storage-checked' as const),
       food: anyCount,
@@ -420,6 +439,34 @@ function assignmentsArbitrary(
     );
 }
 
+/**
+ * One queued project.
+ *
+ * The slot is a free string rather than a real id, because the parser accepts a
+ * project for a slot the base does not have — a queue is a record of what was
+ * ordered, and Z1-7's override means a campaign can hold one the rules would
+ * refuse. What the round trip has to survive is the shape.
+ */
+function projectArbitrary(): fc.Arbitrary<Project> {
+  const orderedOnTurn = fc.integer({ min: 1, max: 9999 });
+
+  return fc.oneof(
+    fc.record({
+      kind: fc.constant('facility' as const),
+      slot: anyId,
+      facility: fc.constantFrom(...FACILITY_IDS),
+      orderedOnTurn,
+    }),
+    fc.record({
+      kind: fc.constant('upgrade' as const),
+      slot: anyId,
+      upgrade: fc.constantFrom(...UPGRADE_IDS),
+      orderedOnTurn,
+    }),
+    fc.record({ kind: fc.constant('clearing' as const), slot: anyId, orderedOnTurn }),
+  );
+}
+
 /** The campaign shape, before the assignments that have to know its roster. */
 function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments'>> {
   return fc.record(
@@ -432,7 +479,6 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
       step: fc.constantFrom(...TURN_SEQUENCE),
       // Null as often as a number, because "never besieged" is the state most
       // campaigns are in and the one a round trip most easily loses.
-      lastSiegeTurn: fc.option(fc.integer({ min: 1, max: 9999 }), { nil: null }),
       origin: fc.constantFrom(...CAMPAIGN_ORIGINS),
       materials: materialsArbitrary(),
       survivors: fc.array(survivorArbitrary(), { maxLength: 6 }),
@@ -443,6 +489,7 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
       // No longer pinned empty: from v6 a log is real, and an entry is the one
       // place in the file where objects of different shapes share an array.
       log: fc.array(logEntryArbitrary(), { maxLength: 8 }),
+      projects: fc.array(projectArbitrary(), { maxLength: 4 }),
     },
     // Every key but `origin`, which is optional on `Campaign` — so half the
     // generated campaigns leave it out entirely. Both are real files, and the
@@ -455,7 +502,7 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
         'createdAt',
         'turn',
         'step',
-        'lastSiegeTurn',
+        'projects',
         'materials',
         'survivors',
         'startingCommunityBuilt',

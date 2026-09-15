@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign, type Survivor } from '../engine/campaign';
 import { createSurvivor } from '../engine/survivor';
+import { withPlanningBegun } from '../test/campaigns';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
 
@@ -195,16 +196,125 @@ describe('Check for Rot', () => {
     ).toHaveLength(0);
   });
 
-  it('bites nobody when the player leaves the pick alone', async () => {
+  /**
+   * pg. 22: the survivor "turns in the night and bites another survivor before
+   * being destroyed". The control used to default to nobody and offer that as a
+   * choice, so a failed check could skip the Damage the rule makes mandatory.
+   * Who is bitten is still the player's; whether is not.
+   */
+  it('bites somebody even when the player never touches the picker', async () => {
     const user = open(dying());
+
+    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '1');
+
+    expect(walk().textContent).toContain('Carla Proust is bitten');
+
+    await user.click(within(walk()).getByRole('button', { name: /resolve earl/i }));
+
+    expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
+      'Carla Proust was bitten',
+    );
+  });
+
+  /**
+   * The Medical Clinic's Restraints, which sat in the catalogue with no reader
+   * until now: "each set prevents one turned survivor from biting" (pg. 72).
+   * The survivor still turns and is still removed — what a set prevents is the
+   * bite, so the picker goes away rather than gaining a "nobody".
+   */
+  describe('with Restraints in the Clinic', () => {
+    const restrained = (overrides: Partial<Campaign> = {}): Campaign =>
+      dying({
+        base: {
+          id: 'small-town-home',
+          slots: {
+            garage: {
+              built: { facility: 'medical-clinic', builtOnTurn: 1 },
+              upgrades: ['restraints'],
+            },
+          },
+        },
+        ...overrides,
+      });
+
+    it('says a set is free and offers nobody to bite', () => {
+      open(restrained());
+
+      expect(walk().textContent).toContain('hold 1 more turned survivor this turn');
+      expect(within(walk()).queryByLabelText(/^bites$/i)).toBeNull();
+    });
+
+    it('holds the survivor who turns, and Carla keeps her Health', async () => {
+      const user = open(restrained());
+
+      await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '1');
+      expect(walk().textContent).toContain('The Restraints hold them, and nobody is bitten');
+
+      await user.click(within(walk()).getByRole('button', { name: /resolve earl/i }));
+
+      // Earl is gone all the same; Carla is untouched.
+      expect(
+        within(screen.getByRole('region', { name: /community/i })).getAllByRole('listitem'),
+      ).toHaveLength(1);
+      expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
+        'The Restraints held Earl Rhodes',
+      );
+    });
+
+    /** One set holds one survivor: the second turning of the turn bites. */
+    it('offers the bite again once the set is used', async () => {
+      const user = open(
+        restrained({
+          survivors: [
+            { ...createSurvivor('Earl Rhodes', 2, { id: EARL }), currentHp: 0 },
+            { ...createSurvivor('Carla Proust', 4, { id: CARLA }), currentHp: 2 },
+            { ...createSurvivor('Nell Haig', 2, { id: 'nell' }), currentHp: 0 },
+          ],
+          assignments: {
+            [EARL]: { task: 'healing' },
+            [CARLA]: { task: 'healing' },
+            nell: { task: 'healing' },
+          },
+        }),
+      );
+
+      await user.selectOptions(
+        within(walk()).getAllByLabelText(/^rolled$/i)[0] as HTMLElement,
+        '1',
+      );
+      await user.click(within(walk()).getByRole('button', { name: /resolve earl/i }));
+
+      expect(within(walk()).getByLabelText(/^bites$/i)).toBeTruthy();
+      expect(walk().textContent).not.toContain('more turned survivor this turn');
+    });
+  });
+
+  it('offers no way to bite nobody while a candidate is being healed', () => {
+    open(dying());
+
+    const picker = within(walk()).getByLabelText(/^bites$/i);
+
+    expect(within(picker).queryByRole('option', { name: /nobody/i })).toBeNull();
+    expect(within(picker).getAllByRole('option')).toHaveLength(1);
+  });
+
+  /** No candidate, no bite — the control is absent and the check still runs. */
+  it('resolves with no bite when nobody is being healed', async () => {
+    const user = open(
+      dying({
+        survivors: [{ ...createSurvivor('Earl Rhodes', 2, { id: EARL }), currentHp: 0 }],
+        assignments: {},
+      }),
+    );
+
+    expect(within(walk()).queryByLabelText(/^bites$/i)).toBeNull();
 
     await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '1');
     await user.click(within(walk()).getByRole('button', { name: /resolve earl/i }));
 
-    const roster = within(screen.getByRole('region', { name: /community/i }));
-
-    expect(roster.getAllByRole('listitem')).toHaveLength(1);
-    expect(roster.getByRole('listitem').textContent).toContain('Carla Proust');
+    expect(
+      within(screen.getByRole('region', { name: /community/i })).queryAllByRole('listitem'),
+    ).toHaveLength(0);
   });
 });
 
@@ -223,9 +333,8 @@ describe('Calculate Unrest', () => {
     expect(walk().textContent).toContain('0 Hunger + 2 Exhaustion = 2 Unrest');
   });
 
-  /** pg. 23: Exhaustion above the mission team's size takes one survivor off it. */
-  it('offers to take somebody off an overworked mission team', async () => {
-    const user = open(
+  it('says nothing about the mission team, which is Assign Beds’ business now', () => {
+    open(
       management({
         step: 'calculate-unrest',
         survivors: Array.from({ length: 6 }, (_, at) =>
@@ -235,19 +344,69 @@ describe('Calculate Unrest', () => {
       }),
     );
 
+    expect(walk().textContent).not.toContain('Exhaustion is above');
+  });
+});
+
+/**
+ * pg. 23 prints the penalty under Assign Beds, beside the Exhaustion it
+ * follows from. It sat on Calculate Unrest until the playtest found it there.
+ */
+describe('the Exhaustion penalty', () => {
+  const overworked = (overrides: Partial<Campaign> = {}) =>
+    management({
+      step: 'assign-beds',
+      survivors: Array.from({ length: 8 }, (_, at) =>
+        createSurvivor(`Survivor ${String(at)}`, 1, { id: `survivor-${String(at)}` }),
+      ),
+      assignments: { 'survivor-0': { task: 'mission', team: 1 } },
+      ...overrides,
+    });
+
+  it('offers to take somebody off an overworked mission team', async () => {
+    const user = open(overworked());
+
     expect(walk().textContent).toContain('Exhaustion is above the mission team’s 1');
 
     await user.click(within(walk()).getByRole('button', { name: /take off/i }));
 
-    // Off the team, and the warning goes with them: an empty team is not an
-    // overworked one.
     expect(walk().textContent).not.toContain('Exhaustion is above');
+  });
+
+  it('is not offered on Calculate Unrest, where it used to sit', () => {
+    open(overworked({ step: 'calculate-unrest' }));
+
+    expect(within(walk()).queryByRole('button', { name: /take off/i })).toBeNull();
+  });
+
+  /**
+   * The bug the guard exists for. Taking somebody off does not lower the
+   * Exhaustion that called for it — beds and population are unchanged — so the
+   * condition stays true, and the step went on offering the next name until the
+   * mission team was empty.
+   */
+  it('takes one survivor, and then says it has', async () => {
+    const user = open(
+      overworked({
+        assignments: {
+          'survivor-0': { task: 'mission', team: 1 },
+          'survivor-1': { task: 'mission', team: 1 },
+        },
+      }),
+    );
+
+    await user.click(
+      within(walk()).getAllByRole('button', { name: /take off/i })[0] as HTMLElement,
+    );
+
+    expect(walk().textContent).toContain('already come off the mission team');
+    expect(within(walk()).queryByRole('button', { name: /take off/i })).toBeNull();
   });
 
   it('says nothing about a mission team big enough for the Exhaustion', () => {
     open(
       management({
-        step: 'calculate-unrest',
+        step: 'assign-beds',
         assignments: { [EARL]: { task: 'mission', team: 1 } },
       }),
     );
@@ -372,9 +531,115 @@ describe('Departures', () => {
       within(screen.getByRole('region', { name: /community/i })).getAllByRole('listitem'),
     ).toHaveLength(7);
 
-    // And it stops there: seven survivors is seven Unrest, which with two turns
-    // of quiet is nine — under the threshold.
-    expect(walk().textContent).toContain('Nobody is leaving');
+    // And it stops there, saying what it did rather than re-deriving. It used
+    // to read "Nobody is leaving. The community holds together." one line under
+    // a log entry naming who had just left.
+    expect(walk().textContent).toContain('Somebody has already left this turn');
+    expect(within(walk()).queryByRole('button', { name: /send away/i })).toBeNull();
+  });
+
+  /**
+   * The severe half of the same bug. The pressure that sent the first survivor
+   * away is not the one the step re-derives afterwards — a departure unstaffs
+   * what they were working and shrinks the project team — so while it stayed
+   * over the threshold the step offered another name, and another.
+   */
+  it('sends one survivor away however far over the threshold the pressure is', async () => {
+    const user = open(crowded({ turn: 8 }));
+
+    await user.click(
+      within(walk()).getAllByRole('button', { name: /send away/i })[0] as HTMLElement,
+    );
+
+    expect(
+      within(screen.getByRole('region', { name: /community/i })).getAllByRole('listitem'),
+    ).toHaveLength(7);
+    expect(within(walk()).queryByRole('button', { name: /send away/i })).toBeNull();
+  });
+
+  /**
+   * The rest of the departure rule (pg. 23): the leaver's Tier comes off the
+   * turn's unused Labor, and where there is none to take it from, a project
+   * goes unfinished.
+   *
+   * Nothing subtracts twice. The pool is the project team's summed Tiers and
+   * the leaver is off the team the moment they walk, so what is left is the
+   * consequence — and the consequence is a choice the screen offers rather
+   * than takes.
+   */
+  const shorthanded = (overrides: Partial<Campaign> = {}) =>
+    withPlanningBegun(
+      crowded({
+        base: { id: 'small-town-home', slots: {} },
+        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        // Two Rookies making two Labor, and two Labor already ordered — so
+        // this turn has nothing unused, which is the case the rule is about.
+        assignments: {
+          'survivor-0': { task: 'project' },
+          'survivor-1': { task: 'project' },
+        },
+        projects: [{ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 }],
+        // Fed first, because Feed is step 1 of this phase and Hunger is read
+        // off its entry — a campaign standing at Departures has eaten.
+        log: [
+          {
+            turn: 3,
+            phase: 'management',
+            at: '2026-08-30T00:00:00.000Z',
+            event: { kind: 'survivors-fed', required: 8, hunger: 8, population: 8 },
+          },
+        ],
+        ...overrides,
+      }),
+    );
+
+  it('asks which project the departing Labor was paying for', async () => {
+    const user = open(shorthanded());
+
+    // Nothing to answer for until somebody has actually left.
+    expect(walk().textContent).not.toContain('Labor short');
+
+    await user.click(
+      within(walk()).getAllByRole('button', { name: /send away/i })[0] as HTMLElement,
+    );
+
+    expect(walk().textContent).toContain('1 Labor short of what it ordered');
+    expect(
+      within(walk()).getByRole('button', { name: /leave workshop in the garage unfinished/i }),
+    ).toBeTruthy();
+  });
+
+  it('drops the project the player picks, and stops asking', async () => {
+    const user = open(shorthanded());
+
+    await user.click(
+      within(walk()).getAllByRole('button', { name: /send away/i })[0] as HTMLElement,
+    );
+    await user.click(
+      within(walk()).getByRole('button', { name: /leave workshop in the garage unfinished/i }),
+    );
+
+    expect(walk().textContent).not.toContain('Labor short');
+    // The Hardware comes back, as it does on a cancellation: the work was
+    // never done.
+    expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(12);
+    expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
+      'went unfinished',
+    );
+  });
+
+  /**
+   * A departure from outside the project team costs the turn no Labor at all,
+   * and a screen that asked anyway would be taking a project for nothing.
+   */
+  it('asks nothing when the survivor who left was not on the project team', async () => {
+    const user = open(shorthanded());
+
+    await user.click(
+      within(walk()).getAllByRole('button', { name: /send away/i })[2] as HTMLElement,
+    );
+
+    expect(walk().textContent).not.toContain('Labor short');
   });
 
   it('says so when everybody left is in no state to walk anywhere', () => {

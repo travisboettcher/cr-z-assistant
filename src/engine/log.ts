@@ -41,6 +41,7 @@
 import type { BaseId } from '../data/bases';
 import type { D10Result } from '../data/dice';
 import type { FacilityId, UpgradeId } from '../data/facilities';
+import type { Material } from '../data/materials';
 import type { CommonSkill, Skill } from '../data/skills';
 import type { Tier } from '../data/tiers';
 import type { CampaignPhase, HealthSource, XpSource } from '../data/turn';
@@ -49,7 +50,7 @@ import { phaseOf } from './turn';
 // `LogEntry` from here. Both directions are erased at compile time, so there is
 // no runtime cycle — and the alternative, a third module holding one of them,
 // would separate `Campaign` from the shape of its own field.
-import type { Campaign } from './campaign';
+import type { Assignment, Campaign } from './campaign';
 
 /**
  * One thing that happened.
@@ -74,13 +75,27 @@ export type CampaignEvent =
   /**
    * The Planning Phase cleared last turn's tasks and utility points (pg. 20).
    *
-   * Carries nothing: which turn is the entry's own, and how many assignments
-   * went is not a fact about the campaign so much as about the turn before it.
-   * **This entry is load-bearing rather than decorative** — `planningHasBegun`
-   * reads it back to make sure the clearing happens once a turn, so stepping
-   * back and forward through the walk cannot destroy the planning just done.
+   * **Load-bearing twice over, and it used to carry nothing.**
+   * `planningHasBegun` reads it back so the clearing happens once a turn,
+   * which is what lets the walk go backwards and forwards without destroying
+   * the planning just done.
+   *
+   * `cleared` is the other half, and the note that used to sit here — "how
+   * many assignments went is not a fact about the campaign so much as about
+   * the turn before it" — had it exactly backwards. Who went on the mission,
+   * who staffed the Kitchen and who was resting are the facts the *Advancement
+   * Phase* is reading, and they lived only in `assignments`, which this step
+   * empties. So skipping forward to Planning from an unfinished Advancement
+   * step destroyed them, and stepping back showed a turn where nobody had done
+   * anything (issue #95). Recording what was cleared is the same move as
+   * `survivors-fed` carrying its own Hunger: the entry keeps the number the
+   * step was read against.
+   *
+   * Optional because entries written before this existed do not have it, and
+   * a turn whose Planning has not begun has nothing to record. A reader with
+   * neither falls back to the live assignments, which is where they still are.
    */
-  | { readonly kind: 'planning-began' }
+  | { readonly kind: 'planning-began'; readonly cleared?: Record<string, Assignment> }
   /**
    * A turn's materials went into storage (pg. 18–19).
    *
@@ -100,6 +115,27 @@ export type CampaignEvent =
       readonly rare: number;
     }
   /**
+   * A facility or upgrade traded materials for other materials (pg. 19, 72–73).
+   *
+   * **Load-bearing**, like the two above: where the book states a cap per turn
+   * — the Generator's and the Well Pump's 3 — this is what counts against it,
+   * so the entry carries the slot and the source rather than only the amounts.
+   * Two Kitchens with a Gas Range each are two allowances, and a counter on
+   * the campaign would be one more thing to clear at the top of a turn.
+   *
+   * The spend is recorded as it was paid rather than as a negative amount: a
+   * player reading the history wants "2 Fuel for 1 Food", which is a trade,
+   * not a pair of unrelated movements.
+   */
+  | {
+      readonly kind: 'materials-converted';
+      readonly slot: string;
+      /** The facility or upgrade whose table row this is. */
+      readonly source: string;
+      readonly spent: Partial<Record<Material, number>>;
+      readonly gained: Partial<Record<Material, number>>;
+    }
+  /**
    * XP went to a survivor, from one of the four sources pg. 18 names.
    *
    * **Load-bearing**: the pools and both 2-XP caps are the difference between
@@ -115,7 +151,20 @@ export type CampaignEvent =
    * because eating is destructive and four Food against ten required looks
    * afterwards exactly like nine against ten.
    */
-  | { readonly kind: 'survivors-fed'; readonly required: number; readonly hunger: number }
+  | {
+      readonly kind: 'survivors-fed';
+      readonly required: number;
+      readonly hunger: number;
+      /**
+       * The head count the shortfall was measured against (pg. 22, ruling 1).
+       *
+       * Recorded because the penalty is fixed at this step and held until the
+       * next Management Phase, so a departure later in the same turn must not
+       * re-price it. Optional only because entries written before this was
+       * recorded do not carry it and cannot be given it honestly.
+       */
+      readonly population?: number;
+    }
   /**
    * A survivor at 0 Health made their Rot check (pg. 22).
    *
@@ -131,6 +180,15 @@ export type CampaignEvent =
       readonly target: number;
       readonly passed: boolean;
     }
+  /**
+   * A set of Restraints held a turning survivor, so nobody was bitten (pp. 72–73).
+   *
+   * **Load-bearing**, like `planning-began` and `materials-added`:
+   * `restraintsFree` counts these back to know how many sets a turn has left,
+   * because a turning that was held leaves no other trace — the survivor is
+   * gone either way and the only difference is a bite that did not happen.
+   */
+  | { readonly kind: 'bite-restrained'; readonly survivor: string; readonly name: string }
   /** A turning survivor bit somebody being healed beside them (pg. 22). */
   | {
       readonly kind: 'survivor-bitten';
@@ -138,6 +196,66 @@ export type CampaignEvent =
       readonly name: string;
       readonly damage: number;
     }
+  /**
+   * The lowest-Tier survivor walked out at Departures (pg. 23).
+   *
+   * Its own kind rather than the `survivor-left` a Rot death writes, and the
+   * distinction is load-bearing rather than editorial: `someoneDeparted` reads
+   * it to keep the step from running twice, and a Rot death in the same phase
+   * would otherwise look exactly like a departure that had already happened.
+   * It reads better too — somebody who walked out and somebody who turned in
+   * the night did not leave the community the same way.
+   */
+  | {
+      readonly kind: 'survivor-departed';
+      readonly survivor: string;
+      readonly name: string;
+      readonly tier: Tier;
+    }
+  /**
+   * Exhaustion took a survivor off the mission team at Assign Beds (pg. 23).
+   *
+   * Recorded because it is the only thing that stops the step offering the
+   * same removal again — the rule takes **one** survivor off, and Exhaustion
+   * does not fall when they go, so nothing in the campaign says it has already
+   * happened.
+   */
+  | {
+      readonly kind: 'mission-team-reduced';
+      readonly survivor: string;
+      readonly name: string;
+    }
+  /**
+   * A project was ordered in the Planning Phase (pg. 20).
+   *
+   * Three kinds, mirroring the three `*-built` entries the Advancement Phase
+   * writes when they finish — so a campaign's history reads "ordered a
+   * Workshop for the Garage" on one turn and "built a Workshop in the Garage"
+   * on the next, which is what actually happened. Collapsing the six into
+   * three would have made a turn's history say a thing was built twice.
+   */
+  | { readonly kind: 'facility-ordered'; readonly slot: string; readonly facility: FacilityId }
+  | { readonly kind: 'upgrade-ordered'; readonly slot: string; readonly upgrade: UpgradeId }
+  | { readonly kind: 'clearing-ordered'; readonly slot: string }
+  /** A queued project was cancelled before it was finished, and its Hardware came back. */
+  | { readonly kind: 'project-cancelled'; readonly slot: string }
+  /**
+   * A queued project went unfinished when the Labor behind it walked out (pg.
+   * 23).
+   *
+   * Its own kind rather than a second `project-cancelled`, because the log is
+   * permanent and uneditable and the two are different things that happened: a
+   * cancellation is a player changing their mind, and this is a rule taking
+   * the choice away and leaving them only the choice of which. A history that
+   * called this one cancelling would say the player did something they did not
+   * do.
+   *
+   * The Hardware comes back, exactly as it does on a cancellation. The book
+   * does not say, and this follows the ruling already made there: the work was
+   * never done, and materials a community still has are materials it still
+   * has.
+   */
+  | { readonly kind: 'project-unfinished'; readonly slot: string }
   /**
    * The stores were trimmed to the base's caps (pg. 23).
    *
@@ -204,8 +322,16 @@ export type CampaignEvent =
       readonly survivor: string;
       readonly name: string;
       readonly tier: Tier;
-      /** The d10 that chose their first skill (pg. 15) — part of the story. */
-      readonly roll: D10Result;
+      /**
+       * The d10 that chose their first skill (pg. 15) — part of the story.
+       *
+       * Absent for a Rookie, who does not roll for one at all (pg. 7). It used
+       * to be recorded anyway, from a control the form should not have been
+       * offering, and the entry then said a die had chosen a skill the survivor
+       * did not have. The log is append-only by design, so a sentence that was
+       * never true stayed true-looking forever.
+       */
+      readonly roll?: D10Result;
     }
   | {
       readonly kind: 'survivor-left';
@@ -243,6 +369,21 @@ export type CampaignEvent =
       readonly score: number;
     }
   | { readonly kind: 'base-claimed'; readonly base: BaseId }
+  /**
+   * A community's first base arrived stocked to its caps (pg. 19, 54).
+   *
+   * Its own entry rather than a clause on `base-claimed`, because it is a
+   * second thing that happened and a player who finds four Food they did not
+   * enter deserves to see where they came from. Only ever written for the
+   * first base: a later one starts with what was carried over, which is Phase
+   * 4's Claim a New Base.
+   */
+  | {
+      readonly kind: 'base-stocked';
+      readonly food: number;
+      readonly fuel: number;
+      readonly hardware: number;
+    }
   | { readonly kind: 'facility-built'; readonly slot: string; readonly facility: FacilityId }
   | { readonly kind: 'upgrade-built'; readonly slot: string; readonly upgrade: UpgradeId }
   | { readonly kind: 'slot-cleared'; readonly slot: string };

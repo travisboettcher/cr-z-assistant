@@ -28,6 +28,7 @@
  */
 
 import { MATERIALS, STORED_MATERIALS, type Material, type Materials } from '../data/materials';
+import { suppliedOccupants } from './utilities';
 import {
   MATERIAL_ROLL_TABLE,
   MATERIAL_SUBSTITUTIONS,
@@ -36,7 +37,7 @@ import {
 } from '../data/turn';
 import type { D10Result } from '../data/dice';
 import { occupants, storageCaps } from './base';
-import { missionTeam, staffOf } from './assignments';
+import { beforePlanning, missionTeam, staffOf } from './assignments';
 import type { Campaign } from './campaign';
 import type { Check, Violation } from './checks';
 import { facilityProduction } from './production';
@@ -109,8 +110,12 @@ export function baseProduction(campaign: Campaign): Materials {
 
   const penalty = hungerPenalty(campaign);
 
+  // Staffed last Planning Phase, read this Advancement one — so it is asked of
+  // the campaign as it stood before this turn's Planning cleared the answer.
+  const staffed = beforePlanning(campaign);
+
   for (const occupant of occupants(base)) {
-    for (const line of facilityProduction(occupant, staffOf(campaign, occupant.slotId), penalty)) {
+    for (const line of facilityProduction(occupant, staffOf(staffed, occupant.slotId), penalty)) {
       for (const output of line.outputs) {
         if (isMaterial(output)) total[output] += line.amount;
       }
@@ -134,7 +139,7 @@ function isMaterial(output: string): output is Material {
 export function substitutionUses(campaign: Campaign, skill: SubstitutionSkill): number {
   const penalty = hungerPenalty(campaign);
 
-  return missionTeam(campaign).reduce(
+  return missionTeam(beforePlanning(campaign)).reduce(
     (total, survivor) => total + (skillScore(survivor, skill, penalty) ?? 0),
     0,
   );
@@ -194,7 +199,7 @@ export function checkMaterials(campaign: Campaign, rolls: readonly MaterialRoll[
 
   if (base !== null) {
     const adding = combined(recovered(rolls), baseProduction(campaign));
-    const caps = storageCaps(base);
+    const caps = storageCaps(base, suppliedOccupants(campaign));
 
     // Rare has no cap in the book (pg. 54), so `STORED_MATERIALS` is the list
     // rather than `MATERIALS` — a cap for it would be this app inventing one.

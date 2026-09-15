@@ -21,17 +21,21 @@
  */
 
 import type { BaseId } from '../data/bases';
-import type { FacilityId, UpgradeId, Utility } from '../data/facilities';
+import type { Utility } from '../data/facilities';
 import type { Material } from '../data/materials';
 import type { D10Result } from '../data/dice';
 import type { FieldRecruitTier } from '../data/recruitTable';
 import { MIN_SKILL_LEVEL, type CommonSkill, type Skill, type Stat } from '../data/skills';
 import type { Tier } from '../data/tiers';
 import { withCommonSkillBought, withSkillLevelBought, withTierBought } from '../engine/advancement';
-import { withFacilityBuilt } from '../engine/build';
-import { withSlotCleared } from '../engine/clearing';
-import { withUpgradeBuilt } from '../engine/upgrade';
-import { withUtilityToggled } from '../engine/utilities';
+import {
+  completeProjects,
+  laborShortfall,
+  withProjectCancelled,
+  withProjectOrdered,
+} from '../engine/projects';
+import { builtEvent, checkOrder, orderedEvent } from '../engine/orders';
+import { suppliedOccupants, withUtilityToggled } from '../engine/utilities';
 import { createNewCampaign } from '../engine/campaign';
 import { logged, type CampaignEvent } from '../engine/log';
 import { advance, reverse, type AdvanceBy } from '../engine/turn';
@@ -44,16 +48,19 @@ import {
   withMaterialsAdded,
   type MaterialRoll,
 } from '../engine/materials';
+import { checkConversion, conversions, withConversion } from '../engine/conversions';
 import { checkXpAward, withXpAwarded } from '../engine/experience';
 import { healthAwards, withWoundsHealed, woundsHealed } from '../engine/healing';
 import { foodRequired, hungerIfFedNow, survivorsFed, withSurvivorsFed } from '../engine/feeding';
-import { rotOutcome, rotTarget, withRotApplied } from '../engine/rot';
+import { rotCheckResolved, rotOutcome, rotTarget, withRotApplied } from '../engine/rot';
 import { overCap, storageChecked, withStorageChecked } from '../engine/storage';
-import { hordeChecked, siegeThreat, siegeTriggered, withSiegeCalled } from '../engine/siege';
-import { departureCandidates, withDeparture } from '../engine/departures';
+import { hordeChecked, siegeThreat, siegeTriggered } from '../engine/siege';
+import { departureCandidates, someoneDeparted, withDeparture } from '../engine/departures';
+import { missionTeam, missionTeamReduced } from '../engine/assignments';
+import { storageCaps } from '../engine/base';
 import { ROT_BITE_DAMAGE } from '../data/turn';
 import { XP_AWARD, type XpSource } from '../data/turn';
-import type { Assignment, Campaign, Stats, Survivor } from '../engine/campaign';
+import type { Assignment, Campaign, ProjectOrder, Stats, Survivor } from '../engine/campaign';
 import { createSurvivor, recruitSurvivor } from '../engine/survivor';
 
 /**
@@ -186,7 +193,13 @@ export type CampaignAction =
       readonly type: 'survivor/recruited';
       readonly name: string;
       readonly tier: FieldRecruitTier;
-      readonly roll: D10Result;
+      /**
+       * Absent for a Rookie, whose single skill is never randomly generated
+       * (pg. 7). The form does not offer the die at that Tier, and the entry
+       * this writes does not claim one was thrown — the log cannot be edited,
+       * so a roll recorded there is permanent whether or not it did anything.
+       */
+      readonly roll?: D10Result;
       readonly id: string;
       readonly at: string;
     }
@@ -275,16 +288,20 @@ export type CampaignAction =
   /**
    * Sets one material count by hand.
    *
-   * Materials are produced and spent by the Advancement and Management Phases,
-   * which are Phase 3. Until then nothing in the app can put a single Hardware
-   * into a community — and a base screen whose Build button can never be
-   * pressed is the "nothing is usable until everything works" failure the
-   * delivery plan exists to avoid. So the player types what is on their
-   * worksheet, exactly as Phase 1 let them type XP.
+   * It was the only way to get a Hardware into a community before Phase 3 gave
+   * the Advancement and Management Phases somewhere to produce and spend them
+   * — a base screen whose Build button could never be pressed is the "nothing
+   * is usable until everything works" failure the delivery plan exists to
+   * avoid. It stays now for the reason Phase 1's XP field stays: the table is
+   * the authority, and a player correcting the record should not have to walk
+   * a turn backwards to do it.
    *
-   * No cap is enforced. Check Storage is a Management Phase step (pg. 23) and
-   * over-storage has consequences this app does not model yet; refusing the
-   * number would be inventing a rule rather than recording one.
+   * No cap is enforced, and that is now a decision rather than a gap. Check
+   * Storage (pg. 23) is a Management Phase step this app does model since
+   * Z3-10, and what it does with a haul over the cap is lose the surplus *at
+   * that step* — so a count typed above the cap is a real state the campaign
+   * passes through, and refusing it here would be enforcing the rule one phase
+   * early.
    */
   | { readonly type: 'campaign/materialSet'; readonly material: Material; readonly count: number }
   /**
@@ -302,6 +319,23 @@ export type CampaignAction =
   | {
       readonly type: 'advancement/materialsAdded';
       readonly rolls: readonly MaterialRoll[];
+      readonly at: string;
+    }
+  /**
+   * Run one facility or upgrade's conversion (pg. 19, 72–73).
+   *
+   * Named by where it lives rather than by what it trades: a base can hold two
+   * Kitchens, each with its own Gas Range and its own per-turn allowance, and
+   * "2 Fuel for 1 Food" does not say which one was used.
+   *
+   * Refused when the materials are not there or the book's cap for this turn
+   * is spent. Both are blockers rather than warnings — a store cannot go
+   * negative, and a stated cap is a rule rather than advice.
+   */
+  | {
+      readonly type: 'advancement/materialsConverted';
+      readonly slot: string;
+      readonly source: string;
       readonly at: string;
     }
   /**
@@ -338,6 +372,15 @@ export type CampaignAction =
    * still over the threshold with somebody still to lose genuinely loses them.
    */
   | { readonly type: 'management/departed'; readonly survivor: string; readonly at: string }
+  /**
+   * Take one survivor off the mission team, because Exhaustion is above its
+   * size (pg. 23).
+   *
+   * Its own action rather than `assignment/cleared`, which is what the screen
+   * used to dispatch: that one is an ordinary edit with no record and no
+   * guard, so the step offered the same removal until the team was empty.
+   */
+  | { readonly type: 'management/teamReduced'; readonly survivor: string; readonly at: string }
   /**
    * Resolve one survivor's Rot check (pg. 22).
    *
@@ -404,21 +447,42 @@ export type CampaignAction =
     }
   /** Take a survivor's task away, leaving them unassigned. */
   | { readonly type: 'assignment/cleared'; readonly survivor: string }
+  /**
+   * Order a project into the queue, spending its Hardware (pg. 20).
+   *
+   * **Not built: ordered.** Since Z3-11 the base changes in the *next*
+   * Advancement Phase, which is the rule that makes a turn's Labor a decision.
+   * The three actions this replaced applied their work the instant they were
+   * dispatched, because no phase existed to order it in.
+   *
+   * `orderedOnTurn` is filled in by the reducer rather than carried, because it
+   * is the campaign's own turn and a screen that could name a different one
+   * could order a project into the past.
+   */
   | {
-      readonly type: 'facility/built';
-      readonly slot: string;
-      readonly facility: FacilityId;
+      readonly type: 'project/ordered';
+      readonly project: ProjectOrder;
       readonly at: string;
     }
-  /** Adds an upgrade to whatever stands in the slot. */
-  | {
-      readonly type: 'upgrade/built';
-      readonly slot: string;
-      readonly upgrade: UpgradeId;
-      readonly at: string;
-    }
-  /** Clears the rubble out of a slot, adding back whatever the project yields. */
-  | { readonly type: 'slot/cleared'; readonly slot: string; readonly at: string }
+  /**
+   * Take one project back out of the queue, and its Hardware with it.
+   *
+   * By position, because two identical Gas Ranges ordered for the same Kitchen
+   * in one turn are two orders — see `withProjectCancelled`.
+   */
+  | { readonly type: 'project/cancelled'; readonly at: number; readonly when: string }
+  /**
+   * Drop the project a departure left unpaid for (pg. 23).
+   *
+   * Shaped like `project/cancelled` and kept apart from it, because what
+   * happens to the campaign is the same and what happened at the table is not:
+   * one is a player changing their mind and this is the rule taking a project
+   * away, leaving them only the choice of which. The log says which of the two
+   * it was, and the log cannot be edited.
+   */
+  | { readonly type: 'management/projectUnfinished'; readonly at: number; readonly when: string }
+  /** Finish everything the last Planning Phase ordered (pg. 19). */
+  | { readonly type: 'advancement/projectsCompleted'; readonly at: string }
   /**
    * Puts a point of Power or Water on a slot, or takes it off.
    *
@@ -472,7 +536,21 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
          * opposite of that.
          */
         if (move.step === FIRST_PLANNING_STEP && !planningHasBegun(moved)) {
-          return logged(withPlanningReset(moved), action.at, { kind: 'planning-began' });
+          /*
+           * The entry carries what it cleared. Everything the Advancement
+           * Phase reads about the turn just played — who went on the mission,
+           * who staffed the Kitchen, who was resting — lived only in
+           * `assignments`, and this is the step that empties them. Skipping
+           * forward to Planning from an unfinished Advancement step therefore
+           * destroyed the turn's own facts, and stepping back showed a turn
+           * where nobody had done anything (issue #95). Written here rather
+           * than read back from anywhere, because after this line the only
+           * copy is gone.
+           */
+          return logged(withPlanningReset(moved), action.at, {
+            kind: 'planning-began',
+            cleared: moved.assignments,
+          });
         }
 
         if (move.endsTurn) return logged(moved, action.at, { kind: 'turn-began' });
@@ -523,8 +601,8 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
      * removals, and a stale index renames the wrong person.
      */
     case 'survivor/recruited':
-      return withCampaign(state, (campaign) =>
-        logged(
+      return withCampaign(state, (campaign) => {
+        const recruited = logged(
           {
             ...campaign,
             survivors: [
@@ -533,15 +611,36 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
             ],
           },
           action.at,
+          // Spread rather than `roll: action.roll`: `exactOptionalPropertyTypes`
+          // makes a present-but-undefined `roll` a different thing from an
+          // absent one, and only the absent one is true.
           {
             kind: 'survivor-recruited',
             survivor: action.id,
             name: action.name,
             tier: action.tier,
-            roll: action.roll,
+            ...(action.roll === undefined ? {} : { roll: action.roll }),
           },
-        ),
-      );
+        );
+
+        /*
+         * A survivor found in the field is proof the campaign is past building
+         * its starting community: the ten-tier-level budget is a rule about
+         * *building* one (pg. 13), and Rescue Strangers exists to grow it past
+         * that (pg. 15). The playtest recruited through this app's own form and
+         * was told the community "spends 11" — growth reported as an error.
+         *
+         * A second entry rather than a quiet flag, and only when it changes:
+         * the switch is the player's to throw, and one thrown on their behalf
+         * should say so where they can see it.
+         */
+        return recruited.startingCommunityBuilt
+          ? recruited
+          : logged({ ...recruited, startingCommunityBuilt: true }, action.at, {
+              kind: 'starting-community-settled',
+              built: true,
+            });
+      });
 
     case 'survivor/renamed':
       return editSurvivor(state, action.id, (survivor) => ({ ...survivor, name: action.name }));
@@ -656,14 +755,44 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
      * mis-dispatch and a wiped base.
      */
     case 'base/claimed':
-      return withCampaign(state, (campaign) =>
-        campaign.base === null
-          ? logged({ ...campaign, base: { id: action.base, slots: {} } }, action.at, {
-              kind: 'base-claimed',
-              base: action.base,
-            })
-          : campaign,
-      );
+      return withCampaign(state, (campaign) => {
+        // Refuses a base for a community that already has one: replacing a base
+        // is Claim a New Base, which is a mission and Phase 4's.
+        if (campaign.base !== null) return campaign;
+
+        const base = { id: action.base, slots: {} };
+
+        /*
+         * **The first base arrives full** (pg. 19, 54). A community that
+         * reaches one stocks every capped material to its maximum; a *later*
+         * base starts with only what was carried over, and that is Phase 4's
+         * Claim a New Base. Only the first is in scope, and `base === null`
+         * above is exactly what makes this the first.
+         *
+         * It matters more than it sounds: a starting community of ten Tier
+         * points eats six Food a turn against a Tier 1 cap of four, so
+         * beginning at zero rather than four changes the whole opening — and
+         * it is the pressure the opening is designed around. The app already
+         * knew the caps and showed "0 / 4" beside them.
+         */
+        // The caps of the base as it stands the moment it is claimed. Since
+        // #127 that is a question about the roster as well as the layout —
+        // a facility whose Power is not backed does not raise a cap — so the
+        // occupants are resolved against the campaign the claim produces
+        // rather than read off the layout alone.
+        const claimed = { ...campaign, base };
+        const caps = storageCaps(base, suppliedOccupants(claimed));
+        const stocked = { ...campaign.materials, ...caps };
+
+        return logged(
+          logged({ ...claimed, materials: stocked }, action.at, {
+            kind: 'base-claimed',
+            base: action.base,
+          }),
+          action.at,
+          { kind: 'base-stocked', ...caps },
+        );
+      });
 
     case 'campaign/materialSet':
       return withCampaign(state, (campaign) => ({
@@ -683,6 +812,24 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         });
       });
 
+    case 'advancement/materialsConverted':
+      return withCampaign(state, (campaign) => {
+        const conversion = conversions(campaign).find(
+          (candidate) => candidate.slot === action.slot && candidate.source.id === action.source,
+        );
+
+        if (conversion === undefined) return campaign;
+        if (checkConversion(campaign, conversion).blockers.length > 0) return campaign;
+
+        return logged(withConversion(campaign, conversion), action.at, {
+          kind: 'materials-converted',
+          slot: conversion.slot,
+          source: conversion.source.id,
+          spent: conversion.exchange.spend,
+          gained: conversion.exchange.gain as Partial<Record<Material, number>>,
+        });
+      });
+
     case 'management/survivorsFed':
       return withCampaign(state, (campaign) => {
         if (survivorsFed(campaign)) return campaign;
@@ -691,6 +838,9 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
           kind: 'survivors-fed',
           required: foodRequired(campaign),
           hunger: hungerIfFedNow(campaign),
+          // The head count at the moment of eating, because the penalty is
+          // fixed here and held until the next Management Phase (pg. 22).
+          population: campaign.survivors.length,
         });
       });
 
@@ -713,7 +863,12 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         const threat = siegeThreat(campaign);
         const siege = siegeTriggered(action.roll, threat);
 
-        return logged(siege ? withSiegeCalled(campaign) : campaign, action.at, {
+        // The entry is the whole record: a siege called on this turn is fought
+        // on the next, which `siege.ts` works out from the turn stamped here.
+        // Nothing is written onto the campaign, because a forward-dated field
+        // beside it destroyed the previous siege's turn — and with it the
+        // Siege Threat term that Departures reads two steps later.
+        return logged(campaign, action.at, {
           kind: 'horde-checked',
           roll: action.roll,
           threat,
@@ -723,24 +878,49 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
     case 'management/departed':
       return withCampaign(state, (campaign) => {
-        // Asked here rather than trusted from the screen, and asked of *this*
-        // campaign: a second departure is checked against a pressure the first
-        // one already changed.
+        // The rule sends one (pg. 23). Nothing in the campaign says it has
+        // happened — a departure lowers the very pressure it was measured
+        // against, so re-deriving `someoneIsLeaving` afterwards answers a
+        // different question. Hence the log, like every other step here.
+        if (someoneDeparted(campaign)) return campaign;
+
+        // Asked of *this* campaign rather than trusted from the screen.
         const leaving = departureCandidates(campaign).find(
           (candidate) => candidate.id === action.survivor,
         );
         if (leaving === undefined) return campaign;
 
         return logged(withDeparture(campaign, action.survivor), action.at, {
-          kind: 'survivor-left',
+          kind: 'survivor-departed',
           survivor: leaving.id,
           name: leaving.name,
           tier: leaving.tier,
         });
       });
 
+    case 'management/teamReduced':
+      return withCampaign(state, (campaign) => {
+        // One survivor, once (pg. 23). Exhaustion does not fall when they come
+        // off the team, so without the record the step offers the same removal
+        // until the team is empty.
+        if (missionTeamReduced(campaign)) return campaign;
+
+        const tired = missionTeam(campaign).find((candidate) => candidate.id === action.survivor);
+        if (tired === undefined) return campaign;
+
+        return logged(
+          { ...campaign, assignments: withoutAssignment(campaign.assignments, action.survivor) },
+          action.at,
+          { kind: 'mission-team-reduced', survivor: tired.id, name: tired.name },
+        );
+      });
+
     case 'management/rotChecked':
       return withCampaign(state, (campaign) => {
+        // Per survivor rather than per step: this one resolves a check for each
+        // survivor at 0 Health, so "already done" is a question about a person.
+        if (rotCheckResolved(campaign, action.survivor)) return campaign;
+
         const survivor = campaign.survivors.find((candidate) => candidate.id === action.survivor);
         if (survivor === undefined) return campaign;
 
@@ -766,6 +946,20 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
           name: outcome.turned.name,
           tier: outcome.turned.tier,
         });
+
+        /*
+         * A set of Restraints held them (pg. 72). Written down because
+         * `restraintsFree` counts these back — a turn with two sets holds two
+         * survivors and no more, and nothing else on the campaign remembers
+         * that the first one was held.
+         */
+        if (outcome.restrained) {
+          return logged(turned, action.at, {
+            kind: 'bite-restrained',
+            survivor: outcome.turned.id,
+            name: outcome.turned.name,
+          });
+        }
 
         if (outcome.bitten === null) return turned;
 
@@ -837,33 +1031,63 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
      * Hardware the community does not have by forgetting to ask — there is
      * nothing here to forget.
      */
-    case 'facility/built':
-      return withCampaign(state, (campaign) =>
-        loggedIfChanged(
-          campaign,
-          withFacilityBuilt(campaign, { slot: action.slot, facility: action.facility }),
-          action.at,
-          { kind: 'facility-built', slot: action.slot, facility: action.facility },
-        ),
-      );
+    case 'project/ordered':
+      return withCampaign(state, (campaign) => {
+        const project = { ...action.project, orderedOnTurn: campaign.turn };
 
-    case 'upgrade/built':
-      return withCampaign(state, (campaign) =>
-        loggedIfChanged(
-          campaign,
-          withUpgradeBuilt(campaign, { slot: action.slot, upgrade: action.upgrade }),
-          action.at,
-          { kind: 'upgrade-built', slot: action.slot, upgrade: action.upgrade },
-        ),
-      );
+        // Asked here rather than trusted from the screen, exactly as the three
+        // actions this replaced did: the check knows what is already queued
+        // and what Labor is left, and a stale screen does not.
+        if (checkOrder(campaign, project).blockers.length > 0) return campaign;
 
-    case 'slot/cleared':
-      return withCampaign(state, (campaign) =>
-        loggedIfChanged(campaign, withSlotCleared(campaign, { slot: action.slot }), action.at, {
-          kind: 'slot-cleared',
-          slot: action.slot,
-        }),
-      );
+        return logged(withProjectOrdered(campaign, project), action.at, orderedEvent(project));
+      });
+
+    case 'project/cancelled':
+      return withCampaign(state, (campaign) => {
+        const project = campaign.projects[action.at];
+        if (project === undefined) return campaign;
+
+        return logged(withProjectCancelled(campaign, action.at), action.when, {
+          kind: 'project-cancelled',
+          slot: project.slot,
+        });
+      });
+
+    /**
+     * Guarded twice, and both guards are the rule rather than defensive
+     * padding. Nothing may be dropped while the queue still fits the pool —
+     * that would be a player cancelling an order and the log calling it a
+     * departure's doing — and only *this* turn's orders can be, because last
+     * turn's were paid for by a team that has already been reassigned and a
+     * shortfall now cannot reach back for them.
+     */
+    case 'management/projectUnfinished':
+      return withCampaign(state, (campaign) => {
+        if (laborShortfall(campaign) === 0) return campaign;
+
+        const project = campaign.projects[action.at];
+        if (project === undefined || project.orderedOnTurn !== campaign.turn) return campaign;
+
+        return logged(withProjectCancelled(campaign, action.at), action.when, {
+          kind: 'project-unfinished',
+          slot: project.slot,
+        });
+      });
+
+    case 'advancement/projectsCompleted':
+      return withCampaign(state, (campaign) => {
+        const { campaign: finished, completed } = completeProjects(campaign);
+
+        // One entry per project that actually landed — a project dropped for a
+        // slot that filled under it says nothing, rather than claiming a
+        // Workshop that is not there. Folded rather than pushed, because
+        // `logged` stamps against the campaign it appends to.
+        return completed.reduce(
+          (so_far, project) => logged(so_far, action.at, builtEvent(project)),
+          finished,
+        );
+      });
 
     case 'assignment/set':
       return withCampaign(state, (campaign) => ({
@@ -955,23 +1179,6 @@ function withoutAssignment(
   delete remaining[survivor];
 
   return remaining;
-}
-
-/**
- * The campaign the edit produced, with an entry on it — unless the edit
- * refused, in which case neither.
- *
- * Reference equality is the test, and it is exact rather than a heuristic:
- * every `with*` in `src/engine` returns the campaign it was given when a
- * blocker stops it, so `after === before` is that refusal and nothing else.
- */
-function loggedIfChanged(
-  before: Campaign,
-  after: Campaign,
-  at: string,
-  event: CampaignEvent,
-): Campaign {
-  return after === before ? before : logged(after, at, event);
 }
 
 /**

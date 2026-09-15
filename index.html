@@ -4,6 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
+
+    <!--
+      An SVG icon rather than a favicon.ico: it is the whole mark at any size,
+      it is 300 bytes, and declaring one stops the browser asking for
+      /favicon.ico on every load — which was the only console error anywhere in
+      the September playtest, on an app whose stated device is a tablet
+      standing next to the table.
+
+      The PNG is square on purpose. iOS masks an apple-touch-icon itself, so
+      rounding the corners here would round them twice.
+    -->
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#1c1917" />
+    <meta name="apple-mobile-web-app-title" content="County Road Z" />
+
     <title>County Road Z — Campaign Tracker</title>
   </head>
   <body>

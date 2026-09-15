@@ -81,14 +81,24 @@ describe('writing in the background', () => {
 });
 
 describe('the changed-since-export indicator', () => {
-  it('does not claim unsaved changes for a campaign just restored from disk', () => {
+  /**
+   * This asserted "Matches your last exported file." and defended it: a
+   * restored campaign is identical to what was stored, and a warning that is
+   * always on is one nobody reads.
+   *
+   * Both halves were right about the autosave and wrong about the *file*. The
+   * campaign had never been written anywhere the player could recover it from,
+   * and the footer said it matched one — so the fix is a third sentence rather
+   * than flipping the warning on. It stays off the "changed since" wording,
+   * which would have been the untrue nag the original comment feared.
+   */
+  it('says a restored campaign has never been exported, because it has not', () => {
     localStorage.setItem(AUTOSAVE_KEY, serializeCampaign(createNewCampaign('Millbrook', FIXED)));
 
     boot();
 
-    // A restored campaign is identical to what was stored; saying otherwise
-    // would light the warning permanently and teach people to ignore it.
-    expect(statusLine().getByText(/^matches your last exported file/i)).toBeVisible();
+    expect(statusLine().getByText(/^never exported/i)).toBeVisible();
+    expect(statusLine().queryByText(/matches your last exported file/i)).toBeNull();
   });
 
   it('warns once a campaign has been started but never exported', async () => {
@@ -98,7 +108,7 @@ describe('the changed-since-export indicator', () => {
     await user.type(screen.getByLabelText(/^campaign name$/i), 'Cedar Hollow');
     await user.click(screen.getByRole('button', { name: 'New campaign' }));
 
-    expect(statusLine().getByText(/^changed since your last export/i)).toBeVisible();
+    expect(statusLine().getByText(/^never exported/i)).toBeVisible();
   });
 });
 
@@ -113,7 +123,10 @@ describe('starting a new campaign over an open one', () => {
     await user.click(screen.getByRole('button', { name: /start a new campaign/i }));
 
     const dialog = await screen.findByRole('dialog');
-    expect(dialog).toHaveTextContent(/changes will be gone/i);
+    // Never exported, so the promise the dialog must not make is "nothing is
+    // lost" — it would be offering to destroy the only copy.
+    expect(dialog).toHaveTextContent(/never been exported/i);
+    expect(dialog).not.toHaveTextContent(/nothing is lost/i);
 
     await user.type(screen.getByLabelText(/new campaign name/i), 'Millbrook');
     await user.click(screen.getByRole('button', { name: /start it/i }));

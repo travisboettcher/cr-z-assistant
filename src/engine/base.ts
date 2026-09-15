@@ -30,19 +30,35 @@
  *
  * Origin and mission requirements are gates on *building* the thing, not
  * conditions on operating it, so they do not appear here either.
+ *
+ * ## Why three functions here take an occupant list
+ *
+ * `beds`, `storageCaps` and `siegeThreatFromBase` are gated by utilities, and
+ * whether a slot *has* a utility is not a fact about the base: a point with no
+ * generator behind it does not count, and the Hydroelectric Dam supplies
+ * everything once the community's combined Utilities Score is high enough. Both
+ * need the roster, so both live in `utilities.ts` — which imports this module,
+ * so this one cannot ask.
+ *
+ * So they take the resolved list rather than reading it. `suppliedOccupants` is
+ * what every campaign-level caller should pass; `occupants(base)` alone answers
+ * the narrower question of what is standing where, which is all the build and
+ * layout checks need.
  */
 
 import { BASES, maxHeroes as maxHeroesForTier, type BaseSlot } from '../data/bases';
 import {
   FACILITIES,
   MAX_UPGRADES_PER_FACILITY,
+  type Cost,
   type Facility,
   type SlotKind,
   type Upgrade,
   type Utility,
 } from '../data/facilities';
 import { STORAGE_ABOVE_TIER, STORED_MATERIALS, type StoredMaterial } from '../data/materials';
-import type { Base } from './campaign';
+import type { Base, Campaign, Survivor } from './campaign';
+import { skillScore } from './survivor';
 
 /**
  * A facility standing in a slot, with everything needed to work out what it
@@ -83,22 +99,31 @@ export function layoutOf(base: Base): readonly BaseSlot[] {
  * ## The mutants that survive here, and why
  *
  * Per the README: the deliverable is the surviving mutants, not the score, and
- * each gets a test or a written reason. Four survive, all of them for the same
- * reason and all in the same shape — an empty-array fallback (`?? []`, and the
+ * each gets a test or a written reason. Ten survive, in two families.
+ *
+ * **Five are a fed filter.** An empty-array fallback (`?? []`, and the
  * non-built-in branch's `shipped`) replaced by an array holding one junk
- * string, or the `kind !== 'flat'` guard removed.
+ * string, or the `kind !== 'flat'` guard removed. Three filters downstream
+ * already reject exactly what the mutant injects: `resolveUpgrades` drops any
+ * id that is not one of the facility's own upgrades, `flatUtilitiesGenerated`
+ * drops any production that is not a flat Power or Water, and `replacedBy`
+ * keeps only installed upgrades whose id the exclusion list actually names. A
+ * junk upgrade id and a non-flat production are precisely the values those
+ * filters exist to discard, so injecting one changes no answer.
  *
- * They are equivalent because two filters downstream already reject exactly
- * what the mutant injects: `resolveUpgrades` drops any id that is not one of
- * the facility's own upgrades, and `flatUtilitiesGenerated` drops any
- * production that is not a flat Power or Water. A junk upgrade id and a
- * non-flat production are precisely the values those filters exist to discard,
- * so injecting one changes no answer.
+ * Those filters are load-bearing rather than defensive: a save may
+ * legitimately hold an upgrade recorded against the wrong facility, because
+ * the parser accepts that on purpose. Removing one to win a mutant would trade
+ * a real behaviour for a number.
  *
- * Both filters are load-bearing rather than defensive: a save may legitimately
- * hold an upgrade recorded against the wrong facility, because the parser
- * accepts that on purpose. Removing either to win three mutants would trade a
- * real behaviour for a number.
+ * **Four are one early return that cannot change an answer** —
+ * `siegeThreatReduction`'s `best.length === 0 || staff.length === 0`. Take the
+ * guard away in any of its four forms and the `flatMap` below produces no
+ * scores, which `Math.max(...scores, 0)` already answers with the same zero.
+ * It stays because reading "nothing reduces it, or nobody is working it" at
+ * the top is worth more than the four mutants, and because the alternative —
+ * deleting it — would leave the zero looking like arithmetic rather than a
+ * rule.
  */
 
 /**
@@ -191,6 +216,36 @@ function supplied(entry: Facility | Upgrade, occupant: Occupant): boolean {
  * stores are switched off by the same rule, and two copies of that rule would
  * be two places for it to drift.
  */
+/**
+ * What clearing this slot costs and gives, or `undefined` where there is no
+ * rubble in it.
+ *
+ * Lived in `clearing.ts` until Z3-11, which needed the cost of a *queued*
+ * clearing project from a module `clearing.ts` itself imports. Here, it is what
+ * it always was — a question about the base's layout — and the cycle does not
+ * arise.
+ */
+export function clearingProject(campaign: Campaign, slot: string) {
+  if (campaign.base === null) return undefined;
+
+  const found = layoutOf(campaign.base).find((candidate) => candidate.id === slot);
+
+  return found?.state === 'clearing-project' ? found : undefined;
+}
+
+/**
+ * Whatever is built in one slot, or `undefined` for an empty or blocked one.
+ *
+ * Lived in `upgrade.ts` until Z3-11 needed the same lookup to decide whether a
+ * queued project still has somewhere to land. One "what is in this slot" rather
+ * than two.
+ */
+export function occupantAt(campaign: Campaign, slot: string): Occupant | undefined {
+  if (campaign.base === null) return undefined;
+
+  return occupants(campaign.base).find((occupant) => occupant.slotId === slot);
+}
+
 export function working(occupant: Occupant): readonly (Facility | Upgrade)[] {
   return [occupant.facility, ...occupant.upgrades].filter((entry) => supplied(entry, occupant));
 }
@@ -203,12 +258,15 @@ export function working(occupant: Occupant): readonly (Facility | Upgrade)[] {
  * Refrigeration takes its Food cap from 6 to 8 only while the base has Power.
  * The book's own roster prints both numbers.
  */
-export function storageCaps(base: Base): Record<StoredMaterial, number> {
+export function storageCaps(
+  base: Base,
+  standing: readonly Occupant[],
+): Record<StoredMaterial, number> {
   const caps = Object.fromEntries(
     STORED_MATERIALS.map((material) => [material, BASES[base.id].tier + STORAGE_ABOVE_TIER]),
   ) as Record<StoredMaterial, number>;
 
-  for (const occupant of occupants(base)) {
+  for (const occupant of standing) {
     for (const entry of working(occupant)) {
       for (const material of STORED_MATERIALS) {
         caps[material] += entry.effects.storage?.[material] ?? 0;
@@ -227,12 +285,12 @@ export function storageCaps(base: Base): Record<StoredMaterial, number> {
  * ships no bunk rooms of its own, and which of its indoor slots hold one is
  * something the player decides later.
  */
-export function beds(base: Base): number {
+export function beds(base: Base, standing: readonly Occupant[]): number {
   const whiteNoise = BASES[base.id].specials.find((special) => special.id === 'white-noise');
 
   let total = 0;
 
-  for (const occupant of occupants(base)) {
+  for (const occupant of standing) {
     for (const entry of working(occupant)) {
       total += entry.effects.beds ?? 0;
     }
@@ -250,6 +308,61 @@ export function beds(base: Base): number {
 }
 
 /**
+ * How many survivors this facility takes (pg. 54, 72–73).
+ *
+ * One, unless an upgrade widens it — the Med Lab, the Study Room and the Watch
+ * Post each add one, which is what `extraStaff` was transcribed for. **Zero for
+ * a facility that takes no staff at all**: a Bunk Room's two beds are a flat
+ * effect with no skill named, so a survivor put in one is an assignment the
+ * rules do not contemplate.
+ *
+ * Read by `staffOf`, so every consumer of a slot's staff gets the cap without
+ * asking for it. Nothing read `extraStaff` at all until the September playtest
+ * found three survivors on a bare Medical Clinic making +5 Health, and two
+ * Medicine-8 staff driving a Rot check target to −4.
+ */
+export function staffCapacity(occupant: Occupant): number {
+  if (!occupant.facility.staffed) return 0;
+
+  // Through `working` rather than `upgrades`, because an upgrade whose
+  // requirements are unmet produces no effect at all (pg. 54) — and widening
+  // the staffing *is* the Med Lab's effect. A Med Lab without Power and Water
+  // is a room nobody can work in, not a second seat.
+  return working(occupant).reduce((room, entry) => room + (entry.effects.extraStaff ?? 0), 1);
+}
+
+/**
+ * What a staffed Watchtower takes off Siege Threat (pg. 73).
+ *
+ * The best of Long Guns, Handguns, Archery and Traps across its staff — the
+ * best *one* Score, not the sum, which is what `reducedByBestOf` spells and why
+ * it is a list of skills rather than a number. Zero for an empty slot, which is
+ * why the whole facility is worth building and staffing rather than building.
+ *
+ * Separate from `siegeThreatFromBase` because it needs the Planning Phase's
+ * assignments, and that function takes a `Base`. The comment there always said
+ * Phase 3 would sum this with the rest; it shipped without doing it, so a
+ * staffed Watchtower *raised* Siege Threat by one through the staffed-facility
+ * count and subtracted nothing.
+ */
+export function siegeThreatReduction(
+  occupant: Occupant,
+  staff: readonly Survivor[],
+  penalty: number,
+): number {
+  const best = working(occupant).flatMap(
+    (entry) => entry.effects.siegeThreat?.reducedByBestOf ?? [],
+  );
+  if (best.length === 0 || staff.length === 0) return 0;
+
+  const scores = staff.flatMap((survivor) =>
+    best.map((skill) => skillScore(survivor, skill, penalty) ?? 0),
+  );
+
+  return Math.max(...scores, 0);
+}
+
+/**
  * What the base itself adds to or takes off Siege Threat each turn (pg. 23).
  *
  * Negative reduces it. **Only the base's own flat contribution**: a staffed
@@ -258,14 +371,14 @@ export function beds(base: Base): number {
  * this with those; computing a "total" here would be a number that is wrong in
  * every campaign that has staffed anything.
  */
-export function siegeThreatFromBase(base: Base): number {
+export function siegeThreatFromBase(base: Base, standing: readonly Occupant[]): number {
   let total = 0;
 
   for (const special of BASES[base.id].specials) {
     if (special.id === 'curtain-wall') total += special.siegeThreat.perTurn ?? 0;
   }
 
-  for (const occupant of occupants(base)) {
+  for (const occupant of standing) {
     for (const entry of working(occupant)) {
       total += entry.effects.siegeThreat?.perTurn ?? 0;
     }
@@ -328,6 +441,47 @@ export function upgradesRemaining(occupant: Occupant): number {
   if (!occupant.upgradable) return 0;
 
   return Math.max(0, MAX_UPGRADES_PER_FACILITY - upgradesUsed(occupant));
+}
+
+/**
+ * The upgrades already on this facility that a new one would replace (pp. 72–73).
+ *
+ * `excludes` says two upgrades cannot sit on one facility together, and the
+ * Greenhouse — the only one that has it — excludes the Fence. That is not a
+ * refusal: the book prices *replacing* a Fence with a Greenhouse a Hardware
+ * cheaper, which is a rule about what happens when you order one onto the
+ * other, not a rule against it. So an order that excludes something installed
+ * takes it off, and `upgradeCost` below is the other half of the same
+ * sentence.
+ *
+ * A list rather than one, because the exclusion is a list and nothing caps how
+ * many of the excluded upgrade a facility holds — `maxPerFacility` is a
+ * warning a table may play past.
+ */
+export function replacedBy(occupant: Occupant, upgrade: Upgrade): readonly Upgrade[] {
+  const excludes = upgrade.constraints?.excludes ?? [];
+
+  return occupant.upgrades.filter((installed) => excludes.includes(installed.id));
+}
+
+/**
+ * What an upgrade costs on this particular facility (pp. 72–73).
+ *
+ * The catalogue price, less the replacement discount for each upgrade it takes
+ * off — the Greenhouse's one Hardware for the Fence it stands in for. Never
+ * below nothing: a discount larger than the price would be the stores paying a
+ * community to build, which no rule says and no screen should show.
+ *
+ * Labor is untouched. The book discounts the materials, not the work.
+ */
+export function upgradeCost(occupant: Occupant, upgrade: Upgrade): Cost {
+  const discount = upgrade.constraints?.replacementDiscount ?? 0;
+  const replaced = replacedBy(occupant, upgrade).length;
+
+  return {
+    hardware: Math.max(0, upgrade.cost.hardware - discount * replaced),
+    labor: upgrade.cost.labor,
+  };
 }
 
 /**

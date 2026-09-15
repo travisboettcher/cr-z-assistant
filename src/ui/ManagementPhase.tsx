@@ -13,6 +13,7 @@
  */
 
 import { useState } from 'react';
+import { suppliedOccupants } from '../engine/utilities';
 import { D10_RESULTS, type D10Result } from '../data/dice';
 import {
   DEPARTURE_THRESHOLD,
@@ -24,7 +25,7 @@ import {
 import type { Campaign } from '../engine/campaign';
 import {
   exhaustion,
-  foodRequired,
+  foodRequiredAsFed,
   hunger,
   hungerIfFedNow,
   penaltyFor,
@@ -32,7 +33,7 @@ import {
   unrest,
 } from '../engine/feeding';
 import { beds } from '../engine/base';
-import { missionTeam } from '../engine/assignments';
+import { missionTeam, missionTeamReduced } from '../engine/assignments';
 import {
   hordeCame,
   hordeChecked,
@@ -41,10 +42,17 @@ import {
   siegeTriggered,
 } from '../engine/siege';
 import { anythingOverCap, overCap, storageChecked } from '../engine/storage';
-import { departureCandidates, departurePressure, someoneIsLeaving } from '../engine/departures';
+import {
+  departureCandidates,
+  departurePressure,
+  someoneDeparted,
+  someoneIsLeaving,
+} from '../engine/departures';
 import { MATERIAL_LABELS } from './baseLabels';
 import { STORED_MATERIALS } from '../data/materials';
-import { biteCandidates, mustCheck, rotOutcome, rotTarget } from '../engine/rot';
+import { biteCandidates, mustCheck, restraintsFree, rotOutcome, rotTarget } from '../engine/rot';
+import { laborShortfall, orderedThisTurn, projectCost } from '../engine/projects';
+import { describeProject } from './projectLabels';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
@@ -88,6 +96,7 @@ export function ManagementPhase({ campaign, step }: ManagementPhaseProps) {
 function CheckForRot({ campaign }: { readonly campaign: Campaign }) {
   const dying = mustCheck(campaign);
   const target = rotTarget(campaign);
+  const held = restraintsFree(campaign);
 
   return (
     <>
@@ -96,6 +105,20 @@ function CheckForRot({ campaign }: { readonly campaign: Campaign }) {
         twelve, less the Medical Clinic’s combined Medicine. Roll a d10 and add their Tier; a
         natural 1 always fails and a natural 10 always holds <PageRef pages={22} />
       </p>
+
+      {/*
+       * Said at the step rather than on a card, because what it explains is a
+       * control that is *missing* from the cards: with a set free there is no
+       * bite to choose, and a player who cannot see why would go looking for
+       * the picker they had last turn.
+       */}
+      {held > 0 && (
+        <p className={`mt-2 ${HINT}`}>
+          The Medical Clinic&rsquo;s Restraints hold <span className="tabular-nums">{held}</span>{' '}
+          more turned survivor{held === 1 ? '' : 's'} this turn, and a survivor they hold bites
+          nobody <PageRef pages="72–73" />
+        </p>
+      )}
 
       {dying.length === 0 ? (
         <p className={`mt-3 ${HINT}`}>Nobody is at 0 Health. Nothing to check.</p>
@@ -127,9 +150,28 @@ function RotCheck({
   const candidates = biteCandidates(campaign, survivorId);
   const [bitten, setBitten] = useState<string>('');
 
+  /*
+   * **The bite is not optional.** pg. 22: the survivor "turns in the night and
+   * bites another survivor before being destroyed" — so where a candidate
+   * exists, one of them is bitten. The control used to default to nobody and
+   * offer it as a choice, which let a failed check skip the 1 Damage entirely.
+   *
+   * Who is bitten is still the player's, which is why this is a picker at all.
+   * Falling back to the first candidate rather than holding the choice in state
+   * also survives the list changing underneath it: a candidate who leaves the
+   * healing assignment stops being selectable, and the answer stays valid.
+   */
+  const chosen =
+    candidates.find((candidate) => candidate.id === bitten)?.id ?? candidates[0]?.id ?? null;
+
+  // A set of Restraints holds one turned survivor and the bite does not happen
+  // (pp. 72–73), so there is nothing to choose between — and the engine decides it
+  // either way, which is why this only takes the picker away.
+  const held = restraintsFree(campaign) > 0;
+
   // Shown before the press, so a player can see what the roll they are about to
   // enter would cost before it costs it.
-  const outcome = rotOutcome(campaign, survivorId, roll, bitten === '' ? null : bitten);
+  const outcome = rotOutcome(campaign, survivorId, roll, chosen);
 
   return (
     <div className="rounded-lg border border-stone-200 p-3 dark:border-stone-700">
@@ -154,20 +196,19 @@ function RotCheck({
           ))}
         </select>
 
-        {candidates.length > 0 && (
+        {candidates.length > 0 && !held && (
           <>
             <label className="text-sm" htmlFor={`rot-bite-${survivorId}`}>
               Bites
             </label>
             <select
               id={`rot-bite-${survivorId}`}
-              value={bitten}
+              value={chosen ?? ''}
               className={FIELD}
               onChange={(changed) => {
                 setBitten(changed.target.value);
               }}
             >
-              <option value="">nobody</option>
               {candidates.map((candidate) => (
                 <option key={candidate.id} value={candidate.id}>
                   {candidate.name}
@@ -182,6 +223,7 @@ function RotCheck({
         {outcome.turned === null
           ? `${name} holds on.`
           : `${name} turns and is removed.` +
+            (outcome.restrained ? ' The Restraints hold them, and nobody is bitten.' : '') +
             (outcome.bitten === null
               ? ''
               : ` ${outcome.bitten.survivor.name} is bitten${outcome.bitten.dies ? ' and removed too' : ''}.`)}
@@ -195,7 +237,7 @@ function RotCheck({
             type: 'management/rotChecked',
             survivor: survivorId,
             roll,
-            bitten: bitten === '' ? null : bitten,
+            bitten: chosen,
             at: new Date().toISOString(),
           });
         }}
@@ -217,7 +259,10 @@ function Feed({ campaign }: { readonly campaign: Campaign }) {
   const { dispatch } = useCampaign();
 
   const done = survivorsFed(campaign);
-  const required = foodRequired(campaign);
+  // Both halves off the same source: live beside live before the step has run,
+  // recorded beside recorded after — never one of each, which is how this
+  // printed "eats 6 Food… 8 Hunger".
+  const required = foodRequiredAsFed(campaign);
   const short = done ? hunger(campaign) : hungerIfFedNow(campaign);
   const penalty = penaltyFor(short, campaign.survivors.length);
 
@@ -285,16 +330,32 @@ function Feed({ campaign }: { readonly campaign: Campaign }) {
 }
 
 /**
- * Step 3: the only one of the three that changes nothing.
+ * Step 3: Exhaustion, and the one consequence the book prints under it.
  *
- * Exhaustion is population against beds, both readable at any moment, so there
- * is nothing to apply and nothing to guard — it returns to zero the instant a
- * Bunk Room goes up.
+ * The Exhaustion *number* changes nothing and is counted from scratch every
+ * turn — population against beds, both readable at any moment, back to zero the
+ * instant a Bunk Room goes up. The **penalty** is a real edit, and it belongs
+ * here rather than on Calculate Unrest where it used to sit: pg. 23 prints it
+ * under Assign Beds, beside the number it follows from.
  */
 function AssignBeds({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+
   const base = campaign.base;
-  const sleeping = base === null ? 0 : beds(base);
+  const sleeping = base === null ? 0 : beds(base, suppliedOccupants(campaign));
   const short = exhaustion(campaign);
+  const team = missionTeam(campaign);
+
+  // Exhaustion above the mission team's size takes one survivor off it
+  // (pg. 23). Offered rather than done, because *which* one is a decision and
+  // because taking somebody off a team without being asked is the kind of
+  // silent edit this app does not make.
+  //
+  // Once, though. Taking somebody off does not lower the Exhaustion that called
+  // for it — beds and population are unchanged — so the condition stays true
+  // and the step went on offering the next name until the team was empty.
+  const overworked = short > team.length && team.length > 0;
+  const reduced = missionTeamReduced(campaign);
 
   return (
     <>
@@ -315,33 +376,61 @@ function AssignBeds({ campaign }: { readonly campaign: Campaign }) {
       </p>
 
       <p className={`mt-1 ${HINT}`}>
-        Nothing to apply: this is counted again from scratch every turn, and never added to what it
-        was <PageRef pages={23} />
+        The number itself is counted again from scratch every turn, and never added to what it was{' '}
+        <PageRef pages={23} />
       </p>
+
+      {reduced ? (
+        <p className="mt-3 text-sm font-medium">
+          Somebody has already come off the mission team this turn. The rule takes one.
+        </p>
+      ) : (
+        overworked && (
+          <>
+            <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">
+              Exhaustion is above the mission team’s{' '}
+              <span className="tabular-nums">{team.length}</span>, so one survivor comes off it and
+              is idle for the turn <PageRef pages={23} />
+            </p>
+
+            <ul className="mt-2 flex flex-col gap-1">
+              {team.map((survivor) => (
+                <li key={survivor.id} className="flex items-center gap-2 text-sm">
+                  <button
+                    type="button"
+                    className={SMALL_BUTTON}
+                    onClick={() => {
+                      dispatch({
+                        type: 'management/teamReduced',
+                        survivor: survivor.id,
+                        at: new Date().toISOString(),
+                      });
+                    }}
+                  >
+                    Take off
+                  </button>
+                  <span>{survivor.name}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )
+      )}
     </>
   );
 }
 
 /**
- * Step 4: the two numbers added up, and the one consequence they have here.
+ * Step 4: the two numbers added up, and nothing to apply.
  *
- * Nothing to apply — Unrest is read by the two steps that follow and by
- * nothing else — so this is a screen that explains rather than acts. The
- * exception is the exhaustion penalty, which is a real edit and is offered as
- * one.
+ * Unrest is read by the two steps that follow and by nothing else, so this is a
+ * screen that explains rather than acts. The exhaustion penalty used to sit
+ * here and has moved to Assign Beds, which is the step the rule is printed
+ * under and the step that computes the Exhaustion it follows from (pg. 23).
  */
 function CalculateUnrest({ campaign }: { readonly campaign: Campaign }) {
-  const { dispatch } = useCampaign();
-
   const short = hunger(campaign);
   const tired = exhaustion(campaign);
-  const team = missionTeam(campaign);
-
-  // Exhaustion above the mission team's size takes one survivor off it
-  // (pg. 23). Offered rather than done, because *which* one is a decision and
-  // because taking somebody off a team without being asked is the kind of
-  // silent edit this app does not make.
-  const overworked = tired > team.length && team.length > 0;
 
   return (
     <>
@@ -353,33 +442,6 @@ function CalculateUnrest({ campaign }: { readonly campaign: Campaign }) {
       <p className="mt-3 text-sm font-medium tabular-nums">
         {short} Hunger + {tired} Exhaustion = {unrest(campaign)} Unrest
       </p>
-
-      {overworked && (
-        <>
-          <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">
-            Exhaustion is above the mission team’s{' '}
-            <span className="tabular-nums">{team.length}</span>, so one survivor comes off it{' '}
-            <PageRef pages={23} />
-          </p>
-
-          <ul className="mt-2 flex flex-col gap-1">
-            {team.map((survivor) => (
-              <li key={survivor.id} className="flex items-center gap-2 text-sm">
-                <button
-                  type="button"
-                  className={SMALL_BUTTON}
-                  onClick={() => {
-                    dispatch({ type: 'assignment/cleared', survivor: survivor.id });
-                  }}
-                >
-                  Take off
-                </button>
-                <span>{survivor.name}</span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
     </>
   );
 }
@@ -522,16 +584,21 @@ function CheckTheHorde({ campaign }: { readonly campaign: Campaign }) {
 /**
  * Step 7: somebody walks, and the player says who.
  *
- * The candidates are recomputed after every departure, which is the whole
- * ordering trap made visible: a survivor leaving unstaffs whatever they were
- * working and shrinks the project team, so the pressure the *next* departure is
- * checked against is not the one this screen showed a moment ago.
+ * **One departure, and then the step reports what it did.** The rule sends the
+ * lowest-Tier survivor away (pg. 23), singular — and a departure lowers the
+ * very pressure that called for it, by unstaffing whatever they were working
+ * and shrinking the project team. So a screen that re-derived afterwards would
+ * offer a second name against a number the first departure had already moved,
+ * and then, once the pressure fell under the threshold, announce that the
+ * community holds together one line below the log entry saying somebody left.
+ * It did both, until the step started reading its own record.
  */
 function Departures({ campaign }: { readonly campaign: Campaign }) {
   const { dispatch } = useCampaign();
 
   const pressure = departurePressure(campaign);
   const candidates = departureCandidates(campaign);
+  const departed = someoneDeparted(campaign);
 
   return (
     <>
@@ -541,7 +608,12 @@ function Departures({ campaign }: { readonly campaign: Campaign }) {
         survivor leaves — and a tie is yours to break <PageRef pages={23} />
       </p>
 
-      {!someoneIsLeaving(campaign) ? (
+      {departed ? (
+        <p className="mt-3 text-sm font-medium">
+          Somebody has already left this turn. The rules send one survivor away, however far over
+          the threshold the pressure is.
+        </p>
+      ) : !someoneIsLeaving(campaign) ? (
         <p className="mt-3 text-sm font-medium">Nobody is leaving. The community holds together.</p>
       ) : candidates.length === 0 ? (
         <p className="mt-3 text-sm font-medium">
@@ -577,7 +649,80 @@ function Departures({ campaign }: { readonly campaign: Campaign }) {
           </ul>
         </>
       )}
+
+      <UnpaidProjects campaign={campaign} />
     </>
+  );
+}
+
+/**
+ * The other half of a departure: the work their Labor was paying for (pg. 23).
+ *
+ * A survivor's Tier comes off the turn's **unused** Labor, and where there is
+ * not enough unused Labor to take it from, a project goes unfinished. Nothing
+ * here computes that as a second subtraction — the pool is the project team's
+ * summed Tiers and the leaver is no longer on it, so `laborAvailable` has
+ * already fallen by exactly their Tier. What is left is the consequence, and
+ * the consequence is a choice.
+ *
+ * **Offered, never done**, like the exhaustion penalty beside it. The rule says
+ * a project goes unfinished; it does not say which, and picking one for the
+ * player — the newest order, the dearest, the first in the queue — would be
+ * this app making up a rule at the moment it takes something away.
+ *
+ * It keeps asking while the queue is still short. One project is the ordinary
+ * case, because a Tier is at most 4 and most projects cost 2 or 3 — but a
+ * Veteran walking out of a turn with nothing unused can outrun a single order,
+ * and the rule that a turn cannot spend more Labor than it has does not stop
+ * applying because the book's sentence was written for the common case.
+ *
+ * It says what the state is rather than who caused it, because a departure is
+ * not the only way to reach it: a player who steps back to Assign Project Team
+ * and takes somebody off after ordering has done the same arithmetic to
+ * themselves. They have Cancel for that, and this says nothing they would have
+ * to disagree with.
+ */
+function UnpaidProjects({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+
+  const short = laborShortfall(campaign);
+  if (short === 0) return null;
+
+  return (
+    <div className="mt-4 rounded-lg border border-amber-300 p-4 dark:border-amber-700">
+      <p className="text-sm font-medium">
+        This turn is <span className="tabular-nums">{short}</span> Labor short of what it ordered —
+        the project team can no longer pay for all of it. A project goes unfinished, and which one
+        is yours to say <PageRef pages={23} />
+      </p>
+
+      <ul className="mt-2 flex flex-col gap-1">
+        {orderedThisTurn(campaign).map(({ at, project }) => (
+          // Keyed by position, and named by what it is: three buttons all
+          // reading "Leave unfinished" would be the same finding the XP
+          // buttons earned in the playtest, where the only thing telling them
+          // apart was the text beside them.
+          <li key={at} className="flex flex-wrap items-baseline gap-x-2 text-sm">
+            <button
+              type="button"
+              className={SMALL_BUTTON}
+              onClick={() => {
+                dispatch({
+                  type: 'management/projectUnfinished',
+                  at,
+                  when: new Date().toISOString(),
+                });
+              }}
+            >
+              Leave {describeProject(project)} unfinished
+            </button>
+            <span className="text-xs text-stone-500 dark:text-stone-400">
+              {projectCost(campaign, project).labor} Labor
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -586,4 +731,5 @@ const SIEGE_TERM_LABELS: Record<SiegeThreatTerm, string> = {
   'project-team': 'on the project team',
   'base-features': 'from the base itself',
   'turns-since-last-siege': 'turns since the last siege',
+  'watched-from-above': 'watched from a staffed Watchtower',
 };

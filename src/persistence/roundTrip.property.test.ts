@@ -189,7 +189,7 @@ it('does not survive a negative zero material count, which is why the generator 
     turn: 1,
     step: 'select-mission',
     materials: { food: -0, fuel: 0, hardware: 0, rare: 0 },
-    lastSiegeTurn: null,
+    projects: [],
     survivors: [],
     startingCommunityBuilt: false,
     base: null,

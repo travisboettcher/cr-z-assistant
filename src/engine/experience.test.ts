@@ -394,3 +394,71 @@ describe('withXpAwarded', () => {
     expect({ ...withXpAwarded(before, 2), xp: before.xp }).toEqual(before);
   });
 });
+
+/**
+ * Playtest finding M5: an empty pool said the wrong *why*, twice, and both
+ * times the roster on the same screen contradicted it.
+ *
+ * The reason is keyed on the reason now rather than on the source, which is the
+ * whole of the fix — one sentence per source had to cover every way a pool
+ * could come out at zero.
+ */
+describe('why a pool is empty', () => {
+  const reason = (campaign: Campaign, source: XpSource) => xpPool(campaign, source).emptyBecause;
+
+  /** A survivor with nothing that teaches, on the mission team. */
+  const went = (survivors: readonly Survivor[]): Campaign =>
+    community(
+      Object.fromEntries(survivors.map((survivor) => [survivor.id, onTheMission])),
+      survivors,
+    );
+
+  it('is nothing at all for a pool with something in it', () => {
+    const team = went([createSurvivor('Earl Rhodes', 4, { id: EARL })]);
+
+    expect(xpPool(team, 'mission').total).toBeGreaterThan(0);
+    expect(reason(team, 'mission')).toBeUndefined();
+  });
+
+  it('says nobody went when there is no mission team', () => {
+    expect(reason(community(), 'mission')).toBe('nobody-went');
+  });
+
+  /**
+   * The first wrong message. A Rookie with Teaching at level 0 and Cooperation
+   * 0 has a Score of 0, so a Teacher on the team read as no Teacher — and the
+   * screen said nobody on the team had Teaching while somebody did.
+   */
+  it('tells a Teacher with no Score from no Teacher at all', () => {
+    const scoreless: Survivor = {
+      ...createSurvivor('Ruby Vance', 1, { id: 'ruby' }),
+      stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: 0 },
+      skills: { teaching: 0 },
+    };
+
+    expect(reason(went([scoreless]), 'mission-teaching')).toBe('score-is-nothing');
+    expect(reason(went([createSurvivor('Earl Rhodes', 4, { id: EARL })]), 'mission-teaching')).toBe(
+      'nobody-qualifies',
+    );
+  });
+
+  /**
+   * The second. A Training Room staffed by somebody whose only skill is
+   * Rationing produces no XP and is not "no staffed Training Room".
+   */
+  it('tells an unstaffed Training Room from a wrongly staffed one', () => {
+    const room: Base = {
+      id: 'small-town-home',
+      slots: { garage: { built: { facility: 'training-room', builtOnTurn: 1 } } },
+    };
+    const empty = community({}, [createSurvivor('Earl Rhodes', 4, { id: EARL })], room);
+
+    expect(reason(empty, 'training-room')).toBe('nowhere-to-teach');
+
+    const wrong = staffedWith(empty, 'garage', [
+      { ...createSurvivor('Nell Haig', 4, { id: 'nell' }), skills: { rationing: 0 } },
+    ]);
+
+    expect(reason(wrong, 'training-room')).toBe('wrong-person');
+  });
+});

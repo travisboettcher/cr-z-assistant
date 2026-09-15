@@ -16,7 +16,7 @@
 import { FACILITIES, type Facility, type FacilityId } from '../data/facilities';
 import type { Campaign } from './campaign';
 import { layoutOf, occupants } from './base';
-import { laborPool } from './assignments';
+import { laborRefusal } from './projects';
 import type { Check, Violation } from './checks';
 
 /**
@@ -117,15 +117,8 @@ export function checkBuild(campaign: Campaign, request: BuildRequest): BuildChec
     });
   }
 
-  const available = laborPool(campaign);
-
-  if (available < facility.cost.labor) {
-    blockers.push({
-      code: 'not-enough-labor',
-      message: `Costs ${String(facility.cost.labor)} Labor and ${String(available)} is available.`,
-      pages: '72–73',
-    });
-  }
+  const labor = laborRefusal(campaign, facility.cost.labor, '72–73');
+  if (labor !== undefined) blockers.push(labor);
 
   if (facility.requires?.slot !== undefined && facility.requires.slot !== slot.kind) {
     warnings.push({
@@ -156,50 +149,6 @@ export function checkBuild(campaign: Campaign, request: BuildRequest): BuildChec
   }
 
   return { blockers, warnings };
-}
-
-/**
- * The campaign with the facility built and its Hardware spent.
- *
- * Returns the campaign **unchanged** when anything blocks the build, the same
- * way the advancement purchases re-run their own price check rather than
- * trusting the caller. Warnings do not stop it: proceeding past one is the
- * player's decision, and by the time this is called they have made it.
- *
- * Labor is not deducted because there is nowhere to deduct it from — the pool
- * is Phase 3's. It is checked, which is the part that is a rule.
- */
-export function withFacilityBuilt(campaign: Campaign, request: BuildRequest): Campaign {
-  // Redundant with `checkBuild`, which blocks a campaign with no base — and
-  // kept anyway, because it is what narrows `base` for the spread below. A
-  // mutant that removes it survives for exactly that reason: it is a type guard
-  // standing in front of a check that already rejects the value, which is the
-  // equivalent-mutant shape the README describes.
-  const base = campaign.base;
-  if (base === null) return campaign;
-
-  const { blockers } = checkBuild(campaign, request);
-  if (blockers.length > 0) return campaign;
-
-  const facility = FACILITIES[request.facility] as Facility;
-
-  return {
-    ...campaign,
-    materials: {
-      ...campaign.materials,
-      hardware: campaign.materials.hardware - facility.cost.hardware,
-    },
-    base: {
-      ...base,
-      slots: {
-        ...base.slots,
-        [request.slot]: {
-          ...base.slots[request.slot],
-          built: { facility: request.facility, builtOnTurn: campaign.turn },
-        },
-      },
-    },
-  };
 }
 
 /**

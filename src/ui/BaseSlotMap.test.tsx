@@ -2,9 +2,10 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { BASES, BASE_IDS } from '../data/bases';
+import type { UpgradeId } from '../data/facilities';
 import { createNewCampaign, type Campaign } from '../engine/campaign';
 import { createSurvivor } from '../engine/survivor';
-import { generatingUtilities, projectTeamWorth } from '../test/campaigns';
+import { generatingUtilities, projectTeamWorth, withPlanningBegun } from '../test/campaigns';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
 import { BaseSlotMap } from './BaseSlotMap';
@@ -176,12 +177,14 @@ describe('slotLabel', () => {
 describe('building into a slot', () => {
   /** A claimed Small Town Home, with a project team and Hardware to spend. */
   function readyToBuild(labor = 5, hardware = 0) {
-    return openWith({
-      ...createNewCampaign('Cedar Hollow'),
-      materials: { food: 0, fuel: 0, hardware, rare: 0 },
-      base: { id: 'small-town-home', slots: {} },
-      ...projectTeamWorth(labor),
-    });
+    return openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        materials: { food: 0, fuel: 0, hardware, rare: 0 },
+        base: { id: 'small-town-home', slots: {} },
+        ...projectTeamWorth(labor),
+      }),
+    );
   }
 
   const garage = () => screen.getByRole('button', { name: /build in garage/i });
@@ -217,8 +220,8 @@ describe('building into a slot', () => {
     await user.click(garage());
 
     expect(screen.getByText(/costs 3 hardware and the community has 0/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /build here/i })).toBeDisabled();
-    expect(screen.queryByLabelText(/build it anyway/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /order the build/i })).toBeDisabled();
+    expect(screen.queryByLabelText(/order it anyway/i)).not.toBeInTheDocument();
   });
 
   it('refuses a build for want of Labor, naming both numbers', async () => {
@@ -228,42 +231,107 @@ describe('building into a slot', () => {
     expect(screen.getByText(/costs 2 labor and 0 is available/i)).toBeInTheDocument();
   });
 
-  it('holds a rule-breaking build behind an override, then builds it', async () => {
+  it('holds a rule-breaking build behind an override, then orders it', async () => {
     const user = readyToBuild(5, 4);
     await user.click(garage());
     await user.selectOptions(screen.getByLabelText(/^facility$/i), ['Garden']);
 
     // A Garden needs an outdoor slot and the garage is indoor: a rule, not
-    // arithmetic, so the build is held rather than refused.
+    // arithmetic, so the order is held rather than refused.
     expect(screen.getByText(/needs an outdoor slot, and this one is indoor/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /build here/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /order the build/i })).toBeDisabled();
 
-    await user.click(screen.getByLabelText(/build it anyway/i));
-    await user.click(screen.getByRole('button', { name: /build here/i }));
+    await user.click(screen.getByLabelText(/order it anyway/i));
+    await user.click(screen.getByRole('button', { name: /order the build/i }));
 
     const cards = within(slots()).getAllByRole('listitem');
     // The garage is the fourth slot of the Small Town Home's layout.
-    expect(cards[3]).toHaveTextContent('Garden');
-    // And it keeps reporting the violation for as long as it stands, because
-    // the override was never stored.
-    expect(
-      within(slotMap()).queryByRole('button', { name: /build in garage/i }),
-    ).not.toBeInTheDocument();
+    expect(cards[3]).toHaveTextContent(/on order: garden in the garage/i);
   });
 
-  it('spends the Hardware the build costs', async () => {
+  /**
+   * The queue is what building became, and the card is where a player sees it:
+   * the slot is still empty, still offers the verb, and now says what is coming.
+   */
+  it('leaves the slot empty and buildable, with the order named on the card', async () => {
     const user = readyToBuild(5, 9);
     await user.click(garage());
-    await user.click(screen.getByRole('button', { name: /build here/i }));
+    await user.click(screen.getByRole('button', { name: /order the build/i }));
+
+    // The garage is the fourth slot of the Small Town Home's layout, and the
+    // assertion is scoped to it: the fifth is empty too.
+    const card = within(slots()).getAllByRole('listitem')[3];
+    expect(card).toBeDefined();
+    expect(within(card as HTMLElement).getByText(/on order: bunk room/i)).toBeInTheDocument();
+    expect(within(card as HTMLElement).getByText(/empty — ready to build in/i)).toBeInTheDocument();
+    expect(
+      within(card as HTMLElement).getByRole('button', { name: /build in garage/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('takes the order back, and its Hardware with it', async () => {
+    const user = readyToBuild(5, 9);
+    await user.click(garage());
+    await user.click(screen.getByRole('button', { name: /order the build/i }));
+
+    expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(6);
+
+    await user.click(screen.getByRole('button', { name: /cancel bunk room in the garage/i }));
+
+    expect(screen.queryByText(/on order:/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(9);
+  });
+
+  /** Labor is committed rather than spent, and the pool above says so. */
+  it('lowers the Labor available by what the order committed', async () => {
+    const user = readyToBuild(5, 9);
+
+    expect(screen.getByText(/labor available:/i).parentElement).toHaveTextContent('5');
+
+    await user.click(garage());
+    await user.click(screen.getByRole('button', { name: /order the build/i }));
+
+    // A Bunk Room costs 2 Labor.
+    expect(screen.getByText(/labor available:/i).parentElement).toHaveTextContent('3');
+  });
+
+  /**
+   * The same zero, two reasons, and a player can only act on one of them. Last
+   * turn's project team is still on the roster screen while this reads none —
+   * tasks expire at the top of the next Planning Phase (pg. 20) — so a bare
+   * "0 is available" beside it reads as a bug rather than as a step not yet
+   * walked to.
+   */
+  it('says why there is no Labor before this turn has planned', async () => {
+    const user = openWith({
+      ...createNewCampaign('Cedar Hollow'),
+      materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+      base: { id: 'small-town-home', slots: {} },
+      ...projectTeamWorth(5),
+    });
+
+    expect(screen.getByText(/labor available:/i).parentElement).toHaveTextContent('0');
+    expect(screen.getByText(/none until this turn.s planning phase/i)).toBeInTheDocument();
+
+    await user.click(garage());
+
+    expect(screen.getByText(/assigned in the Planning Phase/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /order the build/i })).toBeDisabled();
+  });
+
+  it('spends the Hardware the order costs', async () => {
+    const user = readyToBuild(5, 9);
+    await user.click(garage());
+    await user.click(screen.getByRole('button', { name: /order the build/i }));
 
     // A Bunk Room costs 3 of the 9.
     expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(6);
   });
 
-  it('closes the card once the build lands', async () => {
+  it('closes the card once the order lands', async () => {
     const user = readyToBuild(5, 9);
     await user.click(garage());
-    await user.click(screen.getByRole('button', { name: /build here/i }));
+    await user.click(screen.getByRole('button', { name: /order the build/i }));
 
     expect(screen.queryByLabelText(/^facility$/i)).not.toBeInTheDocument();
   });
@@ -271,12 +339,14 @@ describe('building into a slot', () => {
 
 describe('upgrading a facility', () => {
   function readyToUpgrade(hardware = 9) {
-    return openWith({
-      ...createNewCampaign('Cedar Hollow'),
-      materials: { food: 0, fuel: 0, hardware, rare: 0 },
-      base: { id: 'small-town-home', slots: {} },
-      ...projectTeamWorth(5),
-    });
+    return openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        materials: { food: 0, fuel: 0, hardware, rare: 0 },
+        base: { id: 'small-town-home', slots: {} },
+        ...projectTeamWorth(5),
+      }),
+    );
   }
 
   it('offers each slot the verb its state has, and not the other', async () => {
@@ -287,31 +357,108 @@ describe('upgrading a facility', () => {
     expect(screen.getAllByRole('button', { name: /^build in /i })).toHaveLength(2);
   });
 
-  it('adds an upgrade to a built-in and shows it on the card', async () => {
+  it('puts an upgrade on order against a built-in, named on the card', async () => {
     const user = readyToUpgrade();
     await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
     await user.selectOptions(screen.getByLabelText(/^upgrade$/i), ['Gas Range']);
-    await user.click(screen.getByRole('button', { name: /add upgrade/i }));
+    await user.click(screen.getByRole('button', { name: /order the upgrade/i }));
 
-    const map = slotMap();
-    expect(within(map).getByText(/gas range — 1 of 3, room for 2 more/i)).toBeInTheDocument();
-    // A Gas Range costs 2 Hardware.
+    // The kitchen is the third slot of the layout; the two bunk rooms above it
+    // have room for three upgrades apiece.
+    const card = within(slots()).getAllByRole('listitem')[2];
+    expect(card).toBeDefined();
+    expect(
+      within(card as HTMLElement).getByText(/on order: gas range on the kitchen/i),
+    ).toBeInTheDocument();
+    // Not installed: the Kitchen still has all three of its slots free.
+    expect(within(card as HTMLElement).getByText(/room for 3 upgrades/i)).toBeInTheDocument();
+    // A Gas Range costs 2 Hardware, spent when the order is placed.
     expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(7);
   });
 
-  it('holds an upgrade on the turn its facility was built, behind an override', async () => {
-    const user = readyToUpgrade();
+  /**
+   * The Greenhouse is the only upgrade that excludes another, and the book
+   * prices replacing a Fence with one a Hardware cheaper (pg. 72). Both halves
+   * are on the form, because a Fence disappearing a turn later without the
+   * screen having said so would be the app doing what it never said.
+   */
+  it('says what a Greenhouse replaces, and prices it a Hardware cheaper', async () => {
+    const fenced = (upgrades: readonly UpgradeId[]) =>
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        // Past the turn the Garden went up, so the same-turn rule is not what
+        // this test is about (pg. 54).
+        turn: 3,
+        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        base: {
+          id: 'small-town-home',
+          slots: {
+            'front-yard': {
+              built: { facility: 'garden', builtOnTurn: 1 },
+              upgrades: [...upgrades],
+            },
+          },
+        },
+        ...projectTeamWorth(5),
+      });
 
-    // Build a Workshop into the garage this turn, then try to upgrade it.
-    await user.click(screen.getByRole('button', { name: /build in garage/i }));
-    await user.selectOptions(screen.getByLabelText(/^facility$/i), ['Workshop']);
-    await user.click(screen.getByRole('button', { name: /build here/i }));
+    const user = openWith(fenced(['fence']));
+
+    await user.click(screen.getByRole('button', { name: /upgrade front yard/i }));
+    await user.selectOptions(screen.getByLabelText(/^upgrade$/i), ['Greenhouse']);
+
+    expect(screen.getByText(/replaces the fence/i)).toBeInTheDocument();
+    // Four Hardware in the catalogue, three over a Fence.
+    expect(screen.getByText(/3 Hardware/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /order the upgrade/i }));
+
+    expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(6);
+  });
+
+  it('says nothing about replacing where there is no Fence to replace', async () => {
+    const user = openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        turn: 3,
+        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        base: {
+          id: 'small-town-home',
+          slots: { 'front-yard': { built: { facility: 'garden', builtOnTurn: 1 } } },
+        },
+        ...projectTeamWorth(5),
+      }),
+    );
+
+    await user.click(screen.getByRole('button', { name: /upgrade front yard/i }));
+    await user.selectOptions(screen.getByLabelText(/^upgrade$/i), ['Greenhouse']);
+
+    expect(screen.queryByText(/replaces the fence/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/4 Hardware/)).toBeInTheDocument();
+  });
+
+  /**
+   * The same-turn rule is still reachable, because a project finishes in the
+   * Advancement Phase and the Planning Phase comes after it in the same turn.
+   */
+  it('holds an upgrade on the turn its facility was built, behind an override', async () => {
+    const user = openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        base: {
+          id: 'small-town-home',
+          slots: { garage: { built: { facility: 'workshop', builtOnTurn: 1 } } },
+        },
+        ...projectTeamWorth(5),
+      }),
+    );
 
     await user.click(screen.getByRole('button', { name: /upgrade garage/i }));
 
     expect(screen.getByText(/went up this turn/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /add upgrade/i })).toBeDisabled();
-    expect(screen.getByLabelText(/add it anyway/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /order the upgrade/i })).toBeDisabled();
+    expect(screen.getByLabelText(/order it anyway/i)).toBeInTheDocument();
   });
 
   it('never holds a built-in on the same-turn rule', async () => {
@@ -321,31 +468,35 @@ describe('upgrading a facility', () => {
     // The kitchen came with the base, so it was never built and the rule has
     // nothing to compare against.
     expect(screen.queryByText(/went up this turn/i)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /add upgrade/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /order the upgrade/i })).toBeEnabled();
   });
 
   it('offers nothing to change on a built-in the base locks', async () => {
-    const user = openWith({
-      ...createNewCampaign('Cedar Hollow'),
-      materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
-      base: { id: 'summer-camp', slots: {} },
-      ...projectTeamWorth(5),
-    });
+    const user = openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        base: { id: 'summer-camp', slots: {} },
+        ...projectTeamWorth(5),
+      }),
+    );
 
     await user.click(screen.getByRole('button', { name: /upgrade bunk room 1/i }));
 
     expect(screen.getByText(/takes no further upgrades/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /add upgrade/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /order the upgrade/i })).toBeDisabled();
   });
 });
 
 describe('clearing a slot', () => {
   function readyToClear(labor = 5) {
-    return openWith({
-      ...createNewCampaign('Cedar Hollow'),
-      base: { id: 'hobby-farm', slots: {} },
-      ...projectTeamWorth(labor),
-    });
+    return openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        base: { id: 'hobby-farm', slots: {} },
+        ...projectTeamWorth(labor),
+      }),
+    );
   }
 
   const coop = () => screen.getByRole('button', { name: /clear ruined chicken coop/i });
@@ -375,23 +526,29 @@ describe('clearing a slot', () => {
     await user.click(coop());
 
     expect(screen.getByText(/costs 2 labor and 1 is available/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /clear it/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /order the clearing/i })).toBeDisabled();
     // Nothing about clearing is a rule a table plays differently.
     expect(screen.queryByLabelText(/anyway/i)).not.toBeInTheDocument();
   });
 
-  it('turns the slot into one that can be built in, and credits the yield', async () => {
+  /**
+   * The one place the timing visibly matters: the rubble is not cleared until
+   * the work is done, so the two Hardware in it are not in the stores yet.
+   */
+  it('puts the clearing on order, changing neither the slot nor the stores', async () => {
     const user = readyToClear();
     await user.click(coop());
-    await user.click(screen.getByRole('button', { name: /clear it/i }));
+    await user.click(screen.getByRole('button', { name: /order the clearing/i }));
 
     const map = screen.getByRole('region', { name: 'Hobby Farm' });
-    expect(within(map).getByText(/cleared — ready to build in/i)).toBeInTheDocument();
     expect(
-      within(map).getByRole('button', { name: /build in ruined chicken coop/i }),
+      within(map).getByText(/on order: clearing the ruined chicken coop/i),
     ).toBeInTheDocument();
-    expect(within(map).queryByRole('button', { name: /^clear /i })).not.toBeInTheDocument();
-    expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(2);
+    expect(within(map).queryByText(/cleared — ready to build in/i)).not.toBeInTheDocument();
+    expect(
+      within(map).getByRole('button', { name: /clear ruined chicken coop/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(0);
   });
 
   it('says what it cannot give back, rather than dropping it quietly', async () => {
@@ -499,8 +656,9 @@ describe('the base sheet', () => {
   it('shows storage against the cap, and says when it is over', async () => {
     const user = await claimed();
 
-    // Tier 1 plus its built-in Storage Area is 6 for each material.
-    expect(screen.getByRole('definition', { name: /food stored/i })).toHaveTextContent('0 / 6');
+    // Tier 1 plus its built-in Storage Area is 6 for each material — and a
+    // community's first base arrives holding its maximum of each (pg. 19).
+    expect(screen.getByRole('definition', { name: /food stored/i })).toHaveTextContent('6 / 6');
 
     await user.clear(screen.getByLabelText(/^food$/i));
     await user.type(screen.getByLabelText(/^food$/i), '9');
@@ -565,12 +723,14 @@ describe('staffing a facility', () => {
     // Planning Phase rather than here — the base screen reads the Labor and
     // points at the step that sets it.
     const carla = createSurvivor('Carla Proust', 2, { id: 'carla' });
-    const user = openWith({
-      ...createNewCampaign('Cedar Hollow'),
-      base: { id: 'small-town-home', slots: {} },
-      survivors: [carla],
-      assignments: { carla: { task: 'project' } },
-    });
+    const user = openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        base: { id: 'small-town-home', slots: {} },
+        survivors: [carla],
+        assignments: { carla: { task: 'project' } },
+      }),
+    );
 
     expect(screen.getByText('Labor available:').parentElement).toHaveTextContent('2');
 
@@ -591,5 +751,45 @@ describe('staffing a facility', () => {
 
     // A Bunk Room is passive: beds, and nothing to staff.
     expect(screen.queryByRole('group', { name: /working here/i })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Playtest finding M12: the base screen's staffing control is visible in every
+ * phase, and staffing assigned before the turn reaches Planning is wiped by the
+ * planning reset — silently. The build controls on the same card have always
+ * said which step they belong to; this one said nothing.
+ */
+describe('staffing from the base screen', () => {
+  const atStep = (step: Campaign['step']): Campaign => ({
+    ...createNewCampaign('Cedar Hollow'),
+    turn: 2,
+    step,
+    survivors: [createSurvivor('Earl Rhodes', 4, { id: 'earl' })],
+    base: { id: 'small-town-home', slots: {} },
+  });
+
+  it('says when the assignment will be thrown away', async () => {
+    const user = openWith(atStep('character-advancement'));
+    await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
+
+    expect(screen.getByText(/staff are assigned in assign facility staff/i)).toBeInTheDocument();
+    expect(screen.getByText(/cleared when the planning phase begins/i)).toBeInTheDocument();
+  });
+
+  it('says nothing on the step staffing belongs to', async () => {
+    const user = openWith(atStep('assign-facility-staff'));
+    await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
+
+    expect(screen.queryByText(/staff are assigned in/i)).not.toBeInTheDocument();
+  });
+
+  /** The control itself stays: Z3-6 guides rather than refuses. */
+  it('still lets the assignment be made', async () => {
+    const user = openWith(atStep('character-advancement'));
+    await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
+
+    const working = screen.getByRole('group', { name: /working here/i });
+    expect(within(working).getByRole('checkbox', { name: /earl/i })).toBeEnabled();
   });
 });

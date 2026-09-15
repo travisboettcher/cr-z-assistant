@@ -18,11 +18,25 @@
  *   constraint, and a built-in the base locks. Each is a rule a player may
  *   decide their table plays differently, and each keeps reporting for as long
  *   as it stands.
+ *
+ * ## One warning that was a wrong statement
+ *
+ * An upgrade excluding one already installed used to warn that it "cannot sit
+ * alongside one the facility already has", which is not what the book says. It
+ * prices *replacing* a Fence with a Greenhouse a Hardware cheaper (pp. 72–73), so
+ * ordering one onto the other is the ordinary way to do it and not a rule the
+ * table is playing past. `replacedBy` and `upgradeCost` in `base.ts` are what
+ * it does instead, and `upgradeOrder` below is what a screen says about it.
  */
 
-import { MAX_UPGRADES_PER_FACILITY, type Upgrade, type UpgradeId } from '../data/facilities';
-import { occupants, upgradesRemaining, upgradesUsed, type Occupant } from './base';
-import { laborPool } from './assignments';
+import {
+  MAX_UPGRADES_PER_FACILITY,
+  type Cost,
+  type Upgrade,
+  type UpgradeId,
+} from '../data/facilities';
+import { occupantAt, replacedBy, upgradeCost, upgradesRemaining, upgradesUsed } from './base';
+import { laborRefusal } from './projects';
 import type { Check, Violation } from './checks';
 import type { Campaign } from './campaign';
 
@@ -35,8 +49,7 @@ export type UpgradeViolationCode =
   | 'facility-locked'
   | 'built-this-turn'
   | 'cap-reached'
-  | 'one-per-facility'
-  | 'excluded-by-another';
+  | 'one-per-facility';
 
 export type UpgradeViolation = Violation<UpgradeViolationCode>;
 
@@ -49,12 +62,6 @@ export interface UpgradeRequest {
 }
 
 /** The occupant of a slot, or undefined when nothing stands there. */
-function occupantAt(campaign: Campaign, slot: string): Occupant | undefined {
-  if (campaign.base === null) return undefined;
-
-  return occupants(campaign.base).find((occupant) => occupant.slotId === slot);
-}
-
 /**
  * The upgrades this slot's facility offers, or an empty list.
  *
@@ -108,23 +115,20 @@ export function checkUpgrade(campaign: Campaign, request: UpgradeRequest): Upgra
     };
   }
 
-  if (campaign.materials.hardware < upgrade.cost.hardware) {
+  // What it costs *here*, which is not always the catalogue price: an upgrade
+  // that replaces one already installed is discounted for it (pp. 72–73).
+  const cost = upgradeCost(occupant, upgrade);
+
+  if (campaign.materials.hardware < cost.hardware) {
     blockers.push({
       code: 'not-enough-hardware',
-      message: `Costs ${String(upgrade.cost.hardware)} Hardware and the community has ${String(campaign.materials.hardware)}.`,
+      message: `Costs ${String(cost.hardware)} Hardware and the community has ${String(campaign.materials.hardware)}.`,
       pages: '72–73',
     });
   }
 
-  const available = laborPool(campaign);
-
-  if (available < upgrade.cost.labor) {
-    blockers.push({
-      code: 'not-enough-labor',
-      message: `Costs ${String(upgrade.cost.labor)} Labor and ${String(available)} is available.`,
-      pages: '72–73',
-    });
-  }
+  const labor = laborRefusal(campaign, cost.labor, '72–73');
+  if (labor !== undefined) blockers.push(labor);
 
   if (!occupant.upgradable) {
     warnings.push({
@@ -165,69 +169,36 @@ export function checkUpgrade(campaign: Campaign, request: UpgradeRequest): Upgra
     });
   }
 
-  const excludes = upgrade.constraints?.excludes;
-  const excluded =
-    excludes === undefined
-      ? []
-      : excludes.filter((other) => occupant.upgrades.some((installed) => installed.id === other));
-
-  if (excluded.length > 0) {
-    warnings.push({
-      code: 'excluded-by-another',
-      message: 'This upgrade cannot sit alongside one the facility already has.',
-      pages: '72–73',
-    });
-  }
-
   return { blockers, warnings };
 }
 
 /**
- * The campaign with the upgrade added and its Hardware spent.
+ * What ordering this upgrade would cost, and what it would take off
+ * (pp. 72–73).
  *
- * Appended to the slot's own list rather than replacing anything: repeats are
- * legal, and the base's shipped upgrades live in the layout and are not the
- * player's to edit. Returns the campaign unchanged when anything blocks it,
- * the same way `withFacilityBuilt` and the advancement purchases do.
+ * The pair together rather than a function each, because they are one
+ * question: a Greenhouse a Hardware cheaper than the catalogue says is
+ * cheaper *for* the Fence it replaces, and a screen showing one number without
+ * the other sentence would be the app taking something off the base without
+ * saying so.
+ *
+ * Nothing on both counts for a slot that holds no such facility or no such
+ * upgrade, which a queue outliving a rebuilt slot can ask about.
  */
-export function withUpgradeBuilt(campaign: Campaign, request: UpgradeRequest): Campaign {
-  // Redundant with `checkUpgrade`, and kept because it is what narrows `base`
-  // for the spread below. A mutant that removes it survives for that reason: a
-  // type guard in front of a check that already rejects the value, which is the
-  // equivalent-mutant shape the README describes. `build.ts` has the same one.
-  const base = campaign.base;
-  if (base === null) return campaign;
-
-  // Resolved before the blockers are consulted rather than after, so this is
-  // the only lookup and the only narrowing. Doing it the other way round left
-  // an unreachable second copy of three of `checkUpgrade`'s own refusals.
+export function upgradeOrder(
+  campaign: Campaign,
+  request: UpgradeRequest,
+): { readonly cost: Cost; readonly replaces: readonly UpgradeId[] } {
   const occupant = occupantAt(campaign, request.slot);
-  const upgrade = occupant?.facility.upgrades.find((candidate) => candidate.id === request.upgrade);
-  // Narrowing again, and equivalent again: `checkUpgrade` blocks every case
-  // that lands here — an empty slot, an upgrade of another facility — so
-  // removing this changes no answer. It stays because `upgrade.cost` below
-  // needs it, and the reorder above is what made the *lookup* itself testable.
-  if (upgrade === undefined) return campaign;
+  if (occupant === undefined) return NOTHING_ORDERED;
 
-  if (checkUpgrade(campaign, request).blockers.length > 0) return campaign;
-
-  const state = base.slots[request.slot];
+  const upgrade = occupant.facility.upgrades.find((candidate) => candidate.id === request.upgrade);
+  if (upgrade === undefined) return NOTHING_ORDERED;
 
   return {
-    ...campaign,
-    materials: {
-      ...campaign.materials,
-      hardware: campaign.materials.hardware - upgrade.cost.hardware,
-    },
-    base: {
-      ...base,
-      slots: {
-        ...base.slots,
-        [request.slot]: {
-          ...state,
-          upgrades: [...(state?.upgrades ?? []), request.upgrade],
-        },
-      },
-    },
+    cost: upgradeCost(occupant, upgrade),
+    replaces: replacedBy(occupant, upgrade).map((installed) => installed.id),
   };
 }
+
+const NOTHING_ORDERED = { cost: { hardware: 0, labor: 0 }, replaces: [] } as const;

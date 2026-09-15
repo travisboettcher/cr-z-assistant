@@ -26,6 +26,16 @@ export interface CampaignContextValue {
    */
   readonly unsavedChanges: boolean;
 
+  /**
+   * Whether this campaign has ever been written to a file the player holds.
+   *
+   * Separate from `unsavedChanges`, because "changed since your last export"
+   * and "never exported at all" are different sentences and only one of them
+   * is true of a campaign restored from the autosave. Conflating them is what
+   * let a never-exported campaign report that it matched a file.
+   */
+  readonly everExported: boolean;
+
   /** Called after a successful export, to reset `unsavedChanges`. */
   readonly markExported: () => void;
 

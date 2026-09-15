@@ -263,6 +263,31 @@ describe('goingSpare and checkHealing', () => {
     expect(checkHealing(campaign).warnings).toEqual([]);
   });
 
+  /**
+   * Only one survivor may rest a turn (pg. 21). The Planning Phase warns rather
+   * than refuses, which is a deliberate ruling — but this step then paid both
+   * points out in silence, a phase and four steps later, where nobody was
+   * looking at that warning any more.
+   */
+  it('says when more than one survivor is resting, where the points are paid', () => {
+    const campaign = community([wounded('a', 'A', 0), wounded('b', 'B', 0)], {
+      a: { task: 'rest' },
+      b: { task: 'rest' },
+    });
+    const check = checkHealing(campaign);
+
+    expect(codes(check.warnings)).toEqual(['more-than-one-resting']);
+    expect(check.blockers).toEqual([]);
+    // Still paid: the rule is warned about, not enforced, and both awards stand.
+    expect(healthAwards(campaign).map((award) => award.survivor.id)).toEqual(['a', 'b']);
+  });
+
+  it('says nothing about a single rester', () => {
+    const campaign = community([wounded('a', 'A', 0)], { a: { task: 'rest' } });
+
+    expect(checkHealing(campaign).warnings).toEqual([]);
+  });
+
   it('reports Health nobody can take, and never blocks', () => {
     const campaign = community([wounded('a', 'A', 4)], { a: { task: 'healing' } }, herbs());
     const check = checkHealing(campaign);

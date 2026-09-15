@@ -241,6 +241,48 @@ const siegesBecameRecorded: MigrationStep = {
   up: (previous) => ({ ...previous, lastSiegeTurn: null }),
 };
 
+/**
+ * v9 → v10: the project queue.
+ *
+ * Empty for every existing campaign, and that is the truthful answer rather
+ * than a convenient one. What a v9 save had built was built — the button
+ * applied it the moment it was pressed — so reconstructing a queue from the
+ * base would be claiming that finished work is still to do, and would put a
+ * facility on the map twice the first time the Advancement Phase ran.
+ *
+ * The consequence worth knowing before the first turn after an update: a
+ * campaign mid-Planning-Phase has no orders in flight, because it never could
+ * have. Anything the player meant to build they have already built.
+ */
+const projectsBecameQueued: MigrationStep = {
+  from: 9,
+  to: 10,
+  up: (previous) => ({ ...previous, projects: [] }),
+};
+
+/**
+ * v10 → v11: the siege stopped being a stored fact and became a derived one.
+ *
+ * `lastSiegeTurn` held the turn a Siege Defense would be fought on, written
+ * forward-dated by the check that called it — so setting it destroyed the
+ * previous siege's turn, and "turns since the last siege" collapsed to 0 the
+ * instant a new siege was called, inside the same Management Phase that had
+ * just rolled against it.
+ *
+ * Nothing is lost by dropping it. Every write to it happened in the same
+ * reducer step as a `horde-checked` log entry carrying the same turn and the
+ * same outcome, so the log is a complete record of every siege the field ever
+ * knew about — and unlike the field, it keeps all of them.
+ */
+const siegesBecameDerived: MigrationStep = {
+  from: 10,
+  to: 11,
+  up: ({ lastSiegeTurn, ...kept }) => {
+    void lastSiegeTurn;
+    return kept;
+  },
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -251,6 +293,8 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   stepReplacedPhase,
   assignmentsBecameReal,
   siegesBecameRecorded,
+  projectsBecameQueued,
+  siegesBecameDerived,
 ];
 
 /** Why a save could not be brought forward. */

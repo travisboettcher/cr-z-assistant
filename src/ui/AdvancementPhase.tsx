@@ -13,8 +13,8 @@
  * short way to the screen that does it.
  */
 
-import { useState } from 'react';
-import { MATERIALS, type Material } from '../data/materials';
+import { useId, useRef, useState } from 'react';
+import { MATERIALS, type Material, type Materials } from '../data/materials';
 import { D10_RESULTS, type D10Result } from '../data/dice';
 import {
   SUBSTITUTION_SKILLS,
@@ -35,10 +35,26 @@ import {
   substitutionsSpent,
   type MaterialRoll,
 } from '../engine/materials';
-import { checkXpAward, xpPools } from '../engine/experience';
+import { missionTeam } from '../engine/assignments';
+import {
+  checkConversion,
+  conversions,
+  gainedBy,
+  spentBy,
+  timesConverted,
+  type Conversion,
+} from '../engine/conversions';
+import { checkXpAward, xpPools, type XpPoolEmptiness } from '../engine/experience';
 import { checkHealing, healingPool, healthAwards, woundsHealed } from '../engine/healing';
+import { dueProjects, isDue } from '../engine/projects';
+import { describeProject } from './projectLabels';
+import {
+  clearPendingRolls,
+  readPendingRolls,
+  writePendingRolls,
+} from '../persistence/pendingRolls';
 import { useCampaign } from '../state/useCampaign';
-import { MATERIAL_LABELS } from './baseLabels';
+import { MATERIAL_LABELS, builtThingLabel, slotLabel } from './baseLabels';
 import { PageRef } from './PageRef';
 import { SKILL_LABELS } from './skillLabels';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
@@ -68,13 +84,7 @@ export function AdvancementPhase({ campaign, step }: AdvancementPhaseProps) {
 
       {step === 'heal-wounds' && <HealWounds campaign={campaign} />}
 
-      {step === 'add-facilities-and-upgrades' && (
-        <p className={HINT}>
-          This is the step projects finish in. Build, upgrade and clear on the base below — the app
-          lets you do it on any step, and says so where it happens rather than refusing
-          <PageRef pages={19} />
-        </p>
-      )}
+      {step === 'add-facilities-and-upgrades' && <FinishProjects campaign={campaign} />}
     </div>
   );
 }
@@ -91,6 +101,16 @@ function CharacterAdvancement({ campaign }: { readonly campaign: Campaign }) {
   const { dispatch } = useCampaign();
   const pools = xpPools(campaign);
 
+  /*
+   * Three pools can be on screen at once, and every award button read as
+   * "+1 XP" to a screen reader — the pool and the survivor were in adjacent
+   * text only. Rather than repeat both into a hidden label, each button points
+   * at the two elements that already say them: the accessible name comes out
+   * "+1 XP Earl Rhodes For going on the mission" with nothing duplicated in the
+   * DOM to go stale or to catch a text query twice.
+   */
+  const ids = useId();
+
   return (
     <>
       <p className={HINT}>
@@ -100,11 +120,23 @@ function CharacterAdvancement({ campaign }: { readonly campaign: Campaign }) {
 
       <ul className="mt-3 flex flex-col gap-4">
         {pools.map((pool) => {
-          const left = pool.total - pool.awarded;
+          /*
+           * Floored, and the floor is the belt rather than the braces. What
+           * used to put it below zero was the Planning Phase clearing the
+           * mission team out from under an award already given — "-2 of 0
+           * left" beside "nobody is on a mission team", two statements
+           * contradicting each other and one of them impossible (issue #95).
+           * That is fixed at the root, in `beforePlanning`. A pool can still
+           * shrink under an award by a route nothing can stop — taking a
+           * survivor off the roster after their point was handed out — and a
+           * negative count of things left to hand out is not a state a screen
+           * can ask anybody to act on.
+           */
+          const left = Math.max(0, pool.total - pool.awarded);
 
           return (
             <li key={pool.source}>
-              <p className="text-sm font-medium">
+              <p className="text-sm font-medium" id={`${ids}-${pool.source}`}>
                 {XP_SOURCE_LABELS[pool.source]}{' '}
                 <span className="font-normal text-stone-600 tabular-nums dark:text-stone-400">
                   — {left} of {pool.total} left
@@ -112,16 +144,22 @@ function CharacterAdvancement({ campaign }: { readonly campaign: Campaign }) {
               </p>
 
               {pool.total === 0 ? (
-                <p className={`mt-1 ${HINT}`}>{XP_SOURCE_EMPTY[pool.source]}</p>
+                <p className={`mt-1 ${HINT}`}>
+                  {pool.emptyBecause === undefined ? null : XP_POOL_EMPTY[pool.emptyBecause]}
+                </p>
               ) : (
                 <ul className="mt-1 flex flex-col gap-1">
                   {pool.eligible.map((survivor) => {
                     const { blockers } = checkXpAward(campaign, survivor.id, pool.source);
+                    const buttonId = `${ids}-${pool.source}-${survivor.id}`;
+                    const nameId = `${buttonId}-who`;
 
                     return (
                       <li key={survivor.id} className="flex items-center gap-2 text-sm">
                         <button
                           type="button"
+                          id={buttonId}
+                          aria-labelledby={`${buttonId} ${nameId} ${ids}-${pool.source}`}
                           disabled={blockers.length > 0}
                           className={SMALL_BUTTON}
                           onClick={() => {
@@ -135,7 +173,7 @@ function CharacterAdvancement({ campaign }: { readonly campaign: Campaign }) {
                         >
                           +1 XP
                         </button>
-                        <span>{survivor.name}</span>
+                        <span id={nameId}>{survivor.name}</span>
                         <span className="text-xs text-stone-500 tabular-nums dark:text-stone-400">
                           {survivor.xp} XP
                         </span>
@@ -155,16 +193,52 @@ function CharacterAdvancement({ campaign }: { readonly campaign: Campaign }) {
 /**
  * Step 3: the mission's rolls plus what the base made, accepted once.
  *
- * The rolls live in this component and nowhere else. They are a die on a table
- * — what the campaign records is the haul, and once it is in storage the rolls
- * are history. Storing them would be storing something derived from an event
- * that has already happened.
+ * The rolls are not part of the campaign. They are a die on a table — what the
+ * campaign records is the haul, and once it is in storage the rolls are
+ * history. Storing them on `Campaign` would put half-finished input in an
+ * exported file.
+ *
+ * They are not *only* in this component either, which is what the old version
+ * of this note got wrong. Component state does not survive a reload, and a
+ * tablet discarding a background tab is ordinary here — so a whole mission's
+ * haul went missing while the step stayed armed, and pressing Add to storage
+ * then locked the turn on nothing (issue #96). `pendingRolls` keeps them
+ * beside the autosave: same storage, same silence on failure, its own key,
+ * and nothing added to the file that lasts.
  */
 function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
   const { dispatch } = useCampaign();
-  const [rolls, setRolls] = useState<readonly MaterialRoll[]>([]);
+  const emptyId = useId();
+  const emptyRef = useRef<HTMLDialogElement>(null);
+
+  /*
+   * Seeded from the store, never synced with it. The store is a backup of this
+   * state rather than a second source of truth: a reload is a remount, which
+   * is exactly when the backup is wanted, and nothing else writes the key.
+   */
+  const [rolls, setRolls] = useState<readonly MaterialRoll[]>(() =>
+    readPendingRolls(campaign.id, campaign.turn),
+  );
+
+  function remember(next: readonly MaterialRoll[]) {
+    setRolls(next);
+    writePendingRolls(campaign.id, campaign.turn, next);
+  }
+
+  function commit() {
+    dispatch({
+      type: 'advancement/materialsAdded',
+      rolls,
+      at: new Date().toISOString(),
+    });
+    // Cleared on commit rather than left to go stale on the turn stamp: the
+    // rolls are spent, and a player who steps back should see the step's own
+    // "already in storage" message and not a list offering to add them again.
+    clearPendingRolls();
+  }
 
   const done = materialsAdded(campaign);
+  const team = missionTeam(campaign);
   const fromMission = recovered(rolls);
   const fromBase = baseProduction(campaign);
   const total = combined(fromMission, fromBase);
@@ -179,10 +253,14 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
       </p>
 
       {done ? (
-        <p className="mt-3 text-sm font-medium">
-          This turn’s materials are already in storage. Stepping back through the walk will not add
-          them twice.
-        </p>
+        <>
+          <p className="mt-3 text-sm font-medium">
+            This turn’s materials are already in storage. Stepping back through the walk will not
+            add them twice.
+          </p>
+
+          <Conversions campaign={campaign} />
+        </>
       ) : (
         <>
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -195,7 +273,7 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
               className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 px-3 dark:border-stone-600 dark:bg-stone-800`}
               onChange={(changed) => {
                 const roll = Number(changed.target.value) as D10Result;
-                setRolls((before) => [...before, { roll }]);
+                remember([...rolls, { roll }]);
                 changed.target.value = '';
               }}
             >
@@ -223,8 +301,8 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
                     entry={entry}
                     spent={spent}
                     onChange={(forced) => {
-                      setRolls((before) =>
-                        before.map((candidate, at) =>
+                      remember(
+                        rolls.map((candidate, at) =>
                           at === index
                             ? forced === null
                               ? { roll: candidate.roll }
@@ -238,7 +316,7 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
                     type="button"
                     className={SMALL_BUTTON}
                     onClick={() => {
-                      setRolls((before) => before.filter((_, at) => at !== index));
+                      remember(rolls.filter((_, at) => at !== index));
                     }}
                   >
                     Remove
@@ -275,19 +353,150 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
             type="button"
             className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
             onClick={() => {
-              dispatch({
-                type: 'advancement/materialsAdded',
-                rolls,
-                at: new Date().toISOString(),
-              });
+              // Zero rolls is legitimate — a turn with no mission still adds
+              // the base's production — so the button is never disabled. It
+              // is only worth a question when somebody went out and came back
+              // with nothing entered, which is the shape of the lost-rolls
+              // bug rather than a rule.
+              if (rolls.length === 0 && team.length > 0) {
+                emptyRef.current?.showModal();
+                return;
+              }
+
+              commit();
             }}
           >
             Add to storage
           </button>
+
+          <dialog
+            ref={emptyRef}
+            aria-labelledby={emptyId}
+            className="m-auto max-w-md rounded-xl bg-white p-6 text-stone-900 backdrop:bg-stone-950/50 dark:bg-stone-900 dark:text-stone-100"
+          >
+            <h2 id={emptyId} className="text-xl font-semibold">
+              Add nothing the mission recovered?
+            </h2>
+            <p className="mt-2 text-stone-600 dark:text-stone-400">
+              {team.length} survivor{team.length === 1 ? '' : 's'} went out this turn and no rolls
+              are entered. Only the base’s production goes into storage, and this step does not run
+              again this turn.
+            </p>
+
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => emptyRef.current?.close()}
+                className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 px-5 font-medium hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800`}
+              >
+                Enter the rolls
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  emptyRef.current?.close();
+                  commit();
+                }}
+                className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg bg-amber-600 px-5 font-semibold text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+              >
+                Add production only
+              </button>
+            </div>
+          </dialog>
         </>
       )}
     </>
   );
+}
+
+/**
+ * The same step's second half: materials traded for other materials (pg. 19).
+ *
+ * **Shown only once the haul is in**, which is the book's ordering rather than
+ * a convenience: pg. 19 applies conversions in this step, after production has
+ * been added. Offering them first would let a player spend Fuel the base is
+ * about to make.
+ *
+ * Nothing is automatic. A trade is worth taking some turns and not others, and
+ * a base with both a Gas Range and a Biofuel Lab can run either way in the same
+ * turn — so each one is a button, and the ones pressed are the ones applied.
+ *
+ * The Generator and the Well Pump also carry a conversion and are deliberately
+ * absent: they buy a point of Power or Water, and a point bought here would be
+ * cleared by this same turn's Planning Phase one phase later. `conversions.ts`
+ * has the whole of that reasoning.
+ */
+function Conversions({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+  const available = conversions(campaign);
+
+  if (available.length === 0) return null;
+
+  return (
+    <>
+      <p className="mt-5 text-sm font-medium">
+        Conversions <PageRef pages={19} />
+      </p>
+      <p className={`mt-1 ${HINT}`}>
+        Applied after the haul, and only if you want them. Each press is one trade.
+      </p>
+
+      <ul className="mt-2 flex flex-col gap-2">
+        {available.map((conversion) => {
+          const { blockers } = checkConversion(campaign, conversion);
+          const cap = conversion.exchange.maxPerTurn;
+          const run = timesConverted(campaign, conversion);
+
+          return (
+            <li
+              key={`${conversion.slot}-${conversion.source.id}`}
+              className="flex flex-wrap items-center gap-2 text-sm"
+            >
+              <button
+                type="button"
+                disabled={blockers.length > 0}
+                className={SMALL_BUTTON}
+                onClick={() => {
+                  dispatch({
+                    type: 'advancement/materialsConverted',
+                    slot: conversion.slot,
+                    source: conversion.source.id,
+                    at: new Date().toISOString(),
+                  });
+                }}
+              >
+                {describeTrade(conversion)}
+              </button>
+              <span className="text-xs text-stone-500 dark:text-stone-400">
+                {converterName(conversion)}
+                {cap === undefined ? '' : `, ${String(run)} of ${String(cap)} this turn`}
+              </span>
+              {blockers.map((blocker) => (
+                <span key={blocker.code} className="text-xs text-amber-700 dark:text-amber-300">
+                  {blocker.message}
+                </span>
+              ))}
+            </li>
+          );
+        })}
+      </ul>
+    </>
+  );
+}
+
+/** "2 Fuel → 1 Food", built from the same amounts the trade spends and gains. */
+function describeTrade(conversion: Conversion): string {
+  const list = (amounts: Materials) =>
+    MATERIALS.filter((material) => amounts[material] !== 0)
+      .map((material) => `${String(amounts[material])} ${MATERIAL_LABELS[material]}`)
+      .join(', ');
+
+  return `${list(spentBy(conversion))} → ${list(gainedBy(conversion))}`;
+}
+
+/** Which slot it is in, so two Kitchens with a Gas Range each can be told apart. */
+function converterName(conversion: Conversion): string {
+  return `${builtThingLabel(conversion.source.id)} in the ${slotLabel(conversion.slot)}`;
 }
 
 /**
@@ -435,9 +644,66 @@ const XP_SOURCE_LABELS: Record<XpSource, string> = {
  * turns, and a player deciding whether the app is wrong needs to know which
  * one they are in.
  */
-const XP_SOURCE_EMPTY: Record<XpSource, string> = {
-  mission: 'Nobody is on a mission team, so there is no mission XP this turn.',
-  discretionary: 'A Teacher on the mission takes this point and hands it out instead.',
-  'mission-teaching': 'Nobody on the mission team has Teaching.',
-  'training-room': 'No staffed Training Room, so nothing to teach with.',
+const XP_POOL_EMPTY: Record<XpPoolEmptiness, string> = {
+  'nobody-went': 'Nobody is on a mission team, so there is no mission XP this turn.',
+  'replaced-by-teaching': 'A Teacher on the mission takes this point and hands it out instead.',
+  'nobody-qualifies': 'Nobody on the mission team has Teaching.',
+  'score-is-nothing':
+    'Somebody on the mission team has Teaching, but their combined Score comes to nothing — so this replaces the discretionary point and hands out none.',
+  'nowhere-to-teach': 'No staffed Training Room, so nothing to teach with.',
+  'wrong-person': 'The Training Room is staffed by somebody without Teaching.',
 };
+
+/**
+ * Step 5: the projects the last Planning Phase ordered actually happen.
+ *
+ * Named before they are applied, because this is the step where a base changes
+ * shape and a player should be able to see what is about to change. Nothing is
+ * pressed for them: the walk can be stepped through by accident.
+ */
+function FinishProjects({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+
+  const due = dueProjects(campaign);
+  const waiting = campaign.projects.filter((project) => !isDue(campaign, project));
+
+  return (
+    <>
+      <p className={HINT}>
+        Projects ordered in a Planning Phase finish here, the turn after they were ordered{' '}
+        <PageRef pages={19} />
+      </p>
+
+      {due.length === 0 ? (
+        <p className={`mt-3 ${HINT}`}>
+          {waiting.length === 0
+            ? 'Nothing was ordered, so nothing finishes this turn.'
+            : 'Everything in the queue was ordered this turn, and finishes next turn.'}
+        </p>
+      ) : (
+        <>
+          <p className="mt-3 text-sm font-medium">Finishing now</p>
+          <ul className="mt-1 flex flex-col gap-0.5">
+            {due.map((project, at) => (
+              // Index-keyed: two identical orders for one slot are two orders
+              // and have no identity of their own.
+              <li key={at} className={HINT}>
+                {describeProject(project)}
+              </li>
+            ))}
+          </ul>
+
+          <button
+            type="button"
+            className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+            onClick={() => {
+              dispatch({ type: 'advancement/projectsCompleted', at: new Date().toISOString() });
+            }}
+          >
+            Finish {due.length === 1 ? 'the project' : `${String(due.length)} projects`}
+          </button>
+        </>
+      )}
+    </>
+  );
+}

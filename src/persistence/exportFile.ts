@@ -10,7 +10,7 @@
 import { BASES } from '../data/bases';
 import { SKILLS, STATS } from '../data/skills';
 import { MATERIALS } from '../data/materials';
-import type { Base, Campaign, SlotState, Survivor } from '../engine/campaign';
+import type { Base, Campaign, Project, SlotState, Survivor } from '../engine/campaign';
 import type { LogEntry } from '../engine/log';
 
 /** Material counts in the fixed order from the engine, not insertion order. */
@@ -164,6 +164,17 @@ function orderedAssignments(campaign: Campaign): Record<string, unknown> {
 }
 
 /**
+ * One project with its keys in a fixed order.
+ *
+ * Tag first, like a log event and an assignment, through the same `taggedFirst`
+ * the other two use — a third copy of "put the discriminant at the front" would
+ * be two too many.
+ */
+function orderedProject(project: Project): Record<string, unknown> {
+  return taggedFirst(project, 'kind');
+}
+
+/**
  * One log entry with its keys in a fixed order.
  *
  * The `Record<keyof LogEntry, unknown>` return type earns its keep the way
@@ -205,11 +216,11 @@ function inFileOrder(campaign: Campaign): Record<keyof Campaign, unknown> {
     turn: campaign.turn,
     step: campaign.step,
     materials: orderedMaterials(campaign),
-    lastSiegeTurn: campaign.lastSiegeTurn,
     survivors: campaign.survivors.map(orderedSurvivor),
     startingCommunityBuilt: campaign.startingCommunityBuilt,
     base: campaign.base === null ? null : orderedBase(campaign.base),
     assignments: orderedAssignments(campaign),
+    projects: campaign.projects.map(orderedProject),
     log: campaign.log.map(orderedLogEntry),
   };
 }

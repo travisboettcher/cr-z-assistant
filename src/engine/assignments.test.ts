@@ -7,10 +7,12 @@ import {
   type Campaign,
   type Survivor,
 } from './campaign';
+import type { LogEntry } from './log';
 import { createSurvivor } from './survivor';
 import { flatUtilitiesGenerated, occupants } from './base';
 import { facilityProduction } from './production';
 import {
+  beforePlanning,
   laborPool,
   projectTeam,
   sameTask,
@@ -19,6 +21,7 @@ import {
   survivorsDoing,
   taskOf,
   utilitiesScore,
+  assignedTo,
 } from './assignments';
 import { generatingUtilities, utilityWorker } from '../test/campaigns';
 
@@ -77,6 +80,76 @@ describe('sameTask', () => {
   });
 });
 
+describe('beforePlanning', () => {
+  const AT = '2026-08-30T00:00:00.000Z';
+
+  /** A turn-3 campaign that has assigned somebody, and a log to put under it. */
+  function turnThree(assignments: Record<string, Assignment>, log: readonly LogEntry[]): Campaign {
+    return { ...community(assignments), turn: 3, log };
+  }
+
+  const began = (turn: number, cleared?: Record<string, Assignment>): LogEntry => ({
+    turn,
+    phase: 'planning',
+    at: AT,
+    event: cleared === undefined ? { kind: 'planning-began' } : { kind: 'planning-began', cleared },
+  });
+
+  it('leaves a turn whose Planning has not begun exactly as it is', () => {
+    const campaign = turnThree({ [EARL]: { task: 'mission', team: 1 } }, []);
+
+    expect(beforePlanning(campaign)).toBe(campaign);
+  });
+
+  /**
+   * The whole of issue #95 in one assertion. Earl went on the mission; this
+   * turn's Planning Phase has since cleared that and put Carla on the project
+   * team. The Advancement Phase is still owed the first answer.
+   */
+  it('rewinds to what this turn’s Planning cleared', () => {
+    const campaign = turnThree({ [CARLA]: { task: 'project' } }, [
+      began(3, { [EARL]: { task: 'mission', team: 1 } }),
+    ]);
+
+    expect(beforePlanning(campaign).assignments).toEqual({ [EARL]: { task: 'mission', team: 1 } });
+    // The campaign itself is untouched — this is a reading, not a correction.
+    expect(campaign.assignments).toEqual({ [CARLA]: { task: 'project' } });
+  });
+
+  it('ignores a clearing from a previous turn', () => {
+    const campaign = turnThree({ [CARLA]: { task: 'project' } }, [
+      began(2, { [EARL]: { task: 'mission', team: 1 } }),
+    ]);
+
+    expect(beforePlanning(campaign).assignments).toEqual({ [CARLA]: { task: 'project' } });
+  });
+
+  /**
+   * A save written before the entry carried anything. There is nothing to
+   * rewind to, and the live assignments are where they have always been — the
+   * old behaviour, which is the right fallback rather than an empty roster.
+   */
+  it('leaves an entry that recorded nothing alone', () => {
+    const campaign = turnThree({ [CARLA]: { task: 'project' } }, [began(3)]);
+
+    expect(beforePlanning(campaign)).toBe(campaign);
+  });
+
+  it('rewinds to an empty set, which is not the same as nothing to rewind to', () => {
+    const campaign = turnThree({ [CARLA]: { task: 'project' } }, [began(3, {})]);
+
+    expect(beforePlanning(campaign).assignments).toEqual({});
+  });
+
+  it('is the same answer applied twice, so a caller cannot double-count it', () => {
+    const campaign = turnThree({ [CARLA]: { task: 'project' } }, [
+      began(3, { [EARL]: { task: 'mission', team: 1 } }),
+    ]);
+
+    expect(beforePlanning(beforePlanning(campaign))).toEqual(beforePlanning(campaign));
+  });
+});
+
 describe('taskOf and survivorsDoing', () => {
   it('answers with the task, or with nothing', () => {
     const campaign = community({ [EARL]: { task: 'rest' } });
@@ -108,15 +181,40 @@ describe('taskOf and survivorsDoing', () => {
 
 describe('staffOf', () => {
   it('gives the slot its own staff and nobody else’s', () => {
-    const campaign = community({
-      [EARL]: { task: 'staff', slot: 'kitchen' },
-      [CARLA]: { task: 'staff', slot: 'garden' },
-      [RUBY]: { task: 'staff', slot: 'kitchen' },
-    });
+    const campaign = community(
+      {
+        [EARL]: { task: 'staff', slot: 'kitchen' },
+        [CARLA]: { task: 'staff', slot: 'utility-station' },
+        [RUBY]: { task: 'staff', slot: 'kitchen' },
+      },
+      farm(),
+    );
 
-    expect(staffOf(campaign, 'kitchen').map((one) => one.id)).toEqual([EARL, RUBY]);
-    expect(staffOf(campaign, 'garden').map((one) => one.id)).toEqual([CARLA]);
+    // A Kitchen takes one (pg. 54) and no upgrade here widens it, so Ruby is
+    // assigned and not working. `assignedTo` is what a screen reports with.
+    expect(staffOf(campaign, 'kitchen').map((one) => one.id)).toEqual([EARL]);
+    expect(assignedTo(campaign, 'kitchen').map((one) => one.id)).toEqual([EARL, RUBY]);
+    expect(staffOf(campaign, 'utility-station').map((one) => one.id)).toEqual([CARLA]);
     expect(staffOf(campaign, 'front-yard')).toEqual([]);
+  });
+
+  /** No base, no facility, and so nobody working one. */
+  it('is nobody before a base is claimed', () => {
+    expect(staffOf(community({ [EARL]: { task: 'staff', slot: 'kitchen' } }), 'kitchen')).toEqual(
+      [],
+    );
+  });
+
+  /**
+   * pg. 54: a staffed facility takes one survivor unless an upgrade widens it.
+   * Nothing read `extraStaff` until the September playtest put three on a bare
+   * Medical Clinic and got five Health out of it.
+   */
+  it('takes nobody at all for a facility that is not staffed', () => {
+    const campaign = community({ [EARL]: { task: 'staff', slot: 'bunk-room-1' } }, farm());
+
+    expect(staffOf(campaign, 'bunk-room-1')).toEqual([]);
+    expect(assignedTo(campaign, 'bunk-room-1').map((one) => one.id)).toEqual([EARL]);
   });
 });
 
@@ -158,11 +256,26 @@ describe('staffedFacilityCount', () => {
 
   it('counts each staffed slot once, across several', () => {
     const campaign = community(
-      { [EARL]: { task: 'staff', slot: 'kitchen' }, [CARLA]: { task: 'staff', slot: 'garden' } },
+      {
+        [EARL]: { task: 'staff', slot: 'kitchen' },
+        [CARLA]: { task: 'staff', slot: 'utility-station' },
+      },
       farm(),
     );
 
     expect(staffedFacilityCount(campaign)).toBe(2);
+  });
+
+  /**
+   * The Garden's Food is a flat effect with no skill named, so it is
+   * `staffed: false` and a survivor put in one is an assignment the rules do
+   * not contemplate (pg. 54). It counted anyway until capacity had a reader —
+   * so staffing a Bunk Room did nothing *and* cost a point of Siege Threat.
+   */
+  it('does not count a facility that takes no staff', () => {
+    const campaign = community({ [CARLA]: { task: 'staff', slot: 'garden' } }, farm());
+
+    expect(staffedFacilityCount(campaign)).toBe(0);
   });
 
   it('ignores an assignment to a slot with nothing built in it', () => {
@@ -186,7 +299,12 @@ describe('utilitiesScore', () => {
     expect(utilitiesScore(campaign)).toBe(3);
   });
 
-  it('sums a Station worked by more than one', () => {
+  /**
+   * A Utility Station takes one survivor and has no upgrade that widens it
+   * (pg. 54, 72–73), so a second is assigned and not working. This asserted the
+   * sum of both until capacity had a reader.
+   */
+  it('counts only the one a Station takes, whoever else is assigned', () => {
     const one = utilityWorker(2);
     const two = { ...utilityWorker(1), id: 'second' };
 
@@ -199,7 +317,7 @@ describe('utilitiesScore', () => {
       },
     };
 
-    expect(utilitiesScore(campaign)).toBe(3);
+    expect(utilitiesScore(campaign)).toBe(2);
   });
 
   it('is zero with nobody in the Station', () => {
@@ -264,5 +382,31 @@ describe('utilitiesScore', () => {
 
   it('is zero for a campaign with no base', () => {
     expect(utilitiesScore(community())).toBe(0);
+  });
+});
+
+/**
+ * The Hydroelectric Dam's Catwalks: +2 Labor a turn, provided at least one
+ * survivor is on the project team (pg. 61). Nothing consumed it until the
+ * September playtest found the Dam's pool reading 3 where the book says 5.
+ */
+describe('a base that adds to the Labor pool', () => {
+  const dam = (assignments: Record<string, Assignment> = {}): Campaign => ({
+    ...community(assignments),
+    base: { id: 'hydroelectric-dam', slots: {} },
+  });
+
+  it('adds its Labor to a team that is working', () => {
+    // Carla is a Tier 2, so two of her own plus the Catwalks' two.
+    expect(laborPool(dam({ [CARLA]: { task: 'project' } }))).toBe(4);
+  });
+
+  it('adds nothing while nobody is on the project team', () => {
+    expect(laborPool(dam())).toBe(0);
+    expect(laborPool(dam({ [CARLA]: { task: 'staff', slot: 'kitchen' } }))).toBe(0);
+  });
+
+  it('is not a rule any other base has', () => {
+    expect(laborPool(community({ [CARLA]: { task: 'project' } }))).toBe(2);
   });
 });

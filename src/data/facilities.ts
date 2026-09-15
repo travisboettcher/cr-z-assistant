@@ -130,6 +130,18 @@ export interface Effects {
   readonly storage?: Partial<Record<StoredMaterial, number>>;
   readonly siegeThreat?: SiegeThreatEffect;
   readonly production?: readonly Production[];
+  /**
+   * Materials traded for other materials, at the player's option (pg. 19).
+   *
+   * **Two kinds, and two steps own them.** A trade that *gains a material* is
+   * Add Materials to Storage's, after production — `engine/conversions.ts`
+   * offers those. A trade that gains a *utility* — the Generator's and the Well
+   * Pump's Fuel for a point of Power or Water — belongs to the Planning Phase's
+   * utility step instead, because a point lasts until the next turn's Planning
+   * Phase (pg. 20, 67) and this turn's would clear one bought in Advancement a
+   * phase later. Those two are not wired up yet; `conversions.test.ts` fails if
+   * a third utility trade is added without deciding where it goes.
+   */
   readonly exchange?: readonly Exchange[];
   /** Extra staff this facility may take, whose Scores are summed (pg. 73). */
   readonly extraStaff?: number;
@@ -139,7 +151,15 @@ export interface Effects {
   readonly gatesEquipment?: true;
   /** Vehicles kept from breaking down on a mission, per copy (pg. 73). Phase 5. */
   readonly protectsVehicles?: number;
-  /** Turned survivors kept from biting, per copy (pg. 73). Phase 7. */
+  /**
+   * Turned survivors kept from biting, per copy (pp. 72–73).
+   *
+   * The spread rather than a page, because the two transcriptions of this one
+   * disagree: this line was written as pg. 73 and the September playtest read
+   * it off pg. 72. A range is honest about what was confirmed, and a wrong
+   * page is the failure the edition retrofit existed to remove. Narrow it next
+   * time the book is open.
+   */
   readonly preventsBiting?: number;
   /** Madness removed in Rest and Healing, with and without Power (pg. 72). Phase 7. */
   readonly madnessRecovery?: { readonly base: number; readonly withPower: number };
@@ -160,7 +180,7 @@ export interface UpgradeConstraints {
   readonly maxPerFacility?: number;
   /** Cannot coexist with these upgrades on the same facility. */
   readonly excludes?: readonly UpgradeId[];
-  /** Hardware taken off the cost when it replaces an upgrade it excludes. */
+  /** Hardware taken off the cost when it replaces an upgrade it excludes (pp. 72–73). */
   readonly replacementDiscount?: number;
 }
 
@@ -468,11 +488,14 @@ export const FACILITIES = {
       {
         id: 'generator',
         cost: { hardware: 3, labor: 2 },
+        // Gains a utility, so the Planning Phase's utility step owns it rather
+        // than Add Materials — see the note on `Effects.exchange`.
         effects: { exchange: [{ spend: { fuel: 1 }, gain: { power: 1 }, maxPerTurn: 3 }] },
       },
       {
         id: 'well-pump',
         cost: { hardware: 2, labor: 3 },
+        // The Generator's rule, for the other pool.
         effects: { exchange: [{ spend: { fuel: 1 }, gain: { water: 1 }, maxPerTurn: 3 }] },
       },
       {

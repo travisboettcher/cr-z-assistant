@@ -3,6 +3,21 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
+import { createNewCampaign, type Campaign } from '../engine/campaign';
+import { createSurvivor } from '../engine/survivor';
+
+/** Opens the app on a campaign that already exists, for the tests that need one. */
+function open(campaign: Campaign) {
+  const user = userEvent.setup();
+
+  render(
+    <CampaignProvider initialState={{ status: 'open', campaign }}>
+      <App />
+    </CampaignProvider>,
+  );
+
+  return user;
+}
 
 /**
  * Driven through the real app and store, like the roster's tests: the story is
@@ -454,3 +469,68 @@ describe('SurvivorSheet advancement', () => {
 function toggleFor(sheet: HTMLElement, label: string) {
   return within(skillRow(sheet, label)).getByRole('button', { name: /^(take|drop)\b/i });
 }
+
+/**
+ * Playtest finding M13: the sheet applied the hunger penalty and never
+ * mentioned it. Under a −2 penalty it showed Cooperation 3 in the select and a
+ * Mechanics Score of 1, directly under its own sentence saying a Score is the
+ * skill's level plus its governing stat. A player checking the arithmetic gets
+ * 3 and reads 1.
+ *
+ * The computation is right and does not change — ruling 1 applies the penalty
+ * to stats, and therefore to Inventory Slots too. This is about saying so.
+ */
+describe('a community that is going hungry', () => {
+  /** Three Heroes eating two each against empty stores: six short of three. */
+  const starving = (): Campaign => ({
+    ...createNewCampaign('Cedar Hollow'),
+    turn: 3,
+    survivors: [
+      createSurvivor('Nell Haig', 4, { id: 'nell' }),
+      createSurvivor('Tomas Ford', 4, { id: 'tomas' }),
+      createSurvivor('Ada Poole', 4, { id: 'ada' }),
+    ],
+    materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+    log: [
+      {
+        turn: 3,
+        phase: 'management',
+        at: '2026-09-13T09:00:00.000Z',
+        event: { kind: 'survivors-fed', required: 6, hunger: 6 },
+      },
+    ],
+  });
+
+  it('says so on the sheet, and shows what each stat is worth', async () => {
+    const user = open(starving());
+    await user.click(screen.getAllByRole('button', { name: /^sheet$/i })[0] as HTMLElement);
+
+    const sheet = screen.getByRole('region', { name: 'Nell Haig' });
+
+    expect(sheet.textContent).toContain('every stat is 3 lower until the next Management Phase');
+    // A Hero's Strength is 4, so 1 under the penalty.
+    expect(sheet.textContent).toContain('1 while the community is hungry');
+  });
+
+  it('says so on the roster too, which is what a player reads at the table', () => {
+    open(starving());
+
+    expect(screen.getByRole('region', { name: /community/i }).textContent).toContain(
+      'The community is going hungry, so every stat is 3 lower',
+    );
+  });
+
+  it('says nothing at all when the community is fed', async () => {
+    const user = open({ ...starving(), log: [] });
+
+    expect(screen.getByRole('region', { name: /community/i }).textContent).not.toContain(
+      'going hungry',
+    );
+
+    await user.click(screen.getAllByRole('button', { name: /^sheet$/i })[0] as HTMLElement);
+
+    expect(screen.getByRole('region', { name: 'Nell Haig' }).textContent).not.toContain(
+      'while the community is hungry',
+    );
+  });
+});

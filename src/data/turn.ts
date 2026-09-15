@@ -107,13 +107,26 @@ export const TURN_STEPS = {
 export type TurnStepId = (typeof TURN_STEPS)[CampaignPhase][number]['id'];
 
 /**
- * The step a project finishes in (pg. 19).
+ * The two steps a project passes through: ordered in one, finished in the other
+ * (pp. 20, 19).
  *
- * Named here rather than typed out wherever the app mentions it, so the one
- * screen that builds and the one that says when to build cannot disagree.
- * Facilities, upgrades and cleared slots are all the same kind of thing to the
- * book — a project, ordered in the Planning Phase and completed here.
+ * Named here rather than typed out wherever the app mentions it, so the screen
+ * that takes an order, the screen that finishes one, and the note that says
+ * when each belongs cannot disagree. Facilities, upgrades and cleared slots are
+ * all the same kind of thing to the book — a project — which is why one pair of
+ * constants covers all three verbs.
  */
+export const ORDER_STEP: TurnStepId = 'assign-project-team';
+
+/**
+ * The step facility staff are assigned in (pg. 20).
+ *
+ * Named beside the two above because the base screen carries a staffing control
+ * as well as build controls, and both need to say which step they belong to —
+ * tasks expire at the top of a Planning Phase, so one assigned earlier in the
+ * turn is wiped.
+ */
+export const STAFF_STEP: TurnStepId = 'assign-facility-staff';
 export const PROJECT_STEP: TurnStepId = 'add-facilities-and-upgrades';
 
 /**
@@ -341,6 +354,11 @@ export const SIEGE_THREAT_TERMS = [
   'project-team',
   'base-features',
   'turns-since-last-siege',
+  // Negative, and the only term that is. A staffed Watchtower subtracts its
+  // lookout's best of Long Guns / Handguns / Archery / Traps (pg. 73) — the
+  // facility's whole purpose, and unread by anything until the September
+  // playtest found that staffing one *raised* the threat by 1.
+  'watched-from-above',
 ] as const;
 
 export type SiegeThreatTerm = (typeof SIEGE_THREAT_TERMS)[number];
