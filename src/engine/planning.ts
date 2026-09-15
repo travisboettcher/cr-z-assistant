@@ -28,6 +28,8 @@
 import { TURN_STEPS } from '../data/turn';
 import { HERO_TIER } from '../data/tiers';
 import { occupants } from './base';
+import { suppliedOccupants } from './utilities';
+import type { Facility, Upgrade } from '../data/facilities';
 import type { Assignment, Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
 import { survivorsDoing } from './assignments';
@@ -36,6 +38,7 @@ import { maxHp } from './survivor';
 export type PlanningViolationCode =
   | 'nothing-in-slot'
   | 'utility-unmet'
+  | 'upgrade-utility-unmet'
   | 'already-at-full-health'
   | 'someone-else-resting'
   | 'no-medical-clinic'
@@ -176,11 +179,23 @@ function warningsFor(
   }
 }
 
+/**
+ * What is wrong with working this slot.
+ *
+ * **Two sentences about utilities, not one.** `working` in `base.ts` filters
+ * the facility and its upgrades one at a time, so an unmet requirement on the
+ * facility stops everything in the slot and an unmet one on an upgrade stops
+ * only that upgrade (pg. 54, 67). Saying "it produces nothing this turn" about
+ * the second was the app contradicting itself a phase later: the playtest read
+ * it about a Kitchen whose Refrigeration wanted Power, and then watched the
+ * Kitchen make its 2 Food in the next Advancement Phase.
+ *
+ * Read off `suppliedOccupants` rather than the stored flags, so a point with
+ * nothing generating it does not silence the warning — the same falsehood the
+ * other way round, and the rule Z3-10 added the resolver for.
+ */
 function staffingWarnings(campaign: Campaign, slot: string): readonly PlanningViolation[] {
-  const occupant =
-    campaign.base === null
-      ? undefined
-      : occupants(campaign.base).find((candidate) => candidate.slotId === slot);
+  const occupant = suppliedOccupants(campaign).find((candidate) => candidate.slotId === slot);
 
   if (occupant === undefined) {
     return [
@@ -188,21 +203,40 @@ function staffingWarnings(campaign: Campaign, slot: string): readonly PlanningVi
     ];
   }
 
-  // The facility and its upgrades together, because one point of a utility
-  // covers all of them — the same reading `checkUtility` takes.
-  const unmet = [occupant.facility, ...occupant.upgrades].some((entry) =>
-    (entry.requires?.utilities ?? []).some((utility) => !occupant[utility]),
-  );
+  const unmet = (entry: Facility | Upgrade) =>
+    (entry.requires?.utilities ?? []).some((utility) => !occupant[utility]);
 
-  if (!unmet) return [];
+  /*
+   * **No facility in the catalogue requires a utility today** — every
+   * `requires.utilities` in `facilities.ts` is on an upgrade — so this branch
+   * is unreachable from the data and its mutants survive. It stays for the
+   * reason `Upgrade.rare` stays: the rule is real (pg. 54 stops an entry whose
+   * requirements are unmet, and `working` applies that to facilities too), the
+   * shape is the correct one for it, and the alternative is a silence that
+   * turns into a wrong screen the first time such a facility is transcribed.
+   */
+  if (unmet(occupant.facility)) {
+    return [
+      {
+        code: 'utility-unmet',
+        message: 'Needs a utility it does not have, so it produces nothing this turn.',
+        pages: 67,
+      },
+    ];
+  }
 
-  return [
-    {
-      code: 'utility-unmet',
-      message: 'Needs a utility it does not have, so it produces nothing this turn.',
-      pages: 67,
-    },
-  ];
+  if (occupant.upgrades.some(unmet)) {
+    return [
+      {
+        code: 'upgrade-utility-unmet',
+        message:
+          'An upgrade here needs a utility it does not have, so that upgrade does nothing this turn. The facility itself still works.',
+        pages: 67,
+      },
+    ];
+  }
+
+  return [];
 }
 
 function restWarnings(campaign: Campaign, survivor: Survivor): readonly PlanningViolation[] {

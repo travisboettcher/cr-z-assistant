@@ -9,6 +9,7 @@ import {
 import { createSurvivor } from './survivor';
 import { checkAssignment, planningHasBegun, unassigned, withPlanningReset } from './planning';
 import type { LogEntry } from './log';
+import { generatingUtilities } from '../test/campaigns';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 const AT = '2026-09-11T09:00:00.000Z';
@@ -177,9 +178,14 @@ describe('checkAssignment', () => {
       expect(codes(check.warnings)).toEqual(['nothing-in-slot']);
     });
 
-    it('warns when the facility wants a utility it has not got', () => {
-      // A Storage Area wants nothing; its Refrigeration wants Power, and one
-      // point covers the pair — so the upgrade's need is the slot's need.
+    /**
+     * The overstatement the September playtest caught. A Storage Area wants no
+     * utility; its Refrigeration wants Power. Without it the *upgrade* does
+     * nothing and the facility carries on — `working` filters entry by entry —
+     * so "it produces nothing this turn" was a sentence the next Advancement
+     * Phase contradicted.
+     */
+    it('warns about the upgrade, not the facility, when only an upgrade wants a utility', () => {
       const unpowered = home({
         garage: {
           built: { facility: 'storage-area', builtOnTurn: 1 },
@@ -187,13 +193,16 @@ describe('checkAssignment', () => {
         },
       });
 
-      expect(
-        codes(
-          checkAssignment(community({}, unpowered), EARL, { task: 'staff', slot: 'garage' })
-            .warnings,
-        ),
-      ).toEqual(['utility-unmet']);
+      const check = checkAssignment(community({}, unpowered), EARL, {
+        task: 'staff',
+        slot: 'garage',
+      });
 
+      expect(codes(check.warnings)).toEqual(['upgrade-utility-unmet']);
+      expect(check.warnings[0]?.message).toMatch(/the facility itself still works/i);
+    });
+
+    it('says nothing once the point is there and something is generating it', () => {
       const powered = home({
         garage: {
           built: { facility: 'storage-area', builtOnTurn: 1 },
@@ -202,9 +211,36 @@ describe('checkAssignment', () => {
         },
       });
 
+      // A staffed Station behind the point, because a flag on the slot is not
+      // generation: `suppliedOccupants` is what the rest of the app reads, and
+      // this warning reads it too.
+      const supplied = generatingUtilities(community({}, powered), 1, 'front-yard');
+
+      expect(checkAssignment(supplied, EARL, { task: 'staff', slot: 'garage' }).warnings).toEqual(
+        [],
+      );
+    });
+
+    /**
+     * The same falsehood the other way round, and the reason this reads
+     * `suppliedOccupants`: the flag says the slot has Power and nothing is
+     * generating it, so the Refrigeration is as unsupplied as if the flag were
+     * absent (#111).
+     */
+    it('still warns when the point on the slot has no generator behind it', () => {
+      const claimed = home({
+        garage: {
+          built: { facility: 'storage-area', builtOnTurn: 1 },
+          upgrades: ['refrigeration'],
+          power: true,
+        },
+      });
+
       expect(
-        checkAssignment(community({}, powered), EARL, { task: 'staff', slot: 'garage' }).warnings,
-      ).toEqual([]);
+        codes(
+          checkAssignment(community({}, claimed), EARL, { task: 'staff', slot: 'garage' }).warnings,
+        ),
+      ).toEqual(['upgrade-utility-unmet']);
     });
 
     it('says nothing about a facility that wants no utility at all', () => {

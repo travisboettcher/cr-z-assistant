@@ -574,23 +574,30 @@ describe('assigning Power and Water', () => {
     await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
   };
 
-  it('shows what each pool generates and what the Score is covering', () => {
+  /**
+   * Against what the pool can back, not against flat generation alone. A
+   * Station generating two means either pool can take two, and the old
+   * denominator — flat only — reported that as `0 / 0 flat`.
+   */
+  it('shows what each pool can back and what the Score is covering', () => {
     readyToSupply();
 
-    expect(screen.getByRole('definition', { name: /power assigned/i })).toHaveTextContent(
-      '0 / 0 flat',
-    );
+    expect(screen.getByRole('definition', { name: /power assigned/i })).toHaveTextContent('0 / 2');
     expect(screen.getByRole('definition', { name: /score spent/i })).toHaveTextContent('0 / 2');
   });
 
+  /**
+   * And the two pools share it: a point of Water takes one of the two the
+   * Station generates, so Power can back one fewer than it could a moment ago.
+   * Flat Power cannot become Water, but a staffed point can be either.
+   */
   it('assigns a point, and the readout follows it', async () => {
     const user = readyToSupply();
     await openKitchen(user);
     await user.click(screen.getByRole('checkbox', { name: /water/i }));
 
-    expect(screen.getByRole('definition', { name: /water assigned/i })).toHaveTextContent(
-      '1 / 0 flat',
-    );
+    expect(screen.getByRole('definition', { name: /water assigned/i })).toHaveTextContent('1 / 2');
+    expect(screen.getByRole('definition', { name: /power assigned/i })).toHaveTextContent('0 / 1');
     expect(screen.getByRole('definition', { name: /score spent/i })).toHaveTextContent('1 / 2');
     // And the card says so with the form closed.
     await user.click(screen.getByRole('button', { name: /^cancel$/i }));
