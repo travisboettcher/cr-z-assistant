@@ -167,3 +167,21 @@ Three things about reading the score:
 Neither replaces the tests built from the rulebook's own worked characters (pg. 13–15). Those
 check the app against the *rules*; these check the tests against the *code*. A perfect mutation
 score on a function implementing the wrong rule is still the wrong rule.
+
+## License
+
+The code is dual-licensed under either
+
+- [MIT](LICENSE-MIT), or
+- [Apache License 2.0](LICENSE-APACHE)
+
+at your option. Pick whichever fits what you are doing; you do not have to satisfy both. This is
+the same arrangement the Rust project uses, and it is here for the same reason: MIT is the one
+almost everybody already understands, and Apache-2.0 carries an explicit patent grant for anyone
+whose employer asks about that before they are allowed to contribute.
+
+**That covers this project's own work, and not the game.** *County Road Z* is copyright Jordan
+Heckman, published by Modiphius Entertainment — its rules, names, statistics and page references
+appear here as factual reference so the app can compute state against a book you own, and no
+license to them is granted or implied, because none is mine to grant. [`NOTICE`](NOTICE) states
+where the line falls and why the app ships no rule text. A fork inherits that position unchanged.
