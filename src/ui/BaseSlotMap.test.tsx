@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { BASES, BASE_IDS } from '../data/bases';
 import { createNewCampaign, type Campaign } from '../engine/campaign';
 import { createSurvivor } from '../engine/survivor';
-import { generatingUtilities, projectTeamWorth } from '../test/campaigns';
+import { generatingUtilities, projectTeamWorth, withPlanningBegun } from '../test/campaigns';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
 import { BaseSlotMap } from './BaseSlotMap';
@@ -176,12 +176,14 @@ describe('slotLabel', () => {
 describe('building into a slot', () => {
   /** A claimed Small Town Home, with a project team and Hardware to spend. */
   function readyToBuild(labor = 5, hardware = 0) {
-    return openWith({
-      ...createNewCampaign('Cedar Hollow'),
-      materials: { food: 0, fuel: 0, hardware, rare: 0 },
-      base: { id: 'small-town-home', slots: {} },
-      ...projectTeamWorth(labor),
-    });
+    return openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        materials: { food: 0, fuel: 0, hardware, rare: 0 },
+        base: { id: 'small-town-home', slots: {} },
+        ...projectTeamWorth(labor),
+      }),
+    );
   }
 
   const garage = () => screen.getByRole('button', { name: /build in garage/i });
@@ -292,6 +294,30 @@ describe('building into a slot', () => {
     expect(screen.getByText(/labor available:/i).parentElement).toHaveTextContent('3');
   });
 
+  /**
+   * The same zero, two reasons, and a player can only act on one of them. Last
+   * turn's project team is still on the roster screen while this reads none —
+   * tasks expire at the top of the next Planning Phase (pg. 20) — so a bare
+   * "0 is available" beside it reads as a bug rather than as a step not yet
+   * walked to.
+   */
+  it('says why there is no Labor before this turn has planned', async () => {
+    const user = openWith({
+      ...createNewCampaign('Cedar Hollow'),
+      materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+      base: { id: 'small-town-home', slots: {} },
+      ...projectTeamWorth(5),
+    });
+
+    expect(screen.getByText(/labor available:/i).parentElement).toHaveTextContent('0');
+    expect(screen.getByText(/none until this turn.s planning phase/i)).toBeInTheDocument();
+
+    await user.click(garage());
+
+    expect(screen.getByText(/assigned in the Planning Phase/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /order the build/i })).toBeDisabled();
+  });
+
   it('spends the Hardware the order costs', async () => {
     const user = readyToBuild(5, 9);
     await user.click(garage());
@@ -312,12 +338,14 @@ describe('building into a slot', () => {
 
 describe('upgrading a facility', () => {
   function readyToUpgrade(hardware = 9) {
-    return openWith({
-      ...createNewCampaign('Cedar Hollow'),
-      materials: { food: 0, fuel: 0, hardware, rare: 0 },
-      base: { id: 'small-town-home', slots: {} },
-      ...projectTeamWorth(5),
-    });
+    return openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        materials: { food: 0, fuel: 0, hardware, rare: 0 },
+        base: { id: 'small-town-home', slots: {} },
+        ...projectTeamWorth(5),
+      }),
+    );
   }
 
   it('offers each slot the verb its state has, and not the other', async () => {
@@ -352,15 +380,17 @@ describe('upgrading a facility', () => {
    * Advancement Phase and the Planning Phase comes after it in the same turn.
    */
   it('holds an upgrade on the turn its facility was built, behind an override', async () => {
-    const user = openWith({
-      ...createNewCampaign('Cedar Hollow'),
-      materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
-      base: {
-        id: 'small-town-home',
-        slots: { garage: { built: { facility: 'workshop', builtOnTurn: 1 } } },
-      },
-      ...projectTeamWorth(5),
-    });
+    const user = openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        base: {
+          id: 'small-town-home',
+          slots: { garage: { built: { facility: 'workshop', builtOnTurn: 1 } } },
+        },
+        ...projectTeamWorth(5),
+      }),
+    );
 
     await user.click(screen.getByRole('button', { name: /upgrade garage/i }));
 
@@ -380,12 +410,14 @@ describe('upgrading a facility', () => {
   });
 
   it('offers nothing to change on a built-in the base locks', async () => {
-    const user = openWith({
-      ...createNewCampaign('Cedar Hollow'),
-      materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
-      base: { id: 'summer-camp', slots: {} },
-      ...projectTeamWorth(5),
-    });
+    const user = openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        base: { id: 'summer-camp', slots: {} },
+        ...projectTeamWorth(5),
+      }),
+    );
 
     await user.click(screen.getByRole('button', { name: /upgrade bunk room 1/i }));
 
@@ -396,11 +428,13 @@ describe('upgrading a facility', () => {
 
 describe('clearing a slot', () => {
   function readyToClear(labor = 5) {
-    return openWith({
-      ...createNewCampaign('Cedar Hollow'),
-      base: { id: 'hobby-farm', slots: {} },
-      ...projectTeamWorth(labor),
-    });
+    return openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        base: { id: 'hobby-farm', slots: {} },
+        ...projectTeamWorth(labor),
+      }),
+    );
   }
 
   const coop = () => screen.getByRole('button', { name: /clear ruined chicken coop/i });
@@ -627,12 +661,14 @@ describe('staffing a facility', () => {
     // Planning Phase rather than here — the base screen reads the Labor and
     // points at the step that sets it.
     const carla = createSurvivor('Carla Proust', 2, { id: 'carla' });
-    const user = openWith({
-      ...createNewCampaign('Cedar Hollow'),
-      base: { id: 'small-town-home', slots: {} },
-      survivors: [carla],
-      assignments: { carla: { task: 'project' } },
-    });
+    const user = openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        base: { id: 'small-town-home', slots: {} },
+        survivors: [carla],
+        assignments: { carla: { task: 'project' } },
+      }),
+    );
 
     expect(screen.getByText('Labor available:').parentElement).toHaveTextContent('2');
 

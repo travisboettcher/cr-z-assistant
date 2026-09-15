@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign, type Survivor } from '../engine/campaign';
 import { createSurvivor } from '../engine/survivor';
+import { withPlanningBegun } from '../test/campaigns';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
 
@@ -481,6 +482,91 @@ describe('Departures', () => {
       within(screen.getByRole('region', { name: /community/i })).getAllByRole('listitem'),
     ).toHaveLength(7);
     expect(within(walk()).queryByRole('button', { name: /send away/i })).toBeNull();
+  });
+
+  /**
+   * The rest of the departure rule (pg. 23): the leaver's Tier comes off the
+   * turn's unused Labor, and where there is none to take it from, a project
+   * goes unfinished.
+   *
+   * Nothing subtracts twice. The pool is the project team's summed Tiers and
+   * the leaver is off the team the moment they walk, so what is left is the
+   * consequence — and the consequence is a choice the screen offers rather
+   * than takes.
+   */
+  const shorthanded = (overrides: Partial<Campaign> = {}) =>
+    withPlanningBegun(
+      crowded({
+        base: { id: 'small-town-home', slots: {} },
+        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        // Two Rookies making two Labor, and two Labor already ordered — so
+        // this turn has nothing unused, which is the case the rule is about.
+        assignments: {
+          'survivor-0': { task: 'project' },
+          'survivor-1': { task: 'project' },
+        },
+        projects: [{ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 }],
+        // Fed first, because Feed is step 1 of this phase and Hunger is read
+        // off its entry — a campaign standing at Departures has eaten.
+        log: [
+          {
+            turn: 3,
+            phase: 'management',
+            at: '2026-08-30T00:00:00.000Z',
+            event: { kind: 'survivors-fed', required: 8, hunger: 8, population: 8 },
+          },
+        ],
+        ...overrides,
+      }),
+    );
+
+  it('asks which project the departing Labor was paying for', async () => {
+    const user = open(shorthanded());
+
+    // Nothing to answer for until somebody has actually left.
+    expect(walk().textContent).not.toContain('Labor short');
+
+    await user.click(
+      within(walk()).getAllByRole('button', { name: /send away/i })[0] as HTMLElement,
+    );
+
+    expect(walk().textContent).toContain('1 Labor short of what it ordered');
+    expect(
+      within(walk()).getByRole('button', { name: /leave workshop in the garage unfinished/i }),
+    ).toBeTruthy();
+  });
+
+  it('drops the project the player picks, and stops asking', async () => {
+    const user = open(shorthanded());
+
+    await user.click(
+      within(walk()).getAllByRole('button', { name: /send away/i })[0] as HTMLElement,
+    );
+    await user.click(
+      within(walk()).getByRole('button', { name: /leave workshop in the garage unfinished/i }),
+    );
+
+    expect(walk().textContent).not.toContain('Labor short');
+    // The Hardware comes back, as it does on a cancellation: the work was
+    // never done.
+    expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(12);
+    expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
+      'went unfinished',
+    );
+  });
+
+  /**
+   * A departure from outside the project team costs the turn no Labor at all,
+   * and a screen that asked anyway would be taking a project for nothing.
+   */
+  it('asks nothing when the survivor who left was not on the project team', async () => {
+    const user = open(shorthanded());
+
+    await user.click(
+      within(walk()).getAllByRole('button', { name: /send away/i })[2] as HTMLElement,
+    );
+
+    expect(walk().textContent).not.toContain('Labor short');
   });
 
   it('says so when everybody left is in no state to walk anywhere', () => {

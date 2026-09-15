@@ -41,6 +41,8 @@ import { FACILITIES, type Facility, type Upgrade } from '../data/facilities';
 import { laborPool } from './assignments';
 import { clearingProject, occupantAt } from './base';
 import type { Campaign, Project } from './campaign';
+import type { Violation } from './checks';
+import { planningHasBegun } from './planning';
 
 /** What one project costs, whichever of the three kinds it is. */
 export function projectCost(
@@ -107,14 +109,113 @@ export function laborCommitted(campaign: Campaign): number {
 }
 
 /**
+ * The Labor this turn has to spend, which is nobody's until the Planning Phase
+ * says whose (pg. 20).
+ *
+ * `laborPool` reads `assignments`, and outside the Planning Phase those belong
+ * to the turn *before* this one — a survivor takes one task per turn and the
+ * Planning Phase is what clears the last lot. That is the same field
+ * `beforePlanning` exists to read from the other end: the Advancement Phase
+ * wants last turn's team because it is settling up last turn's work, and this
+ * wants nothing from them at all, because their Labor was spent on the turn
+ * they were assigned.
+ *
+ * Without this the pool simply persisted. A 2-Labor team assigned in turn 2 was
+ * still funding orders in turn 3's Mission Phase — a whole turn of building for
+ * free, every turn, which is half of issue #97. The other half is `laborPool`
+ * never being spent down, and `laborCommitted` above is that one.
+ *
+ * So: zero until this turn's Planning Phase has begun. Not "outside the
+ * Planning Phase" — the Management Phase follows it and its team is still this
+ * turn's — and `planningHasBegun` is the same record the walk itself reads to
+ * clear the tasks once.
+ */
+export function laborThisTurn(campaign: Campaign): number {
+  return planningHasBegun(campaign) ? laborPool(campaign) : 0;
+}
+
+/**
  * The Labor still available to order with.
  *
- * What the project team generates, less what this turn has already committed.
- * Can go negative where a save was hand-edited or a survivor left the team
- * after an order — which is a state to report rather than to hide.
+ * What this turn's project team generates, less what this turn has already
+ * committed. Can go negative, and one way is a rule rather than a damaged save:
+ * a survivor who leaves at Departures takes their Tier off a pool the queue has
+ * already spent (pg. 23). `laborShortfall` is that state named.
  */
 export function laborAvailable(campaign: Campaign): number {
-  return laborPool(campaign) - laborCommitted(campaign);
+  return laborThisTurn(campaign) - laborCommitted(campaign);
+}
+
+/**
+ * How much Labor this turn's queue is short, or zero (pg. 23).
+ *
+ * Only ever non-zero after the pool shrinks under an order already placed —
+ * which is what a departing project-team member does, and what a player does
+ * to themselves by stepping back and taking somebody off the team after
+ * ordering. The queue is not wrong —
+ * every order in it was affordable when it was placed — so this is not a
+ * validation failure but the rule's own consequence, waiting for the player to
+ * say which project does not get finished.
+ */
+export function laborShortfall(campaign: Campaign): number {
+  return Math.max(0, -laborAvailable(campaign));
+}
+
+/**
+ * This turn's orders, each with its position in the queue.
+ *
+ * The positions, because these are offered to be dropped and
+ * `withProjectCancelled` drops by position. Only this turn's: last turn's
+ * orders were paid for by a team that has already been reassigned, and a
+ * shortfall here cannot reach back and unfinish them.
+ */
+export function orderedThisTurn(campaign: Campaign): readonly QueuedProject[] {
+  return campaign.projects
+    .map((project, at) => ({ at, project }))
+    .filter((queued) => queued.project.orderedOnTurn === campaign.turn);
+}
+
+/**
+ * The refusal all three verbs give when a project's Labor is not there.
+ *
+ * One function rather than the same four lines in `build`, `upgrade` and
+ * `clearing` — which was tolerable while they said one thing and stopped being
+ * so when they had two to say. A pool this turn has spent down and a pool that
+ * is not this turn's yet are both "not enough Labor" to the typechecker and
+ * different sentences to a player, and the second one is useless without its
+ * reason: a base panel reading zero beside a project team on screen is the
+ * question, not the answer.
+ *
+ * `undefined` for nothing wrong, so a caller pushes what it gets rather than
+ * asking twice. `pages` is where *this* cost is written down and stays the
+ * caller's — a facility's is the cost table, a clearing project's is the base
+ * chapter — while the reason that has nothing to do with the cost cites the
+ * rule it is actually about.
+ */
+export function laborRefusal(
+  campaign: Campaign,
+  labor: number,
+  pages: number | string,
+): Violation<'not-enough-labor'> | undefined {
+  const available = laborAvailable(campaign);
+
+  // A project that costs no Labor is refused by neither: there is nothing to
+  // take from a pool that is not this turn's.
+  if (available >= labor) return undefined;
+
+  if (!planningHasBegun(campaign)) {
+    return {
+      code: 'not-enough-labor',
+      message: `Costs ${String(labor)} Labor, and this turn’s project team is assigned in the Planning Phase — last turn’s does not pay for this turn’s work.`,
+      pages: 20,
+    };
+  }
+
+  return {
+    code: 'not-enough-labor',
+    message: `Costs ${String(labor)} Labor and ${String(available)} is available.`,
+    pages,
+  };
 }
 
 /** Whether this project is finished at the start of this turn's Advancement Phase. */

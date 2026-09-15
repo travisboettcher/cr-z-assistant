@@ -231,6 +231,23 @@ export type CampaignEvent =
   /** A queued project was cancelled before it was finished, and its Hardware came back. */
   | { readonly kind: 'project-cancelled'; readonly slot: string }
   /**
+   * A queued project went unfinished when the Labor behind it walked out (pg.
+   * 23).
+   *
+   * Its own kind rather than a second `project-cancelled`, because the log is
+   * permanent and uneditable and the two are different things that happened: a
+   * cancellation is a player changing their mind, and this is a rule taking
+   * the choice away and leaving them only the choice of which. A history that
+   * called this one cancelling would say the player did something they did not
+   * do.
+   *
+   * The Hardware comes back, exactly as it does on a cancellation. The book
+   * does not say, and this follows the ruling already made there: the work was
+   * never done, and materials a community still has are materials it still
+   * has.
+   */
+  | { readonly kind: 'project-unfinished'; readonly slot: string }
+  /**
    * The stores were trimmed to the base's caps (pg. 23).
    *
    * Carries what was **lost**, not what is left: the counts that remain are on

@@ -61,7 +61,42 @@ async function hireProjectTeam(page: Page) {
     await page.getByRole('button', { name: /add survivor/i }).click();
   }
 
-  await skipToPhase(page, 'Planning');
+  await planTheTurn(page);
+}
+
+/**
+ * Walks to this turn's Planning Phase and puts everybody on the project team.
+ *
+ * The pair rather than either half, because since #97 they are one thing: a
+ * turn's Labor is not there to spend until its own Planning Phase has assigned
+ * the team that generates it (pg. 20), so a journey that wants to order
+ * anything has to have walked here first. Before that, ordering was funded by
+ * whichever team was last assigned — a whole turn of building for free.
+ */
+async function planTheTurn(page: Page) {
+  const intoTheTeam = page.getByRole('button', { name: 'Next: Assign Project Team' });
+
+  /*
+   * From wherever the turn is, rather than from the top of one: a journey that
+   * has just finished last turn's projects is standing on the last Advancement
+   * step, where `skipToPhase` cannot help twice over. It counts from the
+   * Mission Phase — and the walk hides "Skip to Planning" on that step anyway,
+   * because the Next button already is that move.
+   *
+   * So: at most one skip per phase in between, then the step itself, stopping
+   * the moment the step that assigns the team is one press away.
+   */
+  for (const label of ['Skip to Advancement', 'Skip to Planning', 'Next: Assign Facility Staff']) {
+    if (await intoTheTeam.isVisible()) break;
+
+    const button = page.getByRole('button', { name: label, exact: true });
+
+    if (await button.isVisible()) {
+      await button.click();
+      await expect(button).toBeHidden();
+    }
+  }
+
   await assignProjectTeam(page);
 }
 
@@ -905,6 +940,9 @@ test('a cleared slot builds like an empty one of its own kind', async ({ page })
   await expect(page.getByLabel(/^hardware$/i)).toHaveValue('11');
   await expect(map).toContainText('Cleared — ready to build in');
 
+  // Turn 2's own Planning Phase, because turn 1's team was spent on turn 1.
+  await planTheTurn(page);
+
   await page.getByRole('button', { name: /build in ruined chicken coop/i }).click();
 
   // Still an Outdoor slot: an Indoor facility is questioned, an Outdoor one is
@@ -974,10 +1012,12 @@ test('a point of Power covers a facility and its upgrades, and survives the roun
    * went up in the step this journey has just walked through. Waiting a turn
    * for each would be two more turn boundaries in a test about Power.
    *
-   * Ordered here, in turn 2's Advancement Phase, because the project team that
-   * pays for them is still turn 1's: tasks expire at the top of a Planning
-   * Phase (pg. 20), and this turn's has not begun.
+   * Ordered in turn 2's own Planning Phase, because that is the turn paying
+   * for them: tasks expire at the top of a Planning Phase (pg. 20) and so does
+   * the Labor they generate, so turn 1's team funds nothing here.
    */
+  await planTheTurn(page);
+
   for (const upgrade of ['Refrigeration', 'Shelving']) {
     await page.getByRole('button', { name: /upgrade garage/i }).click();
     await page.getByLabel(/^upgrade$/i).selectOption({ label: upgrade });
@@ -1864,6 +1904,21 @@ test('a turn’s Labor is a budget, and the queue survives the round trip', asyn
   await expect(built).toContainText('Workshop');
   await expect(built).not.toContainText(/on order:/i);
   await expect(page.getByLabel(/^hardware$/i)).toHaveValue('9');
+
+  /*
+   * And turn 1's budget did not come with it. Earl and Ruby are still on the
+   * project team as far as the campaign is concerned — tasks expire at the top
+   * of the *next* Planning Phase (pg. 20), which turn 2 has not reached — and
+   * before issue #97 that team funded a second turn of building for nothing.
+   */
+  await expect(built).toContainText('Labor available: 0');
+  await expect(built).toContainText(/none until this turn.s planning phase/i);
+
+  await page.getByRole('button', { name: /build in front yard/i }).click();
+  await page.getByLabel(/^facility$/i).selectOption({ label: 'Watchtower' });
+  await expect(page.getByText(/assigned in the planning phase/i)).toBeVisible();
+  await expect(page.getByRole('button', { name: /order the build/i })).toBeDisabled();
+  await page.getByRole('button', { name: /^cancel$/i }).click();
 
   // And the history says both halves, a turn apart.
   const history = page.getByRole('region', { name: 'History' });

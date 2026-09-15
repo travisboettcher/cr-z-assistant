@@ -3,10 +3,10 @@ import type { CampaignPhase, TurnStepId } from '../data/turn';
 import { TURN_SEQUENCE } from '../engine/turn';
 import { createNewCampaign } from '../engine/campaign';
 import type { Campaign, ProjectOrder } from '../engine/campaign';
-import { laborAvailable } from '../engine/projects';
+import { laborAvailable, laborShortfall } from '../engine/projects';
 import type { CampaignEvent, LogEntry } from '../engine/log';
 import { createSurvivor, recruitSurvivor } from '../engine/survivor';
-import { generatingUtilities, projectTeamWorth } from '../test/campaigns';
+import { generatingUtilities, projectTeamWorth, withPlanningBegun } from '../test/campaigns';
 import { INITIAL_CAMPAIGN_STATE, campaignReducer } from './campaignStore';
 import type { CampaignAction, CampaignState } from './campaignStore';
 
@@ -1058,13 +1058,15 @@ describe('base/claimed', () => {
 describe('project/ordered', () => {
   /** A claimed base with Hardware to spend and a project team to spend Labor. */
   function withBase(): CampaignState {
-    return openState({
-      ...createNewCampaign('Cedar Hollow', FIXED),
-      materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
-      turn: 3,
-      base: { id: 'small-town-home', slots: {} },
-      ...projectTeamWorth(5),
-    });
+    return openState(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        turn: 3,
+        base: { id: 'small-town-home', slots: {} },
+        ...projectTeamWorth(5),
+      }),
+    );
   }
 
   const order = (project: ProjectOrder): CampaignAction => ({
@@ -1100,12 +1102,31 @@ describe('project/ordered', () => {
   });
 
   it('stamps the turn the order was placed on rather than trusting the screen', () => {
-    const later = openState({ ...expectOpen(withBase()), turn: 7 });
+    // Turn 7's own Planning Phase, because a team assigned on turn 3 funds
+    // nothing on turn 7 — which is the rule `laborThisTurn` enforces and the
+    // reason this fixture carries two `planning-began` entries.
+    const later = openState(withPlanningBegun({ ...expectOpen(withBase()), turn: 7 }));
     const campaign = expectOpen(
       campaignReducer(later, order({ kind: 'facility', slot: 'garage', facility: 'workshop' })),
     );
 
     expect(campaign.projects[0]?.orderedOnTurn).toBe(7);
+  });
+
+  /**
+   * Issue #97's other half, driven through the store. A team assigned last turn
+   * is still on the campaign — tasks expire at the top of the next Planning
+   * Phase (pg. 20), not at the end of the turn they were given in — and before
+   * this it paid for anything ordered in the meantime.
+   */
+  it('refuses an order made before this turn assigned a project team', () => {
+    const notYet = openState({ ...expectOpen(withBase()), log: [] });
+    const after = campaignReducer(
+      notYet,
+      order({ kind: 'facility', slot: 'garage', facility: 'workshop' }),
+    );
+
+    expect(expectOpen(after)).toEqual(expectOpen(notYet));
   });
 
   it('does nothing when the order is blocked', () => {
@@ -1126,7 +1147,9 @@ describe('project/ordered', () => {
    * committed rather than by anything stored.
    */
   it('prices the second order against what the first one left', () => {
-    const thin = openState({ ...expectOpen(withBase()), ...projectTeamWorth(3) });
+    const thin = openState(
+      withPlanningBegun({ ...expectOpen(withBase()), ...projectTeamWorth(3) }),
+    );
     const once = campaignReducer(
       thin,
       order({ kind: 'facility', slot: 'garage', facility: 'workshop' }),
@@ -1141,13 +1164,15 @@ describe('project/ordered', () => {
   });
 
   it('orders an upgrade and a clearing by the same action', () => {
-    const farm = openState({
-      ...createNewCampaign('Cedar Hollow', FIXED),
-      materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
-      turn: 3,
-      base: { id: 'hobby-farm', slots: {} },
-      ...projectTeamWorth(9),
-    });
+    const farm = openState(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        turn: 3,
+        base: { id: 'hobby-farm', slots: {} },
+        ...projectTeamWorth(9),
+      }),
+    );
     const upgraded = campaignReducer(
       farm,
       order({ kind: 'upgrade', slot: 'kitchen', upgrade: 'gas-range' }),
@@ -1167,13 +1192,15 @@ describe('project/ordered', () => {
 
   /** A clearing pays out when the work is done, not when it is ordered. */
   it('credits nothing for a clearing project until it is finished', () => {
-    const farm = openState({
-      ...createNewCampaign('Cedar Hollow', FIXED),
-      materials: { food: 0, fuel: 0, hardware: 1, rare: 0 },
-      turn: 3,
-      base: { id: 'hobby-farm', slots: {} },
-      ...projectTeamWorth(5),
-    });
+    const farm = openState(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        materials: { food: 0, fuel: 0, hardware: 1, rare: 0 },
+        turn: 3,
+        base: { id: 'hobby-farm', slots: {} },
+        ...projectTeamWorth(5),
+      }),
+    );
 
     expect(
       expectOpen(campaignReducer(farm, order({ kind: 'clearing', slot: 'ruined-chicken-coop' })))
@@ -1194,13 +1221,15 @@ describe('project/ordered', () => {
 describe('project/cancelled', () => {
   /** Two orders in the queue, so cancelling by position has a wrong answer. */
   function ordered(): CampaignState {
-    const base = openState({
-      ...createNewCampaign('Cedar Hollow', FIXED),
-      materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
-      turn: 3,
-      base: { id: 'small-town-home', slots: {} },
-      ...projectTeamWorth(9),
-    });
+    const base = openState(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        turn: 3,
+        base: { id: 'small-town-home', slots: {} },
+        ...projectTeamWorth(9),
+      }),
+    );
     const one = campaignReducer(base, {
       type: 'project/ordered',
       at: AT,
@@ -1253,6 +1282,96 @@ describe('project/cancelled', () => {
     expect(
       campaignReducer(INITIAL_CAMPAIGN_STATE, { type: 'project/cancelled', at: 0, when: AT }),
     ).toEqual(INITIAL_CAMPAIGN_STATE);
+  });
+});
+
+/**
+ * The other end of a departure (pg. 23). The leaver's Tier has already come off
+ * the pool — they are off the project team the moment they walk — so what is
+ * left to do is choose which order that Labor was paying for, and these are the
+ * rules about what may be chosen.
+ */
+describe('management/projectUnfinished', () => {
+  /** Two Workshops ordered on four Labor, and then two of it walks out. */
+  function short(): CampaignState {
+    const ordered = openState(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        turn: 3,
+        step: 'departures',
+        base: { id: 'small-town-home', slots: {} },
+        projects: [
+          { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+          { kind: 'facility', slot: 'front-yard', facility: 'workshop', orderedOnTurn: 3 },
+        ],
+        ...projectTeamWorth(4),
+      }),
+    );
+
+    return openState({ ...expectOpen(ordered), ...projectTeamWorth(2) });
+  }
+
+  const unfinish = (at: number): CampaignAction => ({
+    type: 'management/projectUnfinished',
+    at,
+    when: AT,
+  });
+
+  it('drops the named order and gives its Hardware back', () => {
+    const before = expectOpen(short());
+    const after = expectOpen(campaignReducer(short(), unfinish(1)));
+
+    expect(laborShortfall(before)).toBe(2);
+    expect(after.projects.map((project) => project.slot)).toEqual(['garage']);
+    expect(after.materials.hardware).toBe(before.materials.hardware + 3);
+    expect(laborShortfall(after)).toBe(0);
+  });
+
+  it('writes a line that says what it was rather than a cancellation', () => {
+    const after = expectOpen(campaignReducer(short(), unfinish(0)));
+
+    expect(after.log.at(-1)?.event).toEqual({ kind: 'project-unfinished', slot: 'garage' });
+  });
+
+  /**
+   * A player who simply wants an order back has `project/cancelled` for it, and
+   * the log would call that a departure's doing.
+   */
+  it('does nothing while the turn’s Labor still covers its queue', () => {
+    const affordable = openState({ ...expectOpen(short()), ...projectTeamWorth(4) });
+
+    expect(campaignReducer(affordable, unfinish(0))).toEqual(affordable);
+  });
+
+  /**
+   * Last turn's orders were paid for by a team that has since been reassigned,
+   * so a shortfall now cannot reach back for them.
+   */
+  it('does nothing to an order from an earlier turn', () => {
+    const before = openState({
+      ...expectOpen(short()),
+      projects: [
+        ...expectOpen(short()).projects,
+        { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: 2 },
+      ],
+    });
+
+    // Still short, so it is the turn stamp doing the refusing rather than the
+    // guard above it — which is what the first version of this test proved
+    // instead, by giving the turn nothing to be short of.
+    expect(laborShortfall(expectOpen(before))).toBe(2);
+    expect(campaignReducer(before, unfinish(2))).toEqual(before);
+  });
+
+  it('does nothing for a position the queue does not have', () => {
+    const before = short();
+
+    expect(campaignReducer(before, unfinish(4))).toEqual(before);
+  });
+
+  it('does nothing when no campaign is open', () => {
+    expect(campaignReducer(INITIAL_CAMPAIGN_STATE, unfinish(0))).toEqual(INITIAL_CAMPAIGN_STATE);
   });
 });
 
@@ -1858,6 +1977,10 @@ describe('what earns a line in the log', () => {
       ],
     },
     'project/ordered': {
+      // Its own campaign, standing in the step that orders. `rich()` is in the
+      // Mission Phase, and a turn's Labor is not there to spend until its
+      // Planning Phase has assigned the team that generates it (pg. 20).
+      state: openState(withPlanningBegun({ ...expectOpen(rich()), step: 'assign-project-team' })),
       action: {
         type: 'project/ordered',
         at: AT,
@@ -1865,7 +1988,7 @@ describe('what earns a line in the log', () => {
       },
       // Ordered, not built: the Watchtower is a turn away, and the entry says
       // which of the two happened.
-      entry: entry(3, 'mission', {
+      entry: entry(3, 'planning', {
         kind: 'facility-ordered',
         slot: 'front-yard',
         facility: 'watchtower',
@@ -1875,6 +1998,20 @@ describe('what earns a line in the log', () => {
       state: queued(3),
       action: { type: 'project/cancelled', at: 0, when: AT },
       entry: entry(3, 'mission', { kind: 'project-cancelled', slot: 'front-yard' }),
+    },
+    'management/projectUnfinished': {
+      // The Watchtower ordered on turn 3, and nobody left on the project team
+      // to pay its two Labor — which is the state a departure leaves behind
+      // (pg. 23). Standing in the step that offers the choice.
+      state: openState(
+        withPlanningBegun({
+          ...expectOpen(queued(3)),
+          assignments: {},
+          step: 'departures',
+        }),
+      ),
+      action: { type: 'management/projectUnfinished', at: 0, when: AT },
+      entry: entry(3, 'management', { kind: 'project-unfinished', slot: 'front-yard' }),
     },
     'advancement/projectsCompleted': {
       // Ordered last turn, so this turn's Advancement Phase finishes it.
@@ -2153,12 +2290,16 @@ describe('what earns a line in the log', () => {
       // satisfy `ignores` for the wrong reason entirely.
       expect(after).not.toEqual(before);
 
-      // Every starting state here has an empty log, so the whole log is the
-      // assertion rather than a diff against what was already there.
+      // The whole log, not the tail: what the action appended *and* that it
+      // left everything already there alone. Most starting states here open
+      // with an empty log and a few do not — one has to have reached the
+      // Planning Phase before it can order a project — so the assertion is
+      // written against what the state came in with rather than against
+      // nothing.
       const expected =
         policy.entry === null ? [] : Array.isArray(policy.entry) ? policy.entry : [policy.entry];
 
-      expect(after.log).toEqual(expected);
+      expect(after.log).toEqual([...before.log, ...expected]);
     });
   }
 

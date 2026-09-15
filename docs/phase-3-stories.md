@@ -1068,6 +1068,35 @@ the Clinic that heals somebody is staffed in turn 2's Planning Phase and pays ou
 end-to-end suite walks it. A journey that did it in one turn would be testing a rule the book does
 not have.
 
+**The pool the story priced against was not turn-scoped, and the queue was only half the fix**
+([#97](https://github.com/travisboettcher/cr-z-assistant/issues/97)). `laborCommitted` made a second
+order cost what the first one left, which is the half this story wrote down. What neither it nor
+Z3-5 noticed is that `laborPool` reads `assignments`, and a survivor's task lives until the *top of
+the next Planning Phase* clears it (pg. 20) — two phases into the following turn. So a team assigned
+in turn 2 was still a live budget through turn 3's Mission and Advancement Phases, and the September
+playtest bought 3 Labor of upgrades with a 2-Labor team a turn after it was assigned. `laborThisTurn`
+is the guard: zero until this turn's Planning Phase has begun, read off the same `planning-began`
+entry the walk uses to clear the tasks once. Two journeys were ordering projects in exactly that gap
+and had comments explaining why it worked.
+
+**The other half of the departure rule finally has something to act on.** Z3-10 owed the queue "their
+Tier comes off the turn's unused Labor, running a project unfinished if that goes negative" (pg. 23).
+The subtraction turns out to need no code at all — the pool is the team's summed Tiers and the leaver
+is off the team the moment they walk, so `laborAvailable` has already fallen by exactly their Tier.
+What needed writing is the consequence: `laborShortfall` names the state, and the Departures step
+offers this turn's orders and asks which one goes unfinished. **Offered, never done**, like the
+exhaustion penalty beside it — the rule says a project goes unfinished and does not say which, and
+picking one would be the app making up a rule at the moment it takes something away. It keeps asking
+while the queue is still short, because a Tier 4 walking out of a turn with nothing unused can outrun
+a single order and the rule that a turn cannot spend more Labor than it has does not stop applying
+for that.
+
+**`project-unfinished` is its own log entry rather than a second `project-cancelled`.** The campaign
+change is identical — the project leaves the queue and its Hardware comes back, following the ruling
+already made for cancelling — and what happened at the table is not: one is a player changing their
+mind and the other is the rule taking the choice away and leaving them only the choice of which. The
+log is permanent and uneditable, which is the whole argument.
+
 ---
 
 ## Phase 3 is done when

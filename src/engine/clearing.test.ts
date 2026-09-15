@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { clearingProject } from './base';
 import { createNewCampaign, type Base, type Campaign } from './campaign';
 import { checkClearing, clearingYield } from './clearing';
-import { projectTeamWorth } from '../test/campaigns';
+import { projectTeamWorth, withPlanningBegun } from '../test/campaigns';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 
 function campaignWith(base: Base | null, overrides: Partial<Campaign> = {}): Campaign {
-  return {
+  return withPlanningBegun({
     ...createNewCampaign('Cedar Hollow', FIXED),
     materials: { food: 1, fuel: 2, hardware: 3, rare: 4 },
     // A project team big enough that Labor is never the thing under test. The
@@ -17,7 +17,7 @@ function campaignWith(base: Base | null, overrides: Partial<Campaign> = {}): Cam
     turn: 4,
     base,
     ...overrides,
-  };
+  });
 }
 
 const codes = (violations: readonly { code: string }[]) => violations.map(({ code }) => code);

@@ -22,7 +22,7 @@
 
 import { MAX_UPGRADES_PER_FACILITY, type Upgrade, type UpgradeId } from '../data/facilities';
 import { occupantAt, upgradesRemaining, upgradesUsed } from './base';
-import { laborAvailable } from './projects';
+import { laborRefusal } from './projects';
 import type { Check, Violation } from './checks';
 import type { Campaign } from './campaign';
 
@@ -110,15 +110,8 @@ export function checkUpgrade(campaign: Campaign, request: UpgradeRequest): Upgra
     });
   }
 
-  const available = laborAvailable(campaign);
-
-  if (available < upgrade.cost.labor) {
-    blockers.push({
-      code: 'not-enough-labor',
-      message: `Costs ${String(upgrade.cost.labor)} Labor and ${String(available)} is available.`,
-      pages: '72–73',
-    });
-  }
+  const labor = laborRefusal(campaign, upgrade.cost.labor, '72–73');
+  if (labor !== undefined) blockers.push(labor);
 
   if (!occupant.upgradable) {
     warnings.push({

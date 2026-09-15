@@ -16,7 +16,7 @@
 import { FACILITIES, type Facility, type FacilityId } from '../data/facilities';
 import type { Campaign } from './campaign';
 import { layoutOf, occupants } from './base';
-import { laborAvailable } from './projects';
+import { laborRefusal } from './projects';
 import type { Check, Violation } from './checks';
 
 /**
@@ -117,15 +117,8 @@ export function checkBuild(campaign: Campaign, request: BuildRequest): BuildChec
     });
   }
 
-  const available = laborAvailable(campaign);
-
-  if (available < facility.cost.labor) {
-    blockers.push({
-      code: 'not-enough-labor',
-      message: `Costs ${String(facility.cost.labor)} Labor and ${String(available)} is available.`,
-      pages: '72–73',
-    });
-  }
+  const labor = laborRefusal(campaign, facility.cost.labor, '72–73');
+  if (labor !== undefined) blockers.push(labor);
 
   if (facility.requires?.slot !== undefined && facility.requires.slot !== slot.kind) {
     warnings.push({

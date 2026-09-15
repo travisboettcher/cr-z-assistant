@@ -28,7 +28,12 @@ import type { FieldRecruitTier } from '../data/recruitTable';
 import { MIN_SKILL_LEVEL, type CommonSkill, type Skill, type Stat } from '../data/skills';
 import type { Tier } from '../data/tiers';
 import { withCommonSkillBought, withSkillLevelBought, withTierBought } from '../engine/advancement';
-import { completeProjects, withProjectCancelled, withProjectOrdered } from '../engine/projects';
+import {
+  completeProjects,
+  laborShortfall,
+  withProjectCancelled,
+  withProjectOrdered,
+} from '../engine/projects';
 import { builtEvent, checkOrder, orderedEvent } from '../engine/orders';
 import { suppliedOccupants, withUtilityToggled } from '../engine/utilities';
 import { createNewCampaign } from '../engine/campaign';
@@ -466,6 +471,16 @@ export type CampaignAction =
    * in one turn are two orders — see `withProjectCancelled`.
    */
   | { readonly type: 'project/cancelled'; readonly at: number; readonly when: string }
+  /**
+   * Drop the project a departure left unpaid for (pg. 23).
+   *
+   * Shaped like `project/cancelled` and kept apart from it, because what
+   * happens to the campaign is the same and what happened at the table is not:
+   * one is a player changing their mind and this is the rule taking a project
+   * away, leaving them only the choice of which. The log says which of the two
+   * it was, and the log cannot be edited.
+   */
+  | { readonly type: 'management/projectUnfinished'; readonly at: number; readonly when: string }
   /** Finish everything the last Planning Phase ordered (pg. 19). */
   | { readonly type: 'advancement/projectsCompleted'; readonly at: string }
   /**
@@ -1021,6 +1036,27 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
         return logged(withProjectCancelled(campaign, action.at), action.when, {
           kind: 'project-cancelled',
+          slot: project.slot,
+        });
+      });
+
+    /**
+     * Guarded twice, and both guards are the rule rather than defensive
+     * padding. Nothing may be dropped while the queue still fits the pool —
+     * that would be a player cancelling an order and the log calling it a
+     * departure's doing — and only *this* turn's orders can be, because last
+     * turn's were paid for by a team that has already been reassigned and a
+     * shortfall now cannot reach back for them.
+     */
+    case 'management/projectUnfinished':
+      return withCampaign(state, (campaign) => {
+        if (laborShortfall(campaign) === 0) return campaign;
+
+        const project = campaign.projects[action.at];
+        if (project === undefined || project.orderedOnTurn !== campaign.turn) return campaign;
+
+        return logged(withProjectCancelled(campaign, action.at), action.when, {
+          kind: 'project-unfinished',
           slot: project.slot,
         });
       });

@@ -158,6 +158,12 @@ export function describeEvent(event: CampaignEvent): EventLabel {
     case 'project-cancelled':
       return { text: `Cancelled the ${slotLabel(event.slot)} project.`, pages: 20 };
 
+    case 'project-unfinished':
+      return {
+        text: `The ${slotLabel(event.slot)} project went unfinished — the Labor for it left the community.`,
+        pages: 23,
+      };
+
     case 'storage-checked': {
       const lost = MATERIALS.filter(
         (material) => material !== 'rare' && event[material as 'food' | 'fuel' | 'hardware'] !== 0,

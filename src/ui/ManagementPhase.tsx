@@ -51,6 +51,8 @@ import {
 import { MATERIAL_LABELS } from './baseLabels';
 import { STORED_MATERIALS } from '../data/materials';
 import { biteCandidates, mustCheck, rotOutcome, rotTarget } from '../engine/rot';
+import { laborShortfall, orderedThisTurn, projectCost } from '../engine/projects';
+import { describeProject } from './projectLabels';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
@@ -626,7 +628,80 @@ function Departures({ campaign }: { readonly campaign: Campaign }) {
           </ul>
         </>
       )}
+
+      <UnpaidProjects campaign={campaign} />
     </>
+  );
+}
+
+/**
+ * The other half of a departure: the work their Labor was paying for (pg. 23).
+ *
+ * A survivor's Tier comes off the turn's **unused** Labor, and where there is
+ * not enough unused Labor to take it from, a project goes unfinished. Nothing
+ * here computes that as a second subtraction — the pool is the project team's
+ * summed Tiers and the leaver is no longer on it, so `laborAvailable` has
+ * already fallen by exactly their Tier. What is left is the consequence, and
+ * the consequence is a choice.
+ *
+ * **Offered, never done**, like the exhaustion penalty beside it. The rule says
+ * a project goes unfinished; it does not say which, and picking one for the
+ * player — the newest order, the dearest, the first in the queue — would be
+ * this app making up a rule at the moment it takes something away.
+ *
+ * It keeps asking while the queue is still short. One project is the ordinary
+ * case, because a Tier is at most 4 and most projects cost 2 or 3 — but a
+ * Veteran walking out of a turn with nothing unused can outrun a single order,
+ * and the rule that a turn cannot spend more Labor than it has does not stop
+ * applying because the book's sentence was written for the common case.
+ *
+ * It says what the state is rather than who caused it, because a departure is
+ * not the only way to reach it: a player who steps back to Assign Project Team
+ * and takes somebody off after ordering has done the same arithmetic to
+ * themselves. They have Cancel for that, and this says nothing they would have
+ * to disagree with.
+ */
+function UnpaidProjects({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+
+  const short = laborShortfall(campaign);
+  if (short === 0) return null;
+
+  return (
+    <div className="mt-4 rounded-lg border border-amber-300 p-4 dark:border-amber-700">
+      <p className="text-sm font-medium">
+        This turn is <span className="tabular-nums">{short}</span> Labor short of what it ordered —
+        the project team can no longer pay for all of it. A project goes unfinished, and which one
+        is yours to say <PageRef pages={23} />
+      </p>
+
+      <ul className="mt-2 flex flex-col gap-1">
+        {orderedThisTurn(campaign).map(({ at, project }) => (
+          // Keyed by position, and named by what it is: three buttons all
+          // reading "Leave unfinished" would be the same finding the XP
+          // buttons earned in the playtest, where the only thing telling them
+          // apart was the text beside them.
+          <li key={at} className="flex flex-wrap items-baseline gap-x-2 text-sm">
+            <button
+              type="button"
+              className={SMALL_BUTTON}
+              onClick={() => {
+                dispatch({
+                  type: 'management/projectUnfinished',
+                  at,
+                  when: new Date().toISOString(),
+                });
+              }}
+            >
+              Leave {describeProject(project)} unfinished
+            </button>
+            <span className="text-xs text-stone-500 dark:text-stone-400">
+              {projectCost(campaign, project).labor} Labor
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
