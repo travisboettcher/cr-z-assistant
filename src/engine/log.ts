@@ -180,6 +180,15 @@ export type CampaignEvent =
       readonly target: number;
       readonly passed: boolean;
     }
+  /**
+   * A set of Restraints held a turning survivor, so nobody was bitten (pp. 72–73).
+   *
+   * **Load-bearing**, like `planning-began` and `materials-added`:
+   * `restraintsFree` counts these back to know how many sets a turn has left,
+   * because a turning that was held leaves no other trace — the survivor is
+   * gone either way and the only difference is a bite that did not happen.
+   */
+  | { readonly kind: 'bite-restrained'; readonly survivor: string; readonly name: string }
   /** A turning survivor bit somebody being healed beside them (pg. 22). */
   | {
       readonly kind: 'survivor-bitten';

@@ -306,6 +306,10 @@ const EVENT_FIELDS: Record<
     ['target', 'amount'],
     ['passed', 'flag'],
   ],
+  'bite-restrained': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+  ],
   'survivor-bitten': [
     ['survivor', 'id'],
     ['name', 'name'],

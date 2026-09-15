@@ -101,6 +101,7 @@ describe('the event samples', () => {
     'health-restored': true,
     'survivors-fed': true,
     'rot-checked': true,
+    'bite-restrained': true,
     'survivor-bitten': true,
     'storage-checked': true,
     'facility-ordered': true,

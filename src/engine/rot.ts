@@ -23,6 +23,13 @@
  * picks — the same posture as every other place the rules leave a choice to the
  * table.
  *
+ * ## Unless the Clinic has Restraints
+ *
+ * Each set holds one turned survivor and the bite does not happen (pp. 72–73).
+ * The catalogue has carried `preventsBiting` since Phase 2 with nothing
+ * reading it, which is the shape half the September playtest's findings took:
+ * the transcription was right and the code that sums never asked.
+ *
  * ## Nothing happens without a confirmation
  *
  * These are the only functions in the engine that remove a survivor as a
@@ -77,6 +84,57 @@ export function rotTarget(campaign: Campaign): number {
   return ROT_CHECK_TARGET - medicine;
 }
 
+/**
+ * Sets of Restraints across the community's Medical Clinics (pp. 72–73).
+ *
+ * "Each set prevents one turned survivor from biting", so this is a count of
+ * preventions rather than of upgrades — read off `preventsBiting` for that
+ * reason, which is the number the catalogue states and not an assumption that
+ * one set stops one bite.
+ *
+ * The field had no reader at all until the September playtest went looking for
+ * one: the transcription was right and nothing summed it.
+ */
+export function restraints(campaign: Campaign): number {
+  const base = campaign.base;
+  if (base === null) return 0;
+
+  return occupants(base).reduce(
+    (total, occupant) =>
+      total +
+      occupant.upgrades.reduce((sets, upgrade) => sets + (upgrade.effects.preventsBiting ?? 0), 0),
+    0,
+  );
+}
+
+/**
+ * How many sets this turn has already used.
+ *
+ * Read off the log, like `rotCheckResolved` below and for the same reason: a
+ * turning that was held is not recoverable from the campaign afterwards — the
+ * survivor is gone either way, and the only difference is a bite that did not
+ * happen.
+ */
+function restraintsUsed(campaign: Campaign): number {
+  return campaign.log.filter(
+    (entry) => entry.turn === campaign.turn && entry.event.kind === 'bite-restrained',
+  ).length;
+}
+
+/**
+ * Sets still free to hold somebody this turn (pp. 72–73).
+ *
+ * **Per turn**, which the book does not say in as many words and this app
+ * rules on: a set of restraints is equipment bolted to a Clinic, not a thing
+ * spent — so it holds one survivor each night rather than one ever. The
+ * alternative reading, that a set is used up the first time it works, would
+ * make the upgrade worth buying once and then worth nothing, which no other
+ * upgrade in the book behaves like.
+ */
+export function restraintsFree(campaign: Campaign): number {
+  return Math.max(0, restraints(campaign) - restraintsUsed(campaign));
+}
+
 /** Whoever could be bitten by a survivor who turns: everybody else being healed (pg. 22). */
 export function biteCandidates(campaign: Campaign, turning: string): readonly Survivor[] {
   return survivorsDoing(campaign, (assignment) => assignment.task === 'healing').filter(
@@ -112,6 +170,17 @@ export interface RotOutcome {
    * the invariant is in the type.
    */
   readonly bitten: { readonly survivor: Survivor; readonly dies: boolean } | null;
+
+  /**
+   * Whether a set of Restraints held them, which is why nobody was bitten
+   * (pp. 72–73).
+   *
+   * Beside `bitten` rather than folded into it, because "nobody was being
+   * healed" and "the Restraints held them" are the same `null` and different
+   * things to say — and the second one spends something, so the log has to be
+   * able to tell them apart.
+   */
+  readonly restrained: boolean;
 }
 
 /**
@@ -130,12 +199,24 @@ export function rotOutcome(
   const survivor = campaign.survivors.find((candidate) => candidate.id === survivorId);
 
   if (survivor === undefined || rotCheckPasses(survivor, roll, rotTarget(campaign))) {
-    return { turned: null, bitten: null };
+    return { turned: null, bitten: null, restrained: false };
   }
 
-  const bitten = biteCandidates(campaign, survivorId).find(
-    (candidate) => candidate.id === bittenId,
-  );
+  const candidates = biteCandidates(campaign, survivorId);
+
+  /*
+   * A set of Restraints holds them, and the bite does not happen (pp. 72–73).
+   *
+   * Asked against the candidates rather than against the one the player picked,
+   * because what a set prevents is a bite — a community with nobody in the
+   * Clinic has no bite to prevent, and spending a set on it would leave the
+   * next turning unheld for nothing.
+   */
+  if (candidates.length > 0 && restraintsFree(campaign) > 0) {
+    return { turned: survivor, bitten: null, restrained: true };
+  }
+
+  const bitten = candidates.find((candidate) => candidate.id === bittenId);
 
   return {
     turned: survivor,
@@ -143,6 +224,7 @@ export function rotOutcome(
       bitten === undefined
         ? null
         : { survivor: bitten, dies: bitten.currentHp - ROT_BITE_DAMAGE <= 0 },
+    restrained: false,
   };
 }
 

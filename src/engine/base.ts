@@ -50,6 +50,7 @@ import { BASES, maxHeroes as maxHeroesForTier, type BaseSlot } from '../data/bas
 import {
   FACILITIES,
   MAX_UPGRADES_PER_FACILITY,
+  type Cost,
   type Facility,
   type SlotKind,
   type Upgrade,
@@ -98,22 +99,31 @@ export function layoutOf(base: Base): readonly BaseSlot[] {
  * ## The mutants that survive here, and why
  *
  * Per the README: the deliverable is the surviving mutants, not the score, and
- * each gets a test or a written reason. Four survive, all of them for the same
- * reason and all in the same shape — an empty-array fallback (`?? []`, and the
+ * each gets a test or a written reason. Ten survive, in two families.
+ *
+ * **Five are a fed filter.** An empty-array fallback (`?? []`, and the
  * non-built-in branch's `shipped`) replaced by an array holding one junk
- * string, or the `kind !== 'flat'` guard removed.
+ * string, or the `kind !== 'flat'` guard removed. Three filters downstream
+ * already reject exactly what the mutant injects: `resolveUpgrades` drops any
+ * id that is not one of the facility's own upgrades, `flatUtilitiesGenerated`
+ * drops any production that is not a flat Power or Water, and `replacedBy`
+ * keeps only installed upgrades whose id the exclusion list actually names. A
+ * junk upgrade id and a non-flat production are precisely the values those
+ * filters exist to discard, so injecting one changes no answer.
  *
- * They are equivalent because two filters downstream already reject exactly
- * what the mutant injects: `resolveUpgrades` drops any id that is not one of
- * the facility's own upgrades, and `flatUtilitiesGenerated` drops any
- * production that is not a flat Power or Water. A junk upgrade id and a
- * non-flat production are precisely the values those filters exist to discard,
- * so injecting one changes no answer.
+ * Those filters are load-bearing rather than defensive: a save may
+ * legitimately hold an upgrade recorded against the wrong facility, because
+ * the parser accepts that on purpose. Removing one to win a mutant would trade
+ * a real behaviour for a number.
  *
- * Both filters are load-bearing rather than defensive: a save may legitimately
- * hold an upgrade recorded against the wrong facility, because the parser
- * accepts that on purpose. Removing either to win three mutants would trade a
- * real behaviour for a number.
+ * **Four are one early return that cannot change an answer** —
+ * `siegeThreatReduction`'s `best.length === 0 || staff.length === 0`. Take the
+ * guard away in any of its four forms and the `flatMap` below produces no
+ * scores, which `Math.max(...scores, 0)` already answers with the same zero.
+ * It stays because reading "nothing reduces it, or nobody is working it" at
+ * the top is worth more than the four mutants, and because the alternative —
+ * deleting it — would leave the zero looking like arithmetic rather than a
+ * rule.
  */
 
 /**
@@ -431,6 +441,47 @@ export function upgradesRemaining(occupant: Occupant): number {
   if (!occupant.upgradable) return 0;
 
   return Math.max(0, MAX_UPGRADES_PER_FACILITY - upgradesUsed(occupant));
+}
+
+/**
+ * The upgrades already on this facility that a new one would replace (pp. 72–73).
+ *
+ * `excludes` says two upgrades cannot sit on one facility together, and the
+ * Greenhouse — the only one that has it — excludes the Fence. That is not a
+ * refusal: the book prices *replacing* a Fence with a Greenhouse a Hardware
+ * cheaper, which is a rule about what happens when you order one onto the
+ * other, not a rule against it. So an order that excludes something installed
+ * takes it off, and `upgradeCost` below is the other half of the same
+ * sentence.
+ *
+ * A list rather than one, because the exclusion is a list and nothing caps how
+ * many of the excluded upgrade a facility holds — `maxPerFacility` is a
+ * warning a table may play past.
+ */
+export function replacedBy(occupant: Occupant, upgrade: Upgrade): readonly Upgrade[] {
+  const excludes = upgrade.constraints?.excludes ?? [];
+
+  return occupant.upgrades.filter((installed) => excludes.includes(installed.id));
+}
+
+/**
+ * What an upgrade costs on this particular facility (pp. 72–73).
+ *
+ * The catalogue price, less the replacement discount for each upgrade it takes
+ * off — the Greenhouse's one Hardware for the Fence it stands in for. Never
+ * below nothing: a discount larger than the price would be the stores paying a
+ * community to build, which no rule says and no screen should show.
+ *
+ * Labor is untouched. The book discounts the materials, not the work.
+ */
+export function upgradeCost(occupant: Occupant, upgrade: Upgrade): Cost {
+  const discount = upgrade.constraints?.replacementDiscount ?? 0;
+  const replaced = replacedBy(occupant, upgrade).length;
+
+  return {
+    hardware: Math.max(0, upgrade.cost.hardware - discount * replaced),
+    labor: upgrade.cost.labor,
+  };
 }
 
 /**

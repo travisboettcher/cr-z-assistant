@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Base, type Campaign } from './campaign';
-import { checkUpgrade, upgradesFor } from './upgrade';
+import { checkUpgrade, upgradeOrder, upgradesFor } from './upgrade';
 import { projectTeamWorth, withPlanningBegun } from '../test/campaigns';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
@@ -180,7 +180,13 @@ describe('checkUpgrade', () => {
     ).toEqual(['one-per-facility']);
   });
 
-  it('warns that a Greenhouse cannot sit alongside the Fence it excludes', () => {
+  /**
+   * The Greenhouse *replaces* the Fence rather than being refused beside it
+   * (pg. 72), so nothing here is a rule the table is playing past. This used to
+   * warn that the two "cannot sit alongside" each other, which is a sentence
+   * the book does not contain.
+   */
+  it('finds nothing wrong with a Greenhouse over the Fence it replaces', () => {
     // The Garden holds an upgrade that is not excluded alongside the one that
     // is, so a check that asks "are they *all* the excluded one" gets a
     // different answer from one that asks "is any of them".
@@ -191,11 +197,65 @@ describe('checkUpgrade', () => {
       },
     });
 
+    const check = checkUpgrade(campaignWith(base), {
+      slot: 'front-yard',
+      upgrade: 'greenhouse',
+    });
+
+    expect(check).toEqual({ blockers: [], warnings: [] });
     expect(
-      codes(
-        checkUpgrade(campaignWith(base), { slot: 'front-yard', upgrade: 'greenhouse' }).warnings,
-      ),
-    ).toEqual(['excluded-by-another']);
+      upgradeOrder(campaignWith(base), { slot: 'front-yard', upgrade: 'greenhouse' }).replaces,
+    ).toEqual(['fence']);
+  });
+
+  /** Four Hardware, less the one the Fence it stands in for is worth (pg. 72). */
+  it('prices a Greenhouse a Hardware cheaper over a Fence, and refuses it below that', () => {
+    const fenced = home({
+      'front-yard': { built: { facility: 'garden', builtOnTurn: 1 }, upgrades: ['fence'] },
+    });
+    const bare = home({ 'front-yard': { built: { facility: 'garden', builtOnTurn: 1 } } });
+    const request = { slot: 'front-yard', upgrade: 'greenhouse' } as const;
+
+    expect(upgradeOrder(campaignWith(bare), request).cost).toEqual({ hardware: 4, labor: 4 });
+    expect(upgradeOrder(campaignWith(fenced), request).cost).toEqual({ hardware: 3, labor: 4 });
+
+    // Three is enough over a Fence and not enough over a bare Garden, which is
+    // the whole of what the discount does.
+    const three = { food: 0, fuel: 0, hardware: 3, rare: 0 };
+
+    expect(
+      codes(checkUpgrade(campaignWith(fenced, { materials: three }), request).blockers),
+    ).toEqual([]);
+    expect(codes(checkUpgrade(campaignWith(bare, { materials: three }), request).blockers)).toEqual(
+      ['not-enough-hardware'],
+    );
+  });
+
+  it('replaces nothing where there is nothing it excludes', () => {
+    const bare = home({ 'front-yard': { built: { facility: 'garden', builtOnTurn: 1 } } });
+
+    expect(
+      upgradeOrder(campaignWith(bare), { slot: 'front-yard', upgrade: 'greenhouse' }).replaces,
+    ).toEqual([]);
+  });
+
+  /**
+   * Two shapes a queue outliving its slot can ask about, and neither is an
+   * error: the screen wants a number for whatever it is showing, and nothing
+   * is the truthful one.
+   */
+  it('costs nothing and replaces nothing where there is no such facility or upgrade', () => {
+    const bare = home({ 'front-yard': { built: { facility: 'garden', builtOnTurn: 1 } } });
+    const nothing = { cost: { hardware: 0, labor: 0 }, replaces: [] };
+
+    // An empty slot, and then a Garden asked about an upgrade the Storage Area
+    // owns.
+    expect(upgradeOrder(campaignWith(bare), { slot: 'garage', upgrade: 'greenhouse' })).toEqual(
+      nothing,
+    );
+    expect(upgradeOrder(campaignWith(bare), { slot: 'front-yard', upgrade: 'shelving' })).toEqual(
+      nothing,
+    );
   });
 
   it('refuses a campaign with no base', () => {
