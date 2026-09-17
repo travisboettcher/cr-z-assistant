@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { NO_PENALTY } from './production';
-import { occupants, type Occupant } from './base';
+import { occupants, siegeThreatReduction, type Occupant } from './base';
 import { createNewCampaign, type Base, type Survivor } from './campaign';
 import { facilityProduction, wantsStaff } from './production';
 import { createSurvivor } from './survivor';
@@ -272,6 +272,92 @@ describe('Siege Threat as production', () => {
     });
   });
 
+  /**
+   * The case that distinguishes the two readings, and the one nothing could
+   * reach until #100 let two lookouts share a tower (#142). One lookout
+   * watching with whatever they are best at (pg. 73) is the best *single*
+   * Score.
+   *
+   * It takes two lookouts who know the **same** skill to tell the readings
+   * apart: the old one took the best of the four skills after adding each
+   * across the staff, so two people with different skills gave the same answer
+   * either way and only a shared one diverged. Which is why this is a pair of
+   * archers, and why the second assertion adds a skill the first archer has
+   * not got — a reading that summed *within* a survivor would fail it.
+   */
+  it('reduces by the best lookout, not by the pair of them', () => {
+    const tower = at(
+      home({
+        'front-yard': {
+          built: { facility: 'watchtower', builtOnTurn: 1 },
+          upgrades: ['watch-post'],
+        },
+      }),
+      'front-yard',
+    );
+
+    const archer = (id: string, dexterity: number, level: number) => {
+      const made = createSurvivor(id, 4, { id });
+
+      return { ...made, stats: { ...made.stats, dexterity }, skills: { archery: level } };
+    };
+
+    // Archery 4 and Archery 3. The best is 4; summing across the two says 7.
+    const both = facilityProduction(
+      tower,
+      [archer('ann', 3, 1), archer('sam', 2, 1)],
+      NO_PENALTY,
+    ).find((candidate) => candidate.staffed);
+
+    expect(both).toMatchObject({ amount: -4, missingSkill: false });
+
+    // And a second skill on the weaker one changes nothing: Traps 3 is still
+    // not better than Archery 4, and nothing is added to anything.
+    const trapper = { ...archer('sam', 2, 1), skills: { archery: 1, traps: 2 } };
+    const mixed = facilityProduction(tower, [archer('ann', 3, 1), trapper], NO_PENALTY).find(
+      (candidate) => candidate.staffed,
+    );
+
+    expect(mixed).toMatchObject({ amount: -4, missingSkill: false });
+  });
+
+  /**
+   * The card and the total are one function now, so a fixture that disagreed
+   * with itself cannot pass: `siegeThreatReduction` is what Check the Horde
+   * adds up, and this is what the slot card prints.
+   */
+  it('prints what the horde check will count', () => {
+    const tower = at(
+      home({
+        'front-yard': {
+          built: { facility: 'watchtower', builtOnTurn: 1 },
+          upgrades: ['watch-post'],
+        },
+      }),
+      'front-yard',
+    );
+
+    // Two who know the same skill, which is the arrangement the two readings
+    // disagree about — so this asserts they agree where it mattered.
+    const gunner = createSurvivor('Ada', 4, { id: 'ada' });
+    const staff = [
+      { ...gunner, stats: { ...gunner.stats, dexterity: 3 }, skills: { 'long-guns': 1 } },
+      {
+        ...gunner,
+        id: 'bea',
+        name: 'Bea',
+        stats: { ...gunner.stats, dexterity: 2 },
+        skills: { 'long-guns': 1 },
+      },
+    ];
+
+    const line = facilityProduction(tower, staff, NO_PENALTY).find(
+      (candidate) => candidate.staffed,
+    );
+
+    expect(line?.amount).toBe(-siegeThreatReduction(tower, staff, NO_PENALTY));
+  });
+
   it('reduces by nothing, and says why, when the watch cannot shoot', () => {
     const tower = at(
       home({ 'front-yard': { built: { facility: 'watchtower', builtOnTurn: 1 } } }),
@@ -286,6 +372,33 @@ describe('Siege Threat as production', () => {
     // Both reduce nothing, and only one of them is a mistake the player made.
     expect(nobody).toMatchObject({ amount: -0, missingSkill: false });
     expect(unskilled).toMatchObject({ amount: -0, missingSkill: true });
+  });
+
+  /**
+   * One who can and one who cannot is not a mistake: the tower is watched, and
+   * the second body in it is spare rather than wrong. "Nobody up here can
+   * shoot" and "one of these two cannot" are different sentences, and only the
+   * first is worth printing.
+   */
+  it('says nothing is missing when one of two lookouts can shoot', () => {
+    const tower = at(
+      home({
+        'front-yard': {
+          built: { facility: 'watchtower', builtOnTurn: 1 },
+          upgrades: ['watch-post'],
+        },
+      }),
+      'front-yard',
+    );
+
+    const ann = createSurvivor('Ann', 4, { id: 'ann' });
+    const line = facilityProduction(
+      tower,
+      [{ ...ann, stats: { ...ann.stats, dexterity: 3 }, skills: { archery: 1 } }, labourer('Ruby')],
+      NO_PENALTY,
+    ).find((candidate) => candidate.staffed);
+
+    expect(line).toMatchObject({ amount: -4, missingSkill: false });
   });
 
   it('counts a watch who has one of the four but not the others', () => {
