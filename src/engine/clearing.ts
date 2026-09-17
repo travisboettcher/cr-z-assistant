@@ -20,12 +20,17 @@
 
 import { MATERIALS, type Material } from '../data/materials';
 import { clearingProject, layoutOf } from './base';
-import { laborRefusal } from './projects';
+import { laborRefusal, queuedKindFor } from './projects';
 import type { Check, Violation } from './checks';
 import type { Campaign } from './campaign';
 
 export type ClearingViolationCode =
-  'no-base' | 'no-such-slot' | 'nothing-to-clear' | 'already-cleared' | 'not-enough-labor';
+  | 'no-base'
+  | 'no-such-slot'
+  | 'nothing-to-clear'
+  | 'already-cleared'
+  | 'clearing-on-order'
+  | 'not-enough-labor';
 
 export type ClearingViolation = Violation<ClearingViolationCode>;
 
@@ -75,6 +80,22 @@ export function checkClearing(campaign: Campaign, request: ClearingRequest): Cle
     return {
       blockers: [
         { code: 'already-cleared', message: 'This slot has already been cleared.', pages: 54 },
+      ],
+      warnings: [],
+    };
+  }
+
+  // The same refusal one turn earlier. Clearing pays its rubble out at
+  // completion, so two orders on one slot paid twice — the Pews gave up four
+  // Hardware and the log printed "Cleared the Pews 2." for both (#140).
+  if (queuedKindFor(campaign, request.slot, 'clearing')) {
+    return {
+      blockers: [
+        {
+          code: 'clearing-on-order',
+          message: 'This slot is already being cleared by a project on order.',
+          pages: 20,
+        },
       ],
       warnings: [],
     };
