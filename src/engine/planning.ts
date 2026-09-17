@@ -27,7 +27,6 @@
 
 import { TURN_STEPS } from '../data/turn';
 import { HERO_TIER } from '../data/tiers';
-import { occupants } from './base';
 import { suppliedOccupants } from './utilities';
 import type { Facility, Upgrade } from '../data/facilities';
 import type { Assignment, Campaign, Survivor } from './campaign';
@@ -104,9 +103,7 @@ export function unassigned(campaign: Campaign): readonly Survivor[] {
 
 /** Whether the community has a Medical Clinic to be healed in (pg. 21, 69). */
 function hasMedicalClinic(campaign: Campaign): boolean {
-  const base = campaign.base;
-
-  return base !== null && occupants(base).some(({ facility }) => facility.id === 'medical-clinic');
+  return suppliedOccupants(campaign).some(({ facility }) => facility.id === 'medical-clinic');
 }
 
 /** Whether this survivor has taken damage, which is what "injured" reads as. */
