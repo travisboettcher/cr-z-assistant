@@ -1101,6 +1101,27 @@ describe('project/ordered', () => {
     expect(campaign.base?.slots).toEqual({});
   });
 
+  /**
+   * #140, driven through the store, which is where the Hardware was actually
+   * lost: both orders passed a check that read installed state, both paid, one
+   * landed, and `completeProjects` dropped the other with no log entry and no
+   * refund. The reducer refuses anything with a blocker, so the fix at the
+   * validator is the fix here.
+   */
+  it('refuses a second facility for a slot already on order, and keeps the Hardware', () => {
+    const once = campaignReducer(
+      withBase(),
+      order({ kind: 'facility', slot: 'garage', facility: 'workshop' }),
+    );
+    const twice = expectOpen(
+      campaignReducer(once, order({ kind: 'facility', slot: 'garage', facility: 'training-room' })),
+    );
+
+    expect(twice.projects).toHaveLength(1);
+    expect(twice.materials.hardware).toBe(6);
+    expect(twice.log.filter((entry) => entry.event.kind === 'facility-ordered')).toHaveLength(1);
+  });
+
   it('stamps the turn the order was placed on rather than trusting the screen', () => {
     // Turn 7's own Planning Phase, because a team assigned on turn 3 funds
     // nothing on turn 7 — which is the rule `laborThisTurn` enforces and the
