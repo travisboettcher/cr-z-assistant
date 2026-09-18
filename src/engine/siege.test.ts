@@ -14,6 +14,7 @@ import {
   siegeThreat,
   siegeThreatTerms,
   siegeTriggered,
+  towersWithoutTheSkill,
   turnsSinceLastSiege,
 } from './siege';
 import type { LogEntry } from './log';
@@ -345,5 +346,46 @@ describe('a staffed Watchtower', () => {
   /** It can take the whole threat below zero, which the sum does not clamp. */
   it('can make a community safer than an empty one', () => {
     expect(siegeThreat(staffedWith(tower(), 'front-yard', [lookout()]))).toBeLessThan(0);
+  });
+
+  /**
+   * "+0 watched" is what an empty tower gives and what a tower full of people
+   * who cannot shoot gives, and only one of those is a mistake the player can
+   * fix — a distinction `facilityProduction` has drawn since Z3-6 and nothing
+   * asked for (#143).
+   */
+  describe('whose lookout has none of the four skills', () => {
+    const useless = () => ({
+      ...createSurvivor('Ruby Vance', 4, { id: 'ruby' }),
+      skills: { rationing: 3 },
+    });
+
+    it('is named, so the player can see which tower to fix', () => {
+      expect(towersWithoutTheSkill(staffedWith(tower(), 'front-yard', [useless()]))).toEqual([
+        'front-yard',
+      ]);
+    });
+
+    it('says nothing about a tower somebody can watch from', () => {
+      expect(towersWithoutTheSkill(staffedWith(tower(), 'front-yard', [lookout()]))).toEqual([]);
+    });
+
+    it('says nothing about an empty tower, which is not a mistake', () => {
+      expect(towersWithoutTheSkill(tower())).toEqual([]);
+    });
+
+    /** A staffed Kitchen has no watch to lack a skill for. */
+    it('says nothing about a facility that does not watch', () => {
+      const kitchen = community({
+        turn: 5,
+        base: { id: 'small-town-home', slots: {} },
+      });
+
+      expect(towersWithoutTheSkill(staffedWith(kitchen, 'kitchen', [useless()]))).toEqual([]);
+    });
+
+    it('says nothing for a campaign with no base', () => {
+      expect(towersWithoutTheSkill(community())).toEqual([]);
+    });
   });
 });

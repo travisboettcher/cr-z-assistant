@@ -34,6 +34,7 @@ import type { D10Result } from '../data/dice';
 import { projectTeam, staffOf, staffedFacilityCount } from './assignments';
 import { occupants, siegeThreatFromBase, siegeThreatReduction } from './base';
 import { hungerPenalty } from './feeding';
+import { facilityProduction } from './production';
 import type { Campaign } from './campaign';
 
 /**
@@ -193,3 +194,30 @@ export function hordeCame(campaign: Campaign): boolean {
  * recorded by the log entry the caller is already writing" is the thing a
  * reader of `management/hordeChecked` needs to know.
  */
+
+/**
+ * Watchtowers with somebody in them who cannot watch (pg. 73).
+ *
+ * The slot ids, because a base can hold two towers and "one of them" is not an
+ * answer a player can act on.
+ *
+ * `facilityProduction` has computed this per slot since Z3-6 — `missingSkill`
+ * distinguishes "nobody assigned" from "the wrong person assigned", and its
+ * comment says a player can only fix the problem they can see. Check the Horde
+ * could not see it: the term read "+0 watched from a staffed Watchtower" with
+ * no hint, which is the same 0 an empty tower gives (#143).
+ */
+export function towersWithoutTheSkill(campaign: Campaign): readonly string[] {
+  const base = campaign.base;
+  if (base === null) return [];
+
+  const penalty = hungerPenalty(campaign);
+
+  return occupants(base).flatMap((occupant) =>
+    facilityProduction(occupant, staffOf(campaign, occupant.slotId), penalty).some(
+      (line) => line.missingSkill && line.outputs.includes('siege-threat'),
+    )
+      ? [occupant.slotId]
+      : [],
+  );
+}
