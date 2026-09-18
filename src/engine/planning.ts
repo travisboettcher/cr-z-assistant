@@ -250,14 +250,18 @@ function restWarnings(campaign: Campaign, survivor: Survivor): readonly Planning
     });
   }
 
-  // Destructured rather than indexed behind a length check, so there is no
-  // unreachable "or somebody" to fall back to: whoever is here has a name.
-  const [resting] = othersDoing(campaign, survivor.id, 'rest');
+  /*
+   * Everybody already resting, not the first of them. Two others could be —
+   * this warns rather than refuses, so a save can hold three resters — and
+   * naming one of them read as a rule the player had broken once when they had
+   * broken it twice (#151).
+   */
+  const resting = othersDoing(campaign, survivor.id, 'rest');
 
-  if (resting !== undefined) {
+  if (resting.length > 0) {
     warnings.push({
       code: 'someone-else-resting',
-      message: `Only one survivor may rest a turn, and ${resting.name} is.`,
+      message: `Only one survivor may rest a turn, and ${resting.map((other) => other.name).join(' and ')} ${resting.length === 1 ? 'is' : 'are'}.`,
       pages: 21,
     });
   }

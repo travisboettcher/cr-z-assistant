@@ -60,19 +60,43 @@ function clearingReward(slot: Extract<BaseSlot, { state: 'clearing-project' }>):
   return materials.length === 0 ? null : materials.join(', ');
 }
 
-/** The upgrade line under a facility, or null where there is nothing to say. */
-function upgradeSummary(occupant: Occupant): string | null {
+/**
+ * The upgrade line under a facility, or null where there is nothing to say.
+ *
+ * Two corrections the September playtest earned. A **locked built-in** said
+ * "Watch Post, Watch Post — 2 of 3, no room for more", which gives the cap as
+ * the reason and then denies the room it has just described; the reason is the
+ * base's own rule (pg. 54), which this card states correctly four elements
+ * further down. And the room **counts what is on order**, because four Herb
+ * Plots ordered in one Planning Phase left this reading "Room for 3 upgrades"
+ * under the queue that had spoken for all of them.
+ */
+function upgradeSummary(campaign: Campaign, occupant: Occupant): string | null {
   const names = occupant.upgrades.map((upgrade) => UPGRADE_LABELS[upgrade.id]);
-  const remaining = upgradesRemaining(occupant);
+
+  if (!occupant.upgradable) {
+    return names.length === 0
+      ? 'Came with the base and takes no upgrades'
+      : `${names.join(', ')} — came with the base and takes no more`;
+  }
+
+  const onOrder = queuedFor(campaign, occupant.slotId).filter(
+    (queued) => queued.project.kind === 'upgrade',
+  ).length;
+
+  const remaining = Math.max(0, upgradesRemaining(occupant) - onOrder);
+  const ordered = onOrder === 0 ? '' : `, ${String(onOrder)} on order`;
 
   if (names.length === 0) {
-    return remaining === 0 ? 'Takes no upgrades' : `Room for ${String(remaining)} upgrades`;
+    return remaining === 0
+      ? `Takes no more upgrades${ordered}`
+      : `Room for ${String(remaining)} upgrades${ordered}`;
   }
 
   const used = upgradesUsed(occupant);
   const room = remaining === 0 ? 'no room for more' : `room for ${String(remaining)} more`;
 
-  return `${names.join(', ')} — ${String(used)} of 3, ${room}`;
+  return `${names.join(', ')} — ${String(used)} of 3${ordered}, ${room}`;
 }
 
 /**
@@ -167,7 +191,7 @@ function SlotCard({
         <>
           <p className="mt-2">{FACILITY_LABELS[occupant.facility.id]}</p>
           <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-            {upgradeSummary(occupant)}
+            {upgradeSummary(campaign, occupant)}
           </p>
           {utilities.length > 0 && (
             <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
@@ -205,8 +229,17 @@ function SlotCard({
 
       {buildable && (
         <>
+          {/*
+           * "Empty" is about the base and "on order" is about the queue, and a
+           * slot can be both — but a card saying only the first read as an
+           * empty slot with nothing coming, with two facilities on order above
+           * it saying otherwise.
+           */}
           <p className="mt-2 text-stone-600 dark:text-stone-400">
-            {cleared ? 'Cleared — ready to build in' : 'Empty — ready to build in'}
+            {cleared ? 'Cleared' : 'Empty'}
+            {queuedFor(campaign, slot.id).length === 0
+              ? ' — ready to build in'
+              : ' — ready to build in, and something is already on order'}
           </p>
           {/*
            * The card's one action. A slot is in exactly one state and each
