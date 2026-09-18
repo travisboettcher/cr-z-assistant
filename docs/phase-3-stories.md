@@ -259,7 +259,7 @@ than as a short file.
 
 ## Rulings the book leaves open
 
-Six places where the printed text does not decide the answer. Each needs a table ruling before
+Seven places where the printed text does not decide the answer. Each needs a table ruling before
 the story that depends on it, and each is recorded here rather than settled quietly in code — a
 house rule that lives in a function is indistinguishable from a rule.
 
@@ -321,6 +321,26 @@ house rule that lives in a function is indistinguishable from a rule.
    The spread rather than a page, because the two transcriptions of this upgrade disagree:
    `facilities.ts` recorded it as pg. 73 and the September playtest read it off pg. 72. Narrow it
    next time the book is open.
+7. **What happens to XP already awarded when the mission team changes (pg. 18,
+   [#145](https://github.com/travisboettcher/cr-z-assistant/issues/145)) — RULED.** A table can
+   correct a mission team after handing its XP out — most easily on turn 1, where the team is
+   recorded rather than assigned a turn ahead. The book has nothing to say about it, because it
+   does not imagine the record being edited.
+
+   **The ruling is that a point handed out stays handed out.** An award is written in the log and
+   on the survivor's sheet; taking somebody off the team afterwards reaches back through neither.
+   So a two-person mission whose points are spent has no third point for a late arrival, and the
+   survivor who left keeps theirs.
+
+   The alternative — the pool describes the *current* team, so removing somebody frees their
+   point — reads well until the freed point is handed to a third survivor and the mission has
+   paid out three points for two people, because the first award is still on the sheet it was
+   written to. Undoing an award to match would be the app editing a survivor nobody asked it to
+   touch.
+
+   What the ruling costs is a row that can be shown as eligible and pressed no further, so the
+   screen says which of the two it is: the reason sits beside the button rather than being left
+   to the greyed-out state, which the awards have wanted since they were written.
 
 ---
 
