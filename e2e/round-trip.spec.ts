@@ -1929,7 +1929,9 @@ test('a turn’s Labor is a budget, and the queue survives the round trip', asyn
   const history = page.getByRole('region', { name: 'History' });
   await expect(history).toContainText('Ordered a Workshop for the Garage');
   await expect(history).toContainText('Built a Workshop in the Garage');
-  await expect(history).toContainText('Cancelled the Front Yard project');
+  await expect(history).toContainText(
+    'Cancelled the Watchtower on the Front Yard — 3 Hardware came back',
+  );
 
   const exported = await exportCampaign(page);
   expect(JSON.parse(exported.text)).toMatchObject({

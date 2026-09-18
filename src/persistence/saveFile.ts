@@ -226,6 +226,13 @@ const EVENT_FIELD_CHECKS = {
   // answer here and a damaged one everywhere else, which is why it is its own
   // check rather than a flag on the loop below.
   optionalCount: (value: unknown) => value === undefined || isCountFromZero(value),
+  // The same shape for an id: what a cancelled or unfinished project was, on
+  // entries written since they started saying. Not checked against the
+  // catalogue, for the reason `optionalAssignments` is not checked against the
+  // roster — this is history, and a save can name a facility a later edition
+  // renamed.
+  optionalId: (value: unknown) =>
+    value === undefined || (typeof value === 'string' && value !== ''),
   // What a `planning-began` entry cleared, or nothing at all for one written
   // before it carried anything. Deliberately **not** checked against the roster
   // the way the campaign's own `assignments` are: this is history, and the turn
@@ -324,8 +331,17 @@ const EVENT_FIELDS: Record<
     ['upgrade', 'upgrade'],
   ],
   'clearing-ordered': [['slot', 'id']],
-  'project-cancelled': [['slot', 'id']],
-  'project-unfinished': [['slot', 'id']],
+  'project-cancelled': [
+    ['slot', 'id'],
+    // Recorded since the history started saying what came back, and what it
+    // was; entries written before that do not carry either.
+    ['hardware', 'optionalCount'],
+    ['built', 'optionalId'],
+  ],
+  'project-unfinished': [
+    ['slot', 'id'],
+    ['built', 'optionalId'],
+  ],
   'storage-checked': [
     ['food', 'count'],
     ['fuel', 'count'],

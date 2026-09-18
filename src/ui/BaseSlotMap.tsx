@@ -28,7 +28,7 @@ import {
 import { AssignUtilities } from './AssignUtilities';
 import { BaseSheet } from './BaseSheet';
 import { FacilityWork } from './FacilityWork';
-import { laborAvailable, queuedFor } from '../engine/projects';
+import { cancellable, laborAvailable, queuedFor } from '../engine/projects';
 import { planningHasBegun } from '../engine/planning';
 import { describeProject } from './projectLabels';
 import { useCampaign } from '../state/useCampaign';
@@ -104,15 +104,31 @@ function QueuedProjects({
           <span className="text-stone-600 dark:text-stone-400">
             On order: {describeProject(project)}
           </span>
-          <button
-            type="button"
-            onClick={() => {
-              dispatch({ type: 'project/cancelled', at, when: new Date().toISOString() });
-            }}
-            className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 px-3 text-sm font-medium dark:border-stone-700`}
-          >
-            Cancel {describeProject(project)}
-          </button>
+          {/*
+           * Offered only where it can be taken — the Planning Phase of the turn
+           * that placed it, which is what the ruling means by a decision taken
+           * back within the phase that made it. The reducer refuses the rest,
+           * and a button that does nothing is worse than no button (#148).
+           *
+           * Saying what comes back, because the one thing the screen never
+           * mentioned was the Hardware: an order spends it when it is placed,
+           * and a player cancelling has no way to know it is not simply gone.
+           */}
+          {cancellable(campaign, at) ? (
+            <button
+              type="button"
+              onClick={() => {
+                dispatch({ type: 'project/cancelled', at, when: new Date().toISOString() });
+              }}
+              className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 px-3 text-sm font-medium dark:border-stone-700`}
+            >
+              Cancel {describeProject(project)} — its Hardware comes back
+            </button>
+          ) : (
+            <span className="text-xs text-stone-500 dark:text-stone-400">
+              Cancelled in the Planning Phase that ordered it <PageRef pages={20} />
+            </span>
+          )}
         </li>
       ))}
     </ul>
