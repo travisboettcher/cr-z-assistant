@@ -324,7 +324,12 @@ const EVENT_FIELDS: Record<
     ['upgrade', 'upgrade'],
   ],
   'clearing-ordered': [['slot', 'id']],
-  'project-cancelled': [['slot', 'id']],
+  'project-cancelled': [
+    ['slot', 'id'],
+    // Recorded since the history started saying what came back; entries
+    // written before that do not carry it.
+    ['hardware', 'optionalCount'],
+  ],
   'project-unfinished': [['slot', 'id']],
   'storage-checked': [
     ['food', 'count'],

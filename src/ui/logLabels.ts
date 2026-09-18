@@ -162,7 +162,13 @@ export function describeEvent(event: CampaignEvent): EventLabel {
       return { text: `Ordered the ${slotLabel(event.slot)} cleared.`, pages: 20 };
 
     case 'project-cancelled':
-      return { text: `Cancelled the ${slotLabel(event.slot)} project.`, pages: 20 };
+      return {
+        text:
+          event.hardware === undefined || event.hardware === 0
+            ? `Cancelled the ${slotLabel(event.slot)} project.`
+            : `Cancelled the ${slotLabel(event.slot)} project — ${String(event.hardware)} Hardware came back.`,
+        pages: 20,
+      };
 
     case 'project-unfinished':
       return {

@@ -29,6 +29,7 @@ import { MIN_SKILL_LEVEL, type CommonSkill, type Skill, type Stat } from '../dat
 import type { Tier } from '../data/tiers';
 import { withCommonSkillBought, withSkillLevelBought, withTierBought } from '../engine/advancement';
 import {
+  cancellable,
   completeProjects,
   laborShortfall,
   withProjectCancelled,
@@ -60,7 +61,14 @@ import { missionTeam, missionTeamReduced } from '../engine/assignments';
 import { storageCaps } from '../engine/base';
 import { ROT_BITE_DAMAGE } from '../data/turn';
 import { XP_AWARD, type XpSource } from '../data/turn';
-import type { Assignment, Campaign, ProjectOrder, Stats, Survivor } from '../engine/campaign';
+import type {
+  Assignment,
+  Campaign,
+  Project,
+  ProjectOrder,
+  Stats,
+  Survivor,
+} from '../engine/campaign';
 import { createSurvivor, recruitSurvivor } from '../engine/survivor';
 
 /**
@@ -1043,14 +1051,32 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         return logged(withProjectOrdered(campaign, project), action.at, orderedEvent(project));
       });
 
+    /**
+     * Guarded like its sibling below, and for the reason the app's own ruling
+     * gives: cancelling is a decision taken back **within the phase that made
+     * it**. Nothing enforced that, so last turn's order was cancelled during
+     * the next turn's Mission Phase for a full refund (#148).
+     *
+     * What came back is the difference the cancellation made to the stores,
+     * rather than the project re-priced: the two can only ever agree if one of
+     * them is the other, and the price depends on what is standing in the slot
+     * and on what else is on order for it.
+     */
     case 'project/cancelled':
       return withCampaign(state, (campaign) => {
-        const project = campaign.projects[action.at];
-        if (project === undefined) return campaign;
+        if (!cancellable(campaign, action.at)) return campaign;
 
-        return logged(withProjectCancelled(campaign, action.at), action.when, {
+        // `cancellable` has already established that the position holds one, so
+        // the assertion is the typechecker's price for a lookup that cannot
+        // miss — the same trade `xpPool` makes. A second `=== undefined` guard
+        // here would be a line no test could tell from its absence.
+        const project = campaign.projects[action.at] as Project;
+        const cancelled = withProjectCancelled(campaign, action.at);
+
+        return logged(cancelled, action.when, {
           kind: 'project-cancelled',
           slot: project.slot,
+          hardware: cancelled.materials.hardware - campaign.materials.hardware,
         });
       });
 

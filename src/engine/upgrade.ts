@@ -48,6 +48,7 @@ export type UpgradeViolationCode =
   | 'not-enough-labor'
   | 'facility-locked'
   | 'built-this-turn'
+  | 'wrong-slot-kind'
   | 'cap-reached'
   | 'one-per-facility';
 
@@ -144,6 +145,26 @@ export function checkUpgrade(campaign: Campaign, request: UpgradeRequest): Upgra
       code: 'cap-reached',
       message: `Already has ${String(upgradesUsed(occupant))} of its ${String(MAX_UPGRADES_PER_FACILITY)} upgrades. Rare upgrades do not count.`,
       pages: '49, 54',
+    });
+  }
+
+  /*
+   * The same rule `build.ts` has always checked for facilities, on the same
+   * screen, in the same words — and `checkUpgrade` did not read `requires` at
+   * all (#146). A Recovery Room went onto an outdoor Medical Clinic and made
+   * its 2 Health; Solar Panels and Rain Collectors worked indoors; Shelving
+   * raised the Hardware cap outdoors.
+   *
+   * A warning rather than a refusal, like its counterpart: Z3-6 guides and
+   * offers an override, and `working` deliberately gates on utilities alone —
+   * silently zeroing a facility a player chose to build would be this app
+   * inventing a consequence the book does not print.
+   */
+  if (upgrade.requires?.slot !== undefined && upgrade.requires.slot !== occupant.kind) {
+    warnings.push({
+      code: 'wrong-slot-kind',
+      message: `Needs an ${upgrade.requires.slot} slot, and this one is ${occupant.kind}.`,
+      pages: '72–73',
     });
   }
 

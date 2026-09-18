@@ -237,8 +237,21 @@ export type CampaignEvent =
   | { readonly kind: 'facility-ordered'; readonly slot: string; readonly facility: FacilityId }
   | { readonly kind: 'upgrade-ordered'; readonly slot: string; readonly upgrade: UpgradeId }
   | { readonly kind: 'clearing-ordered'; readonly slot: string }
-  /** A queued project was cancelled before it was finished, and its Hardware came back. */
-  | { readonly kind: 'project-cancelled'; readonly slot: string }
+  /**
+   * A queued project was cancelled before it was finished, and its Hardware
+   * came back.
+   *
+   * The amount is carried rather than left to be re-derived: the project is out
+   * of the queue by the time anybody reads this, and what it cost depended on
+   * what was standing in the slot and what else was on order for it. A history
+   * that said "cancelled" without saying what came back was the one thing the
+   * September playtest found the screen never mentioning (#148).
+   *
+   * Optional, like `survivors-fed`'s `population` and for the same reason:
+   * entries written before it was recorded cannot be given one honestly, so
+   * they keep the sentence they have always read.
+   */
+  | { readonly kind: 'project-cancelled'; readonly slot: string; readonly hardware?: number }
   /**
    * A queued project went unfinished when the Labor behind it walked out (pg.
    * 23).

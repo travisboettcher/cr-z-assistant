@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Base, type Campaign } from './campaign';
+import { FACILITIES, facilityOfUpgrade, type FacilityId, type Upgrade } from '../data/facilities';
 import { checkUpgrade, upgradeOrder, upgradesFor } from './upgrade';
 import { projectTeamWorth, withPlanningBegun } from '../test/campaigns';
 
@@ -23,6 +24,11 @@ const codes = (violations: readonly { code: string }[]) => violations.map(({ cod
 
 /** The Small Town Home's kitchen is a built-in the base leaves upgradable. */
 const home = (slots: Base['slots'] = {}): Base => ({ id: 'small-town-home', slots });
+
+/** Every upgrade in the catalogue, which is where a rule about upgrades lives. */
+const UPGRADES: readonly Upgrade[] = Object.values(FACILITIES).flatMap(
+  (facility) => facility.upgrades as readonly Upgrade[],
+);
 
 describe('upgradesFor', () => {
   it('lists every upgrade the facility offers, installed ones included', () => {
@@ -121,6 +127,66 @@ describe('checkUpgrade', () => {
     expect(checkUpgrade(nearlyFull, { slot: 'kitchen', upgrade: 'gas-range' }).warnings).toEqual(
       [],
     );
+  });
+
+  /**
+   * R2-M6 (#146): `checkUpgrade` did not read `requires` at all, so a Recovery
+   * Room went onto an outdoor Medical Clinic and made its 2 Health, Solar
+   * Panels and Rain Collectors worked indoors, and Shelving raised the Hardware
+   * cap outdoors. `build.ts` has checked the same rule for facilities, in the
+   * same words, on the same screen, since Phase 2.
+   *
+   * Walked over the whole catalogue rather than over the four the playtest
+   * found: an upgrade added with a `requires.slot` nobody thinks to test is
+   * exactly how this one survived two phases. The facility is built into a slot
+   * of each kind — which the app permits, because Z1-7 lets a player override
+   * the placement — so both directions are asserted for every entry.
+   */
+  describe('an upgrade that names a slot kind', () => {
+    const SLOT_OF = { indoor: 'garage', outdoor: 'front-yard' } as const;
+
+    const withFacilityIn = (kind: 'indoor' | 'outdoor', facility: FacilityId): Campaign =>
+      campaignWith(home({ [SLOT_OF[kind]]: { built: { facility, builtOnTurn: 1 } } }));
+
+    const named = UPGRADES.filter((upgrade) => upgrade.requires?.slot !== undefined);
+
+    it('is a rule several upgrades in the catalogue carry', () => {
+      // The guard against this whole block quietly testing nothing.
+      expect(named.map((upgrade) => upgrade.id)).toEqual(
+        expect.arrayContaining(['recovery-room', 'solar-panel', 'rain-collector', 'shelving']),
+      );
+    });
+
+    it.each(named.map((upgrade) => [upgrade.id, upgrade] as const))(
+      'warns when %s is ordered into the other kind of slot, and not into its own',
+      (id, upgrade) => {
+        const wanted = upgrade.requires?.slot as 'indoor' | 'outdoor';
+        const other = wanted === 'indoor' ? 'outdoor' : 'indoor';
+        const facility = facilityOfUpgrade(id)?.id as FacilityId;
+
+        const wrong = checkUpgrade(withFacilityIn(other, facility), {
+          slot: SLOT_OF[other],
+          upgrade: id,
+        });
+        const right = checkUpgrade(withFacilityIn(wanted, facility), {
+          slot: SLOT_OF[wanted],
+          upgrade: id,
+        });
+
+        expect(codes(wrong.warnings)).toContain('wrong-slot-kind');
+        expect(codes(right.warnings)).not.toContain('wrong-slot-kind');
+      },
+    );
+
+    /** The same sentence the facility check prints, because it is the same rule. */
+    it('says it the way the build check says it', () => {
+      const [warning] = checkUpgrade(withFacilityIn('outdoor', 'medical-clinic'), {
+        slot: SLOT_OF.outdoor,
+        upgrade: 'recovery-room',
+      }).warnings;
+
+      expect(warning?.message).toBe('Needs an indoor slot, and this one is outdoor.');
+    });
   });
 
   it('warns that a locked built-in takes nothing further, rather than citing a cap', () => {
