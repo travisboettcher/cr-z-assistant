@@ -78,6 +78,26 @@ function conversionsOf(occupant: Occupant): readonly Conversion[] {
   );
 }
 
+/**
+ * What this slot holds that trades Fuel for a **utility** rather than a
+ * material — the Generator and the Well Pump (pp. 72–73).
+ *
+ * The complement of `isMaterialExchange`, and the reason it exists: a trade
+ * that gains a utility belongs to the Planning Phase's utility step, because a
+ * point lasts until the next turn's Planning Phase (pg. 20, 67) and one bought
+ * in Advancement would be cleared a phase later. Which step owns it is an open
+ * question rather than an oversight — see `docs/phase-3-stories.md`.
+ *
+ * Exported so the slot card can say so. The reasoning was in a code comment,
+ * and a player who built one paid Hardware and Labor for an upgrade that did
+ * nothing and was told nothing (#150).
+ */
+export function unmodelledExchanges(occupant: Occupant): readonly (Facility | Upgrade)[] {
+  return working(occupant).filter((entry) =>
+    (entry.effects.exchange ?? []).some((exchange) => !isMaterialExchange(exchange)),
+  );
+}
+
 /** Every material conversion this base can run this turn, in layout order. */
 export function conversions(campaign: Campaign): readonly Conversion[] {
   const base = campaign.base;
