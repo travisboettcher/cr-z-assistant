@@ -250,8 +250,20 @@ export type CampaignEvent =
    * Optional, like `survivors-fed`'s `population` and for the same reason:
    * entries written before it was recorded cannot be given one honestly, so
    * they keep the sentence they have always read.
+   *
+   * `built` is the facility or upgrade id, the way `materials-converted` names
+   * its `source` — one field for either, because `builtThingLabel` resolves
+   * both and a clearing is the case with nothing to name. Order and built
+   * entries have always named the project; these two named only the slot, so
+   * "The Back Yard project went unfinished" was ambiguous the moment two were
+   * queued there (#151).
    */
-  | { readonly kind: 'project-cancelled'; readonly slot: string; readonly hardware?: number }
+  | {
+      readonly kind: 'project-cancelled';
+      readonly slot: string;
+      readonly hardware?: number;
+      readonly built?: string;
+    }
   /**
    * A queued project went unfinished when the Labor behind it walked out (pg.
    * 23).
@@ -268,7 +280,7 @@ export type CampaignEvent =
    * never done, and materials a community still has are materials it still
    * has.
    */
-  | { readonly kind: 'project-unfinished'; readonly slot: string }
+  | { readonly kind: 'project-unfinished'; readonly slot: string; readonly built?: string }
   /**
    * The stores were trimmed to the base's caps (pg. 23).
    *

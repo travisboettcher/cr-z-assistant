@@ -161,18 +161,32 @@ export function describeEvent(event: CampaignEvent): EventLabel {
     case 'clearing-ordered':
       return { text: `Ordered the ${slotLabel(event.slot)} cleared.`, pages: 20 };
 
-    case 'project-cancelled':
+    case 'project-cancelled': {
+      // Named where the entry says what it was, which order and built entries
+      // have always done — "the Back Yard project" is ambiguous the moment two
+      // are queued there (#151). A clearing carries nothing to name, and
+      // neither does an entry written before this, so both keep the slot's own
+      // sentence.
+      const what =
+        event.built === undefined
+          ? `the ${slotLabel(event.slot)} project`
+          : `the ${builtThingLabel(event.built)} on the ${slotLabel(event.slot)}`;
+
       return {
         text:
           event.hardware === undefined || event.hardware === 0
-            ? `Cancelled the ${slotLabel(event.slot)} project.`
-            : `Cancelled the ${slotLabel(event.slot)} project — ${String(event.hardware)} Hardware came back.`,
+            ? `Cancelled ${what}.`
+            : `Cancelled ${what} — ${String(event.hardware)} Hardware came back.`,
         pages: 20,
       };
+    }
 
     case 'project-unfinished':
       return {
-        text: `The ${slotLabel(event.slot)} project went unfinished — the Labor for it left the community.`,
+        text:
+          event.built === undefined
+            ? `The ${slotLabel(event.slot)} project went unfinished — the Labor for it left the community.`
+            : `The ${builtThingLabel(event.built)} on the ${slotLabel(event.slot)} went unfinished — the Labor for it left the community.`,
         pages: 23,
       };
 

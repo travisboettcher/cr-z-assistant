@@ -1312,6 +1312,57 @@ describe('project/cancelled', () => {
     expect(withStorageChecked(after).materials.hardware).toBe(4);
   });
 
+  /**
+   * The three kinds each name themselves differently, and a clearing has
+   * nothing to name — so the entry carries one id for either of the two that
+   * do, the way `materials-converted` carries its `source` (#151).
+   */
+  it.each([
+    [
+      'an upgrade',
+      { kind: 'upgrade' as const, slot: 'kitchen', upgrade: 'gas-range' as const },
+      'gas-range',
+    ],
+    [
+      'a facility',
+      { kind: 'facility' as const, slot: 'garage', facility: 'workshop' as const },
+      'workshop',
+    ],
+  ])('says what %s was when it leaves the queue', (_label, project, built) => {
+    const placed = campaignReducer(ordered(), { type: 'project/ordered', at: AT, project });
+    const after = expectOpen(
+      campaignReducer(placed, { type: 'project/cancelled', at: 2, when: AT }),
+    );
+
+    expect(after.log.at(-1)?.event).toMatchObject({ kind: 'project-cancelled', built });
+  });
+
+  /** A clearing is the case with nothing to name, and says so by saying less. */
+  it('names nothing for a clearing, which has nothing to name', () => {
+    const farm = openState({
+      ...expectOpen(ordered()),
+      base: { id: 'hobby-farm', slots: {} },
+      projects: [],
+    });
+    const placed = campaignReducer(farm, {
+      type: 'project/ordered',
+      at: AT,
+      project: { kind: 'clearing', slot: 'ruined-chicken-coop' },
+    });
+    const after = expectOpen(
+      campaignReducer(placed, { type: 'project/cancelled', at: 0, when: AT }),
+    );
+
+    // `toStrictEqual`, because the whole point of spreading rather than
+    // returning a field is that the key is *absent* rather than undefined —
+    // and `toEqual` cannot tell those apart.
+    expect(after.log.at(-1)?.event).toStrictEqual({
+      kind: 'project-cancelled',
+      slot: 'ruined-chicken-coop',
+      hardware: 0,
+    });
+  });
+
   it('cancels the one at that position rather than the first it finds', () => {
     const campaign = expectOpen(
       campaignReducer(ordered(), { type: 'project/cancelled', at: 1, when: AT }),
@@ -1389,7 +1440,13 @@ describe('management/projectUnfinished', () => {
   it('writes a line that says what it was rather than a cancellation', () => {
     const after = expectOpen(campaignReducer(short(), unfinish(0)));
 
-    expect(after.log.at(-1)?.event).toEqual({ kind: 'project-unfinished', slot: 'garage' });
+    // Named as well as placed: two Workshops are queued here, and "the Garage
+    // project" alone was the ambiguity the playtest wrote up (#151).
+    expect(after.log.at(-1)?.event).toEqual({
+      kind: 'project-unfinished',
+      slot: 'garage',
+      built: 'workshop',
+    });
   });
 
   /**
@@ -2131,6 +2188,7 @@ describe('what earns a line in the log', () => {
         kind: 'project-cancelled',
         slot: 'front-yard',
         hardware: 3,
+        built: 'watchtower',
       }),
     },
     'management/projectUnfinished': {
@@ -2145,7 +2203,11 @@ describe('what earns a line in the log', () => {
         }),
       ),
       action: { type: 'management/projectUnfinished', at: 0, when: AT },
-      entry: entry(3, 'management', { kind: 'project-unfinished', slot: 'front-yard' }),
+      entry: entry(3, 'management', {
+        kind: 'project-unfinished',
+        slot: 'front-yard',
+        built: 'watchtower',
+      }),
     },
     'advancement/projectsCompleted': {
       // Ordered last turn, so this turn's Advancement Phase finishes it.

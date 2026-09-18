@@ -1077,6 +1077,7 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
           kind: 'project-cancelled',
           slot: project.slot,
           hardware: cancelled.materials.hardware - campaign.materials.hardware,
+          ...builtOf(project),
         });
       });
 
@@ -1098,6 +1099,7 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         return logged(withProjectCancelled(campaign, action.at), action.when, {
           kind: 'project-unfinished',
           slot: project.slot,
+          ...builtOf(project),
         });
       });
 
@@ -1258,6 +1260,21 @@ function editSurvivor(
       survivor.id === id ? edit(survivor) : survivor,
     ),
   }));
+}
+
+/**
+ * What a project was, for the two entries that record it leaving the queue.
+ *
+ * Spread rather than returned as a field, because `exactOptionalPropertyTypes`
+ * makes an explicit `built: undefined` a different thing from an absent one —
+ * and absent is what a clearing writes, having nothing to name. One id for
+ * either kind, the way `materials-converted` names its `source`.
+ */
+function builtOf(project: Project): { readonly built?: string } {
+  if (project.kind === 'facility') return { built: project.facility };
+  if (project.kind === 'upgrade') return { built: project.upgrade };
+
+  return {};
 }
 
 function withCampaign(state: CampaignState, edit: (campaign: Campaign) => Campaign): CampaignState {

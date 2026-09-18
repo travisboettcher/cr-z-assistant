@@ -290,10 +290,11 @@ describe('building into a slot', () => {
     expect(screen.queryByText(/on order:/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(9);
 
-    // And the history says how much, which the button cannot know before the
-    // press and the log records after it.
+    // And the history says what it was and how much came back — the button
+    // cannot know the second before the press, and "the Garage project" alone
+    // is ambiguous the moment two are queued there (#151).
     expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
-      '3 Hardware came back',
+      'Cancelled the Bunk Room on the Garage — 3 Hardware came back',
     );
   });
 
