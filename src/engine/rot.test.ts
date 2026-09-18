@@ -17,6 +17,7 @@ import {
   rotCheckResolved,
   rotOutcome,
   rotTarget,
+  stillToCheck,
   withRotApplied,
 } from './rot';
 import type { LogEntry } from './log';
@@ -51,6 +52,46 @@ describe('mustCheck', () => {
    */
   it('includes a survivor below zero, which a save can hold', () => {
     expect(mustCheck(community([at('a', 'A', -1)])).map((survivor) => survivor.id)).toEqual(['a']);
+  });
+});
+
+describe('stillToCheck', () => {
+  const checked = (survivor: string): LogEntry => ({
+    turn: 3,
+    phase: 'management',
+    at: AT,
+    event: {
+      kind: 'rot-checked',
+      survivor,
+      name: 'A',
+      roll: 10,
+      target: 12,
+      passed: true,
+    },
+  });
+
+  /**
+   * The distinction `mustCheck` cannot make: a survivor who **holds** is still
+   * at 0 Health, so they went on matching it and the screen went on offering
+   * them a form the reducer would refuse (#143).
+   */
+  it('drops a survivor whose check has already run this turn', () => {
+    const dying = community([at('a', 'A', 0), at('b', 'B', 0)]);
+    const half = { ...dying, log: [checked('a')] };
+
+    expect(stillToCheck(dying).map((survivor) => survivor.id)).toEqual(['a', 'b']);
+    expect(stillToCheck(half).map((survivor) => survivor.id)).toEqual(['b']);
+  });
+
+  it('keeps somebody whose check ran last turn', () => {
+    const dying = community([at('a', 'A', 0)]);
+    const before = { ...dying, log: [{ ...checked('a'), turn: 2 }] };
+
+    expect(stillToCheck(before).map((survivor) => survivor.id)).toEqual(['a']);
+  });
+
+  it('names nobody when nobody is at 0 Health', () => {
+    expect(stillToCheck(community([at('a', 'A', 2)]))).toEqual([]);
   });
 });
 

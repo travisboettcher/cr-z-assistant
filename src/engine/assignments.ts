@@ -181,6 +181,19 @@ export function missionTeam(campaign: Campaign): readonly Survivor[] {
 }
 
 /**
+ * What the base is adding to the Labor pool right now, for a caption to name.
+ *
+ * `laborPool` reads the same number through `baseLabor`; this is the half a
+ * screen has to say out loud, because both captions read "the summed Tier
+ * levels of the project team" beside a 5 for a team whose Tiers sum to 3
+ * (#143). Same class as #113: a number with a term the sentence beside it does
+ * not mention.
+ */
+export function baseLaborBonus(campaign: Campaign): number {
+  return baseLabor(campaign, projectTeam(campaign).length > 0);
+}
+
+/**
  * The Labor the project team on the campaign generates (pg. 20).
  *
  * The sum of their Tier levels, plus whatever the base adds. Two things it is

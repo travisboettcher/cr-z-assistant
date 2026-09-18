@@ -30,6 +30,7 @@ import { BaseSheet } from './BaseSheet';
 import { FacilityWork } from './FacilityWork';
 import { laborAvailable, queuedFor } from '../engine/projects';
 import { planningHasBegun } from '../engine/planning';
+import { baseLaborBonus } from '../engine/assignments';
 import { describeProject } from './projectLabels';
 import { useCampaign } from '../state/useCampaign';
 import { BuildFacility } from './BuildFacility';
@@ -315,8 +316,16 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
         {planningHasBegun(campaign) ? (
           <>
             <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-              The summed Tier levels of the project team, less what this turn has already ordered.
-              Whatever is left at the end of the turn is lost <PageRef pages={20} />
+              The summed Tier levels of the project team
+              {baseLaborBonus(campaign) > 0 && (
+                <>
+                  {' '}
+                  plus the <span className="tabular-nums">{baseLaborBonus(campaign)}</span> this
+                  base adds
+                </>
+              )}
+              , less what this turn has already ordered. Whatever is left at the end of the turn is
+              lost <PageRef pages={20} />
             </p>
             <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
               Who is on it is Planning Step 2, above.

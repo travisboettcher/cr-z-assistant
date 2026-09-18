@@ -259,7 +259,7 @@ than as a short file.
 
 ## Rulings the book leaves open
 
-Six places where the printed text does not decide the answer. Each needs a table ruling before
+Seven places where the printed text does not decide the answer. Each needs a table ruling before
 the story that depends on it, and each is recorded here rather than settled quietly in code — a
 house rule that lives in a function is indistinguishable from a rule.
 
@@ -321,6 +321,23 @@ house rule that lives in a function is indistinguishable from a rule.
    The spread rather than a page, because the two transcriptions of this upgrade disagree:
    `facilities.ts` recorded it as pg. 73 and the September playtest read it off pg. 72. Narrow it
    next time the book is open.
+7. **What a Teacher with a Score of nothing replaces (pg. 12,
+   [#143](https://github.com/travisboettcher/cr-z-assistant/issues/143)) — RULED.** A Teacher on
+   the mission team replaces the discretionary point, and their Teaching Score is how many
+   survivors they then hand a point to. The book does not say what happens when those two come
+   apart — a survivor who has the skill at Score 0, which a Cooperation of 0 and a level of 0
+   produces.
+
+   **The ruling is that having the skill is what replaces the point.** A Teacher whose Score is 0
+   replaces the discretionary point and hands out none, so that turn awards one XP each for going
+   out and nothing else. The trigger the book names is the Teacher being on the team, not a
+   number; the Score appears only in the sentence about who receives points.
+
+   The alternative — the Score replaces the point, so a Score-0 Teacher leaves it standing — is
+   defensible and was what the code did, while the message on the screen said the ruling above.
+   Either is playable; what is not is the pair disagreeing, which is how a discretionary point
+   was awarded under a line saying it had been replaced. One `canTeach` against one `teaching > 0`
+   is the whole of the difference, if a table wants it the other way.
 
 ---
 
