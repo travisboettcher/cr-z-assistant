@@ -18,7 +18,7 @@ import {
 } from './experience';
 import type { LogEntry } from './log';
 import { XP_SOURCES, type XpSource } from '../data/turn';
-import { staffedWith } from '../test/campaigns';
+import { generatingUtilities, staffedWith } from '../test/campaigns';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 const AT = '2026-09-11T09:00:00.000Z';
@@ -111,6 +111,26 @@ describe('trainingRoomXp', () => {
 
     // Halved rounds up (pg. 72): a Score of 3 without Power is 2.
     expect(trainingRoomXp(campaign)).toBe(2);
+  });
+
+  /**
+   * The Power has to be generated as well as assigned (#111), and the XP pool
+   * asked the stored flag until #139 — the third place the same unbacked point
+   * paid out, after production and healing.
+   */
+  it('halves it when the assigned Power has nothing generating it', () => {
+    const teacher = scored('teacher', 'Nell Haig', 'teaching', 3);
+    const powered: Base = {
+      id: 'hobby-farm',
+      slots: {
+        'front-yard': { built: { facility: 'training-room', builtOnTurn: 1 }, power: true },
+      },
+    };
+
+    const campaign = staffedWith(community({}, [], powered), 'front-yard', [teacher]);
+
+    expect(trainingRoomXp(campaign)).toBe(2);
+    expect(trainingRoomXp(generatingUtilities(campaign, 1, 'utility-station'))).toBe(3);
   });
 
   /**
@@ -479,5 +499,13 @@ describe('why a pool is empty', () => {
     ]);
 
     expect(reason(wrong, 'training-room')).toBe('wrong-person');
+
+    // And it is *this* slot that has to be staffed: somebody working the
+    // Kitchen is not somebody teaching, on a base whose Kitchen is built in.
+    const elsewhere = staffedWith(empty, 'kitchen', [
+      { ...createSurvivor('Ada Pratt', 4, { id: 'ada' }), skills: { rationing: 0 } },
+    ]);
+
+    expect(reason(elsewhere, 'training-room')).toBe('nowhere-to-teach');
   });
 });

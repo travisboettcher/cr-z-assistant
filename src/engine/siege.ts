@@ -32,7 +32,7 @@ import { SIEGE_THREAT_TERMS, SIEGE_TRIGGER, type SiegeThreatTerm } from '../data
 import { suppliedOccupants } from './utilities';
 import type { D10Result } from '../data/dice';
 import { projectTeam, staffOf, staffedFacilityCount } from './assignments';
-import { occupants, siegeThreatFromBase, siegeThreatReduction } from './base';
+import { siegeThreatFromBase, siegeThreatReduction } from './base';
 import { hungerPenalty } from './feeding';
 import { facilityProduction } from './production';
 import type { Campaign } from './campaign';
@@ -113,11 +113,9 @@ export function siegeThreatTerms(campaign: Campaign): Record<SiegeThreatTerm, nu
  * starving lookout watches worse.
  */
 function watchedFromAbove(campaign: Campaign): number {
-  const base = campaign.base;
-  if (base === null) return 0;
-
+  // No base-less guard: `suppliedOccupants` returns nothing to reduce over.
   const penalty = hungerPenalty(campaign);
-  const reduction = occupants(base).reduce(
+  const reduction = suppliedOccupants(campaign).reduce(
     (total, occupant) =>
       total + siegeThreatReduction(occupant, staffOf(campaign, occupant.slotId), penalty),
     0,
@@ -208,12 +206,10 @@ export function hordeCame(campaign: Campaign): boolean {
  * no hint, which is the same 0 an empty tower gives (#143).
  */
 export function towersWithoutTheSkill(campaign: Campaign): readonly string[] {
-  const base = campaign.base;
-  if (base === null) return [];
-
+  // No base-less guard: `suppliedOccupants` returns nothing to look through.
   const penalty = hungerPenalty(campaign);
 
-  return occupants(base).flatMap((occupant) =>
+  return suppliedOccupants(campaign).flatMap((occupant) =>
     facilityProduction(occupant, staffOf(campaign, occupant.slotId), penalty).some(
       (line) => line.missingSkill && line.outputs.includes('siege-threat'),
     )

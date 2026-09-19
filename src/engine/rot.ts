@@ -44,7 +44,7 @@
 import { NATURAL_FAILURE, NATURAL_SUCCESS, type D10Result } from '../data/dice';
 import { ROT_CHECK_TARGET, ROT_BITE_DAMAGE } from '../data/turn';
 import { staffOf, survivorsDoing } from './assignments';
-import { occupants } from './base';
+import { suppliedOccupants } from './utilities';
 import type { Campaign, Survivor } from './campaign';
 import { hungerPenalty } from './feeding';
 import { skillScore } from './survivor';
@@ -80,13 +80,12 @@ export function stillToCheck(campaign: Campaign): readonly Survivor[] {
  * force is the one from the turn before.
  */
 export function rotTarget(campaign: Campaign): number {
-  const base = campaign.base;
-  if (base === null) return ROT_CHECK_TARGET;
-
+  // No base-less guard: with nothing to loop over the Medicine stays at zero,
+  // and the target is the bare twelve either way.
   const penalty = hungerPenalty(campaign);
   let medicine = 0;
 
-  for (const occupant of occupants(base)) {
+  for (const occupant of suppliedOccupants(campaign)) {
     if (occupant.facility.id !== 'medical-clinic') continue;
 
     for (const staff of staffOf(campaign, occupant.slotId)) {
@@ -109,10 +108,7 @@ export function rotTarget(campaign: Campaign): number {
  * one: the transcription was right and nothing summed it.
  */
 export function restraints(campaign: Campaign): number {
-  const base = campaign.base;
-  if (base === null) return 0;
-
-  return occupants(base).reduce(
+  return suppliedOccupants(campaign).reduce(
     (total, occupant) =>
       total +
       occupant.upgrades.reduce((sets, upgrade) => sets + (upgrade.effects.preventsBiting ?? 0), 0),
