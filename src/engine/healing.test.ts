@@ -20,7 +20,7 @@ import {
   woundsHealed,
 } from './healing';
 import type { LogEntry } from './log';
-import { staffedWith } from '../test/campaigns';
+import { generatingFlatUtility, generatingUtilities, staffedWith } from '../test/campaigns';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 const AT = '2026-09-11T09:00:00.000Z';
@@ -132,6 +132,29 @@ describe('healingPool', () => {
     expect(healingPool(staffedWith(community([], {}, clinic()), 'garage', [medic]))).toBe(2);
   });
 
+  /**
+   * The Water has to be generated as well as assigned (#111), and healing asked
+   * the stored flag until #139 — so a Clinic kept its full Score off a point
+   * the Station stopped making the moment its staff moved on.
+   */
+  it('halves it when the assigned Water has nothing generating it', () => {
+    const medic = {
+      ...createSurvivor('Nell Haig', 4, { id: 'medic' }),
+      stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: 3 },
+      skills: { medicine: 0 },
+    };
+
+    const watered: Base = {
+      ...clinic(),
+      slots: { garage: { built: { facility: 'medical-clinic', builtOnTurn: 1 }, water: true } },
+    };
+
+    const staffed = staffedWith(community([], {}, watered), 'garage', [medic]);
+
+    expect(healingPool(staffed)).toBe(2);
+    expect(healingPool(generatingFlatUtility(staffed, 'water'))).toBe(3);
+  });
+
   it('counts only Health, and not the other things a base produces', () => {
     // A Garden makes a Food and nothing else (pg. 55). A pool that summed
     // every production line would call that a point of Health.
@@ -165,17 +188,25 @@ describe('healthAwards', () => {
       // Water, so the Score is not halved — the pool's size is the point here.
     };
 
-    return staffedWith(
-      community(
-        [],
-        {},
-        {
-          id: 'small-town-home',
-          slots: { garage: { built: { facility: 'medical-clinic', builtOnTurn: 1 }, water: true } },
-        },
+    // The Water is generated as well as assigned: a point with nobody behind it
+    // does not supply the Clinic (#111, reaching healing through #139), so a
+    // Station in the yard is what makes the flag mean anything.
+    return generatingUtilities(
+      staffedWith(
+        community(
+          [],
+          {},
+          {
+            id: 'small-town-home',
+            slots: {
+              garage: { built: { facility: 'medical-clinic', builtOnTurn: 1 }, water: true },
+            },
+          },
+        ),
+        'garage',
+        [medic],
       ),
-      'garage',
-      [medic],
+      1,
     );
   };
 

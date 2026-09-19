@@ -12,6 +12,7 @@ import {
   type Conversion,
 } from './conversions';
 import type { LogEntry } from './log';
+import { generatingUtilities } from '../test/campaigns';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 const AT = '2026-09-11T09:00:00.000Z';
@@ -65,17 +66,27 @@ describe('conversions', () => {
    * needs Power *and* Water.
    */
   it('does not offer a trade from something switched off for want of a utility', () => {
-    const campaign = withGasRange({
-      base: {
-        id: 'hobby-farm',
-        slots: { kitchen: { upgrades: ['gas-range', 'biofuel-lab'], power: true } },
-      },
-    });
+    const campaign = generatingUtilities(
+      withGasRange({
+        base: {
+          id: 'hobby-farm',
+          slots: { kitchen: { upgrades: ['gas-range', 'biofuel-lab'], power: true } },
+        },
+      }),
+      1,
+      'utility-station',
+    );
 
     expect(conversions(campaign).map(({ source }) => source.id)).toEqual(['gas-range']);
   });
 
-  it('offers it once both are supplied', () => {
+  /**
+   * The same slot, the same two flags, and nobody in the Station — so neither
+   * point is backed and the Lab is switched off for want of the Power the base
+   * is not making. `conversions` asked the stored flags until R2-H1 (#139),
+   * which made this campaign and the one above indistinguishable.
+   */
+  it('does not offer it when nothing is generating the points it is assigned', () => {
     const campaign = withGasRange({
       base: {
         id: 'hobby-farm',
@@ -84,6 +95,23 @@ describe('conversions', () => {
         },
       },
     });
+
+    expect(conversions(campaign).map(({ source }) => source.id)).toEqual(['gas-range']);
+  });
+
+  it('offers it once both are supplied', () => {
+    const campaign = generatingUtilities(
+      withGasRange({
+        base: {
+          id: 'hobby-farm',
+          slots: {
+            kitchen: { upgrades: ['gas-range', 'biofuel-lab'], power: true, water: true },
+          },
+        },
+      }),
+      2,
+      'utility-station',
+    );
 
     expect(conversions(campaign).map(({ source }) => source.id)).toEqual([
       'gas-range',
