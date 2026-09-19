@@ -37,25 +37,131 @@
  * Pure, like the rest of `src/engine`.
  */
 
-import { FACILITIES, type Facility } from '../data/facilities';
+import { FACILITIES, type Cost, type Facility, type UpgradeId } from '../data/facilities';
 import { laborPool } from './assignments';
+import type { Occupant } from './base';
 import { clearingProject, occupantAt, replacedBy, upgradeCost } from './base';
 import type { Campaign, Project } from './campaign';
 import type { Violation } from './checks';
 import { planningHasBegun } from './planning';
 import { phaseOf } from './turn';
 
-/** What one project costs, whichever of the three kinds it is. */
-export function projectCost(
+/**
+ * Whether one of these is already on order for this slot.
+ *
+ * The queue holds orders, not results, so "is there a facility here" and "is a
+ * facility *coming* here" are different questions and the validators only ever
+ * asked the first (#140). Two facilities ordered into one slot in a single
+ * Planning Phase both took their Hardware; one landed, and `completeProjects`
+ * dropped the other where it stood.
+ */
+export function queuedKindFor(campaign: Campaign, slot: string, kind: Project['kind']): boolean {
+  return queuedFor(campaign, slot).some((queued) => queued.project.kind === kind);
+}
+
+/**
+ * The upgrade orders standing for this slot, by id.
+ *
+ * For the two messages that count: a cap reached by orders rather than by
+ * building reads differently, and a player who cannot see the queue in the
+ * number cannot tell a full facility from one they have just filled.
+ *
+ * Ids rather than catalogue entries, and deliberately unresolved: an order for
+ * an upgrade the facility does not offer still occupies a place in the queue,
+ * and a count that quietly dropped it would disagree with the list the player
+ * can see on the slot card.
+ */
+export function queuedUpgradesFor(campaign: Campaign, slot: string): readonly UpgradeId[] {
+  return queuedFor(campaign, slot).flatMap(({ project }) =>
+    project.kind === 'upgrade' ? [project.upgrade] : [],
+  );
+}
+
+/**
+ * The facility in this slot as the orders ahead of `before` will leave it.
+ *
+ * Four checks and a price all ask one question — *what will be standing here
+ * when this order lands* — and every one of them answered it from installed
+ * state alone. So four Herb Plots fitted into three upgrade slots, two
+ * Greenhouses sat on one Garden against `maxPerFacility: 1`, and both were
+ * quoted the Fence-replacement discount for a Fence there is only one of.
+ *
+ * `before` is a position in the whole queue, and orders from that position on
+ * are not counted: a quote for something not yet ordered takes them all
+ * (nothing is after it yet), and a refund takes only the orders that were
+ * already ahead of it when it was priced. Otherwise cancelling the first of two
+ * Greenhouses would hand back the discounted price for the one that paid full.
+ *
+ * The upgrade rule here is `completeProjects`' one, deliberately: an order that
+ * excludes something installed takes it off, so the second copy of an upgrade
+ * finds the exclusion already spent.
+ */
+export function occupantAwaiting(
   campaign: Campaign,
-  project: Project,
-): { readonly hardware: number; readonly labor: number } {
+  slot: string,
+  before = Number.POSITIVE_INFINITY,
+): Occupant | undefined {
+  const standing = occupantAt(campaign, slot);
+
+  // A facility on order is not something to upgrade: `checkUpgrade` refuses an
+  // empty slot before it gets here, and an order against a facility that has
+  // not been built is one the queue cannot promise.
+  if (standing === undefined) return undefined;
+
+  return queuedFor(campaign, slot).reduce((occupant, { at, project }) => {
+    // The kind test is the typechecker's rather than the rule's, and a mutant
+    // that drops it survives: a clearing or a facility order carries no
+    // `upgrade`, so the lookup below finds nothing and returns the occupant
+    // unchanged — the same answer by a longer road.
+    if (at >= before || project.kind !== 'upgrade') return occupant;
+
+    const ordered = occupant.facility.upgrades.find(
+      (candidate) => candidate.id === project.upgrade,
+    );
+    if (ordered === undefined) return occupant;
+
+    const gone = replacedBy(occupant, ordered);
+
+    return {
+      ...occupant,
+      upgrades: [...occupant.upgrades.filter((installed) => !gone.includes(installed)), ordered],
+    };
+  }, standing);
+}
+
+/**
+ * What ordering this project *now* would cost — every quote a screen shows.
+ *
+ * Everything already queued counts as ahead of it, which is what makes the
+ * second Greenhouse ordered onto one Garden cost the catalogue price: the
+ * first one has spoken for the Fence.
+ */
+export function projectCost(campaign: Campaign, project: Project): Cost {
+  return costOf(campaign, project, Number.POSITIVE_INFINITY);
+}
+
+/**
+ * What the project at this position in the queue was charged.
+ *
+ * A second function rather than an optional argument on the one above, because
+ * the difference is not a detail a caller may forget: a queued project priced
+ * as though it were being ordered now would count *itself* among the orders
+ * ahead of it, and its refund would come back a Hardware short of what was
+ * taken. Nothing for a position the queue does not have.
+ */
+export function queuedCost(campaign: Campaign, at: number): Cost {
+  const project = campaign.projects[at];
+
+  return project === undefined ? NOTHING : costOf(campaign, project, at);
+}
+
+function costOf(campaign: Campaign, project: Project, before: number): Cost {
   if (project.kind === 'facility') {
     return (FACILITIES[project.facility] as Facility).cost;
   }
 
   if (project.kind === 'upgrade') {
-    const occupant = occupantAt(campaign, project.slot);
+    const occupant = occupantAwaiting(campaign, project.slot, before);
     // Nothing, for an upgrade of a facility that is no longer there. A queue is
     // a record of what was ordered and the base can change under it — Z1-7's
     // override lets a player clear a slot with an upgrade queued for it — and
@@ -116,9 +222,11 @@ export function queuedFor(campaign: Campaign, slot: string): readonly QueuedProj
  * them.
  */
 export function laborCommitted(campaign: Campaign): number {
-  return campaign.projects
-    .filter((project) => project.orderedOnTurn === campaign.turn)
-    .reduce((total, project) => total + projectCost(campaign, project).labor, 0);
+  return campaign.projects.reduce(
+    (total, project, at) =>
+      project.orderedOnTurn === campaign.turn ? total + queuedCost(campaign, at).labor : total,
+    0,
+  );
 }
 
 /**
@@ -305,7 +413,10 @@ export function withProjectCancelled(campaign: Campaign, at: number): Campaign {
   const project = campaign.projects[at];
   if (project === undefined) return campaign;
 
-  const cost = projectCost(campaign, project);
+  // Priced at its own position, so the refund is the number that was charged:
+  // the second Greenhouse ordered onto one Garden paid full, because the first
+  // had already spent the Fence it would have replaced.
+  const cost = queuedCost(campaign, at);
 
   return {
     ...campaign,
@@ -403,6 +514,12 @@ export function completeProjects(campaign: Campaign): {
     } else {
       const clearing = clearingProject(campaign, project.slot);
       if (clearing === undefined) continue;
+
+      // Rubble is cleared once. `checkClearing` refuses a second order now
+      // (#140), but a save written before it did — or edited since — can hold
+      // two, and the yield is paid here: the Pews gave up their 4 Hardware
+      // twice, and the log said "Cleared the Pews 2." for both.
+      if (state.cleared === true) continue;
 
       materials = { ...materials };
       // `yields` is optional on the type and present on all three projects the

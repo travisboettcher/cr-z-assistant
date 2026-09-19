@@ -36,7 +36,7 @@ import {
   type UpgradeId,
 } from '../data/facilities';
 import { occupantAt, replacedBy, upgradeCost, upgradesRemaining, upgradesUsed } from './base';
-import { laborRefusal } from './projects';
+import { laborRefusal, occupantAwaiting, queuedUpgradesFor } from './projects';
 import type { Check, Violation } from './checks';
 import type { Campaign } from './campaign';
 
@@ -74,6 +74,17 @@ export function upgradesFor(campaign: Campaign, slot: string): readonly Upgrade[
   return occupantAt(campaign, slot)?.facility.upgrades ?? [];
 }
 
+/**
+ * The clause that says how much of a count is not built yet.
+ *
+ * Empty when nothing is on order, so the message a player has always seen is
+ * the message they still see — the queue is named only when the queue is why
+ * they are reading it.
+ */
+function counting(onOrder: readonly UpgradeId[]): string {
+  return onOrder.length === 0 ? '' : ` (${String(onOrder.length)} on order)`;
+}
+
 /** Everything wrong with adding this upgrade, or two empty lists. */
 export function checkUpgrade(campaign: Campaign, request: UpgradeRequest): UpgradeCheck {
   const blockers: UpgradeViolation[] = [];
@@ -86,7 +97,11 @@ export function checkUpgrade(campaign: Campaign, request: UpgradeRequest): Upgra
     };
   }
 
-  const occupant = occupantAt(campaign, request.slot);
+  // The slot as the queue will leave it, not as it stands: an upgrade ordered
+  // this Planning Phase is one of the three, takes its `maxPerFacility` place,
+  // and spends whatever it replaces. Everything below that counts what is on
+  // the facility asks this one (#140).
+  const occupant = occupantAwaiting(campaign, request.slot);
 
   if (occupant === undefined) {
     return {
@@ -119,6 +134,7 @@ export function checkUpgrade(campaign: Campaign, request: UpgradeRequest): Upgra
   // What it costs *here*, which is not always the catalogue price: an upgrade
   // that replaces one already installed is discounted for it (pp. 72–73).
   const cost = upgradeCost(occupant, upgrade);
+  const onOrder = queuedUpgradesFor(campaign, request.slot);
 
   if (campaign.materials.hardware < cost.hardware) {
     blockers.push({
@@ -143,7 +159,7 @@ export function checkUpgrade(campaign: Campaign, request: UpgradeRequest): Upgra
     // never going to reach.
     warnings.push({
       code: 'cap-reached',
-      message: `Already has ${String(upgradesUsed(occupant))} of its ${String(MAX_UPGRADES_PER_FACILITY)} upgrades. Rare upgrades do not count.`,
+      message: `Already has ${String(upgradesUsed(occupant))}${counting(onOrder)} of its ${String(MAX_UPGRADES_PER_FACILITY)} upgrades. Rare upgrades do not count.`,
       pages: '49, 54',
     });
   }
@@ -185,7 +201,7 @@ export function checkUpgrade(campaign: Campaign, request: UpgradeRequest): Upgra
   if (already >= limit) {
     warnings.push({
       code: 'one-per-facility',
-      message: `A facility takes at most ${String(limit)} of this upgrade.`,
+      message: `A facility takes at most ${String(limit)} of this upgrade${counting(onOrder.filter((queued) => queued === upgrade.id))}.`,
       pages: '72–73',
     });
   }
@@ -205,12 +221,18 @@ export function checkUpgrade(campaign: Campaign, request: UpgradeRequest): Upgra
  *
  * Nothing on both counts for a slot that holds no such facility or no such
  * upgrade, which a queue outliving a rebuilt slot can ask about.
+ *
+ * Asked of the slot *the queue will leave*, like `checkUpgrade`: there is one
+ * Fence, so the second Greenhouse ordered onto one Garden replaces nothing and
+ * costs the catalogue price. It was quoted "3 Hardware · Replaces the Fence"
+ * beside the first one saying the same, and charged 6 for two 4-Hardware
+ * upgrades (#140).
  */
 export function upgradeOrder(
   campaign: Campaign,
   request: UpgradeRequest,
 ): { readonly cost: Cost; readonly replaces: readonly UpgradeId[] } {
-  const occupant = occupantAt(campaign, request.slot);
+  const occupant = occupantAwaiting(campaign, request.slot);
   if (occupant === undefined) return NOTHING_ORDERED;
 
   const upgrade = occupant.facility.upgrades.find((candidate) => candidate.id === request.upgrade);

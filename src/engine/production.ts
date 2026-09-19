@@ -20,7 +20,7 @@
 
 import type { Produced, Utility } from '../data/facilities';
 import type { Stat } from '../data/skills';
-import { working, type Occupant } from './base';
+import { siegeThreatReduction, watchSkills, working, type Occupant } from './base';
 import type { Survivor } from './campaign';
 import { skillScore } from './survivor';
 
@@ -194,24 +194,37 @@ export function facilityProduction(
         missingSkill: false,
       });
     }
+  }
 
-    if (siege.reducedByBestOf !== undefined) {
-      // The staff's *best* of the four, not their total: one lookout watching
-      // with whatever they are best at (pg. 73). Scored once and read twice,
-      // rather than recomputed for the amount and again for the skill check.
-      const scores = siege.reducedByBestOf.map((candidate) =>
-        combinedScore(staff, candidate, penalty),
-      );
+  /*
+   * One line for the whole slot, and the same function the horde check totals.
+   *
+   * The rule is one lookout watching with whatever they are best at (pg. 73):
+   * the best single Score across the staff, not the sum of theirs. This said
+   * as much in a comment and then routed the four skills through
+   * `combinedScore`, which adds across staff — right about best-of-four-skills
+   * and wrong about the people. Latent until #100 let two lookouts share a
+   * tower, and then the card read −11 against the total's −6 (#142).
+   *
+   * Per slot rather than per entry for the same reason: two towers give both
+   * reductions and two lookouts in one tower give the better of them, which is
+   * a fact about the tower and not about each upgrade on it.
+   */
+  const watches = watchSkills(occupant);
 
-      lines.push({
-        outputs: ['siege-threat'],
-        amount: -Math.max(0, ...scores.map((scored) => scored.score)),
-        halved: false,
-        staffed: true,
-        restrictedToStat: undefined,
-        missingSkill: staff.length > 0 && !scores.some((scored) => scored.anyHasSkill),
-      });
-    }
+  if (watches.length > 0) {
+    lines.push({
+      outputs: ['siege-threat'],
+      amount: -siegeThreatReduction(occupant, staff, penalty),
+      halved: false,
+      staffed: true,
+      restrictedToStat: undefined,
+      missingSkill:
+        staff.length > 0 &&
+        !staff.some((survivor) =>
+          watches.some((skill) => skillScore(survivor, skill, penalty) !== null),
+        ),
+    });
   }
 
   return lines;

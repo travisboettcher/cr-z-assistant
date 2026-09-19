@@ -88,6 +88,14 @@ describe('checkClearing', () => {
       'already-cleared',
     ],
     [
+      'a slot already being cleared by an order',
+      campaignWith(farm(), {
+        projects: [{ kind: 'clearing', slot: 'ruined-chicken-coop', orderedOnTurn: 4 }],
+      }),
+      'ruined-chicken-coop',
+      'clearing-on-order',
+    ],
+    [
       'too little Labor',
       campaignWith(farm(), { ...projectTeamWorth(1) }),
       'ruined-chicken-coop',

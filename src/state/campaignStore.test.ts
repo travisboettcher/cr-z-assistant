@@ -1102,6 +1102,27 @@ describe('project/ordered', () => {
     expect(campaign.base?.slots).toEqual({});
   });
 
+  /**
+   * #140, driven through the store, which is where the Hardware was actually
+   * lost: both orders passed a check that read installed state, both paid, one
+   * landed, and `completeProjects` dropped the other with no log entry and no
+   * refund. The reducer refuses anything with a blocker, so the fix at the
+   * validator is the fix here.
+   */
+  it('refuses a second facility for a slot already on order, and keeps the Hardware', () => {
+    const once = campaignReducer(
+      withBase(),
+      order({ kind: 'facility', slot: 'garage', facility: 'workshop' }),
+    );
+    const twice = expectOpen(
+      campaignReducer(once, order({ kind: 'facility', slot: 'garage', facility: 'training-room' })),
+    );
+
+    expect(twice.projects).toHaveLength(1);
+    expect(twice.materials.hardware).toBe(6);
+    expect(twice.log.filter((entry) => entry.event.kind === 'facility-ordered')).toHaveLength(1);
+  });
+
   it('stamps the turn the order was placed on rather than trusting the screen', () => {
     // Turn 7's own Planning Phase, because a team assigned on turn 3 funds
     // nothing on turn 7 — which is the rule `laborThisTurn` enforces and the
@@ -1225,8 +1246,9 @@ describe('project/cancelled', () => {
    * standing in the step that places them, which is also the only step that may
    * take them back (#148).
    */
-  function ordered(step: TurnStepId = 'assign-project-team'): CampaignState {
-    const base = openState(
+  /** A community in the Planning Phase with an empty queue and Hardware to spend. */
+  function queueable(step: TurnStepId = 'assign-project-team'): CampaignState {
+    return openState(
       withPlanningBegun({
         ...createNewCampaign('Cedar Hollow', FIXED),
         materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
@@ -1236,6 +1258,10 @@ describe('project/cancelled', () => {
         ...projectTeamWorth(9),
       }),
     );
+  }
+
+  function ordered(step: TurnStepId = 'assign-project-team'): CampaignState {
+    const base = queueable(step);
     const one = campaignReducer(base, {
       type: 'project/ordered',
       at: AT,
@@ -1329,9 +1355,12 @@ describe('project/cancelled', () => {
       'workshop',
     ],
   ])('says what %s was when it leaves the queue', (_label, project, built) => {
-    const placed = campaignReducer(ordered(), { type: 'project/ordered', at: AT, project });
+    // From an empty queue, so neither slot is one the fixture has already
+    // spoken for: a second facility on order for a slot is refused (#140), and
+    // what this is about is the entry the cancellation writes.
+    const placed = campaignReducer(queueable(), { type: 'project/ordered', at: AT, project });
     const after = expectOpen(
-      campaignReducer(placed, { type: 'project/cancelled', at: 2, when: AT }),
+      campaignReducer(placed, { type: 'project/cancelled', at: 0, when: AT }),
     );
 
     expect(after.log.at(-1)?.event).toMatchObject({ kind: 'project-cancelled', built });

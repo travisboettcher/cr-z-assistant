@@ -113,9 +113,11 @@ export function describeEvent(event: CampaignEvent): EventLabel {
           .join(', ');
 
       return {
-        // Named by the thing that did it, because a base can hold two of them
-        // and the history is where a player checks a per-turn allowance.
-        text: `The ${builtThingLabel(event.source)} traded ${of(event.spent)} for ${of(event.gained)}.`,
+        // Named by the thing that did it *and where it is*, because a base can
+        // hold two of them and the history is where a player checks a per-turn
+        // allowance. The comment beside this line claimed as much while the
+        // sentence dropped the slot the event carries (#151).
+        text: `The ${builtThingLabel(event.source)} on the ${slotLabel(event.slot)} traded ${of(event.spent)} for ${of(event.gained)}.`,
         pages: 19,
       };
     }

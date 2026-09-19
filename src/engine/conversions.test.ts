@@ -1,13 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { FACILITIES, type Exchange, type Facility, type Upgrade } from '../data/facilities';
+import {
+  FACILITIES,
+  type Exchange,
+  type Facility,
+  type Upgrade,
+  type UpgradeId,
+} from '../data/facilities';
 import { MATERIALS } from '../data/materials';
 import { createNewCampaign, type Campaign } from './campaign';
+import { occupants } from './base';
 import {
   checkConversion,
   conversions,
   gainedBy,
   spentBy,
   timesConverted,
+  unmodelledExchanges,
   withConversion,
   type Conversion,
 } from './conversions';
@@ -233,6 +241,57 @@ describe('checkConversion', () => {
     const campaign = withGasRange({ log: [converted(3, 'bunk-room-1', 'gas-range')] });
 
     expect(timesConverted(campaign, gasRange(campaign))).toBe(0);
+  });
+});
+
+/**
+ * #150: the Generator and the Well Pump are transcribed, do nothing, and said
+ * nothing. Which step owns a Fuel-for-utility trade is an open question; being
+ * silent about it while a player pays Hardware and Labor for the upgrade was
+ * not.
+ */
+describe('unmodelledExchanges', () => {
+  const stationAt = (slot: string, upgrades: readonly UpgradeId[]) =>
+    withGasRange({
+      base: {
+        id: 'hobby-farm',
+        slots: {
+          [slot]: {
+            built: { facility: 'utility-station', builtOnTurn: 1 },
+            upgrades: [...upgrades],
+          },
+        },
+      },
+    });
+
+  const at = (campaign: Campaign, slot: string) => {
+    const found = occupants(campaign.base as NonNullable<Campaign['base']>).find(
+      (occupant) => occupant.slotId === slot,
+    );
+    if (found === undefined) throw new Error('no such slot');
+
+    return found;
+  };
+
+  it('names the two trades this version does not run', () => {
+    const campaign = stationAt('front-yard', ['generator', 'well-pump']);
+
+    expect(unmodelledExchanges(at(campaign, 'front-yard')).map((entry) => entry.id)).toEqual([
+      'generator',
+      'well-pump',
+    ]);
+  });
+
+  it('says nothing about a trade that gains a material, which this version runs', () => {
+    const campaign = withGasRange();
+
+    expect(unmodelledExchanges(at(campaign, 'kitchen'))).toEqual([]);
+  });
+
+  it('says nothing about a facility with no trades at all', () => {
+    const campaign = stationAt('front-yard', []);
+
+    expect(unmodelledExchanges(at(campaign, 'front-yard'))).toEqual([]);
   });
 });
 

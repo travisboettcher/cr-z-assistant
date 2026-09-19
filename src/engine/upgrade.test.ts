@@ -117,9 +117,13 @@ describe('checkUpgrade', () => {
       home({ kitchen: { upgrades: ['gas-range', 'gas-range', 'gas-range'] } }),
     );
 
-    expect(codes(checkUpgrade(full, { slot: 'kitchen', upgrade: 'gas-range' }).warnings)).toEqual([
-      'cap-reached',
-    ]);
+    const [capped] = checkUpgrade(full, { slot: 'kitchen', upgrade: 'gas-range' }).warnings;
+
+    expect(capped?.code).toBe('cap-reached');
+
+    // Three built and none ordered: the message says nothing about a queue,
+    // because there is no queue to say anything about.
+    expect(capped?.message).not.toContain('on order');
 
     // Nothing in the core table is rare, so the exemption is asserted through
     // the branch that reads the flag rather than through data Phase 5 will add.
@@ -127,6 +131,101 @@ describe('checkUpgrade', () => {
     expect(checkUpgrade(nearlyFull, { slot: 'kitchen', upgrade: 'gas-range' }).warnings).toEqual(
       [],
     );
+  });
+
+  /**
+   * The cap counts the queue (#140). Three upgrades ordered for one facility in
+   * a single Planning Phase all passed a check reading installed state, and the
+   * base sheet then reported "4 of 3"; five Spotlights made it "5 of 3".
+   */
+  it('counts upgrades on order against the cap, and says how many are on order', () => {
+    const ordered = (count: number): Campaign =>
+      campaignWith(home({ kitchen: { upgrades: ['gas-range'] } }), {
+        projects: Array.from({ length: count }, () => ({
+          kind: 'upgrade' as const,
+          slot: 'kitchen',
+          upgrade: 'gas-range' as const,
+          orderedOnTurn: 4,
+        })),
+      });
+
+    // One installed and one on order leaves the third slot free.
+    expect(checkUpgrade(ordered(1), { slot: 'kitchen', upgrade: 'gas-range' }).warnings).toEqual(
+      [],
+    );
+
+    const [full] = checkUpgrade(ordered(2), { slot: 'kitchen', upgrade: 'gas-range' }).warnings;
+
+    expect(full?.code).toBe('cap-reached');
+    expect(full?.message).toContain('(2 on order)');
+  });
+
+  /**
+   * `maxPerFacility` counts it too: two Greenhouses went onto one Garden in one
+   * turn, against a limit of 1, and neither order said anything.
+   */
+  it('counts a copy on order against maxPerFacility', () => {
+    const garden = campaignWith(
+      home({ 'front-yard': { built: { facility: 'garden', builtOnTurn: 1 } } }),
+      {
+        projects: [
+          { kind: 'upgrade', slot: 'front-yard', upgrade: 'greenhouse', orderedOnTurn: 4 },
+        ],
+      },
+    );
+
+    const [limit] = checkUpgrade(garden, { slot: 'front-yard', upgrade: 'greenhouse' }).warnings;
+
+    expect(limit?.code).toBe('one-per-facility');
+    expect(limit?.message).toContain('(1 on order)');
+
+    // And the count is of *this* upgrade: a Herb Plot on order for the same
+    // Garden is one of the three, and not a second Greenhouse.
+    const mixed = {
+      ...garden,
+      projects: [
+        ...garden.projects,
+        {
+          kind: 'upgrade' as const,
+          slot: 'front-yard',
+          upgrade: 'herb-plot' as const,
+          orderedOnTurn: 4,
+        },
+      ],
+    };
+
+    const [still] = checkUpgrade(mixed, { slot: 'front-yard', upgrade: 'greenhouse' }).warnings;
+
+    expect(still?.code).toBe('one-per-facility');
+    expect(still?.message).toContain('(1 on order)');
+  });
+
+  /**
+   * A clearing queued for a slot is not an upgrade on it. Only the queue knows
+   * the difference — the count walks `campaign.projects`, where the three
+   * kinds sit side by side.
+   */
+  it('counts only upgrade orders, and not the other two kinds', () => {
+    // Full on installed upgrades, so the cap is reported either way, and the
+    // question is only whether the clearing gets counted into the message.
+    const farm = campaignWith(
+      home({ kitchen: { upgrades: ['gas-range', 'gas-range', 'gas-range'] } }),
+      { projects: [{ kind: 'clearing', slot: 'kitchen', orderedOnTurn: 4 }] },
+    );
+
+    const [capped] = checkUpgrade(farm, { slot: 'kitchen', upgrade: 'gas-range' }).warnings;
+
+    expect(capped?.code).toBe('cap-reached');
+    expect(capped?.message).not.toContain('on order');
+  });
+
+  /** And a queue for another slot is another slot's business. */
+  it('counts only what is on order for this facility', () => {
+    const elsewhere = campaignWith(home({ kitchen: { upgrades: ['gas-range', 'gas-range'] } }), {
+      projects: [{ kind: 'upgrade', slot: 'bunk-room-1', upgrade: 'extra-bed', orderedOnTurn: 4 }],
+    });
+
+    expect(checkUpgrade(elsewhere, { slot: 'kitchen', upgrade: 'gas-range' }).warnings).toEqual([]);
   });
 
   /**
