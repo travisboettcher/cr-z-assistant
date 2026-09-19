@@ -29,7 +29,7 @@ import {
 import { AssignUtilities } from './AssignUtilities';
 import { BaseSheet } from './BaseSheet';
 import { FacilityWork } from './FacilityWork';
-import { laborAvailable, queuedFor } from '../engine/projects';
+import { laborAvailable, laborShortfall, queuedFor } from '../engine/projects';
 import { planningHasBegun } from '../engine/planning';
 import { describeProject } from './projectLabels';
 import { useCampaign } from '../state/useCampaign';
@@ -315,6 +315,20 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
          */}
         {planningHasBegun(campaign) ? (
           <>
+            {/*
+             * A negative is a third reason, and the caption below cannot
+             * explain one: "less what this turn has already ordered" describes
+             * arithmetic that stops at zero. It goes below zero when the Labor
+             * behind an order leaves the community, and the player is owed the
+             * sentence rather than the minus sign (#147).
+             */}
+            {laborShortfall(campaign) > 0 && (
+              <p className="mt-1 text-sm font-medium text-amber-800 dark:text-amber-300">
+                Below zero because the Labor behind an order has left the project team. A project
+                goes unfinished, and the choice is in the Management Phase’s Departures step{' '}
+                <PageRef pages={23} />
+              </p>
+            )}
             <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
               The summed Tier levels of the project team, less what this turn has already ordered.
               Whatever is left at the end of the turn is lost <PageRef pages={20} />
