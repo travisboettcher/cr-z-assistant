@@ -6,6 +6,7 @@ import { createSurvivor } from '../engine/survivor';
 import { PENDING_ROLLS_KEY } from '../persistence/pendingRolls';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
+import { generatingUtilities } from '../test/campaigns';
 
 const EARL = 'earl';
 const CARLA = 'carla';
@@ -524,24 +525,30 @@ describe('Heal Wounds', () => {
       skills: { medicine: 0 },
     };
 
-    return advancement({
-      step: 'heal-wounds',
-      survivors: [
-        medic,
-        { ...createSurvivor('Earl Rhodes', 4, { id: EARL }), currentHp: 1 },
-        { ...createSurvivor('Carla Proust', 3, { id: CARLA }), currentHp: 2 },
-      ],
-      assignments: {
-        medic: { task: 'staff', slot: 'garage' },
-        [EARL]: { task: 'healing' },
-        [CARLA]: { task: 'healing' },
-      },
-      base: {
-        id: 'small-town-home',
-        slots: { garage: { built: { facility: 'medical-clinic', builtOnTurn: 1 }, water: true } },
-      },
-      ...overrides,
-    });
+    // Somebody in the Station as well, because the Clinic's Water has to be
+    // generated and not merely assigned for the Score to come through whole
+    // (#139).
+    return generatingUtilities(
+      advancement({
+        step: 'heal-wounds',
+        survivors: [
+          medic,
+          { ...createSurvivor('Earl Rhodes', 4, { id: EARL }), currentHp: 1 },
+          { ...createSurvivor('Carla Proust', 3, { id: CARLA }), currentHp: 2 },
+        ],
+        assignments: {
+          medic: { task: 'staff', slot: 'garage' },
+          [EARL]: { task: 'healing' },
+          [CARLA]: { task: 'healing' },
+        },
+        base: {
+          id: 'small-town-home',
+          slots: { garage: { built: { facility: 'medical-clinic', builtOnTurn: 1 }, water: true } },
+        },
+        ...overrides,
+      }),
+      1,
+    );
   }
 
   it('shows the distribution before it is applied', () => {
