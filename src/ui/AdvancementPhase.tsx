@@ -193,6 +193,21 @@ function CharacterAdvancement({ campaign }: { readonly campaign: Campaign }) {
                         <span className="text-xs text-stone-500 tabular-nums dark:text-stone-400">
                           {survivor.xp} XP
                         </span>
+                        {/*
+                         * Why, beside the button that will not press. A greyed
+                         * control with no reason is the thing `advancement.ts`
+                         * argues against in as many words, and it was reachable
+                         * here: edit a mission team after its XP has been handed
+                         * out and the new member reads as eligible with a dead
+                         * button (#145). The point stays where it was awarded —
+                         * [ruling 7](../../docs/phase-3-stories.md) — and this
+                         * is the sentence that says so.
+                         */}
+                        {blockers[0] !== undefined && (
+                          <span className="text-xs text-stone-500 dark:text-stone-400">
+                            {blockers[0].message}
+                          </span>
+                        )}
                       </li>
                     );
                   })}
