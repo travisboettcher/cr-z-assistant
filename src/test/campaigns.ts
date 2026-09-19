@@ -148,3 +148,36 @@ export function generatingUtilities(
 
   return staffedWith(withStation, slot, [utilityWorker(score)]);
 }
+
+/**
+ * The campaign with a Utility Station generating one point of this utility flat.
+ *
+ * The other way to back an assigned point, and the one a fixture wants when its
+ * head count is part of the arrangement: Solar Panels and Rain Collectors
+ * produce whether or not anybody is standing there (pg. 67, 72), so unlike
+ * `generatingUtilities` this adds nobody to the roster. The slot has to be an
+ * outdoor one — both upgrades require it.
+ */
+export function generatingFlatUtility(
+  campaign: Campaign,
+  utility: 'power' | 'water',
+  slot = 'front-yard',
+): Campaign {
+  const base = campaign.base;
+  if (base === null) return campaign;
+
+  return {
+    ...campaign,
+    base: {
+      ...base,
+      slots: {
+        ...base.slots,
+        [slot]: {
+          ...base.slots[slot],
+          built: { facility: 'utility-station', builtOnTurn: 1 },
+          upgrades: [utility === 'power' ? 'solar-panel' : 'rain-collector'],
+        },
+      },
+    },
+  };
+}
