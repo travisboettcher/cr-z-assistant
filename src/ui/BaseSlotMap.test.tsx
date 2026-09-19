@@ -5,7 +5,12 @@ import { BASES, BASE_IDS } from '../data/bases';
 import type { UpgradeId } from '../data/facilities';
 import { createNewCampaign, type Campaign } from '../engine/campaign';
 import { createSurvivor } from '../engine/survivor';
-import { generatingUtilities, projectTeamWorth, withPlanningBegun } from '../test/campaigns';
+import {
+  generatingUtilities,
+  projectTeamWorth,
+  staffedWith,
+  withPlanningBegun,
+} from '../test/campaigns';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
 import { BaseSlotMap } from './BaseSlotMap';
@@ -619,6 +624,58 @@ describe('assigning Power and Water', () => {
 
     expect(screen.getAllByText(/needs 1 more than this base generates/i)).toHaveLength(2);
     expect(screen.getByRole('checkbox', { name: /water/i })).toBeDisabled();
+  });
+
+  /**
+   * The card and the facility have to agree (#139). "Supplied with Water" was
+   * read off the stored flag while the Kitchen's output was read off the
+   * resolved list — so an emptied Station left a card claiming a supply beside
+   * a production line halved for want of it.
+   */
+  it('stops calling a slot supplied when its Station empties, and the output follows', async () => {
+    const cook = {
+      ...createSurvivor('Nell Haig', 4, { id: 'cook' }),
+      stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: 3 },
+      skills: { rationing: 0 },
+    };
+
+    const user = openWith(
+      staffedWith(
+        generatingUtilities(
+          {
+            ...createNewCampaign('Cedar Hollow'),
+            base: { id: 'small-town-home', slots: { kitchen: { water: true } } },
+          },
+          1,
+        ),
+        'kitchen',
+        [cook],
+      ),
+    );
+
+    const kitchen = () =>
+      within(slots())
+        .getAllByRole('listitem')
+        .find((slot) => /Kitchen/.test(slot.textContent ?? '')) as HTMLElement;
+
+    await openKitchen(user);
+    expect(kitchen().textContent).toContain('Supplied with Water');
+    expect(kitchen().textContent).toContain('+3 Food');
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }));
+
+    // Take the Station's worker off it, as a Planning Phase re-assignment
+    // would. The point stays assigned — it is the generation that stopped.
+    await user.click(screen.getByRole('button', { name: /upgrade front yard/i }));
+    await user.click(
+      within(screen.getByRole('group', { name: /working here/i })).getByRole('checkbox', {
+        name: /^Utilities/,
+      }),
+    );
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }));
+
+    await openKitchen(user);
+    expect(kitchen().textContent).not.toContain('Supplied with Water');
+    expect(kitchen().textContent).toContain('+2 Food, halved for want of a utility');
   });
 
   it('lets a point go back even when the Score no longer covers it', async () => {

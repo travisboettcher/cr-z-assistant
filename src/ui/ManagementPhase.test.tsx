@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign, type Survivor } from '../engine/campaign';
 import { createSurvivor } from '../engine/survivor';
-import { withPlanningBegun } from '../test/campaigns';
+import { generatingFlatUtility, withPlanningBegun } from '../test/campaigns';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
 
@@ -722,19 +722,25 @@ describe('a shortfall reaches every screen at once', () => {
    * with Water, so its Health is her Medicine Score rather than half of it.
    */
   const starving = () =>
-    management({
-      survivors: [
-        medic,
-        createSurvivor('Earl Rhodes', 4, { id: EARL }),
-        createSurvivor('Carla Proust', 4, { id: CARLA }),
-      ],
-      materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
-      assignments: { medic: { task: 'staff', slot: 'garage' } },
-      base: {
-        id: 'small-town-home',
-        slots: { garage: { built: { facility: 'medical-clinic', builtOnTurn: 1 }, water: true } },
-      },
-    });
+    // Rain Collectors rather than a second Station worker: the head count is
+    // half this fixture's arrangement, and flat generation backs the Clinic's
+    // point (#139) without adding a mouth to feed.
+    generatingFlatUtility(
+      management({
+        survivors: [
+          medic,
+          createSurvivor('Earl Rhodes', 4, { id: EARL }),
+          createSurvivor('Carla Proust', 4, { id: CARLA }),
+        ],
+        materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+        assignments: { medic: { task: 'staff', slot: 'garage' } },
+        base: {
+          id: 'small-town-home',
+          slots: { garage: { built: { facility: 'medical-clinic', builtOnTurn: 1 }, water: true } },
+        },
+      }),
+      'water',
+    );
 
   /**
    * The Clinic's slot card with its work panel open, which is where a facility's
