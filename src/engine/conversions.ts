@@ -35,7 +35,8 @@
 
 import { MATERIALS, type Material, type Materials } from '../data/materials';
 import type { Exchange, Facility, Upgrade } from '../data/facilities';
-import { occupants, working, type Occupant } from './base';
+import { working, type Occupant } from './base';
+import { suppliedOccupants } from './utilities';
 import type { Campaign } from './campaign';
 import type { Check, Violation } from './checks';
 import { noMaterials, combined } from './materials';
@@ -80,9 +81,10 @@ function conversionsOf(occupant: Occupant): readonly Conversion[] {
 
 /** Every material conversion this base can run this turn, in layout order. */
 export function conversions(campaign: Campaign): readonly Conversion[] {
-  const base = campaign.base;
-
-  return base === null ? [] : occupants(base).flatMap(conversionsOf);
+  // Resolved, because `conversionsOf` asks `working` whether the Biofuel Lab is
+  // switched on — and a point of Power with nobody generating it does not
+  // switch anything on.
+  return suppliedOccupants(campaign).flatMap(conversionsOf);
 }
 
 /**

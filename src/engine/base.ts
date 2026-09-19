@@ -44,6 +44,12 @@
  * what every campaign-level caller should pass; `occupants(base)` alone answers
  * the narrower question of what is standing where, which is all the build and
  * layout checks need.
+ *
+ * **That sentence is a lint rule now** (#138). It was a comment for two phases,
+ * and round two found six callers reading the raw list past it — every one with
+ * its own passing tests, because a test on this function cannot see who failed
+ * to call the other one. `eslint.config.js` restricts importing `occupants`
+ * outside the four modules the resolution is built from.
  */
 
 import { BASES, maxHeroes as maxHeroesForTier, type BaseSlot } from '../data/bases';
