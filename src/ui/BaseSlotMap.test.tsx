@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { BASES, BASE_IDS } from '../data/bases';
@@ -118,7 +118,12 @@ describe('claiming a base', () => {
 
     // Its Storage Area ships Refrigeration and is locked against further
     // upgrades, which is the roster's own 6/6(8)/6 showing up on a screen.
-    expect(within(map).getByText(/refrigeration — 1 of 3, no room for more/i)).toBeInTheDocument();
+    //
+    // The reason is the base's rule, not the cap: "1 of 3, no room for more"
+    // gave the cap and then denied the room it had just described (#151).
+    expect(
+      within(map).getByText(/refrigeration — came with the base and takes no more/i),
+    ).toBeInTheDocument();
   });
 
   it('says what a clearing project costs and yields', async () => {
@@ -375,8 +380,11 @@ describe('upgrading a facility', () => {
     expect(
       within(card as HTMLElement).getByText(/on order: gas range on the kitchen/i),
     ).toBeInTheDocument();
-    // Not installed: the Kitchen still has all three of its slots free.
-    expect(within(card as HTMLElement).getByText(/room for 3 upgrades/i)).toBeInTheDocument();
+    // Not installed — and not free either. The line read "Room for 3 upgrades"
+    // over a queue that had spoken for one of them (#151).
+    expect(
+      within(card as HTMLElement).getByText(/room for 2 upgrades, 1 on order/i),
+    ).toBeInTheDocument();
     // A Gas Range costs 2 Hardware, spent when the order is placed.
     expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(7);
   });
@@ -824,6 +832,68 @@ describe('staffing a facility', () => {
  * planning reset — silently. The build controls on the same card have always
  * said which step they belong to; this one said nothing.
  */
+/**
+ * Two things the slot card says about a facility that are not about what it
+ * produces: whether staffing put on it now will survive, and whether anything
+ * on it is a rule this version has not built (#150, #151).
+ */
+describe('what a slot card says about itself', () => {
+  const stationWith = (upgrades: readonly UpgradeId[], step: Campaign['step']): Campaign => ({
+    ...createNewCampaign('Cedar Hollow'),
+    step,
+    base: {
+      id: 'small-town-home' as const,
+      slots: {
+        'front-yard': {
+          built: { facility: 'utility-station' as const, builtOnTurn: 1 },
+          upgrades: [...upgrades],
+        },
+      },
+    },
+  });
+
+  async function openFrontYard(campaign: Campaign) {
+    const user = openWith(campaign);
+    await user.click(screen.getByRole('button', { name: /upgrade front yard/i }));
+
+    return user;
+  }
+
+  it('says a Generator’s trade is not run by this version, rather than nothing', async () => {
+    await openFrontYard(stationWith(['generator', 'well-pump'], 'select-mission'));
+
+    expect(
+      screen.getByText(/generator and well pump trade fuel for a utility/i),
+    ).toBeInTheDocument();
+  });
+
+  it('says nothing of the kind about a Station with no such upgrade', async () => {
+    await openFrontYard(stationWith([], 'select-mission'));
+
+    expect(screen.queryByText(/trades? fuel for a utility/i)).toBeNull();
+  });
+
+  /**
+   * The note promised to wipe an assignment that in fact survives: the clear
+   * runs at the top of the Planning Phase, so once it has run, staffing stands
+   * until the next turn's (#151).
+   */
+  it('promises the clear before Planning and the opposite after it', async () => {
+    await openFrontYard(stationWith([], 'select-mission'));
+
+    expect(screen.getByText(/will be cleared when the planning phase begins/i)).toBeVisible();
+
+    cleanup();
+
+    await openFrontYard(
+      withPlanningBegun({ ...stationWith([], 'check-storage'), turn: 1 }) as Campaign,
+    );
+
+    expect(screen.queryByText(/will be cleared when the planning phase begins/i)).toBeNull();
+    expect(screen.getByText(/stands until next turn’s planning phase clears it/i)).toBeVisible();
+  });
+});
+
 describe('staffing from the base screen', () => {
   const atStep = (step: Campaign['step']): Campaign => ({
     ...createNewCampaign('Cedar Hollow'),

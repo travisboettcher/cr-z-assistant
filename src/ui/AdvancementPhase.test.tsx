@@ -524,6 +524,23 @@ describe('conversions', () => {
     expect(within(walk()).getByText(/not enough fuel in storage/i)).toBeTruthy();
   });
 
+  /**
+   * The history names the slot as well as the thing (#151). The comment beside
+   * that label already claimed as much — "a base can hold two of them and the
+   * history is where a player checks a per-turn allowance" — while the sentence
+   * dropped the slot the event had been carrying all along.
+   */
+  it('writes the slot into the history, which is where an allowance is checked', async () => {
+    const user = open(withGasRange());
+
+    await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
+    await user.click(trade());
+
+    expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
+      'The Gas Range on the Kitchen traded',
+    );
+  });
+
   it('says nothing at all when the base has no conversion to offer', async () => {
     const user = open(withGasRange({ base: { id: 'small-town-home', slots: {} } }));
 

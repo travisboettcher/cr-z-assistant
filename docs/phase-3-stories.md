@@ -257,6 +257,23 @@ mean one migration step doing two unrelated things, and the migration chain is t
 keeps an in-progress campaign openable — it is worth more as a record of what changed and when
 than as a short file.
 
+**The Generator and the Well Pump are transcribed and not wired up, and the screen says so.** Both
+trade 1 Fuel for a point of Power or Water, up to three a turn (pp. 72–73). Every other exchange in
+the catalogue gains a *material*, and Add Materials to Storage runs those. These two gain a
+**utility**, and a utility lasts until the next turn's Planning Phase (pg. 20, 67) — so a point
+bought in the Advancement Phase would be cleared by the Planning Phase one phase later, and a point
+bought in the Planning Phase's utility step would be bought with Fuel the Advancement Phase has not
+yet hauled in. **Which step owns a Fuel-for-utility trade is the open question**, and it is a real
+one rather than an oversight.
+
+What was wrong was the silence: a player built either upgrade, paid its Hardware and Labor, and got
+nothing, with the whole trace of it on screen being a slot-card line naming the upgrade
+([#150](https://github.com/travisboettcher/cr-z-assistant/issues/150)). The card says it now, in the
+same shape as this app's other "a later phase owns this" notes. `conversions.test.ts` still fails if
+a third utility trade is added without deciding, and the cap those two state is exercised against a
+trade built in the test rather than one looked up — which is the honest answer to `maxPerTurn`
+having no UI-reachable exercise while the only two entries that use it do nothing.
+
 ## Rulings the book leaves open
 
 Seven places where the printed text does not decide the answer. Each needs a table ruling before
@@ -341,6 +358,19 @@ house rule that lives in a function is indistinguishable from a rule.
    What the ruling costs is a row that can be shown as eligible and pressed no further, so the
    screen says which of the two it is: the reason sits beside the button rather than being left
    to the greyed-out state, which the awards have wanted since they were written.
+
+**Recorded without a ruling: Siege Threat can go below zero.** Observed at −1 on the Hydroelectric
+Dam — one staffed facility, nobody on the project team, no base features, one turn since the last
+siege, and −3 from a Watchtower with a Long Guns 3 lookout. The arithmetic is right and the book
+states no floor, which is the same position as the Rot check target in ruling 2 above, so nothing
+here is a bug.
+
+It is written down because it became newly easy to reach when the Watchtower started subtracting,
+and because the number feeds **two** different thresholds that were written for a positive quantity:
+the horde roll (d10 + Threat ≥ 16) and the departure test (Unrest + Threat ≥ 10). A negative Threat
+therefore makes a community *harder* to send somebody away from, which reads as intended — a
+well-watched base is a calmer one — but no rule says so. If a table wants a floor of zero it goes in
+`siegeThreat`, in one place, and this paragraph becomes ruling 8.
 
 ---
 

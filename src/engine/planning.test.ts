@@ -273,7 +273,31 @@ describe('checkAssignment', () => {
       });
 
       expect(codes(check.warnings)).toEqual(['someone-else-resting']);
-      expect(check.warnings[0]?.message).toContain('Earl Rhodes');
+      expect(check.warnings[0]?.message).toContain('Earl Rhodes is');
+    });
+
+    /**
+     * This warns rather than refuses, so a save can hold three resters — and
+     * naming the first of them read as a rule broken once when it had been
+     * broken twice (#151).
+     */
+    it('names everybody already resting, not the first of them', () => {
+      const crowded: Campaign = {
+        ...community({ [EARL]: { task: 'rest' } }),
+        survivors: [
+          ...community().survivors,
+          { ...createSurvivor('Nell Haig', 2, { id: 'nell' }), currentHp: 1 },
+        ],
+      };
+
+      const check = checkAssignment(
+        { ...crowded, assignments: { [EARL]: { task: 'rest' }, nell: { task: 'rest' } } },
+        CARLA,
+        { task: 'rest' },
+      );
+
+      expect(codes(check.warnings)).toEqual(['someone-else-resting']);
+      expect(check.warnings[0]?.message).toContain('Earl Rhodes and Nell Haig are');
     });
 
     it('does not count the survivor’s own rest against them', () => {

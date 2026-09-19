@@ -20,10 +20,12 @@ import { STEP_LABELS } from './turnLabels';
 import type { Campaign } from '../engine/campaign';
 import { staffOf } from '../engine/assignments';
 import { hungerPenalty } from '../engine/feeding';
+import { planningHasBegun } from '../engine/planning';
 import { facilityProduction, wantsStaff, type ProducedOutput } from '../engine/production';
 import { AssignTask } from './AssignTask';
 import { STAT_LABELS } from './skillLabels';
-import { MATERIAL_LABELS, UTILITY_LABELS } from './baseLabels';
+import { MATERIAL_LABELS, UTILITY_LABELS, builtThingLabel } from './baseLabels';
+import { unmodelledExchanges } from '../engine/conversions';
 
 export interface FacilityWorkProps {
   readonly campaign: Campaign;
@@ -65,19 +67,54 @@ export function FacilityWork({ campaign, occupant }: FacilityWorkProps) {
           {/*
            * The same note the build controls on this card already carry, for
            * the same reason. Tasks expire at the top of a Planning Phase
-           * (pg. 20), so staffing assigned here before the turn reaches
-           * Planning is wiped — silently, until the September playtest found
-           * it. Z3-6 guides rather than refuses, so this says what will
-           * happen rather than taking the control away.
+           * (pg. 20), so staffing assigned before the turn reaches Planning is
+           * wiped — silently, until the September playtest found it. Z3-6
+           * guides rather than refuses, so this says what will happen rather
+           * than taking the control away.
+           *
+           * **Which of two things will happen turns on the clear, not on the
+           * step.** Once this turn's Planning Phase has begun the clear is
+           * behind the assignment, and it stands until the next one — so the
+           * note went on promising to wipe an assignment that survived into the
+           * Management Phase, which the playtest checked and it did (#151).
            */}
-          {campaign.step !== STAFF_STEP && (
-            <p className="mt-2 text-sm text-amber-800 dark:text-amber-300">
-              Staff are assigned in {STEP_LABELS[STAFF_STEP]}, and the turn is at{' '}
-              {STEP_LABELS[campaign.step]} — so this will be cleared when the Planning Phase begins.{' '}
-              <PageRef pages={20} />
-            </p>
-          )}
+          {campaign.step !== STAFF_STEP &&
+            (planningHasBegun(campaign) ? (
+              <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">
+                Staff are assigned in {STEP_LABELS[STAFF_STEP]}, and this turn is past it — so this
+                stands until next turn&rsquo;s Planning Phase clears it <PageRef pages={20} />
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-amber-800 dark:text-amber-300">
+                Staff are assigned in {STEP_LABELS[STAFF_STEP]}, and the turn is at{' '}
+                {STEP_LABELS[campaign.step]} — so this will be cleared when the Planning Phase
+                begins. <PageRef pages={20} />
+              </p>
+            ))}
         </>
+      )}
+
+      {/*
+       * Said on the card rather than left in a code comment (#150). The
+       * Generator and the Well Pump trade Fuel for a *utility*, and which step
+       * owns that trade is an open design question — a point bought in the
+       * Advancement Phase would be cleared by the Planning Phase one phase
+       * later (pg. 20, 67). Until it is answered a player builds either
+       * upgrade, pays its Hardware and Labor, and gets nothing; the whole trace
+       * of it on screen was a slot-card line naming the upgrade.
+       *
+       * The same shape as this app's other "a later phase owns this" notes,
+       * which is what the clearing yields and the mission steps already do.
+       */}
+      {unmodelledExchanges(occupant).length > 0 && (
+        <p className="mt-3 text-sm text-amber-800 dark:text-amber-300">
+          {unmodelledExchanges(occupant)
+            .map((entry) => builtThingLabel(entry.id))
+            .join(' and ')}{' '}
+          trade{unmodelledExchanges(occupant).length === 1 ? 's' : ''} Fuel for a utility, and this
+          version does not run that trade — which phase owns it is still open. Work it at the table{' '}
+          <PageRef pages={67} />
+        </p>
       )}
 
       <p className="mt-3 text-sm font-medium">Produces</p>
