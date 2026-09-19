@@ -64,6 +64,7 @@ import {
 } from '../data/facilities';
 import { STORAGE_ABOVE_TIER, STORED_MATERIALS, type StoredMaterial } from '../data/materials';
 import type { Base, Campaign, Survivor } from './campaign';
+import type { Skill } from '../data/skills';
 import { skillScore } from './survivor';
 
 /**
@@ -356,9 +357,7 @@ export function siegeThreatReduction(
   staff: readonly Survivor[],
   penalty: number,
 ): number {
-  const best = working(occupant).flatMap(
-    (entry) => entry.effects.siegeThreat?.reducedByBestOf ?? [],
-  );
+  const best = watchSkills(occupant);
   if (best.length === 0 || staff.length === 0) return 0;
 
   const scores = staff.flatMap((survivor) =>
@@ -366,6 +365,18 @@ export function siegeThreatReduction(
   );
 
   return Math.max(...scores, 0);
+}
+
+/**
+ * The skills a slot watches with, across everything working in it (pg. 73).
+ *
+ * Exported because the slot card needs the same list to say whether the person
+ * standing in the tower has any of them, and a second copy of "which effects
+ * name skills" is how the card and the total came to disagree in the first
+ * place (#142).
+ */
+export function watchSkills(occupant: Occupant): readonly Skill[] {
+  return working(occupant).flatMap((entry) => entry.effects.siegeThreat?.reducedByBestOf ?? []);
 }
 
 /**

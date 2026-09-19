@@ -500,6 +500,54 @@ describe('Check Storage', () => {
   });
 });
 
+/**
+ * R2-M7 (#147): the shortfall was reported in the Departures step alone, while
+ * End turn is offered from all seven — so the rule's consequence was optional
+ * in practice.
+ */
+describe('a Labor shortfall outstanding', () => {
+  /** A Workshop ordered against a project team that has since walked out. */
+  const overspent = (step: Campaign['step']) =>
+    withPlanningBegun({
+      ...management({ step }),
+      assignments: {},
+      projects: [{ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 }],
+    });
+
+  /**
+   * The banner's own sentence rather than the number. The End-turn dialog is in
+   * the DOM at every step whether or not it is open, and it names the shortfall
+   * too — so an assertion on "2 Labor short" alone passes without the banner
+   * existing, which is how the first draft of this test passed against the bug.
+   */
+  const banner = /the choice is in Departures/i;
+
+  it.each(['feed-your-survivors', 'check-storage', 'departures'] as const)(
+    'is on screen at the %s step, not only at the one that offers the choice',
+    (step) => {
+      open(overspent(step));
+
+      expect(within(walk()).getByText(banner)).toBeVisible();
+    },
+  );
+
+  it('says nothing while the queue still fits the pool', () => {
+    open(management({ step: 'departures' }));
+
+    expect(within(walk()).queryByText(banner)).toBeNull();
+  });
+
+  it('is named in the End-turn dialog, with what it costs', async () => {
+    const user = open(overspent('departures'));
+
+    await user.click(within(walk()).getByRole('button', { name: /^end turn 3$/i }));
+
+    expect(
+      within(screen.getByRole('dialog')).getByText(/2 Labor short of what it ordered/),
+    ).toBeVisible();
+  });
+});
+
 describe('Check the Horde', () => {
   const onTheStep = (overrides: Partial<Campaign> = {}) =>
     management({ step: 'check-the-horde', ...overrides });

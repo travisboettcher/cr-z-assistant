@@ -61,7 +61,7 @@ import {
   rotTarget,
   stillToCheck,
 } from '../engine/rot';
-import { laborShortfall, orderedThisTurn, projectCost } from '../engine/projects';
+import { laborShortfall, orderedThisTurn, queuedCost } from '../engine/projects';
 import { describeProject } from './projectLabels';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
@@ -786,7 +786,7 @@ function UnpaidProjects({ campaign }: { readonly campaign: Campaign }) {
               Leave {describeProject(project)} unfinished
             </button>
             <span className="text-xs text-stone-500 dark:text-stone-400">
-              {projectCost(campaign, project).labor} Labor
+              {queuedCost(campaign, at).labor} Labor
             </span>
           </li>
         ))}
