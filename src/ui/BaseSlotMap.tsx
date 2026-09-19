@@ -14,7 +14,8 @@
 import { useState } from 'react';
 import { BASES, type BaseSlot } from '../data/bases';
 import type { Campaign } from '../engine/campaign';
-import { layoutOf, occupants, upgradesRemaining, upgradesUsed } from '../engine/base';
+import { layoutOf, upgradesRemaining, upgradesUsed } from '../engine/base';
+import { suppliedOccupants } from '../engine/utilities';
 import type { Occupant } from '../engine/base';
 import { MATERIALS } from '../data/materials';
 import {
@@ -280,7 +281,7 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
   if (base === null) return null;
 
   const rules = BASES[base.id];
-  const found = occupants(base);
+  const found = suppliedOccupants(campaign);
   const slots = layoutOf(base);
   const empty = slots.filter((slot) => slot.state === 'empty').length;
 
