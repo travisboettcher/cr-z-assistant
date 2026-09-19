@@ -36,7 +36,7 @@ import {
   type SubstitutionSkill,
 } from '../data/turn';
 import type { D10Result } from '../data/dice';
-import { occupants, storageCaps } from './base';
+import { storageCaps } from './base';
 import { beforePlanning, missionTeam, staffOf } from './assignments';
 import type { Campaign } from './campaign';
 import type { Check, Violation } from './checks';
@@ -103,18 +103,19 @@ export function recovered(rolls: readonly MaterialRoll[]): Materials {
  * haul, and dropping it would quietly feed the community for free.
  */
 export function baseProduction(campaign: Campaign): Materials {
-  const base = campaign.base;
+  // No guard for a base-less campaign: `suppliedOccupants` answers that with an
+  // empty list, and a loop over it produces the same empty haul. The guard was
+  // load-bearing while this read `occupants(base)`, which needs the base.
   const total = noMaterials();
-
-  if (base === null) return total;
-
   const penalty = hungerPenalty(campaign);
 
   // Staffed last Planning Phase, read this Advancement one — so it is asked of
   // the campaign as it stood before this turn's Planning cleared the answer.
+  // The utilities are resolved against that same campaign, because a point is
+  // backed by the Station's staffing and that is the staffing in question.
   const staffed = beforePlanning(campaign);
 
-  for (const occupant of occupants(base)) {
+  for (const occupant of suppliedOccupants(staffed)) {
     for (const line of facilityProduction(occupant, staffOf(staffed, occupant.slotId), penalty)) {
       for (const output of line.outputs) {
         if (isMaterial(output)) total[output] += line.amount;
