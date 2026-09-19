@@ -1,9 +1,10 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign, type Survivor } from '../engine/campaign';
 import { createSurvivor } from '../engine/survivor';
 import { PENDING_ROLLS_KEY } from '../persistence/pendingRolls';
+import { serializeCampaign } from '../persistence/exportFile';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
 import { generatingUtilities } from '../test/campaigns';
@@ -301,6 +302,43 @@ describe('Add Materials to Storage', () => {
 
     expect(within(walk()).getByText(/\+2 Hardware/)).toBeTruthy();
     expect(within(walk()).getAllByText(/^rolled [78]$/i)).toHaveLength(2);
+  });
+
+  /**
+   * R2-H3 (#141). Persisting the rolls was right; what was wrong was the
+   * component's idea of when a campaign becomes a different campaign. A reload
+   * remounts and an **import does not**, so a list of dice rolled for Cedar
+   * Hollow sat there while Millbrook was loaded underneath it, and Add to
+   * storage credited Millbrook with them — one-shot, no undo, and a later
+   * reload showing an empty list.
+   */
+  it('drops rolls entered for another campaign when one is imported over it', async () => {
+    const user = open(onTheStep());
+
+    const rolled = within(walk()).getByLabelText(/^rolled$/i);
+    await user.selectOptions(rolled, '7');
+    await user.selectOptions(rolled, '8');
+
+    expect(within(walk()).getByText(/\+2 Hardware/)).toBeTruthy();
+
+    const incoming = serializeCampaign(
+      advancement({ name: 'Millbrook', step: 'add-materials-to-storage' }),
+    );
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]');
+
+    await user.upload(
+      input as HTMLInputElement,
+      new File([incoming], 'millbrook.json', { type: 'application/json' }),
+    );
+    await user.click(await screen.findByRole('button', { name: /replace it/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Millbrook');
+    });
+
+    // Millbrook's own step, with nobody's dice in it.
+    expect(within(walk()).queryByText(/^rolled [78]$/i)).toBeNull();
+    expect(within(walk()).getByText(/\+0 Hardware/)).toBeTruthy();
   });
 
   it('brings a forced result back with its roll', async () => {

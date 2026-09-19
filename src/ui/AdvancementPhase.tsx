@@ -80,7 +80,23 @@ export function AdvancementPhase({ campaign, step }: AdvancementPhaseProps) {
         </p>
       )}
 
-      {step === 'add-materials-to-storage' && <AddMaterials campaign={campaign} />}
+      {step === 'add-materials-to-storage' && (
+        /*
+         * Keyed by the pair the rolls are stamped with, which is the condition
+         * the state inside is valid under. `AddMaterials` seeds itself from
+         * `pendingRolls` once, reasoning that a reload is a remount — true, and
+         * not the only way the campaign underneath it changes. **An import
+         * replaces it without remounting**, so dice rolled for Cedar Hollow sat
+         * in an open step while Millbrook was loaded under them, and Add to
+         * storage credited Millbrook with the haul — one-shot, no undo, and a
+         * later reload showing an empty list (#141).
+         *
+         * The same pair `readPendingRolls` matches on, so the seed can never be
+         * read against a campaign or a turn it was not written for. React
+         * enforces what the comment inside used to assume.
+         */
+        <AddMaterials key={`${campaign.id}:${String(campaign.turn)}`} campaign={campaign} />
+      )}
 
       {step === 'heal-wounds' && <HealWounds campaign={campaign} />}
 
@@ -213,8 +229,12 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
 
   /*
    * Seeded from the store, never synced with it. The store is a backup of this
-   * state rather than a second source of truth: a reload is a remount, which
-   * is exactly when the backup is wanted, and nothing else writes the key.
+   * state rather than a second source of truth: the backup is wanted exactly
+   * when this component is built again, and nothing else writes the key.
+   *
+   * What makes that safe is the `key` at the call site rather than anything
+   * here — every change of campaign or turn builds a new one of these, so the
+   * seed is always read against the campaign it belongs to.
    */
   const [rolls, setRolls] = useState<readonly MaterialRoll[]>(() =>
     readPendingRolls(campaign.id, campaign.turn),
