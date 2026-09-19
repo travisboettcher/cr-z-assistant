@@ -46,7 +46,7 @@ import {
   type XpSource,
 } from '../data/turn';
 import { beforePlanning, missionTeam, staffOf } from './assignments';
-import { occupants } from './base';
+import { suppliedOccupants } from './utilities';
 import type { Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
 import { facilityProduction } from './production';
@@ -143,9 +143,8 @@ export function missionTeaching(campaign: Campaign): number {
  * card shows, halving for want of Power included.
  */
 export function trainingRoomXp(campaign: Campaign): number {
-  const base = campaign.base;
-  if (base === null) return 0;
-
+  // No base-less guard: `suppliedOccupants` returns nothing to loop over, which
+  // is the same zero.
   const penalty = hungerPenalty(campaign);
   let total = 0;
 
@@ -153,7 +152,7 @@ export function trainingRoomXp(campaign: Campaign): number {
   // the campaign as it stood before this turn's Planning cleared the answer.
   const staffed = beforePlanning(campaign);
 
-  for (const occupant of occupants(base)) {
+  for (const occupant of suppliedOccupants(staffed)) {
     for (const line of facilityProduction(occupant, staffOf(staffed, occupant.slotId), penalty)) {
       if (line.restrictedToStat !== undefined) continue;
       if (line.outputs.includes('xp')) total += line.amount;
@@ -260,13 +259,13 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
  * skill is Rationing produces no XP and is not "no staffed Training Room".
  */
 function trainingRoomIsStaffed(campaign: Campaign): boolean {
-  const base = campaign.base;
-  if (base === null) return false;
+  // Both halves asked of the same campaign, and no base-less guard: an empty
+  // list has nobody in a Training Room, which is the same false.
+  const staffed = beforePlanning(campaign);
 
-  return occupants(base).some(
+  return suppliedOccupants(staffed).some(
     (occupant) =>
-      occupant.facility.id === 'training-room' &&
-      staffOf(beforePlanning(campaign), occupant.slotId).length > 0,
+      occupant.facility.id === 'training-room' && staffOf(staffed, occupant.slotId).length > 0,
   );
 }
 
