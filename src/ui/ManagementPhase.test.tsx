@@ -87,6 +87,42 @@ describe('Feed your Survivors', () => {
   });
 });
 
+/**
+ * #102 fixed the penalty in the engine and left the Feed screen computing its
+ * own: a recorded shortfall against a **live** head count, which is the same
+ * arithmetic the issue was about (#143).
+ */
+describe('the penalty the Feed step reports', () => {
+  /** Four Heroes eat eight; with two Food stored that is a shortfall of six. */
+  const starving = () =>
+    management({
+      survivors: [
+        createSurvivor('Earl Rhodes', 4, { id: EARL }),
+        createSurvivor('Carla Proust', 4, { id: CARLA }),
+        createSurvivor('Nell Haig', 4, { id: 'nell' }),
+      ],
+      materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+    });
+
+  it('keeps saying what it said when the step ran, after the roster changes', async () => {
+    const user = open(starving());
+
+    // Six short against three survivors: three off every stat.
+    await user.click(within(walk()).getByRole('button', { name: /feed the community/i }));
+
+    expect(walk().textContent).toContain('every survivor’s stats drop by 3');
+
+    // A survivor arrives afterwards. The penalty in force was priced at Feed
+    // and does not move (ruling 1) — so this line must not move either.
+    await user.type(screen.getByLabelText(/survivor name/i), 'Gil Moss');
+    await user.selectOptions(screen.getByLabelText(/^tier$/i), '4');
+    await user.click(screen.getByRole('button', { name: /add survivor/i }));
+
+    expect(walk().textContent).toContain('every survivor’s stats drop by 3');
+    expect(walk().textContent).toContain('head count of 3');
+  });
+});
+
 describe('Assign Beds', () => {
   const onTheStep = (overrides: Partial<Campaign> = {}) =>
     management({ step: 'assign-beds', ...overrides });
@@ -165,12 +201,32 @@ describe('Check for Rot', () => {
       within(screen.getByRole('region', { name: /community/i })).getAllByRole('listitem'),
     ).toHaveLength(2);
 
-    // The form stays: holding on is not the same as being healed, and Earl is
-    // still at 0 Health. What changed is the history.
-    expect(within(walk()).getByRole('button', { name: /resolve earl/i })).toBeTruthy();
+    // The form goes, and the step says why. Earl is still at 0 Health — which
+    // is what kept him in `mustCheck` and kept the form on screen through
+    // #104's fix, with a reset roll select, a preview reading "turns and is
+    // removed", and a button the reducer's guard silently swallowed (#143).
+    expect(within(walk()).queryByRole('button', { name: /resolve earl/i })).toBeNull();
+    expect(walk().textContent).toContain('Earl Rhodes held on this turn');
     expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
       'Earl Rhodes held on',
     );
+  });
+
+  /**
+   * A roll has to be entered before there is anything to preview. It started at
+   * 1 — a natural failure — so an untouched form, or one that had come back
+   * from a reload, stood there announcing a death nobody had rolled for.
+   */
+  it('says nothing about an outcome until a roll is entered', async () => {
+    const user = open(dying());
+
+    expect(walk().textContent).toContain('Enter Earl Rhodes’s roll');
+    expect(walk().textContent).not.toContain('turns and is removed');
+    expect(within(walk()).getByRole('button', { name: /resolve earl/i })).toBeDisabled();
+
+    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '10');
+
+    expect(within(walk()).getByRole('button', { name: /resolve earl/i })).toBeEnabled();
   });
 
   /** The worst case the story names: one failed check, two survivors gone. */
@@ -502,6 +558,41 @@ describe('Check the Horde', () => {
     expect(walk().textContent).toContain('+1 on the project team');
     expect(walk().textContent).toContain('+2 turns since the last siege');
     expect(walk().textContent).toContain('Siege Threat 3');
+  });
+
+  /**
+   * "+0 watched" is what an empty tower gives and what a tower full of people
+   * who cannot shoot gives, and only one of those is a mistake the player can
+   * fix. `missingSkill` has distinguished them since Z3-6 and nothing printed
+   * it here (#143).
+   */
+  it('says when the lookout has none of the four skills', () => {
+    const tower = onTheStep({
+      base: {
+        id: 'small-town-home',
+        slots: { 'front-yard': { built: { facility: 'watchtower', builtOnTurn: 1 } } },
+      },
+      assignments: { [EARL]: { task: 'staff', slot: 'front-yard' } },
+    });
+
+    open(tower);
+
+    expect(walk().textContent).toContain('+0 watched from a staffed Watchtower');
+    expect(walk().textContent).toContain('Front Yard — nobody there has Long Guns');
+  });
+
+  /** An empty tower is not a mistake, so it says nothing extra. */
+  it('says nothing about skills when nobody is in the tower', () => {
+    open(
+      onTheStep({
+        base: {
+          id: 'small-town-home',
+          slots: { 'front-yard': { built: { facility: 'watchtower', builtOnTurn: 1 } } },
+        },
+      }),
+    );
+
+    expect(walk().textContent).not.toContain('has Long Guns');
   });
 
   it('says what the entered roll would mean, before it means it', async () => {

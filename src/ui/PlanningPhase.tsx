@@ -19,7 +19,7 @@ import type { Campaign } from '../engine/campaign';
 import type { TurnStepId } from '../data/turn';
 import { staffCapacity, type Occupant } from '../engine/base';
 import { suppliedOccupants } from '../engine/utilities';
-import { assignedTo, laborPool, utilitiesScore } from '../engine/assignments';
+import { assignedTo, baseLaborBonus, laborPool, utilitiesScore } from '../engine/assignments';
 import { unassigned } from '../engine/planning';
 import { AssignTask } from './AssignTask';
 import { FACILITY_LABELS, slotLabel } from './baseLabels';
@@ -41,8 +41,14 @@ export function PlanningPhase({ campaign, step }: PlanningPhaseProps) {
         <>
           <p className="text-sm text-stone-600 dark:text-stone-400">
             The project team generates <span className="tabular-nums">{laborPool(campaign)}</span>{' '}
-            Labor between them — the sum of their Tier levels. Whatever is left at the end of the
-            turn is lost <PageRef pages={20} />
+            Labor between them — the sum of their Tier levels
+            {baseLaborBonus(campaign) > 0 && (
+              <>
+                , plus the <span className="tabular-nums">{baseLaborBonus(campaign)}</span> this
+                base adds while somebody is on the team
+              </>
+            )}
+            . Whatever is left at the end of the turn is lost <PageRef pages={20} />
           </p>
           <AssignTask
             campaign={campaign}

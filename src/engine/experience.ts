@@ -191,6 +191,24 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
   const onTheMission = new Set(team.map((survivor) => survivor.id));
   const offTheMission = campaign.survivors.filter((survivor) => !onTheMission.has(survivor.id));
 
+  /*
+   * Whether anybody on the team *has* Teaching, as against how much of it they
+   * have between them — and it is this, not the Score, that takes the
+   * discretionary point away ([ruling 7](../../docs/phase-3-stories.md)).
+   *
+   * pg. 12 triggers the replacement on a Teacher going out; the Score is how
+   * many survivors the Teacher then hands a point to. So a Teacher whose Score
+   * is 0 replaces the point and hands out none, which is a bad turn rather
+   * than an impossible one.
+   *
+   * The arithmetic read `teaching > 0` and the message said the sentence
+   * above, so a Score-0 Teacher left the discretionary point standing under a
+   * line saying it had been replaced — and the point was awarded (#143). This
+   * is the half that moved, because the comment arguing for it was already
+   * here and the code disagreed with its own reasoning.
+   */
+  const canTeach = team.some((survivor) => survivor.skills['teaching'] !== undefined);
+
   const totals: Record<XpSource, number> = {
     // One each (pg. 18). `MISSION_XP` is 1, so nothing can tell this
     // multiplication from a division and one mutant lives here permanently —
@@ -199,7 +217,7 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
     // suite would catch it the same day.
     mission: team.length * MISSION_XP,
     // Replaced, not topped up: a Teacher on the mission takes the point away.
-    discretionary: teaching > 0 ? 0 : DISCRETIONARY_MISSION_XP,
+    discretionary: canTeach ? 0 : DISCRETIONARY_MISSION_XP,
     'mission-teaching': teaching,
     'training-room': trainingRoomXp(campaign),
   };
@@ -220,17 +238,7 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
     'training-room': offTheMission,
   };
 
-  /*
-   * Why each pool is empty, asked of the campaign rather than of the source.
-   *
-   * `teaching` is the summed Score; `canTeach` is whether anybody on the team
-   * *has* the skill at all. pg. 12 triggers the replacement on a Teacher being
-   * on the team, and the Score is how many survivors get a point — so a Teacher
-   * whose Score is zero replaces the discretionary point and hands out nothing.
-   * That reading is arguably the table's; the *message* is not, and it said
-   * nobody on the team had Teaching while somebody did.
-   */
-  const canTeach = team.some((survivor) => survivor.skills['teaching'] !== undefined);
+  /* Why each pool is empty, asked of the campaign rather than of the source. */
   const roomIsStaffed = trainingRoomIsStaffed(campaign);
 
   const emptiness: Record<XpSource, XpPoolEmptiness> = {

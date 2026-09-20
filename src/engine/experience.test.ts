@@ -245,6 +245,25 @@ describe('xpPools', () => {
     expect(xpPool(withoutTeacher, 'mission-teaching').total).toBe(0);
   });
 
+  /**
+   * Ruling 7, and the turn it describes: a Teacher whose Score is 0 replaces
+   * the discretionary point and hands out none, so the mission awards nothing
+   * beyond its one-each. The arithmetic asked the Score and the message said
+   * the sentence above, so the point stayed standing under a line saying it
+   * had been replaced — and it was awarded (#143).
+   */
+  it('takes it away for a Teacher whose Score is nothing, which is what the message says', () => {
+    const useless = community({ earl: onTheMission }, [
+      scored(EARL, 'Earl Rhodes', 'teaching', 0),
+      createSurvivor('Carla Proust', 3, { id: CARLA }),
+    ]);
+
+    expect(xpPool(useless, 'discretionary').total).toBe(0);
+    expect(xpPool(useless, 'discretionary').emptyBecause).toBe('replaced-by-teaching');
+    expect(xpPool(useless, 'mission-teaching').total).toBe(0);
+    expect(xpPool(useless, 'mission-teaching').emptyBecause).toBe('score-is-nothing');
+  });
+
   it('lets a Teacher teach anybody, and caps each of them at two', () => {
     const campaign = community({ earl: onTheMission }, [
       scored(EARL, 'Earl Rhodes', 'teaching', 4),

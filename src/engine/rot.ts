@@ -55,6 +55,19 @@ export function mustCheck(campaign: Campaign): readonly Survivor[] {
 }
 
 /**
+ * Everybody at 0 Health whose check has not been resolved yet this turn.
+ *
+ * The distinction `mustCheck` cannot make on its own: a survivor who **holds**
+ * is still at 0 Health, so they went on matching it and the screen went on
+ * offering them a form — a reset roll select, a preview reading "turns and is
+ * removed", and an enabled button that the reducer's guard silently swallowed
+ * (#143). The guard was right; nothing told the screen it existed.
+ */
+export function stillToCheck(campaign: Campaign): readonly Survivor[] {
+  return mustCheck(campaign).filter((survivor) => !rotCheckResolved(campaign, survivor.id));
+}
+
+/**
  * The number a Rot check has to reach (pg. 22).
  *
  * Twelve, less every point of Medicine across the Clinic's staff. **No floor**,

@@ -359,6 +359,24 @@ house rule that lives in a function is indistinguishable from a rule.
    screen says which of the two it is: the reason sits beside the button rather than being left
    to the greyed-out state, which the awards have wanted since they were written.
 
+8. **What a Teacher with a Score of nothing replaces (pg. 12,
+   [#143](https://github.com/travisboettcher/cr-z-assistant/issues/143)) — RULED.** A Teacher on
+   the mission team replaces the discretionary point, and their Teaching Score is how many
+   survivors they then hand a point to. The book does not say what happens when those two come
+   apart — a survivor who has the skill at Score 0, which a Cooperation of 0 and a level of 0
+   produces.
+
+   **The ruling is that having the skill is what replaces the point.** A Teacher whose Score is 0
+   replaces the discretionary point and hands out none, so that turn awards one XP each for going
+   out and nothing else. The trigger the book names is the Teacher being on the team, not a
+   number; the Score appears only in the sentence about who receives points.
+
+   The alternative — the Score replaces the point, so a Score-0 Teacher leaves it standing — is
+   defensible and was what the code did, while the message on the screen said the ruling above.
+   Either is playable; what is not is the pair disagreeing, which is how a discretionary point
+   was awarded under a line saying it had been replaced. One `canTeach` against one `teaching > 0`
+   is the whole of the difference, if a table wants it the other way.
+
 **Recorded without a ruling: Siege Threat can go below zero.** Observed at −1 on the Hydroelectric
 Dam — one staffed facility, nobody on the project team, no base features, one turn since the last
 siege, and −3 from a Watchtower with a Long Guns 3 lookout. The arithmetic is right and the book
@@ -370,7 +388,7 @@ and because the number feeds **two** different thresholds that were written for 
 the horde roll (d10 + Threat ≥ 16) and the departure test (Unrest + Threat ≥ 10). A negative Threat
 therefore makes a community *harder* to send somebody away from, which reads as intended — a
 well-watched base is a calmer one — but no rule says so. If a table wants a floor of zero it goes in
-`siegeThreat`, in one place, and this paragraph becomes ruling 8.
+`siegeThreat`, in one place, and this paragraph becomes ruling 9.
 
 ---
 

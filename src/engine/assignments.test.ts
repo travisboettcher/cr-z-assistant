@@ -12,6 +12,7 @@ import { createSurvivor } from './survivor';
 import { flatUtilitiesGenerated, occupants } from './base';
 import { facilityProduction } from './production';
 import {
+  baseLaborBonus,
   beforePlanning,
   laborPool,
   projectTeam,
@@ -408,5 +409,16 @@ describe('a base that adds to the Labor pool', () => {
 
   it('is not a rule any other base has', () => {
     expect(laborPool(community({ [CARLA]: { task: 'project' } }))).toBe(2);
+  });
+
+  /**
+   * The half a caption needs. Both Labor captions read "the summed Tier levels
+   * of the project team" beside a 5 for a team whose Tiers sum to 3, because
+   * nothing on the screen could ask for the other term (#143).
+   */
+  it('says how much of the pool is the base’s, for a caption to name', () => {
+    expect(baseLaborBonus(dam({ [CARLA]: { task: 'project' } }))).toBe(2);
+    expect(baseLaborBonus(dam())).toBe(0);
+    expect(baseLaborBonus(community({ [CARLA]: { task: 'project' } }))).toBe(0);
   });
 });
