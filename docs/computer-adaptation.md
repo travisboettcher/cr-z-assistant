@@ -330,3 +330,7 @@ Three things that pay off whether the game happens or not:
 *This document is about a hypothetical licensed product. This repository remains what
 [`NOTICE`](../NOTICE) says it is: an unofficial, unaffiliated campaign tracker that ships no rule
 text and is useless without the book.*
+
+*The charter that followed from this analysis — the product scope, the repository topology and
+the licensing boundary — lives in that project's own repository rather than here, so that there
+is one copy of it rather than two that drift.*

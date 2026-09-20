@@ -46,10 +46,10 @@ Missions and equipment are later phases. Each phase's breakdown is in `docs/` �
 
 A separate question — what it would take to build a computer *game* on these rules rather than a
 tracker beside them — is scoped in
-[`docs/computer-adaptation.md`](docs/computer-adaptation.md), with the repository layout and
-project shape that would follow in
-[`docs/game-project-charter.md`](docs/game-project-charter.md). Both are about a hypothetical
-licensed product, not a plan this repository is executing; nothing about what is above changes.
+[`docs/computer-adaptation.md`](docs/computer-adaptation.md). It is a feasibility analysis of a
+hypothetical licensed product, not a plan this repository is executing; nothing about what is
+above changes. The charter that followed from it has moved to that project's own repository,
+so that there is one copy of it rather than two that drift.
 
 ## Running it
 
