@@ -113,9 +113,11 @@ export function describeEvent(event: CampaignEvent): EventLabel {
           .join(', ');
 
       return {
-        // Named by the thing that did it, because a base can hold two of them
-        // and the history is where a player checks a per-turn allowance.
-        text: `The ${builtThingLabel(event.source)} traded ${of(event.spent)} for ${of(event.gained)}.`,
+        // Named by the thing that did it *and where it is*, because a base can
+        // hold two of them and the history is where a player checks a per-turn
+        // allowance. The comment beside this line claimed as much while the
+        // sentence dropped the slot the event carries (#151).
+        text: `The ${builtThingLabel(event.source)} on the ${slotLabel(event.slot)} traded ${of(event.spent)} for ${of(event.gained)}.`,
         pages: 19,
       };
     }
@@ -161,12 +163,32 @@ export function describeEvent(event: CampaignEvent): EventLabel {
     case 'clearing-ordered':
       return { text: `Ordered the ${slotLabel(event.slot)} cleared.`, pages: 20 };
 
-    case 'project-cancelled':
-      return { text: `Cancelled the ${slotLabel(event.slot)} project.`, pages: 20 };
+    case 'project-cancelled': {
+      // Named where the entry says what it was, which order and built entries
+      // have always done — "the Back Yard project" is ambiguous the moment two
+      // are queued there (#151). A clearing carries nothing to name, and
+      // neither does an entry written before this, so both keep the slot's own
+      // sentence.
+      const what =
+        event.built === undefined
+          ? `the ${slotLabel(event.slot)} project`
+          : `the ${builtThingLabel(event.built)} on the ${slotLabel(event.slot)}`;
+
+      return {
+        text:
+          event.hardware === undefined || event.hardware === 0
+            ? `Cancelled ${what}.`
+            : `Cancelled ${what} — ${String(event.hardware)} Hardware came back.`,
+        pages: 20,
+      };
+    }
 
     case 'project-unfinished':
       return {
-        text: `The ${slotLabel(event.slot)} project went unfinished — the Labor for it left the community.`,
+        text:
+          event.built === undefined
+            ? `The ${slotLabel(event.slot)} project went unfinished — the Labor for it left the community.`
+            : `The ${builtThingLabel(event.built)} on the ${slotLabel(event.slot)} went unfinished — the Labor for it left the community.`,
         pages: 23,
       };
 

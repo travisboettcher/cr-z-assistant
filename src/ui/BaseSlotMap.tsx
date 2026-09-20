@@ -14,7 +14,8 @@
 import { useState } from 'react';
 import { BASES, type BaseSlot } from '../data/bases';
 import type { Campaign } from '../engine/campaign';
-import { layoutOf, occupants, upgradesRemaining, upgradesUsed } from '../engine/base';
+import { layoutOf, upgradesRemaining, upgradesUsed } from '../engine/base';
+import { suppliedOccupants } from '../engine/utilities';
 import type { Occupant } from '../engine/base';
 import { MATERIALS } from '../data/materials';
 import {
@@ -28,8 +29,9 @@ import {
 import { AssignUtilities } from './AssignUtilities';
 import { BaseSheet } from './BaseSheet';
 import { FacilityWork } from './FacilityWork';
-import { laborAvailable, queuedFor } from '../engine/projects';
+import { cancellable, laborAvailable, laborShortfall, queuedFor } from '../engine/projects';
 import { planningHasBegun } from '../engine/planning';
+import { baseLaborBonus } from '../engine/assignments';
 import { describeProject } from './projectLabels';
 import { useCampaign } from '../state/useCampaign';
 import { BuildFacility } from './BuildFacility';
@@ -60,19 +62,43 @@ function clearingReward(slot: Extract<BaseSlot, { state: 'clearing-project' }>):
   return materials.length === 0 ? null : materials.join(', ');
 }
 
-/** The upgrade line under a facility, or null where there is nothing to say. */
-function upgradeSummary(occupant: Occupant): string | null {
+/**
+ * The upgrade line under a facility, or null where there is nothing to say.
+ *
+ * Two corrections the September playtest earned. A **locked built-in** said
+ * "Watch Post, Watch Post — 2 of 3, no room for more", which gives the cap as
+ * the reason and then denies the room it has just described; the reason is the
+ * base's own rule (pg. 54), which this card states correctly four elements
+ * further down. And the room **counts what is on order**, because four Herb
+ * Plots ordered in one Planning Phase left this reading "Room for 3 upgrades"
+ * under the queue that had spoken for all of them.
+ */
+function upgradeSummary(campaign: Campaign, occupant: Occupant): string | null {
   const names = occupant.upgrades.map((upgrade) => UPGRADE_LABELS[upgrade.id]);
-  const remaining = upgradesRemaining(occupant);
+
+  if (!occupant.upgradable) {
+    return names.length === 0
+      ? 'Came with the base and takes no upgrades'
+      : `${names.join(', ')} — came with the base and takes no more`;
+  }
+
+  const onOrder = queuedFor(campaign, occupant.slotId).filter(
+    (queued) => queued.project.kind === 'upgrade',
+  ).length;
+
+  const remaining = Math.max(0, upgradesRemaining(occupant) - onOrder);
+  const ordered = onOrder === 0 ? '' : `, ${String(onOrder)} on order`;
 
   if (names.length === 0) {
-    return remaining === 0 ? 'Takes no upgrades' : `Room for ${String(remaining)} upgrades`;
+    return remaining === 0
+      ? `Takes no more upgrades${ordered}`
+      : `Room for ${String(remaining)} upgrades${ordered}`;
   }
 
   const used = upgradesUsed(occupant);
   const room = remaining === 0 ? 'no room for more' : `room for ${String(remaining)} more`;
 
-  return `${names.join(', ')} — ${String(used)} of 3, ${room}`;
+  return `${names.join(', ')} — ${String(used)} of 3${ordered}, ${room}`;
 }
 
 /**
@@ -104,15 +130,31 @@ function QueuedProjects({
           <span className="text-stone-600 dark:text-stone-400">
             On order: {describeProject(project)}
           </span>
-          <button
-            type="button"
-            onClick={() => {
-              dispatch({ type: 'project/cancelled', at, when: new Date().toISOString() });
-            }}
-            className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 px-3 text-sm font-medium dark:border-stone-700`}
-          >
-            Cancel {describeProject(project)}
-          </button>
+          {/*
+           * Offered only where it can be taken — the Planning Phase of the turn
+           * that placed it, which is what the ruling means by a decision taken
+           * back within the phase that made it. The reducer refuses the rest,
+           * and a button that does nothing is worse than no button (#148).
+           *
+           * Saying what comes back, because the one thing the screen never
+           * mentioned was the Hardware: an order spends it when it is placed,
+           * and a player cancelling has no way to know it is not simply gone.
+           */}
+          {cancellable(campaign, at) ? (
+            <button
+              type="button"
+              onClick={() => {
+                dispatch({ type: 'project/cancelled', at, when: new Date().toISOString() });
+              }}
+              className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 px-3 text-sm font-medium dark:border-stone-700`}
+            >
+              Cancel {describeProject(project)} — its Hardware comes back
+            </button>
+          ) : (
+            <span className="text-xs text-stone-500 dark:text-stone-400">
+              Cancelled in the Planning Phase that ordered it <PageRef pages={20} />
+            </span>
+          )}
         </li>
       ))}
     </ul>
@@ -167,7 +209,7 @@ function SlotCard({
         <>
           <p className="mt-2">{FACILITY_LABELS[occupant.facility.id]}</p>
           <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-            {upgradeSummary(occupant)}
+            {upgradeSummary(campaign, occupant)}
           </p>
           {utilities.length > 0 && (
             <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
@@ -205,8 +247,17 @@ function SlotCard({
 
       {buildable && (
         <>
+          {/*
+           * "Empty" is about the base and "on order" is about the queue, and a
+           * slot can be both — but a card saying only the first read as an
+           * empty slot with nothing coming, with two facilities on order above
+           * it saying otherwise.
+           */}
           <p className="mt-2 text-stone-600 dark:text-stone-400">
-            {cleared ? 'Cleared — ready to build in' : 'Empty — ready to build in'}
+            {cleared ? 'Cleared' : 'Empty'}
+            {queuedFor(campaign, slot.id).length === 0
+              ? ' — ready to build in'
+              : ' — ready to build in, and something is already on order'}
           </p>
           {/*
            * The card's one action. A slot is in exactly one state and each
@@ -264,7 +315,7 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
   if (base === null) return null;
 
   const rules = BASES[base.id];
-  const found = occupants(base);
+  const found = suppliedOccupants(campaign);
   const slots = layoutOf(base);
   const empty = slots.filter((slot) => slot.state === 'empty').length;
 
@@ -314,9 +365,31 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
          */}
         {planningHasBegun(campaign) ? (
           <>
+            {/*
+             * A negative is a third reason, and the caption below cannot
+             * explain one: "less what this turn has already ordered" describes
+             * arithmetic that stops at zero. It goes below zero when the Labor
+             * behind an order leaves the community, and the player is owed the
+             * sentence rather than the minus sign (#147).
+             */}
+            {laborShortfall(campaign) > 0 && (
+              <p className="mt-1 text-sm font-medium text-amber-800 dark:text-amber-300">
+                Below zero because the Labor behind an order has left the project team. A project
+                goes unfinished, and the choice is in the Management Phase’s Departures step{' '}
+                <PageRef pages={23} />
+              </p>
+            )}
             <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-              The summed Tier levels of the project team, less what this turn has already ordered.
-              Whatever is left at the end of the turn is lost <PageRef pages={20} />
+              The summed Tier levels of the project team
+              {baseLaborBonus(campaign) > 0 && (
+                <>
+                  {' '}
+                  plus the <span className="tabular-nums">{baseLaborBonus(campaign)}</span> this
+                  base adds
+                </>
+              )}
+              , less what this turn has already ordered. Whatever is left at the end of the turn is
+              lost <PageRef pages={20} />
             </p>
             <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
               Who is on it is Planning Step 2, above.

@@ -684,7 +684,7 @@ test('a claimed base survives export, a reload, and import', async ({ page }) =>
   await expect(map).toContainText('Tier 2 base');
   // A built-in facility, a locked upgrade, and the rubble that needs clearing:
   // three slot states off one layout, none of them stored in the save.
-  await expect(map).toContainText('Shelving — 1 of 3, no room for more');
+  await expect(map).toContainText('Shelving — came with the base and takes no more');
   await expect(map).toContainText('Blocked — 2 Labor to clear');
 
   const exported = await exportCampaign(page);
@@ -1036,8 +1036,13 @@ test('a point of Power covers a facility and its upgrades, and survives the roun
   await page.getByRole('button', { name: /upgrade garage/i }).click();
   await page.getByRole('checkbox', { name: 'Power' }).check();
 
-  // One point for all three, not one each.
-  await expect(page.getByLabel(/power assigned/i)).toHaveText('1 / 0 flat');
+  /*
+   * One point for all three, not one each — and the sheet counts it against
+   * what the base can back rather than against flat generation alone. It read
+   * `1 / 0 flat` until #119's last item: an over-assignment reported about a
+   * legal assignment, with the Station generating it two rows further down.
+   */
+  await expect(page.getByLabel(/power assigned/i)).toHaveText('1 / 1');
   await expect(page.getByLabel(/score spent/i)).toHaveText('1 / 1');
 
   const exported = await exportCampaign(page);
@@ -1442,7 +1447,7 @@ test('a Gas Range turns Fuel into Food, after the haul and not before', async ({
   await expect(page.getByLabel(/^fuel$/i)).toHaveValue('2');
 
   await expect(page.getByRole('region', { name: 'History' })).toContainText(
-    'The Gas Range traded 2 Fuel for 1 Food.',
+    'The Gas Range on the Kitchen traded 2 Fuel for 1 Food.',
   );
 
   await waitForAutosave(page, 'Cedar Hollow');
@@ -1924,7 +1929,9 @@ test('a turn’s Labor is a budget, and the queue survives the round trip', asyn
   const history = page.getByRole('region', { name: 'History' });
   await expect(history).toContainText('Ordered a Workshop for the Garage');
   await expect(history).toContainText('Built a Workshop in the Garage');
-  await expect(history).toContainText('Cancelled the Front Yard project');
+  await expect(history).toContainText(
+    'Cancelled the Watchtower on the Front Yard — 3 Hardware came back',
+  );
 
   const exported = await exportCampaign(page);
   expect(JSON.parse(exported.text)).toMatchObject({

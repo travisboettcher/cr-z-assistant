@@ -9,14 +9,17 @@ import {
   laborCommitted,
   laborRefusal,
   laborShortfall,
+  cancellable,
   laborThisTurn,
   orderedThisTurn,
   projectCost,
+  queuedCost,
   queuedFor,
   withProjectCancelled,
   withProjectOrdered,
 } from './projects';
 import { laborPool } from './assignments';
+import { upgradeOrder } from './upgrade';
 import { projectTeamWorth, withPlanningBegun } from '../test/campaigns';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
@@ -273,6 +276,41 @@ describe('isDue and dueProjects', () => {
  * — so ordering it onto a Fence is the ordinary way to get one, and the Fence
  * comes off when the work is done rather than when the order is placed.
  */
+/**
+ * R2-M8 (#148). The app rules that cancelling is a decision taken back within
+ * the phase that made it, and nothing enforced the sentence: last turn's order
+ * was cancelled during the next turn's Mission Phase for a full refund.
+ */
+describe('cancellable', () => {
+  const queued = (turn: number, step: Campaign['step']): Campaign =>
+    community({ turn, step, projects: [{ ...WORKSHOP, orderedOnTurn: turn }] });
+
+  it('is true in the Planning Phase of the turn that ordered it', () => {
+    expect(cancellable(queued(3, 'assign-project-team'), 0)).toBe(true);
+    expect(cancellable(queued(3, 'assign-mission-team'), 0)).toBe(true);
+  });
+
+  it('is false anywhere else in the same turn', () => {
+    for (const step of ['select-mission', 'heal-wounds', 'check-storage'] as const) {
+      expect([step, cancellable(queued(3, step), 0)]).toEqual([step, false]);
+    }
+  });
+
+  it('is false for an order from a turn that has closed', () => {
+    const lastTurn = community({
+      turn: 4,
+      step: 'assign-project-team',
+      projects: [{ ...WORKSHOP, orderedOnTurn: 3 }],
+    });
+
+    expect(cancellable(lastTurn, 0)).toBe(false);
+  });
+
+  it('is false for a position the queue does not have', () => {
+    expect(cancellable(queued(3, 'assign-project-team'), 7)).toBe(false);
+  });
+});
+
 describe('replacing an upgrade', () => {
   const GREENHOUSE: Project = {
     kind: 'upgrade',
@@ -298,8 +336,77 @@ describe('replacing an upgrade', () => {
     });
 
   it('prices it a Hardware under the catalogue over what it replaces', () => {
-    expect(projectCost(fenced(), GREENHOUSE)).toEqual({ hardware: 3, labor: 4 });
-    expect(projectCost(fenced([]), GREENHOUSE)).toEqual({ hardware: 4, labor: 4 });
+    // `queuedCost` rather than `projectCost`: the Greenhouse in these fixtures
+    // is already the first order, and asking what it would cost to order *now*
+    // is a different question with a different answer — see the two below.
+    expect(queuedCost(fenced(), 0)).toEqual({ hardware: 3, labor: 4 });
+    expect(queuedCost(fenced([]), 0)).toEqual({ hardware: 4, labor: 4 });
+  });
+
+  /**
+   * There is one Fence, so there is one discount (#140). Both copies were
+   * quoted "3 Hardware · Replaces the Fence", and two 4-Hardware upgrades came
+   * to 6 — with the second one's screen naming a Fence the first had already
+   * spoken for.
+   */
+  it('discounts the first order for the Fence and not the second', () => {
+    const queued = fenced();
+
+    expect(projectCost(queued, GREENHOUSE)).toEqual({ hardware: 4, labor: 4 });
+    expect(upgradeOrder(queued, { slot: 'front-yard', upgrade: 'greenhouse' })).toEqual({
+      cost: { hardware: 4, labor: 4 },
+      replaces: [],
+    });
+
+    // And the refund is what was charged, each at its own position.
+    const both = { ...queued, projects: [...queued.projects, GREENHOUSE] };
+
+    expect(queuedCost(both, 0)).toEqual({ hardware: 3, labor: 4 });
+    expect(queuedCost(both, 1)).toEqual({ hardware: 4, labor: 4 });
+  });
+
+  it('prices nothing for a position the queue does not have', () => {
+    expect(queuedCost(fenced(), 7)).toEqual({ hardware: 0, labor: 0 });
+  });
+
+  /**
+   * Two ways the slot can have changed under a queued upgrade, both of which
+   * the pricing walks through before it can say "nothing": Z1-7's override
+   * clears a slot out from under an order, and a rebuilt slot offers a
+   * different facility's upgrades entirely.
+   */
+  it('prices nothing for an upgrade whose slot has changed under it', () => {
+    const gone = community({
+      base: { id: 'hobby-farm', slots: {} },
+      projects: [{ ...GREENHOUSE, slot: 'back-yard' }],
+    });
+
+    // Both forms: the refund for the order already placed, and the quote for
+    // another one — which is the form that has to walk the queue rather than
+    // skip it, and so the form that finds nothing standing to walk over.
+    expect(queuedCost(gone, 0)).toEqual({ hardware: 0, labor: 0 });
+    expect(projectCost(gone, { ...GREENHOUSE, slot: 'back-yard' })).toEqual({
+      hardware: 0,
+      labor: 0,
+    });
+
+    const GAS_RANGE_OUTSIDE: Project = {
+      kind: 'upgrade',
+      slot: 'front-yard',
+      upgrade: 'gas-range',
+      orderedOnTurn: 2,
+    };
+
+    const swapped = community({
+      base: {
+        id: 'hobby-farm',
+        slots: { 'front-yard': { built: { facility: 'garden', builtOnTurn: 1 } } },
+      },
+      projects: [GAS_RANGE_OUTSIDE],
+    });
+
+    expect(queuedCost(swapped, 0)).toEqual({ hardware: 0, labor: 0 });
+    expect(projectCost(swapped, GAS_RANGE_OUTSIDE)).toEqual({ hardware: 0, labor: 0 });
   });
 
   it('takes the Fence off when the work is done, and nothing else with it', () => {
@@ -331,10 +438,7 @@ describe('replacing an upgrade', () => {
       projects: [{ ...GREENHOUSE, slot: 'garden' }],
     });
 
-    expect(projectCost(farm, { ...GREENHOUSE, slot: 'garden' })).toEqual({
-      hardware: 3,
-      labor: 4,
-    });
+    expect(queuedCost(farm, 0)).toEqual({ hardware: 3, labor: 4 });
   });
 
   /**
@@ -364,7 +468,7 @@ describe('replacing an upgrade', () => {
    * than capping at one, because that is what the field says it is.
    */
   it('discounts once for each Fence it takes off', () => {
-    expect(projectCost(fenced(['fence', 'fence']), GREENHOUSE)).toEqual({ hardware: 2, labor: 4 });
+    expect(queuedCost(fenced(['fence', 'fence']), 0)).toEqual({ hardware: 2, labor: 4 });
   });
 });
 
@@ -556,6 +660,29 @@ describe('completeProjects', () => {
       const { campaign, completed } = completeProjects(both);
 
       expect(campaign.base?.slots['front-yard']?.built?.facility).toBe('workshop');
+      expect(completed).toHaveLength(1);
+    });
+
+    /**
+     * The same slot, the same walk, and the rubble is cleared once (#140). Two
+     * clearings for one slot both paid out: the Rural Church's Pews took
+     * Hardware from 19 to 23 and the log printed "Cleared the Pews 2." twice.
+     * `checkClearing` refuses the second order now, and this is the other end
+     * of it — a save holding two is still a save this has to open.
+     */
+    it('pays a slot’s rubble out once however many clearings are due for it', () => {
+      const twice = community({
+        materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+        projects: [
+          { ...COOP, orderedOnTurn: 2 },
+          { ...COOP, orderedOnTurn: 2 },
+        ],
+      });
+      const { campaign, completed } = completeProjects(twice);
+
+      // The coop yields 2 Hardware, and there is one coop.
+      expect(campaign.materials.hardware).toBe(2);
+      expect(campaign.base?.slots['ruined-chicken-coop']?.cleared).toBe(true);
       expect(completed).toHaveLength(1);
     });
 

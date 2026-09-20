@@ -118,6 +118,52 @@ describe('walking the turn', () => {
     expect(back()).toBeDisabled();
   });
 
+  /**
+   * R2-M10 (#149). The tick meant "the cursor has moved past this", which is a
+   * different fact and reads as the stronger one: a skipped Add Materials
+   * showed ✓, End turn said nothing, and seven entered rolls worth 8 Food went
+   * with the turn boundary.
+   */
+  describe('a step the walk went past without resolving', () => {
+    async function pastAddMaterials(user: ReturnType<typeof userEvent.setup>) {
+      await user.click(skip());
+      for (let step = 0; step < 3; step += 1) {
+        await user.click(next());
+      }
+    }
+
+    it('is not ticked, and says so in words rather than a mark', async () => {
+      const user = await openCampaign();
+      await pastAddMaterials(user);
+
+      const row = within(walk())
+        .getAllByRole('listitem')
+        .find((step) => /Add Materials to Storage/.test(step.textContent ?? ''));
+
+      expect(row?.textContent).toContain('not resolved');
+      expect(row?.textContent).not.toContain('✓');
+    });
+
+    it('is named in the End-turn dialog, which used to warn about nothing', async () => {
+      const user = await openCampaign();
+      await pastAddMaterials(user);
+
+      for (let phase = 0; phase < 2; phase += 1) {
+        await user.click(skip());
+      }
+      await user.click(screen.getByRole('button', { name: 'End turn 1' }));
+
+      const dialog = within(screen.getByRole('dialog'));
+
+      expect(dialog.getByText(/this turn has not finished with/i)).toBeVisible();
+      expect(screen.getByRole('dialog').textContent).toContain('haul has not gone into storage');
+
+      // It still ends the turn: a table may have done the step on paper, and
+      // refusing would be this app overruling the people playing it.
+      expect(dialog.getByRole('button', { name: 'End turn 1' })).toBeEnabled();
+    });
+  });
+
   it('marks the steps behind it done and the one it is on current', async () => {
     const user = await openCampaign();
 

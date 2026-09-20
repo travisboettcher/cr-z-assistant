@@ -25,9 +25,11 @@ import {
 import type { Campaign } from '../engine/campaign';
 import {
   exhaustion,
+  fedPopulation,
   foodRequiredAsFed,
   hunger,
   hungerIfFedNow,
+  hungerPenalty,
   penaltyFor,
   survivorsFed,
   unrest,
@@ -40,6 +42,7 @@ import {
   siegeThreat,
   siegeThreatTerms,
   siegeTriggered,
+  towersWithoutTheSkill,
 } from '../engine/siege';
 import { anythingOverCap, overCap, storageChecked } from '../engine/storage';
 import {
@@ -48,10 +51,17 @@ import {
   someoneDeparted,
   someoneIsLeaving,
 } from '../engine/departures';
-import { MATERIAL_LABELS } from './baseLabels';
+import { MATERIAL_LABELS, slotLabel } from './baseLabels';
 import { STORED_MATERIALS } from '../data/materials';
-import { biteCandidates, mustCheck, restraintsFree, rotOutcome, rotTarget } from '../engine/rot';
-import { laborShortfall, orderedThisTurn, projectCost } from '../engine/projects';
+import {
+  biteCandidates,
+  mustCheck,
+  restraintsFree,
+  rotOutcome,
+  rotTarget,
+  stillToCheck,
+} from '../engine/rot';
+import { laborShortfall, orderedThisTurn, queuedCost } from '../engine/projects';
 import { describeProject } from './projectLabels';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
@@ -95,6 +105,9 @@ export function ManagementPhase({ campaign, step }: ManagementPhaseProps) {
  */
 function CheckForRot({ campaign }: { readonly campaign: Campaign }) {
   const dying = mustCheck(campaign);
+  // A survivor who holds is still at 0 Health, so `mustCheck` goes on naming
+  // them and this step went on offering a form the reducer would refuse.
+  const outstanding = stillToCheck(campaign);
   const target = rotTarget(campaign);
   const held = restraintsFree(campaign);
 
@@ -120,16 +133,35 @@ function CheckForRot({ campaign }: { readonly campaign: Campaign }) {
         </p>
       )}
 
-      {dying.length === 0 ? (
+      {dying.length === 0 && (
         <p className={`mt-3 ${HINT}`}>Nobody is at 0 Health. Nothing to check.</p>
-      ) : (
+      )}
+
+      {outstanding.length > 0 && (
         <ul className="mt-3 flex flex-col gap-4">
-          {dying.map((survivor) => (
+          {outstanding.map((survivor) => (
             <li key={survivor.id}>
               <RotCheck campaign={campaign} survivorId={survivor.id} name={survivor.name} />
             </li>
           ))}
         </ul>
+      )}
+
+      {/*
+       * Named rather than counted, because the answer a player wants from a
+       * step they have half finished is *whose* check is still outstanding —
+       * and everybody left in `dying` who is not in `outstanding` held on,
+       * which is the only way to be at 0 Health with a check behind you.
+       */}
+      {dying.length > outstanding.length && (
+        <p className={`mt-3 text-sm font-medium`}>
+          {dying
+            .filter((survivor) => !outstanding.includes(survivor))
+            .map((survivor) => survivor.name)
+            .join(', ')}{' '}
+          held on this turn. A check is rolled once, and stepping back through the walk will not
+          roll it again.
+        </p>
       )}
     </>
   );
@@ -145,7 +177,13 @@ function RotCheck({
   readonly name: string;
 }) {
   const { dispatch } = useCampaign();
-  const [roll, setRoll] = useState<D10Result>(1);
+  /*
+   * No roll until one is entered. It started at 1, which is a natural failure —
+   * so a form that had merely been opened, or come back from a reload, stood
+   * there reading "turns and is removed" about a survivor nobody had rolled
+   * for (#143).
+   */
+  const [roll, setRoll] = useState<D10Result | null>(null);
 
   const candidates = biteCandidates(campaign, survivorId);
   const [bitten, setBitten] = useState<string>('');
@@ -170,8 +208,9 @@ function RotCheck({
   const held = restraintsFree(campaign) > 0;
 
   // Shown before the press, so a player can see what the roll they are about to
-  // enter would cost before it costs it.
-  const outcome = rotOutcome(campaign, survivorId, roll, chosen);
+  // enter would cost before it costs it — and nothing at all before that,
+  // because there is no outcome to preview yet.
+  const outcome = roll === null ? null : rotOutcome(campaign, survivorId, roll, chosen);
 
   return (
     <div className="rounded-lg border border-stone-200 p-3 dark:border-stone-700">
@@ -183,12 +222,13 @@ function RotCheck({
         </label>
         <select
           id={`rot-roll-${survivorId}`}
-          value={roll}
+          value={roll ?? ''}
           className={FIELD}
           onChange={(changed) => {
             setRoll(Number(changed.target.value) as D10Result);
           }}
         >
+          <option value="">—</option>
           {D10_RESULTS.map((result) => (
             <option key={result} value={result}>
               {result}
@@ -220,19 +260,24 @@ function RotCheck({
       </div>
 
       <p className={`mt-2 ${HINT}`}>
-        {outcome.turned === null
-          ? `${name} holds on.`
-          : `${name} turns and is removed.` +
-            (outcome.restrained ? ' The Restraints hold them, and nobody is bitten.' : '') +
-            (outcome.bitten === null
-              ? ''
-              : ` ${outcome.bitten.survivor.name} is bitten${outcome.bitten.dies ? ' and removed too' : ''}.`)}
+        {outcome === null
+          ? `Enter ${name}’s roll to see what it would cost.`
+          : outcome.turned === null
+            ? `${name} holds on.`
+            : `${name} turns and is removed.` +
+              (outcome.restrained ? ' The Restraints hold them, and nobody is bitten.' : '') +
+              (outcome.bitten === null
+                ? ''
+                : ` ${outcome.bitten.survivor.name} is bitten${outcome.bitten.dies ? ' and removed too' : ''}.`)}
       </p>
 
       <button
         type="button"
         className={PRIMARY}
+        disabled={roll === null}
         onClick={() => {
+          if (roll === null) return;
+
           dispatch({
             type: 'management/rotChecked',
             survivor: survivorId,
@@ -264,7 +309,18 @@ function Feed({ campaign }: { readonly campaign: Campaign }) {
   // printed "eats 6 Food… 8 Hunger".
   const required = foodRequiredAsFed(campaign);
   const short = done ? hunger(campaign) : hungerIfFedNow(campaign);
-  const penalty = penaltyFor(short, campaign.survivors.length);
+
+  // Once the step has run, the penalty in force is the recorded one and the
+  // head count it was priced against is recorded with it — both terms as the
+  // Feed step saw them (ruling 1). Pairing a recorded shortfall with a live
+  // roster is #102, which was fixed in `feeding.ts` and left standing here: add
+  // a survivor after Feed and this line said no stat was reduced while every
+  // survivor sheet in the same page load said all of them were.
+  //
+  // Before the step it is a preview of what pressing the button would cost, so
+  // both terms are live and that is the honest pair.
+  const population = done ? fedPopulation(campaign) : campaign.survivors.length;
+  const penalty = done ? hungerPenalty(campaign) : penaltyFor(short, population);
 
   return (
     <>
@@ -292,14 +348,13 @@ function Feed({ campaign }: { readonly campaign: Campaign }) {
               {' '}
               — and this community is large enough to absorb it, so no stat is reduced. The penalty
               starts once the shortfall passes the head count of{' '}
-              <span className="tabular-nums">{campaign.survivors.length}</span>{' '}
-              <PageRef pages={22} />
+              <span className="tabular-nums">{population}</span> <PageRef pages={22} />
             </>
           ) : (
             <>
               {' '}
               — and this shortfall is past the head count of{' '}
-              <span className="tabular-nums">{campaign.survivors.length}</span>, so{' '}
+              <span className="tabular-nums">{population}</span>, so{' '}
               <strong>
                 every survivor’s stats drop by <span className="tabular-nums">{penalty}</span>
               </strong>{' '}
@@ -512,6 +567,7 @@ function CheckTheHorde({ campaign }: { readonly campaign: Campaign }) {
   const done = hordeChecked(campaign);
   const terms = siegeThreatTerms(campaign);
   const threat = siegeThreat(campaign);
+  const unskilled = towersWithoutTheSkill(campaign);
 
   return (
     <>
@@ -529,6 +585,19 @@ function CheckTheHorde({ campaign }: { readonly campaign: Campaign }) {
           </li>
         ))}
       </ul>
+
+      {/*
+       * Under the list rather than beside the term, because it explains a
+       * number that is *absent*: "+0 watched" is what an empty tower gives and
+       * what a tower full of people who cannot shoot gives, and only one of
+       * those is a mistake the player can fix (#143).
+       */}
+      {unskilled.length > 0 && (
+        <p className={`mt-1 ${HINT}`}>
+          {unskilled.map((slot) => slotLabel(slot)).join(' and ')} — nobody there has Long Guns,
+          Handguns, Archery or Traps, so the tower watches for nothing <PageRef pages={73} />
+        </p>
+      )}
 
       <p className="mt-2 text-sm font-medium tabular-nums">Siege Threat {threat}</p>
 
@@ -717,7 +786,7 @@ function UnpaidProjects({ campaign }: { readonly campaign: Campaign }) {
               Leave {describeProject(project)} unfinished
             </button>
             <span className="text-xs text-stone-500 dark:text-stone-400">
-              {projectCost(campaign, project).labor} Labor
+              {queuedCost(campaign, at).labor} Labor
             </span>
           </li>
         ))}
