@@ -250,7 +250,7 @@ export const MATERIAL_ROLL_TABLE = {
  * as "a given material" and is transcribed as all four**, which is the literal
  * reading and includes forcing the Rare result a 10 would give. Whether that
  * asymmetry is deliberate is
- * [ruling 4](../../docs/phase-3-stories.md#rulings-the-book-leaves-open); the
+ * [R9](../../docs/rulings.md#r9--how-broadly-the-utilities-substitution-applies--open); the
  * broad reading is recorded here so a table that rules the other way edits one
  * line.
  */

@@ -194,7 +194,7 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
   /*
    * Whether anybody on the team *has* Teaching, as against how much of it they
    * have between them — and it is this, not the Score, that takes the
-   * discretionary point away ([ruling 7](../../docs/phase-3-stories.md)).
+   * discretionary point away ([R7](../../docs/rulings.md)).
    *
    * pg. 12 triggers the replacement on a Teacher going out; the Score is how
    * many survivors the Teacher then hands a point to. So a Teacher whose Score

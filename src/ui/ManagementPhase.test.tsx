@@ -113,7 +113,7 @@ describe('the penalty the Feed step reports', () => {
     expect(walk().textContent).toContain('every survivor’s stats drop by 3');
 
     // A survivor arrives afterwards. The penalty in force was priced at Feed
-    // and does not move (ruling 1) — so this line must not move either.
+    // and does not move (R1) — so this line must not move either.
     await user.type(screen.getByLabelText(/survivor name/i), 'Gil Moss');
     await user.selectOptions(screen.getByLabelText(/^tier$/i), '4');
     await user.click(screen.getByRole('button', { name: /add survivor/i }));

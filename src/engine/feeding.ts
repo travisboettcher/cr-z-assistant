@@ -13,7 +13,7 @@
  * ## The penalty is a starvation threshold, not a tax
  *
  * `max(0, Hunger − population)`, floored at zero and applied to stats rather
- * than to Skill Scores. This is [ruling 1](../../docs/phase-3-stories.md) and
+ * than to Skill Scores. This is [R1](../../docs/rulings.md) and
  * it is the literal reading of pg. 22: the printed arithmetic computes
  * `population − Hunger` and tests it for negativity, which is the shape of a
  * threshold. A community of Tier 1–2 survivors can empty its stores completely
@@ -125,7 +125,7 @@ export function foodRequiredAsFed(campaign: Campaign): number {
 }
 
 /**
- * How much every stat in the community is reduced by (pg. 22, ruling 1).
+ * How much every stat in the community is reduced by (pg. 22, R1).
  *
  * Zero unless the shortfall is larger than the head count. Never negative, and
  * `statValue` floors the result at zero as well — the two clamps answer
@@ -151,7 +151,7 @@ export function hungerPenalty(campaign: Campaign): number {
 }
 
 /**
- * The head count the penalty in force was priced against (pg. 22, ruling 1).
+ * The head count the penalty in force was priced against (pg. 22, R1).
  *
  * Exported because the Feed step says the threshold out loud — "the penalty
  * starts once the shortfall passes the head count of 5" — and a screen reading
@@ -173,7 +173,7 @@ export function fedPopulation(campaign: Campaign): number {
  * Separate from `hungerPenalty` because the Feed step has to show what a
  * shortfall *would* cost before it costs it, and that preview works from
  * `hungerIfFedNow` rather than from the log. A screen doing the subtraction
- * itself would be a second copy of ruling 1 waiting to disagree with this one.
+ * itself would be a second copy of R1 waiting to disagree with this one.
  */
 export function penaltyFor(shortfall: number, population: number): number {
   return Math.max(0, shortfall - population);

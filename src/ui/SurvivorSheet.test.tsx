@@ -477,7 +477,7 @@ function toggleFor(sheet: HTMLElement, label: string) {
  * skill's level plus its governing stat. A player checking the arithmetic gets
  * 3 and reads 1.
  *
- * The computation is right and does not change — ruling 1 applies the penalty
+ * The computation is right and does not change — R1 applies the penalty
  * to stats, and therefore to Inventory Slots too. This is about saying so.
  */
 describe('a community that is going hungry', () => {

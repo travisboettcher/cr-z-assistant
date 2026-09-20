@@ -200,7 +200,7 @@ function CharacterAdvancement({ campaign }: { readonly campaign: Campaign }) {
                          * here: edit a mission team after its XP has been handed
                          * out and the new member reads as eligible with a dead
                          * button (#145). The point stays where it was awarded —
-                         * [ruling 7](../../docs/phase-3-stories.md) — and this
+                         * [R7](../../docs/rulings.md) — and this
                          * is the sentence that says so.
                          */}
                         {blockers[0] !== undefined && (

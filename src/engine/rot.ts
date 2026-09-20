@@ -12,7 +12,7 @@
  * A natural 1 always fails and a natural 10 always succeeds (pg. 8), whatever
  * the target — which is what stops a well-staffed Clinic from making the check
  * a formality, and is the reason the target is left unclamped. See
- * [ruling 2](../../docs/phase-3-stories.md).
+ * [R2](../../docs/rulings.md).
  *
  * ## A failure is two removals in the worst case
  *
@@ -71,7 +71,7 @@ export function stillToCheck(campaign: Campaign): readonly Survivor[] {
  * The number a Rot check has to reach (pg. 22).
  *
  * Twelve, less every point of Medicine across the Clinic's staff. **No floor**,
- * which is [ruling 2](../../docs/phase-3-stories.md): the book states none, the
+ * which is [R2](../../docs/rulings.md): the book states none, the
  * natural-1 rule already stops the check becoming a certainty, and clamping
  * would be this app inventing a rule rather than recording one.
  *

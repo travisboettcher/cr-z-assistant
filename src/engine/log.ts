@@ -156,7 +156,7 @@ export type CampaignEvent =
       readonly required: number;
       readonly hunger: number;
       /**
-       * The head count the shortfall was measured against (pg. 22, ruling 1).
+       * The head count the shortfall was measured against (pg. 22, R1).
        *
        * Recorded because the penalty is fixed at this step and held until the
        * next Management Phase, so a departure later in the same turn must not

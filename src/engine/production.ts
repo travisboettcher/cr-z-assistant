@@ -106,8 +106,8 @@ export function facilityProduction(
   /*
    * The layout's own flat output, which belongs to the *slot* rather than to
    * the facility in it — the Distillery's Utility Station makes 2 Water with
-   * nobody in it (spec ruling R4), and a Utility Station's own production is
-   * skill-named rather than flat.
+   * nobody in it ([R4](../../docs/rulings.md)), and a Utility Station's own
+   * production is skill-named rather than flat.
    *
    * `flatUtilitiesGenerated` has always counted this, so the base sheet showed
    * the 2 Water while the slot card said the facility produced nothing: two
