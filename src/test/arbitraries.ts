@@ -19,10 +19,27 @@
  */
 
 import fc from 'fast-check';
-import { SKILLS, STATS, type Skill } from '../data/skills';
+import { BASES, BASE_IDS } from '../data/bases';
+import { FACILITY_IDS, UPGRADE_IDS } from '../data/facilities';
+import { COMMON_SKILLS, SKILLS, STATS, type Skill } from '../data/skills';
+import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
-import { CAMPAIGN_PHASES, CURRENT_SCHEMA_VERSION, MATERIALS } from '../engine/campaign';
-import type { Campaign, Materials, SkillLevels, Stats, Survivor } from '../engine/campaign';
+import { MATERIALS, type Materials } from '../data/materials';
+import { CAMPAIGN_ORIGINS } from '../data/origins';
+import { CAMPAIGN_PHASES, HEALTH_SOURCES, XP_SOURCES } from '../data/turn';
+import { TURN_SEQUENCE } from '../engine/turn';
+import { CURRENT_SCHEMA_VERSION } from '../engine/campaign';
+import type {
+  Assignment,
+  Base,
+  Campaign,
+  Project,
+  SkillLevels,
+  SlotState,
+  Stats,
+  Survivor,
+} from '../engine/campaign';
+import type { CampaignEvent, LogEntry } from '../engine/log';
 
 /**
  * Any single UTF-16 code unit — **including an unpaired surrogate**.
@@ -76,9 +93,33 @@ const anyCount = fc.integer({ min: 0, max: 999 });
  */
 const anyMaterialCount = fc.integer({ min: 0, max: 9999 });
 
-/** An ISO 8601 timestamp, which is what `createNewCampaign` writes. */
+/**
+ * A change to a material count, which can go either way.
+ *
+ * A turn's haul is the mission's rolls plus what the base made, and a facility
+ * that eats Food (pg. 55) can outweigh both — so a `materials-added` entry is
+ * the one place in the log where a negative number is a real record rather
+ * than a damaged file.
+ */
+const anyAmount = fc.integer({ min: -9999, max: 9999 });
+
+/**
+ * An ISO 8601 timestamp, which is what `createNewCampaign` writes and what a
+ * log entry is stamped with.
+ *
+ * `noInvalidDate` is load-bearing rather than tidy. `fc.date()` will happily
+ * produce an `Invalid Date`, whose `toISOString()` throws — so the generator
+ * itself would blow up rather than the property failing. That was latent from
+ * the day this was written and only surfaced when Z3-2 started drawing up to
+ * nine timestamps per campaign instead of one: at one draw apiece it simply
+ * never came up.
+ */
 const anyCreatedAt = fc
-  .date({ min: new Date('1970-01-01T00:00:00.000Z'), max: new Date('2999-12-31T23:59:59.999Z') })
+  .date({
+    min: new Date('1970-01-01T00:00:00.000Z'),
+    max: new Date('2999-12-31T23:59:59.999Z'),
+    noInvalidDate: true,
+  })
   .map((date) => date.toISOString());
 
 function statsArbitrary(): fc.Arbitrary<Stats> {
@@ -137,6 +178,225 @@ function materialsArbitrary(): fc.Arbitrary<Materials> {
 }
 
 /**
+ * What a player may have done to one slot.
+ *
+ * `requiredKeys: []` is the point of this generator rather than a detail of it:
+ * every field of `SlotState` is optional, absent means the same as false, and
+ * the round trip can only get that wrong in one direction — by writing `false`
+ * or `null` where the campaign said nothing at all. Generating states that
+ * leave fields out is what catches it.
+ */
+function slotStateArbitrary(): fc.Arbitrary<SlotState> {
+  return fc.record(
+    {
+      cleared: fc.constant(true as const),
+      built: fc.record({
+        facility: fc.constantFrom(...FACILITY_IDS),
+        builtOnTurn: fc.integer({ min: 1, max: 9999 }),
+      }),
+      upgrades: fc.array(fc.constantFrom(...UPGRADE_IDS), { maxLength: 4 }),
+      power: fc.constant(true as const),
+      water: fc.constant(true as const),
+    },
+    { requiredKeys: [] },
+  );
+}
+
+/**
+ * A base this build could have written.
+ *
+ * Slots are drawn from the chosen base's own layout, because a slot id outside
+ * it is a damaged save by definition and `parseCampaignFile` says so — the
+ * round-trip property is a claim about files this app writes, not about every
+ * object that fits the type. What it does **not** respect is legality: a
+ * Watchtower may land in an Indoor slot and a Kitchen may carry a Watchtower's
+ * upgrade, because a player can override both (Z2-5, Z2-6) and an overridden
+ * base is exactly the one most likely to break a round trip.
+ */
+export function baseArbitrary(): fc.Arbitrary<Base> {
+  return fc.constantFrom(...BASE_IDS).chain((id) => {
+    const slotIds = (BASES[id].slots as readonly { readonly id: string }[]).map((slot) => slot.id);
+
+    return fc.record({
+      id: fc.constant(id),
+      slots: fc
+        .uniqueArray(fc.tuple(fc.constantFrom(...slotIds), slotStateArbitrary()), {
+          selector: ([slot]) => slot,
+          maxLength: slotIds.length,
+        })
+        .map((entries) => Object.fromEntries(entries) as Record<string, SlotState>),
+    });
+  });
+}
+
+/**
+ * Any one of the fourteen things that can happen.
+ *
+ * Written out per kind rather than generated from a shared shape, and that is
+ * the point: `CampaignEvent` is a union whose members carry different fields,
+ * and the round trip can only get one wrong by dropping a field that only one
+ * kind has. A generator that emitted a common subset would never notice.
+ *
+ * Typed as producing a `CampaignEvent`, so a kind added to `log.ts` without a
+ * line here is a missing case rather than a silently untested one — the same
+ * guarantee `campaignArbitrary` gives the campaign's own shape.
+ */
+function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
+  const survivor = { survivor: anyId, name: anyName };
+
+  return fc.oneof<fc.Arbitrary<CampaignEvent>[]>(
+    fc.record({ kind: fc.constant('campaign-started' as const), name: anyName }),
+    fc.record({ kind: fc.constant('phase-entered' as const) }),
+    fc.record({ kind: fc.constant('turn-began' as const) }),
+    fc.record({ kind: fc.constant('planning-began' as const) }),
+    fc.record({
+      kind: fc.constant('materials-added' as const),
+      food: anyAmount,
+      fuel: anyAmount,
+      hardware: anyAmount,
+      rare: anyAmount,
+    }),
+    fc.record({
+      kind: fc.constant('survivors-fed' as const),
+      required: anyCount,
+      hunger: anyCount,
+    }),
+    fc.record({
+      kind: fc.constant('rot-checked' as const),
+      survivor: anyId,
+      name: anyName,
+      roll: fc.constantFrom(...D10_RESULTS),
+      target: anyAmount,
+      passed: fc.boolean(),
+    }),
+    fc.record({
+      kind: fc.constant('bite-restrained' as const),
+      survivor: anyId,
+      name: anyName,
+    }),
+    fc.record({
+      kind: fc.constant('survivor-bitten' as const),
+      survivor: anyId,
+      name: anyName,
+      damage: fc.integer({ min: 1, max: 9 }),
+    }),
+    fc.record({
+      kind: fc.constant('facility-ordered' as const),
+      slot: anyId,
+      facility: fc.constantFrom(...FACILITY_IDS),
+    }),
+    fc.record({
+      kind: fc.constant('upgrade-ordered' as const),
+      slot: anyId,
+      upgrade: fc.constantFrom(...UPGRADE_IDS),
+    }),
+    fc.record({ kind: fc.constant('clearing-ordered' as const), slot: anyId }),
+    fc.record({ kind: fc.constant('project-cancelled' as const), slot: anyId }),
+    fc.record({ kind: fc.constant('project-unfinished' as const), slot: anyId }),
+    fc.record({
+      kind: fc.constant('storage-checked' as const),
+      food: anyCount,
+      fuel: anyCount,
+      hardware: anyCount,
+    }),
+    fc.record({
+      kind: fc.constant('horde-checked' as const),
+      roll: fc.constantFrom(...D10_RESULTS),
+      threat: anyAmount,
+      siege: fc.boolean(),
+    }),
+    fc.record({
+      kind: fc.constant('health-restored' as const),
+      survivor: anyId,
+      name: anyName,
+      health: fc.integer({ min: 1, max: 20 }),
+      source: fc.constantFrom(...HEALTH_SOURCES),
+    }),
+    fc.record({
+      kind: fc.constant('xp-awarded' as const),
+      survivor: anyId,
+      name: anyName,
+      amount: fc.integer({ min: 1, max: 20 }),
+      source: fc.constantFrom(...XP_SOURCES),
+    }),
+    fc.record({ kind: fc.constant('starting-community-settled' as const), built: fc.boolean() }),
+    fc.record({
+      kind: fc.constant('survivor-added' as const),
+      ...survivor,
+      tier: fc.constantFrom(...TIERS),
+    }),
+    fc.record({
+      kind: fc.constant('survivor-recruited' as const),
+      ...survivor,
+      tier: fc.constantFrom(...TIERS),
+      roll: fc.constantFrom(...D10_RESULTS),
+    }),
+    fc.record({
+      kind: fc.constant('survivor-left' as const),
+      ...survivor,
+      tier: fc.constantFrom(...TIERS),
+    }),
+    fc.record({
+      kind: fc.constant('survivor-promoted' as const),
+      ...survivor,
+      tier: fc.constantFrom(...TIERS),
+    }),
+    fc.record({
+      kind: fc.constant('skill-level-bought' as const),
+      ...survivor,
+      skill: fc.constantFrom(...SKILLS),
+      level: fc.integer({ min: 0, max: 4 }),
+    }),
+    fc.record({
+      kind: fc.constant('common-skill-bought' as const),
+      ...survivor,
+      skill: fc.constantFrom(...COMMON_SKILLS),
+      score: fc.integer({ min: 0, max: 8 }),
+    }),
+    fc.record({ kind: fc.constant('base-claimed' as const), base: fc.constantFrom(...BASE_IDS) }),
+    fc.record({
+      kind: fc.constant('facility-built' as const),
+      slot: anyId,
+      facility: fc.constantFrom(...FACILITY_IDS),
+    }),
+    fc.record({
+      kind: fc.constant('upgrade-built' as const),
+      slot: anyId,
+      upgrade: fc.constantFrom(...UPGRADE_IDS),
+    }),
+    fc.record({ kind: fc.constant('slot-cleared' as const), slot: anyId }),
+  );
+}
+
+/** One entry: when it happened, in both clocks, and what happened. */
+function logEntryArbitrary(): fc.Arbitrary<LogEntry> {
+  return fc.record({
+    turn: fc.integer({ min: 1, max: 9999 }),
+    phase: fc.constantFrom(...CAMPAIGN_PHASES),
+    at: anyCreatedAt,
+    event: campaignEventArbitrary(),
+  });
+}
+
+/**
+ * One task, drawn from all six.
+ *
+ * Written out per task rather than generated from a shared shape, for the
+ * reason `campaignEventArbitrary` is: the members carry different fields, and a
+ * round trip can only get one wrong by dropping a field that only one task has.
+ */
+function assignmentArbitrary(): fc.Arbitrary<Assignment> {
+  return fc.oneof<fc.Arbitrary<Assignment>[]>(
+    fc.record({ task: fc.constant('staff' as const), slot: anyId }),
+    fc.record({ task: fc.constant('project' as const) }),
+    fc.record({ task: fc.constant('rest' as const) }),
+    fc.record({ task: fc.constant('healing' as const) }),
+    fc.record({ task: fc.constant('mission' as const), team: fc.integer({ min: 1, max: 4 }) }),
+    fc.record({ task: fc.constant('scavenging' as const) }),
+  );
+}
+
+/**
  * A campaign this build could have written.
  *
  * `schemaVersion` is pinned to the current one rather than generated, because
@@ -146,19 +406,111 @@ function materialsArbitrary(): fc.Arbitrary<Materials> {
  * tests' job, and they use real fixture files rather than generated ones.
  */
 export function campaignArbitrary(): fc.Arbitrary<Campaign> {
-  return fc.record({
-    schemaVersion: fc.constant(CURRENT_SCHEMA_VERSION),
-    id: anyId,
-    name: anyName,
-    createdAt: anyCreatedAt,
-    turn: fc.integer({ min: 1, max: 9999 }),
-    phase: fc.constantFrom(...CAMPAIGN_PHASES),
-    materials: materialsArbitrary(),
-    survivors: fc.array(survivorArbitrary(), { maxLength: 6 }),
-    startingCommunityBuilt: fc.boolean(),
-    base: fc.constant(null),
-    log: fc.constant([]),
-  });
+  return unassignedCampaignArbitrary().chain((campaign) =>
+    assignmentsArbitrary(campaign.survivors).map((assignments) => ({ ...campaign, assignments })),
+  );
+}
+
+/**
+ * Tasks for some of these survivors, and none for the rest.
+ *
+ * **Keyed by ids the campaign actually holds**, which is why this is chained on
+ * to the roster rather than generated beside it: an assignment naming nobody is
+ * a damaged save by definition and `parseCampaignFile` says so, and the
+ * round-trip property is a claim about the files this app writes.
+ *
+ * Some rather than all, because the partial record is the point — a Planning
+ * Phase spends most of its life half-assigned, and a generator that filled
+ * every id would never produce the state the screen is mostly looking at.
+ */
+function assignmentsArbitrary(
+  survivors: readonly Survivor[],
+): fc.Arbitrary<Record<string, Assignment>> {
+  return fc
+    .uniqueArray(
+      fc.tuple(fc.constantFrom('', ...survivors.map((one) => one.id)), assignmentArbitrary()),
+      {
+        selector: ([id]) => id,
+        maxLength: Math.max(survivors.length, 1),
+      },
+    )
+    .map((entries) =>
+      Object.fromEntries(entries.filter(([id]) => survivors.some((one) => one.id === id))),
+    );
+}
+
+/**
+ * One queued project.
+ *
+ * The slot is a free string rather than a real id, because the parser accepts a
+ * project for a slot the base does not have — a queue is a record of what was
+ * ordered, and Z1-7's override means a campaign can hold one the rules would
+ * refuse. What the round trip has to survive is the shape.
+ */
+function projectArbitrary(): fc.Arbitrary<Project> {
+  const orderedOnTurn = fc.integer({ min: 1, max: 9999 });
+
+  return fc.oneof(
+    fc.record({
+      kind: fc.constant('facility' as const),
+      slot: anyId,
+      facility: fc.constantFrom(...FACILITY_IDS),
+      orderedOnTurn,
+    }),
+    fc.record({
+      kind: fc.constant('upgrade' as const),
+      slot: anyId,
+      upgrade: fc.constantFrom(...UPGRADE_IDS),
+      orderedOnTurn,
+    }),
+    fc.record({ kind: fc.constant('clearing' as const), slot: anyId, orderedOnTurn }),
+  );
+}
+
+/** The campaign shape, before the assignments that have to know its roster. */
+function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments'>> {
+  return fc.record(
+    {
+      schemaVersion: fc.constant(CURRENT_SCHEMA_VERSION),
+      id: anyId,
+      name: anyName,
+      createdAt: anyCreatedAt,
+      turn: fc.integer({ min: 1, max: 9999 }),
+      step: fc.constantFrom(...TURN_SEQUENCE),
+      // Null as often as a number, because "never besieged" is the state most
+      // campaigns are in and the one a round trip most easily loses.
+      origin: fc.constantFrom(...CAMPAIGN_ORIGINS),
+      materials: materialsArbitrary(),
+      survivors: fc.array(survivorArbitrary(), { maxLength: 6 }),
+      startingCommunityBuilt: fc.boolean(),
+      // Half the campaigns have claimed a base and half have not; null is a
+      // real state and a round trip can get it wrong by writing `{}`.
+      base: fc.option(baseArbitrary(), { nil: null }),
+      // No longer pinned empty: from v6 a log is real, and an entry is the one
+      // place in the file where objects of different shapes share an array.
+      log: fc.array(logEntryArbitrary(), { maxLength: 8 }),
+      projects: fc.array(projectArbitrary(), { maxLength: 4 }),
+    },
+    // Every key but `origin`, which is optional on `Campaign` — so half the
+    // generated campaigns leave it out entirely. Both are real files, and the
+    // absent one is the one a round trip can get wrong by writing `null`.
+    {
+      requiredKeys: [
+        'schemaVersion',
+        'id',
+        'name',
+        'createdAt',
+        'turn',
+        'step',
+        'projects',
+        'materials',
+        'survivors',
+        'startingCommunityBuilt',
+        'base',
+        'log',
+      ],
+    },
+  );
 }
 
 /**

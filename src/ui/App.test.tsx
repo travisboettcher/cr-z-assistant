@@ -80,7 +80,7 @@ describe('App shell', () => {
           createdAt: '2026-08-30T00:00:00.000Z',
         }),
         turn: 4,
-        phase: 'planning',
+        step: 'assign-rest-and-healing',
       },
     });
 
@@ -130,5 +130,63 @@ describe('App shell', () => {
     await user.click(screen.getByRole('button', { name: 'New campaign' }));
 
     expect(screen.getByRole('button', { name: /export campaign/i })).toBeEnabled();
+  });
+});
+
+/**
+ * The section strip, which spent three phases announcing that screens which
+ * already existed did not.
+ *
+ * Phase 0 shipped it as five disabled placeholders, and the reasoning was
+ * right at the time: a control that looks tappable and does nothing is worse
+ * than one that plainly says "not yet". It stopped being true a screen at a
+ * time, and by Z3-3 it was saying "Turn — not yet" directly above a working
+ * turn walk.
+ */
+describe('the section strip', () => {
+  const navigation = () => screen.getByRole('navigation', { name: /campaign sections/i });
+
+  it('says nothing is reachable when no campaign is open', () => {
+    renderApp();
+
+    // Not "the links are wrong" — there is nowhere to go, because the empty
+    // state is the whole page.
+    expect(within(navigation()).queryByRole('link')).toBeNull();
+  });
+
+  it('links to the sections that exist and still refuses the ones that do not', async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.type(screen.getByLabelText(/^campaign name$/i), 'Cedar Hollow');
+    await user.click(screen.getByRole('button', { name: 'New campaign' }));
+
+    const nav = within(navigation());
+
+    for (const [label, target] of [
+      ['Turn', '#turn'],
+      ['Roster', '#roster'],
+      ['Base', '#base'],
+    ] as const) {
+      expect(nav.getByRole('link', { name: label })).toHaveAttribute('href', target);
+    }
+
+    for (const label of ['Missions', 'Equipment']) {
+      expect(nav.getByRole('button', { name: `${label} Not yet` })).toBeDisabled();
+    }
+  });
+
+  it('points at sections that are actually on the page', async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.type(screen.getByLabelText(/^campaign name$/i), 'Cedar Hollow');
+    await user.click(screen.getByRole('button', { name: 'New campaign' }));
+
+    // The half a link check cannot make on its own: an href to an id nothing
+    // carries is a link that silently goes nowhere.
+    for (const id of ['turn', 'roster', 'base']) {
+      expect(document.getElementById(id)).not.toBeNull();
+    }
   });
 });

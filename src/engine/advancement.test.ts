@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { STATS } from '../data/skills';
 import { TIER_RULES } from '../data/tiers';
 import {
   commonSkillPurchase,
+  promotionStatChoices,
   skillLevelPurchase,
   tierPurchase,
   withCommonSkillBought,
@@ -13,7 +13,7 @@ import type { Survivor } from './campaign';
 import { maxHp } from './survivor';
 import { survivorViolations } from './legality';
 
-/** pg. 50. Tier 3, stats 3/2/1/0, three skills — and a pile of XP to spend. */
+/** pg. 15. Tier 3, stats 3/2/1/0, three skills — and a pile of XP to spend. */
 const CARLA = {
   id: 'd2c93a75-1e48-4f60-b8d7-5a3e0c96f41b',
   name: 'Carla Proust',
@@ -39,13 +39,19 @@ const MARCUS = {
   xp: 20,
 } satisfies Survivor;
 
+/** A Rookie's 1/0/0/0, with the point on Intelligence: three zeros to choose from. */
+const ROOKIE_STATS = { strength: 0, dexterity: 0, intelligence: 1, cooperation: 0 } as const;
+
+/** A Hero's 4/3/2/1: no stat at zero, so no choice at all. */
+const HERO_STATS = { strength: 4, dexterity: 3, intelligence: 2, cooperation: 1 } as const;
+
 /**
- * The whole reason this module has two cost functions instead of one. pg. 30
+ * The whole reason this module has two cost functions instead of one. pg. 18
  * is a single sentence covering both, and the two quantities it produces differ
  * by six — so they are asserted **from the same survivor in the same test**,
  * because a wrong reading is only visible in the contrast.
  */
-describe('the two costs pg. 30 quotes', () => {
+describe('the two costs pg. 18 quotes', () => {
   it('charges a skill its new level and a common skill its new score', () => {
     expect(skillLevelPurchase(CARLA, 'archery').cost).toBe(1);
     expect(commonSkillPurchase(CARLA, 'move').cost).toBe(7);
@@ -75,7 +81,7 @@ describe('skillLevelPurchase', () => {
     expect(skillLevelPurchase(CARLA, 'tactics').blocked).toBe('skill-not-taken');
   });
 
-  it('blocks a skill already at the tier maximum (pg. 41)', () => {
+  it('blocks a skill already at the tier maximum (pg. 7)', () => {
     const capped = { ...CARLA, skills: { ...CARLA.skills, archery: 3 } } satisfies Survivor;
 
     expect(TIER_RULES[3].maxSkillLevel).toBe(3);
@@ -94,7 +100,7 @@ describe('skillLevelPurchase', () => {
 });
 
 describe('commonSkillPurchase', () => {
-  it('stops at a score of eight (pg. 30)', () => {
+  it('stops at a score of eight (pg. 18)', () => {
     expect(commonSkillPurchase({ ...CARLA, defense: 8 }, 'defense').blocked).toBe(
       'at-score-maximum',
     );
@@ -107,19 +113,61 @@ describe('commonSkillPurchase', () => {
   });
 });
 
-describe('tierPurchase', () => {
-  it('costs twice the new tier', () => {
-    expect(tierPurchase(MARCUS)).toEqual({ cost: 6, blocked: null });
-    expect(tierPurchase({ ...MARCUS, tier: 1 }).cost).toBe(4);
+/**
+ * The zero-stat choice (pg. 18), which is the one behaviour the published
+ * edition moved: a promotion raises every stat, and where more than one is at 0
+ * only one of them rises — *the player says which*. Marcus has two zeros and
+ * Carla one, so the pair of them covers both answers.
+ */
+describe('promotionStatChoices', () => {
+  it('offers every stat at zero when more than one is', () => {
+    expect(promotionStatChoices(MARCUS)).toEqual(['strength', 'dexterity']);
+    expect(promotionStatChoices({ ...MARCUS, tier: 1, stats: ROOKIE_STATS })).toEqual([
+      'strength',
+      'dexterity',
+      'cooperation',
+    ]);
   });
 
-  /** Tier 4 is the top of the table (pg. 38–39). */
+  /** A Leader's array is 3/2/1/0 — one zero, and no question to ask about it. */
+  it('offers nothing when a single stat is at zero', () => {
+    expect(promotionStatChoices(CARLA)).toEqual([]);
+  });
+
+  it('offers nothing when no stat is at zero', () => {
+    expect(promotionStatChoices({ ...CARLA, tier: 4, stats: HERO_STATS })).toEqual([]);
+  });
+});
+
+describe('tierPurchase', () => {
+  it('costs twice the new tier', () => {
+    expect(tierPurchase(MARCUS, 'strength')).toEqual({ cost: 6, blocked: null });
+    expect(tierPurchase({ ...MARCUS, tier: 1 }, 'strength').cost).toBe(4);
+  });
+
+  /** Tier 4 is the top of the table (pg. 7). */
   it('blocks a hero, who has nowhere to go', () => {
-    expect(tierPurchase({ ...CARLA, tier: 4 }).blocked).toBe('already-a-hero');
+    expect(tierPurchase({ ...CARLA, tier: 4 }, null).blocked).toBe('already-a-hero');
   });
 
   it('blocks a survivor who cannot afford it', () => {
-    expect(tierPurchase({ ...MARCUS, xp: 5 }).blocked).toBe('not-enough-xp');
+    expect(tierPurchase({ ...MARCUS, xp: 5 }, 'strength').blocked).toBe('not-enough-xp');
+  });
+
+  /**
+   * Unanswered is blocked, not defaulted. The old edition let this module break
+   * the tie itself; pg. 18 gives it to the player, so an unanswered promotion
+   * quotes its price and refuses — and a stat that is not one of the zeros is
+   * no answer either.
+   */
+  it('blocks a promotion whose zero-stat choice has not been made', () => {
+    expect(tierPurchase(MARCUS, null)).toEqual({ cost: 6, blocked: 'stat-choice-required' });
+    expect(tierPurchase(MARCUS, 'intelligence').blocked).toBe('stat-choice-required');
+  });
+
+  /** Nothing to choose, so nothing to withhold: a Leader promotes on null. */
+  it('asks nothing of a survivor with only one stat at zero', () => {
+    expect(tierPurchase(CARLA, null).blocked).toBe(null);
   });
 });
 
@@ -190,7 +238,7 @@ describe('withCommonSkillBought', () => {
 });
 
 describe('withTierBought', () => {
-  const promoted = withTierBought(MARCUS);
+  const promoted = withTierBought(MARCUS, 'strength');
 
   it('moves the survivor up a tier and charges twice the new one', () => {
     expect(promoted.tier).toBe(3);
@@ -215,11 +263,28 @@ describe('withTierBought', () => {
     expect(Object.values(promoted.stats).sort()).toEqual([...TIER_RULES[3].statArray].sort());
   });
 
-  /** Two zeros, and only one of them can become the 1. Ties fall to STATS order. */
-  it('breaks a tie by stat order rather than arbitrarily', () => {
-    expect(STATS.indexOf('strength')).toBeLessThan(STATS.indexOf('dexterity'));
+  /**
+   * Two zeros, and only one of them becomes the Leader's 1. Which one is the
+   * player's answer (pg. 18), so the same survivor promoted twice with two
+   * different answers has to come out two different characters.
+   */
+  it('raises the zero the player picked, and only that one', () => {
     expect(promoted.stats.strength).toBe(1);
     expect(promoted.stats.dexterity).toBe(0);
+
+    const otherWay = withTierBought(MARCUS, 'dexterity');
+    expect(otherWay.stats.dexterity).toBe(1);
+    expect(otherWay.stats.strength).toBe(0);
+  });
+
+  /** The rest of the ranking is untouched by the answer. */
+  it('keeps the survivor’s own ranking whichever zero they pick', () => {
+    expect(withTierBought(MARCUS, 'dexterity').stats).toEqual({
+      intelligence: 3,
+      cooperation: 2,
+      dexterity: 1,
+      strength: 0,
+    });
   });
 
   /**
@@ -246,8 +311,13 @@ describe('withTierBought', () => {
   it('changes nothing for a hero or for a survivor who cannot pay', () => {
     const hero = { ...CARLA, tier: 4 } satisfies Survivor;
 
-    expect(withTierBought(hero)).toEqual(hero);
-    expect(withTierBought({ ...MARCUS, xp: 5 })).toEqual({ ...MARCUS, xp: 5 });
+    expect(withTierBought(hero, null)).toEqual(hero);
+    expect(withTierBought({ ...MARCUS, xp: 5 }, 'strength')).toEqual({ ...MARCUS, xp: 5 });
+  });
+
+  /** An unanswered choice is a blocked purchase, so nothing moves — not the XP. */
+  it('changes nothing while the zero-stat choice is unanswered', () => {
+    expect(withTierBought(MARCUS, null)).toEqual(MARCUS);
   });
 
   it('carries a survivor all the way to hero, and stops there', () => {
@@ -257,17 +327,21 @@ describe('withTierBought', () => {
       stats: { strength: 0, dexterity: 1, intelligence: 0, cooperation: 0 },
     };
 
-    survivor = withTierBought(survivor);
+    // Three zeros, then two, then one — so the player is asked twice and the
+    // last promotion needs no answer at all.
+    survivor = withTierBought(survivor, 'strength');
     expect(survivor.tier).toBe(2);
-    survivor = withTierBought(survivor);
+    survivor = withTierBought(survivor, 'intelligence');
     expect(survivor.tier).toBe(3);
-    survivor = withTierBought(survivor);
+    survivor = withTierBought(survivor, null);
     expect(survivor.tier).toBe(4);
     // 4 + 6 + 8 out of 20.
     expect(survivor.xp).toBe(2);
     // Dexterity held the only point at tier 1 and holds the top value still.
     expect(survivor.stats.dexterity).toBe(4);
+    // Every zero the player raised on the way up kept the value they gave it.
+    expect(survivor.stats).toEqual({ dexterity: 4, strength: 3, intelligence: 2, cooperation: 1 });
 
-    expect(withTierBought(survivor).tier).toBe(4);
+    expect(withTierBought(survivor, null).tier).toBe(4);
   });
 });

@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { MATERIALS } from '../data/materials';
 import {
-  CAMPAIGN_PHASES,
   CURRENT_SCHEMA_VERSION,
-  MATERIALS,
   createNewCampaign,
   type Campaign,
   type Survivor,
@@ -16,7 +15,7 @@ describe('createNewCampaign', () => {
 
     expect(campaign.name).toBe('Cedar Hollow');
     expect(campaign.turn).toBe(1);
-    expect(campaign.phase).toBe('mission');
+    expect(campaign.step).toBe('select-mission');
     expect(campaign.materials).toEqual({ food: 0, fuel: 0, hardware: 0, rare: 0 });
     expect(campaign.survivors).toEqual([]);
     expect(campaign.base).toBeNull();
@@ -57,20 +56,25 @@ describe('createNewCampaign', () => {
    * cheapest way that rule gets broken is someone caching `unrest` or a Skill
    * Score onto the campaign because it was convenient. Adding a field to
    * `Campaign` should be a deliberate act that updates this list.
+   *
+   * `origin` is absent and belongs absent: it is optional, and a new campaign
+   * has not been asked which apocalypse it is running.
    */
   it('stores exactly the primitive facts and nothing derived', () => {
     const campaign = createNewCampaign('Cedar Hollow', FIXED);
 
     expect(Object.keys(campaign).sort()).toEqual([
+      'assignments',
       'base',
       'createdAt',
       'id',
       'log',
       'materials',
       'name',
-      'phase',
+      'projects',
       'schemaVersion',
       'startingCommunityBuilt',
+      'step',
       'survivors',
       'turn',
     ]);
@@ -80,7 +84,7 @@ describe('createNewCampaign', () => {
 describe('Survivor', () => {
   /**
    * The same canary one level down, and the one that matters most now that a
-   * survivor is where the derived values live. Skill Score, max HP, item slots
+   * survivor is where the derived values live. Skill Score, max HP, Inventory Slots
    * and labor are all computable from what is here; caching any of them would
    * put a value on the persisted shape that the Phase 3 hunger penalty makes
    * wrong for a whole turn.
@@ -138,10 +142,6 @@ describe('Survivor', () => {
 });
 
 describe('constants', () => {
-  it('runs the four campaign phases in rulebook order', () => {
-    expect(CAMPAIGN_PHASES).toEqual(['mission', 'advancement', 'planning', 'management']);
-  });
-
   it('covers every material in the starting inventory', () => {
     const campaign = createNewCampaign('Cedar Hollow', FIXED);
 

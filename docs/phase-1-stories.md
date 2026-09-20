@@ -24,7 +24,7 @@ every story is shaped against. Phase 1 is where two of them get their first real
 1. **Rules as data** — `src/data/*.ts`, separate from engine, separate from UI.
 2. **Pure engine** — derived values are pure functions over campaign state. The UI only renders
    and dispatches. Enforced by `no-restricted-imports` in `eslint.config.js`.
-3. **Derived is never stored** — Skill Score, max HP, item slots and labor are computed on every
+3. **Derived is never stored** — Skill Score, max HP, Inventory Slots and labor are computed on every
    read. None of them may appear on the `Survivor` type.
 
 ## Scope boundary
@@ -34,37 +34,38 @@ with XP, and round-tripped through a save file, with every computed value correc
 
 Phase 1 explicitly does **not** include: the base or facilities (Phase 2), any campaign phase
 transition or the Management Phase math (Phase 3), missions and the XP they award (Phase 4),
-equipment and inventory contents (Phase 5), or survivor keywords (Phase 7). Item slots are
+equipment and inventory contents (Phase 5), or survivor traits (Phase 7). Inventory Slots are
 *counted* here; what goes in them is Phase 5.
 
 ## The rules this phase encodes
 
 Numbers and structure only — no rule text, per the copyright posture. Page references are to the
-rulebook; the app cites, it does not restate.
+Modiphius edition — see [`rulebook-edition.md`](rulebook-edition.md); the app cites, it does not
+restate.
 
 | | | Page |
 |---|---|---|
-| Stat arrays | T1 `1 0 0 0` · T2 `2 1 0 0` · T3 `3 2 1 0` · T4 `4 3 2 1`, assigned to stats of your choice | 38–39 |
-| Skill slots | = Tier | 38–39 |
-| Skill levels | 0–4, maximum equal to Tier, start at 0, cannot be gained out of order | 41, 30 |
-| Skill Score | skill level + governing stat | 41 |
-| Common skills | Move and Defense — no governing stat, Score only, both start at 6, maximum 8 | 41, 30 |
-| Max HP | = Tier | 49 |
-| Item slots | = Tier + Carry **Score** | 49 |
-| Labor generated | = Tier | 32 |
-| Starting community | 10 total Tier levels (1 Hero + 2 Leaders is a recommendation, not a rule) | 48 |
-| Skill advancement | XP cost = the **new level** | 30 |
-| Move/Defense advancement | XP cost = the **new Score** | 30 |
-| Tier advancement | XP cost = new Tier × 2; grants a new skill slot and a stat increase | 30 |
-| Field recruits | T2 → 2 skills, one rolled · T3 → 3 skills, one rolled · T1 → 1 skill, never rolled · T4 never recruited in the field | 38–39, 50 |
-| Recruit skill roll | d10 table; result 10 is the player's choice | 50 |
+| Stat arrays | T1 `1 0 0 0` · T2 `2 1 0 0` · T3 `3 2 1 0` · T4 `4 3 2 1`, assigned to stats of your choice | 7 |
+| Skill slots | = Tier | 7 |
+| Skill levels | 0–4, maximum equal to Tier, start at 0, cannot be gained out of order | 7, 8, 18 |
+| Skill Score | skill level + governing stat (+ item modifier, which is Phase 5) | 8 |
+| Common skills | Move and Defense — no governing stat, Score only, both start at 6, maximum 8 | 9, 18 |
+| Max HP | = Tier | 7 |
+| Inventory Slots | = Tier + Carry **Score** | 7, 14 |
+| Labor generated | = Tier | 7 |
+| Starting community | 10 total Tier levels (1 Hero + 2 Leaders is a recommendation, not a rule) | 13 |
+| Skill advancement | XP cost = the **new level** | 18 |
+| Move/Defense advancement | XP cost = the **new Score** | 18 |
+| Tier advancement | XP cost = new Tier × 2; grants a new skill slot and a stat increase | 18 |
+| Field recruits | T2 → 2 skills, one rolled · T3 → 3 skills, one rolled · T1 → 1 skill, never rolled · T4 never recruited in the field | 7, 15 |
+| Recruit skill roll | d10 table; result 10 is the player's choice | 15 |
 
 **Two things that look like one rule and are not:**
 
 1. **Move/Defense do not cost what skills cost.** A skill costs its new *level* — 1 through 4.
    Move and Defense have no level, only a Score, and cost their new *Score* — 7, then 8. Both
-   come from the same sentence on pg. 30, and conflating them makes Move cost 1 XP.
-2. **Item slots use Carry's Score, not its level.** So carrying capacity moves when Strength
+   come from the same sentence on pg. 18, and conflating them makes Move cost 1 XP.
+2. **Inventory Slots use Carry's Score, not its level.** So carrying capacity moves when Strength
    moves, not only when Carry is trained.
 
 ## Two readings, decided
@@ -72,12 +73,18 @@ rulebook; the app cites, it does not restate.
 Both are recorded here and named in code, so a later reader can tell an interpretation from a
 quotation and change it in one place.
 
-**Tier promotion rebuilds the stat array.** pg. 30 says a promoted survivor's stats "are
-increased by one" and then adds a tie-break for survivors with more than one stat at zero; the
-two obvious readings of that contradict each other. Decision: a promoted survivor ends up with
-the canonical array for their new Tier, with the zero-stat clause deciding which zero fills in.
-A promoted Citizen and a created Citizen are therefore the same character. They keep their
-existing skills and gain one new slot.
+**Tier promotion rebuilds the stat array.** pg. 18 says a promoted survivor's stats "are
+increased by one" and then adds a clause for survivors with more than one stat at zero; the two
+obvious readings of that contradict each other. Decision: a promoted survivor ends up with the
+canonical array for their new Tier. A promoted Citizen and a created Citizen are therefore the
+same character. They keep their existing skills and gain one new slot.
+
+**Which zero is raised is the player's, not the app's.** This was decided the other way against
+v1.25, which left the clause vague enough to break the tie in code. The published edition is
+explicit: when a survivor has more than one stat at 0, *the player chooses which one is raised*.
+A T1 → T2 promotion has three zeros and a T2 → T3 has two, so `withTierBought` takes the stat to
+raise in exactly those cases and the sheet asks before promoting. T3 → T4 raises every stat, so
+there is nothing to ask and nothing to pass.
 
 **Legality is enforced, with a visible override.** Illegal survivors are blocked by default, with
 an "allow anyway" escape for house rules and for cases this app models wrong.
@@ -147,7 +154,7 @@ nothing to carry. A campaign created in Phase 0 must still open after this ships
 - The version-bump guard test still fails when the version is bumped without a step and fixture.
 - A survivor-level key canary, so adding a computed field to the type fails a test.
 
-**Out of scope:** equipment, keywords, assignments. Adding fields for them now would be designing
+**Out of scope:** equipment, traits, assignments. Adding fields for them now would be designing
 Phase 5 and Phase 7 shapes before their rules exist.
 
 ---
@@ -158,11 +165,11 @@ Phase 5 and Phase 7 shapes before their rules exist.
 "derived is never stored".
 
 **Scope**
-- Skill Score, max HP, item slots, labor, and the community's total Tier levels, as pure
+- Skill Score, max HP, Inventory Slots, labor, and the community's total Tier levels, as pure
   functions with no DOM.
 
 **Acceptance**
-- A Tier 4 survivor with Strength 3 and Carry level 2 has 4 HP and 9 item slots.
+- A Tier 4 survivor with Strength 3 and Carry level 2 has 4 HP and 9 Inventory Slots.
 - A Tier 2 survivor cannot hold a level-3 skill.
 
 **Note, deliberately not built here:** the Phase 3 hunger penalty drops every stat and so
@@ -193,7 +200,7 @@ shipping before Phase 2.
 
 **Scope**
 - Stats; all twenty skills grouped by governing stat with computed Scores; Move and Defense;
-  current and max HP; item slots; XP.
+  current and max HP; Inventory Slots; XP.
 - Current HP editable — a wounded survivor is a fact from the table, and nothing else in Phase 1
   produces it.
 - Tablet-first, consistent with the Phase 0 shell. This gets read standing next to a table.
@@ -219,8 +226,9 @@ worse than paper, because it looks authoritative.
 - A 10-Tier-level community validates clean; an eleventh Tier level is blocked, and the override
   lets it through with the warning still showing afterwards.
 
-**Deferred with a reason:** the Hero cap depends on base Tier (pg. 38, 72), and there is no base
-until Phase 2. Surface it as guidance, not as an enforced rule.
+**Deferred with a reason:** the Hero cap depends on base Tier (pg. 7), and there is no base until
+Phase 2 — the base Tier table gets cited when that data file lands. Surface it as guidance, not
+as an enforced rule.
 
 ---
 

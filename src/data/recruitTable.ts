@@ -1,10 +1,11 @@
 /**
- * Field recruits — rules as data (pg. 38–39, 50).
+ * Field recruits — rules as data (pg. 7, 15).
  *
  * A survivor recruited on a mission arrives with a history, so one of their
  * skills is rolled rather than chosen.
  */
 
+import type { D10Result } from './dice';
 import type { Skill } from './skills';
 import type { Tier } from './tiers';
 
@@ -18,11 +19,7 @@ export const PLAYERS_CHOICE = 'players-choice';
 
 export type PlayersChoice = typeof PLAYERS_CHOICE;
 
-export const D10_RESULTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
-
-export type D10Result = (typeof D10_RESULTS)[number];
-
-/** The starting skill of a field recruit, by d10 result (pg. 50). */
+/** The starting skill of a field recruit, by d10 result (pg. 15). */
 export const RECRUIT_SKILL_TABLE = {
   1: 'blunt-weapon',
   2: 'blade-weapon',
@@ -37,7 +34,7 @@ export const RECRUIT_SKILL_TABLE = {
 } as const satisfies Record<D10Result, Skill | PlayersChoice>;
 
 /**
- * Heroes are never recruited in the field (pg. 38) — a Tier 4 survivor only
+ * Heroes are never recruited in the field (pg. 7) — a Tier 4 survivor only
  * ever arrives through creation or promotion.
  */
 export const FIELD_RECRUITABLE_TIERS = [1, 2, 3] as const satisfies readonly Tier[];
@@ -53,6 +50,20 @@ export type FieldRecruitTier = (typeof FIELD_RECRUITABLE_TIERS)[number];
 
 /**
  * Tier 2 and above roll for one of their skills; a Rookie's single skill is
- * never randomly generated (pg. 38–39).
+ * never randomly generated (pg. 7).
  */
 export const TIERS_WITH_ROLLED_SKILL = [2, 3] as const satisfies readonly Tier[];
+
+/**
+ * Whether a recruit at this Tier takes a skill off the table at all.
+ *
+ * A predicate rather than the list, because three places now ask — the engine
+ * that builds the recruit, the form that offers the die, and the entry that
+ * records what happened — and the playtest found them disagreeing: the engine
+ * ignored the roll for a Rookie while the screen asked for one and the log
+ * wrote it down permanently, so a player who rolled a 1 was told they had been
+ * given Blunt Weapon and then handed a survivor with no skills at all.
+ */
+export function rollsForSkill(tier: Tier): boolean {
+  return TIERS_WITH_ROLLED_SKILL.some((rolls) => rolls === tier);
+}

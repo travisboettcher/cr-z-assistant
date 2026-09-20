@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import v3Fixture from './__fixtures__/campaign-v3.json';
+import currentFixture from './__fixtures__/campaign-v11.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -44,7 +44,9 @@ describe('parseCampaignFile', () => {
 
     expect(result.campaign.name).toBe('Cedar Hollow');
     expect(result.campaign.turn).toBe(3);
-    expect(result.campaign.phase).toBe('planning');
+    // The v6 → v7 step replaces the phase with the step that phase opens on:
+    // an old save never recorded how far into a phase anyone was.
+    expect(result.campaign.step).toBe('assign-facility-staff');
     expect(result.campaign.materials).toEqual({ food: 4, fuel: 2, hardware: 7, rare: 1 });
     expect(result.campaign.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
   });
@@ -154,8 +156,8 @@ describe('parseCampaignFile', () => {
    * of these are campaign-shaped enough to migrate and still are not campaigns.
    */
   it.each([
-    ['a phase that is not a phase', { phase: 'harvest' }],
-    ['a phase of the wrong type', { phase: 3 }],
+    ['a step that is not a step', { step: 'harvest' }],
+    ['a step of the wrong type', { step: 3 }],
     ['materials missing a key', { materials: { food: 4, fuel: 2, hardware: 7 } }],
     [
       'a material that is not a number',
@@ -182,12 +184,12 @@ describe('parseCampaignFile', () => {
   });
 
   it('says which part of the campaign is wrong', () => {
-    const result = parseCampaignFile(savedWith({ phase: 'harvest' }));
+    const result = parseCampaignFile(savedWith({ step: 'harvest' }));
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
 
-    expect(result.error.message).toContain('mission, advancement, planning, management');
+    expect(result.error.message).toContain('where in the turn it is');
   });
 
   /**
@@ -233,11 +235,23 @@ describe('parseCampaignFile with a roster', () => {
    * to come out byte-identical — otherwise every save after a survivor learns
    * a skill diffs as though the whole roster changed.
    */
-  it('re-exports a roster byte-identically', () => {
+  it('re-exports a roster and a base byte-identically', () => {
     // The *current* fixture, because byte-identity is a claim about the format
     // this build writes. An older file legitimately comes back one version up,
     // which is the migration working rather than the round trip failing.
-    const text = `${JSON.stringify(v3Fixture, null, 2)}\n`;
+    //
+    // From v5 the fixture carries a base, so this also pins the slot order —
+    // written in the base's layout order, not the order the player built in —
+    // and that absent optional fields stay absent rather than coming back as
+    // `false`. From v6 it carries a log, which pins that an entry's own keys
+    // and its event's fields both survive a round trip untouched. From v8 it
+    // carries assignments, which pins that they come back in roster order and
+    // that a survivor with no task still has no entry. From v10 it carries a
+    // project queue, which pins that an ordered array keeps its order and that
+    // each kind keeps its own fields. v11 took the last siege's turn back out
+    // again — it is read off the log now — so the campaign has one fewer plain
+    // number among the nested ones.
+    const text = `${JSON.stringify(currentFixture, null, 2)}\n`;
     const result = parseCampaignFile(text);
 
     expect(result.ok).toBe(true);
@@ -258,8 +272,8 @@ describe('parseCampaignFile with a roster', () => {
       { ...v2Fixture.survivors[2], skills: { handguns: 4, archery: 2, stealth: 1 } },
     ];
 
-    // A Rookie with three skills, one of them at level 4: illegal by pg. 38-39
-    // and pg. 41, and none of the parser's business.
+    // A Rookie with three skills, one of them at level 4: illegal by pg. 7 and
+    // pg. 8, and none of the parser's business.
     expect(parseCampaignFile(JSON.stringify(houseRuled)).ok).toBe(true);
   });
 
@@ -283,6 +297,100 @@ describe('parseCampaignFile with a roster', () => {
 
     expect(result.error.reason).toBe('damaged-campaign');
     expect(result.error.message).toContain(expected);
+  });
+
+  /**
+   * Shape, never legality — the base's half of the rule the survivor tests
+   * above state. Z2-5 and Z2-6 let a player override slot kinds, costs and the
+   * upgrade cap on purpose, so an overridden base has to reopen: a Watchtower
+   * in an Indoor slot and a Kitchen carrying a Watchtower's upgrade are both
+   * illegal and both none of the parser's business.
+   */
+  it('opens a base that breaks the rules but not the shape', () => {
+    const houseRuled = savedWith({
+      base: {
+        id: 'distillery',
+        slots: {
+          // An Outdoor-only facility in an Indoor slot, with four upgrades on
+          // it, one of which belongs to another facility entirely.
+          'tasting-room': {
+            built: { facility: 'watchtower', builtOnTurn: 1 },
+            upgrades: ['watch-post', 'watch-post', 'spotlight', 'gas-range'],
+          },
+        },
+      },
+    });
+
+    expect(parseCampaignFile(houseRuled).ok).toBe(true);
+  });
+
+  it.each([
+    ['is not an object', 'its base is not a base', 7],
+    [
+      'names a base this version does not know',
+      'base is one this version does not know',
+      { id: 'space-station', slots: {} },
+    ],
+    ['has no slots', 'its base has no slots', { id: 'hobby-farm' }],
+    [
+      'has a slot the base does not have',
+      'the hobby-farm does not have',
+      { id: 'hobby-farm', slots: { 'wine-cellar': {} } },
+    ],
+    [
+      'has a slot that is not an object',
+      'is not a slot',
+      { id: 'hobby-farm', slots: { garden: 7 } },
+    ],
+    [
+      'has an unreadable facility',
+      'has an unreadable facility',
+      { id: 'hobby-farm', slots: { 'front-yard': { built: 7 } } },
+    ],
+    [
+      'holds a facility this version does not know',
+      'facility this version does not know',
+      {
+        id: 'hobby-farm',
+        slots: { 'front-yard': { built: { facility: 'helipad', builtOnTurn: 1 } } },
+      },
+    ],
+    [
+      'does not say when a facility was built',
+      'which turn it was built on',
+      { id: 'hobby-farm', slots: { 'front-yard': { built: { facility: 'garden' } } } },
+    ],
+    [
+      'holds an upgrade this version does not know',
+      'upgrade this version does not know',
+      { id: 'hobby-farm', slots: { 'front-yard': { upgrades: ['moat'] } } },
+    ],
+    [
+      'records something other than cleared',
+      'other than cleared',
+      { id: 'hobby-farm', slots: { 'ruined-chicken-coop': { cleared: false } } },
+    ],
+    [
+      'records something other than assigned for a utility',
+      'other than assigned for its power',
+      { id: 'hobby-farm', slots: { garden: { power: 'yes' } } },
+    ],
+  ])('reports a base that %s', (_label, expected, base) => {
+    const result = parseCampaignFile(savedWith({ base }));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+
+    expect(result.error.reason).toBe('damaged-campaign');
+    expect(result.error.message).toContain(expected);
+  });
+
+  /**
+   * A campaign that has not claimed a base is not a damaged one — null is the
+   * answer to "which base", not a missing field.
+   */
+  it('opens a campaign with no base', () => {
+    expect(parseCampaignFile(savedWith({ base: null })).ok).toBe(true);
   });
 
   /**
@@ -351,8 +459,8 @@ describe('a file whose fields are the wrong type', () => {
     expect(rejected({ createdAt: 12345 })?.reason).toBe('damaged-campaign');
   });
 
-  it('refuses a phase that is not a string', () => {
-    expect(rejected({ phase: 3 })?.reason).toBe('damaged-campaign');
+  it('refuses a step that is not a string', () => {
+    expect(rejected({ step: 3 })?.reason).toBe('damaged-campaign');
   });
 
   it('refuses a turn that is a string, even one that looks like a number', () => {
@@ -379,6 +487,22 @@ describe('a file whose fields are the wrong type', () => {
 
   it('refuses a flag that is not a boolean', () => {
     expect(rejected({ startingCommunityBuilt: 'yes' })?.reason).toBe('damaged-campaign');
+  });
+
+  /**
+   * `origin` is the one optional field on the shape, so it needs both halves
+   * asserting: absent is a campaign not using an origin and has to open, while
+   * a name this build does not know has to be refused rather than carried — a
+   * facilities list gated on an unrecognised origin quietly shows nothing.
+   */
+  it('refuses an origin it does not recognise, and accepts one it does', () => {
+    expect(rejected({ origin: 'radiation' })?.reason).toBe('damaged-campaign');
+    expect(rejected({ origin: 7 })?.reason).toBe('damaged-campaign');
+    expect(parseCampaignFile(savedWith({ origin: 'magic' })).ok).toBe(true);
+  });
+
+  it('opens a campaign with no origin at all', () => {
+    expect(parseCampaignFile(savedWith({})).ok).toBe(true);
   });
 });
 
@@ -462,5 +586,416 @@ describe('a campaign whose survivor list is not a list', () => {
 
     expect(result?.ok).toBe(false);
     if (result?.ok === false) expect(result.error.reason).toBe('damaged-campaign');
+  });
+});
+
+/**
+ * Names that every object already has.
+ *
+ * `'toString' in FACILITIES` is `true`, because `in` walks the prototype chain
+ * — so a catalogue lookup guarded by `in` accepts `toString`, `constructor` and
+ * `valueOf` as though they were real entries, and hands the caller a function.
+ * Found while adding the log's own validation in Z3-2, and fixed across the
+ * whole module rather than only in the new code: the base lookup was the worst
+ * of them, because `BASES.toString.slots` is `undefined` and the very next line
+ * calls `.some` on it.
+ *
+ * These are not exotic inputs. They are ordinary words, and this module's whole
+ * contract is that a damaged file comes back as a sentence rather than as an
+ * exception thrown from somewhere else entirely.
+ */
+describe('a campaign naming something every object already has', () => {
+  const inherited = ['toString', 'constructor', 'valueOf', '__proto__'];
+
+  function refusal(text: string) {
+    let result: ReturnType<typeof parseCampaignFile> | undefined;
+
+    expect(() => {
+      result = parseCampaignFile(text);
+    }).not.toThrow();
+
+    expect(result?.ok).toBe(false);
+    if (result?.ok === false) expect(result.error.reason).toBe('damaged-campaign');
+
+    return result;
+  }
+
+  it.each(inherited)('refuses %s as a base rather than crashing on it', (name) => {
+    refusal(savedWith({ base: { id: name, slots: {} } }));
+  });
+
+  it.each(inherited)('refuses %s as a facility rather than crashing on it', (name) => {
+    refusal(
+      savedWith({
+        base: {
+          id: 'hobby-farm',
+          slots: { garden: { built: { facility: name, builtOnTurn: 1 } } },
+        },
+      }),
+    );
+  });
+
+  it.each(inherited)('refuses %s as a kind of log entry rather than crashing on it', (name) => {
+    refusal(
+      savedWith({
+        log: [{ turn: 1, phase: 'mission', at: '2026-09-08T21:00:00.000Z', event: { kind: name } }],
+      }),
+    );
+  });
+
+  it.each(inherited)('refuses %s as a survivor skill rather than crashing on it', (name) => {
+    refusal(
+      savedWith({
+        survivors: [
+          {
+            id: 'a',
+            name: 'Earl Rhodes',
+            tier: 1,
+            stats: { strength: 1, dexterity: 0, intelligence: 0, cooperation: 0 },
+            skills: { [name]: 0 },
+            move: 6,
+            defense: 6,
+            currentHp: 1,
+            xp: 0,
+          },
+        ],
+      }),
+    );
+  });
+});
+
+/**
+ * The campaign log, checked the way the roster and the base are: shape only,
+ * one problem named, and never a thrown exception.
+ *
+ * There is no "illegal entry" to be permissive about here, unlike a survivor or
+ * a slot — a log records what happened, and what happened happened. What these
+ * defend against is a file edited or truncated since it was saved, where an
+ * entry with a missing field would put `undefined` into a line of someone's
+ * campaign history instead of saying the file is damaged.
+ */
+describe('a campaign whose log is damaged', () => {
+  const good = {
+    turn: 2,
+    phase: 'advancement',
+    at: '2026-09-08T21:00:00.000Z',
+    event: { kind: 'survivor-added', survivor: 'a', name: 'Earl Rhodes', tier: 3 },
+  };
+
+  function refusalFor(log: unknown) {
+    const result = parseCampaignFile(savedWith({ log }));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected a refusal');
+
+    expect(result.error.reason).toBe('damaged-campaign');
+    return result.error.message;
+  }
+
+  it('accepts a log that is right, so the refusals below mean something', () => {
+    const result = parseCampaignFile(savedWith({ log: [good] }));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.log).toEqual([good]);
+  });
+
+  /**
+   * Both shapes of the entry that records a Planning Phase clearing what came
+   * before it: one written by a build that carried the assignments, and one
+   * written before it did. Neither is damaged, and a reader that demanded the
+   * field would refuse every campaign saved before issue #95 was fixed.
+   */
+  it.each([
+    ['carrying what it cleared', { kind: 'planning-began', cleared: { earl: { task: 'rest' } } }],
+    ['carrying nothing, as older saves do', { kind: 'planning-began' }],
+  ])('accepts a Planning Phase entry %s', (_name, event) => {
+    const result = parseCampaignFile(savedWith({ log: [{ ...good, event }] }));
+
+    expect(result.ok).toBe(true);
+  });
+
+  it.each([
+    ['not a list at all', 5, /campaign log is missing/i],
+    ['an entry that is not an object', [7], /is not a log entry/i],
+    ['an entry with no turn', [{ ...good, turn: undefined }], /which turn/i],
+    ['an entry from turn zero', [{ ...good, turn: 0 }], /which turn/i],
+    ['an entry from half a turn', [{ ...good, turn: 1.5 }], /which turn/i],
+    // Both halves of the phase check, which disagree only on these two: a
+    // string that is not a phase, and a phase-shaped value that is not a
+    // string. One case alone leaves the other half of the `||` untested.
+    ['an entry from a phase that does not exist', [{ ...good, phase: 'brunch' }], /phase/i],
+    ['an entry whose phase is not even a word', [{ ...good, phase: 3 }], /phase/i],
+    // Likewise for the timestamp: unparseable text, and a value that is not
+    // text at all.
+    ['an entry timed to nonsense', [{ ...good, at: 'sometime tuesday' }], /time/i],
+    ['an entry timed to a number', [{ ...good, at: 20260908 }], /time/i],
+    // The number that `Date.parse` is happy with. Without the `typeof` half of
+    // that check this one is accepted and renders as 1970.
+    ['an entry timed to a bare year', [{ ...good, at: 2026 }], /time/i],
+    [
+      'an entry that does not say what happened',
+      [{ ...good, event: 'something' }],
+      /what happened/i,
+    ],
+    [
+      'an entry whose kind is not a word',
+      [{ ...good, event: { kind: 12 } }],
+      /does not know about/i,
+    ],
+    [
+      'an entry whose kind this version has never heard of',
+      [{ ...good, event: { kind: 'survivor-abducted' } }],
+      /does not know about/i,
+    ],
+    // A real kind, wrapped in a list. `Object.hasOwn` coerces its key, so this
+    // stringifies to a name the table has and passes the lookup — the `typeof`
+    // half of that check is the only thing between it and being accepted.
+    [
+      'an entry whose kind is a real one in a box',
+      [{ ...good, event: { kind: ['turn-began'] } }],
+      /does not know about/i,
+    ],
+    // The assignments a `planning-began` entry cleared. An older entry carries
+    // nothing, which is accepted below; anything present has to be readable,
+    // because the Advancement Phase reads it back as though it were live.
+    [
+      'a clearing that is not a set of assignments',
+      [{ ...good, event: { kind: 'planning-began', cleared: 'everything' } }],
+      /unreadable cleared/i,
+    ],
+    [
+      'a clearing naming a task this version does not know',
+      [{ ...good, event: { kind: 'planning-began', cleared: { earl: { task: 'foraging' } } } }],
+      /unreadable cleared/i,
+    ],
+    [
+      'a clearing whose staffing does not say where',
+      [{ ...good, event: { kind: 'planning-began', cleared: { earl: { task: 'staff' } } } }],
+      /unreadable cleared/i,
+    ],
+    // The field loop: a kind this version knows, carrying a field it cannot
+    // read. Nothing above reaches past the discriminant.
+    [
+      'an entry about a survivor of no known tier',
+      [{ ...good, event: { ...good.event, tier: 99 } }],
+      /unreadable tier/i,
+    ],
+    [
+      'an entry about a survivor with no name',
+      [{ ...good, event: { ...good.event, name: null } }],
+      /unreadable name/i,
+    ],
+    [
+      'an entry naming a skill that does not exist',
+      [
+        {
+          ...good,
+          event: {
+            kind: 'skill-level-bought',
+            survivor: 'a',
+            name: 'Earl',
+            skill: 'yodel',
+            level: 1,
+          },
+        },
+      ],
+      /unreadable skill/i,
+    ],
+    [
+      'an entry raising Move as though it were a governed skill',
+      [
+        {
+          ...good,
+          event: {
+            kind: 'skill-level-bought',
+            survivor: 'a',
+            name: 'Earl',
+            skill: 'move',
+            level: 1,
+          },
+        },
+      ],
+      /unreadable skill/i,
+    ],
+  ])('refuses %s', (_label, log, expected) => {
+    expect(refusalFor(log)).toMatch(expected);
+  });
+
+  /**
+   * The position, counted from one.
+   *
+   * A reader with a damaged file needs to be told which entry, and "log entry 0
+   * of 2" is the kind of thing that makes someone doubt the message rather than
+   * the file. Pinned here because an off-by-one is otherwise invisible.
+   */
+  it('counts the damaged entry from one, and says how many there are', () => {
+    expect(refusalFor([good, { ...good, turn: 0 }])).toMatch(/log entry 2 of 2/);
+    expect(refusalFor([{ ...good, turn: 0 }, good, good])).toMatch(/log entry 1 of 3/);
+  });
+});
+
+/**
+ * Assignments, checked the way the log and the base are: shape only, one
+ * problem named, and never a thrown exception.
+ *
+ * **The line sits in a different place here than for a slot.** That a survivor
+ * is staffing a facility that does not exist, resting at full Health, or on a
+ * mission team while injured are all *rules* (pg. 20–21) — Z3-6 reports them,
+ * and a player may be part-way through fixing one when they save. What this
+ * refuses is an assignment that refers to nothing.
+ */
+/**
+ * The project queue, checked the way the log is: shape only, one problem named,
+ * and never a thrown exception.
+ *
+ * **Shape, not legality.** A project queued for a slot the base does not have,
+ * or for a facility that slot could not hold, is a rule the screens report
+ * rather than a damaged file — and Z1-7's override means a campaign can
+ * genuinely hold one. What these refuse is a project that refers to nothing.
+ */
+describe('a campaign whose project queue is damaged', () => {
+  const good = { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 2 };
+
+  function refusalFor(projects: unknown) {
+    const result = parseCampaignFile(savedWith({ projects }));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected a refusal');
+
+    expect(result.error.reason).toBe('damaged-campaign');
+    return result.error.message;
+  }
+
+  it.each([
+    ['a facility', good],
+    ['an upgrade', { kind: 'upgrade', slot: 'kitchen', upgrade: 'gas-range', orderedOnTurn: 2 }],
+    ['a clearing', { kind: 'clearing', slot: 'ruined-chicken-coop', orderedOnTurn: 2 }],
+  ])('accepts %s, so the refusals below mean something', (_label, project) => {
+    const result = parseCampaignFile(savedWith({ projects: [project] }));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.projects).toEqual([project]);
+  });
+
+  it.each([
+    ['not a list at all', 5, /project queue is missing/i],
+    ['a project that is not an object', [7], /is not a project/i],
+    [
+      'a kind this version has never heard of',
+      [{ ...good, kind: 'demolition' }],
+      /does not know: demolition/i,
+    ],
+    ['a kind that is not a word', [{ ...good, kind: 12 }], /does not know: 12/i],
+    // `in` would accept this: every object has a `toString`. `isKeyOf` does not.
+    ['a kind every object already has', [{ ...good, kind: 'toString' }], /does not know/i],
+    // A real kind, wrapped in a list. `Object.hasOwn` coerces its key, so this
+    // stringifies to a name the table has and passes the lookup — the `typeof`
+    // half of that check is the only thing between it and being accepted, and
+    // a `kind` that is an array is not a project this app can render.
+    ['a kind that is a real one in a box', [{ ...good, kind: ['facility'] }], /does not know/i],
+    ['a project that does not say which slot', [{ ...good, slot: undefined }], /which slot/i],
+    ['a project whose slot is not a word', [{ ...good, slot: 4 }], /which slot/i],
+    ['a project with no turn on it', [{ ...good, orderedOnTurn: undefined }], /which turn/i],
+    ['a project ordered on turn zero', [{ ...good, orderedOnTurn: 0 }], /which turn/i],
+    ['a project ordered on half a turn', [{ ...good, orderedOnTurn: 1.5 }], /which turn/i],
+    // The per-kind fields: only two kinds have one, and each has its own.
+    [
+      'a facility that is not in the catalogue',
+      [{ ...good, facility: 'moon-base' }],
+      /unreadable facility/i,
+    ],
+    [
+      'an upgrade that is not in the catalogue',
+      [{ kind: 'upgrade', slot: 'kitchen', upgrade: 'jacuzzi', orderedOnTurn: 2 }],
+      /unreadable upgrade/i,
+    ],
+    // A clearing carries nothing of its own, so a stray facility id on one is
+    // not checked and not a refusal — the queue says what the project is.
+  ])('refuses %s', (_label, projects, says) => {
+    expect(refusalFor(projects)).toMatch(says);
+  });
+
+  /** Positional, like log entries: a damaged kind cannot be named by its kind. */
+  it('says which project in the queue is the damaged one', () => {
+    expect(refusalFor([good, good, { ...good, facility: 'moon-base' }])).toMatch(
+      /project 3 of 3 has an unreadable facility/i,
+    );
+  });
+});
+
+describe('a campaign whose assignments are damaged', () => {
+  const EARL = 'b7e41f28-3c60-4d95-8a12-6f0e9d4c7b53';
+
+  const roster = [
+    {
+      id: EARL,
+      name: 'Earl Rhodes',
+      tier: 4,
+      stats: { strength: 3, dexterity: 2, intelligence: 4, cooperation: 1 },
+      skills: { archery: 1 },
+      move: 6,
+      defense: 6,
+      currentHp: 4,
+      xp: 0,
+    },
+  ];
+
+  function refusalFor(assignments: unknown) {
+    const result = parseCampaignFile(savedWith({ survivors: roster, assignments }));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected a refusal');
+
+    expect(result.error.reason).toBe('damaged-campaign');
+    return result.error.message;
+  }
+
+  it.each([
+    ['staff', { task: 'staff', slot: 'kitchen' }],
+    ['project', { task: 'project' }],
+    ['rest', { task: 'rest' }],
+    ['healing', { task: 'healing' }],
+    ['mission', { task: 'mission', team: 1 }],
+    ['scavenging', { task: 'scavenging' }],
+  ])('accepts %s, so the refusals below mean something', (_label, assignment) => {
+    const result = parseCampaignFile(
+      savedWith({ survivors: roster, assignments: { [EARL]: assignment } }),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.assignments).toEqual({ [EARL]: assignment });
+  });
+
+  it.each([
+    ['not a record at all', 5, /what its survivors are doing/i],
+    ['an assignment that is not an object', { [EARL]: 'resting' }, /is not an assignment/i],
+    [
+      'a task this version has never heard of',
+      { [EARL]: { task: 'foraging' } },
+      /does not know: foraging/i,
+    ],
+    ['a task that is not a word', { [EARL]: { task: 7 } }, /does not know: 7/i],
+    // `in` would accept this: every object has a `toString`. `isKeyOf` does not.
+    ['a task every object already has', { [EARL]: { task: 'toString' } }, /does not know/i],
+    ['staffing that does not say where', { [EARL]: { task: 'staff' } }, /unreadable slot/i],
+    [
+      'a mission team that is not a team',
+      { [EARL]: { task: 'mission', team: 0 } },
+      /unreadable team/i,
+    ],
+    // The orphan: a task given to somebody the roster does not hold.
+    [
+      'a task given to a stranger',
+      { 'not-a-survivor': { task: 'rest' } },
+      /not in the community: not-a-survivor/i,
+    ],
+  ])('refuses %s', (_label, assignments, expected) => {
+    expect(refusalFor(assignments)).toMatch(expected);
   });
 });

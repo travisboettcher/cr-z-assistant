@@ -7,8 +7,11 @@
  * something a person can read and diff, and hand it to the browser.
  */
 
+import { BASES } from '../data/bases';
 import { SKILLS, STATS } from '../data/skills';
-import { MATERIALS, type Campaign, type Survivor } from '../engine/campaign';
+import { MATERIALS } from '../data/materials';
+import type { Base, Campaign, Project, SlotState, Survivor } from '../engine/campaign';
+import type { LogEntry } from '../engine/log';
 
 /** Material counts in the fixed order from the engine, not insertion order. */
 function orderedMaterials(campaign: Campaign): Record<string, number> {
@@ -68,6 +71,126 @@ function orderedSurvivor(survivor: Survivor): Record<keyof Survivor, unknown> {
 }
 
 /**
+ * One slot's state with its keys in a fixed order, and its absent fields left
+ * absent.
+ *
+ * `SlotState` is all-optional, so writing `false` for what a player has not
+ * done would invent state the type says nothing about — and would make an
+ * untouched-but-recorded slot look different from an untouched one.
+ */
+function orderedSlot(state: SlotState): Record<keyof SlotState, unknown> {
+  return {
+    cleared: state.cleared,
+    built: state.built && {
+      facility: state.built.facility,
+      builtOnTurn: state.built.builtOnTurn,
+    },
+    upgrades: state.upgrades,
+    power: state.power,
+    water: state.water,
+  };
+}
+
+/**
+ * The base with its slots in the order the base's own layout lists them, not
+ * the order the player happened to build in.
+ *
+ * The same guarantee `orderedSkills` gives a survivor: two saves of the same
+ * base diff as though nothing changed unless something did. Only slots the
+ * player has touched are written, because `Base.slots` is partial on purpose.
+ */
+function orderedBase(base: Base): Record<keyof Base, unknown> {
+  const slots: Record<string, unknown> = {};
+
+  for (const slot of BASES[base.id].slots) {
+    const state = base.slots[slot.id];
+    if (state !== undefined) slots[slot.id] = orderedSlot(state);
+  }
+
+  return { id: base.id, slots };
+}
+
+/**
+ * A tagged union member with its tag first and everything else alphabetical.
+ *
+ * **Sorted rather than listed per member, and the property suite is why.** The
+ * first attempt wrote log events through untouched, on the reasoning that one
+ * is built once as a literal and never merged, so its insertion order could not
+ * drift. `roundTrip.property.test.ts` rejected that inside a second: a value
+ * read back from a file arrives in *that file's* key order, and re-exporting it
+ * then produces different bytes for the same campaign.
+ *
+ * The alternative was an ordering function per member — fourteen for events and
+ * six for assignments — each of which can only ever agree with its constructor
+ * and will one day not. A sort is order-independent by construction: there is
+ * no list to keep in step. The tag leads because a reader scanning a save file
+ * wants to know *what* before its details, and both unions' remaining fields
+ * are a flat bag of scalars with no reading order worth preserving.
+ *
+ * The loop writes the tag a second time, on purpose. Assigning a key an object
+ * already has updates its value and leaves its position alone, so the redundant
+ * write cannot move the tag — and skipping it would need a guard whose only
+ * effect is to avoid a write nobody can observe. A mutation run found that
+ * guard first: it survived every test, because there was nothing there to fail.
+ */
+function taggedFirst<T extends object>(value: T, tag: keyof T & string): Record<string, unknown> {
+  const ordered: Record<string, unknown> = { [tag]: value[tag] };
+
+  for (const field of Object.keys(value).sort()) {
+    ordered[field] = (value as Record<string, unknown>)[field];
+  }
+
+  return ordered;
+}
+
+/**
+ * Assignments in roster order, with each survivor's task written tag-first.
+ *
+ * Roster order rather than the order the player happened to assign in, for the
+ * reason `orderedBase` writes slots in layout order: two saves of the same
+ * Planning Phase should diff as though nothing changed unless something did.
+ * Only survivors with a task are written, because `assignments` is partial on
+ * purpose and an unassigned survivor has no entry rather than an empty one.
+ */
+function orderedAssignments(campaign: Campaign): Record<string, unknown> {
+  const ordered: Record<string, unknown> = {};
+
+  for (const survivor of campaign.survivors) {
+    const assignment = campaign.assignments[survivor.id];
+    if (assignment !== undefined) ordered[survivor.id] = taggedFirst(assignment, 'task');
+  }
+
+  return ordered;
+}
+
+/**
+ * One project with its keys in a fixed order.
+ *
+ * Tag first, like a log event and an assignment, through the same `taggedFirst`
+ * the other two use — a third copy of "put the discriminant at the front" would
+ * be two too many.
+ */
+function orderedProject(project: Project): Record<string, unknown> {
+  return taggedFirst(project, 'kind');
+}
+
+/**
+ * One log entry with its keys in a fixed order.
+ *
+ * The `Record<keyof LogEntry, unknown>` return type earns its keep the way
+ * `inFileOrder`'s does: a field added to the entry cannot be silently dropped
+ * from every export.
+ */
+function orderedLogEntry(entry: LogEntry): Record<keyof LogEntry, unknown> {
+  return {
+    turn: entry.turn,
+    phase: entry.phase,
+    at: entry.at,
+    event: taggedFirst(entry.event, 'kind'),
+  };
+}
+
+/**
  * The campaign rewritten with its keys in a fixed order.
  *
  * `JSON.stringify` follows insertion order, so a campaign that came through
@@ -86,13 +209,19 @@ function inFileOrder(campaign: Campaign): Record<keyof Campaign, unknown> {
     id: campaign.id,
     name: campaign.name,
     createdAt: campaign.createdAt,
+    // Optional, so this is `undefined` for most campaigns — which `JSON.stringify`
+    // drops, leaving the key absent rather than written as null. Absent is what
+    // "no origin" means, so the file says it the same way the type does.
+    origin: campaign.origin,
     turn: campaign.turn,
-    phase: campaign.phase,
+    step: campaign.step,
     materials: orderedMaterials(campaign),
     survivors: campaign.survivors.map(orderedSurvivor),
     startingCommunityBuilt: campaign.startingCommunityBuilt,
-    base: campaign.base,
-    log: campaign.log,
+    base: campaign.base === null ? null : orderedBase(campaign.base),
+    assignments: orderedAssignments(campaign),
+    projects: campaign.projects.map(orderedProject),
+    log: campaign.log.map(orderedLogEntry),
   };
 }
 

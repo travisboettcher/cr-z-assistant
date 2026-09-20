@@ -11,6 +11,7 @@
  * someone's tablet months later.
  */
 
+import { CAMPAIGN_PHASES, TURN_STEPS } from '../data/turn';
 import { CURRENT_SCHEMA_VERSION, type Campaign } from '../engine/campaign';
 
 /**
@@ -73,7 +74,7 @@ const survivorsBecameReal: MigrationStep = {
  *
  * It answers **`true`**, which is the opposite of what `createNewCampaign`
  * answers for a brand-new campaign, and the difference is the point. The
- * ten-tier-level budget (pg. 48) did not exist when a v2 campaign was written,
+ * ten-tier-level budget (pg. 13) did not exist when a v2 campaign was written,
  * so its roster was built without ever being checked against it. Defaulting
  * those campaigns to `false` would take a perfectly good six-survivor community
  * and start reporting it as over budget the moment the player updated the app.
@@ -89,10 +90,211 @@ const startingCommunityBuiltRecorded: MigrationStep = {
   up: (previous) => ({ ...previous, startingCommunityBuilt: true }),
 };
 
+/**
+ * v3 → v4: campaigns can record which origin they are running.
+ *
+ * **A no-op on data, and unlike v1 → v2 that is the answer rather than a
+ * placeholder for one.** `origin` is optional: a campaign not using an origin
+ * simply has no origin, and a v3 campaign was written before the question could
+ * be asked, so absent is already the truthful answer for every one of them.
+ * Filling in a default would invent a campaign setting nobody chose.
+ *
+ * The step still earns the version bump, for the reason v1 → v2 did: a v4 save
+ * carrying an origin, opened in a v3 build, is refused on version with *"update
+ * the app"* rather than accepted and then silently stripped of the field on the
+ * next export.
+ */
+const originRecorded: MigrationStep = {
+  from: 3,
+  to: 4,
+  up: (previous) => previous,
+};
+
+/**
+ * v4 → v5: campaigns can hold a base.
+ *
+ * **A no-op on data, and the reason is different again.** v1 → v2 changed nothing because `survivors` was already
+ * `[]`; v3 → v4 changed nothing because absent is what "no origin" means. Here
+ * it is because `base` was already `null` and null still means the same thing:
+ * a campaign that has not claimed a base. Every v4 campaign is in exactly that
+ * state, since a v4 build could not put anything else there.
+ *
+ * The bump earns its keep the way v3 → v4 did, and more so: a v5 save with a
+ * base, opened in a v4 build, would fail that build's shape check with *"it has
+ * a base, which this version cannot read"* — a damaged-file message for an
+ * undamaged file. Refusing on version instead says *"update the app"*, which is
+ * both true and actionable.
+ */
+const baseBecameReal: MigrationStep = {
+  from: 4,
+  to: 5,
+  up: (previous) => previous,
+};
+
+/**
+ * v5 → v6: `log` stopped being a placeholder.
+ *
+ * **A no-op on data, and the closest parallel in this chain is v1 → v2** — the
+ * one where `survivors` became real. A v5 campaign's `log` is `[]`, which is
+ * already a valid v6 log, because v5 genuinely could not hold an entry: nothing
+ * in the app wrote one and `saveFile.ts` refused any file that arrived with a
+ * populated log.
+ *
+ * Backfilling is not on the table and is worth saying out loud. A v5 campaign
+ * has a base, a roster and a turn number, and every one of those is the *result*
+ * of things that happened — the log wants the things themselves, and a campaign
+ * saved before there was a log has no record of them. Inventing entries from
+ * the end state would produce a history that never happened, dated to a moment
+ * it did not happen in. An empty log on an old campaign is the truth.
+ *
+ * The bump earns its keep the way v4 → v5 did: a v6 save carrying a log,
+ * opened in a v5 build, hits that build's shape check and is told the file
+ * *"holds entries this version cannot read"* — a damaged-file message for a
+ * perfectly good file. Refusing on version instead says *"update the app"*.
+ */
+const logBecameReal: MigrationStep = {
+  from: 5,
+  to: 6,
+  up: (previous) => previous,
+};
+
+/**
+ * v6 → v7: a campaign records which *step* of the turn it is on, not which
+ * phase.
+ *
+ * **The first step in this chain that replaces a field rather than adding one,
+ * and the first that could get a campaign's position wrong.** A v6 campaign
+ * says `phase: 'management'` and nothing more; a v7 one says
+ * `step: 'check-for-rot'`. Every phase maps to the step it opens on, which is
+ * the only answer the old data supports.
+ *
+ * It is also, unavoidably, a *lossy* migration in one direction: a campaign
+ * paused half way through the Management Phase comes back at the top of it.
+ * That is the honest reading — a v6 build never recorded how far through a
+ * phase anyone was, so there is nothing to recover — but it is worth saying
+ * plainly, because the three destructive Management steps mean a player who
+ * had already fed the community could feed it twice. The first turn a v7 build
+ * opens an old campaign is the one to walk carefully.
+ *
+ * Mapping to the *first* step rather than the last is deliberate for the same
+ * reason. Landing at the top of the phase risks repeating work the player can
+ * see they have already done; landing at the bottom risks skipping work they
+ * have not, silently.
+ */
+const stepReplacedPhase: MigrationStep = {
+  from: 6,
+  to: 7,
+  up: (previous) => {
+    const { phase, ...rest } = previous;
+    const known = CAMPAIGN_PHASES.find((candidate) => candidate === phase);
+
+    return {
+      ...rest,
+      // An unreadable phase becomes the first step of the turn. `saveFile.ts`
+      // checks the shape after this runs, so a bad value could equally be left
+      // to fail there — but the chain's job is to produce the current shape,
+      // and handing on a field it knows is wrong would make the failure look
+      // like a bug in the newer code.
+      step: TURN_STEPS[known ?? 'mission'][0].id,
+    };
+  },
+};
+
+/**
+ * v7 → v8: a campaign records what each survivor is doing this turn.
+ *
+ * **Adds an empty record, and empty is the honest answer rather than a
+ * placeholder for one.** Assignments last exactly one turn and are cleared at
+ * the top of every Planning Phase, so "nobody is assigned yet" is a state every
+ * campaign passes through every turn — it is not a gap in an old save, it is
+ * where a turn starts.
+ *
+ * There is nothing to reconstruct, either. A v7 campaign's roster, base and
+ * materials are the *results* of assignments that were never recorded, and
+ * inventing a project team from a facility that got built would be making up a
+ * turn that nobody played.
+ *
+ * The one real consequence lands on the player rather than the data: a campaign
+ * paused mid-Planning in a v7 build comes back with that Planning Phase's
+ * decisions gone, and has to be assigned again. That is the same shape as the
+ * v6 → v7 note about resuming inside the Management Phase, and it is worth
+ * knowing before the first turn after an update rather than during it.
+ */
+const assignmentsBecameReal: MigrationStep = {
+  from: 7,
+  to: 8,
+  up: (previous) => ({ ...previous, assignments: {} }),
+};
+
+/**
+ * v8 → v9: the turn a siege was fought became a stored fact.
+ *
+ * `null` for every existing campaign, which is the truthful answer rather than
+ * a convenient one: nothing in a v8 save records a siege, so claiming one
+ * happened on any particular turn would be inventing history. The consequence
+ * is that "turns since the last siege" counts from turn 1 for a migrated
+ * campaign, which is the same answer it would have given all along.
+ */
+const siegesBecameRecorded: MigrationStep = {
+  from: 8,
+  to: 9,
+  up: (previous) => ({ ...previous, lastSiegeTurn: null }),
+};
+
+/**
+ * v9 → v10: the project queue.
+ *
+ * Empty for every existing campaign, and that is the truthful answer rather
+ * than a convenient one. What a v9 save had built was built — the button
+ * applied it the moment it was pressed — so reconstructing a queue from the
+ * base would be claiming that finished work is still to do, and would put a
+ * facility on the map twice the first time the Advancement Phase ran.
+ *
+ * The consequence worth knowing before the first turn after an update: a
+ * campaign mid-Planning-Phase has no orders in flight, because it never could
+ * have. Anything the player meant to build they have already built.
+ */
+const projectsBecameQueued: MigrationStep = {
+  from: 9,
+  to: 10,
+  up: (previous) => ({ ...previous, projects: [] }),
+};
+
+/**
+ * v10 → v11: the siege stopped being a stored fact and became a derived one.
+ *
+ * `lastSiegeTurn` held the turn a Siege Defense would be fought on, written
+ * forward-dated by the check that called it — so setting it destroyed the
+ * previous siege's turn, and "turns since the last siege" collapsed to 0 the
+ * instant a new siege was called, inside the same Management Phase that had
+ * just rolled against it.
+ *
+ * Nothing is lost by dropping it. Every write to it happened in the same
+ * reducer step as a `horde-checked` log entry carrying the same turn and the
+ * same outcome, so the log is a complete record of every siege the field ever
+ * knew about — and unlike the field, it keeps all of them.
+ */
+const siegesBecameDerived: MigrationStep = {
+  from: 10,
+  to: 11,
+  up: ({ lastSiegeTurn, ...kept }) => {
+    void lastSiegeTurn;
+    return kept;
+  },
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
   startingCommunityBuiltRecorded,
+  originRecorded,
+  baseBecameReal,
+  logBecameReal,
+  stepReplacedPhase,
+  assignmentsBecameReal,
+  siegesBecameRecorded,
+  projectsBecameQueued,
+  siegesBecameDerived,
 ];
 
 /** Why a save could not be brought forward. */

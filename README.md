@@ -2,7 +2,7 @@
 
 A campaign tracker for the *County Road Z* tabletop miniatures game by Jordan Heckman.
 
-The tactical layer happens on the table with miniatures. The strategic layer between missions
+The Mission Layer happens on the table with miniatures. The Community Layer between missions
 is bookkeeping and arithmetic — survivors, base, materials, unrest, siege threat — which is
 what this is for.
 
@@ -13,21 +13,36 @@ descriptions, no skill descriptions, no mission narrative — only the numbers a
 needed to compute state, with page references back to the rulebook. It is a tracker, not a
 substitute for the rules, and it does not try to teach you the game.
 
-*County Road Z* is copyright Jordan Heckman. This project is unaffiliated.
+*County Road Z* is copyright Jordan Heckman, published by Modiphius Entertainment
+(ISBN 978-1-80281-366-1). This project is unaffiliated.
+
+**Every page reference in this repository is to that edition** — the 188-page Modiphius
+printing, Dec 2023 / Jan 2024. Its printed page numbers run four behind the PDF's page index,
+and the citations here use the printed number. See
+[`docs/rulebook-edition.md`](docs/rulebook-edition.md) for where each rule lives, what the
+edition renamed, and the rules recorded for later phases.
 
 ## What works today
 
-Phase 0 — the skeleton. You can create a campaign, and save and load it as a `.json` file.
+Phases 0 to 3 — a campaign you can actually play the Community Layer of, turn by turn.
 
-- **Export** writes a readable, stably-ordered `.json`. This is the durable save.
-- **Import** reads one back, with a real message for every way a file can be wrong.
-- **Autosave** keeps a copy in the browser so a closed tab does not cost a turn. It is a
-  convenience layer — a cleared browser takes it with it, and only an exported file survives.
-- A **schema version and migration chain**, so a campaign started now still opens after the
-  data model grows.
+- **Saving** (Phase 0). Export writes a readable, stably-ordered `.json`; that is the durable
+  save. Import reads one back with a real message for every way a file can be wrong. Autosave
+  keeps a copy in the browser so a closed tab does not cost a turn — a convenience layer that a
+  cleared browser takes with it. A schema version and migration chain mean a campaign started
+  now still opens after the data model grows.
+- **Survivors** (Phase 1). A roster with Tiers, stats, skills and Health; a character sheet that
+  computes Scores rather than storing them; experience spent on levels and promotions.
+- **A base** (Phase 2). Claim one, build facilities and upgrades into its slots, clear what is in
+  the way, assign Power and Water. Rules that a table may play differently warn rather than
+  refuse, and every refusal can be overridden on purpose.
+- **The turn** (Phase 3). All nineteen steps of the four phases, walked forwards and backwards:
+  assignments, projects and Labor, XP, materials and substitutions, healing, feeding, Unrest, the
+  horde and departures.
 
-Survivors, base building, the turn engine, missions and equipment are later phases. See
-[`docs/phase-0-stories.md`](docs/phase-0-stories.md) for how Phase 0 was broken down.
+Missions and equipment are later phases. Each phase's breakdown is in `docs/` —
+[Phase 0](docs/phase-0-stories.md), [Phase 1](docs/phase-1-stories.md),
+[Phase 2](docs/phase-2-stories.md), [Phase 3](docs/phase-3-stories.md).
 
 ## Running it
 
@@ -137,9 +152,11 @@ stale. See `.github/workflows/mutation.yml`.
 Three things about reading the score:
 
 - **The threshold comes from a measurement, not an aspiration.** Chasing 100% buys noise — but a
-  threshold that is *loose* buys nothing either. Ours is 96 against a measured 96.64, tightened
-  from 94 when a probe showed that a whole untested function fitted inside the old headroom and
-  the run still passed. A gate you can walk past is a wall chart.
+  threshold that is *loose* buys nothing either. Ours is 96 against a measured 96.69 — 96.91
+  when the threshold was set — tightened from 94 when a probe showed that a whole untested
+  function fitted inside the old headroom and the run still passed. A gate you can walk past is
+  a wall chart. The headroom is deliberately thin, and it does its job: the base engine landed
+  at 95.15 on its first run and had to be fixed rather than waved through.
 - **The deliverable is the surviving mutants, not the number.** Each one gets a test or a
   written reason it does not matter. The score only says whether to go looking; the run uploads
   the report as an artifact so a red pull request can be read rather than guessed at.
@@ -147,6 +164,24 @@ Three things about reading the score:
   in front of a check that already rejects the value; `Number.isInteger` makes a preceding
   `typeof x === 'number'` unreachable. Those are equivalent mutants, not gaps.
 
-Neither replaces the tests built from the rulebook's own worked characters (pg. 48–50). Those
+Neither replaces the tests built from the rulebook's own worked characters (pg. 13–15). Those
 check the app against the *rules*; these check the tests against the *code*. A perfect mutation
 score on a function implementing the wrong rule is still the wrong rule.
+
+## License
+
+The code is dual-licensed under either
+
+- [MIT](LICENSE-MIT), or
+- [Apache License 2.0](LICENSE-APACHE)
+
+at your option. Pick whichever fits what you are doing; you do not have to satisfy both. This is
+the same arrangement the Rust project uses, and it is here for the same reason: MIT is the one
+almost everybody already understands, and Apache-2.0 carries an explicit patent grant for anyone
+whose employer asks about that before they are allowed to contribute.
+
+**That covers this project's own work, and not the game.** *County Road Z* is copyright Jordan
+Heckman, published by Modiphius Entertainment — its rules, names, statistics and page references
+appear here as factual reference so the app can compute state against a book you own, and no
+license to them is granted or implied, because none is mine to grant. [`NOTICE`](NOTICE) states
+where the line falls and why the app ships no rule text. A fork inherits that position unchanged.

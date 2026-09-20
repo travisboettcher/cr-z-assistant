@@ -1,5 +1,5 @@
 /**
- * What advancement costs in experience points (pg. 30).
+ * What advancement costs in experience points (pg. 18).
  *
  * Costs are functions of the target rather than lookup tables, because that is
  * what the rules are: a price derived from what you are buying.
@@ -22,7 +22,7 @@ export function skillLevelCost(newLevel: number): number {
  * Move and Defense cost their **new Score** — 7, then 8 — because they have no
  * level, only a Score.
  *
- * This is the same sentence of pg. 30 as `skillLevelCost` and a different
+ * This is the same sentence of pg. 18 as `skillLevelCost` and a different
  * quantity. Reading it once and applying it to both is how Move ends up costing
  * 1 XP, so the two are separate functions with names that say which is which.
  */

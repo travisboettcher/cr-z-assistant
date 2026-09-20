@@ -3,6 +3,21 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
+import { createNewCampaign, type Campaign } from '../engine/campaign';
+import { createSurvivor } from '../engine/survivor';
+
+/** Opens the app on a campaign that already exists, for the tests that need one. */
+function open(campaign: Campaign) {
+  const user = userEvent.setup();
+
+  render(
+    <CampaignProvider initialState={{ status: 'open', campaign }}>
+      <App />
+    </CampaignProvider>,
+  );
+
+  return user;
+}
 
 /**
  * Driven through the real app and store, like the roster's tests: the story is
@@ -38,12 +53,12 @@ function skillRow(sheet: HTMLElement, label: string) {
 }
 
 describe('SurvivorSheet', () => {
-  it('shows the tier, and the health and item slots derived from it', async () => {
+  it('shows the tier, and the health and Inventory Slots derived from it', async () => {
     const { sheet } = await openSheetFor('Earl Rhodes', '4');
 
     expect(within(sheet).getByText(/tier 4 · hero/i)).toBeInTheDocument();
     expect(within(sheet).getByText('4 / 4')).toBeInTheDocument();
-    // No Carry skill yet, so item slots are the bare tier.
+    // No Carry skill yet, so Inventory Slots are the bare tier.
     expect(within(sheet).getByText('4', { selector: 'p.text-2xl' })).toBeInTheDocument();
   });
 
@@ -57,7 +72,7 @@ describe('SurvivorSheet', () => {
     const { sheet } = await openSheetFor('Earl Rhodes', '4');
 
     const groups: Record<string, readonly string[]> = {
-      Strength: ['Blunt Weapon', 'Blade Weapon', 'Heavy Weapon', 'Carry', 'Break'],
+      Strength: ['Blunt Weapon', 'Bladed Weapon', 'Heavy Weapon', 'Carry', 'Break'],
       Dexterity: ['Handguns', 'Long Guns', 'Archery', 'Stealth', 'Enter'],
       Intelligence: ['Scavenge', 'Scout', 'Tactics', 'Tinker', 'Traps'],
       Cooperation: ['Medicine', 'Rationing', 'Mechanics', 'Teaching', 'Utilities'],
@@ -86,7 +101,7 @@ describe('SurvivorSheet', () => {
   it('shows a dash, not a number, for a skill the survivor does not have', async () => {
     const { sheet } = await openSheetFor('Earl Rhodes', '4');
 
-    const row = skillRow(sheet, 'Blade Weapon');
+    const row = skillRow(sheet, 'Bladed Weapon');
 
     expect(within(row).getAllByText('—')).toHaveLength(2);
     expect(within(row).getAllByText('not learned')).toHaveLength(2);
@@ -150,7 +165,7 @@ describe('SurvivorSheet', () => {
 });
 
 /**
- * Building a survivor. Skills start at level zero (pg. 41), so creation is
+ * Building a survivor. Skills start at level zero (pg. 8), so creation is
  * choosing *which* skills and how the tier's stat values are arranged — levels
  * come only from experience, which is a later story.
  */
@@ -259,7 +274,7 @@ describe('SurvivorSheet editing', () => {
 });
 
 /**
- * Spending experience (pg. 30).
+ * Spending experience (pg. 18).
  *
  * The assertions that matter are about *price*, and they are made on the
  * controls themselves — a player decides what to buy by reading the buttons, so
@@ -300,7 +315,7 @@ describe('SurvivorSheet advancement', () => {
   });
 
   /**
-   * The whole trap of this story, on screen: one sentence of pg. 30 covers both
+   * The whole trap of this story, on screen: one sentence of pg. 18 covers both
    * of these and they differ by six. Asserted from the same survivor, in the
    * same test, because a wrong reading is only visible in the contrast.
    */
@@ -350,7 +365,7 @@ describe('SurvivorSheet advancement', () => {
     await user.click(toggleFor(sheet, 'Carry'));
     await user.click(within(sheet).getByRole('button', { name: /raise carry to level 1/i }));
 
-    // A Rookie caps at level 1 (pg. 41), so the next one is refused with a reason.
+    // A Rookie caps at level 1 (pg. 7), so the next one is refused with a reason.
     const next = within(sheet).getByRole('button', { name: /raise carry to level 2/i });
     expect(next).toBeDisabled();
     expect(next).toHaveAccessibleName(/maximum level for their tier/i);
@@ -385,12 +400,45 @@ describe('SurvivorSheet advancement', () => {
     const { user, sheet } = await openWithXp('Marcus Webb', '2', 6);
 
     await user.selectOptions(within(sheet).getByLabelText(/^intelligence$/i), '2');
+    await user.selectOptions(within(sheet).getByLabelText(/raise from zero/i), 'strength');
     await user.click(within(sheet).getByRole('button', { name: /raise their tier/i }));
 
     expect(within(sheet).getByText(/tier 3 · leader/i)).toBeInTheDocument();
     expect(within(sheet).getByLabelText(/^intelligence$/i)).toHaveValue('3');
     expect(within(sheet).getByLabelText(/^strength$/i)).toHaveValue('1');
     expect(await balance(user, sheet, 'Marcus Webb')).toBe(0);
+  });
+
+  /**
+   * The zero-stat choice, on screen (pg. 18). A Citizen has two stats at 0 and
+   * only one of them becomes the Leader's 1, so the sheet asks — and refuses,
+   * with a reason, until it is answered. The other answer has to produce the
+   * other character, or the control is decoration.
+   */
+  it('asks which stat comes off zero, and will not promote until it is told', async () => {
+    const { user, sheet } = await openWithXp('Marcus Webb', '2', 6);
+
+    const promote = within(sheet).getByRole('button', { name: /raise their tier/i });
+    expect(promote).toBeDisabled();
+    expect(promote).toHaveAccessibleName(/choose which stat comes off zero/i);
+
+    await user.selectOptions(within(sheet).getByLabelText(/raise from zero/i), 'cooperation');
+    await user.click(within(sheet).getByRole('button', { name: /raise their tier/i }));
+
+    expect(within(sheet).getByText(/tier 3 · leader/i)).toBeInTheDocument();
+    expect(within(sheet).getByLabelText(/^cooperation$/i)).toHaveValue('1');
+    expect(within(sheet).getByLabelText(/^intelligence$/i)).toHaveValue('0');
+  });
+
+  /** A Leader has one stat left at zero, so there is nothing to ask about. */
+  it('asks nothing of a survivor with a single stat at zero', async () => {
+    const { user, sheet } = await openWithXp('Carla Proust', '3', 8);
+
+    expect(within(sheet).queryByLabelText(/raise from zero/i)).not.toBeInTheDocument();
+
+    await user.click(within(sheet).getByRole('button', { name: /raise their tier/i }));
+
+    expect(within(sheet).getByText(/tier 4 · hero/i)).toBeInTheDocument();
   });
 
   /** A slot, not a skill — so the sheet immediately says one is missing. */
@@ -401,6 +449,7 @@ describe('SurvivorSheet advancement', () => {
 
     expect(within(sheet).queryByText(/still choosing/i)).not.toBeInTheDocument();
 
+    await user.selectOptions(within(sheet).getByLabelText(/raise from zero/i), 'intelligence');
     await user.click(within(sheet).getByRole('button', { name: /raise their tier/i }));
 
     expect(within(sheet).getByText(/still choosing skills: 2 of 3/i)).toBeInTheDocument();
@@ -420,3 +469,68 @@ describe('SurvivorSheet advancement', () => {
 function toggleFor(sheet: HTMLElement, label: string) {
   return within(skillRow(sheet, label)).getByRole('button', { name: /^(take|drop)\b/i });
 }
+
+/**
+ * Playtest finding M13: the sheet applied the hunger penalty and never
+ * mentioned it. Under a −2 penalty it showed Cooperation 3 in the select and a
+ * Mechanics Score of 1, directly under its own sentence saying a Score is the
+ * skill's level plus its governing stat. A player checking the arithmetic gets
+ * 3 and reads 1.
+ *
+ * The computation is right and does not change — ruling 1 applies the penalty
+ * to stats, and therefore to Inventory Slots too. This is about saying so.
+ */
+describe('a community that is going hungry', () => {
+  /** Three Heroes eating two each against empty stores: six short of three. */
+  const starving = (): Campaign => ({
+    ...createNewCampaign('Cedar Hollow'),
+    turn: 3,
+    survivors: [
+      createSurvivor('Nell Haig', 4, { id: 'nell' }),
+      createSurvivor('Tomas Ford', 4, { id: 'tomas' }),
+      createSurvivor('Ada Poole', 4, { id: 'ada' }),
+    ],
+    materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+    log: [
+      {
+        turn: 3,
+        phase: 'management',
+        at: '2026-09-13T09:00:00.000Z',
+        event: { kind: 'survivors-fed', required: 6, hunger: 6 },
+      },
+    ],
+  });
+
+  it('says so on the sheet, and shows what each stat is worth', async () => {
+    const user = open(starving());
+    await user.click(screen.getAllByRole('button', { name: /^sheet$/i })[0] as HTMLElement);
+
+    const sheet = screen.getByRole('region', { name: 'Nell Haig' });
+
+    expect(sheet.textContent).toContain('every stat is 3 lower until the next Management Phase');
+    // A Hero's Strength is 4, so 1 under the penalty.
+    expect(sheet.textContent).toContain('1 while the community is hungry');
+  });
+
+  it('says so on the roster too, which is what a player reads at the table', () => {
+    open(starving());
+
+    expect(screen.getByRole('region', { name: /community/i }).textContent).toContain(
+      'The community is going hungry, so every stat is 3 lower',
+    );
+  });
+
+  it('says nothing at all when the community is fed', async () => {
+    const user = open({ ...starving(), log: [] });
+
+    expect(screen.getByRole('region', { name: /community/i }).textContent).not.toContain(
+      'going hungry',
+    );
+
+    await user.click(screen.getAllByRole('button', { name: /^sheet$/i })[0] as HTMLElement);
+
+    expect(screen.getByRole('region', { name: 'Nell Haig' }).textContent).not.toContain(
+      'while the community is hungry',
+    );
+  });
+});

@@ -3,7 +3,7 @@
  *
  * The first screen in the app that holds game state a player created. It shows
  * the stored facts and the derived ones side by side without storing any of the
- * derived ones: HP and item slots are computed on every render by `src/engine`,
+ * derived ones: HP and Inventory Slots are computed on every render by `src/engine`,
  * because the Phase 3 hunger penalty will make any cached value wrong for a
  * whole turn.
  *
@@ -13,16 +13,17 @@
 
 import { useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
+import { D10_RESULTS, type D10Result } from '../data/dice';
 import {
-  D10_RESULTS,
   FIELD_RECRUITABLE_TIERS,
-  type D10Result,
+  rollsForSkill,
   type FieldRecruitTier,
 } from '../data/recruitTable';
 import { TIERS, type Tier } from '../data/tiers';
 import type { Campaign, Survivor } from '../engine/campaign';
 import { communityViolations } from '../engine/legality';
-import { communityTierLevels, itemSlots, maxHp } from '../engine/survivor';
+import { communityTierLevels, inventorySlots, maxHp } from '../engine/survivor';
+import { hungerPenalty } from '../engine/feeding';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
@@ -54,13 +55,23 @@ export function SurvivorRoster({ campaign, onOpenSheet }: SurvivorRosterProps) {
 
     // The UUID is generated here rather than in the reducer: it is the impure
     // part, and the store stays a pure function by taking it as an argument.
-    dispatch({ type: 'survivor/added', name: trimmed, tier, id: crypto.randomUUID() });
+    dispatch({
+      type: 'survivor/added',
+      name: trimmed,
+      tier,
+      id: crypto.randomUUID(),
+      at: new Date().toISOString(),
+    });
     setName('');
   }
 
   function confirmRemoval() {
     if (pendingRemoval !== null) {
-      dispatch({ type: 'survivor/removed', id: pendingRemoval.id });
+      dispatch({
+        type: 'survivor/removed',
+        id: pendingRemoval.id,
+        at: new Date().toISOString(),
+      });
     }
     setPendingRemoval(null);
     dialogRef.current?.close();
@@ -68,6 +79,7 @@ export function SurvivorRoster({ campaign, onOpenSheet }: SurvivorRosterProps) {
 
   return (
     <section
+      id="roster"
       aria-labelledby={headingId}
       className="rounded-xl border border-stone-200 bg-white p-6 dark:border-stone-800 dark:bg-stone-900"
     >
@@ -130,6 +142,18 @@ export function SurvivorRoster({ campaign, onOpenSheet }: SurvivorRosterProps) {
 
       <RecruitForm />
 
+      {hungerPenalty(campaign) > 0 && (
+        // The roster is what a player reads at the table, a phase and several
+        // steps from the Feed screen that explained the penalty. Every Score
+        // below is already lower; without this the roster shows a consequence
+        // with no cause.
+        <p className="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          The community is going hungry, so every stat is{' '}
+          <span className="tabular-nums">{hungerPenalty(campaign)}</span> lower until the next
+          Management Phase <PageRef pages={22} />
+        </p>
+      )}
+
       {campaign.survivors.length === 0 ? (
         <p className="mt-6 text-stone-600 dark:text-stone-400">
           No survivors yet. A starting community is built from ten tier levels{' '}
@@ -141,6 +165,7 @@ export function SurvivorRoster({ campaign, onOpenSheet }: SurvivorRosterProps) {
             <RosterRow
               key={survivor.id}
               survivor={survivor}
+              penalty={hungerPenalty(campaign)}
               onRename={(newName) => {
                 dispatch({ type: 'survivor/renamed', id: survivor.id, name: newName });
               }}
@@ -205,8 +230,8 @@ export function SurvivorRoster({ campaign, onOpenSheet }: SurvivorRosterProps) {
  * Bringing somebody back from a mission.
  *
  * A separate form from "add survivor" rather than a mode on it, because it is a
- * different act with different rules: no Heroes (pg. 38), and one of their
- * skills comes off a d10 table rather than being chosen (pg. 50).
+ * different act with different rules: no Heroes (pg. 7), and one of their
+ * skills comes off a d10 table rather than being chosen (pg. 15).
  *
  * **The die is typeable, and the button is only a convenience.** Someone at the
  * table has usually already rolled a physical d10, and result 10 is the
@@ -229,7 +254,16 @@ function RecruitForm() {
     const trimmed = name.trim();
     if (trimmed === '') return;
 
-    dispatch({ type: 'survivor/recruited', name: trimmed, tier, roll, id: crypto.randomUUID() });
+    dispatch({
+      type: 'survivor/recruited',
+      name: trimmed,
+      tier,
+      // Omitted rather than sent and ignored: a Rookie does not roll, and the
+      // log entry this writes is permanent.
+      ...(rollsForSkill(tier) ? { roll } : {}),
+      id: crypto.randomUUID(),
+      at: new Date().toISOString(),
+    });
     setName('');
   }
 
@@ -240,8 +274,13 @@ function RecruitForm() {
       </summary>
 
       <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">
-        A survivor found on a mission arrives with one skill already rolled. Heroes are never
-        recruited this way. <PageRef pages={50} />
+        {rollsForSkill(tier)
+          ? 'A survivor found on a mission arrives with one skill already rolled.'
+          : // The Rookie case, said rather than left to be inferred from a
+            // control that has gone: the roll is not missing, it is not part of
+            // the rule, and the survivor arrives with a skill slot to fill.
+            'A Rookie’s single skill is never rolled — they arrive with a slot to fill on their sheet.'}{' '}
+        Heroes are never recruited this way. <PageRef pages={rollsForSkill(tier) ? 15 : '7, 15'} />
       </p>
 
       <form onSubmit={handleRecruit} className="mt-4 flex flex-wrap items-end gap-3">
@@ -275,7 +314,7 @@ function RecruitForm() {
           </select>
         </div>
 
-        <div>
+        <div hidden={!rollsForSkill(tier)}>
           <label htmlFor={rollId} className="block text-sm font-medium">
             Skill roll
           </label>
@@ -329,7 +368,7 @@ function rollD10(): D10Result {
 /**
  * The ten-tier-level budget, and the switch that retires it.
  *
- * The budget is a rule about *building* a starting community (pg. 48), not
+ * The budget is a rule about *building* a starting community (pg. 13), not
  * about having one. Once play begins, rescued strangers and field recruits push
  * a community past ten legitimately, and an app still complaining about it then
  * would be wrong for the rest of the campaign. Nothing in the campaign data
@@ -360,6 +399,7 @@ function CommunityBudget({ campaign }: { readonly campaign: Campaign }) {
             dispatch({
               type: 'campaign/startingCommunityBuiltSet',
               built: event.target.checked,
+              at: new Date().toISOString(),
             });
           }}
           className={`${FOCUS_RING} size-5 rounded border-stone-300 dark:border-stone-600`}
@@ -373,6 +413,8 @@ function CommunityBudget({ campaign }: { readonly campaign: Campaign }) {
 }
 
 interface RosterRowProps {
+  /** The community's hunger penalty (pg. 22), which moves the Carry Score. */
+  readonly penalty: number;
   readonly survivor: Survivor;
   readonly onRename: (name: string) => void;
   readonly onRemove: () => void;
@@ -384,7 +426,7 @@ interface RosterRowProps {
  * tablet an always-editable field beside a table is one stray thumb away from
  * quietly renaming somebody.
  */
-function RosterRow({ survivor, onRename, onRemove, onOpenSheet }: RosterRowProps) {
+function RosterRow({ survivor, penalty, onRename, onRemove, onOpenSheet }: RosterRowProps) {
   const fieldId = useId();
   const [draft, setDraft] = useState<string | null>(null);
 
@@ -430,7 +472,7 @@ function RosterRow({ survivor, onRename, onRemove, onOpenSheet }: RosterRowProps
 
       {/*
        * Both derived, both recomputed here rather than read off the survivor:
-       * item slots move with Strength and with the Carry skill, and HP with the
+       * Inventory Slots move with Strength and with the Carry skill, and HP with the
        * Tier. Neither is stored.
        */}
       <dl className="flex shrink-0 gap-4 text-sm">
@@ -442,7 +484,7 @@ function RosterRow({ survivor, onRename, onRemove, onOpenSheet }: RosterRowProps
         </div>
         <div>
           <dt className="text-stone-500 dark:text-stone-400">Slots</dt>
-          <dd className="font-semibold tabular-nums">{itemSlots(survivor)}</dd>
+          <dd className="font-semibold tabular-nums">{inventorySlots(survivor, penalty)}</dd>
         </div>
       </dl>
 

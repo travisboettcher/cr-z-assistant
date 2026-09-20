@@ -7,9 +7,12 @@
  * phases will build for real.
  */
 
+import { useId } from 'react';
+import { MATERIALS } from '../data/materials';
 import type { Campaign } from '../engine/campaign';
 import { downloadCampaign } from '../persistence/exportFile';
 import { useCampaign } from '../state/useCampaign';
+import { PageRef } from './PageRef';
 import { StartNewCampaign } from './StartNewCampaign';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
@@ -18,7 +21,8 @@ export interface CampaignOverviewProps {
 }
 
 export function CampaignOverview({ campaign }: CampaignOverviewProps) {
-  const { unsavedChanges, markExported, autosaveError } = useCampaign();
+  const { unsavedChanges, everExported, markExported, autosaveError, dispatch } = useCampaign();
+  const materialsId = useId();
 
   return (
     <section
@@ -36,9 +40,48 @@ export function CampaignOverview({ campaign }: CampaignOverviewProps) {
         .
       </p>
       <p className="mt-4 text-stone-600 dark:text-stone-400">
-        The base, turn, mission and equipment screens are not built yet. Until then this is the
-        shell they will hang off.
+        The mission and equipment screens are not built yet. Until then this is the shell they will
+        hang off.
       </p>
+
+      {/*
+       * Typed in by hand, for the reason Phase 1 let XP be typed in: materials
+       * are produced and spent by the Advancement and Management Phases, which
+       * are Phase 3, and until then nothing in the app can put a Hardware into
+       * a community. A base screen whose Build button can never be pressed
+       * would be no base screen at all.
+       */}
+      <fieldset className="mt-6">
+        <legend className="font-medium" id={materialsId}>
+          Materials in storage
+        </legend>
+        <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+          Entered by hand until the Advancement Phase produces them <PageRef pages={19} />
+        </p>
+        <div className="mt-3 flex flex-wrap gap-4">
+          {MATERIALS.map((material) => (
+            <div key={material} className="flex flex-col gap-1">
+              <label htmlFor={`${materialsId}-${material}`} className="text-sm capitalize">
+                {material}
+              </label>
+              <input
+                id={`${materialsId}-${material}`}
+                type="number"
+                min={0}
+                value={campaign.materials[material]}
+                onChange={(event) => {
+                  dispatch({
+                    type: 'campaign/materialSet',
+                    material,
+                    count: Math.max(0, Number(event.target.value)),
+                  });
+                }}
+                className={`${TOUCH_TARGET} ${FOCUS_RING} w-24 rounded-lg border border-stone-300 bg-white px-3 tabular-nums dark:border-stone-700 dark:bg-stone-950`}
+              />
+            </div>
+          ))}
+        </div>
+      </fieldset>
 
       <div className="mt-6 border-t border-stone-200 pt-6 dark:border-stone-800">
         <div className="flex flex-wrap gap-3">
@@ -60,11 +103,18 @@ export function CampaignOverview({ campaign }: CampaignOverviewProps) {
          * takes with it, and the exported file is the one that lasts. Calling
          * the autosave "saved" without that qualifier is how someone
          * eventually loses a campaign.
+         *
+         * Three states rather than two, because "changed since your last
+         * export" is not true of a campaign that has never had one — and the
+         * restore path used to seed itself from the autosave, so a campaign
+         * written nowhere reported that it matched a file.
          */}
         <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">
-          {unsavedChanges
-            ? 'Changed since your last export. The browser is keeping a copy, but only an exported file survives clearing your browser data.'
-            : 'Matches your last exported file.'}
+          {!everExported
+            ? 'Never exported. The browser is keeping a copy, but only an exported file survives clearing your browser data.'
+            : unsavedChanges
+              ? 'Changed since your last export. The browser is keeping a copy, but only an exported file survives clearing your browser data.'
+              : 'Matches your last exported file.'}
         </p>
 
         {autosaveError !== null && (

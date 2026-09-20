@@ -1,7 +1,7 @@
 /**
  * Display names for the skills.
  *
- * Presentation only, like `phaseLabels.ts` and `tierLabels.ts`. What a skill
+ * Presentation only, like `turnLabels.ts` and `tierLabels.ts`. What a skill
  * *does* is rule text and stays in the rulebook; what it is *called* is the
  * minimum needed to put it on a screen, and `blunt-weapon` is an identifier
  * rather than a name.
@@ -21,7 +21,7 @@ export const STAT_LABELS: Record<Stat, string> = {
 
 export const SKILL_LABELS: Record<Skill, string> = {
   'blunt-weapon': 'Blunt Weapon',
-  'blade-weapon': 'Blade Weapon',
+  'blade-weapon': 'Bladed Weapon',
   'heavy-weapon': 'Heavy Weapon',
   carry: 'Carry',
   break: 'Break',

@@ -3,7 +3,7 @@
  *
  * A player looks at this instead of a piece of paper, so it shows every number
  * the paper version makes them work out by hand, and works out none of them in
- * here: Skill Scores, max HP and item slots all come from `src/engine/survivor`
+ * here: Skill Scores, max HP and Inventory Slots all come from `src/engine/survivor`
  * and are recomputed on every render. Nothing derived is stored, because the
  * Phase 3 hunger penalty will change every Skill Score for a turn and a cached
  * one would be wrong the whole time.
@@ -17,6 +17,7 @@ import { COMMON_SKILLS, SKILLS, SKILL_STATS, STATS, type Skill, type Stat } from
 import { TIER_RULES } from '../data/tiers';
 import {
   commonSkillPurchase,
+  promotionStatChoices,
   skillLevelPurchase,
   tierPurchase,
   type Purchase,
@@ -24,7 +25,7 @@ import {
 } from '../engine/advancement';
 import type { Survivor } from '../engine/campaign';
 import { skillSlotsAreFull, survivorViolations, withStatValue } from '../engine/legality';
-import { itemSlots, maxHp, skillScore } from '../engine/survivor';
+import { inventorySlots, maxHp, skillScore, statValue } from '../engine/survivor';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
 import { COMMON_SKILL_LABELS, SKILL_LABELS, STAT_LABELS } from './skillLabels';
@@ -33,10 +34,19 @@ import { TIER_LABELS } from './tierLabels';
 
 export interface SurvivorSheetProps {
   readonly survivor: Survivor;
+  /**
+   * The community's hunger penalty (pg. 22).
+   *
+   * A prop rather than something read from context, because it is the reason
+   * the numbers on this sheet can differ from the numbers stored against the
+   * survivor — and a sheet that fetched it quietly would hide exactly the
+   * thing worth being obvious.
+   */
+  readonly penalty: number;
   readonly onClose: () => void;
 }
 
-export function SurvivorSheet({ survivor, onClose }: SurvivorSheetProps) {
+export function SurvivorSheet({ survivor, penalty, onClose }: SurvivorSheetProps) {
   const headingId = useId();
 
   return (
@@ -50,7 +60,7 @@ export function SurvivorSheet({ survivor, onClose }: SurvivorSheetProps) {
             {survivor.name}
           </h2>
           <p className="mt-1 text-stone-600 dark:text-stone-400">
-            Tier {survivor.tier} · {TIER_LABELS[survivor.tier]} <PageRef pages="38–39" />
+            Tier {survivor.tier} · {TIER_LABELS[survivor.tier]} <PageRef pages={7} />
           </p>
           <Promote survivor={survivor} />
         </div>
@@ -65,9 +75,11 @@ export function SurvivorSheet({ survivor, onClose }: SurvivorSheetProps) {
 
       <Violations survivor={survivor} />
 
-      <Vitals survivor={survivor} />
+      <Starving penalty={penalty} />
 
-      <Stats survivor={survivor} />
+      <Vitals survivor={survivor} penalty={penalty} />
+
+      <Stats survivor={survivor} penalty={penalty} />
 
       {/*
        * Move and Defense are laid out apart from the twenty, not folded in
@@ -78,7 +90,7 @@ export function SurvivorSheet({ survivor, onClose }: SurvivorSheetProps) {
        */}
       <CommonSkills survivor={survivor} />
 
-      <Skills survivor={survivor} />
+      <Skills survivor={survivor} penalty={penalty} />
     </section>
   );
 }
@@ -111,8 +123,8 @@ function Violations({ survivor }: { readonly survivor: Survivor }) {
   );
 }
 
-/** HP, item slots and XP — the three numbers checked most often mid-turn. */
-function Vitals({ survivor }: { readonly survivor: Survivor }) {
+/** HP, Inventory Slots and XP — the three numbers checked most often mid-turn. */
+function Vitals({ survivor, penalty }: { readonly survivor: Survivor; readonly penalty: number }) {
   const { dispatch } = useCampaign();
 
   return (
@@ -120,7 +132,7 @@ function Vitals({ survivor }: { readonly survivor: Survivor }) {
       <EditableNumber
         heading={
           <>
-            Health <PageRef pages={49} />
+            Health <PageRef pages={7} />
           </>
         }
         display={`${survivor.currentHp} / ${maxHp(survivor)}`}
@@ -133,11 +145,13 @@ function Vitals({ survivor }: { readonly survivor: Survivor }) {
 
       <div>
         <p className={VITAL_HEADING}>
-          Item slots <PageRef pages={49} />
+          Inventory Slots <PageRef pages={14} />
         </p>
         {/* Tier plus the Carry Score, so this moves when Strength does. What
             goes in the slots is Phase 5. */}
-        <p className="mt-1 text-2xl font-semibold tabular-nums">{itemSlots(survivor)}</p>
+        <p className="mt-1 text-2xl font-semibold tabular-nums">
+          {inventorySlots(survivor, penalty)}
+        </p>
       </div>
 
       {/*
@@ -148,7 +162,7 @@ function Vitals({ survivor }: { readonly survivor: Survivor }) {
       <EditableNumber
         heading={
           <>
-            Experience <PageRef pages={30} />
+            Experience <PageRef pages={18} />
           </>
         }
         display={survivor.xp}
@@ -275,6 +289,7 @@ const BLOCKED_REASONS: Record<PurchaseBlock, string> = {
   'at-score-maximum': 'already at the maximum score of eight',
   'skill-not-taken': 'they do not have this skill',
   'already-a-hero': 'tier 4 is the top of the table',
+  'stat-choice-required': 'choose which stat comes off zero first',
 };
 
 interface BuyButtonProps {
@@ -326,30 +341,95 @@ function BuyButton({ purchase, label, what, onBuy }: BuyButtonProps) {
   );
 }
 
-/** Buying the next Tier — a stat array, a skill slot, and a price (pg. 30). */
+/**
+ * Buying the next Tier — a stat array, a skill slot, and a price (pg. 18).
+ *
+ * **The zero-stat question is asked, never answered here.** A promotion raises
+ * every stat by one, and pg. 18 gives the player the choice of which stat comes
+ * off 0 when more than one is sitting there — true of every promotion but a
+ * Leader's. So the picker appears exactly when the engine says there is a
+ * choice, starts empty rather than on a guess, and Promote stays disabled with
+ * a reason until it is answered.
+ */
 function Promote({ survivor }: { readonly survivor: Survivor }) {
   const { dispatch } = useCampaign();
+  const choiceId = useId();
+  const [picked, setPicked] = useState<Stat | ''>('');
+  const choices = promotionStatChoices(survivor);
+  // Re-derived from the current choices rather than reset by an effect: a
+  // promotion changes the stats under this control, and a stale pick left over
+  // from the previous Tier must not count as an answer to the new question.
+  const raise = choices.some((choice) => choice === picked) ? (picked as Stat) : null;
 
   return (
-    <p className="mt-2">
+    <div className="mt-2 flex flex-wrap items-center gap-3">
       <BuyButton
-        purchase={tierPurchase(survivor)}
+        purchase={tierPurchase(survivor, raise)}
         label="Promote"
         what="their tier"
-        onBuy={() => dispatch({ type: 'survivor/tierBought', id: survivor.id })}
+        onBuy={() => {
+          dispatch({
+            type: 'survivor/tierBought',
+            id: survivor.id,
+            raise,
+            at: new Date().toISOString(),
+          });
+          setPicked('');
+        }}
       />
+      {choices.length > 0 ? (
+        <span className="flex items-center gap-2 text-sm">
+          <label htmlFor={choiceId} className="text-stone-600 dark:text-stone-400">
+            Raise from zero
+          </label>
+          <select
+            id={choiceId}
+            value={picked}
+            onChange={(event) => setPicked(event.target.value as Stat | '')}
+            className={`${FOCUS_RING} rounded-lg border border-stone-300 bg-transparent px-2 py-1 dark:border-stone-600`}
+          >
+            <option value="">Choose…</option>
+            {choices.map((stat) => (
+              <option key={stat} value={stat}>
+                {STAT_LABELS[stat]}
+              </option>
+            ))}
+          </select>
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * That the community is going hungry, on the screen the penalty is visible on.
+ *
+ * The Feed step explains this well, and the Feed step is a phase and several
+ * steps away from the sheet a player reads at the table mid-mission. Without
+ * this, the sheet showed Cooperation 3 and a Mechanics Score of 1 directly
+ * under its own sentence saying a Score is the skill's level plus its governing
+ * stat — which reads as the app being broken rather than as the rule working.
+ */
+function Starving({ penalty }: { readonly penalty: number }) {
+  if (penalty === 0) return null;
+
+  return (
+    <p className="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+      The community is going hungry, so every stat is{' '}
+      <span className="tabular-nums">{penalty}</span> lower until the next Management Phase — and
+      every Score and Inventory Slot count with it <PageRef pages={22} />
     </p>
   );
 }
 
-function Stats({ survivor }: { readonly survivor: Survivor }) {
+function Stats({ survivor, penalty }: { readonly survivor: Survivor; readonly penalty: number }) {
   const { dispatch } = useCampaign();
   const groupId = useId();
 
   return (
     <div className="mt-6 border-t border-stone-200 pt-6 dark:border-stone-800">
       <h3 className="text-sm font-semibold tracking-[0.15em] text-stone-500 uppercase dark:text-stone-400">
-        Stats <PageRef pages={40} />
+        Stats <PageRef pages={8} />
       </h3>
       <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
         A tier hands out a fixed set of values and lets you choose which stat gets which. Moving a
@@ -367,6 +447,14 @@ function Stats({ survivor }: { readonly survivor: Survivor }) {
             >
               {STAT_LABELS[stat]}
             </label>
+            {penalty > 0 && (
+              // The select holds the stored stat, because that is what it
+              // edits. What the rest of the sheet computes with is this.
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                <span className="tabular-nums">{statValue(survivor, stat, penalty)}</span> while the
+                community is hungry
+              </p>
+            )}
             <select
               id={`${groupId}-${stat}`}
               value={survivor.stats[stat]}
@@ -412,7 +500,7 @@ function CommonSkills({ survivor }: { readonly survivor: Survivor }) {
   return (
     <div className="mt-6 border-t border-stone-200 pt-6 dark:border-stone-800">
       <h3 className="text-sm font-semibold tracking-[0.15em] text-stone-500 uppercase dark:text-stone-400">
-        Common skills <PageRef pages={41} />
+        Common skills <PageRef pages={9} />
       </h3>
       <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
         Scores, not levels — these have no governing stat, so raising one costs its new{' '}
@@ -434,7 +522,12 @@ function CommonSkills({ survivor }: { readonly survivor: Survivor }) {
                 label="+1"
                 what={`${COMMON_SKILL_LABELS[skill]} to ${survivor[skill] + 1}`}
                 onBuy={() =>
-                  dispatch({ type: 'survivor/commonSkillBought', id: survivor.id, skill })
+                  dispatch({
+                    type: 'survivor/commonSkillBought',
+                    id: survivor.id,
+                    skill,
+                    at: new Date().toISOString(),
+                  })
                 }
               />
             </dd>
@@ -445,7 +538,7 @@ function CommonSkills({ survivor }: { readonly survivor: Survivor }) {
   );
 }
 
-function Skills({ survivor }: { readonly survivor: Survivor }) {
+function Skills({ survivor, penalty }: { readonly survivor: Survivor; readonly penalty: number }) {
   const { dispatch } = useCampaign();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const confirmId = useId();
@@ -481,7 +574,7 @@ function Skills({ survivor }: { readonly survivor: Survivor }) {
   return (
     <div className="mt-6 border-t border-stone-200 pt-6 dark:border-stone-800">
       <h3 className="text-sm font-semibold tracking-[0.15em] text-stone-500 uppercase dark:text-stone-400">
-        Skills <PageRef pages={41} />
+        Skills <PageRef pages={8} />
       </h3>
       <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
         Score is the skill&rsquo;s level plus its governing stat. A dash means this survivor does
@@ -494,10 +587,16 @@ function Skills({ survivor }: { readonly survivor: Survivor }) {
           <SkillGroup
             key={stat}
             stat={stat}
+            penalty={penalty}
             survivor={survivor}
             onTake={take}
             onBuy={(skill) => {
-              dispatch({ type: 'survivor/skillLevelBought', id: survivor.id, skill });
+              dispatch({
+                type: 'survivor/skillLevelBought',
+                id: survivor.id,
+                skill,
+                at: new Date().toISOString(),
+              });
             }}
             onDrop={(skill) => {
               dispatch({ type: 'survivor/skillRemoved', id: survivor.id, skill });
@@ -523,7 +622,7 @@ function Skills({ survivor }: { readonly survivor: Survivor }) {
             : `${survivor.name} already has ${slots} ${slots === 1 ? 'skill' : 'skills'}, which is
                all a tier ${survivor.tier} survivor gets. Taking ${SKILL_LABELS[pending]} as well
                will keep showing on this sheet as a broken rule.`}{' '}
-          <PageRef pages="38–39" />
+          <PageRef pages={7} />
         </p>
 
         <div className="mt-6 flex flex-wrap justify-end gap-3">
@@ -550,12 +649,13 @@ function Skills({ survivor }: { readonly survivor: Survivor }) {
 interface SkillGroupProps {
   readonly stat: Stat;
   readonly survivor: Survivor;
+  readonly penalty: number;
   readonly onTake: (skill: Skill) => void;
   readonly onBuy: (skill: Skill) => void;
   readonly onDrop: (skill: Skill) => void;
 }
 
-function SkillGroup({ stat, survivor, onTake, onBuy, onDrop }: SkillGroupProps) {
+function SkillGroup({ stat, survivor, penalty, onTake, onBuy, onDrop }: SkillGroupProps) {
   const governed = SKILLS.filter((skill) => SKILL_STATS[skill] === stat);
 
   return (
@@ -586,7 +686,7 @@ function SkillGroup({ stat, survivor, onTake, onBuy, onDrop }: SkillGroupProps) 
         <tbody>
           {governed.map((skill) => {
             const level = survivor.skills[skill];
-            const score = skillScore(survivor, skill);
+            const score = skillScore(survivor, skill, penalty);
 
             return (
               <tr key={skill} className="border-t border-stone-100 dark:border-stone-800">
@@ -595,7 +695,7 @@ function SkillGroup({ stat, survivor, onTake, onBuy, onDrop }: SkillGroupProps) 
                 </th>
                 {/*
                  * An em dash, not a zero and not the bare stat. A survivor with
-                 * Strength 3 and no Blade Weapon skill is not a Blade Weapon 3
+                 * Strength 3 and no Bladed Weapon skill is not a Bladed Weapon 3
                  * — they cannot make the check at all — and a number here is a
                  * number somebody could roll against. `skillScore` returns null
                  * precisely so this branch has to exist.

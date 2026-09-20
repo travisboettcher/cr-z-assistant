@@ -1,0 +1,48 @@
+cr-z-assistant
+Copyright (c) 2026 Travis Boettcher
+
+This project is an unofficial, unaffiliated campaign tracker for the tabletop
+miniatures game *County Road Z*.
+
+*County Road Z* is copyright Jordan Heckman, published by Modiphius
+Entertainment (ISBN 978-1-80281-366-1). Neither the author nor this project is
+affiliated with, endorsed by, or connected to Jordan Heckman or Modiphius
+Entertainment.
+
+
+What the licenses cover
+
+The MIT and Apache-2.0 licenses in LICENSE-MIT and LICENSE-APACHE cover the
+original work in this repository: the engine, the persistence layer, the
+reducer, the user interface, the tests, the build and deployment
+configuration, and the prose written for this project's own documentation.
+
+They do not, and cannot, cover *County Road Z* itself.
+
+
+What they do not cover
+
+Appearing throughout this repository, and necessarily so — a tracker that
+computes a game's state has to know that game's numbers — are:
+
+  - rules of play, and the numbers and structure expressing them
+  - facility, upgrade, base, skill and tier names
+  - statistics, costs, requirements, effects and table results
+  - page references into the rulebook
+
+These are properties of *County Road Z* and belong to its copyright holder.
+They appear here as factual reference, to let this software interoperate with
+the book a player already owns. **No license to any of it is granted by this
+project, because none of it is the author's to grant.** A fork inherits that
+position unchanged: the code is yours to use under either license above, and
+the game is not this project's to give away.
+
+This is why the app ships no rule prose. It holds no facility descriptions, no
+skill descriptions and no mission narrative — only what is needed to compute
+state, and a page number pointing back to the book for everything else. It is
+a tracker, not a substitute for the rules, and it is useless without owning
+the rulebook. That posture is a deliberate constraint on the code, enforced at
+the directory level; see `src/data/README.md` and `src/engine/README.md`.
+
+If you represent the rights holder and would like something here changed or
+removed, please open an issue.

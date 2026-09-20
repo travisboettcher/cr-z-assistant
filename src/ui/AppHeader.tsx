@@ -5,7 +5,8 @@
  */
 
 import type { Campaign } from '../engine/campaign';
-import { PHASE_LABELS } from './phaseLabels';
+import { phaseOf } from '../engine/turn';
+import { PHASE_LABELS, STEP_LABELS } from './turnLabels';
 
 export interface AppHeaderProps {
   /** Omitted while the store reports `status: 'empty'`. */
@@ -32,13 +33,18 @@ export function AppHeader({ campaign }: AppHeaderProps) {
 
         {campaign ? (
           /*
-           * A description list rather than two spans: "Turn" and "Phase" are
-           * labels for their values, and a screen reader announcing
+           * A description list rather than three spans: "Turn", "Phase" and
+           * "Step" are labels for their values, and a screen reader announcing
            * "Turn, 3" beats announcing "3".
+           *
+           * The step is here as well as on the walk itself, because this is the
+           * line that stays put while the rest of the screen scrolls — and
+           * "where are we?" is the question a tablet on a table gets asked most.
            */
           <dl className="flex shrink-0 items-stretch gap-2">
             <Fact label="Turn" value={String(campaign.turn)} />
-            <Fact label="Phase" value={PHASE_LABELS[campaign.phase]} />
+            <Fact label="Phase" value={PHASE_LABELS[phaseOf(campaign.step)]} />
+            <Fact label="Step" value={STEP_LABELS[campaign.step]} />
           </dl>
         ) : null}
       </div>

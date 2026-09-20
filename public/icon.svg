@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="County Road Z">
+  <rect width="100" height="100" rx="22" fill="#1c1917" />
+  <polygon
+    points="18,16 82,16 82,32 44,68 82,68 82,84 18,84 18,68 56,32 18,32"
+    fill="#f59e0b"
+  />
+</svg>

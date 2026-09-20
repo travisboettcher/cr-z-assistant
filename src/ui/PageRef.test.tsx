@@ -4,15 +4,15 @@ import { PageRef } from './PageRef';
 
 describe('PageRef', () => {
   it('renders a single page', () => {
-    render(<PageRef pages={41} />);
+    render(<PageRef pages={8} />);
 
-    expect(screen.getByText(/pg\.\s*41/)).toBeInTheDocument();
+    expect(screen.getByText(/pg\.\s*8/)).toBeInTheDocument();
   });
 
   it('renders a range', () => {
-    render(<PageRef pages="38–39" />);
+    render(<PageRef pages="13–14" />);
 
-    expect(screen.getByText(/pg\.\s*38–39/)).toBeInTheDocument();
+    expect(screen.getByText(/pg\.\s*13–14/)).toBeInTheDocument();
   });
 
   /**
@@ -21,9 +21,9 @@ describe('PageRef', () => {
    * hidden from the accessibility tree.
    */
   it('announces a sentence rather than the abbreviation', () => {
-    render(<PageRef pages={41} />);
+    render(<PageRef pages={8} />);
 
-    expect(screen.getByText('Rulebook page 41')).toBeInTheDocument();
+    expect(screen.getByText('Rulebook page 8')).toBeInTheDocument();
     expect(screen.getByText(/pg\./)).toHaveAttribute('aria-hidden', 'true');
   });
 });

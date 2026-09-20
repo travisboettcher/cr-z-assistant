@@ -5,6 +5,8 @@ import { createNewCampaign } from '../engine/campaign';
 import { CampaignProvider } from './CampaignProvider';
 import { useCampaign } from './useCampaign';
 
+const AT = '2026-09-08T21:00:00.000Z';
+
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 
 /**
@@ -18,13 +20,14 @@ function Probe() {
     <>
       <p>
         {state.status === 'open'
-          ? `${state.campaign.name} — turn ${state.campaign.turn}`
+          ? `${state.campaign.name} — turn ${state.campaign.turn}, ${state.campaign.step}`
           : 'No campaign'}
       </p>
       <button
         onClick={() =>
           dispatch({
             type: 'campaign/started',
+            at: AT,
             name: 'Cedar Hollow',
             id: FIXED.id,
             createdAt: FIXED.createdAt,
@@ -33,7 +36,9 @@ function Probe() {
       >
         New campaign
       </button>
-      <button onClick={() => dispatch({ type: 'campaign/turnAdvanced' })}>Advance turn</button>
+      <button onClick={() => dispatch({ type: 'turn/advanced', by: 'phase', at: AT })}>
+        Advance
+      </button>
     </>
   );
 }
@@ -58,7 +63,7 @@ describe('CampaignProvider', () => {
       </CampaignProvider>,
     );
 
-    expect(screen.getByText('Millbrook — turn 1')).toBeInTheDocument();
+    expect(screen.getByText('Millbrook — turn 1, select-mission')).toBeInTheDocument();
   });
 
   it('re-renders consumers after a dispatched action', async () => {
@@ -70,9 +75,12 @@ describe('CampaignProvider', () => {
     );
 
     await user.click(screen.getByRole('button', { name: 'New campaign' }));
-    await user.click(screen.getByRole('button', { name: 'Advance turn' }));
+    await user.click(screen.getByRole('button', { name: 'Advance' }));
 
-    expect(screen.getByText('Cedar Hollow — turn 2')).toBeInTheDocument();
+    // One phase on, not one turn: a turn ends off the end of the Management
+    // Phase and nowhere else, which is a rule the store reads rather than a
+    // number this action sets.
+    expect(screen.getByText('Cedar Hollow — turn 1, character-advancement')).toBeInTheDocument();
   });
 });
 

@@ -1,0 +1,154 @@
+/**
+ * The base sheet's summary — every number the paper worksheet makes you total.
+ *
+ * Above the slot map rather than beside it, because these are facts about the
+ * whole base: beds are counted across every bunk room, storage is one cap per
+ * material, and the Hero cap is a fact about the roster the base allows. The
+ * map below answers "what is in this slot"; this answers "what does that add
+ * up to".
+ *
+ * Nothing here is stored. Every figure is recomputed from the base and the
+ * rules on each render, which is the point — the hunger penalty in Phase 3 will
+ * change Skill Scores mid-turn, and a cached production number would be wrong
+ * for the rest of it.
+ */
+
+import { STORED_MATERIALS } from '../data/materials';
+import { suppliedOccupants } from '../engine/utilities';
+import { UTILITIES } from '../data/facilities';
+import { beds, maxHeroes, storageCaps } from '../engine/base';
+import type { Campaign } from '../engine/campaign';
+import { assignedCount, staffedSpent, utilityCapacity } from '../engine/utilities';
+import { utilitiesScore } from '../engine/assignments';
+import { siegeThreat } from '../engine/siege';
+import { UTILITY_LABELS } from './baseLabels';
+import { PageRef } from './PageRef';
+
+export interface BaseSheetProps {
+  readonly campaign: Campaign;
+}
+
+function Figure({
+  label,
+  value,
+  note,
+  pages,
+}: {
+  readonly label: string;
+  readonly value: string;
+  /**
+   * Written `| undefined` rather than optional, because every caller answers
+   * this question and most answer "nothing to add" — under
+   * `exactOptionalPropertyTypes` an absent key and an explicit `undefined` are
+   * different, and a conditional note is naturally the second.
+   */
+  readonly note: string | undefined;
+  readonly pages: number | string;
+}) {
+  return (
+    <div>
+      <dt className="text-xs tracking-wide text-stone-500 uppercase dark:text-stone-400">
+        {label} <PageRef pages={pages} />
+      </dt>
+      {/*
+       * `dt` and `dd` are a pair to a sighted reader and nothing to an
+       * assistive one: the association is visual, so a value read on its own
+       * announces as a bare number.
+       *
+       * Labelled rather than pointed at its term with `aria-labelledby`,
+       * because the term carries a page citation and the value should announce
+       * as "Beds, 3" rather than "Beds Rulebook page 23, 3". It also keeps the
+       * name available where a browser does not map `dd` to a definition role,
+       * which Chromium does not.
+       */}
+      <dd aria-label={label} className="text-lg tabular-nums">
+        {value}
+      </dd>
+      {note !== undefined && <p className="text-sm text-stone-600 dark:text-stone-400">{note}</p>}
+    </div>
+  );
+}
+
+export function BaseSheet({ campaign }: BaseSheetProps) {
+  const base = campaign.base;
+  if (base === null) return null;
+
+  const standing = suppliedOccupants(campaign);
+  const caps = storageCaps(base, standing);
+  const heroes = campaign.survivors.filter((survivor) => survivor.tier === 4).length;
+  const cap = maxHeroes(base);
+  const siege = siegeThreat(campaign);
+
+  return (
+    <dl className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3">
+      <Figure label="Beds" value={String(beds(base, standing))} note={undefined} pages={23} />
+
+      {STORED_MATERIALS.map((material) => (
+        <Figure
+          key={material}
+          label={`${material} stored`}
+          value={`${String(campaign.materials[material])} / ${String(caps[material])}`}
+          // Over the cap is a Management Phase consequence (pg. 23) this app
+          // does not model, so it is reported rather than prevented.
+          note={campaign.materials[material] > caps[material] ? 'Over the cap' : undefined}
+          pages={54}
+        />
+      ))}
+
+      {/*
+       * Against what the pool can actually back, not against its flat
+       * generation: a point from a staffed Station is as real as one from a
+       * Solar Panel, and printing `1 / 0 flat` beside the Station generating it
+       * reported a legal assignment as an over-assignment. The staffed half was
+       * two rows down under its own heading — the pair was complete and the
+       * line was not.
+       */}
+      {UTILITIES.map((utility) => {
+        const assigned = assignedCount(base, utility);
+        const capacity = utilityCapacity(campaign, utility);
+
+        return (
+          <Figure
+            key={utility}
+            label={`${UTILITY_LABELS[utility]} assigned`}
+            value={`${String(assigned)} / ${String(capacity)}`}
+            note={assigned > capacity ? 'Over what the base generates' : undefined}
+            pages={67}
+          />
+        );
+      })}
+
+      {/*
+       * The total, since Z3-10. Through Z2-3's `siegeThreatFromBase` and the
+       * three terms the Planning Phase's assignments made computable — the
+       * breakdown is on the Check the Horde step, because that is where a
+       * player is deciding what to do about it.
+       */}
+      <Figure
+        label="Siege Threat"
+        value={siege === 0 ? '0' : `${siege > 0 ? '+' : ''}${String(siege)}`}
+        note={undefined}
+        pages={23}
+      />
+
+      <Figure
+        label="Heroes"
+        value={`${String(heroes)} / ${String(cap)}`}
+        note={heroes > cap ? 'Over what this base allows' : undefined}
+        pages={54}
+      />
+
+      {/*
+       * Named for what it measures rather than for the field it came from: the
+       * input above is the Score, and this is how much of it the assignments
+       * are already spending.
+       */}
+      <Figure
+        label="Score spent"
+        value={`${String(staffedSpent(base))} / ${String(utilitiesScore(campaign))}`}
+        note="On assignments beyond flat generation"
+        pages={20}
+      />
+    </dl>
+  );
+}

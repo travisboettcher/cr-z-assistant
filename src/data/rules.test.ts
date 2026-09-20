@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { commonSkillScoreCost, skillLevelCost, tierCost } from './advancement';
+import { D10_RESULTS } from './dice';
 import {
-  D10_RESULTS,
   FIELD_RECRUITABLE_TIERS,
   PLAYERS_CHOICE,
   RECRUIT_SKILL_TABLE,
@@ -17,6 +17,32 @@ import {
   type Stat,
 } from './skills';
 import { STARTING_COMMUNITY_TIER_LEVELS, TIERS, TIER_RULES, type Tier } from './tiers';
+import {
+  BASES,
+  BASE_IDS,
+  maxHeroes,
+  type BaseId,
+  type BaseSlot,
+  BASE_SPECIAL_PHASE,
+} from './bases';
+import {
+  FACILITIES,
+  FACILITY_IDS,
+  MAX_UPGRADES_PER_FACILITY,
+  facilityOfUpgrade,
+  type Facility,
+  type Upgrade,
+  type UpgradeId,
+} from './facilities';
+import { CAMPAIGN_ORIGINS } from './origins';
+import { MATERIALS, type Material } from './materials';
+import {
+  CAMPAIGN_PHASES,
+  FOOD_EATEN_PER_TURN,
+  MATERIAL_ROLL_TABLE,
+  SIEGE_THREAT_TERMS,
+  TURN_STEPS,
+} from './turn';
 
 describe('stats and skills', () => {
   it('has four stats and twenty governed skills', () => {
@@ -71,7 +97,7 @@ describe('tier table', () => {
     }
   });
 
-  it('sets skill slots, max skill level, max HP, labor and base item slots to the tier number', () => {
+  it('sets skill slots, max skill level, max HP, labor and base Inventory Slots to the tier number', () => {
     // These five coincide today but are five separate rules from four pages.
     // Asserted per column rather than in a loop over a derived value, so a
     // rules change to one of them fails here instead of quietly agreeing with
@@ -82,7 +108,7 @@ describe('tier table', () => {
       expect(rules.maxSkillLevel).toBe(tier);
       expect(rules.maxHp).toBe(tier);
       expect(rules.labor).toBe(tier);
-      expect(rules.baseItemSlots).toBe(tier);
+      expect(rules.baseInventorySlots).toBe(tier);
     }
   });
 
@@ -113,7 +139,7 @@ describe('advancement costs', () => {
     expect(commonSkillScoreCost(7)).toBe(7);
     expect(commonSkillScoreCost(COMMON_SKILL_MAX_SCORE)).toBe(8);
 
-    // The bug this guards: reading pg. 30 once and charging Move as though it
+    // The bug this guards: reading pg. 18 once and charging Move as though it
     // had a level. Raising Move from its starting 6 is the seventh step, and
     // costs 7 — not 1.
     expect(commonSkillScoreCost(COMMON_SKILL_START_SCORE + 1)).not.toBe(skillLevelCost(1));
@@ -161,5 +187,444 @@ describe('recruit table', () => {
     for (const tier of TIERS_WITH_ROLLED_SKILL) {
       expect(FIELD_RECRUITABLE_TIERS).toContain(tier);
     }
+  });
+});
+
+/** Every facility in the table, as `Facility` rather than its literal type. */
+const FACILITIES_LIST: readonly Facility[] = FACILITY_IDS.map((id) => FACILITIES[id] as Facility);
+
+const UPGRADES_LIST: readonly Upgrade[] = FACILITIES_LIST.flatMap((facility) => facility.upgrades);
+
+describe('facility table', () => {
+  it('costs Hardware and Labor for every facility and upgrade', () => {
+    for (const entry of [...FACILITIES_LIST, ...UPGRADES_LIST]) {
+      expect(entry.cost.hardware).toBeGreaterThanOrEqual(0);
+      expect(entry.cost.labor).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('gives every facility and upgrade at least one effect', () => {
+    for (const entry of [...FACILITIES_LIST, ...UPGRADES_LIST]) {
+      expect(Object.keys(entry.effects).length).toBeGreaterThan(0);
+    }
+  });
+
+  it('names each upgrade once across the whole table', () => {
+    // `facilityOfUpgrade` returns one facility, so a duplicated id would make it
+    // answer arbitrarily rather than wrongly, which is worse.
+    const ids = UPGRADES_LIST.map((upgrade) => upgrade.id);
+
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('gives every upgrade a facility', () => {
+    for (const upgrade of UPGRADES_LIST) {
+      expect(facilityOfUpgrade(upgrade.id)).toBeDefined();
+    }
+  });
+
+  it('gates only on origins that exist', () => {
+    for (const entry of [...FACILITIES_LIST, ...UPGRADES_LIST]) {
+      const origin = entry.requires?.origin;
+      if (origin === undefined) continue;
+
+      expect(CAMPAIGN_ORIGINS).toContain(origin);
+    }
+  });
+
+  it('excludes only upgrades of the same facility', () => {
+    for (const facility of FACILITIES_LIST) {
+      const siblings = facility.upgrades.map((upgrade) => upgrade.id);
+
+      for (const upgrade of facility.upgrades) {
+        for (const excluded of upgrade.constraints?.excludes ?? []) {
+          expect(siblings).toContain(excluded);
+        }
+      }
+    }
+  });
+
+  it('staffs a facility for every skill-driven production', () => {
+    for (const facility of FACILITIES_LIST) {
+      const needsStaff = (facility.effects.production ?? []).some(
+        (production) => production.kind !== 'flat',
+      );
+
+      if (needsStaff) expect(facility.staffed).toBe(true);
+    }
+  });
+
+  it('never has an upgrade demand its own staff', () => {
+    // Upgrades widen a facility's staffing and never require any (pg. 54), so
+    // no upgrade produces from a skill of its own.
+    for (const upgrade of UPGRADES_LIST) {
+      for (const production of upgrade.effects.production ?? []) {
+        expect(production.kind).toBe('flat');
+      }
+    }
+  });
+
+  it('carries the eight facilities and upgrades new to this edition', () => {
+    const newInThisEdition: readonly UpgradeId[] = [
+      'greenhouse',
+      'med-lab',
+      'recovery-room',
+      'watch-post',
+      'spotlight',
+      'metal-shop',
+      'gunsmith',
+      'study-room',
+    ];
+
+    for (const id of newInThisEdition) {
+      expect(facilityOfUpgrade(id)).toBeDefined();
+    }
+  });
+
+  it('gates the three origin facilities on their origin', () => {
+    expect(facilityOfUpgrade('lounge')?.id).toBe('bunk-room');
+    expect(facilityOfUpgrade('containment')?.id).toBe('medical-clinic');
+
+    const lounge = UPGRADES_LIST.find((upgrade) => upgrade.id === 'lounge');
+    const containment = UPGRADES_LIST.find((upgrade) => upgrade.id === 'containment');
+
+    expect(lounge?.requires?.origin).toBe('cosmic-horror');
+    expect(containment?.requires?.origin).toBe('viral');
+    expect(FACILITIES['mystic-library'].requires.origin).toBe('magic');
+  });
+
+  it('caps a facility at three upgrades, rare ones excepted', () => {
+    expect(MAX_UPGRADES_PER_FACILITY).toBe(3);
+
+    // Nothing in the core table is rare — rare base upgrades come off the Rare
+    // Item Table in Phase 5. The flag exists so the cap is computed by
+    // filtering, which is the shape the rule needs whether or not it fires.
+    expect(UPGRADES_LIST.filter((upgrade) => upgrade.rare)).toHaveLength(0);
+  });
+
+  it('limits only the Fence and the Greenhouse to one per Garden', () => {
+    // Not the Herb Plot: nothing restricts it, so the cap of three upgrades is
+    // its only limit and three of them on one Garden is a legal build. Pinned
+    // here because "one per Garden" reads like a rule about Garden upgrades in
+    // general, and it is not.
+    const limited = UPGRADES_LIST.filter(
+      (upgrade) => upgrade.constraints?.maxPerFacility !== undefined,
+    ).map((upgrade) => upgrade.id);
+
+    expect(limited).toEqual(['fence', 'greenhouse']);
+  });
+
+  it('staffs the Mystic Library with the Study Room, and the Training Room with nothing', () => {
+    // The upgrade lives in the Mystic Library's sidebar (pg. 70). The Training
+    // Room's three upgrades are all flat XP and none of them adds staff.
+    expect(facilityOfUpgrade('study-room')?.id).toBe('mystic-library');
+
+    for (const upgrade of (FACILITIES['training-room'] as Facility).upgrades) {
+      expect([upgrade.id, upgrade.effects.extraStaff]).toEqual([upgrade.id, undefined]);
+    }
+  });
+});
+
+describe('base roster', () => {
+  /**
+   * The roster as the book prints it (pg. 54) — the Tier, the slot count and
+   * how many of those slots start empty.
+   *
+   * A **check on the transcription, not a source**: none of these numbers are
+   * stored in `bases.ts`, and the counts are re-derived from the slot list. The
+   * roster's storage column is checked the same way, in `engine/base.test.ts`,
+   * where the function that derives it lives.
+   */
+  const PRINTED: Record<BaseId, { tier: number; slots: number; empty: number }> = {
+    'small-town-home': { tier: 1, slots: 5, empty: 2 },
+    'summer-camp': { tier: 1, slots: 7, empty: 3 },
+    'rural-church': { tier: 1, slots: 7, empty: 3 },
+    'greasy-spoon': { tier: 1, slots: 7, empty: 4 },
+    'hobby-farm': { tier: 2, slots: 9, empty: 2 },
+    distillery: { tier: 2, slots: 9, empty: 6 },
+    'outdoor-sports-shop': { tier: 2, slots: 9, empty: 6 },
+    'renaissance-festival': { tier: 3, slots: 8, empty: 5 },
+    'hydroelectric-dam': { tier: 3, slots: 7, empty: 4 },
+    'regional-firehouse': { tier: 3, slots: 8, empty: 2 },
+  };
+
+  it('lists ten bases across three tiers, one of them the starter', () => {
+    expect(BASE_IDS).toHaveLength(10);
+    expect(BASE_IDS.filter((id) => BASES[id].tier === 3)).toHaveLength(3);
+    expect(BASE_IDS.filter((id) => 'starter' in BASES[id])).toEqual(['small-town-home']);
+  });
+
+  it('re-derives the printed slot and empty-slot counts', () => {
+    for (const id of BASE_IDS) {
+      const slots = BASES[id].slots as readonly BaseSlot[];
+      const empty = slots.filter((slot) => slot.state === 'empty');
+
+      expect([id, slots.length, empty.length]).toEqual([id, PRINTED[id].slots, PRINTED[id].empty]);
+    }
+  });
+
+  it('caps Heroes at the base tier', () => {
+    for (const id of BASE_IDS) {
+      expect(maxHeroes(BASES[id].tier)).toBe(PRINTED[id].tier);
+    }
+  });
+
+  it('names each slot once within its base', () => {
+    for (const id of BASE_IDS) {
+      const ids = (BASES[id].slots as readonly BaseSlot[]).map((slot) => slot.id);
+
+      expect([id, new Set(ids).size]).toEqual([id, ids.length]);
+    }
+  });
+
+  it('builds in only facilities and upgrades that exist', () => {
+    for (const id of BASE_IDS) {
+      for (const slot of BASES[id].slots as readonly BaseSlot[]) {
+        if (slot.state !== 'built-in') continue;
+
+        const facility = FACILITIES[slot.facility] as Facility;
+        expect(facility).toBeDefined();
+
+        for (const upgrade of slot.upgrades) {
+          expect([id, slot.id, facility.upgrades.map((candidate) => candidate.id)]).toEqual([
+            id,
+            slot.id,
+            expect.arrayContaining([upgrade]),
+          ]);
+        }
+      }
+    }
+  });
+
+  it('puts every built-in facility and upgrade in a slot it is allowed in', () => {
+    for (const id of BASE_IDS) {
+      for (const slot of BASES[id].slots as readonly BaseSlot[]) {
+        if (slot.state !== 'built-in') continue;
+
+        const facility = FACILITIES[slot.facility] as Facility;
+        const upgrades = slot.upgrades.map(
+          (upgradeId) =>
+            facility.upgrades.find((candidate) => candidate.id === upgradeId) as Upgrade,
+        );
+
+        for (const entry of [facility, ...upgrades]) {
+          const required = entry.requires?.slot;
+          if (required === undefined) continue;
+
+          expect([id, slot.id, entry.requires?.slot]).toEqual([id, slot.id, slot.kind]);
+        }
+      }
+    }
+  });
+
+  it('locks a built-in that already carries an upgrade', () => {
+    // pg. 54: a built-in facility with an upgrade installed cannot be upgraded
+    // further. The Distillery's Utility Station is the one row locked while
+    // carrying none, and it is a real exception rather than a misprint — see
+    // `bases.ts`. So the rule is asserted in one direction only.
+    for (const id of BASE_IDS) {
+      for (const slot of BASES[id].slots as readonly BaseSlot[]) {
+        if (slot.state !== 'built-in' || slot.upgrades.length === 0) continue;
+
+        expect([id, slot.id, slot.upgradable]).toEqual([id, slot.id, false]);
+      }
+    }
+
+    const distillery = BASES.distillery.slots.find((slot) => slot.id === 'utility-station');
+    expect(distillery).toMatchObject({
+      upgradable: false,
+      upgrades: [],
+      flatOutput: { output: 'water', amount: 2 },
+    });
+
+    // And it is still a Utility Station, so it can still be staffed — the
+    // flat 2 Water adds to whatever its staff produces rather than replacing
+    // it. A ruling, not a quotation; see `bases.ts`.
+    expect(FACILITIES['utility-station'].staffed).toBe(true);
+  });
+
+  it('gives the Regional Firehouse eight beds across its two bunk rooms', () => {
+    // The one bed total the roster states outright, and the check that
+    // repeated pre-installed upgrades are counted rather than deduplicated.
+    const beds = (BASES['regional-firehouse'].slots as readonly BaseSlot[])
+      .filter((slot) => slot.state === 'built-in' && slot.facility === 'bunk-room')
+      .reduce((total, slot) => {
+        if (slot.state !== 'built-in') return total;
+
+        const facility = FACILITIES['bunk-room'] as Facility;
+        const upgrades = slot.upgrades.reduce((sum, upgradeId) => {
+          const upgrade = facility.upgrades.find((candidate) => candidate.id === upgradeId);
+          return sum + (upgrade?.effects.beds ?? 0);
+        }, 0);
+
+        return total + (facility.effects.beds ?? 0) + upgrades;
+      }, 0);
+
+    expect(beds).toBe(8);
+  });
+});
+
+describe('production outputs', () => {
+  /**
+   * Only the Utility Station divides one amount between two outputs (pg. 72),
+   * and `splitsAcrossPools` in `src/engine/assignments.ts` reads exactly that
+   * to tell the utility pool's staffed half from every other kind of work.
+   *
+   * Asserted over the whole catalogue rather than trusted, because it is the
+   * kind of fact a single new facility could quietly falsify — and the engine
+   * would then count that facility's output as Power and Water.
+   */
+  it('divides one amount across outputs only in the Utility Station', () => {
+    const splitting = FACILITY_IDS.filter((id) => {
+      const facility = FACILITIES[id] as Facility;
+
+      return [facility, ...facility.upgrades].some((entry: Facility | Upgrade) =>
+        (entry.effects.production ?? []).some((production) => 'outputs' in production),
+      );
+    });
+
+    expect(splitting).toEqual(['utility-station']);
+  });
+});
+
+describe('the campaign turn', () => {
+  it('runs the four campaign phases in rulebook order', () => {
+    expect(CAMPAIGN_PHASES).toEqual(['mission', 'advancement', 'planning', 'management']);
+  });
+
+  it('gives every phase at least one numbered step', () => {
+    for (const phase of CAMPAIGN_PHASES) {
+      expect(TURN_STEPS[phase].length).toBeGreaterThan(0);
+    }
+  });
+
+  it('names every step of the turn exactly once', () => {
+    const ids = CAMPAIGN_PHASES.flatMap((phase) => TURN_STEPS[phase].map((step) => step.id));
+
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('cites every step inside the Community Layer chapter', () => {
+    // The whole turn is pg. 17-23. A citation outside that range is a
+    // transcription slip, which is exactly what the edition retrofit existed
+    // to remove -- and a range like '18-19' has to have both ends checked.
+    for (const phase of CAMPAIGN_PHASES) {
+      for (const step of TURN_STEPS[phase]) {
+        const pages = String(step.pages)
+          .split(/[^0-9]+/)
+          .filter((part) => part !== '')
+          .map(Number);
+
+        expect(pages.length).toBeGreaterThan(0);
+
+        for (const page of pages) {
+          expect(page).toBeGreaterThanOrEqual(17);
+          expect(page).toBeLessThanOrEqual(23);
+        }
+      }
+    }
+  });
+
+  it('numbers the Planning Phase the way pg. 20-21 does, not the way pg. 17 does', () => {
+    // The book contradicts itself: the turn summary on pg. 17 puts the mission
+    // team third and rest and healing fourth. This asserts the resolution so
+    // that a later reader checking against the summary cannot quietly undo it.
+    expect(TURN_STEPS.planning.map((step) => step.id)).toEqual([
+      'assign-facility-staff',
+      'assign-project-team',
+      'assign-rest-and-healing',
+      'assign-mission-team',
+    ]);
+  });
+
+  it('walks the Management Phase through its seven steps in order', () => {
+    expect(TURN_STEPS.management.map((step) => step.id)).toEqual([
+      'check-for-rot',
+      'feed-your-survivors',
+      'assign-beds',
+      'calculate-unrest',
+      'check-storage',
+      'check-the-horde',
+      'departures',
+    ]);
+  });
+
+  it('feeds Tiers 1-2 one Food and Tiers 3-4 two', () => {
+    // The printed table, asserted by value. A length check would pass on any
+    // four numbers, and the thing that can go wrong transcribing a four-row
+    // table is a row, not a missing row.
+    expect(TIERS.map((tier) => FOOD_EATEN_PER_TURN[tier])).toEqual([1, 1, 2, 2]);
+  });
+
+  it('turns every d10 into a material, on the boundaries the book prints', () => {
+    const rolled = D10_RESULTS.map((result) => MATERIAL_ROLL_TABLE[result]);
+
+    expect(rolled).toEqual([
+      'fuel',
+      'fuel',
+      'fuel',
+      'food',
+      'food',
+      'food',
+      'hardware',
+      'hardware',
+      'hardware',
+      'rare',
+    ]);
+
+    // And every material is reachable, so a range that swallowed its
+    // neighbour would fail here as well as above.
+    expect([...new Set<Material>(rolled)].sort()).toEqual([...MATERIALS].sort());
+  });
+
+  it('builds Siege Threat out of five distinct terms', () => {
+    expect(new Set(SIEGE_THREAT_TERMS).size).toBe(5);
+  });
+});
+
+/**
+ * Playtest finding M3, generalised into a check.
+ *
+ * Five of the seven base specials were correctly transcribed and read by
+ * nothing, and `bases.ts` said so in a comment that went stale without anything
+ * noticing. `BASE_SPECIAL_PHASE` records which phase owns each; this asserts
+ * that everything claimed for Phase 3 actually has a consumer, by grepping the
+ * engine for the id.
+ *
+ * Grep rather than a call, deliberately: the point is "somebody reads this at
+ * all", and a test that called each reader would need to know which function
+ * each special lives in — which is exactly the knowledge that went stale.
+ */
+describe('base specials', () => {
+  // Read through Vite rather than `fs`: this suite runs in jsdom, where
+  // `import.meta.url` is not a file URL, and `?raw` is the bundler's own way of
+  // asking for a module's text.
+  const engine = Object.values(
+    import.meta.glob('../engine/*.ts', { query: '?raw', eager: true, import: 'default' }),
+  )
+    .filter((source): source is string => typeof source === 'string')
+    .join('\n');
+
+  it('has a phase recorded for every special the roster uses', () => {
+    const used = new Set(BASE_IDS.flatMap((id) => BASES[id].specials.map((special) => special.id)));
+
+    for (const id of used) {
+      expect(BASE_SPECIAL_PHASE).toHaveProperty(id);
+    }
+  });
+
+  it.each(
+    Object.entries(BASE_SPECIAL_PHASE)
+      .filter(([, phase]) => phase === 3)
+      .map(([id]) => id),
+  )('%s is read by the engine, because Phase 3 owns it', (id) => {
+    expect(engine).toContain(`'${id}'`);
+  });
+
+  /** And the deferrals are deferrals rather than omissions nobody noticed. */
+  it('leaves the later-phase specials to their phases', () => {
+    expect(BASE_SPECIAL_PHASE['blacksmithing-tools']).toBe(5);
+    expect(BASE_SPECIAL_PHASE['turnout-gear']).toBe(5);
+    expect(BASE_SPECIAL_PHASE['ring-the-bell']).toBe(4);
   });
 });

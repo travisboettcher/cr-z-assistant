@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { CURRENT_SCHEMA_VERSION, createNewCampaign, type Survivor } from '../engine/campaign';
+import {
+  CURRENT_SCHEMA_VERSION,
+  createNewCampaign,
+  type Base,
+  type Campaign,
+  type SlotState,
+  type Survivor,
+} from '../engine/campaign';
 import { MIGRATION_STEPS, migrate } from './migrations';
 
 /**
@@ -18,6 +25,28 @@ const SAMPLE_SURVIVOR = {
   currentHp: 3,
   xp: 5,
 } satisfies Survivor;
+
+/**
+ * The current base shape, spelled out, for the same reason `SAMPLE_SURVIVOR`
+ * is: `satisfies` means a field added to `Base` fails the typecheck here rather
+ * than quietly escaping the nested-shape assertion below.
+ *
+ * `SlotState` gets its own spelling because every one of its fields is optional
+ * — a key list taken from a sample slot would only cover the fields that sample
+ * happened to use, so the sample uses all of them.
+ */
+const SAMPLE_SLOT = {
+  cleared: true,
+  built: { facility: 'watchtower', builtOnTurn: 2 },
+  upgrades: ['spotlight'],
+  power: true,
+  water: true,
+} satisfies SlotState;
+
+const SAMPLE_BASE = {
+  id: 'hobby-farm',
+  slots: { 'front-yard': SAMPLE_SLOT },
+} satisfies Base;
 
 /**
  * Fixtures are discovered from the directory rather than listed here on
@@ -42,6 +71,21 @@ const fixtures = Object.entries(fixtureModules)
   .sort((a, b) => a.version - b.version);
 
 const versionsUpToCurrent = Array.from({ length: CURRENT_SCHEMA_VERSION }, (_, i) => i + 1);
+
+/**
+ * The fields a migrated campaign may legitimately not have.
+ *
+ * The shape guard below works by comparing a migrated fixture's keys against a
+ * freshly created campaign's, and an optional field breaks that outright: it is
+ * absent from a new campaign and present on a fixture that uses it, and both are
+ * correct. Listing it here is the deliberate act that says so — a *required*
+ * field added without a step still fails the guard, because adding it to this
+ * list is a separate decision somebody has to make on purpose.
+ *
+ * `satisfies` keeps the names honest: a field renamed on `Campaign` fails the
+ * typecheck here rather than silently exempting a key that no longer exists.
+ */
+const OPTIONAL_CAMPAIGN_KEYS = ['origin'] as const satisfies readonly (keyof Campaign)[];
 
 /**
  * The story's central acceptance: bumping `CURRENT_SCHEMA_VERSION` alone must
@@ -91,6 +135,7 @@ describe('the version-bump guard', () => {
    */
   it('brings every checked-in fixture up to the current campaign shape', () => {
     const expectedKeys = Object.keys(createNewCampaign('Cedar Hollow')).sort();
+    const optional: readonly string[] = OPTIONAL_CAMPAIGN_KEYS;
 
     for (const fixture of fixtures) {
       const result = migrate(fixture.contents);
@@ -99,10 +144,32 @@ describe('the version-bump guard', () => {
       if (!result.ok) continue;
 
       expect(result.campaign.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
-      expect(Object.keys(result.campaign).sort(), `${fixture.path} is missing a field`).toEqual(
-        expectedKeys,
-      );
+      // An optional field a fixture happens to carry is set aside rather than
+      // counted as a difference; anything else missing or extra is a hole in
+      // the chain.
+      expect(
+        Object.keys(result.campaign)
+          .filter((key) => !optional.includes(key))
+          .sort(),
+        `${fixture.path} is missing a field`,
+      ).toEqual(expectedKeys);
     }
+  });
+
+  /**
+   * The other half of that exemption. Setting a key aside is only safe while it
+   * is genuinely optional, so the fixture that carries one has to arrive with it
+   * intact: a chain that dropped `origin` on the way forward would otherwise
+   * pass the test above by being ignored.
+   */
+  it('carries an optional field through the chain rather than dropping it', () => {
+    const v4 = fixtures.find((fixture) => fixture.version === 4);
+    const result = migrate(v4?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.origin).toBe('cosmic-horror');
   });
 
   /**
@@ -132,6 +199,57 @@ describe('the version-bump guard', () => {
       }
     }
   });
+
+  /**
+   * The nested-shape assertion for the base, alongside the one for survivors
+   * and for the same reason: v4 → v5 adds no top-level key — `base` was always
+   * there, it just stopped being `null` — so the guard above would not have
+   * noticed the change at all.
+   *
+   * Only the keys a fixture actually uses can be checked, because `SlotState`
+   * is all-optional and absent is a legitimate value for every field of it. So
+   * this asserts the other direction: no fixture may carry a key that is not
+   * part of the shape.
+   */
+  it('brings every fixture base up to the current base shape', () => {
+    const baseKeys = Object.keys(SAMPLE_BASE).sort();
+    const slotKeys: readonly string[] = Object.keys(SAMPLE_SLOT);
+
+    for (const fixture of fixtures) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok || result.campaign.base === null) continue;
+
+      expect(Object.keys(result.campaign.base).sort(), `${fixture.path} base`).toEqual(baseKeys);
+
+      for (const [id, slot] of Object.entries(result.campaign.base.slots)) {
+        for (const key of Object.keys(slot)) {
+          expect(slotKeys, `${fixture.path} slot ${id} has an unknown field`).toContain(key);
+        }
+      }
+    }
+  });
+
+  /**
+   * The base's equivalent of the optional-field test above: a chain that
+   * dropped `base` on the way forward would pass the shape guard by leaving
+   * `null` behind, which is a legitimate value.
+   */
+  it('carries a claimed base through the chain rather than dropping it', () => {
+    const v5 = fixtures.find((fixture) => fixture.version === 5);
+    const result = migrate(v5?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.base?.id).toBe('hobby-farm');
+    expect(result.campaign.base?.slots['front-yard']).toEqual({
+      built: { facility: 'watchtower', builtOnTurn: 2 },
+      upgrades: ['spotlight'],
+      power: true,
+    });
+  });
 });
 
 describe('migrate', () => {
@@ -145,7 +263,7 @@ describe('migrate', () => {
     expect(result.campaign.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(result.campaign.name).toBe('Cedar Hollow');
     expect(result.campaign.turn).toBe(3);
-    expect(result.campaign.phase).toBe('planning');
+    expect(result.campaign.step).toBe('assign-facility-staff');
     expect(result.campaign.materials).toEqual({ food: 4, fuel: 2, hardware: 7, rare: 1 });
   });
 
@@ -228,5 +346,100 @@ describe('the v2 to v3 default', () => {
     if (!result.ok) return;
 
     expect(result.campaign.startingCommunityBuilt).toBe(true);
+  });
+});
+
+/**
+ * The v6 → v7 replacement, which is the first step in the chain that swaps a
+ * field rather than adding one — and the first that can put a campaign in the
+ * wrong place rather than merely in an incomplete one.
+ */
+describe('the v6 to v7 phase-to-step mapping', () => {
+  function stepAfterMigrating(phase: unknown): string | undefined {
+    const v6 = fixtures.find((fixture) => fixture.version === 6);
+    const result = migrate({ ...(v6?.contents as object), phase });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return undefined;
+
+    return result.campaign.step;
+  }
+
+  it.each([
+    ['mission', 'select-mission'],
+    ['advancement', 'character-advancement'],
+    ['planning', 'assign-facility-staff'],
+    ['management', 'check-for-rot'],
+  ])('brings a campaign in the %s phase to %s', (phase, step) => {
+    expect(stepAfterMigrating(phase)).toBe(step);
+  });
+
+  /**
+   * The first step of the phase, not the last, and the choice matters.
+   *
+   * A v6 build never recorded how far into a phase anyone was, so the position
+   * genuinely is not in the file — but the two ways of guessing fail
+   * differently. Landing at the top risks repeating work a player can *see*
+   * they have already done. Landing at the bottom risks skipping work they have
+   * not, silently, and three Management steps remove survivors or destroy
+   * materials.
+   */
+  it('lands at the top of the phase rather than the bottom', () => {
+    expect(stepAfterMigrating('management')).toBe('check-for-rot');
+    expect(stepAfterMigrating('management')).not.toBe('departures');
+  });
+
+  it('puts a campaign whose phase is unreadable at the top of the turn', () => {
+    // `saveFile.ts` re-checks the shape after this runs, so a bad value could
+    // equally be left to fail there. Handing on a field the chain knows is
+    // wrong would make the failure look like a bug in the newer code.
+    expect(stepAfterMigrating('harvest')).toBe('select-mission');
+    expect(stepAfterMigrating(undefined)).toBe('select-mission');
+  });
+
+  it('leaves no `phase` behind', () => {
+    const v6 = fixtures.find((fixture) => fixture.version === 6);
+    const result = migrate(v6?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect('phase' in result.campaign).toBe(false);
+  });
+});
+
+/**
+ * The v7 → v8 addition, which is a no-op that is worth a test anyway: the
+ * empty record it adds is not a placeholder, it is where every turn starts.
+ */
+describe('the v7 to v8 assignments default', () => {
+  it('brings every earlier campaign forward with nobody assigned', () => {
+    for (const fixture of fixtures) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok) continue;
+
+      // The v8 fixture has three, and every older one has none — an old save
+      // records the *results* of assignments nobody wrote down, and inventing a
+      // project team from a facility that got built would be making up a turn.
+      expect(
+        Object.keys(result.campaign.assignments).length,
+        `${fixture.path} came forward with the wrong assignments`,
+      ).toBe(fixture.version >= 8 ? 3 : 0);
+    }
+  });
+
+  it('keeps a v8 campaign’s own answers', () => {
+    const v8 = fixtures.find((fixture) => fixture.version === 8);
+    const result = migrate(v8?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.assignments['b7e41f28-3c60-4d95-8a12-6f0e9d4c7b53']).toEqual({
+      task: 'staff',
+      slot: 'kitchen',
+    });
   });
 });

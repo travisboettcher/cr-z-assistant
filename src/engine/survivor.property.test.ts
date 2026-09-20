@@ -1,8 +1,9 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
+import { NO_PENALTY } from './production';
 import { SKILLS } from '../data/skills';
 import { survivorArbitrary } from '../test/arbitraries';
-import { itemSlots, labor, maxHp, skillScore } from './survivor';
+import { inventorySlots, labor, maxHp, skillScore } from './survivor';
 
 /** See `roundTrip.property.test.ts` for why the seed is fixed rather than random. */
 const RUNS = { seed: 20260903, numRuns: 300 } as const;
@@ -31,7 +32,7 @@ describe('derived survivor values', () => {
         for (const skill of SKILLS) {
           const held = skill in survivor.skills;
 
-          expect(skillScore(survivor, skill) === null).toBe(!held);
+          expect(skillScore(survivor, skill, NO_PENALTY) === null).toBe(!held);
         }
       }),
       RUNS,
@@ -42,7 +43,7 @@ describe('derived survivor values', () => {
     fc.assert(
       fc.property(survivorArbitrary(), (survivor) => {
         for (const skill of SKILLS) {
-          const score = skillScore(survivor, skill);
+          const score = skillScore(survivor, skill, NO_PENALTY);
           const level = survivor.skills[skill];
 
           if (score === null || level === undefined) continue;
@@ -58,13 +59,13 @@ describe('derived survivor values', () => {
   });
 
   /**
-   * Item slots can be shown on a sheet and counted against, so a negative one
+   * Inventory Slots can be shown on a sheet and counted against, so a negative one
    * is not a display bug — it is a survivor who can carry less than nothing.
    */
-  it('never make item slots, health or labor negative', () => {
+  it('never make Inventory Slots, health or labor negative', () => {
     fc.assert(
       fc.property(survivorArbitrary(), (survivor) => {
-        expect(itemSlots(survivor)).toBeGreaterThanOrEqual(0);
+        expect(inventorySlots(survivor, NO_PENALTY)).toBeGreaterThanOrEqual(0);
         expect(maxHp(survivor)).toBeGreaterThan(0);
         expect(labor(survivor)).toBeGreaterThan(0);
       }),
@@ -73,8 +74,8 @@ describe('derived survivor values', () => {
   });
 
   /**
-   * The Carry rule reads *Score*, not level (pg. 49) — the reading that was
-   * wrong once already and got caught by Earl's seven item slots. Stated here
+   * The Carry rule reads *Score*, not level (pg. 14) — the reading that was
+   * wrong once already and got caught by Earl's seven Inventory Slots. Stated here
    * as the relationship rather than the number: a survivor with Carry always
    * has more slots than the same survivor without it, whatever their tier.
    */
@@ -86,7 +87,9 @@ describe('derived survivor values', () => {
 
         if (!('carry' in survivor.skills)) return;
 
-        expect(itemSlots(survivor)).toBeGreaterThanOrEqual(itemSlots(withoutCarry));
+        expect(inventorySlots(survivor, NO_PENALTY)).toBeGreaterThanOrEqual(
+          inventorySlots(withoutCarry, NO_PENALTY),
+        );
       }),
       RUNS,
     );
