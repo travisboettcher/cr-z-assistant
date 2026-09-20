@@ -9,6 +9,7 @@ import {
   laborCommitted,
   laborRefusal,
   laborShortfall,
+  cancellable,
   laborThisTurn,
   orderedThisTurn,
   projectCost,
@@ -275,6 +276,41 @@ describe('isDue and dueProjects', () => {
  * — so ordering it onto a Fence is the ordinary way to get one, and the Fence
  * comes off when the work is done rather than when the order is placed.
  */
+/**
+ * R2-M8 (#148). The app rules that cancelling is a decision taken back within
+ * the phase that made it, and nothing enforced the sentence: last turn's order
+ * was cancelled during the next turn's Mission Phase for a full refund.
+ */
+describe('cancellable', () => {
+  const queued = (turn: number, step: Campaign['step']): Campaign =>
+    community({ turn, step, projects: [{ ...WORKSHOP, orderedOnTurn: turn }] });
+
+  it('is true in the Planning Phase of the turn that ordered it', () => {
+    expect(cancellable(queued(3, 'assign-project-team'), 0)).toBe(true);
+    expect(cancellable(queued(3, 'assign-mission-team'), 0)).toBe(true);
+  });
+
+  it('is false anywhere else in the same turn', () => {
+    for (const step of ['select-mission', 'heal-wounds', 'check-storage'] as const) {
+      expect([step, cancellable(queued(3, step), 0)]).toEqual([step, false]);
+    }
+  });
+
+  it('is false for an order from a turn that has closed', () => {
+    const lastTurn = community({
+      turn: 4,
+      step: 'assign-project-team',
+      projects: [{ ...WORKSHOP, orderedOnTurn: 3 }],
+    });
+
+    expect(cancellable(lastTurn, 0)).toBe(false);
+  });
+
+  it('is false for a position the queue does not have', () => {
+    expect(cancellable(queued(3, 'assign-project-team'), 7)).toBe(false);
+  });
+});
+
 describe('replacing an upgrade', () => {
   const GREENHOUSE: Project = {
     kind: 'upgrade',

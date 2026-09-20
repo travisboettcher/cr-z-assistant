@@ -44,6 +44,7 @@ import { clearingProject, occupantAt, replacedBy, upgradeCost } from './base';
 import type { Campaign, Project } from './campaign';
 import type { Violation } from './checks';
 import { planningHasBegun } from './planning';
+import { phaseOf } from './turn';
 
 /**
  * Whether one of these is already on order for this slot.
@@ -370,6 +371,29 @@ export function withProjectOrdered(campaign: Campaign, project: Project): Campai
     materials: { ...campaign.materials, hardware: campaign.materials.hardware - cost.hardware },
     projects: [...campaign.projects, project],
   };
+}
+
+/**
+ * Whether this order can still be taken back.
+ *
+ * **Within the phase that placed it**, which is what the app's own ruling says
+ * cancelling is: "an order is a decision made on a screen within a phase, and a
+ * decision a player cannot take back is a trap rather than a rule". Nothing
+ * enforced the sentence, so last turn's order was cancelled during the next
+ * turn's Mission Phase for a full refund (#148) — a decision from a turn that
+ * has closed, paid for by a project team since reassigned.
+ *
+ * Its sibling `management/projectUnfinished` has guarded exactly this since it
+ * was written; this is the same guard, plus the phase.
+ */
+export function cancellable(campaign: Campaign, at: number): boolean {
+  const project = campaign.projects[at];
+
+  return (
+    project !== undefined &&
+    project.orderedOnTurn === campaign.turn &&
+    phaseOf(campaign.step) === 'planning'
+  );
 }
 
 /**

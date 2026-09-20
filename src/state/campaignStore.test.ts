@@ -4,6 +4,7 @@ import { TURN_SEQUENCE } from '../engine/turn';
 import { createNewCampaign } from '../engine/campaign';
 import type { Campaign, ProjectOrder } from '../engine/campaign';
 import { laborAvailable, laborShortfall } from '../engine/projects';
+import { anythingOverCap, withStorageChecked } from '../engine/storage';
 import type { CampaignEvent, LogEntry } from '../engine/log';
 import { createSurvivor, recruitSurvivor } from '../engine/survivor';
 import { generatingUtilities, projectTeamWorth, withPlanningBegun } from '../test/campaigns';
@@ -1240,17 +1241,27 @@ describe('project/ordered', () => {
 });
 
 describe('project/cancelled', () => {
-  /** Two orders in the queue, so cancelling by position has a wrong answer. */
-  function ordered(): CampaignState {
-    const base = openState(
+  /**
+   * Two orders in the queue, so cancelling by position has a wrong answer —
+   * standing in the step that places them, which is also the only step that may
+   * take them back (#148).
+   */
+  /** A community in the Planning Phase with an empty queue and Hardware to spend. */
+  function queueable(step: TurnStepId = 'assign-project-team'): CampaignState {
+    return openState(
       withPlanningBegun({
         ...createNewCampaign('Cedar Hollow', FIXED),
         materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
         turn: 3,
+        step,
         base: { id: 'small-town-home', slots: {} },
         ...projectTeamWorth(9),
       }),
     );
+  }
+
+  function ordered(step: TurnStepId = 'assign-project-team'): CampaignState {
+    const base = queueable(step);
     const one = campaignReducer(base, {
       type: 'project/ordered',
       at: AT,
@@ -1273,6 +1284,112 @@ describe('project/cancelled', () => {
     // Nine, less three each for the Workshop and the Watchtower, and the
     // Workshop's three returned.
     expect(campaign.materials.hardware).toBe(6);
+  });
+
+  /**
+   * The guard, at the reducer. Both halves of it: a turn that has closed, and a
+   * phase this turn has moved past. Last turn's order was cancelled during the
+   * next turn's Mission Phase for a full refund (#148).
+   */
+  it.each([
+    ['a phase the turn has moved past', ordered('check-storage'), 3],
+    ['a turn that has closed', ordered('assign-project-team'), 4],
+  ])('refuses a cancellation from %s', (_label, state, turn) => {
+    const moved = openState({ ...expectOpen(state), turn });
+    const after = expectOpen(
+      campaignReducer(moved, { type: 'project/cancelled', at: 0, when: AT }),
+    );
+
+    expect(after.projects).toHaveLength(2);
+    expect(after.materials.hardware).toBe(3);
+    expect(after.log.filter((entry) => entry.event.kind === 'project-cancelled')).toEqual([]);
+  });
+
+  /**
+   * The storage-cap consequence the issue flags as unconfirmed. It is
+   * reachable — the walk lets a player step back into the Planning Phase after
+   * Check Storage has run, and a refund lands after the clamp — and it is not
+   * hidden or permanent: the stores read as over the cap immediately, and the
+   * next turn's Check Storage takes it back. Nothing extra guards it, and this
+   * is the test that says so rather than a comment claiming it cannot happen.
+   */
+  it('leaves a refund over the cap visible, for the next turn’s check to take', () => {
+    const checked = openState({
+      ...expectOpen(ordered('check-storage')),
+      // A Small Town Home's Hardware cap is 4, and the two orders spent 6 of 9.
+      materials: { food: 0, fuel: 0, hardware: 4, rare: 0 },
+      log: [
+        ...expectOpen(ordered('check-storage')).log,
+        {
+          turn: 3,
+          phase: 'management',
+          at: AT,
+          event: { kind: 'storage-checked', food: 0, fuel: 0, hardware: 0 },
+        },
+      ],
+    });
+
+    // Step back into the phase that ordered it, which is the only way here.
+    const back = openState({ ...expectOpen(checked), step: 'assign-project-team' });
+    const after = expectOpen(campaignReducer(back, { type: 'project/cancelled', at: 0, when: AT }));
+
+    expect(after.materials.hardware).toBe(7);
+    expect(anythingOverCap(after)).toBe(true);
+    expect(withStorageChecked(after).materials.hardware).toBe(4);
+  });
+
+  /**
+   * The three kinds each name themselves differently, and a clearing has
+   * nothing to name — so the entry carries one id for either of the two that
+   * do, the way `materials-converted` carries its `source` (#151).
+   */
+  it.each([
+    [
+      'an upgrade',
+      { kind: 'upgrade' as const, slot: 'kitchen', upgrade: 'gas-range' as const },
+      'gas-range',
+    ],
+    [
+      'a facility',
+      { kind: 'facility' as const, slot: 'garage', facility: 'workshop' as const },
+      'workshop',
+    ],
+  ])('says what %s was when it leaves the queue', (_label, project, built) => {
+    // From an empty queue, so neither slot is one the fixture has already
+    // spoken for: a second facility on order for a slot is refused (#140), and
+    // what this is about is the entry the cancellation writes.
+    const placed = campaignReducer(queueable(), { type: 'project/ordered', at: AT, project });
+    const after = expectOpen(
+      campaignReducer(placed, { type: 'project/cancelled', at: 0, when: AT }),
+    );
+
+    expect(after.log.at(-1)?.event).toMatchObject({ kind: 'project-cancelled', built });
+  });
+
+  /** A clearing is the case with nothing to name, and says so by saying less. */
+  it('names nothing for a clearing, which has nothing to name', () => {
+    const farm = openState({
+      ...expectOpen(ordered()),
+      base: { id: 'hobby-farm', slots: {} },
+      projects: [],
+    });
+    const placed = campaignReducer(farm, {
+      type: 'project/ordered',
+      at: AT,
+      project: { kind: 'clearing', slot: 'ruined-chicken-coop' },
+    });
+    const after = expectOpen(
+      campaignReducer(placed, { type: 'project/cancelled', at: 0, when: AT }),
+    );
+
+    // `toStrictEqual`, because the whole point of spreading rather than
+    // returning a field is that the key is *absent* rather than undefined —
+    // and `toEqual` cannot tell those apart.
+    expect(after.log.at(-1)?.event).toStrictEqual({
+      kind: 'project-cancelled',
+      slot: 'ruined-chicken-coop',
+      hardware: 0,
+    });
   });
 
   it('cancels the one at that position rather than the first it finds', () => {
@@ -1352,7 +1469,13 @@ describe('management/projectUnfinished', () => {
   it('writes a line that says what it was rather than a cancellation', () => {
     const after = expectOpen(campaignReducer(short(), unfinish(0)));
 
-    expect(after.log.at(-1)?.event).toEqual({ kind: 'project-unfinished', slot: 'garage' });
+    // Named as well as placed: two Workshops are queued here, and "the Garage
+    // project" alone was the ambiguity the playtest wrote up (#151).
+    expect(after.log.at(-1)?.event).toEqual({
+      kind: 'project-unfinished',
+      slot: 'garage',
+      built: 'workshop',
+    });
   });
 
   /**
@@ -2084,9 +2207,18 @@ describe('what earns a line in the log', () => {
       }),
     },
     'project/cancelled': {
-      state: queued(3),
+      // In the step that placed the order, which is the only one that may take
+      // it back (#148) — and a Watchtower's 3 Hardware is what comes back.
+      state: openState(
+        withPlanningBegun({ ...expectOpen(queued(3)), step: 'assign-project-team' }),
+      ),
       action: { type: 'project/cancelled', at: 0, when: AT },
-      entry: entry(3, 'mission', { kind: 'project-cancelled', slot: 'front-yard' }),
+      entry: entry(3, 'planning', {
+        kind: 'project-cancelled',
+        slot: 'front-yard',
+        hardware: 3,
+        built: 'watchtower',
+      }),
     },
     'management/projectUnfinished': {
       // The Watchtower ordered on turn 3, and nobody left on the project team
@@ -2100,7 +2232,11 @@ describe('what earns a line in the log', () => {
         }),
       ),
       action: { type: 'management/projectUnfinished', at: 0, when: AT },
-      entry: entry(3, 'management', { kind: 'project-unfinished', slot: 'front-yard' }),
+      entry: entry(3, 'management', {
+        kind: 'project-unfinished',
+        slot: 'front-yard',
+        built: 'watchtower',
+      }),
     },
     'advancement/projectsCompleted': {
       // Ordered last turn, so this turn's Advancement Phase finishes it.

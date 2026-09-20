@@ -191,6 +191,9 @@ describe('building into a slot', () => {
       withPlanningBegun({
         ...createNewCampaign('Cedar Hollow'),
         materials: { food: 0, fuel: 0, hardware, rare: 0 },
+        // The step that places an order, which is also the only one that may
+        // take it back (#148).
+        step: 'assign-project-team',
         base: { id: 'small-town-home', slots: {} },
         ...projectTeamWorth(labor),
       }),
@@ -286,10 +289,44 @@ describe('building into a slot', () => {
 
     expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(6);
 
-    await user.click(screen.getByRole('button', { name: /cancel bunk room in the garage/i }));
+    // The button says what comes back, because an order spends its Hardware
+    // when it is placed and nothing on the screen said so (#148).
+    await user.click(
+      screen.getByRole('button', {
+        name: /cancel bunk room in the garage — its hardware comes back/i,
+      }),
+    );
 
     expect(screen.queryByText(/on order:/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(9);
+
+    // And the history says what it was and how much came back — the button
+    // cannot know the second before the press, and "the Garage project" alone
+    // is ambiguous the moment two are queued there (#151).
+    expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
+      'Cancelled the Bunk Room on the Garage — 3 Hardware came back',
+    );
+  });
+
+  /**
+   * R2-M8 (#148): cancelling is a decision taken back within the phase that
+   * made it, which is the app's own ruling and was enforced nowhere. Last
+   * turn's order was cancelled during the next turn's Mission Phase for a full
+   * refund.
+   */
+  it('stops offering the cancellation once the phase that ordered it has passed', async () => {
+    const user = readyToBuild(5, 9);
+    await user.click(garage());
+    await user.click(screen.getByRole('button', { name: /order the build/i }));
+
+    expect(screen.getByText(/on order:/i)).toBeInTheDocument();
+
+    // On through the turn: the Management Phase is the same turn, and past it.
+    await user.click(screen.getByRole('button', { name: /^skip to management$/i }));
+
+    expect(screen.getByText(/on order:/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^cancel bunk room/i })).toBeNull();
+    expect(screen.getByText(/cancelled in the planning phase that ordered it/i)).toBeVisible();
   });
 
   /** Labor is committed rather than spent, and the pool above says so. */

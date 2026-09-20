@@ -762,8 +762,10 @@ describe('Departures', () => {
     // The Hardware comes back, as it does on a cancellation: the work was
     // never done.
     expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(12);
+    // Named, not just placed: the entry says which project left the queue, the
+    // way the order and built entries always have (#151).
     expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
-      'went unfinished',
+      'The Workshop on the Garage went unfinished',
     );
   });
 
