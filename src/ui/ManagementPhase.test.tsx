@@ -6,6 +6,7 @@ import { createSurvivor } from '../engine/survivor';
 import { generatingFlatUtility, withPlanningBegun } from '../test/campaigns';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
+import { queued } from '../test/queued';
 
 const EARL = 'earl';
 const CARLA = 'carla';
@@ -511,7 +512,14 @@ describe('a Labor shortfall outstanding', () => {
     withPlanningBegun({
       ...management({ step }),
       assignments: {},
-      projects: [{ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 }],
+      // The Labor it committed is the shortfall, so it is the number the order
+      // has to carry.
+      projects: [
+        queued(
+          { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+          { hardware: 3, labor: 2 },
+        ),
+      ],
     });
 
   /**
@@ -717,7 +725,12 @@ describe('Departures', () => {
           'survivor-0': { task: 'project' },
           'survivor-1': { task: 'project' },
         },
-        projects: [{ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 }],
+        projects: [
+          queued(
+            { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+            { hardware: 3, labor: 2 },
+          ),
+        ],
         // Fed first, because Feed is step 1 of this phase and Hunger is read
         // off its entry — a campaign standing at Departures has eaten.
         log: [

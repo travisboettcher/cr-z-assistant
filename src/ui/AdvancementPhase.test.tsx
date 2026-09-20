@@ -8,6 +8,7 @@ import { serializeCampaign } from '../persistence/exportFile';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
 import { generatingUtilities } from '../test/campaigns';
+import { queued as onOrder } from '../test/queued';
 
 const EARL = 'earl';
 const CARLA = 'carla';
@@ -657,8 +658,8 @@ describe('Add Facilities and Upgrades', () => {
       step: 'add-facilities-and-upgrades',
       materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
       projects: [
-        { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn },
-        { kind: 'upgrade', slot: 'kitchen', upgrade: 'gas-range', orderedOnTurn },
+        onOrder({ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn }),
+        onOrder({ kind: 'upgrade', slot: 'kitchen', upgrade: 'gas-range', orderedOnTurn }),
       ],
     });
 
@@ -705,7 +706,9 @@ describe('Add Facilities and Upgrades', () => {
     open(
       advancement({
         step: 'add-facilities-and-upgrades',
-        projects: [{ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 2 }],
+        projects: [
+          onOrder({ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 2 }),
+        ],
       }),
     );
 

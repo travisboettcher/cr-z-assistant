@@ -3,6 +3,7 @@ import { createNewCampaign, type Campaign, type Project } from './campaign';
 import { builtEvent, checkOrder, orderedEvent } from './orders';
 import { withProjectOrdered } from './projects';
 import { projectTeamWorth, withPlanningBegun } from '../test/campaigns';
+import { queued } from '../test/queued';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 
@@ -22,14 +23,21 @@ const WORKSHOP: Project = {
   slot: 'front-yard',
   facility: 'workshop',
   orderedOnTurn: 3,
+  charged: { hardware: 3, labor: 2 },
 };
 const GAS_RANGE: Project = {
   kind: 'upgrade',
   slot: 'kitchen',
   upgrade: 'gas-range',
   orderedOnTurn: 3,
+  charged: { hardware: 2, labor: 1 },
 };
-const COOP: Project = { kind: 'clearing', slot: 'ruined-chicken-coop', orderedOnTurn: 3 };
+const COOP: Project = {
+  kind: 'clearing',
+  slot: 'ruined-chicken-coop',
+  orderedOnTurn: 3,
+  charged: { hardware: 0, labor: 2 },
+};
 
 describe('checkOrder', () => {
   it('permits each of the three verbs when nothing is wrong', () => {
@@ -101,7 +109,7 @@ describe('checkOrder', () => {
             slots: { 'back-yard': { built: { facility: 'garden', builtOnTurn: 1 } } },
           },
         }),
-        project: { kind: 'upgrade', slot: 'back-yard', upgrade: 'fence', orderedOnTurn: 3 },
+        project: queued({ kind: 'upgrade', slot: 'back-yard', upgrade: 'fence', orderedOnTurn: 3 }),
         code: 'one-per-facility',
         refusal: 'warnings',
       },

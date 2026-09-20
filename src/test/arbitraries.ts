@@ -449,6 +449,14 @@ function assignmentsArbitrary(
  */
 function projectArbitrary(): fc.Arbitrary<Project> {
   const orderedOnTurn = fc.integer({ min: 1, max: 9999 });
+  // What the order was charged, which from v12 every queued project carries.
+  // Generated rather than fixed, because the round trip has to carry the pair
+  // of numbers back unchanged and a constant would pass a writer that dropped
+  // one of them.
+  const charged = fc.record({
+    hardware: fc.integer({ min: 0, max: 20 }),
+    labor: fc.integer({ min: 0, max: 20 }),
+  });
 
   return fc.oneof(
     fc.record({
@@ -456,14 +464,16 @@ function projectArbitrary(): fc.Arbitrary<Project> {
       slot: anyId,
       facility: fc.constantFrom(...FACILITY_IDS),
       orderedOnTurn,
+      charged,
     }),
     fc.record({
       kind: fc.constant('upgrade' as const),
       slot: anyId,
       upgrade: fc.constantFrom(...UPGRADE_IDS),
       orderedOnTurn,
+      charged,
     }),
-    fc.record({ kind: fc.constant('clearing' as const), slot: anyId, orderedOnTurn }),
+    fc.record({ kind: fc.constant('clearing' as const), slot: anyId, orderedOnTurn, charged }),
   );
 }
 

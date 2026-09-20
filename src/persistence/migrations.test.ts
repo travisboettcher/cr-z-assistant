@@ -443,3 +443,60 @@ describe('the v7 to v8 assignments default', () => {
     });
   });
 });
+
+/**
+ * The nested change the top-level key guard cannot see, which is why the guard
+ * says a change like this deserves its own assertion beside its step.
+ */
+describe('the v11 to v12 recorded charge', () => {
+  it('gives every queued project a charge, whatever version it came from', () => {
+    for (const fixture of fixtures) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok) continue;
+
+      for (const [at, project] of result.campaign.projects.entries()) {
+        expect(
+          project.charged,
+          `${fixture.path} project ${String(at)} came forward with no charge`,
+        ).toEqual({ hardware: expect.any(Number), labor: expect.any(Number) });
+      }
+    }
+  });
+
+  /**
+   * Replayed rather than zeroed: the charges are the catalogue's, which is what
+   * a player who cancels one of them gets back.
+   *
+   * The clearing comes forward at nothing, and that is the honest answer rather
+   * than a gap. Its slot holds a built Watchtower, so there is no clearing
+   * project standing there to price against — the same answer the quote gives,
+   * and the same one this build would have refunded before the charge was
+   * recorded.
+   */
+  it('prices a v11 queue as the orders would have been charged', () => {
+    const v11 = fixtures.find((fixture) => fixture.version === 11);
+    const result = migrate(v11?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.projects.map((project) => project.charged)).toEqual([
+      { hardware: 3, labor: 2 },
+      { hardware: 2, labor: 1 },
+      { hardware: 0, labor: 0 },
+    ]);
+  });
+
+  /** A save that was already v12 keeps the numbers it was written with. */
+  it('leaves a v12 queue alone', () => {
+    const v12 = fixtures.find((fixture) => fixture.version === CURRENT_SCHEMA_VERSION);
+    const result = migrate(v12?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.projects[0]?.charged).toEqual({ hardware: 3, labor: 2 });
+  });
+});

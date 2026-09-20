@@ -21,7 +21,7 @@
 import { checkBuild } from './build';
 import { checkClearing } from './clearing';
 import { checkUpgrade } from './upgrade';
-import type { Campaign, Project } from './campaign';
+import type { Campaign, PlacedOrder, Project } from './campaign';
 import type { Check } from './checks';
 import type { CampaignEvent } from './log';
 
@@ -38,7 +38,7 @@ import type { CampaignEvent } from './log';
  * it came from. Each module keeps its own union, which is what stops a build
  * violation being returned from an upgrade check.
  */
-export function checkOrder(campaign: Campaign, project: Project): Check<string> {
+export function checkOrder(campaign: Campaign, project: PlacedOrder): Check<string> {
   if (project.kind === 'facility') {
     return checkBuild(campaign, { slot: project.slot, facility: project.facility });
   }
@@ -51,7 +51,7 @@ export function checkOrder(campaign: Campaign, project: Project): Check<string> 
 }
 
 /** What the log says when a project is ordered (pg. 20). */
-export function orderedEvent(project: Project): CampaignEvent {
+export function orderedEvent(project: PlacedOrder): CampaignEvent {
   if (project.kind === 'facility') {
     return { kind: 'facility-ordered', slot: project.slot, facility: project.facility };
   }

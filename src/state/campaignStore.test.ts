@@ -10,6 +10,7 @@ import { createSurvivor, recruitSurvivor } from '../engine/survivor';
 import { generatingUtilities, projectTeamWorth, withPlanningBegun } from '../test/campaigns';
 import { INITIAL_CAMPAIGN_STATE, campaignReducer } from './campaignStore';
 import type { CampaignAction, CampaignState } from './campaignStore';
+import { queued as onOrder } from '../test/queued';
 
 /**
  * A fixed dispatch time, so an entry the log stamps is a value a test can
@@ -1085,7 +1086,10 @@ describe('project/ordered', () => {
     );
 
     expect(campaign.projects).toEqual([
-      { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+      onOrder(
+        { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+        { hardware: 3, labor: 2 },
+      ),
     ]);
     expect(campaign.materials.hardware).toBe(6);
   });
@@ -1205,8 +1209,14 @@ describe('project/ordered', () => {
     );
 
     expect(expectOpen(cleared).projects).toEqual([
-      { kind: 'upgrade', slot: 'kitchen', upgrade: 'gas-range', orderedOnTurn: 3 },
-      { kind: 'clearing', slot: 'ruined-chicken-coop', orderedOnTurn: 3 },
+      onOrder(
+        { kind: 'upgrade', slot: 'kitchen', upgrade: 'gas-range', orderedOnTurn: 3 },
+        { hardware: 2, labor: 1 },
+      ),
+      onOrder(
+        { kind: 'clearing', slot: 'ruined-chicken-coop', orderedOnTurn: 3 },
+        { hardware: 0, labor: 2 },
+      ),
     ]);
     // The Gas Range's two Hardware; a clearing project costs none.
     expect(expectOpen(cleared).materials.hardware).toBe(7);
@@ -1440,8 +1450,14 @@ describe('management/projectUnfinished', () => {
         step: 'departures',
         base: { id: 'small-town-home', slots: {} },
         projects: [
-          { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
-          { kind: 'facility', slot: 'front-yard', facility: 'workshop', orderedOnTurn: 3 },
+          onOrder(
+            { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+            { hardware: 3, labor: 2 },
+          ),
+          onOrder(
+            { kind: 'facility', slot: 'front-yard', facility: 'workshop', orderedOnTurn: 3 },
+            { hardware: 3, labor: 2 },
+          ),
         ],
         ...projectTeamWorth(4),
       }),
@@ -1462,8 +1478,14 @@ describe('management/projectUnfinished', () => {
 
     expect(laborShortfall(before)).toBe(2);
     expect(after.projects.map((project) => project.slot)).toEqual(['garage']);
-    expect(after.materials.hardware).toBe(before.materials.hardware + 3);
     expect(laborShortfall(after)).toBe(0);
+
+    // The number the order carries, not one priced again — this step shares
+    // `withProjectCancelled` with `project/cancelled`, so #165's guarantee is
+    // the same guarantee here and reading it off the order says so.
+    expect(after.materials.hardware).toBe(
+      before.materials.hardware + (before.projects[1]?.charged.hardware ?? 0),
+    );
   });
 
   it('writes a line that says what it was rather than a cancellation', () => {
@@ -1497,7 +1519,10 @@ describe('management/projectUnfinished', () => {
       ...expectOpen(short()),
       projects: [
         ...expectOpen(short()).projects,
-        { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: 2 },
+        onOrder(
+          { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: 2 },
+          { hardware: 3, labor: 2 },
+        ),
       ],
     });
 
@@ -1528,8 +1553,14 @@ describe('advancement/projectsCompleted', () => {
       turn: 3,
       base: { id: 'hobby-farm', slots: {} },
       projects: [
-        { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: 2 },
-        { kind: 'clearing', slot: 'ruined-chicken-coop', orderedOnTurn: 2 },
+        onOrder(
+          { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: 2 },
+          { hardware: 3, labor: 2 },
+        ),
+        onOrder(
+          { kind: 'clearing', slot: 'ruined-chicken-coop', orderedOnTurn: 2 },
+          { hardware: 0, labor: 2 },
+        ),
       ],
     });
   }
@@ -1555,14 +1586,23 @@ describe('advancement/projectsCompleted', () => {
     const mixed = openState({
       ...expectOpen(due()),
       projects: [
-        { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: 2 },
-        { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+        onOrder(
+          { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: 2 },
+          { hardware: 3, labor: 2 },
+        ),
+        onOrder(
+          { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+          { hardware: 3, labor: 2 },
+        ),
       ],
     });
     const campaign = expectOpen(campaignReducer(mixed, finish));
 
     expect(campaign.projects).toEqual([
-      { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+      onOrder(
+        { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+        { hardware: 3, labor: 2 },
+      ),
     ]);
     expect(campaign.base?.slots.garage).toBeUndefined();
   });
@@ -1580,7 +1620,10 @@ describe('advancement/projectsCompleted', () => {
         slots: { 'front-yard': { built: { facility: 'garden', builtOnTurn: 2 } } },
       },
       projects: [
-        { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: 2 },
+        onOrder(
+          { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: 2 },
+          { hardware: 3, labor: 2 },
+        ),
       ],
     });
     const campaign = expectOpen(campaignReducer(taken, finish));
@@ -2066,7 +2109,10 @@ describe('what earns a line in the log', () => {
     return openState({
       ...expectOpen(rich()),
       projects: [
-        { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: turn },
+        onOrder(
+          { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: turn },
+          { hardware: 3, labor: 2 },
+        ),
       ],
     });
   }

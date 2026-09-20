@@ -15,7 +15,7 @@
  */
 
 import type { BaseId } from '../data/bases';
-import type { FacilityId, UpgradeId } from '../data/facilities';
+import type { Cost, FacilityId, UpgradeId } from '../data/facilities';
 import type { Materials } from '../data/materials';
 import type { CampaignOrigin } from '../data/origins';
 import type { Skill, Stat } from '../data/skills';
@@ -32,7 +32,7 @@ import type { LogEntry } from './log';
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 11;
+export const CURRENT_SCHEMA_VERSION = 12;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -253,8 +253,33 @@ export type ProjectOrder =
  * which also gives the screens a name for the half they can supply: a dialog
  * knows what it is ordering and has no business naming the turn, so
  * `project/ordered` carries a `ProjectOrder` and the reducer stamps the rest.
+ *
+ * Not yet in the queue: an order becomes a `Project` when `withProjectOrdered`
+ * charges it and stamps what it took.
  */
-export type Project = ProjectOrder & { readonly orderedOnTurn: number };
+export type PlacedOrder = ProjectOrder & { readonly orderedOnTurn: number };
+
+/**
+ * A queued project, carrying **what it was actually charged**.
+ *
+ * The one thing about an order that cannot be recomputed later. A project's
+ * price depends on what was queued ahead of it — a Greenhouse ordered onto a
+ * Garden with a Fence already on order costs a Hardware less (pp. 72–73) — so
+ * cancelling an *earlier* order changes what a later one would cost today,
+ * while what it cost on the day is fixed and gone from the stores.
+ *
+ * Deriving the refund instead minted and destroyed Hardware: order a Fence,
+ * order a discounted Greenhouse behind it, cancel the Fence, cancel the
+ * Greenhouse, and the community ends an empty queue one Hardware richer than it
+ * started (#165). Two Greenhouses onto a built-in Garden lose one the same way.
+ *
+ * So the charge is recorded rather than re-derived, which makes "a project
+ * refunds exactly what it was charged" true by construction rather than by two
+ * functions agreeing. `charged.labor` is the same fact for the Labor the order
+ * committed — never spent, but counted against the pool the same way, and it
+ * drifts under a queue mutation for the same reason.
+ */
+export type Project = PlacedOrder & { readonly charged: Cost };
 
 export interface Campaign {
   /** Which version of the persisted shape this campaign was written in. */

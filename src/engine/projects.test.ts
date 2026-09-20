@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createNewCampaign, type Campaign, type Project } from './campaign';
+import { createNewCampaign, type Campaign, type PlacedOrder, type Project } from './campaign';
 import type { UpgradeId } from '../data/facilities';
 import {
   completeProjects,
@@ -21,6 +21,7 @@ import {
 import { laborPool } from './assignments';
 import { upgradeOrder } from './upgrade';
 import { projectTeamWorth, withPlanningBegun } from '../test/campaigns';
+import { queued } from '../test/queued';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 
@@ -41,14 +42,21 @@ const WORKSHOP: Project = {
   slot: 'front-yard',
   facility: 'workshop',
   orderedOnTurn: 3,
+  charged: { hardware: 3, labor: 2 },
 };
 const GAS_RANGE: Project = {
   kind: 'upgrade',
   slot: 'kitchen',
   upgrade: 'gas-range',
   orderedOnTurn: 3,
+  charged: { hardware: 2, labor: 1 },
 };
-const COOP: Project = { kind: 'clearing', slot: 'ruined-chicken-coop', orderedOnTurn: 3 };
+const COOP: Project = {
+  kind: 'clearing',
+  slot: 'ruined-chicken-coop',
+  orderedOnTurn: 3,
+  charged: { hardware: 0, labor: 2 },
+};
 
 describe('projectCost', () => {
   it('is the facility’s own cost for a build', () => {
@@ -312,19 +320,22 @@ describe('cancellable', () => {
 });
 
 describe('replacing an upgrade', () => {
-  const GREENHOUSE: Project = {
+  const GREENHOUSE: PlacedOrder = {
     kind: 'upgrade',
     slot: 'front-yard',
     upgrade: 'greenhouse',
     orderedOnTurn: 2,
   };
 
+  /** What the Greenhouse is charged onto a Fenced Garden with nothing queued. */
+  const OVER_A_FENCE = { hardware: 3, labor: 4 };
+
   /**
    * A Garden the player built, so its upgrades are exactly the ones named —
    * unlike the Hobby Farm's own Garden, which arrives with a Fence in the
    * layout and is the subject of its own test below.
    */
-  const fenced = (upgrades: readonly UpgradeId[] = ['fence']): Campaign =>
+  const gardenWith = (upgrades: readonly UpgradeId[] = ['fence']): Campaign =>
     community({
       base: {
         id: 'hobby-farm',
@@ -332,14 +343,24 @@ describe('replacing an upgrade', () => {
           'front-yard': { built: { facility: 'garden', builtOnTurn: 1 }, upgrades: [...upgrades] },
         },
       },
-      projects: [GREENHOUSE],
     });
 
+  /**
+   * The same Garden with the Greenhouse already ordered onto it, **ordered
+   * rather than assembled**: the charge a fixture carries has to be the one the
+   * engine took, or a refund test proves only that two literals match.
+   */
+  const fenced = (upgrades: readonly UpgradeId[] = ['fence']): Campaign =>
+    withProjectOrdered(gardenWith(upgrades), GREENHOUSE);
+
   it('prices it a Hardware under the catalogue over what it replaces', () => {
-    // `queuedCost` rather than `projectCost`: the Greenhouse in these fixtures
-    // is already the first order, and asking what it would cost to order *now*
-    // is a different question with a different answer — see the two below.
-    expect(queuedCost(fenced(), 0)).toEqual({ hardware: 3, labor: 4 });
+    // The quote, against the base as it stands with nothing queued — and so
+    // also the number the order will carry once it is placed.
+    expect(projectCost(gardenWith(), GREENHOUSE)).toEqual(OVER_A_FENCE);
+    expect(projectCost(gardenWith([]), GREENHOUSE)).toEqual({ hardware: 4, labor: 4 });
+
+    // Charged and carried are the same number, which is the whole of #165.
+    expect(queuedCost(fenced(), 0)).toEqual(OVER_A_FENCE);
     expect(queuedCost(fenced([]), 0)).toEqual({ hardware: 4, labor: 4 });
   });
 
@@ -350,18 +371,19 @@ describe('replacing an upgrade', () => {
    * spoken for.
    */
   it('discounts the first order for the Fence and not the second', () => {
-    const queued = fenced();
+    const one = fenced();
 
-    expect(projectCost(queued, GREENHOUSE)).toEqual({ hardware: 4, labor: 4 });
-    expect(upgradeOrder(queued, { slot: 'front-yard', upgrade: 'greenhouse' })).toEqual({
+    expect(projectCost(one, GREENHOUSE)).toEqual({ hardware: 4, labor: 4 });
+    expect(upgradeOrder(one, { slot: 'front-yard', upgrade: 'greenhouse' })).toEqual({
       cost: { hardware: 4, labor: 4 },
       replaces: [],
     });
 
-    // And the refund is what was charged, each at its own position.
-    const both = { ...queued, projects: [...queued.projects, GREENHOUSE] };
+    // And each order keeps the number it was charged: the discounted first and
+    // the full-price second, neither of them re-priced by the other's arrival.
+    const both = withProjectOrdered(one, GREENHOUSE);
 
-    expect(queuedCost(both, 0)).toEqual({ hardware: 3, labor: 4 });
+    expect(queuedCost(both, 0)).toEqual(OVER_A_FENCE);
     expect(queuedCost(both, 1)).toEqual({ hardware: 4, labor: 4 });
   });
 
@@ -378,23 +400,28 @@ describe('replacing an upgrade', () => {
   it('prices nothing for an upgrade whose slot has changed under it', () => {
     const gone = community({
       base: { id: 'hobby-farm', slots: {} },
-      projects: [{ ...GREENHOUSE, slot: 'back-yard' }],
+      // Charged over a Fence, and the slot cleared out from under it since.
+      projects: [queued({ ...GREENHOUSE, slot: 'back-yard' }, OVER_A_FENCE)],
     });
 
-    // Both forms: the refund for the order already placed, and the quote for
-    // another one — which is the form that has to walk the queue rather than
-    // skip it, and so the form that finds nothing standing to walk over.
-    expect(queuedCost(gone, 0)).toEqual({ hardware: 0, labor: 0 });
+    // The quote finds nothing standing to price against, so it charges nothing
+    // rather than charging for work that cannot happen.
     expect(projectCost(gone, { ...GREENHOUSE, slot: 'back-yard' })).toEqual({
       hardware: 0,
       labor: 0,
     });
+
+    // The refund is not that question. This order was charged when the slot was
+    // still there, and cancelling it hands back what the community paid —
+    // pricing it again returned nothing and destroyed the Hardware (#165).
+    expect(queuedCost(gone, 0)).toEqual(OVER_A_FENCE);
 
     const GAS_RANGE_OUTSIDE: Project = {
       kind: 'upgrade',
       slot: 'front-yard',
       upgrade: 'gas-range',
       orderedOnTurn: 2,
+      charged: { hardware: 2, labor: 1 },
     };
 
     const swapped = community({
@@ -405,14 +432,14 @@ describe('replacing an upgrade', () => {
       projects: [GAS_RANGE_OUTSIDE],
     });
 
-    expect(queuedCost(swapped, 0)).toEqual({ hardware: 0, labor: 0 });
     expect(projectCost(swapped, GAS_RANGE_OUTSIDE)).toEqual({ hardware: 0, labor: 0 });
+    expect(queuedCost(swapped, 0)).toEqual(GAS_RANGE_OUTSIDE.charged);
   });
 
   it('takes the Fence off when the work is done, and nothing else with it', () => {
     const { campaign, completed } = completeProjects(fenced(['fence', 'herb-plot']));
 
-    expect(completed).toEqual([GREENHOUSE]);
+    expect(completed).toEqual([{ ...GREENHOUSE, charged: OVER_A_FENCE }]);
     expect(campaign.base?.slots['front-yard']?.upgrades).toEqual(['herb-plot', 'greenhouse']);
   });
 
@@ -433,12 +460,9 @@ describe('replacing an upgrade', () => {
    * one list, which is the whole reason it exists.
    */
   it('replaces a Fence the base itself came with', () => {
-    const farm = community({
-      base: { id: 'hobby-farm', slots: {} },
-      projects: [{ ...GREENHOUSE, slot: 'garden' }],
-    });
+    const farm = community({ base: { id: 'hobby-farm', slots: {} } });
 
-    expect(queuedCost(farm, 0)).toEqual({ hardware: 3, labor: 4 });
+    expect(projectCost(farm, { ...GREENHOUSE, slot: 'garden' })).toEqual(OVER_A_FENCE);
   });
 
   /**
@@ -454,7 +478,9 @@ describe('replacing an upgrade', () => {
         id: 'hobby-farm',
         slots: { 'front-yard': { built: { facility: 'garden', builtOnTurn: 1 } } },
       },
-      projects: [{ kind: 'upgrade', slot: 'front-yard', upgrade: 'gas-range', orderedOnTurn: 2 }],
+      projects: [
+        queued({ kind: 'upgrade', slot: 'front-yard', upgrade: 'gas-range', orderedOnTurn: 2 }),
+      ],
     });
 
     const { campaign } = completeProjects(swapped);
@@ -468,7 +494,10 @@ describe('replacing an upgrade', () => {
    * than capping at one, because that is what the field says it is.
    */
   it('discounts once for each Fence it takes off', () => {
-    expect(queuedCost(fenced(['fence', 'fence']), 0)).toEqual({ hardware: 2, labor: 4 });
+    expect(projectCost(gardenWith(['fence', 'fence']), GREENHOUSE)).toEqual({
+      hardware: 2,
+      labor: 4,
+    });
   });
 });
 
@@ -525,6 +554,82 @@ describe('withProjectCancelled', () => {
 
     expect(withProjectCancelled(before, 4)).toBe(before);
     expect(withProjectCancelled(before, -1)).toBe(before);
+  });
+
+  /**
+   * **#165, driven exactly as it was found.** Charge and refund were computed
+   * by two different functions, and they disagreed the moment the queue moved:
+   * the refund priced a project at its *live* index, so cancelling an earlier
+   * order changed what a later one handed back.
+   *
+   * A Hobby Farm with a Garden in the front yard and 8 Hardware, in one
+   * Planning Phase — order a Fence, order a Greenhouse behind it at the
+   * replacement discount, then cancel both. An empty queue and an unchanged
+   * base used to come back to **9**.
+   */
+  it('gives back exactly what it took, however the queue moved in between', () => {
+    const garden = community({
+      base: {
+        id: 'hobby-farm',
+        slots: { 'front-yard': { built: { facility: 'garden', builtOnTurn: 1 } } },
+      },
+      materials: { food: 0, fuel: 0, hardware: 8, rare: 0 },
+    });
+
+    const fence: PlacedOrder = {
+      kind: 'upgrade',
+      slot: 'front-yard',
+      upgrade: 'fence',
+      orderedOnTurn: 3,
+    };
+    const greenhouse: PlacedOrder = {
+      kind: 'upgrade',
+      slot: 'front-yard',
+      upgrade: 'greenhouse',
+      orderedOnTurn: 3,
+    };
+
+    const fenced = withProjectOrdered(garden, fence);
+    expect(fenced.materials.hardware).toBe(7);
+
+    // Quoted at 3 rather than 4, because the Fence on order is one it replaces.
+    const both = withProjectOrdered(fenced, greenhouse);
+    expect(both.materials.hardware).toBe(4);
+
+    // The Fence goes first, which is what moves the Greenhouse's index — and
+    // used to move its price with it.
+    const withoutFence = withProjectCancelled(both, 0);
+    expect(withoutFence.materials.hardware).toBe(5);
+
+    const empty = withProjectCancelled(withoutFence, 0);
+
+    expect(empty.projects).toEqual([]);
+    expect(empty.materials).toEqual(garden.materials);
+  });
+
+  /**
+   * The same in the other direction, which is the sign that destroys Hardware
+   * rather than creating it: two Greenhouses onto the Hobby Farm's own Fenced
+   * Garden charge 3 then 4, and both used to refund 3.
+   */
+  it('gives back the full price of an order that paid it', () => {
+    const farm = community({
+      base: { id: 'hobby-farm', slots: {} },
+      materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+    });
+    const greenhouse: PlacedOrder = {
+      kind: 'upgrade',
+      slot: 'garden',
+      upgrade: 'greenhouse',
+      orderedOnTurn: 3,
+    };
+
+    const both = withProjectOrdered(withProjectOrdered(farm, greenhouse), greenhouse);
+    expect(both.materials.hardware).toBe(2);
+
+    const empty = withProjectCancelled(withProjectCancelled(both, 0), 0);
+
+    expect(empty.materials.hardware).toBe(9);
   });
 
   /**
@@ -695,8 +800,8 @@ describe('completeProjects', () => {
       const both = community({
         base: { id: 'small-town-home', slots: {} },
         projects: [
-          { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 2 },
-          { kind: 'upgrade', slot: 'garage', upgrade: 'metal-shop', orderedOnTurn: 2 },
+          queued({ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 2 }),
+          queued({ kind: 'upgrade', slot: 'garage', upgrade: 'metal-shop', orderedOnTurn: 2 }),
         ],
       });
       const { campaign, completed } = completeProjects(both);
