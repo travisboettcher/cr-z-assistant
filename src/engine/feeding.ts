@@ -38,8 +38,8 @@
  * `hunger` is this turn's shortfall and is the term of Unrest (pg. 23): a turn
  * whose Feed step has not run has no Hunger, because Hunger is recalculated
  * each turn and is not cumulative. `hungerPenalty` is the stat penalty, and it
- * reads the most *recent* entry wherever it sits, which is what makes it last
- * "until the next Management Phase" — through the Mission, Advancement and
+ * reads the most recent entry *that is still in force* — which is what makes it
+ * last "until the next Management Phase", through the Mission, Advancement and
  * Planning Phases that follow it.
  *
  * One function served both until the September playtest, and it answered the
@@ -47,10 +47,26 @@
  * shortfall into Unrest, Departures and the threshold that sends somebody
  * away — observed as 9 Hunger on turn 7, carried from turn 6.
  *
+ * ## The penalty expires on a clock, not on the next entry
+ *
+ * pg. 22 runs the penalty "until the next turn's Management Phase", and that is
+ * a time, not an event. Reading the most recent entry and stopping there made
+ * the expiry implicit in the next Feed step overwriting it — which holds only
+ * while a Feed step always runs. Skipping one left the penalty in force for the
+ * rest of the campaign, silently costing 2 Food a turn three Management Phases
+ * later (#164).
+ *
+ * `penaltyInForce` is the clock the book describes, and it is the whole of the
+ * fix: the penalty is gone when the next turn's Management Phase opens, whether
+ * or not anybody ate in it. **Not** a turn filter of the kind `hunger` uses —
+ * that would break the deliberate carry through the following turn's first
+ * three phases, which is the thing the penalty is *for*.
+ *
  * Pure, like the rest of `src/engine`.
  */
 
 import { FOOD_EATEN_PER_TURN } from '../data/turn';
+import { phaseOf } from './turn';
 import { suppliedOccupants } from './utilities';
 import { beds } from './base';
 import type { Campaign } from './campaign';
@@ -75,18 +91,21 @@ export function hungerIfFedNow(campaign: Campaign): number {
 }
 
 /**
- * The Feed entries this campaign has written, oldest first.
+ * The Feed entries this campaign has written **this turn**, oldest first.
  *
  * Collected and indexed from the end rather than walked backwards. An earlier
  * draft did the latter, which needed an optional chain on a subscript that
  * could not miss and hung the test runner under every mutant that reversed the
  * walk.
+ *
+ * This turn's only, with no switch for the other question: the penalty is the
+ * one reader that looks past the turn it was written in, and it goes through
+ * `penaltyInForce` because what it needs is not "every entry" but "the entry
+ * whose clock is still running".
  */
-function feedings(campaign: Campaign, thisTurnOnly: boolean) {
+function feedings(campaign: Campaign) {
   return campaign.log.flatMap((entry) =>
-    entry.event.kind === 'survivors-fed' && (!thisTurnOnly || entry.turn === campaign.turn)
-      ? [entry.event]
-      : [],
+    entry.event.kind === 'survivors-fed' && entry.turn === campaign.turn ? [entry.event] : [],
   );
 }
 
@@ -103,7 +122,7 @@ function feedings(campaign: Campaign, thisTurnOnly: boolean) {
  * all believed it.
  */
 export function hunger(campaign: Campaign): number {
-  return feedings(campaign, true).at(-1)?.hunger ?? 0;
+  return feedings(campaign).at(-1)?.hunger ?? 0;
 }
 
 /**
@@ -121,7 +140,7 @@ export function hunger(campaign: Campaign): number {
  * entry, the same fix `hungerPenalty` needed for the same reason.
  */
 export function foodRequiredAsFed(campaign: Campaign): number {
-  return feedings(campaign, true).at(-1)?.required ?? foodRequired(campaign);
+  return feedings(campaign).at(-1)?.required ?? foodRequired(campaign);
 }
 
 /**
@@ -139,15 +158,50 @@ export function foodRequiredAsFed(campaign: Campaign): number {
  * force. Pairing a recorded shortfall with a live population did exactly that,
  * and in the wrong direction: losing a survivor made the same food shortage
  * hurt the people left *more*.
+ *
+ * **How long it holds is `penaltyInForce`**, and it is a clock rather than the
+ * next entry arriving.
  */
 export function hungerPenalty(campaign: Campaign): number {
-  // The most recent entry from anywhere in the log, unlike `hunger` — that is
-  // what carries the penalty through the three phases after the one that set
-  // it, which is what "until the next Management Phase" means.
-  const fed = feedings(campaign, false).at(-1);
+  const fed = penaltyInForce(campaign);
   if (fed === undefined) return 0;
 
   return penaltyFor(fed.hunger, fedPopulation(campaign));
+}
+
+/**
+ * The Feed entry whose penalty is still running, and nothing once it has
+ * expired (pg. 22, [R1](../../docs/rulings.md)).
+ *
+ * The book's clock, in two lines. A penalty set by turn N's Feed step holds for
+ * the rest of turn N — the four Management steps after Feed — and through turn
+ * N + 1's Mission, Advancement and Planning Phases. It is gone the moment turn
+ * N + 1's Management Phase opens, which is where "until the next turn's
+ * Management Phase" puts it, and is therefore already gone at that phase's Rot
+ * check rather than at its Feed step.
+ *
+ * Nothing needs to clear it, and a turn that ends with Feed unresolved needs no
+ * special case: an entry that is out of date simply stops being in force. The
+ * expiry used to be implicit in the next entry overwriting this one, which is a
+ * different rule that agrees with this one only while every turn feeds.
+ *
+ * Stepping back into an earlier phase of the current turn puts the penalty back
+ * in force, which is right — it is in force at that point in the turn.
+ */
+function penaltyInForce(campaign: Campaign) {
+  const fed = campaign.log
+    .flatMap((entry) =>
+      entry.event.kind === 'survivors-fed' ? [{ turn: entry.turn, event: entry.event }] : [],
+    )
+    .at(-1);
+
+  if (fed === undefined) return undefined;
+
+  if (fed.turn === campaign.turn) return fed.event;
+
+  return fed.turn === campaign.turn - 1 && phaseOf(campaign.step) !== 'management'
+    ? fed.event
+    : undefined;
 }
 
 /**
@@ -164,7 +218,7 @@ export function hungerPenalty(campaign: Campaign): number {
  * a new answer on load.
  */
 export function fedPopulation(campaign: Campaign): number {
-  return feedings(campaign, false).at(-1)?.population ?? campaign.survivors.length;
+  return penaltyInForce(campaign)?.population ?? campaign.survivors.length;
 }
 
 /**

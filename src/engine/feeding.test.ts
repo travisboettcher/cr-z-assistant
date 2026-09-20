@@ -195,14 +195,76 @@ describe('the hunger penalty', () => {
   /**
    * The other half of the split. `hunger` is this turn's and is the term of
    * Unrest; the penalty lasts "until the next Management Phase" (pg. 22), which
-   * is the three phases of the following turn — so it reads the most recent
-   * entry wherever it sits, and a turn that has not eaten yet still carries it.
+   * is the three phases of the following turn — so a turn that has not eaten
+   * yet still carries it.
    */
   it('carries into the next turn, where Hunger itself does not', () => {
     const carried: Campaign = { ...withLog(community(5, 4, 0), [fed(3, 10, 10)]), turn: 4 };
 
     expect(hunger(carried)).toBe(0);
     expect(hungerPenalty(carried)).toBe(5);
+  });
+
+  /**
+   * The carry, step by step, because it is the thing the expiry must not break.
+   * A penalty set by turn 3's Feed step is still in force through every step of
+   * turn 4 up to its Management Phase — that is what "until the *next* turn's
+   * Management Phase" buys the rule, and a naive turn filter would lose it.
+   */
+  it.each([
+    ['select-mission', 5],
+    ['tactical-mission', 5],
+    ['character-advancement', 5],
+    ['heal-wounds', 5],
+    ['assign-facility-staff', 5],
+    ['assign-mission-team', 5],
+    ['check-for-rot', 0],
+    ['feed-your-survivors', 0],
+    ['departures', 0],
+  ] as const)('is %s deep into the next turn worth %i', (step, penalty) => {
+    const carried: Campaign = {
+      ...withLog(community(5, 4, 0), [fed(3, 10, 10)]),
+      turn: 4,
+      step,
+    };
+
+    expect(hungerPenalty(carried)).toBe(penalty);
+  });
+
+  /**
+   * #164. Expiry is a clock, not the next entry overwriting this one — the
+   * book runs the penalty "until the next turn's Management Phase" and says
+   * nothing about a Feed step arriving to end it. Skipping Feed used to leave
+   * the penalty in force for the rest of the campaign, silently costing the
+   * community 2 Food a turn two and three Management Phases later.
+   *
+   * The walk the issue asks for: feed short, skip the next turn's Feed, and the
+   * penalty is gone on schedule rather than waiting for a meal that never came.
+   */
+  it('expires when the next turn reaches its Management Phase, fed or not', () => {
+    const shortfall = withLog(community(5, 4, 0), [fed(3, 10, 10)]);
+    const nextTurn: Campaign = { ...shortfall, turn: 4 };
+
+    expect(hungerPenalty({ ...nextTurn, step: 'assign-mission-team' })).toBe(5);
+    expect(hungerPenalty({ ...nextTurn, step: 'check-for-rot' })).toBe(0);
+
+    // And it does not come back two turns later, which is what the log-reading
+    // expiry did: the entry is simply no longer the one in force.
+    expect(hungerPenalty({ ...shortfall, turn: 5, step: 'select-mission' })).toBe(0);
+    expect(hungerPenalty({ ...shortfall, turn: 6, step: 'select-mission' })).toBe(0);
+  });
+
+  /**
+   * The step the penalty was written in is still inside the turn that set it,
+   * so the four Management steps after Feed carry it. Unrest, the horde roll
+   * and Departures all read stats, and a penalty that expired at the phase
+   * boundary rather than the turn boundary would drop it under their feet.
+   */
+  it('holds through the rest of the Management Phase that set it', () => {
+    const fedThisTurn = withLog(community(5, 4, 0), [fed(3, 10, 10)]);
+
+    expect(hungerPenalty({ ...fedThisTurn, step: 'calculate-unrest' })).toBe(5);
+    expect(hungerPenalty({ ...fedThisTurn, step: 'departures' })).toBe(5);
   });
 
   /**
@@ -259,6 +321,13 @@ describe('the hunger penalty', () => {
     const carried: Campaign = { ...atFeed, turn: 4, survivors: atFeed.survivors.slice(2) };
 
     expect(fedPopulation(carried)).toBe(4);
+
+    // Off the same clock as the penalty, because the pair has to agree: once
+    // the entry stops being in force, the head count is the live one again
+    // (#164). Reading a stale entry here while `hungerPenalty` read none would
+    // print a threshold nothing was measured against.
+    expect(fedPopulation({ ...carried, step: 'check-for-rot' })).toBe(2);
+    expect(fedPopulation({ ...carried, turn: 5 })).toBe(2);
   });
 });
 
