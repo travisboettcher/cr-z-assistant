@@ -2857,6 +2857,75 @@ describe('the Advancement Phase steps', () => {
     expect(expectOpen(next).materials.food).toBe(2);
   });
 
+  /**
+   * **#163.** The whole feature was here except the payout: a community that
+   * skipped its mission to scavenge walked to this step and received nothing,
+   * with no screen saying so.
+   */
+  describe('what a scavenger brings back', () => {
+    const scavenging = (skills: Partial<Record<'scavenge', number>>) =>
+      openState({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        turn: 3,
+        step: 'add-materials-to-storage',
+        survivors: [{ ...createSurvivor('Earl Rhodes', 3, { id: EARL }), skills }],
+        assignments: { [EARL]: { task: 'scavenging' } },
+      });
+
+    it('adds one of every material for a survivor with the skill', () => {
+      const after = expectOpen(campaignReducer(scavenging({ scavenge: 0 }), add([])));
+
+      expect(after.materials).toEqual({ food: 1, fuel: 1, hardware: 1, rare: 1 });
+    });
+
+    it('adds one of the chosen material for a survivor without it', () => {
+      const after = expectOpen(
+        campaignReducer(scavenging({}), {
+          type: 'advancement/materialsAdded',
+          at: AT,
+          rolls: [],
+          scavenged: 'rare',
+        }),
+      );
+
+      expect(after.materials).toEqual({ food: 0, fuel: 0, hardware: 0, rare: 1 });
+    });
+
+    /** Nothing chosen is nothing found, and the log says so rather than lying. */
+    it('adds nothing for an unskilled scavenger nobody chose for', () => {
+      const after = expectOpen(campaignReducer(scavenging({}), add([])));
+
+      expect(after.materials).toEqual({ food: 0, fuel: 0, hardware: 0, rare: 0 });
+      expect(after.log.map((entry) => entry.event.kind)).toEqual([
+        'materials-added',
+        'materials-scavenged',
+      ]);
+    });
+
+    it('records what was scavenged, and by whom', () => {
+      const after = expectOpen(campaignReducer(scavenging({ scavenge: 0 }), add([{ roll: 4 }])));
+
+      expect(after.log.map((entry) => entry.event)).toEqual([
+        { kind: 'materials-added', food: 2, fuel: 1, hardware: 1, rare: 1 },
+        {
+          kind: 'materials-scavenged',
+          survivor: EARL,
+          name: 'Earl Rhodes',
+          food: 1,
+          fuel: 1,
+          hardware: 1,
+          rare: 1,
+        },
+      ]);
+    });
+
+    it('writes no scavenging line for a turn nobody scavenged', () => {
+      const after = expectOpen(campaignReducer(afterAMission(), add([{ roll: 4 }])));
+
+      expect(after.log.map((entry) => entry.event.kind)).toEqual(['materials-added']);
+    });
+  });
+
   it('heals a turn’s wounds once, and refuses to do it twice', () => {
     // A Hero at 1 of 4, so one point of rest leaves them wounded. A survivor
     // the first press filled up would be untouched by the second whether or

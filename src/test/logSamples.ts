@@ -28,6 +28,27 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   // and the validator has to accept an amount no other event's field would.
   { kind: 'materials-added', food: -2, fuel: 0, hardware: 0, rare: 0 },
   {
+    kind: 'materials-scavenged',
+    survivor: 'b7e41f28-3c60-4d95-8a12-6f0e9d4c7b53',
+    name: 'Earl Rhodes',
+    food: 1,
+    fuel: 1,
+    hardware: 1,
+    rare: 1,
+  },
+  // One material of one type, which is what a scavenger without the skill
+  // brings back (pg. 17) — and zero of the other three, which is a count the
+  // validator has to accept rather than read as a missing field.
+  {
+    kind: 'materials-scavenged',
+    survivor: 'carla',
+    name: 'Carla Proust',
+    food: 0,
+    fuel: 0,
+    hardware: 0,
+    rare: 1,
+  },
+  {
     kind: 'materials-converted',
     slot: 'kitchen',
     source: 'gas-range',

@@ -106,6 +106,22 @@ export function describeEvent(event: CampaignEvent): EventLabel {
       };
     }
 
+    case 'materials-scavenged': {
+      // The same "only what moved" rule the haul above follows, for the same
+      // reason — and an unskilled scavenger brings back exactly one thing.
+      const found = MATERIALS.filter((material) => event[material] !== 0).map(
+        (material) => `${String(event[material])} ${MATERIAL_LABELS[material]}`,
+      );
+
+      return {
+        text:
+          found.length === 0
+            ? `${event.name} scavenged and found nothing.`
+            : `${event.name} scavenged ${found.join(', ')}.`,
+        pages: 17,
+      };
+    }
+
     case 'materials-converted': {
       const of = (amounts: Partial<Record<Material, number>>) =>
         MATERIALS.filter((material) => (amounts[material] ?? 0) !== 0)

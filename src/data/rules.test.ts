@@ -40,6 +40,8 @@ import {
   CAMPAIGN_PHASES,
   FOOD_EATEN_PER_TURN,
   MATERIAL_ROLL_TABLE,
+  SCAVENGE_PER_MATERIAL_WITH_SKILL,
+  SCAVENGE_TOTAL_WITHOUT_SKILL,
   SIEGE_THREAT_TERMS,
   TURN_STEPS,
 } from './turn';
@@ -580,6 +582,48 @@ describe('the campaign turn', () => {
   it('builds Siege Threat out of five distinct terms', () => {
     expect(new Set(SIEGE_THREAT_TERMS).size).toBe(5);
   });
+
+  /**
+   * What a scavenger brings back when the community skips the mission (pg. 17):
+   * with the skill one of *every* type, without it one of a single type.
+   *
+   * Both flat, which is the transcription worth pinning — a reader who expects
+   * the Scavenge Score to scale the haul would write a multiplier, and the book
+   * gives a count.
+   */
+  it('pays a scavenger a flat one, per type with the skill and once without', () => {
+    expect(SCAVENGE_PER_MATERIAL_WITH_SKILL).toBe(1);
+    expect(SCAVENGE_TOTAL_WITHOUT_SKILL).toBe(1);
+  });
+});
+
+/**
+ * Playtest finding R3-H1, generalised the same way the base specials were.
+ *
+ * Scavenging was assignable, validated, persisted and labelled, and paid out
+ * nothing: the two constants saying what it yields were read by no module in
+ * the app (#163). Every *visible* part of the feature existed, which is why two
+ * rounds of phase-by-phase sweeping walked past it.
+ *
+ * A rules constant with no reader is a rule the app does not implement, however
+ * complete the screens around it look. This is the cheapest guard against the
+ * class: grep, for the same reason the specials do — the point is "somebody
+ * reads this at all", and a test that called the reader would need to know
+ * which function it lives in.
+ */
+describe('rules constants the engine has to read', () => {
+  const engine = Object.values(
+    import.meta.glob('../engine/*.ts', { query: '?raw', eager: true, import: 'default' }),
+  )
+    .filter((source): source is string => typeof source === 'string')
+    .join('\n');
+
+  it.each(['SCAVENGE_PER_MATERIAL_WITH_SKILL', 'SCAVENGE_TOTAL_WITHOUT_SKILL', 'REST_HEALTH'])(
+    '%s is read by the engine',
+    (constant) => {
+      expect(engine).toContain(constant);
+    },
+  );
 });
 
 /**

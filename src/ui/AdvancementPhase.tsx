@@ -31,6 +31,10 @@ import {
   combined,
   materialsAdded,
   recovered,
+  scavengeNeedsAChoice,
+  scavenged,
+  scavenger,
+  scavengesEverything,
   substitutionUses,
   substitutionsSpent,
   type MaterialRoll,
@@ -255,6 +259,14 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
     readPendingRolls(campaign.id, campaign.turn),
   );
 
+  /*
+   * What an unskilled scavenger brought back, which is the player's to say
+   * (pg. 17). Not kept beside the rolls in storage: the rolls are a record of
+   * dice nobody can roll again, and this is a choice that costs nothing to make
+   * a second time.
+   */
+  const [found, setFound] = useState<Material | undefined>(undefined);
+
   function remember(next: readonly MaterialRoll[]) {
     setRolls(next);
     writePendingRolls(campaign.id, campaign.turn, next);
@@ -264,6 +276,7 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
     dispatch({
       type: 'advancement/materialsAdded',
       rolls,
+      ...(found === undefined ? {} : { scavenged: found }),
       at: new Date().toISOString(),
     });
     // Cleared on commit rather than left to go stale on the turn stamp: the
@@ -276,7 +289,10 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
   const team = missionTeam(campaign);
   const fromMission = recovered(rolls);
   const fromBase = baseProduction(campaign);
-  const total = combined(fromMission, fromBase);
+  const scavenging = scavenger(campaign);
+  const fromScavenging = scavenged(campaign, found);
+  const total = combined(combined(fromMission, fromBase), fromScavenging);
+  const unchosen = scavengeNeedsAChoice(campaign, found);
   const { warnings } = checkMaterials(campaign, rolls);
   const spent = substitutionsSpent(rolls);
 
@@ -361,6 +377,60 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
             </ul>
           )}
 
+          {scavenging !== undefined && (
+            <div className="mt-4">
+              <p className="text-sm font-medium">
+                {scavenging.name} scavenged instead of going on the mission <PageRef pages={17} />
+              </p>
+
+              {scavengesEverything(scavenging) ? (
+                <p className={`${HINT} mt-1`}>
+                  They have Scavenge, so they bring back one of every material type. It is in the
+                  total below.
+                </p>
+              ) : (
+                <>
+                  <p className={`${HINT} mt-1`}>
+                    Without the Scavenge skill they bring back one material of a single type, and
+                    which one is yours to say.
+                  </p>
+
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <label className="text-sm font-medium" htmlFor="scavenged-material">
+                      Brought back
+                    </label>
+                    <select
+                      id="scavenged-material"
+                      value={found ?? ''}
+                      className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 px-3 dark:border-stone-600 dark:bg-stone-800`}
+                      onChange={(changed) => {
+                        setFound(
+                          changed.target.value === ''
+                            ? undefined
+                            : (changed.target.value as Material),
+                        );
+                      }}
+                    >
+                      <option value="">Nothing yet</option>
+                      {MATERIALS.map((material) => (
+                        <option key={material} value={material}>
+                          {MATERIAL_LABELS[material]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {unchosen && (
+                <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                  Nothing is chosen, so {scavenging.name}’s turn brings back nothing. This step does
+                  not run again this turn. <PageRef pages={17} />
+                </p>
+              )}
+            </div>
+          )}
+
           <p className="mt-4 text-sm font-medium">Going into storage</p>
           <ul className="mt-1 flex flex-col gap-0.5">
             {MATERIALS.map((material) => (
@@ -369,7 +439,11 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
                 {total[material]} {MATERIAL_LABELS[material]}
                 <span className="text-xs">
                   {' '}
-                  ({fromMission[material]} recovered, {fromBase[material]} produced)
+                  ({fromMission[material]} recovered, {fromBase[material]} produced
+                  {scavenging === undefined
+                    ? ''
+                    : `, ${String(fromScavenging[material])} scavenged`}
+                  )
                 </span>
               </li>
             ))}

@@ -176,6 +176,57 @@ describe('Add Materials to Storage', () => {
     expect(within(walk()).getByText(/\+0 Food/)).toBeTruthy();
   });
 
+  /**
+   * **#163, on the screen it went missing from.** Every visible part of
+   * scavenging existed — the Planning control, the warnings, the label — and
+   * the step that adds materials said nothing about it and added nothing.
+   */
+  describe('a survivor who scavenged instead', () => {
+    const scavenging = (skills: Partial<Record<'scavenge', number>>) =>
+      onTheStep({
+        survivors: [{ ...createSurvivor('Earl Rhodes', 3, { id: EARL }), skills }],
+        assignments: { [EARL]: { task: 'scavenging' } },
+      });
+
+    it('names them and counts one of every material, with the skill', () => {
+      open(scavenging({ scavenge: 0 }));
+
+      expect(within(walk()).getByText(/earl rhodes scavenged instead/i)).toBeTruthy();
+      expect(within(walk()).getByText(/\+1 Food/)).toBeTruthy();
+      expect(within(walk()).getByText(/\+1 Rare/)).toBeTruthy();
+    });
+
+    it('asks which material an unskilled scavenger brought back', async () => {
+      const user = open(scavenging({}));
+
+      // Nothing yet, and the screen says what that costs rather than letting
+      // the turn quietly come to nothing.
+      expect(within(walk()).getByText(/brings back nothing/i)).toBeTruthy();
+
+      await user.selectOptions(within(walk()).getByLabelText(/brought back/i), 'rare');
+
+      expect(within(walk()).getByText(/\+1 Rare/)).toBeTruthy();
+      expect(within(walk()).queryByText(/brings back nothing/i)).toBeNull();
+    });
+
+    it('puts it in storage and writes it in the history', async () => {
+      const user = open(scavenging({ scavenge: 0 }));
+
+      await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
+
+      expect(screen.getByLabelText(/^rare$/i)).toHaveValue(1);
+      expect(
+        screen.getByText(/earl rhodes scavenged 1 food, 1 fuel, 1 hardware, 1 rare/i),
+      ).toBeTruthy();
+    });
+
+    it('says nothing at all when nobody scavenged', () => {
+      open(onTheStep());
+
+      expect(within(walk()).queryByText(/scavenged instead/i)).toBeNull();
+    });
+  });
+
   it('turns a roll into the material the table gives', async () => {
     const user = open(onTheStep());
 

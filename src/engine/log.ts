@@ -115,6 +115,30 @@ export type CampaignEvent =
       readonly rare: number;
     }
   /**
+   * A survivor scavenged instead of going on the mission (pg. 17).
+   *
+   * Its own entry rather than a line folded into `materials-added`, because the
+   * two answer different questions: that one is what went into storage, and
+   * this one is what a survivor's whole turn was worth. A community that skips
+   * a mission pays for the decision with both, and a history that recorded only
+   * the total could not tell a player whether scavenging had been worth it.
+   *
+   * Carries the name beside the id, like every other entry about a person: the
+   * survivor may have walked out by the time anybody reads it back.
+   *
+   * Not load-bearing. `materials-added` is what keeps the step from running
+   * twice, and this is written in the same breath as that one.
+   */
+  | {
+      readonly kind: 'materials-scavenged';
+      readonly survivor: string;
+      readonly name: string;
+      readonly food: number;
+      readonly fuel: number;
+      readonly hardware: number;
+      readonly rare: number;
+    }
+  /**
    * A facility or upgrade traded materials for other materials (pg. 19, 72–73).
    *
    * **Load-bearing**, like the two above: where the book states a cap per turn

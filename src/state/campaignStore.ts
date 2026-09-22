@@ -46,6 +46,8 @@ import {
   combined,
   materialsAdded,
   recovered,
+  scavenged,
+  scavenger,
   withMaterialsAdded,
   type MaterialRoll,
 } from '../engine/materials';
@@ -321,12 +323,18 @@ export type CampaignAction =
    * lives. A screen that worked out the total itself would be a second copy of
    * the rule that a substitution *changes* a roll rather than adding one.
    *
+   * `scavenged` is the one thing about the haul the campaign cannot work out:
+   * a scavenger without the Scavenge skill brings back one material of a type
+   * the *player* picks (pg. 17). With the skill it is one of each and this is
+   * ignored, and with nobody scavenging there is nothing to pick.
+   *
    * Refused when this turn already has the entry: the step is destructive and
    * the walk can go back over it.
    */
   | {
       readonly type: 'advancement/materialsAdded';
       readonly rolls: readonly MaterialRoll[];
+      readonly scavenged?: Material;
       readonly at: string;
     }
   /**
@@ -812,11 +820,25 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return withCampaign(state, (campaign) => {
         if (materialsAdded(campaign)) return campaign;
 
-        const adding = combined(recovered(action.rolls), baseProduction(campaign));
-
-        return logged(withMaterialsAdded(campaign, adding), action.at, {
+        const found = scavenged(campaign, action.scavenged);
+        const adding = combined(combined(recovered(action.rolls), baseProduction(campaign)), found);
+        const stored = logged(withMaterialsAdded(campaign, adding), action.at, {
           kind: 'materials-added',
           ...adding,
+        });
+
+        // After the haul rather than before it, so the history reads in the
+        // order the step happened: what went into storage, and then what one
+        // survivor's turn away from the mission was worth. Nothing to say when
+        // nobody scavenged.
+        const survivor = scavenger(campaign);
+        if (survivor === undefined) return stored;
+
+        return logged(stored, action.at, {
+          kind: 'materials-scavenged',
+          survivor: survivor.id,
+          name: survivor.name,
+          ...found,
         });
       });
 

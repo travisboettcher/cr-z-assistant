@@ -287,6 +287,14 @@ const EVENT_FIELDS: Record<
   'turn-began': [],
   'starting-community-settled': [['built', 'flag']],
   'planning-began': [['cleared', 'optionalAssignments']],
+  'materials-scavenged': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['food', 'count'],
+    ['fuel', 'count'],
+    ['hardware', 'count'],
+    ['rare', 'count'],
+  ],
   'materials-added': [
     ['food', 'amount'],
     ['fuel', 'amount'],
