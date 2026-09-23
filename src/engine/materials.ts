@@ -47,7 +47,8 @@ import {
 } from '../data/turn';
 import type { D10Result } from '../data/dice';
 import { storageCaps } from './base';
-import { beforePlanning, missionTeam, staffOf, survivorsDoing } from './assignments';
+import { beforePlanning, staffOf, survivorsDoing } from './assignments';
+import { deployed } from './siege';
 import type { Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
 import { facilityProduction, NO_PENALTY } from './production';
@@ -225,7 +226,10 @@ function isMaterial(output: string): output is Material {
 export function substitutionUses(campaign: Campaign, skill: SubstitutionSkill): number {
   const penalty = hungerPenalty(campaign);
 
-  return missionTeam(beforePlanning(campaign)).reduce(
+  // The same team the XP pools read: everybody deploys to a Siege Defense
+  // (pg. 85), so a siege turn's substitutions are the whole community's Scores
+  // rather than an empty team's nothing (#167).
+  return deployed(campaign).reduce(
     (total, survivor) => total + (skillScore(survivor, skill, penalty) ?? 0),
     0,
   );

@@ -45,7 +45,8 @@ import {
   XP_SOURCE_PAGES,
   type XpSource,
 } from '../data/turn';
-import { beforePlanning, missionTeam, staffOf } from './assignments';
+import { beforePlanning, staffOf } from './assignments';
+import { deployed } from './siege';
 import { suppliedOccupants } from './utilities';
 import type { Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
@@ -129,7 +130,7 @@ export interface XpPool {
 export function missionTeaching(campaign: Campaign): number {
   const penalty = hungerPenalty(campaign);
 
-  return missionTeam(beforePlanning(campaign)).reduce(
+  return deployed(campaign).reduce(
     (total, survivor) => total + (skillScore(survivor, 'teaching', penalty) ?? 0),
     0,
   );
@@ -186,7 +187,8 @@ export function awardedThisTurn(
  * out" is more useful than a row that is not there.
  */
 export function xpPools(campaign: Campaign): readonly XpPool[] {
-  const team = missionTeam(beforePlanning(campaign));
+  // The assigned team, or the whole community where a siege deployed it (#167).
+  const team = deployed(campaign);
   const teaching = missionTeaching(campaign);
   const onTheMission = new Set(team.map((survivor) => survivor.id));
   const offTheMission = campaign.survivors.filter((survivor) => !onTheMission.has(survivor.id));

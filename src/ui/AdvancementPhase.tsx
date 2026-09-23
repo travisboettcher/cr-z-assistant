@@ -39,7 +39,7 @@ import {
   substitutionsSpent,
   type MaterialRoll,
 } from '../engine/materials';
-import { missionTeam } from '../engine/assignments';
+import { deployed } from '../engine/siege';
 import {
   checkConversion,
   conversions,
@@ -286,7 +286,8 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
   }
 
   const done = materialsAdded(campaign);
-  const team = missionTeam(campaign);
+  // Everybody, on a turn a siege deployed them (#167).
+  const team = deployed(campaign);
   const fromMission = recovered(rolls);
   const fromBase = baseProduction(campaign);
   const scavenging = scavenger(campaign);

@@ -57,7 +57,7 @@ import { healthAwards, withWoundsHealed, woundsHealed } from '../engine/healing'
 import { foodRequired, hungerIfFedNow, survivorsFed, withSurvivorsFed } from '../engine/feeding';
 import { rotCheckResolved, rotOutcome, rotTarget, withRotApplied } from '../engine/rot';
 import { overCap, storageChecked, withStorageChecked } from '../engine/storage';
-import { hordeChecked, siegeThreat, siegeTriggered } from '../engine/siege';
+import { deployed, hordeChecked, siegeDue, siegeThreat, siegeTriggered } from '../engine/siege';
 import { departureCandidates, someoneDeparted, withDeparture } from '../engine/departures';
 import { missionTeam, missionTeamReduced } from '../engine/assignments';
 import { storageCaps } from '../engine/base';
@@ -569,7 +569,26 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
           });
         }
 
-        if (move.endsTurn) return logged(moved, action.at, { kind: 'turn-began' });
+        if (move.endsTurn) {
+          const begun = logged(moved, action.at, { kind: 'turn-began' });
+
+          /*
+           * A siege is a fact of the turn it is fought on, and the turn is
+           * where it becomes one: `siegeDue` reads the previous turn's
+           * `horde-checked` entry, so the answer is known the moment the turn
+           * opens and nothing later in the walk announces it. Two sieges in a
+           * twenty-turn campaign left no trace at all (#167).
+           *
+           * Written once, because a turn begins once — stepping back and
+           * forward within the turn does not pass through here.
+           */
+          return siegeDue(begun)
+            ? logged(begun, action.at, {
+                kind: 'siege-fought',
+                names: deployed(begun).map((survivor) => survivor.name),
+              })
+            : begun;
+        }
         if (move.entersPhase) return logged(moved, action.at, { kind: 'phase-entered' });
 
         return moved;

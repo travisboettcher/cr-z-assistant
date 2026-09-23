@@ -31,11 +31,17 @@
 import { SIEGE_THREAT_TERMS, SIEGE_TRIGGER, type SiegeThreatTerm } from '../data/turn';
 import { suppliedOccupants } from './utilities';
 import type { D10Result } from '../data/dice';
-import { projectTeam, staffOf, staffedFacilityCount } from './assignments';
+import {
+  beforePlanning,
+  missionTeam,
+  projectTeam,
+  staffOf,
+  staffedFacilityCount,
+} from './assignments';
 import { siegeThreatFromBase, siegeThreatReduction } from './base';
 import { hungerPenalty } from './feeding';
 import { facilityProduction } from './production';
-import type { Campaign } from './campaign';
+import type { Campaign, Survivor } from './campaign';
 
 /**
  * The turn a campaign that has never been besieged counts from.
@@ -150,6 +156,35 @@ export function siegeTriggered(roll: D10Result, threat: number): boolean {
 /** Whether this turn's mission is the siege the horde called (pg. 23). */
 export function siegeDue(campaign: Campaign): boolean {
   return siegeTurns(campaign).includes(campaign.turn);
+}
+
+/**
+ * Who went out on this turn's mission (pg. 18, 85).
+ *
+ * The assigned team on an ordinary turn, and **the whole community on a siege
+ * turn**: pg. 85 deploys every survivor to a Siege Defense, so a forced siege
+ * has a mission team without anybody assigning one.
+ *
+ * Nothing said so, and three things went wrong at once (#167). A siege turn
+ * awarded no mission XP to a community that had just fought one; the Teacher
+ * pool was sized from the same empty team, so a Teacher who deployed handed
+ * out nothing; and the Training Room offered its XP to the siege team, because
+ * pg. 70 restricts it to survivors *not* on the mission and there was no team
+ * to exclude. The Advancement Phase said "Nobody is on a mission team, so there
+ * is no mission XP this turn" beside a roster that had all gone out — false
+ * twice over, once in the number and once in the reason.
+ *
+ * Here rather than in `assignments.ts` because the rule that changes the answer
+ * is the siege rule, and that module cannot ask about sieges: this one already
+ * reads it for the Threat terms, so the import would be a cycle.
+ *
+ * Derived rather than written into `assignments`. A siege overrides nothing
+ * else about the turn — the staffing and the project team were decided in the
+ * Planning Phase before it, and rewriting them would be Phase 4 deciding what
+ * a Siege Defense costs the base, which is not this issue's to say.
+ */
+export function deployed(campaign: Campaign): readonly Survivor[] {
+  return siegeDue(campaign) ? campaign.survivors : missionTeam(beforePlanning(campaign));
 }
 
 /** Whether this turn's Check the Horde has already been rolled. */

@@ -27,6 +27,10 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   // Negative, because a facility that eats Food can outweigh the haul (pg. 55)
   // and the validator has to accept an amount no other event's field would.
   { kind: 'materials-added', food: -2, fuel: 0, hardware: 0, rare: 0 },
+  { kind: 'siege-fought', names: ['Earl Rhodes', 'Carla Proust'] },
+  // Nobody, which is a real state rather than a missing field: a community can
+  // be down to nothing by the turn the horde arrives.
+  { kind: 'siege-fought', names: [] },
   {
     kind: 'materials-scavenged',
     survivor: 'b7e41f28-3c60-4d95-8a12-6f0e9d4c7b53',

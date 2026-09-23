@@ -106,6 +106,15 @@ export function describeEvent(event: CampaignEvent): EventLabel {
       };
     }
 
+    case 'siege-fought':
+      return {
+        text:
+          event.names.length === 0
+            ? 'The horde arrived, and there was nobody left to meet it.'
+            : `The horde arrived, and the whole community deployed: ${event.names.join(', ')}.`,
+        pages: 85,
+      };
+
     case 'materials-scavenged': {
       // The same "only what moved" rule the haul above follows, for the same
       // reason — and an unskilled scavenger brings back exactly one thing.

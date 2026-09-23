@@ -3217,3 +3217,65 @@ describe('the Management Phase', () => {
     ]);
   });
 });
+
+/**
+ * **#167's log gap.** Two sieges over a twenty-turn campaign left no trace in
+ * the log at all: a history could say the horde had been rolled for and could
+ * not say whether the siege it called was ever fought, only that
+ * `turnsSinceLastSiege` had reset.
+ */
+describe('a siege turn beginning', () => {
+  const EARL = '11111111-aaaa-4bbb-8ccc-000000000001';
+  const CARLA = '22222222-aaaa-4bbb-8ccc-000000000002';
+
+  /** A community standing at the last step of a turn the horde was called on. */
+  const called = (): CampaignState =>
+    openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      turn: 2,
+      step: 'departures',
+      survivors: [
+        createSurvivor('Earl Rhodes', 4, { id: EARL }),
+        createSurvivor('Carla Proust', 3, { id: CARLA }),
+      ],
+      log: [
+        {
+          turn: 2,
+          phase: 'management',
+          at: AT,
+          event: { kind: 'horde-checked', roll: 10, threat: 6, siege: true },
+        },
+      ],
+    });
+
+  const begin = (state: CampaignState) =>
+    expectOpen(campaignReducer(state, { type: 'turn/advanced', by: 'step', at: AT }));
+
+  it('records that the siege was fought, and by whom', () => {
+    const after = begin(called());
+
+    expect(after.turn).toBe(3);
+    expect(after.log.at(-1)?.event).toEqual({
+      kind: 'siege-fought',
+      names: ['Earl Rhodes', 'Carla Proust'],
+    });
+  });
+
+  it('writes nothing on a turn the horde was not called for', () => {
+    const quiet = openState({ ...expectOpen(called()), log: [] });
+
+    expect(begin(quiet).log.map((entry) => entry.event.kind)).toEqual(['turn-began']);
+  });
+
+  /** Once, because a turn begins once — stepping about within it does not. */
+  it('records it once however the walk moves afterwards', () => {
+    let state = openState(begin(called()));
+    state = campaignReducer(state, { type: 'turn/advanced', by: 'step', at: AT });
+    state = campaignReducer(state, { type: 'turn/reversed' });
+    state = campaignReducer(state, { type: 'turn/advanced', by: 'step', at: AT });
+
+    expect(
+      expectOpen(state).log.filter((entry) => entry.event.kind === 'siege-fought'),
+    ).toHaveLength(1);
+  });
+});

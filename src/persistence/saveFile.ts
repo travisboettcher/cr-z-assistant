@@ -233,6 +233,12 @@ const EVENT_FIELD_CHECKS = {
   // renamed.
   optionalId: (value: unknown) =>
     value === undefined || (typeof value === 'string' && value !== ''),
+  // Everybody who deployed to a Siege Defense, by name (pg. 85). A list rather
+  // than a count, and of names rather than ids, because it is a record for a
+  // reader: a community that fought a siege is the roster as it stood, and the
+  // survivors in it may be gone by the time anybody looks.
+  names: (value: unknown) =>
+    Array.isArray(value) && value.every((one) => typeof one === 'string' && one !== ''),
   // What a `planning-began` entry cleared, or nothing at all for one written
   // before it carried anything. Deliberately **not** checked against the roster
   // the way the campaign's own `assignments` are: this is history, and the turn
@@ -287,6 +293,7 @@ const EVENT_FIELDS: Record<
   'turn-began': [],
   'starting-community-settled': [['built', 'flag']],
   'planning-began': [['cleared', 'optionalAssignments']],
+  'siege-fought': [['names', 'names']],
   'materials-scavenged': [
     ['survivor', 'id'],
     ['name', 'name'],

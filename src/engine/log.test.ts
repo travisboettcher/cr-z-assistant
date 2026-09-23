@@ -97,6 +97,7 @@ describe('the event samples', () => {
     'planning-began': true,
     'materials-added': true,
     'materials-scavenged': true,
+    'siege-fought': true,
     'materials-converted': true,
     'xp-awarded': true,
     'health-restored': true,

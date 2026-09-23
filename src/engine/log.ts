@@ -115,6 +115,24 @@ export type CampaignEvent =
       readonly rare: number;
     }
   /**
+   * The horde arrived, and the community fought it (pg. 23, 85).
+   *
+   * Two sieges over a twenty-turn campaign left **no trace in the log at all**:
+   * a history could say the horde had been rolled for and could not say whether
+   * the siege it called was ever fought, only that `turnsSinceLastSiege` had
+   * reset (#167). The log is otherwise a complete record, which made this a
+   * conspicuous hole rather than a small one.
+   *
+   * Carries the names because pg. 85 deploys *everybody* — the one turn where
+   * who went out is a fact about the whole community rather than a team
+   * somebody picked, and the roster it names can have changed by the time
+   * anybody reads it back.
+   *
+   * Not load-bearing: `siegeDue` reads the previous turn's `horde-checked`
+   * entry, so this records what happened rather than deciding it.
+   */
+  | { readonly kind: 'siege-fought'; readonly names: readonly string[] }
+  /**
    * A survivor scavenged instead of going on the mission (pg. 17).
    *
    * Its own entry rather than a line folded into `materials-added`, because the
