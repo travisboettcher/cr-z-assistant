@@ -21,7 +21,8 @@
 import { checkBuild } from './build';
 import { checkClearing } from './clearing';
 import { checkUpgrade } from './upgrade';
-import type { Campaign, Project } from './campaign';
+import type { Campaign, PlacedOrder, Project } from './campaign';
+import { orderable } from './projects';
 import type { Check } from './checks';
 import type { CampaignEvent } from './log';
 
@@ -38,7 +39,25 @@ import type { CampaignEvent } from './log';
  * it came from. Each module keeps its own union, which is what stops a build
  * violation being returned from an upgrade check.
  */
-export function checkOrder(campaign: Campaign, project: Project): Check<string> {
+export function checkOrder(campaign: Campaign, project: PlacedOrder): Check<string> {
+  // R14, ahead of the three: an order placed outside the Planning Phase is one
+  // nothing can take back, so this refuses rather than warning. A blocker is
+  // not overridable — `permitted` unlocks warnings only — which is what makes
+  // it the right shape for a rule whose whole point is that the state it
+  // produces has no way out (#171).
+  if (!orderable(campaign)) {
+    return {
+      blockers: [
+        {
+          code: 'outside-the-planning-phase',
+          message: 'Projects are ordered in the Planning Phase.',
+          pages: 20,
+        },
+      ],
+      warnings: [],
+    };
+  }
+
   if (project.kind === 'facility') {
     return checkBuild(campaign, { slot: project.slot, facility: project.facility });
   }
@@ -51,7 +70,7 @@ export function checkOrder(campaign: Campaign, project: Project): Check<string> 
 }
 
 /** What the log says when a project is ordered (pg. 20). */
-export function orderedEvent(project: Project): CampaignEvent {
+export function orderedEvent(project: PlacedOrder): CampaignEvent {
   if (project.kind === 'facility') {
     return { kind: 'facility-ordered', slot: project.slot, facility: project.facility };
   }

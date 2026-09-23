@@ -4,6 +4,7 @@ import { createSurvivor } from './survivor';
 import type { LogEntry } from './log';
 import { outstanding } from './outstanding';
 import { projectTeamWorth, withPlanningBegun } from '../test/campaigns';
+import { queued } from '../test/queued';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 const AT = '2026-09-12T09:00:00.000Z';
@@ -123,7 +124,9 @@ describe('outstanding', () => {
 
   it('names projects that were due and did not land', () => {
     const due = settled({
-      projects: [{ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 2 }],
+      projects: [
+        queued({ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 2 }),
+      ],
     });
 
     expect(steps(due)).toContain('add-facilities-and-upgrades');
@@ -139,7 +142,14 @@ describe('outstanding', () => {
       ...settled(),
       ...projectTeamWorth(1),
       step: 'departures',
-      projects: [{ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 }],
+      // Charged with its Labor, because that is the number the shortfall is
+      // measured against: a Workshop commits 2 against a pool of 1.
+      projects: [
+        queued(
+          { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+          { hardware: 3, labor: 2 },
+        ),
+      ],
     });
 
     const owed = outstanding(short).find((entry) => entry.says.includes('Labor short'));

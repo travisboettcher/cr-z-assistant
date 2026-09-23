@@ -233,6 +233,12 @@ const EVENT_FIELD_CHECKS = {
   // renamed.
   optionalId: (value: unknown) =>
     value === undefined || (typeof value === 'string' && value !== ''),
+  // Everybody who deployed to a Siege Defense, by name (pg. 85). A list rather
+  // than a count, and of names rather than ids, because it is a record for a
+  // reader: a community that fought a siege is the roster as it stood, and the
+  // survivors in it may be gone by the time anybody looks.
+  names: (value: unknown) =>
+    Array.isArray(value) && value.every((one) => typeof one === 'string' && one !== ''),
   // What a `planning-began` entry cleared, or nothing at all for one written
   // before it carried anything. Deliberately **not** checked against the roster
   // the way the campaign's own `assignments` are: this is history, and the turn
@@ -287,6 +293,15 @@ const EVENT_FIELDS: Record<
   'turn-began': [],
   'starting-community-settled': [['built', 'flag']],
   'planning-began': [['cleared', 'optionalAssignments']],
+  'siege-fought': [['names', 'names']],
+  'materials-scavenged': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['food', 'count'],
+    ['fuel', 'count'],
+    ['hardware', 'count'],
+    ['rare', 'count'],
+  ],
   'materials-added': [
     ['food', 'amount'],
     ['fuel', 'amount'],
@@ -340,6 +355,8 @@ const EVENT_FIELDS: Record<
   ],
   'project-unfinished': [
     ['slot', 'id'],
+    // As above, and for the same reason: the refund is the same one.
+    ['hardware', 'optionalCount'],
     ['built', 'optionalId'],
   ],
   'storage-checked': [
@@ -525,8 +542,8 @@ function describeAssignmentProblem(value: unknown): string | null {
  * A full `Record` over the kinds, so a project kind added to `campaign.ts`
  * without a line here fails the typecheck rather than sailing through
  * validation unchecked — the same guarantee `EVENT_FIELDS` gives log events.
- * Every kind carries a slot and the turn it was ordered on; only two carry
- * anything else.
+ * Every kind carries a slot, the turn it was ordered on and what it was
+ * charged; only two carry anything else.
  */
 const PROJECT_FIELDS: Record<
   Project['kind'],
@@ -547,6 +564,16 @@ const PROJECT_FIELDS: Record<
  * refers to nothing: a kind this version has never heard of, or a facility id
  * that is not in the catalogue.
  */
+/**
+ * A recorded `Cost` — the pair of numbers a queued project carries.
+ *
+ * Both required and neither negative: an order that took no Hardware records a
+ * zero, which is a different fact from a file that does not say.
+ */
+function isCost(value: unknown): boolean {
+  return isRecord(value) && isCountFromZero(value.hardware) && isCountFromZero(value.labor);
+}
+
 function describeProjectProblem(value: unknown): string | null {
   if (!isRecord(value)) return 'is not a project';
 
@@ -557,6 +584,10 @@ function describeProjectProblem(value: unknown): string | null {
 
   if (!EVENT_FIELD_CHECKS.id(value.slot)) return 'does not say which slot it is for';
   if (!isCountFromOne(value.orderedOnTurn)) return 'does not say which turn it was ordered on';
+  // From v12. Required rather than optional, because the migration fills it in
+  // for every older save: a queued project with no charge on it would be one
+  // the refund has to guess at, which is the whole of #165.
+  if (!isCost(value.charged)) return 'does not say what it was charged';
 
   for (const [field, check] of PROJECT_FIELDS[kind as Project['kind']]) {
     if (!EVENT_FIELD_CHECKS[check](value[field])) return `has an unreadable ${field}`;

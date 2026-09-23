@@ -312,7 +312,7 @@ function Feed({ campaign }: { readonly campaign: Campaign }) {
 
   // Once the step has run, the penalty in force is the recorded one and the
   // head count it was priced against is recorded with it — both terms as the
-  // Feed step saw them (ruling 1). Pairing a recorded shortfall with a live
+  // Feed step saw them (R1). Pairing a recorded shortfall with a live
   // roster is #102, which was fixed in `feeding.ts` and left standing here: add
   // a survivor after Feed and this line said no stat was reduced while every
   // survivor sheet in the same page load said all of them were.

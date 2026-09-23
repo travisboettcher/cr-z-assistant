@@ -6,6 +6,7 @@ import { createSurvivor } from '../engine/survivor';
 import { generatingFlatUtility, withPlanningBegun } from '../test/campaigns';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
+import { queued } from '../test/queued';
 
 const EARL = 'earl';
 const CARLA = 'carla';
@@ -113,7 +114,7 @@ describe('the penalty the Feed step reports', () => {
     expect(walk().textContent).toContain('every survivor’s stats drop by 3');
 
     // A survivor arrives afterwards. The penalty in force was priced at Feed
-    // and does not move (ruling 1) — so this line must not move either.
+    // and does not move (R1) — so this line must not move either.
     await user.type(screen.getByLabelText(/survivor name/i), 'Gil Moss');
     await user.selectOptions(screen.getByLabelText(/^tier$/i), '4');
     await user.click(screen.getByRole('button', { name: /add survivor/i }));
@@ -511,7 +512,14 @@ describe('a Labor shortfall outstanding', () => {
     withPlanningBegun({
       ...management({ step }),
       assignments: {},
-      projects: [{ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 }],
+      // The Labor it committed is the shortfall, so it is the number the order
+      // has to carry.
+      projects: [
+        queued(
+          { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+          { hardware: 3, labor: 2 },
+        ),
+      ],
     });
 
   /**
@@ -717,7 +725,12 @@ describe('Departures', () => {
           'survivor-0': { task: 'project' },
           'survivor-1': { task: 'project' },
         },
-        projects: [{ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 }],
+        projects: [
+          queued(
+            { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+            { hardware: 3, labor: 2 },
+          ),
+        ],
         // Fed first, because Feed is step 1 of this phase and Hunger is read
         // off its entry — a campaign standing at Departures has eaten.
         log: [
@@ -765,7 +778,7 @@ describe('Departures', () => {
     // Named, not just placed: the entry says which project left the queue, the
     // way the order and built entries always have (#151).
     expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
-      'The Workshop on the Garage went unfinished',
+      'The Workshop in the Garage went unfinished',
     );
   });
 

@@ -29,7 +29,8 @@ export type ViolationCode =
   | 'not-enough-skills'
   | 'skill-above-tier'
   | 'stats-not-tier-array'
-  | 'community-over-budget';
+  | 'community-over-budget'
+  | 'over-hero-cap';
 
 export interface Violation {
   readonly code: ViolationCode;
@@ -135,6 +136,48 @@ export function communityViolations(
       code: 'community-over-budget',
       message: `A starting community is built from ${STARTING_COMMUNITY_TIER_LEVELS} tier levels, and this one spends ${spent}.`,
       pages: 13,
+    },
+  ];
+}
+
+/**
+ * What is wrong with promoting this survivor, or an empty list (pg. 54).
+ *
+ * A base's Tier is the maximum number of Hero-Tier survivors the community may
+ * hold. The app knew the rule well enough to compute the cap, print it on the
+ * base sheet and report the violation — **HEROES 4 / 2 — Over what this base
+ * allows** — and not well enough to mention it at the moment of the purchase,
+ * which is the only moment a player could act on it (#168). A twenty-turn
+ * campaign on a Tier 2 base promoted a third and then a fourth Hero with no
+ * warning and no blocker.
+ *
+ * A **warning** rather than a refusal, which is Z3-6's posture and the same
+ * shape `build.ts` gives an illegal slot: the app says the rule and the player
+ * may play past it, because a table's campaign is theirs.
+ *
+ * Counts and caps rather than a campaign, like `communityViolations` above:
+ * this module reads survivors and rules, and a base belongs to its own.
+ *
+ * The book's other half — moving into a lower-Tier base forces a Hero out — is
+ * a base-change concern and belongs with Claim a New Base in Phase 4.
+ */
+export function promotionViolations(
+  survivor: Survivor,
+  heroes: number,
+  cap: number,
+): readonly Violation[] {
+  // Only the promotion that makes a Hero. Every other one leaves the count
+  // alone, and a Hero has nowhere left to go.
+  if (survivor.tier !== 3 || heroes < cap) return [];
+
+  return [
+    {
+      code: 'over-hero-cap',
+      message:
+        cap === 0
+          ? 'This base allows no Hero-Tier survivors at all.'
+          : `This base allows ${String(cap)} Hero-Tier survivor${cap === 1 ? '' : 's'}, and the community already has ${String(heroes)}.`,
+      pages: 54,
     },
   ];
 }

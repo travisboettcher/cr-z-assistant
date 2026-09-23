@@ -101,7 +101,7 @@ describe('the First Mission team', () => {
   });
 
   /**
-   * #145, and [ruling 7](../../docs/phase-3-stories.md): a point handed out
+   * #145, and [R7](../../docs/rulings.md): a point handed out
    * stays handed out. A team edited after its XP is spent leaves a later
    * arrival eligible with nothing to give them — which is a fine rule and was
    * an unexplained dead button, the thing `advancement.ts` argues against in as

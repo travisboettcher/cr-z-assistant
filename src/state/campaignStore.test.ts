@@ -10,6 +10,7 @@ import { createSurvivor, recruitSurvivor } from '../engine/survivor';
 import { generatingUtilities, projectTeamWorth, withPlanningBegun } from '../test/campaigns';
 import { INITIAL_CAMPAIGN_STATE, campaignReducer } from './campaignStore';
 import type { CampaignAction, CampaignState } from './campaignStore';
+import { queued as onOrder } from '../test/queued';
 
 /**
  * A fixed dispatch time, so an entry the log stamps is a value a test can
@@ -1064,6 +1065,8 @@ describe('project/ordered', () => {
         ...createNewCampaign('Cedar Hollow', FIXED),
         materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
         turn: 3,
+        // The phase orders are placed in (R14, #171).
+        step: 'assign-project-team',
         base: { id: 'small-town-home', slots: {} },
         ...projectTeamWorth(5),
       }),
@@ -1085,7 +1088,10 @@ describe('project/ordered', () => {
     );
 
     expect(campaign.projects).toEqual([
-      { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+      onOrder(
+        { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+        { hardware: 3, labor: 2 },
+      ),
     ]);
     expect(campaign.materials.hardware).toBe(6);
   });
@@ -1185,12 +1191,28 @@ describe('project/ordered', () => {
     expect(expectOpen(twice).materials.hardware).toBe(6);
   });
 
+  /**
+   * **#171.** The reducer's half of R14: the screen refuses, and so does this,
+   * because a stale screen is exactly what the check here exists to catch.
+   */
+  it('refuses an order placed outside the Planning Phase, and keeps the Hardware', () => {
+    const late = openState({ ...expectOpen(withBase()), step: 'check-storage' });
+    const after = expectOpen(
+      campaignReducer(late, order({ kind: 'facility', slot: 'garage', facility: 'workshop' })),
+    );
+
+    expect(after.projects).toEqual([]);
+    expect(after.materials.hardware).toBe(9);
+    expect(after.log).toEqual(expectOpen(late).log);
+  });
+
   it('orders an upgrade and a clearing by the same action', () => {
     const farm = openState(
       withPlanningBegun({
         ...createNewCampaign('Cedar Hollow', FIXED),
         materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
         turn: 3,
+        step: 'assign-project-team',
         base: { id: 'hobby-farm', slots: {} },
         ...projectTeamWorth(9),
       }),
@@ -1205,8 +1227,14 @@ describe('project/ordered', () => {
     );
 
     expect(expectOpen(cleared).projects).toEqual([
-      { kind: 'upgrade', slot: 'kitchen', upgrade: 'gas-range', orderedOnTurn: 3 },
-      { kind: 'clearing', slot: 'ruined-chicken-coop', orderedOnTurn: 3 },
+      onOrder(
+        { kind: 'upgrade', slot: 'kitchen', upgrade: 'gas-range', orderedOnTurn: 3 },
+        { hardware: 2, labor: 1 },
+      ),
+      onOrder(
+        { kind: 'clearing', slot: 'ruined-chicken-coop', orderedOnTurn: 3 },
+        { hardware: 0, labor: 2 },
+      ),
     ]);
     // The Gas Range's two Hardware; a clearing project costs none.
     expect(expectOpen(cleared).materials.hardware).toBe(7);
@@ -1260,19 +1288,29 @@ describe('project/cancelled', () => {
     );
   }
 
+  /**
+   * Two orders placed, and the turn then standing wherever the caller asks.
+   *
+   * **Placed in the Planning Phase whatever `step` says**, because R14 confines
+   * ordering to it and the walk is how a campaign gets anywhere else (#171).
+   * A fixture that ordered from the later step would now be building a state
+   * no campaign can reach, and the cancel guard it exists to exercise would
+   * never be the thing under test.
+   */
   function ordered(step: TurnStepId = 'assign-project-team'): CampaignState {
-    const base = queueable(step);
-    const one = campaignReducer(base, {
+    const one = campaignReducer(queueable(), {
       type: 'project/ordered',
       at: AT,
       project: { kind: 'facility', slot: 'garage', facility: 'workshop' },
     });
 
-    return campaignReducer(one, {
+    const two = campaignReducer(one, {
       type: 'project/ordered',
       at: AT,
       project: { kind: 'facility', slot: 'front-yard', facility: 'watchtower' },
     });
+
+    return openState({ ...expectOpen(two), step });
   }
 
   it('takes the named order out and gives its Hardware back', () => {
@@ -1440,8 +1478,14 @@ describe('management/projectUnfinished', () => {
         step: 'departures',
         base: { id: 'small-town-home', slots: {} },
         projects: [
-          { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
-          { kind: 'facility', slot: 'front-yard', facility: 'workshop', orderedOnTurn: 3 },
+          onOrder(
+            { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+            { hardware: 3, labor: 2 },
+          ),
+          onOrder(
+            { kind: 'facility', slot: 'front-yard', facility: 'workshop', orderedOnTurn: 3 },
+            { hardware: 3, labor: 2 },
+          ),
         ],
         ...projectTeamWorth(4),
       }),
@@ -1462,8 +1506,14 @@ describe('management/projectUnfinished', () => {
 
     expect(laborShortfall(before)).toBe(2);
     expect(after.projects.map((project) => project.slot)).toEqual(['garage']);
-    expect(after.materials.hardware).toBe(before.materials.hardware + 3);
     expect(laborShortfall(after)).toBe(0);
+
+    // The number the order carries, not one priced again — this step shares
+    // `withProjectCancelled` with `project/cancelled`, so #165's guarantee is
+    // the same guarantee here and reading it off the order says so.
+    expect(after.materials.hardware).toBe(
+      before.materials.hardware + (before.projects[1]?.charged.hardware ?? 0),
+    );
   });
 
   it('writes a line that says what it was rather than a cancellation', () => {
@@ -1474,6 +1524,7 @@ describe('management/projectUnfinished', () => {
     expect(after.log.at(-1)?.event).toEqual({
       kind: 'project-unfinished',
       slot: 'garage',
+      hardware: 3,
       built: 'workshop',
     });
   });
@@ -1497,7 +1548,10 @@ describe('management/projectUnfinished', () => {
       ...expectOpen(short()),
       projects: [
         ...expectOpen(short()).projects,
-        { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: 2 },
+        onOrder(
+          { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: 2 },
+          { hardware: 3, labor: 2 },
+        ),
       ],
     });
 
@@ -1528,8 +1582,14 @@ describe('advancement/projectsCompleted', () => {
       turn: 3,
       base: { id: 'hobby-farm', slots: {} },
       projects: [
-        { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: 2 },
-        { kind: 'clearing', slot: 'ruined-chicken-coop', orderedOnTurn: 2 },
+        onOrder(
+          { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: 2 },
+          { hardware: 3, labor: 2 },
+        ),
+        onOrder(
+          { kind: 'clearing', slot: 'ruined-chicken-coop', orderedOnTurn: 2 },
+          { hardware: 0, labor: 2 },
+        ),
       ],
     });
   }
@@ -1555,14 +1615,23 @@ describe('advancement/projectsCompleted', () => {
     const mixed = openState({
       ...expectOpen(due()),
       projects: [
-        { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: 2 },
-        { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+        onOrder(
+          { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: 2 },
+          { hardware: 3, labor: 2 },
+        ),
+        onOrder(
+          { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+          { hardware: 3, labor: 2 },
+        ),
       ],
     });
     const campaign = expectOpen(campaignReducer(mixed, finish));
 
     expect(campaign.projects).toEqual([
-      { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+      onOrder(
+        { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 },
+        { hardware: 3, labor: 2 },
+      ),
     ]);
     expect(campaign.base?.slots.garage).toBeUndefined();
   });
@@ -1580,7 +1649,10 @@ describe('advancement/projectsCompleted', () => {
         slots: { 'front-yard': { built: { facility: 'garden', builtOnTurn: 2 } } },
       },
       projects: [
-        { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: 2 },
+        onOrder(
+          { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: 2 },
+          { hardware: 3, labor: 2 },
+        ),
       ],
     });
     const campaign = expectOpen(campaignReducer(taken, finish));
@@ -2066,7 +2138,10 @@ describe('what earns a line in the log', () => {
     return openState({
       ...expectOpen(rich()),
       projects: [
-        { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: turn },
+        onOrder(
+          { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: turn },
+          { hardware: 3, labor: 2 },
+        ),
       ],
     });
   }
@@ -2235,6 +2310,7 @@ describe('what earns a line in the log', () => {
       entry: entry(3, 'management', {
         kind: 'project-unfinished',
         slot: 'front-yard',
+        hardware: 3,
         built: 'watchtower',
       }),
     },
@@ -2811,6 +2887,75 @@ describe('the Advancement Phase steps', () => {
     expect(expectOpen(next).materials.food).toBe(2);
   });
 
+  /**
+   * **#163.** The whole feature was here except the payout: a community that
+   * skipped its mission to scavenge walked to this step and received nothing,
+   * with no screen saying so.
+   */
+  describe('what a scavenger brings back', () => {
+    const scavenging = (skills: Partial<Record<'scavenge', number>>) =>
+      openState({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        turn: 3,
+        step: 'add-materials-to-storage',
+        survivors: [{ ...createSurvivor('Earl Rhodes', 3, { id: EARL }), skills }],
+        assignments: { [EARL]: { task: 'scavenging' } },
+      });
+
+    it('adds one of every material for a survivor with the skill', () => {
+      const after = expectOpen(campaignReducer(scavenging({ scavenge: 0 }), add([])));
+
+      expect(after.materials).toEqual({ food: 1, fuel: 1, hardware: 1, rare: 1 });
+    });
+
+    it('adds one of the chosen material for a survivor without it', () => {
+      const after = expectOpen(
+        campaignReducer(scavenging({}), {
+          type: 'advancement/materialsAdded',
+          at: AT,
+          rolls: [],
+          scavenged: 'rare',
+        }),
+      );
+
+      expect(after.materials).toEqual({ food: 0, fuel: 0, hardware: 0, rare: 1 });
+    });
+
+    /** Nothing chosen is nothing found, and the log says so rather than lying. */
+    it('adds nothing for an unskilled scavenger nobody chose for', () => {
+      const after = expectOpen(campaignReducer(scavenging({}), add([])));
+
+      expect(after.materials).toEqual({ food: 0, fuel: 0, hardware: 0, rare: 0 });
+      expect(after.log.map((entry) => entry.event.kind)).toEqual([
+        'materials-added',
+        'materials-scavenged',
+      ]);
+    });
+
+    it('records what was scavenged, and by whom', () => {
+      const after = expectOpen(campaignReducer(scavenging({ scavenge: 0 }), add([{ roll: 4 }])));
+
+      expect(after.log.map((entry) => entry.event)).toEqual([
+        { kind: 'materials-added', food: 2, fuel: 1, hardware: 1, rare: 1 },
+        {
+          kind: 'materials-scavenged',
+          survivor: EARL,
+          name: 'Earl Rhodes',
+          food: 1,
+          fuel: 1,
+          hardware: 1,
+          rare: 1,
+        },
+      ]);
+    });
+
+    it('writes no scavenging line for a turn nobody scavenged', () => {
+      const after = expectOpen(campaignReducer(afterAMission(), add([{ roll: 4 }])));
+
+      expect(after.log.map((entry) => entry.event.kind)).toEqual(['materials-added']);
+    });
+  });
+
   it('heals a turn’s wounds once, and refuses to do it twice', () => {
     // A Hero at 1 of 4, so one point of rest leaves them wounded. A survivor
     // the first press filled up would be untouched by the second whether or
@@ -3072,5 +3217,67 @@ describe('the Management Phase', () => {
       { kind: 'survivor-bitten', survivor: DECOY, name: 'Ruby Vance', damage: 1 },
       { kind: 'survivor-left', survivor: DECOY, name: 'Ruby Vance', tier: 4 },
     ]);
+  });
+});
+
+/**
+ * **#167's log gap.** Two sieges over a twenty-turn campaign left no trace in
+ * the log at all: a history could say the horde had been rolled for and could
+ * not say whether the siege it called was ever fought, only that
+ * `turnsSinceLastSiege` had reset.
+ */
+describe('a siege turn beginning', () => {
+  const EARL = '11111111-aaaa-4bbb-8ccc-000000000001';
+  const CARLA = '22222222-aaaa-4bbb-8ccc-000000000002';
+
+  /** A community standing at the last step of a turn the horde was called on. */
+  const called = (): CampaignState =>
+    openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      turn: 2,
+      step: 'departures',
+      survivors: [
+        createSurvivor('Earl Rhodes', 4, { id: EARL }),
+        createSurvivor('Carla Proust', 3, { id: CARLA }),
+      ],
+      log: [
+        {
+          turn: 2,
+          phase: 'management',
+          at: AT,
+          event: { kind: 'horde-checked', roll: 10, threat: 6, siege: true },
+        },
+      ],
+    });
+
+  const begin = (state: CampaignState) =>
+    expectOpen(campaignReducer(state, { type: 'turn/advanced', by: 'step', at: AT }));
+
+  it('records that the siege was fought, and by whom', () => {
+    const after = begin(called());
+
+    expect(after.turn).toBe(3);
+    expect(after.log.at(-1)?.event).toEqual({
+      kind: 'siege-fought',
+      names: ['Earl Rhodes', 'Carla Proust'],
+    });
+  });
+
+  it('writes nothing on a turn the horde was not called for', () => {
+    const quiet = openState({ ...expectOpen(called()), log: [] });
+
+    expect(begin(quiet).log.map((entry) => entry.event.kind)).toEqual(['turn-began']);
+  });
+
+  /** Once, because a turn begins once — stepping about within it does not. */
+  it('records it once however the walk moves afterwards', () => {
+    let state = openState(begin(called()));
+    state = campaignReducer(state, { type: 'turn/advanced', by: 'step', at: AT });
+    state = campaignReducer(state, { type: 'turn/reversed' });
+    state = campaignReducer(state, { type: 'turn/advanced', by: 'step', at: AT });
+
+    expect(
+      expectOpen(state).log.filter((entry) => entry.event.kind === 'siege-fought'),
+    ).toHaveLength(1);
   });
 });

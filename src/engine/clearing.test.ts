@@ -3,6 +3,7 @@ import { clearingProject } from './base';
 import { createNewCampaign, type Base, type Campaign } from './campaign';
 import { checkClearing, clearingYield } from './clearing';
 import { projectTeamWorth, withPlanningBegun } from '../test/campaigns';
+import { queued } from '../test/queued';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 
@@ -90,7 +91,7 @@ describe('checkClearing', () => {
     [
       'a slot already being cleared by an order',
       campaignWith(farm(), {
-        projects: [{ kind: 'clearing', slot: 'ruined-chicken-coop', orderedOnTurn: 4 }],
+        projects: [queued({ kind: 'clearing', slot: 'ruined-chicken-coop', orderedOnTurn: 4 })],
       }),
       'ruined-chicken-coop',
       'clearing-on-order',

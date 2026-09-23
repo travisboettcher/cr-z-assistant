@@ -41,7 +41,7 @@ import { FACILITIES, type Cost, type Facility, type UpgradeId } from '../data/fa
 import { laborPool } from './assignments';
 import type { Occupant } from './base';
 import { clearingProject, occupantAt, replacedBy, upgradeCost } from './base';
-import type { Campaign, Project } from './campaign';
+import type { Campaign, PlacedOrder, Project } from './campaign';
 import type { Violation } from './checks';
 import { planningHasBegun } from './planning';
 import { phaseOf } from './turn';
@@ -78,7 +78,7 @@ export function queuedUpgradesFor(campaign: Campaign, slot: string): readonly Up
 }
 
 /**
- * The facility in this slot as the orders ahead of `before` will leave it.
+ * The facility in this slot as everything already queued for it will leave it.
  *
  * Four checks and a price all ask one question — *what will be standing here
  * when this order lands* — and every one of them answered it from installed
@@ -86,21 +86,17 @@ export function queuedUpgradesFor(campaign: Campaign, slot: string): readonly Up
  * Greenhouses sat on one Garden against `maxPerFacility: 1`, and both were
  * quoted the Fence-replacement discount for a Fence there is only one of.
  *
- * `before` is a position in the whole queue, and orders from that position on
- * are not counted: a quote for something not yet ordered takes them all
- * (nothing is after it yet), and a refund takes only the orders that were
- * already ahead of it when it was priced. Otherwise cancelling the first of two
- * Greenhouses would hand back the discounted price for the one that paid full.
+ * Everything queued counts, with no way to ask for part of the queue. It took a
+ * `before` position while a refund was priced from the queue, so that
+ * cancelling the first of two Greenhouses could not hand back the discounted
+ * price for the one that paid full. A refund is now the number the order
+ * carries (#165), and the only caller left is the quote, which takes the lot.
  *
  * The upgrade rule here is `completeProjects`' one, deliberately: an order that
  * excludes something installed takes it off, so the second copy of an upgrade
  * finds the exclusion already spent.
  */
-export function occupantAwaiting(
-  campaign: Campaign,
-  slot: string,
-  before = Number.POSITIVE_INFINITY,
-): Occupant | undefined {
+export function occupantAwaiting(campaign: Campaign, slot: string): Occupant | undefined {
   const standing = occupantAt(campaign, slot);
 
   // A facility on order is not something to upgrade: `checkUpgrade` refuses an
@@ -108,12 +104,12 @@ export function occupantAwaiting(
   // not been built is one the queue cannot promise.
   if (standing === undefined) return undefined;
 
-  return queuedFor(campaign, slot).reduce((occupant, { at, project }) => {
+  return queuedFor(campaign, slot).reduce((occupant, { project }) => {
     // The kind test is the typechecker's rather than the rule's, and a mutant
     // that drops it survives: a clearing or a facility order carries no
     // `upgrade`, so the lookup below finds nothing and returns the occupant
     // unchanged — the same answer by a longer road.
-    if (at >= before || project.kind !== 'upgrade') return occupant;
+    if (project.kind !== 'upgrade') return occupant;
 
     const ordered = occupant.facility.upgrades.find(
       (candidate) => candidate.id === project.upgrade,
@@ -135,33 +131,46 @@ export function occupantAwaiting(
  * Everything already queued counts as ahead of it, which is what makes the
  * second Greenhouse ordered onto one Garden cost the catalogue price: the
  * first one has spoken for the Fence.
+ *
+ * A quote, and only that. What a project in the queue *was* charged is
+ * `queuedCost`, which reads the number back rather than asking again — see
+ * `Project.charged`.
  */
-export function projectCost(campaign: Campaign, project: Project): Cost {
-  return costOf(campaign, project, Number.POSITIVE_INFINITY);
+export function projectCost(campaign: Campaign, project: PlacedOrder): Cost {
+  return costOf(campaign, project);
 }
 
 /**
  * What the project at this position in the queue was charged.
  *
- * A second function rather than an optional argument on the one above, because
- * the difference is not a detail a caller may forget: a queued project priced
- * as though it were being ordered now would count *itself* among the orders
- * ahead of it, and its refund would come back a Hardware short of what was
- * taken. Nothing for a position the queue does not have.
+ * **Read back, not recomputed.** This used to price the project at its own
+ * position in the queue, which is right only while the queue does not move:
+ * cancelling an earlier order shifts every later project's index, so a later
+ * project was refunded against a different set of orders-ahead-of-it than it
+ * was charged against, and the difference was Hardware created or destroyed
+ * (#165).
+ *
+ * Nothing for a position the queue does not have.
  */
 export function queuedCost(campaign: Campaign, at: number): Cost {
-  const project = campaign.projects[at];
-
-  return project === undefined ? NOTHING : costOf(campaign, project, at);
+  return campaign.projects[at]?.charged ?? NOTHING;
 }
 
-function costOf(campaign: Campaign, project: Project, before: number): Cost {
+/**
+ * The catalogue price of an order against the base as it stands, with
+ * everything currently queued counted as ahead of it.
+ *
+ * One `before` no longer, because there is only one question left to ask: the
+ * quote. The refund stopped being a second, differently-priced call when the
+ * charge became a recorded fact.
+ */
+function costOf(campaign: Campaign, project: PlacedOrder): Cost {
   if (project.kind === 'facility') {
     return (FACILITIES[project.facility] as Facility).cost;
   }
 
   if (project.kind === 'upgrade') {
-    const occupant = occupantAwaiting(campaign, project.slot, before);
+    const occupant = occupantAwaiting(campaign, project.slot);
     // Nothing, for an upgrade of a facility that is no longer there. A queue is
     // a record of what was ordered and the base can change under it — Z1-7's
     // override lets a player clear a slot with an upgrade queued for it — and
@@ -170,9 +179,10 @@ function costOf(campaign: Campaign, project: Project, before: number): Cost {
     //
     // Priced against the slot rather than off the catalogue, because a
     // Greenhouse ordered onto a Fence costs a Hardware less than one ordered
-    // onto a bare Garden (pp. 72–73). Asked again on a cancellation, which is what
-    // makes the refund the same number as the spend: the Fence is still there,
-    // because nothing can take it off until this project finishes.
+    // onto a bare Garden (pp. 72–73). Asked once, at the order, and recorded:
+    // the argument that the Fence is still there because nothing can take it
+    // off until this project finishes is true of the *base* and false of the
+    // queue, which cancellation moves under itself (#165).
     // Two guards rather than one `||`, and resolved in this order rather than
     // through an optional chain: an `occupant?.` would make the first check
     // redundant with the second, which is a line no test can tell from its
@@ -223,8 +233,8 @@ export function queuedFor(campaign: Campaign, slot: string): readonly QueuedProj
  */
 export function laborCommitted(campaign: Campaign): number {
   return campaign.projects.reduce(
-    (total, project, at) =>
-      project.orderedOnTurn === campaign.turn ? total + queuedCost(campaign, at).labor : total,
+    (total, project) =>
+      project.orderedOnTurn === campaign.turn ? total + project.charged.labor : total,
     0,
   );
 }
@@ -363,14 +373,39 @@ export function dueProjects(campaign: Campaign): readonly Project[] {
  * Appended rather than inserted, because the queue is ordered and an order
  * placed second was placed second.
  */
-export function withProjectOrdered(campaign: Campaign, project: Project): Campaign {
-  const cost = projectCost(campaign, project);
+export function withProjectOrdered(campaign: Campaign, project: PlacedOrder): Campaign {
+  // Quoted and recorded in one place, so the number the community paid and the
+  // number written on the order cannot be two different numbers.
+  const charged = projectCost(campaign, project);
 
   return {
     ...campaign,
-    materials: { ...campaign.materials, hardware: campaign.materials.hardware - cost.hardware },
-    projects: [...campaign.projects, project],
+    materials: { ...campaign.materials, hardware: campaign.materials.hardware - charged.hardware },
+    projects: [...campaign.projects, { ...project, charged }],
   };
+}
+
+/**
+ * Whether an order may be placed at all right now
+ * ([R14](../../docs/rulings.md#r14--ordering-is-confined-to-the-planning-phase)).
+ *
+ * **The Planning Phase, and only it.** There is no equipment ordering anywhere
+ * outside Planning Step 2 (pg. 20): build and trade are project-team
+ * activities, and nothing in the Management Phase's seven steps touches them.
+ *
+ * `cancellable`'s other half, and written beside it because the two are one
+ * decision. Cancelling was guarded to the phase that placed the order (#148)
+ * and ordering was not, so an order placed in the Management Phase — or by
+ * stepping back into this turn's Advancement Phase — could never be withdrawn:
+ * the slot card read "Cancelled in the Planning Phase that ordered it" with no
+ * Planning Phase left, and next turn's refused it on `orderedOnTurn` (#171).
+ *
+ * The turn needs no test here, unlike `cancellable`: an order is placed on
+ * whatever turn is current, and it is the *taking back* that can reach into a
+ * turn that has closed.
+ */
+export function orderable(campaign: Campaign): boolean {
+  return phaseOf(campaign.step) === 'planning';
 }
 
 /**
@@ -413,14 +448,15 @@ export function withProjectCancelled(campaign: Campaign, at: number): Campaign {
   const project = campaign.projects[at];
   if (project === undefined) return campaign;
 
-  // Priced at its own position, so the refund is the number that was charged:
-  // the second Greenhouse ordered onto one Garden paid full, because the first
-  // had already spent the Fence it would have replaced.
-  const cost = queuedCost(campaign, at);
-
+  // The number it was charged, read off the order rather than priced again —
+  // which is what makes the refund equal to the spend however much the queue
+  // has moved since (#165).
   return {
     ...campaign,
-    materials: { ...campaign.materials, hardware: campaign.materials.hardware + cost.hardware },
+    materials: {
+      ...campaign.materials,
+      hardware: campaign.materials.hardware + project.charged.hardware,
+    },
     projects: campaign.projects.filter((_, index) => index !== at),
   };
 }

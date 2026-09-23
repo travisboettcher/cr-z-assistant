@@ -10,6 +10,9 @@ import {
   noMaterials,
   recovered,
   rolledMaterial,
+  scavengeNeedsAChoice,
+  scavenged,
+  scavenger,
   substitutionUses,
   substitutionsSpent,
   withMaterialsAdded,
@@ -482,5 +485,103 @@ describe('noMaterials', () => {
 
   it('has an entry for every material there is', () => {
     expect(Object.keys(noMaterials()).sort()).toEqual([...MATERIALS].sort() as Material[]);
+  });
+});
+
+/**
+ * **R3-H1.** The assignment existed on every screen it should — the Planning
+ * control, two validators, a task label, the save file — and the two constants
+ * saying what it yields were read by nothing, so a skipped mission and a
+ * survivor's whole turn bought nothing at all (#163).
+ */
+describe('scavenging', () => {
+  const EARL = 'earl';
+
+  const withScavenge = (id: string) => ({
+    ...createSurvivor('Earl Rhodes', 3, { id }),
+    // Level 0, deliberately: having the skill is the trigger the book names
+    // (pg. 17), and a Score of 0 is reachable through a hunger penalty anyway.
+    skills: { scavenge: 0 },
+  });
+
+  const scavenging = (survivor: ReturnType<typeof createSurvivor>): Campaign => ({
+    ...community({ [survivor.id]: { task: 'scavenging' } }),
+    survivors: [survivor],
+  });
+
+  describe('the scavenger', () => {
+    it('is whoever was assigned to it', () => {
+      expect(scavenger(scavenging(withScavenge(EARL)))?.id).toBe(EARL);
+    });
+
+    it('is nobody when nobody was assigned', () => {
+      expect(scavenger(community())).toBeUndefined();
+    });
+
+    /**
+     * The assignment was made in the Planning Phase of the turn that has just
+     * played, and this turn's Planning Phase clears it — so the payout reads
+     * the same rewind the mission team and the base's production do. Without
+     * this the haul would vanish the moment a player walked into Planning,
+     * which is #95's shape.
+     */
+    it('is read from the assignments this turn’s Planning cleared', () => {
+      const before = scavenging(withScavenge(EARL));
+      const cleared: Campaign = {
+        ...before,
+        assignments: {},
+        log: [
+          {
+            turn: 3,
+            phase: 'planning',
+            at: AT,
+            event: { kind: 'planning-began', cleared: before.assignments },
+          },
+        ],
+      };
+
+      expect(scavenger(cleared)?.id).toBe(EARL);
+    });
+  });
+
+  describe('what they bring back', () => {
+    it('is one of every material type, with the skill', () => {
+      expect(scavenged(scavenging(withScavenge(EARL)))).toEqual({
+        food: 1,
+        fuel: 1,
+        hardware: 1,
+        rare: 1,
+      });
+    });
+
+    it('is one of the chosen type, without it', () => {
+      const plain = scavenging(createSurvivor('Carla Proust', 1, { id: EARL }));
+
+      expect(scavenged(plain, 'fuel')).toEqual({ food: 0, fuel: 1, hardware: 0, rare: 0 });
+      expect(size(scavenged(plain, 'rare'))).toBe(1);
+    });
+
+    /**
+     * Nothing until the player says, rather than a default of Food. A haul this
+     * step has not been told about is not a haul.
+     */
+    it('is nothing while an unskilled scavenger has no choice made for them', () => {
+      const plain = scavenging(createSurvivor('Carla Proust', 1, { id: EARL }));
+
+      expect(scavenged(plain)).toEqual(noMaterials());
+      expect(scavengeNeedsAChoice(plain)).toBe(true);
+      expect(scavengeNeedsAChoice(plain, 'food')).toBe(false);
+    });
+
+    /** The choice is ignored where the skill already answers the question. */
+    it('is one of each whatever is chosen, with the skill', () => {
+      expect(size(scavenged(scavenging(withScavenge(EARL)), 'rare'))).toBe(4);
+      expect(scavengeNeedsAChoice(scavenging(withScavenge(EARL)))).toBe(false);
+    });
+
+    it('is nothing at all when nobody scavenged', () => {
+      expect(scavenged(community(), 'food')).toEqual(noMaterials());
+      expect(scavengeNeedsAChoice(community())).toBe(false);
+    });
   });
 });

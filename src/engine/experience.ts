@@ -45,7 +45,8 @@ import {
   XP_SOURCE_PAGES,
   type XpSource,
 } from '../data/turn';
-import { beforePlanning, missionTeam, staffOf } from './assignments';
+import { beforePlanning, staffOf } from './assignments';
+import { deployed } from './siege';
 import { suppliedOccupants } from './utilities';
 import type { Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
@@ -129,7 +130,7 @@ export interface XpPool {
 export function missionTeaching(campaign: Campaign): number {
   const penalty = hungerPenalty(campaign);
 
-  return missionTeam(beforePlanning(campaign)).reduce(
+  return deployed(campaign).reduce(
     (total, survivor) => total + (skillScore(survivor, 'teaching', penalty) ?? 0),
     0,
   );
@@ -153,7 +154,7 @@ export function trainingRoomXp(campaign: Campaign): number {
   const staffed = beforePlanning(campaign);
 
   for (const occupant of suppliedOccupants(staffed)) {
-    for (const line of facilityProduction(occupant, staffOf(staffed, occupant.slotId), penalty)) {
+    for (const line of facilityProduction(occupant, staffOf(staffed, occupant), penalty)) {
       if (line.restrictedToStat !== undefined) continue;
       if (line.outputs.includes('xp')) total += line.amount;
     }
@@ -186,7 +187,8 @@ export function awardedThisTurn(
  * out" is more useful than a row that is not there.
  */
 export function xpPools(campaign: Campaign): readonly XpPool[] {
-  const team = missionTeam(beforePlanning(campaign));
+  // The assigned team, or the whole community where a siege deployed it (#167).
+  const team = deployed(campaign);
   const teaching = missionTeaching(campaign);
   const onTheMission = new Set(team.map((survivor) => survivor.id));
   const offTheMission = campaign.survivors.filter((survivor) => !onTheMission.has(survivor.id));
@@ -194,7 +196,7 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
   /*
    * Whether anybody on the team *has* Teaching, as against how much of it they
    * have between them — and it is this, not the Score, that takes the
-   * discretionary point away ([ruling 7](../../docs/phase-3-stories.md)).
+   * discretionary point away ([R7](../../docs/rulings.md)).
    *
    * pg. 12 triggers the replacement on a Teacher going out; the Score is how
    * many survivors the Teacher then hands a point to. So a Teacher whose Score
@@ -272,8 +274,7 @@ function trainingRoomIsStaffed(campaign: Campaign): boolean {
   const staffed = beforePlanning(campaign);
 
   return suppliedOccupants(staffed).some(
-    (occupant) =>
-      occupant.facility.id === 'training-room' && staffOf(staffed, occupant.slotId).length > 0,
+    (occupant) => occupant.facility.id === 'training-room' && staffOf(staffed, occupant).length > 0,
   );
 }
 

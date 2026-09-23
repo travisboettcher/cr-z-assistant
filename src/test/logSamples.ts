@@ -27,6 +27,31 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   // Negative, because a facility that eats Food can outweigh the haul (pg. 55)
   // and the validator has to accept an amount no other event's field would.
   { kind: 'materials-added', food: -2, fuel: 0, hardware: 0, rare: 0 },
+  { kind: 'siege-fought', names: ['Earl Rhodes', 'Carla Proust'] },
+  // Nobody, which is a real state rather than a missing field: a community can
+  // be down to nothing by the turn the horde arrives.
+  { kind: 'siege-fought', names: [] },
+  {
+    kind: 'materials-scavenged',
+    survivor: 'b7e41f28-3c60-4d95-8a12-6f0e9d4c7b53',
+    name: 'Earl Rhodes',
+    food: 1,
+    fuel: 1,
+    hardware: 1,
+    rare: 1,
+  },
+  // One material of one type, which is what a scavenger without the skill
+  // brings back (pg. 17) — and zero of the other three, which is a count the
+  // validator has to accept rather than read as a missing field.
+  {
+    kind: 'materials-scavenged',
+    survivor: 'carla',
+    name: 'Carla Proust',
+    food: 0,
+    fuel: 0,
+    hardware: 0,
+    rare: 1,
+  },
   {
     kind: 'materials-converted',
     slot: 'kitchen',
@@ -42,7 +67,7 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'survivors-fed', required: 10, hunger: 6 },
   { kind: 'rot-checked', ...SURVIVOR, roll: 7, target: 12, passed: false },
   // A Clinic can drive the target below zero, which the book leaves unclamped
-  // (ruling 2) — so the validator has to accept a target no count would.
+  // (R2) — so the validator has to accept a target no count would.
   { kind: 'rot-checked', ...SURVIVOR, roll: 10, target: -1, passed: true },
   { kind: 'bite-restrained', ...SURVIVOR },
   { kind: 'survivor-bitten', ...SURVIVOR, damage: 1 },
@@ -52,6 +77,8 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'clearing-ordered', slot: 'front-yard' },
   { kind: 'project-cancelled', slot: 'garage' },
   { kind: 'project-unfinished', slot: 'garage' },
+  // And one that says what came back, which entries written since #173 do.
+  { kind: 'project-unfinished', slot: 'garage', hardware: 2, built: 'workshop' },
   { kind: 'horde-checked', roll: 9, threat: 4, siege: false },
   // A base built for defence can drive the threat below zero (pg. 73), so the
   // validator has to accept a negative where no count would.

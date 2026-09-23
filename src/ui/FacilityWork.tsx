@@ -42,11 +42,17 @@ const OUTPUT_LABELS: Record<ProducedOutput, string> = {
 };
 
 export function FacilityWork({ campaign, occupant }: FacilityWorkProps) {
-  const staff = staffOf(campaign, occupant.slotId);
+  const staff = staffOf(campaign, occupant);
   // What a facility makes moves with its staff's Skill Scores, and a starving
   // community's Scores are lower (pg. 22) — so the number on this card drops
   // the turn the stores run out, without anything being written down.
   const lines = facilityProduction(occupant, staff, hungerPenalty(campaign));
+
+  // The lines the XP pool skips, which is the same test `trainingRoomXp` makes
+  // — one rule, asked in two places because one of them has to say so.
+  const restricted = lines.filter(
+    (line) => line.restrictedToStat !== undefined && line.outputs.includes('xp'),
+  );
 
   return (
     <div className="mt-3 border-t border-stone-200 pt-3 dark:border-stone-800">
@@ -133,13 +139,34 @@ export function FacilityWork({ campaign, occupant }: FacilityWorkProps) {
               {line.amount} {line.outputs.map((output) => OUTPUT_LABELS[output]).join(' or ')}
               {line.outputs.length > 1 && ', in any mix'}
               {line.restrictedToStat !== undefined &&
-                `, ${STAT_LABELS[line.restrictedToStat]} skills only`}
+                `, ${STAT_LABELS[line.restrictedToStat]} skills only — not handed out yet`}
               {line.halved && ', halved for want of a utility'}
               {line.staffed && line.missingSkill && ', but they do not have the skill'}
               {line.staffed && staff.length === 0 && ' — needs someone assigned'}
             </li>
           ))}
         </ul>
+      )}
+
+      {/*
+       * Said on the card, the way #150 said it for the Generator and the Well
+       * Pump. A Training Room's upgrades produce XP spendable only on skills
+       * governed by one stat (pg. 73), and a survivor's `xp` is a single number
+       * with no stat on it — so `trainingRoomXp` leaves those lines out of the
+       * pool rather than laundering them into unrestricted XP.
+       *
+       * The deferral is reasonable; the silence was not. The card listed the
+       * restricted amounts beside the unrestricted one with nothing to tell
+       * them apart, so a Training Room with all three upgrades read as 10 XP
+       * and the Advancement Phase offered 4 — a number the player was choosing
+       * between upgrades on, overstated by 60% (#172).
+       */}
+      {restricted.length > 0 && (
+        <p className="mt-3 text-sm text-amber-800 dark:text-amber-300">
+          {restricted.reduce((total, line) => total + line.amount, 0)} of that XP is restricted to
+          the skills of one stat, and this version does not model restricted XP — the Advancement
+          Phase will offer the rest. Work it at the table <PageRef pages={73} />
+        </p>
       )}
     </div>
   );

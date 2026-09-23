@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Base, type Campaign } from './campaign';
 import { buildableFacilities, checkBuild } from './build';
 import { projectTeamWorth, withPlanningBegun } from '../test/campaigns';
+import { queued as onOrder } from '../test/queued';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 
@@ -53,7 +54,9 @@ describe('checkBuild', () => {
    */
   it('refuses a slot that already has a facility on order', () => {
     const queued = campaignWith(smallTownHome(), {
-      projects: [{ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 4 }],
+      projects: [
+        onOrder({ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 4 }),
+      ],
     });
 
     const check = checkBuild(queued, { slot: 'garage', facility: 'training-room' });
@@ -73,7 +76,7 @@ describe('checkBuild', () => {
     const queued = campaignWith(
       { id: 'hobby-farm', slots: {} },
       {
-        projects: [{ kind: 'clearing', slot: 'ruined-chicken-coop', orderedOnTurn: 4 }],
+        projects: [onOrder({ kind: 'clearing', slot: 'ruined-chicken-coop', orderedOnTurn: 4 })],
       },
     );
 

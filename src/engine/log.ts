@@ -115,6 +115,48 @@ export type CampaignEvent =
       readonly rare: number;
     }
   /**
+   * The horde arrived, and the community fought it (pg. 23, 85).
+   *
+   * Two sieges over a twenty-turn campaign left **no trace in the log at all**:
+   * a history could say the horde had been rolled for and could not say whether
+   * the siege it called was ever fought, only that `turnsSinceLastSiege` had
+   * reset (#167). The log is otherwise a complete record, which made this a
+   * conspicuous hole rather than a small one.
+   *
+   * Carries the names because pg. 85 deploys *everybody* — the one turn where
+   * who went out is a fact about the whole community rather than a team
+   * somebody picked, and the roster it names can have changed by the time
+   * anybody reads it back.
+   *
+   * Not load-bearing: `siegeDue` reads the previous turn's `horde-checked`
+   * entry, so this records what happened rather than deciding it.
+   */
+  | { readonly kind: 'siege-fought'; readonly names: readonly string[] }
+  /**
+   * A survivor scavenged instead of going on the mission (pg. 17).
+   *
+   * Its own entry rather than a line folded into `materials-added`, because the
+   * two answer different questions: that one is what went into storage, and
+   * this one is what a survivor's whole turn was worth. A community that skips
+   * a mission pays for the decision with both, and a history that recorded only
+   * the total could not tell a player whether scavenging had been worth it.
+   *
+   * Carries the name beside the id, like every other entry about a person: the
+   * survivor may have walked out by the time anybody reads it back.
+   *
+   * Not load-bearing. `materials-added` is what keeps the step from running
+   * twice, and this is written in the same breath as that one.
+   */
+  | {
+      readonly kind: 'materials-scavenged';
+      readonly survivor: string;
+      readonly name: string;
+      readonly food: number;
+      readonly fuel: number;
+      readonly hardware: number;
+      readonly rare: number;
+    }
+  /**
    * A facility or upgrade traded materials for other materials (pg. 19, 72–73).
    *
    * **Load-bearing**, like the two above: where the book states a cap per turn
@@ -156,7 +198,7 @@ export type CampaignEvent =
       readonly required: number;
       readonly hunger: number;
       /**
-       * The head count the shortfall was measured against (pg. 22, ruling 1).
+       * The head count the shortfall was measured against (pg. 22, R1).
        *
        * Recorded because the penalty is fixed at this step and held until the
        * next Management Phase, so a departure later in the same turn must not
@@ -280,7 +322,17 @@ export type CampaignEvent =
    * never done, and materials a community still has are materials it still
    * has.
    */
-  | { readonly kind: 'project-unfinished'; readonly slot: string; readonly built?: string }
+  | {
+      readonly kind: 'project-unfinished';
+      readonly slot: string;
+      // The Hardware the order had spent, which comes back here exactly as it
+      // does on a cancellation — the two share `withProjectCancelled`. Recorded
+      // for the same reason that one records it: the entry said only that the
+      // Labor had left while the stores moved 1 → 3, so the history and the
+      // cancel button two screens away contradicted each other (#173).
+      readonly hardware?: number;
+      readonly built?: string;
+    }
   /**
    * The stores were trimmed to the base's caps (pg. 23).
    *

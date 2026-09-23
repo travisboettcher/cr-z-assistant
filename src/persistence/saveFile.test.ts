@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import currentFixture from './__fixtures__/campaign-v11.json';
+import currentFixture from './__fixtures__/campaign-v12.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -250,7 +250,8 @@ describe('parseCampaignFile with a roster', () => {
     // project queue, which pins that an ordered array keeps its order and that
     // each kind keeps its own fields. v11 took the last siege's turn back out
     // again — it is read off the log now — so the campaign has one fewer plain
-    // number among the nested ones.
+    // number among the nested ones. From v12 each project carries a `charged`
+    // pair, which pins the one nested object inside an array element.
     const text = `${JSON.stringify(currentFixture, null, 2)}\n`;
     const result = parseCampaignFile(text);
 
@@ -856,7 +857,13 @@ describe('a campaign whose log is damaged', () => {
  * genuinely hold one. What these refuse is a project that refers to nothing.
  */
 describe('a campaign whose project queue is damaged', () => {
-  const good = { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 2 };
+  const good = {
+    kind: 'facility',
+    slot: 'garage',
+    facility: 'workshop',
+    orderedOnTurn: 2,
+    charged: { hardware: 3, labor: 2 },
+  };
 
   function refusalFor(projects: unknown) {
     const result = parseCampaignFile(savedWith({ projects }));
@@ -870,8 +877,25 @@ describe('a campaign whose project queue is damaged', () => {
 
   it.each([
     ['a facility', good],
-    ['an upgrade', { kind: 'upgrade', slot: 'kitchen', upgrade: 'gas-range', orderedOnTurn: 2 }],
-    ['a clearing', { kind: 'clearing', slot: 'ruined-chicken-coop', orderedOnTurn: 2 }],
+    [
+      'an upgrade',
+      {
+        kind: 'upgrade',
+        slot: 'kitchen',
+        upgrade: 'gas-range',
+        orderedOnTurn: 2,
+        charged: { hardware: 2, labor: 1 },
+      },
+    ],
+    [
+      'a clearing',
+      {
+        kind: 'clearing',
+        slot: 'ruined-chicken-coop',
+        orderedOnTurn: 2,
+        charged: { hardware: 0, labor: 2 },
+      },
+    ],
   ])('accepts %s, so the refusals below mean something', (_label, project) => {
     const result = parseCampaignFile(savedWith({ projects: [project] }));
 
@@ -910,8 +934,30 @@ describe('a campaign whose project queue is damaged', () => {
     ],
     [
       'an upgrade that is not in the catalogue',
-      [{ kind: 'upgrade', slot: 'kitchen', upgrade: 'jacuzzi', orderedOnTurn: 2 }],
+      [
+        {
+          kind: 'upgrade',
+          slot: 'kitchen',
+          upgrade: 'jacuzzi',
+          orderedOnTurn: 2,
+          charged: { hardware: 2, labor: 1 },
+        },
+      ],
       /unreadable upgrade/i,
+    ],
+    // From v12, and required of every kind: the refund is this number read back
+    // rather than a price computed again, so an order that does not carry one
+    // is an order nothing can honestly cancel (#165).
+    ['a project with no charge on it', [{ ...good, charged: undefined }], /what it was charged/i],
+    [
+      'a charge that is not a pair of counts',
+      [{ ...good, charged: { hardware: 3 } }],
+      /what it was charged/i,
+    ],
+    [
+      'a charge that has gone negative',
+      [{ ...good, charged: { hardware: -1, labor: 2 } }],
+      /what it was charged/i,
     ],
     // A clearing carries nothing of its own, so a stray facility id on one is
     // not checked and not a refusal — the queue says what the project is.

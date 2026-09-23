@@ -71,20 +71,18 @@ restate.
 ## Two readings, decided
 
 Both are recorded here and named in code, so a later reader can tell an interpretation from a
-quotation and change it in one place.
+quotation and change it in one place. The two readings themselves now live in
+[the rulings registry](rulings.md) with the rest; the product decisions below stay here.
 
-**Tier promotion rebuilds the stat array.** pg. 18 says a promoted survivor's stats "are
-increased by one" and then adds a clause for survivors with more than one stat at zero; the two
-obvious readings of that contradict each other. Decision: a promoted survivor ends up with the
-canonical array for their new Tier. A promoted Citizen and a created Citizen are therefore the
-same character. They keep their existing skills and gain one new slot.
+**Tier promotion rebuilds the stat array.** A promoted survivor ends up with the canonical array
+for their new Tier, so a promoted Citizen and a created Citizen are the same character; they keep
+their existing skills and gain one new slot. Recorded as
+[R10](rulings.md#r10--tier-promotion-rebuilds-the-stat-array).
 
-**Which zero is raised is the player's, not the app's.** This was decided the other way against
-v1.25, which left the clause vague enough to break the tie in code. The published edition is
-explicit: when a survivor has more than one stat at 0, *the player chooses which one is raised*.
-A T1 → T2 promotion has three zeros and a T2 → T3 has two, so `withTierBought` takes the stat to
-raise in exactly those cases and the sheet asks before promoting. T3 → T4 raises every stat, so
-there is nothing to ask and nothing to pass.
+**Which zero is raised is the player's, not the app's.** `withTierBought` takes the stat to raise
+for a T1 → T2 and a T2 → T3 promotion, and the sheet asks before promoting; T3 → T4 raises every
+stat, so there is nothing to ask and nothing to pass. Recorded as
+[R11](rulings.md#r11--which-zero-is-raised-is-the-players-choice-not-the-apps).
 
 **Legality is enforced, with a visible override.** Illegal survivors are blocked by default, with
 an "allow anyway" escape for house rules and for cases this app models wrong.

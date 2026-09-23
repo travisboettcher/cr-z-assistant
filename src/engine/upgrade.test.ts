@@ -3,6 +3,7 @@ import { createNewCampaign, type Base, type Campaign } from './campaign';
 import { FACILITIES, facilityOfUpgrade, type FacilityId, type Upgrade } from '../data/facilities';
 import { checkUpgrade, upgradeOrder, upgradesFor } from './upgrade';
 import { projectTeamWorth, withPlanningBegun } from '../test/campaigns';
+import { queued } from '../test/queued';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 
@@ -141,12 +142,14 @@ describe('checkUpgrade', () => {
   it('counts upgrades on order against the cap, and says how many are on order', () => {
     const ordered = (count: number): Campaign =>
       campaignWith(home({ kitchen: { upgrades: ['gas-range'] } }), {
-        projects: Array.from({ length: count }, () => ({
-          kind: 'upgrade' as const,
-          slot: 'kitchen',
-          upgrade: 'gas-range' as const,
-          orderedOnTurn: 4,
-        })),
+        projects: Array.from({ length: count }, () =>
+          queued({
+            kind: 'upgrade' as const,
+            slot: 'kitchen',
+            upgrade: 'gas-range' as const,
+            orderedOnTurn: 4,
+          }),
+        ),
       });
 
     // One installed and one on order leaves the third slot free.
@@ -169,7 +172,7 @@ describe('checkUpgrade', () => {
       home({ 'front-yard': { built: { facility: 'garden', builtOnTurn: 1 } } }),
       {
         projects: [
-          { kind: 'upgrade', slot: 'front-yard', upgrade: 'greenhouse', orderedOnTurn: 4 },
+          queued({ kind: 'upgrade', slot: 'front-yard', upgrade: 'greenhouse', orderedOnTurn: 4 }),
         ],
       },
     );
@@ -185,12 +188,12 @@ describe('checkUpgrade', () => {
       ...garden,
       projects: [
         ...garden.projects,
-        {
+        queued({
           kind: 'upgrade' as const,
           slot: 'front-yard',
           upgrade: 'herb-plot' as const,
           orderedOnTurn: 4,
-        },
+        }),
       ],
     };
 
@@ -210,7 +213,7 @@ describe('checkUpgrade', () => {
     // question is only whether the clearing gets counted into the message.
     const farm = campaignWith(
       home({ kitchen: { upgrades: ['gas-range', 'gas-range', 'gas-range'] } }),
-      { projects: [{ kind: 'clearing', slot: 'kitchen', orderedOnTurn: 4 }] },
+      { projects: [queued({ kind: 'clearing', slot: 'kitchen', orderedOnTurn: 4 })] },
     );
 
     const [capped] = checkUpgrade(farm, { slot: 'kitchen', upgrade: 'gas-range' }).warnings;
@@ -222,7 +225,9 @@ describe('checkUpgrade', () => {
   /** And a queue for another slot is another slot's business. */
   it('counts only what is on order for this facility', () => {
     const elsewhere = campaignWith(home({ kitchen: { upgrades: ['gas-range', 'gas-range'] } }), {
-      projects: [{ kind: 'upgrade', slot: 'bunk-room-1', upgrade: 'extra-bed', orderedOnTurn: 4 }],
+      projects: [
+        queued({ kind: 'upgrade', slot: 'bunk-room-1', upgrade: 'extra-bed', orderedOnTurn: 4 }),
+      ],
     });
 
     expect(checkUpgrade(elsewhere, { slot: 'kitchen', upgrade: 'gas-range' }).warnings).toEqual([]);

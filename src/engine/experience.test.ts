@@ -509,3 +509,74 @@ describe('why a pool is empty', () => {
     expect(reason(elsewhere, 'training-room')).toBe('nowhere-to-teach');
   });
 });
+
+/**
+ * **R3-M1.** pg. 85 deploys every survivor in the community to a Siege Defense,
+ * so a siege turn has a mission team that nobody assigned. The pools were sized
+ * from the assignment alone, so a community that had just fought a siege was
+ * paid nothing and told "Nobody is on a mission team, so there is no mission XP
+ * this turn" — false in the number and false in the reason (#167).
+ */
+describe('a turn the horde arrived on', () => {
+  /** The `horde-checked` entry on turn 2 is what makes turn 3 a siege turn. */
+  const besieged = (campaign: Campaign): Campaign =>
+    withLog(campaign, [
+      {
+        turn: 2,
+        phase: 'management',
+        at: AT,
+        event: { kind: 'horde-checked', roll: 10, threat: 6, siege: true },
+      },
+    ]);
+
+  const pool = (campaign: Campaign, source: XpSource) =>
+    xpPools(campaign).find((one) => one.source === source) as ReturnType<typeof xpPools>[number];
+
+  it('pays every survivor for going out, with nobody assigned', () => {
+    const siege = besieged(community());
+
+    expect(pool(siege, 'mission').total).toBe(2);
+    expect(pool(siege, 'mission').eligible.map((one) => one.id)).toEqual([EARL, CARLA]);
+  });
+
+  it('says nothing about an empty mission team, because it is not empty', () => {
+    expect(pool(besieged(community()), 'mission').emptyBecause).toBeUndefined();
+  });
+
+  /** The second consequence: a Teacher who deployed handed out nothing. */
+  it('sizes the Teacher pool from the community that deployed', () => {
+    const withTeacher = community({}, [scored(EARL, 'Earl Rhodes', 'teaching', 3)]);
+
+    expect(missionTeaching(withTeacher)).toBe(0);
+    expect(missionTeaching(besieged(withTeacher))).toBe(3);
+  });
+
+  /**
+   * The third: pg. 70 restricts a Training Room to survivors *not* on the
+   * mission, and with no recorded team nobody was excluded — so the room
+   * offered its XP to the people who had just fought the siege.
+   */
+  it('excludes the whole community from the Training Room', () => {
+    const room = staffedWith(
+      community({}, [createSurvivor('Earl Rhodes', 4, { id: EARL })], {
+        id: 'hobby-farm',
+        slots: { 'front-yard': { built: { facility: 'training-room', builtOnTurn: 1 } } },
+      }),
+      'front-yard',
+      [scored(CARLA, 'Carla Proust', 'teaching', 3)],
+    );
+
+    // Somebody stayed behind on an ordinary turn, and nobody does on a siege
+    // turn — which is pg. 70's rule rather than an empty pool.
+    expect(pool(room, 'training-room').eligible.map((one) => one.id)).toEqual([EARL, CARLA]);
+    expect(pool(besieged(room), 'training-room').eligible).toEqual([]);
+  });
+
+  /** And an ordinary turn is untouched: no siege, no deployment. */
+  it('leaves a turn without a siege reading the assignment', () => {
+    const ordinary = community({ [EARL]: onTheMission });
+
+    expect(pool(ordinary, 'mission').total).toBe(1);
+    expect(pool(ordinary, 'mission').eligible.map((one) => one.id)).toEqual([EARL]);
+  });
+});

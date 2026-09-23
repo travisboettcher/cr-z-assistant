@@ -94,7 +94,7 @@ export function healingPool(campaign: Campaign): number {
   const staffed = beforePlanning(campaign);
 
   for (const occupant of suppliedOccupants(staffed)) {
-    for (const line of facilityProduction(occupant, staffOf(staffed, occupant.slotId), penalty)) {
+    for (const line of facilityProduction(occupant, staffOf(staffed, occupant), penalty)) {
       if (line.outputs.includes('health')) total += line.amount;
     }
   }

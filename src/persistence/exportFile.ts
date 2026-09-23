@@ -171,7 +171,16 @@ function orderedAssignments(campaign: Campaign): Record<string, unknown> {
  * be two too many.
  */
 function orderedProject(project: Project): Record<string, unknown> {
-  return taggedFirst(project, 'kind');
+  // `taggedFirst` sorts the top level, which leaves `charged` sitting wherever
+  // the sort puts it — but its *own* two keys arrive in whatever order the file
+  // this project was read from happened to use. Written out here, the way
+  // `orderedMaterials` writes the campaign's stores, so two saves of the same
+  // queue diff as identical. Assigning a key the object already has updates the
+  // value and leaves the position alone, so this cannot move `charged`.
+  return {
+    ...taggedFirst(project, 'kind'),
+    charged: { hardware: project.charged.hardware, labor: project.charged.labor },
+  };
 }
 
 /**
