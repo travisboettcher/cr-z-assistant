@@ -28,6 +28,8 @@ import { skillSlotsAreFull, survivorViolations, withStatValue } from '../engine/
 import { inventorySlots, maxHp, skillScore, statValue } from '../engine/survivor';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
+import { promotionViolations } from '../engine/legality';
+import { maxHeroes } from '../engine/base';
 import { COMMON_SKILL_LABELS, SKILL_LABELS, STAT_LABELS } from './skillLabels';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 import { TIER_LABELS } from './tierLabels';
@@ -301,6 +303,16 @@ interface BuyButtonProps {
   /** Completes "raise …" for a screen reader, e.g. "Archery to level 2". */
   readonly what: string;
 
+  /**
+   * A rule holding the purchase back that the *purchase* does not know about.
+   *
+   * `Purchase` is a survivor's own arithmetic — XP, Tier, a stat still to pick
+   * — and the Hero cap is a fact about the community and its base (pg. 54).
+   * Passed as a reason rather than a boolean so the screen reader hears the
+   * same sentence the eye does.
+   */
+  readonly held?: string | undefined;
+
   readonly onBuy: () => void;
 }
 
@@ -311,13 +323,13 @@ interface BuyButtonProps {
  * the player cannot use yet the price is the useful part: it is what tells them
  * how much experience to go and earn.
  */
-function BuyButton({ purchase, label, what, onBuy }: BuyButtonProps) {
+function BuyButton({ purchase, label, what, held, onBuy }: BuyButtonProps) {
   const { cost, blocked } = purchase;
 
   return (
     <button
       type="button"
-      disabled={blocked !== null}
+      disabled={blocked !== null || held !== undefined}
       onClick={onBuy}
       className={`${FOCUS_RING} rounded px-1 text-sm font-medium whitespace-nowrap underline decoration-dotted underline-offset-4 disabled:cursor-not-allowed disabled:text-stone-400 disabled:no-underline dark:disabled:text-stone-600`}
     >
@@ -336,6 +348,7 @@ function BuyButton({ purchase, label, what, onBuy }: BuyButtonProps) {
         Raise {what}
         {cost > 0 ? `, ${cost} experience` : ''}
         {blocked === null ? '' : ` — ${BLOCKED_REASONS[blocked]}`}
+        {held === undefined ? '' : ` — ${held}`}
       </span>
     </button>
   );
@@ -352,10 +365,35 @@ function BuyButton({ purchase, label, what, onBuy }: BuyButtonProps) {
  * a reason until it is answered.
  */
 function Promote({ survivor }: { readonly survivor: Survivor }) {
-  const { dispatch } = useCampaign();
+  const { state, dispatch } = useCampaign();
   const choiceId = useId();
+  const overrideId = useId();
   const [picked, setPicked] = useState<Stat | ''>('');
+  const [allowed, setAllowed] = useState(false);
   const choices = promotionStatChoices(survivor);
+
+  /*
+   * The Hero cap, from context rather than from a prop — unlike `penalty`
+   * above, which is passed in because it is the reason this sheet's own
+   * numbers differ from the survivor's. This is a fact about the community and
+   * its base (pg. 54), not about the survivor being read, and the only control
+   * that needs it is this one.
+   */
+  const campaign = state.status === 'open' ? state.campaign : null;
+  const base = campaign?.base ?? null;
+  const over =
+    campaign === null || base === null
+      ? []
+      : promotionViolations(
+          survivor,
+          campaign.survivors.filter((one) => one.tier === 4).length,
+          maxHeroes(base),
+        );
+
+  // Z1-7's override, and never stored: it gates this purchase once, and the
+  // base sheet goes on reporting the community as over the cap for as long as
+  // it is — which is the agreement the issue asks for between the two screens.
+  const held = over.length > 0 && !allowed ? over[0]?.message : undefined;
   // Re-derived from the current choices rather than reset by an effect: a
   // promotion changes the stats under this control, and a stale pick left over
   // from the previous Tier must not count as an answer to the new question.
@@ -367,6 +405,7 @@ function Promote({ survivor }: { readonly survivor: Survivor }) {
         purchase={tierPurchase(survivor, raise)}
         label="Promote"
         what="their tier"
+        held={held}
         onBuy={() => {
           dispatch({
             type: 'survivor/tierBought',
@@ -375,6 +414,7 @@ function Promote({ survivor }: { readonly survivor: Survivor }) {
             at: new Date().toISOString(),
           });
           setPicked('');
+          setAllowed(false);
         }}
       />
       {choices.length > 0 ? (
@@ -397,6 +437,24 @@ function Promote({ survivor }: { readonly survivor: Survivor }) {
           </select>
         </span>
       ) : null}
+
+      {over.map((violation) => (
+        <span key={violation.code} className="flex items-center gap-2 text-sm">
+          <span className="text-amber-800 dark:text-amber-300">
+            {violation.message} <PageRef pages={violation.pages} />
+          </span>
+          <label htmlFor={overrideId} className="flex items-center gap-1.5">
+            <input
+              id={overrideId}
+              type="checkbox"
+              checked={allowed}
+              onChange={(event) => setAllowed(event.target.checked)}
+              className={FOCUS_RING}
+            />
+            Promote anyway
+          </label>
+        </span>
+      ))}
     </div>
   );
 }

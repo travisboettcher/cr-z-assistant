@@ -534,3 +534,73 @@ describe('a community that is going hungry', () => {
     );
   });
 });
+
+/**
+ * **#168.** A base's Tier is the most Hero-Tier survivors the community may
+ * hold (pg. 54). The base sheet computed it, printed it and reported the
+ * violation — and the promotion that caused it said nothing at all.
+ */
+describe('promoting past what the base allows', () => {
+  /** A Tier 2 base, two Heroes already, and a Leader with the XP to become a third. */
+  const atTheCap = (): Campaign => ({
+    ...createNewCampaign('Cedar Hollow'),
+    turn: 3,
+    // The Hobby Farm is a Tier 2 base, so it allows two Heroes (pg. 54).
+    base: { id: 'hobby-farm', slots: {} },
+    survivors: [
+      { ...createSurvivor('Earl Rhodes', 3, { id: 'earl' }), xp: 20 },
+      createSurvivor('Nell Haig', 4, { id: 'nell' }),
+      createSurvivor('Tomas Ford', 4, { id: 'tomas' }),
+    ],
+  });
+
+  const sheetFor = async (name: string) => {
+    const user = open(atTheCap());
+    const rows = screen.getAllByRole('button', { name: /^sheet$/i });
+    await user.click(rows[0] as HTMLElement);
+
+    return { user, sheet: screen.getByRole('region', { name }) };
+  };
+
+  it('warns at the moment of the purchase, and holds it', async () => {
+    const { sheet } = await sheetFor('Earl Rhodes');
+
+    expect(sheet.textContent).toContain('This base allows 2 Hero-Tier survivors');
+    expect(within(sheet).getByRole('button', { name: /raise their tier/i })).toBeDisabled();
+  });
+
+  it('carries the same override the other legality checks do', async () => {
+    const { user, sheet } = await sheetFor('Earl Rhodes');
+
+    await user.click(within(sheet).getByLabelText(/promote anyway/i));
+
+    expect(within(sheet).getByRole('button', { name: /raise their tier/i })).toBeEnabled();
+  });
+
+  /**
+   * The agreement the issue asks for: buying it anyway still leaves the base
+   * sheet saying the community is over, because the override is never stored
+   * and the cap is still the cap.
+   */
+  it('still reads as over on the base sheet afterwards', async () => {
+    const { user, sheet } = await sheetFor('Earl Rhodes');
+
+    await user.click(within(sheet).getByLabelText(/promote anyway/i));
+    await user.click(within(sheet).getByRole('button', { name: /raise their tier/i }));
+
+    expect(screen.getByText(/over what this base allows/i)).toBeInTheDocument();
+  });
+
+  it('says nothing where the community is still under the cap', async () => {
+    const user = open({
+      ...atTheCap(),
+      survivors: [{ ...createSurvivor('Earl Rhodes', 3, { id: 'earl' }), xp: 20 }],
+    });
+    await user.click(screen.getAllByRole('button', { name: /^sheet$/i })[0] as HTMLElement);
+
+    const sheet = screen.getByRole('region', { name: 'Earl Rhodes' });
+
+    expect(sheet.textContent).not.toContain('Hero-Tier');
+    expect(within(sheet).getByRole('button', { name: /raise their tier/i })).toBeEnabled();
+  });
+});
