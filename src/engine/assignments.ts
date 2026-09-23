@@ -31,7 +31,7 @@
 
 import { BASES } from '../data/bases';
 import { occupants, staffCapacity, type Occupant } from './base';
-import { hungerPenalty } from './feeding';
+import { planningPenalty } from './feeding';
 import type { Assignment, Campaign, Survivor } from './campaign';
 import { facilityProduction, type ProductionLine } from './production';
 import { labor } from './survivor';
@@ -317,7 +317,15 @@ export function utilitiesScore(campaign: Campaign): number {
   const base = campaign.base;
   if (base === null) return 0;
 
-  const penalty = hungerPenalty(campaign);
+  // The penalty as it stood at Planning Step 1, not as it stands now. The
+  // points on the board were generated and assigned there and last until the
+  // next Planning Phase (pg. 20, 67); a penalty applied four steps later in the
+  // same turn lowered this Score under them, and the base sheet then read
+  // "POWER ASSIGNED 4 / 2 — Over what the base generates" while `backedPoints`
+  // silently dropped points in layout order (#169). The next turn's generation
+  // is reduced, which is the consequence the rule does have — `hungerPenalty`
+  // is what Planning Step 1 will ask then.
+  const penalty = planningPenalty(campaign);
   let total = 0;
 
   for (const occupant of occupants(base)) {
