@@ -154,6 +154,22 @@ export function slotLabel(id: string): string {
  * is a function, and an id read out of a save file is a string somebody could
  * have typed.
  */
+/**
+ * "in" for a facility and "on" for an upgrade, given only an id.
+ *
+ * The queue line and the log disagreed about this: `projectLabels.ts` keeps the
+ * distinction because a `Project` carries its kind, while the log's cancelled
+ * and unfinished entries carry a bare `built: string` and said "on the"
+ * unconditionally — so one screen read "Bunk Room **in** the Overflow Parking"
+ * and the other "Cancelled the Bunk Room **on** the Overflow Parking" (#173).
+ *
+ * The id is enough to tell them apart, which is the same thing `builtThingLabel`
+ * below relies on: the two maps have no key in common.
+ */
+export function builtThingPreposition(id: string): 'in' | 'on' {
+  return Object.hasOwn(FACILITY_LABELS, id) ? 'in' : 'on';
+}
+
 export function builtThingLabel(id: string): string {
   for (const labels of [FACILITY_LABELS, UPGRADE_LABELS] as Record<string, string>[]) {
     if (Object.hasOwn(labels, id)) return labels[id] as string;

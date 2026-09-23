@@ -17,12 +17,15 @@
  */
 
 import { MATERIALS, type Material } from '../data/materials';
+import { articleForNumber, withArticle } from './articles';
+import { FIRST_TURN } from '../engine/siege';
 import { XP_SOURCE_PAGES, type HealthSource, type XpSource } from '../data/turn';
 import type { CampaignEvent, LogEntry } from '../engine/log';
 import {
   BASE_LABELS,
   FACILITY_LABELS,
   builtThingLabel,
+  builtThingPreposition,
   MATERIAL_LABELS,
   UPGRADE_LABELS,
   slotLabel,
@@ -66,7 +69,7 @@ const XP_SOURCE_PHRASES: Record<XpSource, string> = {
   'training-room': 'in the Training Room',
 };
 
-export function describeEvent(event: CampaignEvent): EventLabel {
+export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
   switch (event.kind) {
     case 'campaign-started':
       return { text: `Started the campaign “${event.name}”.` };
@@ -88,7 +91,18 @@ export function describeEvent(event: CampaignEvent): EventLabel {
       };
 
     case 'planning-began':
-      return { text: 'Started planning: last turn’s tasks and utilities cleared.', pages: 20 };
+      // Turn 1 has nothing behind it to clear, and said so anyway (#173). The
+      // entry is written on every turn's first Planning step, so the sentence
+      // has to ask which turn it is on rather than assuming there was one
+      // before — the turn comes from the entry, which is the only thing that
+      // knows.
+      return {
+        text:
+          turn <= FIRST_TURN
+            ? 'Started planning.'
+            : 'Started planning: last turn’s tasks and utilities cleared.',
+        pages: 20,
+      };
 
     case 'materials-added': {
       // Only what moved. A turn that recovered three Food and nothing else
@@ -159,8 +173,8 @@ export function describeEvent(event: CampaignEvent): EventLabel {
     case 'rot-checked':
       return {
         text: event.passed
-          ? `${event.name} held on, rolling a ${String(event.roll)} against ${String(event.target)}.`
-          : `${event.name} turned, rolling a ${String(event.roll)} against ${String(event.target)}.`,
+          ? `${event.name} held on, rolling ${articleForNumber(event.roll)} ${String(event.roll)} against ${String(event.target)}.`
+          : `${event.name} turned, rolling ${articleForNumber(event.roll)} ${String(event.roll)} against ${String(event.target)}.`,
         pages: 22,
       };
 
@@ -175,13 +189,13 @@ export function describeEvent(event: CampaignEvent): EventLabel {
 
     case 'facility-ordered':
       return {
-        text: `Ordered a ${FACILITY_LABELS[event.facility]} for the ${slotLabel(event.slot)}.`,
+        text: `Ordered ${withArticle(FACILITY_LABELS[event.facility])} for the ${slotLabel(event.slot)}.`,
         pages: 20,
       };
 
     case 'upgrade-ordered':
       return {
-        text: `Ordered a ${UPGRADE_LABELS[event.upgrade]} for the ${slotLabel(event.slot)}.`,
+        text: `Ordered ${withArticle(UPGRADE_LABELS[event.upgrade])} for the ${slotLabel(event.slot)}.`,
         pages: 20,
       };
 
@@ -197,7 +211,7 @@ export function describeEvent(event: CampaignEvent): EventLabel {
       const what =
         event.built === undefined
           ? `the ${slotLabel(event.slot)} project`
-          : `the ${builtThingLabel(event.built)} on the ${slotLabel(event.slot)}`;
+          : `the ${builtThingLabel(event.built)} ${builtThingPreposition(event.built)} the ${slotLabel(event.slot)}`;
 
       return {
         text:
@@ -208,14 +222,26 @@ export function describeEvent(event: CampaignEvent): EventLabel {
       };
     }
 
-    case 'project-unfinished':
+    case 'project-unfinished': {
+      const what =
+        event.built === undefined
+          ? `The ${slotLabel(event.slot)} project`
+          : `The ${builtThingLabel(event.built)} ${builtThingPreposition(event.built)} the ${slotLabel(event.slot)}`;
+
+      // Says what came back, like its sibling above. It named only the Labor,
+      // while the cancel button two screens away promised "its Hardware comes
+      // back" and the Hardware duly moved 1 → 3 — the app contradicting its own
+      // copy about the same refund (#173).
+      const back =
+        event.hardware === undefined || event.hardware === 0
+          ? ''
+          : ` ${String(event.hardware)} Hardware came back.`;
+
       return {
-        text:
-          event.built === undefined
-            ? `The ${slotLabel(event.slot)} project went unfinished — the Labor for it left the community.`
-            : `The ${builtThingLabel(event.built)} on the ${slotLabel(event.slot)} went unfinished — the Labor for it left the community.`,
+        text: `${what} went unfinished — the Labor for it left the community.${back}`,
         pages: 23,
       };
+    }
 
     case 'storage-checked': {
       const lost = MATERIALS.filter(
@@ -237,8 +263,8 @@ export function describeEvent(event: CampaignEvent): EventLabel {
     case 'horde-checked':
       return {
         text: event.siege
-          ? `The horde came: a ${String(event.roll)} against a Siege Threat of ${String(event.threat)}. Next turn is a Siege Defense.`
-          : `The horde stayed away: a ${String(event.roll)} against a Siege Threat of ${String(event.threat)}.`,
+          ? `The horde came: ${articleForNumber(event.roll)} ${String(event.roll)} against a Siege Threat of ${String(event.threat)}. Next turn is a Siege Defense.`
+          : `The horde stayed away: ${articleForNumber(event.roll)} ${String(event.roll)} against a Siege Threat of ${String(event.threat)}.`,
         pages: 23,
       };
 
@@ -255,7 +281,7 @@ export function describeEvent(event: CampaignEvent): EventLabel {
       };
 
     case 'survivor-added':
-      return { text: `${event.name} joined, as a ${TIER_LABELS[event.tier]}.` };
+      return { text: `${event.name} joined, as ${withArticle(TIER_LABELS[event.tier])}.` };
 
     case 'survivor-recruited':
       return {
@@ -263,17 +289,19 @@ export function describeEvent(event: CampaignEvent): EventLabel {
         // story does rather than reporting a die nobody threw.
         text:
           event.roll === undefined
-            ? `${event.name} was recruited as a ${TIER_LABELS[event.tier]}.`
-            : `${event.name} was recruited as a ${TIER_LABELS[event.tier]}, rolling a ${event.roll}.`,
+            ? `${event.name} was recruited as ${withArticle(TIER_LABELS[event.tier])}.`
+            : `${event.name} was recruited as ${withArticle(TIER_LABELS[event.tier])}, rolling ${articleForNumber(event.roll)} ${String(event.roll)}.`,
         pages: 15,
       };
 
     case 'survivor-left':
-      return { text: `${event.name}, a ${TIER_LABELS[event.tier]}, left the community.` };
+      return {
+        text: `${event.name}, ${withArticle(TIER_LABELS[event.tier])}, left the community.`,
+      };
 
     case 'survivor-departed':
       return {
-        text: `${event.name}, a ${TIER_LABELS[event.tier]}, walked out over the Unrest.`,
+        text: `${event.name}, ${withArticle(TIER_LABELS[event.tier])}, walked out over the Unrest.`,
         pages: 23,
       };
 
@@ -309,7 +337,7 @@ export function describeEvent(event: CampaignEvent): EventLabel {
 
     case 'facility-built':
       return {
-        text: `Built a ${FACILITY_LABELS[event.facility]} in the ${slotLabel(event.slot)}.`,
+        text: `Built ${withArticle(FACILITY_LABELS[event.facility])} in the ${slotLabel(event.slot)}.`,
       };
 
     case 'upgrade-built':

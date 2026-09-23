@@ -1140,6 +1140,10 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         return logged(withProjectCancelled(campaign, action.at), action.when, {
           kind: 'project-unfinished',
           slot: project.slot,
+          // The same number the cancellation records, off the same order: this
+          // step shares `withProjectCancelled`, so it hands back the same
+          // Hardware and the entry should say so (#173).
+          hardware: project.charged.hardware,
           ...builtOf(project),
         });
       });

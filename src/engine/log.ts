@@ -322,7 +322,17 @@ export type CampaignEvent =
    * never done, and materials a community still has are materials it still
    * has.
    */
-  | { readonly kind: 'project-unfinished'; readonly slot: string; readonly built?: string }
+  | {
+      readonly kind: 'project-unfinished';
+      readonly slot: string;
+      // The Hardware the order had spent, which comes back here exactly as it
+      // does on a cancellation — the two share `withProjectCancelled`. Recorded
+      // for the same reason that one records it: the entry said only that the
+      // Labor had left while the stores moved 1 → 3, so the history and the
+      // cancel button two screens away contradicted each other (#173).
+      readonly hardware?: number;
+      readonly built?: string;
+    }
   /**
    * The stores were trimmed to the base's caps (pg. 23).
    *

@@ -778,7 +778,7 @@ describe('Departures', () => {
     // Named, not just placed: the entry says which project left the queue, the
     // way the order and built entries always have (#151).
     expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
-      'The Workshop on the Garage went unfinished',
+      'The Workshop in the Garage went unfinished',
     );
   });
 

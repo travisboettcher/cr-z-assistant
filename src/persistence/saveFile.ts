@@ -355,6 +355,8 @@ const EVENT_FIELDS: Record<
   ],
   'project-unfinished': [
     ['slot', 'id'],
+    // As above, and for the same reason: the refund is the same one.
+    ['hardware', 'optionalCount'],
     ['built', 'optionalId'],
   ],
   'storage-checked': [

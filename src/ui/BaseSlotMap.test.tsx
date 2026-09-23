@@ -293,7 +293,7 @@ describe('building into a slot', () => {
     // when it is placed and nothing on the screen said so (#148).
     await user.click(
       screen.getByRole('button', {
-        name: /cancel bunk room in the garage — its hardware comes back/i,
+        name: /cancel bunk room in the garage — its 3 hardware comes back/i,
       }),
     );
 
@@ -304,7 +304,7 @@ describe('building into a slot', () => {
     // cannot know the second before the press, and "the Garage project" alone
     // is ambiguous the moment two are queued there (#151).
     expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
-      'Cancelled the Bunk Room on the Garage — 3 Hardware came back',
+      'Cancelled the Bunk Room in the Garage — 3 Hardware came back',
     );
   });
 
@@ -1080,5 +1080,61 @@ describe('a Training Room’s restricted XP', () => {
     await openCard([]);
 
     expect(screen.queryByText(/restricted/i)).toBeNull();
+  });
+});
+
+/** **#173's slot-map lines**, each a sentence the screen got wrong. */
+describe('what the slot map says about itself', () => {
+  it('counts the slots that are actually empty, not the ones the base shipped with', () => {
+    const built = openWith({
+      ...createNewCampaign('Cedar Hollow'),
+      turn: 3,
+      base: {
+        id: 'small-town-home',
+        slots: { garage: { built: { facility: 'workshop', builtOnTurn: 1 } } },
+      },
+    });
+    expect(built).toBeDefined();
+
+    // The Small Town Home ships with two empty slots and one is now a Workshop.
+    expect(slotMap().textContent).toContain('1 empty');
+  });
+
+  it('counts an upgrade slot in the singular where there is one', async () => {
+    const user = openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        turn: 3,
+        step: 'assign-project-team',
+        base: {
+          id: 'small-town-home',
+          slots: { kitchen: { upgrades: ['gas-range', 'refrigerator'] } },
+        },
+      }),
+    );
+    expect(user).toBeDefined();
+
+    expect(screen.getByText(/room for 1 more/i)).toBeInTheDocument();
+    expect(screen.queryByText(/room for 1 upgrades/i)).toBeNull();
+  });
+
+  /** A clearing costs no Hardware, so the button must not promise any back. */
+  it('promises no Hardware back from cancelling a clearing', async () => {
+    const user = openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        turn: 3,
+        step: 'assign-project-team',
+        base: { id: 'hobby-farm', slots: {} },
+        ...projectTeamWorth(5),
+      }),
+    );
+
+    await user.click(screen.getByRole('button', { name: /clear ruined chicken coop/i }));
+    await user.click(screen.getByRole('button', { name: /order the clearing/i }));
+
+    expect(
+      screen.getByRole('button', { name: /^cancel clearing the ruined chicken coop$/i }),
+    ).toBeInTheDocument();
   });
 });

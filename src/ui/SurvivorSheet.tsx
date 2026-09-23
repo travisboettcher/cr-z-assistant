@@ -438,6 +438,21 @@ function Promote({ survivor }: { readonly survivor: Survivor }) {
         </span>
       ) : null}
 
+      {/*
+       * R15, said where it happens. Promotion raises maximum Health through the
+       * Tier and leaves current Health behind — 3/3 becomes 3/4 — so the
+       * survivor is wounded afterwards and R12 keeps a wounded survivor off a
+       * mission team. The book says only that stats increase and a skill is
+       * learnt, and it states starting Health explicitly when it means to, so
+       * the promotion does not heal (#173). What it must not do is spring it:
+       * a reward that benches somebody should say so before it is bought.
+       */}
+      {survivor.currentHp < maxHp(survivor) + 1 && survivor.tier < 4 && (
+        <span className="text-sm text-stone-600 dark:text-stone-400">
+          Raises maximum Health; current Health does not follow <PageRef pages={18} />
+        </span>
+      )}
+
       {over.map((violation) => (
         <span key={violation.code} className="flex items-center gap-2 text-sm">
           <span className="text-amber-800 dark:text-amber-300">

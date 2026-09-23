@@ -1524,6 +1524,7 @@ describe('management/projectUnfinished', () => {
     expect(after.log.at(-1)?.event).toEqual({
       kind: 'project-unfinished',
       slot: 'garage',
+      hardware: 3,
       built: 'workshop',
     });
   });
@@ -2309,6 +2310,7 @@ describe('what earns a line in the log', () => {
       entry: entry(3, 'management', {
         kind: 'project-unfinished',
         slot: 'front-yard',
+        hardware: 3,
         built: 'watchtower',
       }),
     },

@@ -77,6 +77,8 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'clearing-ordered', slot: 'front-yard' },
   { kind: 'project-cancelled', slot: 'garage' },
   { kind: 'project-unfinished', slot: 'garage' },
+  // And one that says what came back, which entries written since #173 do.
+  { kind: 'project-unfinished', slot: 'garage', hardware: 2, built: 'workshop' },
   { kind: 'horde-checked', roll: 9, threat: 4, siege: false },
   // A base built for defence can drive the threat below zero (pg. 73), so the
   // validator has to accept a negative where no count would.
