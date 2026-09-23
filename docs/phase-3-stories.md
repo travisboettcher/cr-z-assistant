@@ -274,6 +274,28 @@ a third utility trade is added without deciding, and the cap those two state is 
 trade built in the test rather than one looked up — which is the honest answer to `maxPerTurn`
 having no UI-reachable exercise while the only two entries that use it do nothing.
 
+**Restricted XP is deferred, and the card says so.** A Training Room's Weight Room, Ropes Course
+and Classroom each produce 2 XP spendable only on skills governed by one stat — Strength, Dexterity
+and Intelligence respectively (pg. 73). A survivor's `xp` is a single number with no stat on it, so
+`trainingRoomXp` leaves those lines out of the pool rather than laundering them into unrestricted
+XP, and `experience.ts` says where the field would go if they were modelled.
+
+**What implementing it would take**, recorded so the next person does not have to work it out
+again: a survivor's experience stops being a number and becomes a balance per stat plus an
+unrestricted pot, which is a schema bump and a migration; every purchase in `advancement.ts` has to
+decide which pot it may draw on, because a skill's cost is paid from the pot its governing stat
+matches *or* the unrestricted one; and the sheet has to show four balances without making an
+ordinary campaign, where three of them are always zero, harder to read than it is now. It is a
+story of its own rather than a fix.
+
+The deferral was reasonable; the **silence** was not. The slot card listed the restricted amounts
+beside the unrestricted one with nothing to tell them apart, so a Training Room with all three
+upgrades read as 10 XP while the Advancement Phase offered 4 — a number the player is choosing
+between upgrades on, overstated by 33% with one upgrade and 60% with three
+([#172](https://github.com/travisboettcher/cr-z-assistant/issues/172)). Each restricted line now
+names itself as one the Advancement Phase will not hand out, and the card totals what will not
+arrive, in the same shape as the Generator and Well Pump note above.
+
 ## Rulings the book leaves open
 
 Moved to **[the rulings registry](rulings.md)**, which gathers every ruling this app has made

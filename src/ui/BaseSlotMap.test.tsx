@@ -1024,3 +1024,61 @@ describe('ordering outside the Planning Phase', () => {
     expect(screen.getByRole('button', { name: /order the upgrade/i })).toBeEnabled();
   });
 });
+
+/**
+ * **R3-M2.** A Training Room's upgrades produce XP spendable only on the skills
+ * of one stat (pg. 73), and the engine deliberately does not model restricted
+ * XP — a survivor's `xp` is a single number with no stat on it. The card listed
+ * the restricted amounts beside the unrestricted one with nothing to tell them
+ * apart, so a room with all three read as 10 and the Advancement Phase offered
+ * 4: a number the player chooses between upgrades on, overstated by 60% (#172).
+ */
+describe('a Training Room’s restricted XP', () => {
+  const room = (upgrades: readonly UpgradeId[]) =>
+    withPlanningBegun({
+      ...createNewCampaign('Cedar Hollow'),
+      turn: 3,
+      survivors: [
+        {
+          ...createSurvivor('Nell Haig', 4, { id: 'nell' }),
+          stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: 4 },
+          skills: { teaching: 0 },
+        },
+      ],
+      assignments: { nell: { task: 'staff', slot: 'front-yard' } },
+      base: {
+        id: 'hobby-farm',
+        slots: {
+          'front-yard': {
+            built: { facility: 'training-room', builtOnTurn: 1 },
+            upgrades: [...upgrades],
+          },
+        },
+      },
+    });
+
+  const openCard = async (upgrades: readonly UpgradeId[]) => {
+    const user = openWith(room(upgrades));
+    await user.click(screen.getByRole('button', { name: /upgrade front yard/i }));
+  };
+
+  it('marks each restricted line as one the Advancement Phase will not hand out', async () => {
+    await openCard(['classroom']);
+
+    expect(screen.getByText(/intelligence skills only — not handed out yet/i)).toBeInTheDocument();
+  });
+
+  it('says how much of the total will not arrive', async () => {
+    await openCard(['weight-room', 'ropes-course', 'classroom']);
+
+    expect(screen.getByText(/6 of that XP is restricted/i)).toBeInTheDocument();
+    expect(screen.getByText(/does not model restricted XP/i)).toBeInTheDocument();
+  });
+
+  /** A room with no restricted upgrades promises nothing it cannot pay. */
+  it('says nothing where every line is XP the pool will offer', async () => {
+    await openCard([]);
+
+    expect(screen.queryByText(/restricted/i)).toBeNull();
+  });
+});
