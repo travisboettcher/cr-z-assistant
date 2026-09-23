@@ -386,6 +386,29 @@ export function withProjectOrdered(campaign: Campaign, project: PlacedOrder): Ca
 }
 
 /**
+ * Whether an order may be placed at all right now
+ * ([R14](../../docs/rulings.md#r14--ordering-is-confined-to-the-planning-phase)).
+ *
+ * **The Planning Phase, and only it.** There is no equipment ordering anywhere
+ * outside Planning Step 2 (pg. 20): build and trade are project-team
+ * activities, and nothing in the Management Phase's seven steps touches them.
+ *
+ * `cancellable`'s other half, and written beside it because the two are one
+ * decision. Cancelling was guarded to the phase that placed the order (#148)
+ * and ordering was not, so an order placed in the Management Phase — or by
+ * stepping back into this turn's Advancement Phase — could never be withdrawn:
+ * the slot card read "Cancelled in the Planning Phase that ordered it" with no
+ * Planning Phase left, and next turn's refused it on `orderedOnTurn` (#171).
+ *
+ * The turn needs no test here, unlike `cancellable`: an order is placed on
+ * whatever turn is current, and it is the *taking back* that can reach into a
+ * turn that has closed.
+ */
+export function orderable(campaign: Campaign): boolean {
+  return phaseOf(campaign.step) === 'planning';
+}
+
+/**
  * Whether this order can still be taken back.
  *
  * **Within the phase that placed it**, which is what the app's own ruling says

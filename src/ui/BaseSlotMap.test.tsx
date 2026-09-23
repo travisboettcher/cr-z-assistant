@@ -389,6 +389,8 @@ describe('upgrading a facility', () => {
     return openWith(
       withPlanningBegun({
         ...createNewCampaign('Cedar Hollow'),
+        // The phase orders are placed in, which R14 confines them to (#171).
+        step: 'assign-project-team',
         materials: { food: 0, fuel: 0, hardware, rare: 0 },
         base: { id: 'small-town-home', slots: {} },
         ...projectTeamWorth(5),
@@ -439,6 +441,7 @@ describe('upgrading a facility', () => {
         // Past the turn the Garden went up, so the same-turn rule is not what
         // this test is about (pg. 54).
         turn: 3,
+        step: 'assign-project-team',
         materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
         base: {
           id: 'small-town-home',
@@ -495,6 +498,7 @@ describe('upgrading a facility', () => {
     const user = openWith(
       withPlanningBegun({
         ...createNewCampaign('Cedar Hollow'),
+        step: 'assign-project-team',
         materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
         base: {
           id: 'small-town-home',
@@ -543,6 +547,7 @@ describe('clearing a slot', () => {
     return openWith(
       withPlanningBegun({
         ...createNewCampaign('Cedar Hollow'),
+        step: 'assign-project-team',
         base: { id: 'hobby-farm', slots: {} },
         ...projectTeamWorth(labor),
       }),
@@ -962,5 +967,60 @@ describe('staffing from the base screen', () => {
 
     const working = screen.getByRole('group', { name: /working here/i });
     expect(within(working).getByRole('checkbox', { name: /earl/i })).toBeEnabled();
+  });
+});
+
+/**
+ * **#171, on the screen that offered the trap.** Outside the Planning Phase the
+ * three verbs used to carry a note and a live button, so an order could be
+ * placed in the Management Phase and never taken back — the card said
+ * "Cancelled in the Planning Phase that ordered it" with no Planning Phase left
+ * (R14).
+ */
+describe('ordering outside the Planning Phase', () => {
+  const atManagement = () =>
+    openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        turn: 3,
+        step: 'check-storage',
+        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        base: { id: 'small-town-home', slots: {} },
+        ...projectTeamWorth(5),
+      }),
+    );
+
+  it('refuses the order and says why', async () => {
+    const user = atManagement();
+    await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
+
+    expect(screen.getByText(/could not be cancelled/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /order the upgrade/i })).toBeDisabled();
+  });
+
+  /** No override, because R14 is not a rule a player may wave through. */
+  it('offers no way to do it anyway', async () => {
+    const user = atManagement();
+    await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
+
+    expect(screen.queryByLabelText(/order it anyway/i)).toBeNull();
+  });
+
+  /** Inside the phase, the step is a nudge and the button works. */
+  it('leaves the button alone at another Planning step', async () => {
+    const user = openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        turn: 3,
+        step: 'assign-mission-team',
+        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        base: { id: 'small-town-home', slots: {} },
+        ...projectTeamWorth(5),
+      }),
+    );
+    await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
+
+    expect(screen.getByText(/projects are ordered in assign project team/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /order the upgrade/i })).toBeEnabled();
   });
 });

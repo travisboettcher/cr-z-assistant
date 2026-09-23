@@ -1065,6 +1065,8 @@ describe('project/ordered', () => {
         ...createNewCampaign('Cedar Hollow', FIXED),
         materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
         turn: 3,
+        // The phase orders are placed in (R14, #171).
+        step: 'assign-project-team',
         base: { id: 'small-town-home', slots: {} },
         ...projectTeamWorth(5),
       }),
@@ -1189,12 +1191,28 @@ describe('project/ordered', () => {
     expect(expectOpen(twice).materials.hardware).toBe(6);
   });
 
+  /**
+   * **#171.** The reducer's half of R14: the screen refuses, and so does this,
+   * because a stale screen is exactly what the check here exists to catch.
+   */
+  it('refuses an order placed outside the Planning Phase, and keeps the Hardware', () => {
+    const late = openState({ ...expectOpen(withBase()), step: 'check-storage' });
+    const after = expectOpen(
+      campaignReducer(late, order({ kind: 'facility', slot: 'garage', facility: 'workshop' })),
+    );
+
+    expect(after.projects).toEqual([]);
+    expect(after.materials.hardware).toBe(9);
+    expect(after.log).toEqual(expectOpen(late).log);
+  });
+
   it('orders an upgrade and a clearing by the same action', () => {
     const farm = openState(
       withPlanningBegun({
         ...createNewCampaign('Cedar Hollow', FIXED),
         materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
         turn: 3,
+        step: 'assign-project-team',
         base: { id: 'hobby-farm', slots: {} },
         ...projectTeamWorth(9),
       }),
@@ -1270,19 +1288,29 @@ describe('project/cancelled', () => {
     );
   }
 
+  /**
+   * Two orders placed, and the turn then standing wherever the caller asks.
+   *
+   * **Placed in the Planning Phase whatever `step` says**, because R14 confines
+   * ordering to it and the walk is how a campaign gets anywhere else (#171).
+   * A fixture that ordered from the later step would now be building a state
+   * no campaign can reach, and the cancel guard it exists to exercise would
+   * never be the thing under test.
+   */
   function ordered(step: TurnStepId = 'assign-project-team'): CampaignState {
-    const base = queueable(step);
-    const one = campaignReducer(base, {
+    const one = campaignReducer(queueable(), {
       type: 'project/ordered',
       at: AT,
       project: { kind: 'facility', slot: 'garage', facility: 'workshop' },
     });
 
-    return campaignReducer(one, {
+    const two = campaignReducer(one, {
       type: 'project/ordered',
       at: AT,
       project: { kind: 'facility', slot: 'front-yard', facility: 'watchtower' },
     });
+
+    return openState({ ...expectOpen(two), step });
   }
 
   it('takes the named order out and gives its Hardware back', () => {
