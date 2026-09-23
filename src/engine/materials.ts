@@ -127,7 +127,7 @@ export function baseProduction(campaign: Campaign): Materials {
   const staffed = beforePlanning(campaign);
 
   for (const occupant of suppliedOccupants(staffed)) {
-    for (const line of facilityProduction(occupant, staffOf(staffed, occupant.slotId), penalty)) {
+    for (const line of facilityProduction(occupant, staffOf(staffed, occupant), penalty)) {
       for (const output of line.outputs) {
         if (isMaterial(output)) total[output] += line.amount;
       }

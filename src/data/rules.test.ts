@@ -598,6 +598,50 @@ describe('the campaign turn', () => {
 });
 
 /**
+ * The claim that lets the utility pool be computed from supply-blind staffing.
+ *
+ * Resolving a slot's capacity against supply is circular as a call graph —
+ * `suppliedOccupants → backedPoints → utilitiesScore → staffOf → staffCapacity
+ * → working` — and #153 recorded that as the reason the Med Lab's extra seat
+ * could not be utility-resolved. The loop carries no information, though, and
+ * this is why: **no facility that generates a utility has an upgrade that
+ * widens it**, so every Station seats exactly one whether or not it is
+ * supplied, and the pool can be worked out before anything is resolved.
+ *
+ * It is a fact about the catalogue rather than about the code, so it is checked
+ * here. An edition that put an `extraStaff` on a Utility Station would fail
+ * this rather than quietly restoring the cycle under `assignments.ts`.
+ */
+describe('staffing and the utility pool', () => {
+  const generatesAUtility = (entry: Facility | Upgrade): boolean =>
+    (entry.effects.production ?? []).some(
+      (line) =>
+        (line.kind === 'staffed-split' &&
+          line.outputs.some((output) => output === 'power' || output === 'water')) ||
+        (line.kind !== 'staffed-split' && (line.output === 'power' || line.output === 'water')),
+    );
+
+  it('never widens a facility that generates Power or Water', () => {
+    for (const id of FACILITY_IDS) {
+      // Through the declared types rather than the catalogue's literal ones,
+      // which narrow `effects` to whichever shape each entry happens to have.
+      const facility: Facility = FACILITIES[id];
+      const upgrades: readonly Upgrade[] = facility.upgrades;
+      const widened = upgrades.filter((upgrade) => upgrade.effects.extraStaff !== undefined);
+
+      if (widened.length === 0) continue;
+
+      const generating = [facility, ...upgrades].filter(generatesAUtility);
+
+      expect(
+        generating,
+        `${id} both generates a utility and has an upgrade that widens it, which puts the utility pool back inside its own calculation`,
+      ).toEqual([]);
+    }
+  });
+});
+
+/**
  * Playtest finding R3-H1, generalised the same way the base specials were.
  *
  * Scavenging was assignable, validated, persisted and labelled, and paid out

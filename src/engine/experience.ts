@@ -154,7 +154,7 @@ export function trainingRoomXp(campaign: Campaign): number {
   const staffed = beforePlanning(campaign);
 
   for (const occupant of suppliedOccupants(staffed)) {
-    for (const line of facilityProduction(occupant, staffOf(staffed, occupant.slotId), penalty)) {
+    for (const line of facilityProduction(occupant, staffOf(staffed, occupant), penalty)) {
       if (line.restrictedToStat !== undefined) continue;
       if (line.outputs.includes('xp')) total += line.amount;
     }
@@ -274,8 +274,7 @@ function trainingRoomIsStaffed(campaign: Campaign): boolean {
   const staffed = beforePlanning(campaign);
 
   return suppliedOccupants(staffed).some(
-    (occupant) =>
-      occupant.facility.id === 'training-room' && staffOf(staffed, occupant.slotId).length > 0,
+    (occupant) => occupant.facility.id === 'training-room' && staffOf(staffed, occupant).length > 0,
   );
 }
 

@@ -274,6 +274,33 @@ a third utility trade is added without deciding, and the cap those two state is 
 trade built in the test rather than one looked up — which is the honest answer to `maxPerTurn`
 having no UI-reachable exercise while the only two entries that use it do nothing.
 
+**The Med Lab's extra seat is gated on supply, and that is the book's answer rather than a
+ruling.** [#153](https://github.com/travisboettcher/cr-z-assistant/issues/153) recorded it as a
+ruling the app owed, because `staffCapacity` read the **raw** occupant while the comment beside it
+said "a Med Lab without Power and Water is a room nobody can work in, not a second seat". pg. 67's
+general Requirements rule settles it: a facility or upgrade not supplied with its requirements
+produces no effect, and widening the staffing *is* the Med Lab's effect. So an unsupplied Med Lab
+is no seat, and the comment was right all along.
+
+**The circularity was real as a call graph and carried no information.** Resolving capacity against
+supply runs `suppliedOccupants → backedPoints → utilitiesScore → staffOf → staffCapacity →
+working`. What breaks it is a fact about the catalogue: only the Med Lab, the Study Room and the
+Watch Post widen a facility, and **none of them sits on a facility that generates a utility**, so
+every Utility Station seats exactly one whether supplied or not and the pool can be computed before
+anything is resolved. `rules.test.ts` asserts that, so an edition that put an `extraStaff` on a
+Station fails rather than quietly restoring the loop.
+
+`staffOf` now takes the **occupant** rather than a slot id, which closes it for good: every consumer
+already iterated `suppliedOccupants` and had the resolved occupant in hand while `staffOf` went and
+fetched the raw one. That mismatch is
+[#170](https://github.com/travisboettcher/cr-z-assistant/issues/170) — on a Hydroelectric Dam at
+combined Utilities 10 the staffing control said "Takes 2" and Heal Wounds pooled one medic — and the
+general point is worth keeping with it: **a partial rollout of a correctness fix can be worse for the
+player than none of it**, because a consistent wrong answer is falsifiable against the book and an
+inconsistent one just looks broken. The two places that must *not* resolve — the pool itself, and
+the staffed-facility count, where capacity cannot change a `length > 0` — now say so where they call
+it.
+
 **Restricted XP is deferred, and the card says so.** A Training Room's Weight Room, Ropes Course
 and Classroom each produce 2 XP spendable only on skills governed by one stat — Strength, Dexterity
 and Intelligence respectively (pg. 73). A survivor's `xp` is a single number with no stat on it, so

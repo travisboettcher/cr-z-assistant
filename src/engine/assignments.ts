@@ -30,7 +30,7 @@
  */
 
 import { BASES } from '../data/bases';
-import { occupantAt, occupants, staffCapacity } from './base';
+import { occupants, staffCapacity, type Occupant } from './base';
 import { hungerPenalty } from './feeding';
 import type { Assignment, Campaign, Survivor } from './campaign';
 import { facilityProduction, type ProductionLine } from './production';
@@ -98,18 +98,43 @@ export function survivorsDoing(
  * and is described rather than rejected. Roster order decides who counts, which
  * is arbitrary but stable — and the screen names whoever is doing nothing, so
  * the answer is visible rather than merely consistent.
+ *
+ * **Takes the occupant rather than looking one up, and that is the fix for
+ * #153 and #170.** A Med Lab widens a Clinic only while it is supplied — pg. 67
+ * gives an entry whose requirements are unmet no effect at all, and widening
+ * the staffing *is* the Med Lab's effect — so the answer depends on which
+ * occupant is asked. This looked one up raw, which is supply-blind: right
+ * whenever a facility is genuinely unsupplied, and wrong whenever supply
+ * arrives by a route not stored on the slot. On a Hydroelectric Dam at combined
+ * Utilities 10, where the base special supplies everything, the staffing
+ * control said "Takes 2" off the resolved occupant and Heal Wounds pooled one
+ * medic's Medicine off the raw one.
+ *
+ * #153 called resolving it circular, and the cycle was real as written:
+ * `suppliedOccupants → backedPoints → utilitiesScore → staffOf →
+ * staffCapacity → working`. It carried no information, though. Only three
+ * upgrades widen a facility — the Med Lab, the Study Room and the Watch Post —
+ * and **none of them sits on a facility that generates utilities**, so every
+ * Station's capacity is 1 whether supplied or not and the pool can be computed
+ * from supply-blind staffing without losing anything. `rules.test.ts` holds
+ * that, so an upgrade that put an `extraStaff` on a Utility Station would fail
+ * rather than quietly restoring the loop.
+ *
+ * Asking the caller closes it for good: every consumer already iterates
+ * `suppliedOccupants` and had the resolved occupant in hand while this went and
+ * fetched the raw one. The two that must not resolve — the pool itself, and the
+ * staffed-facility count, where capacity cannot change a `length > 0` — now say
+ * so where they call it.
  */
-export function staffOf(campaign: Campaign, slot: string): readonly Survivor[] {
+export function staffOf(campaign: Campaign, occupant: Occupant): readonly Survivor[] {
   // Through `sameTask` rather than matching the tag and the slot again here.
   // Two places answering "is this the same job" is one place too many, and the
   // copy was the one a mutant could survive in.
   const assigned = survivorsDoing(campaign, (assignment) =>
-    sameTask(assignment, { task: 'staff', slot }),
+    sameTask(assignment, { task: 'staff', slot: occupant.slotId }),
   );
 
-  const occupant = occupantAt(campaign, slot);
-
-  return occupant === undefined ? [] : assigned.slice(0, staffCapacity(occupant));
+  return assigned.slice(0, staffCapacity(occupant));
 }
 
 /** Whoever is assigned to this slot, over capacity or not — for a screen to report. */
@@ -247,7 +272,10 @@ export function staffedFacilityCount(campaign: Campaign): number {
   const base = campaign.base;
   if (base === null) return 0;
 
-  return occupants(base).filter((occupant) => staffOf(campaign, occupant.slotId).length > 0).length;
+  // Raw, and it cannot matter: this asks whether anybody is working the slot,
+  // and every facility seats at least one whatever its utilities are doing. A
+  // resolved list here would be `suppliedOccupants`, which is the cycle.
+  return occupants(base).filter((occupant) => staffOf(campaign, occupant).length > 0).length;
 }
 
 /**
@@ -293,7 +321,10 @@ export function utilitiesScore(campaign: Campaign): number {
   let total = 0;
 
   for (const occupant of occupants(base)) {
-    for (const line of facilityProduction(occupant, staffOf(campaign, occupant.slotId), penalty)) {
+    // Raw on purpose: this *is* the supply calculation, so it cannot ask what
+    // supply resolved to. Sound because no facility that generates a utility
+    // has an upgrade that widens it — `rules.test.ts` is the guard.
+    for (const line of facilityProduction(occupant, staffOf(campaign, occupant), penalty)) {
       if (splitsAcrossPools(line)) total += line.amount;
     }
   }

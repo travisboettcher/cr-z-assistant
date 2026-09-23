@@ -123,7 +123,7 @@ function watchedFromAbove(campaign: Campaign): number {
   const penalty = hungerPenalty(campaign);
   const reduction = suppliedOccupants(campaign).reduce(
     (total, occupant) =>
-      total + siegeThreatReduction(occupant, staffOf(campaign, occupant.slotId), penalty),
+      total + siegeThreatReduction(occupant, staffOf(campaign, occupant), penalty),
     0,
   );
 
@@ -245,7 +245,7 @@ export function towersWithoutTheSkill(campaign: Campaign): readonly string[] {
   const penalty = hungerPenalty(campaign);
 
   return suppliedOccupants(campaign).flatMap((occupant) =>
-    facilityProduction(occupant, staffOf(campaign, occupant.slotId), penalty).some(
+    facilityProduction(occupant, staffOf(campaign, occupant), penalty).some(
       (line) => line.missingSkill && line.outputs.includes('siege-threat'),
     )
       ? [occupant.slotId]

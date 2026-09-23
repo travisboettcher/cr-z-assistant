@@ -88,7 +88,7 @@ export function rotTarget(campaign: Campaign): number {
   for (const occupant of suppliedOccupants(campaign)) {
     if (occupant.facility.id !== 'medical-clinic') continue;
 
-    for (const staff of staffOf(campaign, occupant.slotId)) {
+    for (const staff of staffOf(campaign, occupant)) {
       medicine += skillScore(staff, 'medicine', penalty) ?? 0;
     }
   }

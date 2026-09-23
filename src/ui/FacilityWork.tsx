@@ -42,7 +42,7 @@ const OUTPUT_LABELS: Record<ProducedOutput, string> = {
 };
 
 export function FacilityWork({ campaign, occupant }: FacilityWorkProps) {
-  const staff = staffOf(campaign, occupant.slotId);
+  const staff = staffOf(campaign, occupant);
   // What a facility makes moves with its staff's Skill Scores, and a starving
   // community's Scores are lower (pg. 22) — so the number on this card drops
   // the turn the stores run out, without anything being written down.

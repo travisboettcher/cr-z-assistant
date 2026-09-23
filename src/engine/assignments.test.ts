@@ -9,7 +9,7 @@ import {
 } from './campaign';
 import type { LogEntry } from './log';
 import { createSurvivor } from './survivor';
-import { flatUtilitiesGenerated, occupants } from './base';
+import { flatUtilitiesGenerated, occupantAt, occupants, type Occupant } from './base';
 import { facilityProduction } from './production';
 import {
   baseLaborBonus,
@@ -181,6 +181,17 @@ describe('taskOf and survivorsDoing', () => {
 });
 
 describe('staffOf', () => {
+  /**
+   * Whoever is working a slot, by id — the shape these tests want, now that
+   * `staffOf` takes the occupant rather than looking one up. Raw, because none
+   * of these is about supply.
+   */
+  const working = (campaign: Campaign, slot: string): readonly string[] => {
+    const occupant = occupantAt(campaign, slot);
+
+    return occupant === undefined ? [] : staffOf(campaign, occupant).map((one) => one.id);
+  };
+
   it('gives the slot its own staff and nobody else’s', () => {
     const campaign = community(
       {
@@ -193,17 +204,43 @@ describe('staffOf', () => {
 
     // A Kitchen takes one (pg. 54) and no upgrade here widens it, so Ruby is
     // assigned and not working. `assignedTo` is what a screen reports with.
-    expect(staffOf(campaign, 'kitchen').map((one) => one.id)).toEqual([EARL]);
+    expect(working(campaign, 'kitchen')).toEqual([EARL]);
     expect(assignedTo(campaign, 'kitchen').map((one) => one.id)).toEqual([EARL, RUBY]);
-    expect(staffOf(campaign, 'utility-station').map((one) => one.id)).toEqual([CARLA]);
-    expect(staffOf(campaign, 'front-yard')).toEqual([]);
+    expect(working(campaign, 'utility-station')).toEqual([CARLA]);
   });
 
-  /** No base, no facility, and so nobody working one. */
-  it('is nobody before a base is claimed', () => {
-    expect(staffOf(community({ [EARL]: { task: 'staff', slot: 'kitchen' } }), 'kitchen')).toEqual(
-      [],
+  /**
+   * **The occupant, not a slot id** (#153, #170). A Med Lab widens a Clinic
+   * only while it is supplied, so the answer depends on which occupant is
+   * asked — and this used to fetch a raw one while every caller already had a
+   * resolved one in hand. An empty slot has no occupant to ask about, which is
+   * why there is nothing here for "a slot with nothing in it".
+   */
+  it('caps by what the occupant it is given takes', () => {
+    const campaign = community(
+      {
+        [EARL]: { task: 'staff', slot: 'garage' },
+        [CARLA]: { task: 'staff', slot: 'garage' },
+      },
+      {
+        id: 'small-town-home',
+        slots: {
+          garage: { built: { facility: 'medical-clinic', builtOnTurn: 1 }, upgrades: ['med-lab'] },
+        },
+      },
     );
+
+    const raw = occupantAt(campaign, 'garage') as Occupant;
+
+    // Unsupplied, so the Med Lab produces no effect and there is one seat.
+    expect(staffOf(campaign, raw).map((one) => one.id)).toEqual([EARL]);
+
+    // And supplied, so the second seat is there — the same slot, the same two
+    // survivors, one field apart.
+    expect(staffOf(campaign, { ...raw, power: true, water: true }).map((one) => one.id)).toEqual([
+      EARL,
+      CARLA,
+    ]);
   });
 
   /**
@@ -214,7 +251,7 @@ describe('staffOf', () => {
   it('takes nobody at all for a facility that is not staffed', () => {
     const campaign = community({ [EARL]: { task: 'staff', slot: 'bunk-room-1' } }, farm());
 
-    expect(staffOf(campaign, 'bunk-room-1')).toEqual([]);
+    expect(working(campaign, 'bunk-room-1')).toEqual([]);
     expect(assignedTo(campaign, 'bunk-room-1').map((one) => one.id)).toEqual([EARL]);
   });
 });
