@@ -1573,6 +1573,115 @@ describe('management/projectUnfinished', () => {
   });
 });
 
+/**
+ * The siege's wake (pg. 23, the FAQ's "Siege Defense and Labor"; #183). A
+ * project-team survivor reduced to 0 Health in this turn's siege takes their
+ * Labor off the team that paid for last turn's orders, and those orders have
+ * not landed yet — so one of them may have to go unfinished.
+ */
+describe('advancement/projectUnfinished', () => {
+  /**
+   * Two Workshops ordered on turn 2 with four Labor, and two of the four
+   * laborers left at 0 Health by turn 3's Siege Defense.
+   */
+  function besieged(): CampaignState {
+    const team = projectTeamWorth(4);
+
+    return openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      materials: { food: 0, fuel: 0, hardware: 3, rare: 0 },
+      turn: 3,
+      step: 'add-facilities-and-upgrades',
+      base: { id: 'small-town-home', slots: {} },
+      projects: [
+        onOrder(
+          { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 2 },
+          { hardware: 3, labor: 2 },
+        ),
+        onOrder(
+          { kind: 'facility', slot: 'front-yard', facility: 'workshop', orderedOnTurn: 2 },
+          { hardware: 3, labor: 2 },
+        ),
+      ],
+      survivors: team.survivors.map((survivor, at) =>
+        at < 2 ? { ...survivor, currentHp: 0 } : survivor,
+      ),
+      assignments: team.assignments,
+      log: [
+        entry(3, 'mission', { kind: 'siege-defense-resolved', zombiesLeft: 1, survivorsExited: 0 }),
+      ],
+    });
+  }
+
+  const unfinish = (at: number): CampaignAction => ({
+    type: 'advancement/projectUnfinished',
+    at,
+    when: AT,
+  });
+
+  it('drops the named order, gives its Hardware back, and says so in the log', () => {
+    const after = expectOpen(campaignReducer(besieged(), unfinish(1)));
+
+    expect(after.projects.map((project) => project.slot)).toEqual(['garage']);
+    expect(after.materials.hardware).toBe(6);
+    expect(after.log.at(-1)?.event).toEqual({
+      kind: 'project-unfinished',
+      slot: 'front-yard',
+      hardware: 3,
+      built: 'workshop',
+    });
+  });
+
+  it('does nothing while the team that is left still covers the orders', () => {
+    const before = besieged();
+    const healed = openState({
+      ...expectOpen(before),
+      survivors: expectOpen(before).survivors.map((survivor) => ({ ...survivor, currentHp: 1 })),
+    });
+
+    expect(campaignReducer(healed, unfinish(0))).toEqual(healed);
+  });
+
+  /**
+   * This turn's orders are Departures' to leave unfinished, and nothing is
+   * ordered this turn before its Planning Phase anyway. The turn stamp is what
+   * refuses here, with the siege's shortfall still standing.
+   */
+  it('does nothing to an order that is not last turn’s', () => {
+    const before = openState({
+      ...expectOpen(besieged()),
+      projects: [
+        ...expectOpen(besieged()).projects,
+        onOrder(
+          { kind: 'facility', slot: 'front-yard', facility: 'watchtower', orderedOnTurn: 3 },
+          { hardware: 3, labor: 2 },
+        ),
+      ],
+    });
+
+    expect(campaignReducer(before, unfinish(2))).toEqual(before);
+  });
+
+  it('does nothing on a turn whose siege is not recorded', () => {
+    const unrecorded = openState({ ...expectOpen(besieged()), log: [] });
+
+    expect(campaignReducer(unrecorded, unfinish(0))).toEqual(unrecorded);
+  });
+
+  it('holds back finishing the projects until the choice is made', () => {
+    const finish: CampaignAction = { type: 'advancement/projectsCompleted', at: AT };
+    const before = besieged();
+
+    expect(campaignReducer(before, finish)).toEqual(before);
+
+    const chosen = campaignReducer(before, unfinish(1));
+    const finished = expectOpen(campaignReducer(chosen, finish));
+
+    expect(finished.projects).toEqual([]);
+    expect(finished.base?.slots.garage?.built?.facility).toBe('workshop');
+  });
+});
+
 describe('advancement/projectsCompleted', () => {
   /** A queue ordered on turn 2, seen from turn 3's Advancement Phase. */
   function due(): CampaignState {
@@ -2308,6 +2417,35 @@ describe('what earns a line in the log', () => {
       ),
       action: { type: 'management/projectUnfinished', at: 0, when: AT },
       entry: entry(3, 'management', {
+        kind: 'project-unfinished',
+        slot: 'front-yard',
+        hardware: 3,
+        built: 'watchtower',
+      }),
+    },
+    'advancement/projectUnfinished': {
+      // The Watchtower ordered last turn, and this turn's Siege Defense left
+      // its whole project team at 0 Health — so nobody is left to pay its two
+      // Labor (pg. 23, #183).
+      state: (() => {
+        const ordered = expectOpen(queued(2));
+
+        return openState({
+          ...ordered,
+          survivors: ordered.survivors.map((survivor) =>
+            survivor.id.startsWith('laborer-') ? { ...survivor, currentHp: 0 } : survivor,
+          ),
+          log: [
+            entry(3, 'mission', {
+              kind: 'siege-defense-resolved',
+              zombiesLeft: 2,
+              survivorsExited: 0,
+            }),
+          ],
+        });
+      })(),
+      action: { type: 'advancement/projectUnfinished', at: 0, when: AT },
+      entry: entry(3, 'mission', {
         kind: 'project-unfinished',
         slot: 'front-yard',
         hardware: 3,

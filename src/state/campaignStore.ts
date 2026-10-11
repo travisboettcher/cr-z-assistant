@@ -32,6 +32,7 @@ import {
   cancellable,
   completeProjects,
   laborShortfall,
+  siegeLaborShortfall,
   withProjectCancelled,
   withProjectOrdered,
 } from '../engine/projects';
@@ -516,7 +517,24 @@ export type CampaignAction =
    * it was, and the log cannot be edited.
    */
   | { readonly type: 'management/projectUnfinished'; readonly at: number; readonly when: string }
-  /** Finish everything the last Planning Phase ordered (pg. 19). */
+  /**
+   * Drop one of last turn's orders that this turn's siege left unpaid for
+   * (pg. 23, the FAQ's "Siege Defense and Labor"; #183).
+   *
+   * Its own action rather than a widened `management/projectUnfinished`,
+   * because the two guard different orders for different reasons: that one
+   * may only touch this turn's, and this one only last turn's — the orders the
+   * team the siege took somebody off was paying for. Both write the same
+   * `project-unfinished` entry, because at the table they are the same thing:
+   * the rule taking a project away and leaving only the choice of which.
+   */
+  | { readonly type: 'advancement/projectUnfinished'; readonly at: number; readonly when: string }
+  /**
+   * Finish everything the last Planning Phase ordered (pg. 19).
+   *
+   * Refused while this turn's siege has left those orders short: finishing
+   * them all would be building with Labor the team no longer has.
+   */
   | { readonly type: 'advancement/projectsCompleted'; readonly at: string }
   /**
    * Puts a point of Power or Water on a slot, or takes it off.
@@ -1176,8 +1194,35 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         });
       });
 
+    /**
+     * Guarded twice, like its sibling above, and the guards are the mirror of
+     * its: a shortfall the siege made, and one of *last* turn's orders. The
+     * siege is the one thing that reaches back that far, because it is fought
+     * before this turn's Planning Phase reassigns the team that paid for them
+     * (`siegeLaborShortfall`).
+     */
+    case 'advancement/projectUnfinished':
+      return withCampaign(state, (campaign) => {
+        if (siegeLaborShortfall(campaign) === 0) return campaign;
+
+        const project = campaign.projects[action.at];
+        if (project === undefined || project.orderedOnTurn !== campaign.turn - 1) return campaign;
+
+        return logged(withProjectCancelled(campaign, action.at), action.when, {
+          kind: 'project-unfinished',
+          slot: project.slot,
+          hardware: project.charged.hardware,
+          ...builtOf(project),
+        });
+      });
+
     case 'advancement/projectsCompleted':
       return withCampaign(state, (campaign) => {
+        // Not while the siege has left them short. The screen offers the
+        // choice in place of the button; this is the same refusal for a
+        // dispatch that did not come from it.
+        if (siegeLaborShortfall(campaign) > 0) return campaign;
+
         const { campaign: finished, completed } = completeProjects(campaign);
 
         // One entry per project that actually landed — a project dropped for a

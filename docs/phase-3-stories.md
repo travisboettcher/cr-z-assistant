@@ -375,9 +375,10 @@ Score-0 Teacher), [R9](rulings.md#r9--how-broadly-the-utilities-substitution-app
 Utilities substitution, still open),
 [R12](rulings.md#r12--wounded-and-injured-are-one-state) (wounded and injured),
 [R13](rulings.md#r13--siege-threat-may-go-below-zero--recorded-without-a-ruling) (negative Siege
-Threat, recorded without a ruling), and
+Threat, recorded without a ruling),
 [R16](rulings.md#r16--what-resets-the-turns-since-the-last-siege--confirmed) (what resets the turns
-since the last siege).
+since the last siege), and [R17](rulings.md#r17--what-a-siege-defense-does-to-the-turns-work) (what
+a Siege Defense does to the work of its own turn).
 
 This list numbered its own rulings 1–9 until the registry was written down. Three of them changed
 number on the way: ruling 4 is now R9, ruling 5 is now R12, and ruling 9 — the siege counter,

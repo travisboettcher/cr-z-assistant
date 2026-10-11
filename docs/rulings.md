@@ -359,3 +359,52 @@ registry existed, and moved here with its text unchanged.*
 paragraph above left for later: a point of Labor for each survivor on the project team, the
 campaign turn after a Siege Defense that left no zombie standing. Which turn that is, is the
 book's answer rather than a ruling, and is recorded with the Phase 3 decisions.
+What a Siege Defense does to the work of its own turn is
+[R17](#r17--what-a-siege-defense-does-to-the-turns-work).
+
+---
+
+## R17 — What a Siege Defense does to the turn's work
+
+**pg. 23, pg. 85, the FAQ entry "Siege Defense and Labor";
+[#183](https://github.com/travisboettcher/cr-z-assistant/issues/183).** Projects and staffed
+facilities keep running through a siege, but a survivor *reduced to 0 Health during it* contributes
+neither Labor nor skills *that turn*: their Labor leaves the project team and their facility goes
+unstaffed. The book does not say which of the app's phases "that turn" reaches, the outcome it has
+the table record does not say who went down, and pg. 85 deploys every survivor to the fight, which
+reads at first as leaving nobody at the base to keep anything running.
+
+**Everybody fights; the base keeps working; the two are different questions.** A Siege Defense is
+fought at the base, so deploying everybody takes nobody off their post. Who *fought* is `deployed`
+(the whole community, for the mission's XP — #167) and who *worked* is the standing assignments.
+Neither reads the other.
+
+**The work a siege interrupts is the previous Planning Phase's.** Assignments made in Planning N
+stand until Planning N + 1 clears them (pg. 20), and turn N + 1's Advancement Phase settles that
+work: what the facilities make, what a Clinic heals, what a Training Room teaches, and the projects
+the team's Labor paid for. A siege in turn N + 1's Mission Phase falls before all of it. So a
+casualty's skills come out of production, healing and Training Room XP that turn, and their Labor
+comes off the pool that paid for last turn's orders — which can leave one of them unpaid for, and
+the player picks which goes unfinished, exactly as for a departure (pg. 23). That is the one Labor
+shortfall that reaches back a turn, and it can because the siege is fought before this turn's
+Planning Phase reassigns the team. Turn N + 1's own Planning Phase assigns new work after the siege
+and is not affected.
+
+**"Reduced to 0 Health during the siege" reads as "at 0 Health once the siege's outcome is
+recorded", for a survivor holding a work task.** Wounds reach the campaign through a Health
+correction that is deliberately not logged, so there is no record of *when* anybody went down. Read
+live, so correcting a survivor's Health on the roster puts them back to work.
+
+**The utilities a Station's staff generated stand.** They were generated and assigned at Planning
+Step 1, before the siege, and last until the next Planning Phase (pg. 20, 67) — the same reason a
+hunger penalty arriving later in a turn revokes no point (#169). Supply is worked out from the
+staffing as assigned; only work done after the siege asks who could still do it.
+
+**What it costs.** A survivor who was *already* at 0 Health before the siege — wounded, still
+working because R12 allows it, holding on through Rot checks — counts as a casualty too, because the
+campaign cannot tell the two apart. That is defensible (pg. 85 sent them into the fight as well) and
+not provable. Health entered before the outcome is recorded counts the same as Health entered after
+it. And a siege fought but not yet recorded takes nobody off work; the walk already names an
+unrecorded siege as outstanding. The mission's own pools — the Teaching on the mission and the
+substitutions a haul can be forced with — stay with everybody who fought, because the FAQ's sentence
+is about the base's work.

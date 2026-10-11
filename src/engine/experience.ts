@@ -47,6 +47,7 @@ import {
 } from '../data/turn';
 import { beforePlanning, staffOf } from './assignments';
 import { deployed } from './siege';
+import { whoWorked } from './siegeWork';
 import { suppliedOccupants } from './utilities';
 import type { Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
@@ -151,10 +152,14 @@ export function trainingRoomXp(campaign: Campaign): number {
 
   // Staffed last Planning Phase, read this Advancement one — so it is asked of
   // the campaign as it stood before this turn's Planning cleared the answer.
+  // Asked of who could still teach: a siege this turn takes its casualties
+  // off their posts (#183).
   const staffed = beforePlanning(campaign);
 
   for (const occupant of suppliedOccupants(staffed)) {
-    for (const line of facilityProduction(occupant, staffOf(staffed, occupant), penalty)) {
+    const staff = whoWorked(campaign, staffOf(staffed, occupant));
+
+    for (const line of facilityProduction(occupant, staff, penalty)) {
       if (line.restrictedToStat !== undefined) continue;
       if (line.outputs.includes('xp')) total += line.amount;
     }
@@ -274,7 +279,9 @@ function trainingRoomIsStaffed(campaign: Campaign): boolean {
   const staffed = beforePlanning(campaign);
 
   return suppliedOccupants(staffed).some(
-    (occupant) => occupant.facility.id === 'training-room' && staffOf(staffed, occupant).length > 0,
+    (occupant) =>
+      occupant.facility.id === 'training-room' &&
+      whoWorked(campaign, staffOf(staffed, occupant)).length > 0,
   );
 }
 

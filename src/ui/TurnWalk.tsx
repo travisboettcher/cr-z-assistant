@@ -21,6 +21,7 @@ import { PageRef } from './PageRef';
 import { AdvancementPhase } from './AdvancementPhase';
 import { FirstMission } from './FirstMission';
 import { MissionOutcome } from './MissionOutcome';
+import { SiegeWork } from './SiegeWork';
 import { ManagementPhase } from './ManagementPhase';
 import { PlanningPhase } from './PlanningPhase';
 import { FIRST_TURN, siegeDue } from '../engine/siege';
@@ -282,6 +283,14 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
              * has the counts in front of it.
              */}
             {campaign.step === 'tactical-mission' && <MissionOutcome campaign={campaign} />}
+
+            {/*
+             * The fourth, once a Siege Defense is on the record: who it took
+             * off their work, which the Advancement Phase is about to settle
+             * (pg. 23, #183). Here because the casualties are counted at the
+             * table now, and their places are filled before anything lands.
+             */}
+            {campaign.step === 'tactical-mission' && <SiegeWork campaign={campaign} />}
 
             <p className="mt-4 text-sm text-stone-600 dark:text-stone-400">
               This step is not built yet — work it on paper and move on when the table has.{' '}

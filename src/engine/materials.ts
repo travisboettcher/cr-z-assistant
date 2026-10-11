@@ -49,6 +49,7 @@ import type { D10Result } from '../data/dice';
 import { storageCaps } from './base';
 import { beforePlanning, staffOf, survivorsDoing } from './assignments';
 import { deployed } from './siege';
+import { whoWorked } from './siegeWork';
 import type { Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
 import { facilityProduction, NO_PENALTY } from './production';
@@ -124,10 +125,15 @@ export function baseProduction(campaign: Campaign): Materials {
   // the campaign as it stood before this turn's Planning cleared the answer.
   // The utilities are resolved against that same campaign, because a point is
   // backed by the Station's staffing and that is the staffing in question.
+  // What the facility makes is asked of who could still work it: a siege this
+  // turn takes its casualties off their posts, and not off the utilities they
+  // generated before it (`siegeWork.ts`, #183).
   const staffed = beforePlanning(campaign);
 
   for (const occupant of suppliedOccupants(staffed)) {
-    for (const line of facilityProduction(occupant, staffOf(staffed, occupant), penalty)) {
+    const staff = whoWorked(campaign, staffOf(staffed, occupant));
+
+    for (const line of facilityProduction(occupant, staff, penalty)) {
       for (const output of line.outputs) {
         if (isMaterial(output)) total[output] += line.amount;
       }

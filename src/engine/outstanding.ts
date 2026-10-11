@@ -36,7 +36,7 @@ import type { Campaign } from './campaign';
 import { survivorsFed } from './feeding';
 import { healthAwards, woundsHealed } from './healing';
 import { materialsAdded } from './materials';
-import { dueProjects, laborShortfall } from './projects';
+import { dueProjects, laborShortfall, siegeLaborShortfall } from './projects';
 import { mustCheck, rotCheckResolved } from './rot';
 import { hordeChecked, missionResolved, siegeDue } from './siege';
 import { anythingOverCap, storageChecked } from './storage';
@@ -87,6 +87,16 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
     owed.push({
       step: 'add-facilities-and-upgrades',
       says: 'Projects ordered last turn are due and have not been finished.',
+    });
+  }
+
+  // Before the projects can land at all, and the same question as this turn's
+  // own shortfall below: Labor the turn no longer has, which ending it would
+  // otherwise forgive (#183).
+  if (siegeLaborShortfall(campaign) > 0) {
+    owed.push({
+      step: 'add-facilities-and-upgrades',
+      says: `Last turn’s orders are ${String(siegeLaborShortfall(campaign))} Labor short after the siege, and a project has to go unfinished.`,
     });
   }
 

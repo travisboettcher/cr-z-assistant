@@ -342,10 +342,12 @@ export function siegeDue(campaign: Campaign): boolean {
  * is the siege rule, and that module cannot ask about sieges: this one already
  * reads it for the Threat terms, so the import would be a cycle.
  *
- * Derived rather than written into `assignments`. A siege overrides nothing
- * else about the turn — the staffing and the project team were decided in the
- * Planning Phase before it, and rewriting them would be Phase 4 deciding what
- * a Siege Defense costs the base, which is not this issue's to say.
+ * Derived rather than written into `assignments`. A siege rewrites nothing
+ * else about the turn: the staffing and the project team were decided in the
+ * Planning Phase before it, and they keep running through it (pg. 23). Who of
+ * them can still work afterwards is a different question from who fought —
+ * `siegeWork.ts` answers it, and says why everybody deploying and the base
+ * carrying on are not a contradiction (#183).
  */
 export function deployed(campaign: Campaign): readonly Survivor[] {
   return siegeDue(campaign) ? campaign.survivors : missionTeam(beforePlanning(campaign));
