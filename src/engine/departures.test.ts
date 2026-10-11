@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Assignment, type Campaign, type Survivor } from './campaign';
 import { createSurvivor } from './survivor';
 import {
+  departureCalled,
   departureCandidates,
   departurePressure,
   someoneDeparted,
@@ -40,10 +41,25 @@ describe('departurePressure', () => {
   });
 });
 
+describe('departureCalled', () => {
+  it('is false below ten and true at it', () => {
+    expect(departureCalled(community(crowd(7)))).toBe(false);
+    expect(departureCalled(community(crowd(8)))).toBe(true);
+  });
+});
+
 describe('someoneIsLeaving', () => {
   it('is false below ten and true at it', () => {
     expect(someoneIsLeaving(community(crowd(7)))).toBe(false);
     expect(someoneIsLeaving(community(crowd(8)))).toBe(true);
+  });
+
+  /** Over the threshold is not enough: somebody has to be able to go (#192). */
+  it('is false at ten when everybody is down', () => {
+    const down = crowd(8).map((survivor) => ({ ...survivor, currentHp: 0 }));
+
+    expect(departureCalled(community(down))).toBe(true);
+    expect(someoneIsLeaving(community(down))).toBe(false);
   });
 });
 
@@ -115,6 +131,11 @@ describe('departureCandidates', () => {
     expect(departureCandidates(campaign).map((survivor) => survivor.id)).toEqual(['ada']);
   });
 
+  /**
+   * Called for, and nobody to answer it: so nobody is leaving, and the walk
+   * owes no step that no survivor could take (#192). `departureCalled` still
+   * says the pressure got there, which is what the screen reports.
+   */
   it('is nobody at all when everybody left standing is at 0 Health', () => {
     const campaign = community(
       Array.from({ length: 9 }, (_, at) => ({
@@ -123,8 +144,9 @@ describe('departureCandidates', () => {
       })),
     );
 
-    expect(someoneIsLeaving(campaign)).toBe(true);
+    expect(departureCalled(campaign)).toBe(true);
     expect(departureCandidates(campaign)).toEqual([]);
+    expect(someoneIsLeaving(campaign)).toBe(false);
   });
 });
 

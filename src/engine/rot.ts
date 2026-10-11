@@ -38,6 +38,16 @@
  * is what the press does, and it recomputes the outcome rather than trusting
  * what it was handed.
  *
+ * ## The bite is not the caller's to leave out
+ *
+ * Who is bitten is the player's choice; *whether* is not. Where a turned
+ * survivor has somebody to bite and no Restraints hold them, one of the
+ * candidates takes the Damage (pg. 22), and `checkBite` refuses an answer that
+ * names none of them (#189). It refuses rather than picking one, because which
+ * survivor is bitten is exactly the choice this module leaves to the table —
+ * the screen offers the first candidate as its default, and that default is the
+ * screen's, not a rule.
+ *
  * Pure, like the rest of `src/engine`.
  */
 
@@ -46,8 +56,15 @@ import { ROT_CHECK_TARGET, ROT_BITE_DAMAGE } from '../data/turn';
 import { staffOf, survivorsDoing } from './assignments';
 import { suppliedOccupants } from './utilities';
 import type { Campaign, Survivor } from './campaign';
+import type { Check, Violation } from './checks';
 import { hungerPenalty } from './feeding';
 import { outOfHealth, skillScore } from './survivor';
+
+export type BiteViolationCode = 'bite-required';
+
+export type BiteViolation = Violation<BiteViolationCode>;
+
+export type BiteCheck = Check<BiteViolationCode>;
 
 /**
  * Everybody at 0 Health, who must check this turn (pg. 22).
@@ -207,6 +224,11 @@ export interface RotOutcome {
  * `bitten` is the survivor the player chose, and is `null` when nobody was
  * being healed — a community with nobody in the Clinic loses one survivor
  * rather than two.
+ *
+ * **A preview, not a guard.** A `bittenId` that names no candidate comes back
+ * as nobody bitten here, so a screen can show what a half-filled form would
+ * cost; whether that answer may be *recorded* is `checkBite`'s question, and
+ * where a bite is due it is refused (#189).
  */
 export function rotOutcome(
   campaign: Campaign,
@@ -248,6 +270,59 @@ export function rotOutcome(
             dies: outOfHealth({ ...bitten, currentHp: bitten.currentHp - ROT_BITE_DAMAGE }),
           },
     restrained: false,
+  };
+}
+
+/**
+ * Everything wrong with recording this check, or two empty lists (pg. 22).
+ *
+ * **One blocker, and it is the bite.** A survivor who turns bites another
+ * before being destroyed, so where the check fails, somebody else is being
+ * healed and no set of Restraints is free to hold them, `bittenId` has to
+ * name one of `biteCandidates`. `null` — or an id that is nobody being healed —
+ * would let a failed check skip the Damage, which only the screen's own default
+ * used to stop: any other caller, an import or a test harness, could record a
+ * turning that bit nobody (#189).
+ *
+ * **Refused, not chosen for them.** Biting the first candidate would make the
+ * rule hold, and would also make this the place that picks who is bitten,
+ * which the book leaves to the table. So the engine says the answer is
+ * incomplete and the reducer records nothing, the same posture as a
+ * conversion the stores cannot pay for.
+ *
+ * Nothing else is refused. A pick handed in where no bite happens — a check
+ * that held, a set of Restraints holding them, nobody in the Clinic beside
+ * them — is ignored by `rotOutcome`, and the screen sends its default in
+ * exactly those cases. A blocker rather than a warning, because there is no
+ * table playing the bite differently: an override would record the same skipped
+ * Damage this exists to stop.
+ */
+export function checkBite(
+  campaign: Campaign,
+  survivorId: string,
+  roll: D10Result,
+  bittenId: string | null,
+): BiteCheck {
+  const outcome = rotOutcome(campaign, survivorId, roll, bittenId);
+
+  // Asked of the outcome rather than worked out again, so "is a bite due" is
+  // the same answer `rotOutcome` gives: turned, not held, and somebody there.
+  const due =
+    outcome.turned !== null &&
+    !outcome.restrained &&
+    biteCandidates(campaign, survivorId).length > 0;
+
+  if (!due || outcome.bitten !== null) return { blockers: [], warnings: [] };
+
+  return {
+    blockers: [
+      {
+        code: 'bite-required',
+        message: 'Somebody being healed takes the bite. Choose who.',
+        pages: 22,
+      },
+    ],
+    warnings: [],
   };
 }
 

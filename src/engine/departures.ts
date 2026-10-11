@@ -16,6 +16,18 @@
  * rather than `outOfHealth`, and
  * [R18](../../docs/rulings.md#r18--what-infection-incapacitates) is why.
  *
+ * ## Nobody is leaving when nobody can
+ *
+ * Two questions, kept apart because the answers differ. Whether the pressure
+ * **calls for** a departure is `departureCalled`, the sum against the
+ * threshold. Whether somebody **is leaving** is `someoneIsLeaving`, which also
+ * needs somebody able to go. A community whose survivors are all down — a
+ * siege's defenders at 0 Health, say — is over the threshold and loses nobody,
+ * and the turn owes no Departures step for it: an owed step that no survivor
+ * can satisfy was a walk reporting unfinished business forever (#192). The
+ * screen still says that somebody *would* have left, which is what
+ * `departureCalled` is for.
+ *
  * ## Read live, never cached
  *
  * The threshold is computed from the campaign at the moment it is asked, and it
@@ -39,8 +51,15 @@ export function departurePressure(campaign: Campaign): number {
   return unrest(campaign) + siegeThreat(campaign);
 }
 
-/** Whether somebody is leaving at all. */
-export function someoneIsLeaving(campaign: Campaign): boolean {
+/**
+ * Whether the pressure calls for somebody to go (pg. 23), whether or not
+ * anybody can.
+ *
+ * The threshold alone. What reads it is the screen, to tell "nobody is
+ * leaving" from "somebody would, and everybody left is down" — the walk asks
+ * `someoneIsLeaving`, below.
+ */
+export function departureCalled(campaign: Campaign): boolean {
   return departurePressure(campaign) >= DEPARTURE_THRESHOLD;
 }
 
@@ -49,10 +68,10 @@ export function someoneIsLeaving(campaign: Campaign): boolean {
  *
  * More than one only where they tie, and that is the whole reason this returns
  * a list — the player picks between equals rather than the app deciding for
- * them. Empty when nobody is leaving, or when everybody left is down.
+ * them. Empty when no departure is called for, or when everybody left is down.
  */
 export function departureCandidates(campaign: Campaign): readonly Survivor[] {
-  if (!someoneIsLeaving(campaign)) return [];
+  if (!departureCalled(campaign)) return [];
 
   const standing = campaign.survivors.filter((survivor) => !isDown(survivor));
   const lowest = standing.reduce(
@@ -61,6 +80,22 @@ export function departureCandidates(campaign: Campaign): readonly Survivor[] {
   );
 
   return standing.filter((survivor) => survivor.tier === lowest);
+}
+
+/**
+ * Whether somebody is leaving at all: a departure is called for, **and**
+ * somebody is in a state to walk (pg. 23).
+ *
+ * Read off `departureCandidates` rather than the pressure alone, so the step
+ * the walk owes is one a survivor can take. A community over the threshold
+ * with everybody down loses nobody, and `outstanding` used to owe it a
+ * departure that `management/departed` then refused for every id (#192).
+ * Still R18's `isDown`, through the candidates: nothing here changes who is
+ * in no state to leave, only that nobody leaving is the answer when that is
+ * everybody.
+ */
+export function someoneIsLeaving(campaign: Campaign): boolean {
+  return departureCandidates(campaign).length > 0;
 }
 
 /**

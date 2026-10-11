@@ -133,6 +133,12 @@ describe('submitRotCheck', () => {
       expectRefused(submitRotCheck(dying(4), { survivor: 'nobody', roll: 1, bitten: null }, AT)),
     ).toMatch(/community/);
   });
+
+  it('refuses a turning that bites nobody while somebody is there to bite (#189)', () => {
+    expect(
+      expectRefused(submitRotCheck(dying(4), { survivor: 'marcus', roll: 1, bitten: null }, AT)),
+    ).toMatch(/takes the bite/);
+  });
 });
 
 describe('submitFeeding', () => {

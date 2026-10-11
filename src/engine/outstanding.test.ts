@@ -236,6 +236,46 @@ describe('outstanding', () => {
     it('is not owed while nobody is under enough pressure to leave', () => {
       expect(steps(settled())).not.toContain('departures');
     });
+
+    /**
+     * #192: over the threshold, and every survivor down — a siege's defenders
+     * at 0 Health, say. Nobody can be chosen (pg. 23), so a step owed here
+     * could never be taken and the turn reported it forever.
+     */
+    it('is not owed when everybody is at 0 Health', () => {
+      const down = crowded();
+      const fallen = {
+        ...down,
+        survivors: down.survivors.map((survivor) => ({ ...survivor, currentHp: 0 })),
+      };
+
+      expect(steps(fallen)).not.toContain('departures');
+    });
+
+    /** Down is R18's `isDown`, so 10 Infection with Health left counts as well. */
+    it('is not owed when everybody is down on Infection', () => {
+      const down = crowded();
+      const fevered: Campaign = {
+        ...down,
+        origin: 'viral',
+        survivors: down.survivors.map((survivor) => ({ ...survivor, infection: 10 })),
+      };
+
+      expect(steps(fevered)).not.toContain('departures');
+    });
+
+    /** One survivor standing is somebody to send, however many are down. */
+    it('is owed while one survivor is still standing', () => {
+      const down = crowded();
+      const one = {
+        ...down,
+        survivors: down.survivors.map((survivor, index) =>
+          index === 0 ? survivor : { ...survivor, currentHp: 0 },
+        ),
+      };
+
+      expect(steps(one)).toContain('departures');
+    });
   });
 
   it('reads in the order the walk runs the steps', () => {

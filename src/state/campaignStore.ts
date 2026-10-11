@@ -455,7 +455,9 @@ export type CampaignAction =
    * The roll comes from the table, like a field recruit's. `bitten` is the
    * survivor the player picked to take the bite, or null where nobody else is
    * being healed — the book does not say who is bitten when more than one is,
-   * so the choice is the table's.
+   * so the choice is the table's. *Whether* somebody is bitten is not: a failed
+   * check with a candidate and no free Restraints that names nobody is refused
+   * (`checkBite`, #189).
    *
    * Not guarded against repeats: a survivor who turns is removed, so the
    * second press has nobody to check. Passing twice is a second entry in the

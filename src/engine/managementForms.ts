@@ -22,9 +22,9 @@ import { missionTeam, missionTeamReduced, overworked, withoutAssignment } from '
 import type { Campaign } from './campaign';
 import { departureCandidates, someoneDeparted, withDeparture } from './departures';
 import { foodRequired, hungerIfFedNow, survivorsFed, withSurvivorsFed } from './feeding';
-import { accepted, refused, type FormResult } from './forms';
+import { accepted, blockedBy, refused, type FormResult } from './forms';
 import { logged } from './log';
-import { rotCheckResolved, rotOutcome, rotTarget, withRotApplied } from './rot';
+import { checkBite, rotCheckResolved, rotOutcome, rotTarget, withRotApplied } from './rot';
 import { hordeChecked, hordeForced, siegeThreat, siegeTriggered } from './siege';
 import { overCap, storageChecked, withStorageChecked } from './storage';
 
@@ -64,6 +64,12 @@ export function submitRotCheck(campaign: Campaign, form: RotCheckForm, at: strin
 
   const survivor = campaign.survivors.find((candidate) => candidate.id === form.survivor);
   if (survivor === undefined) return refused('Only somebody in the community makes a Rot check.');
+
+  // A turning that bites nobody when somebody is there to bite is half the
+  // rule (pg. 22). Refused whole, check and all, rather than recorded without
+  // the Damage: the roll stays on the form to be sent again with a name (#189).
+  const biteProblem = blockedBy(checkBite(campaign, form.survivor, form.roll, form.bitten));
+  if (biteProblem !== null) return refused(biteProblem);
 
   const outcome = rotOutcome(campaign, form.survivor, form.roll, form.bitten);
 
