@@ -60,24 +60,19 @@ import {
   withWoundsHealed,
   woundsHealed,
 } from '../engine/healing';
-import { foodRequired, hungerIfFedNow, survivorsFed, withSurvivorsFed } from '../engine/feeding';
-import { rotCheckResolved, rotOutcome, rotTarget, withRotApplied } from '../engine/rot';
-import { overCap, storageChecked, withStorageChecked } from '../engine/storage';
-import {
-  deployed,
-  hordeChecked,
-  hordeForced,
-  missionOutcomeProblem,
-  siegeDue,
-  siegeThreat,
-  siegeTriggered,
-  type MissionOutcome,
-} from '../engine/siege';
-import { departureCandidates, someoneDeparted, withDeparture } from '../engine/departures';
+import { deployed, missionOutcomeProblem, siegeDue, type MissionOutcome } from '../engine/siege';
 import { standInProblem } from '../engine/siegeWork';
-import { missionTeam, overworked } from '../engine/assignments';
+import { withoutAssignment } from '../engine/assignments';
+import type { FormResult } from '../engine/forms';
+import {
+  submitDeparture,
+  submitFeeding,
+  submitHordeCheck,
+  submitRotCheck,
+  submitStorageCheck,
+  submitTeamReduction,
+} from '../engine/managementForms';
 import { storageCaps } from '../engine/base';
-import { ROT_BITE_DAMAGE } from '../data/turn';
 import { XP_AWARD, type XpSource } from '../data/turn';
 import type {
   Assignment,
@@ -965,52 +960,13 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       });
 
     case 'management/survivorsFed':
-      return withCampaign(state, (campaign) => {
-        if (survivorsFed(campaign)) return campaign;
-
-        return logged(withSurvivorsFed(campaign), action.at, {
-          kind: 'survivors-fed',
-          required: foodRequired(campaign),
-          hunger: hungerIfFedNow(campaign),
-          // The head count at the moment of eating, because the penalty is
-          // fixed here and held until the next Management Phase (pg. 22).
-          population: campaign.survivors.length,
-        });
-      });
+      return submitted(state, (campaign) => submitFeeding(campaign, action.at));
 
     case 'management/storageChecked':
-      return withCampaign(state, (campaign) => {
-        if (storageChecked(campaign)) return campaign;
-
-        const spilled = overCap(campaign);
-
-        return logged(withStorageChecked(campaign), action.at, {
-          kind: 'storage-checked',
-          ...spilled,
-        });
-      });
+      return submitted(state, (campaign) => submitStorageCheck(campaign, action.at));
 
     case 'management/hordeChecked':
-      return withCampaign(state, (campaign) => {
-        if (hordeChecked(campaign)) return campaign;
-
-        const threat = siegeThreat(campaign);
-        // A Thin the Herd that put everybody down makes this roll succeed on
-        // its own (pg. 81). The roll is still the table's, and still recorded.
-        const siege = hordeForced(campaign) || siegeTriggered(action.roll, threat);
-
-        // The entry is the whole record: a siege called on this turn is fought
-        // on the next, which `siege.ts` works out from the turn stamped here.
-        // Nothing is written onto the campaign, because a forward-dated field
-        // beside it destroyed the previous siege's turn — and with it the
-        // Siege Threat term that Departures reads two steps later.
-        return logged(campaign, action.at, {
-          kind: 'horde-checked',
-          roll: action.roll,
-          threat,
-          siege,
-        });
-      });
+      return submitted(state, (campaign) => submitHordeCheck(campaign, action.roll, action.at));
 
     case 'mission/resolved':
       return withCampaign(state, (campaign) =>
@@ -1040,114 +996,21 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       });
 
     case 'management/departed':
-      return withCampaign(state, (campaign) => {
-        // The rule sends one (pg. 23). Nothing in the campaign says it has
-        // happened — a departure lowers the very pressure it was measured
-        // against, so re-deriving `someoneIsLeaving` afterwards answers a
-        // different question. Hence the log, like every other step here.
-        if (someoneDeparted(campaign)) return campaign;
-
-        // Asked of *this* campaign rather than trusted from the screen.
-        const leaving = departureCandidates(campaign).find(
-          (candidate) => candidate.id === action.survivor,
-        );
-        if (leaving === undefined) return campaign;
-
-        return logged(withDeparture(campaign, action.survivor), action.at, {
-          kind: 'survivor-departed',
-          survivor: leaving.id,
-          name: leaving.name,
-          tier: leaving.tier,
-        });
-      });
+      return submitted(state, (campaign) => submitDeparture(campaign, action.survivor, action.at));
 
     case 'management/teamReduced':
-      return withCampaign(state, (campaign) => {
-        // One survivor, once, and only when Exhaustion is above the team's size
-        // (pg. 23). Exhaustion does not fall when they come off the team, so
-        // without the record the step offers the same removal until the team
-        // is empty — `overworked` reads that record as well as the condition.
-        //
-        // Asked of *this* campaign rather than trusted from the screen, like
-        // a departure. This guard used to check only the record, so a removal
-        // the Exhaustion never called for went through whenever the action
-        // arrived; the condition lived in the screen alone until #181.
-        if (!overworked(campaign)) return campaign;
-
-        const tired = missionTeam(campaign).find((candidate) => candidate.id === action.survivor);
-        if (tired === undefined) return campaign;
-
-        return logged(
-          { ...campaign, assignments: withoutAssignment(campaign.assignments, action.survivor) },
-          action.at,
-          { kind: 'mission-team-reduced', survivor: tired.id, name: tired.name },
-        );
-      });
+      return submitted(state, (campaign) =>
+        submitTeamReduction(campaign, action.survivor, action.at),
+      );
 
     case 'management/rotChecked':
-      return withCampaign(state, (campaign) => {
-        // Per survivor rather than per step: this one resolves a check for each
-        // survivor at 0 Health, so "already done" is a question about a person.
-        if (rotCheckResolved(campaign, action.survivor)) return campaign;
-
-        const survivor = campaign.survivors.find((candidate) => candidate.id === action.survivor);
-        if (survivor === undefined) return campaign;
-
-        const outcome = rotOutcome(campaign, action.survivor, action.roll, action.bitten);
-
-        // The check itself is recorded whether it passed or failed: a step that
-        // only wrote down the deaths would read as though nobody else had been
-        // in danger.
-        const checked = logged(withRotApplied(campaign, outcome), action.at, {
-          kind: 'rot-checked',
-          survivor: survivor.id,
-          name: survivor.name,
-          roll: action.roll,
-          target: rotTarget(campaign),
-          passed: outcome.turned === null,
-        });
-
-        if (outcome.turned === null) return checked;
-
-        const turned = logged(checked, action.at, {
-          kind: 'survivor-left',
-          survivor: outcome.turned.id,
-          name: outcome.turned.name,
-          tier: outcome.turned.tier,
-        });
-
-        /*
-         * A set of Restraints held them (pg. 72). Written down because
-         * `restraintsFree` counts these back — a turn with two sets holds two
-         * survivors and no more, and nothing else on the campaign remembers
-         * that the first one was held.
-         */
-        if (outcome.restrained) {
-          return logged(turned, action.at, {
-            kind: 'bite-restrained',
-            survivor: outcome.turned.id,
-            name: outcome.turned.name,
-          });
-        }
-
-        if (outcome.bitten === null) return turned;
-
-        const bitten = logged(turned, action.at, {
-          kind: 'survivor-bitten',
-          survivor: outcome.bitten.survivor.id,
-          name: outcome.bitten.survivor.name,
-          damage: ROT_BITE_DAMAGE,
-        });
-
-        if (!outcome.bitten.dies) return bitten;
-
-        return logged(bitten, action.at, {
-          kind: 'survivor-left',
-          survivor: outcome.bitten.survivor.id,
-          name: outcome.bitten.survivor.name,
-          tier: outcome.bitten.survivor.tier,
-        });
-      });
+      return submitted(state, (campaign) =>
+        submitRotCheck(
+          campaign,
+          { survivor: action.survivor, roll: action.roll, bitten: action.bitten },
+          action.at,
+        ),
+      );
 
     case 'advancement/woundsHealed':
       return withCampaign(state, (campaign) => {
@@ -1383,29 +1246,6 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
  * between a control rendering and being pressed.
  */
 /**
- * The assignments, minus one survivor's.
- *
- * A fresh copy with the key deleted, so the reducer stays pure. Written out
- * rather than rest-destructured because the idiom for a computed key leaves an
- * unused binding behind, which is the same call `survivor/skillRemoved` makes.
- *
- * Deleting a key the record does not have is a no-op, so there is no guard for
- * that case. There was one — an early return that kept the record's identity
- * when nothing changed — and a mutation run showed it surviving every test,
- * because `withCampaign` builds a new state object regardless and nothing
- * anywhere observes whether this particular record kept its reference.
- */
-function withoutAssignment(
-  assignments: Readonly<Record<string, Assignment>>,
-  survivor: string,
-): Readonly<Record<string, Assignment>> {
-  const remaining = { ...assignments };
-  delete remaining[survivor];
-
-  return remaining;
-}
-
-/**
  * Applies an edit to one survivor and records what it did, or does neither.
  *
  * The edit returns `null` for "nothing happened", which is how a refused
@@ -1478,6 +1318,27 @@ function withCampaign(state: CampaignState, edit: (campaign: Campaign) => Campai
     return state;
   }
   return { status: 'open', campaign: edit(state.campaign) };
+}
+
+/**
+ * Submits a turn form to the engine, and keeps the campaign as it was when the
+ * form is refused (#179).
+ *
+ * The whole of what is left of a form in this module. The guard, the change and
+ * the entry are the engine's (`src/engine/forms.ts`); the store's part is the
+ * open-or-empty question `withCampaign` answers, and the refusal's `problem` is
+ * dropped here, because a log of attempts is not a log of a campaign and the
+ * screen already said why the button was not offered.
+ */
+function submitted(
+  state: CampaignState,
+  submit: (campaign: Campaign) => FormResult,
+): CampaignState {
+  return withCampaign(state, (campaign) => {
+    const result = submit(campaign);
+
+    return result.ok ? result.campaign : campaign;
+  });
 }
 
 /**

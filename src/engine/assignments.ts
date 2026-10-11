@@ -460,3 +460,32 @@ export function overworked(campaign: Campaign): boolean {
 
   return team > 0 && exhaustion(campaign) > team;
 }
+
+/**
+ * The assignments, minus one survivor's.
+ *
+ * Here rather than in the reducer since #179, because two of the forms that
+ * take somebody off a task — Exhaustion's removal from the mission team and a
+ * survivor leaving the roster — moved into the engine, and the reducer's own
+ * `assignment/cleared` asks for the same thing.
+ *
+ * A fresh copy with the key deleted, so nothing a caller holds is written to.
+ * Written out rather than rest-destructured because the idiom for a computed
+ * key leaves an unused binding behind, which is the same call
+ * `survivor/skillRemoved` makes.
+ *
+ * Deleting a key the record does not have is a no-op, so there is no guard for
+ * that case. There was one — an early return that kept the record's identity
+ * when nothing changed — and a mutation run showed it surviving every test,
+ * because nothing anywhere observes whether this particular record kept its
+ * reference.
+ */
+export function withoutAssignment(
+  assignments: Readonly<Record<string, Assignment>>,
+  survivor: string,
+): Readonly<Record<string, Assignment>> {
+  const remaining = { ...assignments };
+  delete remaining[survivor];
+
+  return remaining;
+}
