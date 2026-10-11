@@ -68,7 +68,7 @@ import {
   type MissionOutcome,
 } from '../engine/siege';
 import { departureCandidates, someoneDeparted, withDeparture } from '../engine/departures';
-import { missionTeam, missionTeamReduced } from '../engine/assignments';
+import { missionTeam, overworked } from '../engine/assignments';
 import { storageCaps } from '../engine/base';
 import { ROT_BITE_DAMAGE } from '../data/turn';
 import { XP_AWARD, type XpSource } from '../data/turn';
@@ -977,10 +977,16 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
     case 'management/teamReduced':
       return withCampaign(state, (campaign) => {
-        // One survivor, once (pg. 23). Exhaustion does not fall when they come
-        // off the team, so without the record the step offers the same removal
-        // until the team is empty.
-        if (missionTeamReduced(campaign)) return campaign;
+        // One survivor, once, and only when Exhaustion is above the team's size
+        // (pg. 23). Exhaustion does not fall when they come off the team, so
+        // without the record the step offers the same removal until the team
+        // is empty — `overworked` reads that record as well as the condition.
+        //
+        // Asked of *this* campaign rather than trusted from the screen, like
+        // a departure. This guard used to check only the record, so a removal
+        // the Exhaustion never called for went through whenever the action
+        // arrived; the condition lived in the screen alone until #181.
+        if (!overworked(campaign)) return campaign;
 
         const tired = missionTeam(campaign).find((candidate) => candidate.id === action.survivor);
         if (tired === undefined) return campaign;

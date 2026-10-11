@@ -35,7 +35,7 @@ import {
   unrest,
 } from '../engine/feeding';
 import { beds } from '../engine/base';
-import { missionTeam, missionTeamReduced } from '../engine/assignments';
+import { missionTeam, missionTeamReduced, overworked } from '../engine/assignments';
 import {
   hordeCame,
   hordeChecked,
@@ -407,10 +407,12 @@ function AssignBeds({ campaign }: { readonly campaign: Campaign }) {
   // because taking somebody off a team without being asked is the kind of
   // silent edit this app does not make.
   //
-  // Once, though. Taking somebody off does not lower the Exhaustion that called
-  // for it — beds and population are unchanged — so the condition stays true
-  // and the step went on offering the next name until the team was empty.
-  const overworked = short > team.length && team.length > 0;
+  // Whether it is owed is the engine's to say (#181): `overworked` holds the
+  // condition and the once-a-turn rule both, and the reducer asks the same
+  // function before it takes anybody off. `reduced` is asked separately only
+  // for the sentence that says the removal has happened — "not owed" and
+  // "already done" read differently, and the player should see which.
+  const owed = overworked(campaign);
   const reduced = missionTeamReduced(campaign);
 
   return (
@@ -441,7 +443,7 @@ function AssignBeds({ campaign }: { readonly campaign: Campaign }) {
           Somebody has already come off the mission team this turn. The rule takes one.
         </p>
       ) : (
-        overworked && (
+        owed && (
           <>
             <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">
               Exhaustion is above the mission team’s{' '}
