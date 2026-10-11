@@ -31,7 +31,7 @@ import { BaseSheet } from './BaseSheet';
 import { FacilityWork } from './FacilityWork';
 import { cancellable, laborAvailable, laborShortfall, queuedFor } from '../engine/projects';
 import { planningHasBegun } from '../engine/planning';
-import { baseLaborBonus } from '../engine/assignments';
+import { baseLaborBonus, siegeLaborBonus } from '../engine/assignments';
 import { describeProject } from './projectLabels';
 import { useCampaign } from '../state/useCampaign';
 import { BuildFacility } from './BuildFacility';
@@ -401,6 +401,13 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
                   {' '}
                   plus the <span className="tabular-nums">{baseLaborBonus(campaign)}</span> this
                   base adds
+                </>
+              )}
+              {siegeLaborBonus(campaign) > 0 && (
+                <>
+                  {' '}
+                  plus <span className="tabular-nums">{siegeLaborBonus(campaign)}</span> for last
+                  turn&rsquo;s clean Siege Defense, a point for each of them
                 </>
               )}
               , less what this turn has already ordered. Whatever is left at the end of the turn is

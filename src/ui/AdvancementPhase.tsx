@@ -59,7 +59,15 @@ import {
   woundsHealed,
   type HealthAward,
 } from '../engine/healing';
-import { dueProjects, isDue } from '../engine/projects';
+import {
+  dueProjects,
+  isDue,
+  orderedLastTurn,
+  queuedCost,
+  siegeLaborShortfall,
+} from '../engine/projects';
+import { fellInTheSiege } from '../engine/siegeWork';
+import { SiegeWork } from './SiegeWork';
 import { describeProject } from './projectLabels';
 import {
   clearPendingRolls,
@@ -84,6 +92,15 @@ const HINT = 'text-sm text-stone-600 dark:text-stone-400';
 export function AdvancementPhase({ campaign, step }: AdvancementPhaseProps) {
   return (
     <div className="mt-4 border-t border-stone-200 pt-4 dark:border-stone-800">
+      {/*
+       * Above every step rather than at one, because a siege's casualties
+       * change three of them — what the base makes, what the Clinic heals and
+       * which projects land — and each needs its reason on screen (#143, #183).
+       * Only when somebody did fall: a clean bill of health is the Mission
+       * Phase's to report, and five steps of it would be noise.
+       */}
+      {fellInTheSiege(campaign).length > 0 && <SiegeWork campaign={campaign} />}
+
       {step === 'character-advancement' && <CharacterAdvancement campaign={campaign} />}
 
       {step === 'create-new-survivors' && (
@@ -873,6 +890,7 @@ function FinishProjects({ campaign }: { readonly campaign: Campaign }) {
 
   const due = dueProjects(campaign);
   const waiting = campaign.projects.filter((project) => !isDue(campaign, project));
+  const short = siegeLaborShortfall(campaign);
 
   return (
     <>
@@ -900,17 +918,71 @@ function FinishProjects({ campaign }: { readonly campaign: Campaign }) {
             ))}
           </ul>
 
-          <button
-            type="button"
-            className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
-            onClick={() => {
-              dispatch({ type: 'advancement/projectsCompleted', at: new Date().toISOString() });
-            }}
-          >
-            Finish {due.length === 1 ? 'the project' : `${String(due.length)} projects`}
-          </button>
+          {short > 0 ? (
+            <SiegeUnpaid campaign={campaign} short={short} />
+          ) : (
+            <button
+              type="button"
+              className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+              onClick={() => {
+                dispatch({ type: 'advancement/projectsCompleted', at: new Date().toISOString() });
+              }}
+            >
+              Finish {due.length === 1 ? 'the project' : `${String(due.length)} projects`}
+            </button>
+          )}
         </>
       )}
     </>
+  );
+}
+
+/**
+ * The siege's wake on the projects about to land (pg. 23, the FAQ's "Siege
+ * Defense and Labor"; #183).
+ *
+ * Departures' `UnpaidProjects` one turn's orders earlier: a casualty of the
+ * siege takes their Labor off the team that paid for these, and they have not
+ * landed yet. **Offered, never done**, for the reason that one gives — the rule
+ * says a project goes unfinished and not which, so the player picks.
+ *
+ * In place of the Finish button rather than beside it, because finishing them
+ * all is exactly what the turn can no longer pay for — and the store refuses
+ * it while this is showing, so a button would be a control that does nothing.
+ */
+function SiegeUnpaid({ campaign, short }: { readonly campaign: Campaign; readonly short: number }) {
+  const { dispatch } = useCampaign();
+
+  return (
+    <div className="mt-3 rounded-lg border border-amber-300 p-4 dark:border-amber-700">
+      <p className="text-sm font-medium">
+        These are <span className="tabular-nums">{short}</span> Labor short: the siege took somebody
+        off the project team that was paying for them. A project goes unfinished, and which one is
+        yours to say <PageRef pages={23} />
+      </p>
+
+      <ul className="mt-2 flex flex-col gap-1">
+        {orderedLastTurn(campaign).map(({ at, project }) => (
+          <li key={at} className="flex flex-wrap items-baseline gap-x-2 text-sm">
+            <button
+              type="button"
+              className={SMALL_BUTTON}
+              onClick={() => {
+                dispatch({
+                  type: 'advancement/projectUnfinished',
+                  at,
+                  when: new Date().toISOString(),
+                });
+              }}
+            >
+              Leave {describeProject(project)} unfinished
+            </button>
+            <span className="text-xs text-stone-500 dark:text-stone-400">
+              {queuedCost(campaign, at).labor} Labor
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

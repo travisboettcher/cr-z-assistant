@@ -280,6 +280,15 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
     case 'thin-the-herd-resolved':
       return { text: describeOutcome(event), pages: MISSION_PAGES[event.kind] };
 
+    case 'stood-in':
+      return {
+        text:
+          event.byName === undefined
+            ? `Nobody stands in for ${event.name} after all.`
+            : `${event.byName} stood in for ${event.name}, whom the siege left at 0 Health.`,
+        pages: 23,
+      };
+
     case 'health-restored': {
       // An entry with no Infection count is all Health, which is every entry
       // outside a Viral campaign and every one written before #176.

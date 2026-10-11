@@ -219,19 +219,81 @@ export function baseLaborBonus(campaign: Campaign): number {
 }
 
 /**
+ * What a clean Siege Defense last turn is adding to the Labor pool right now,
+ * for a caption to name (pg. 86).
+ *
+ * `baseLaborBonus`'s sibling, for the same reason (#143): the captions say "the
+ * summed Tier levels of the project team", and a pool carrying a point per head
+ * on top of that is a number the sentence beside it has to account for.
+ */
+export function siegeLaborBonus(campaign: Campaign): number {
+  return siegeReward(campaign, projectTeam(campaign), campaign.turn);
+}
+
+/**
  * The Labor the project team on the campaign generates (pg. 20).
  *
- * The sum of their Tier levels, plus whatever the base adds. Two things it is
- * deliberately not, both in `projects.ts` and both for the reason in this
- * module's note above: it is not reduced by what has been ordered
- * (`laborAvailable` subtracts), and it does not ask which turn assigned this
- * team (`laborThisTurn` does). A caller pricing an order wants that one.
+ * The sum of their Tier levels, plus whatever the base adds, plus a point each
+ * on the turn after a clean siege. Two things it is deliberately not, both in
+ * `projects.ts` and both for the reason in this module's note above: it is not
+ * reduced by what has been ordered (`laborAvailable` subtracts), and it does
+ * not ask which turn assigned this team (`laborThisTurn` does). A caller
+ * pricing an order wants that one.
  */
 export function laborPool(campaign: Campaign): number {
-  const team = projectTeam(campaign);
+  return laborOf(campaign, projectTeam(campaign), campaign.turn);
+}
+
+/**
+ * The Labor a given project team generates on a given turn.
+ *
+ * `laborPool` is this for the team on the campaign and the turn it is on. The
+ * turn is a parameter because one caller asks about a team that is *not* this
+ * turn's: a Siege Defense reaches back to the team the previous Planning Phase
+ * assigned, whose Labor paid for the orders this turn's Advancement Phase
+ * finishes, and that team's pool is the one its own turn generated — a clean
+ * siege two turns ago included (`siegeLaborShortfall` in `projects.ts`).
+ */
+export function laborOf(campaign: Campaign, team: readonly Survivor[], turn: number): number {
   const generated = team.reduce((total, survivor) => total + labor(survivor), 0);
 
-  return generated + baseLabor(campaign, team.length > 0);
+  return generated + siegeReward(campaign, team, turn) + baseLabor(campaign, team.length > 0);
+}
+
+/**
+ * The reward for a Siege Defense that left no zombie standing: +1 Labor for
+ * each survivor on the project team, the campaign turn after it (pg. 86).
+ *
+ * **The turn after, and through that turn's Planning Phase.** The siege is
+ * fought in turn N's Mission Phase and its outcome recorded there; the book
+ * puts the Labor in the *next* campaign turn, which is turn N + 1, and a turn's
+ * Labor exists only once its Planning Phase has assigned the team that
+ * generates it (`laborThisTurn`, #97). So the point lands on the team turn
+ * N + 1 assigns, is spendable in that Planning Phase, and is still on the pool
+ * in that turn's Management Phase — where a departing project-team member
+ * takes their point off with their Tier, because the point is theirs rather
+ * than the pool's (pg. 23). Turn N's own Planning Phase gets nothing: it is
+ * the same campaign turn as the siege, not the next one.
+ *
+ * **Derived from the log, like the counter the same outcome resets.** The
+ * condition is the one `siegeCounterChange` calls a reset — no zombie left on
+ * the mission area — and nothing is stored beside the entry. Read here rather
+ * than through `siege.ts` because that module imports this one: the siege rule
+ * that *changes* the pool has to be answerable where the pool is summed.
+ *
+ * Per head rather than a flat bonus, so it is zero for an empty team without
+ * saying so: "+1 for each survivor on the project team" with nobody on it is
+ * nothing, which the Catwalks have to spell out and this does not.
+ */
+function siegeReward(campaign: Campaign, team: readonly Survivor[], turn: number): number {
+  const clean = campaign.log.some(
+    (entry) =>
+      entry.turn === turn - 1 &&
+      entry.event.kind === 'siege-defense-resolved' &&
+      entry.event.zombiesLeft === 0,
+  );
+
+  return clean ? team.length : 0;
 }
 
 /**

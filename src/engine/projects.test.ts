@@ -11,10 +11,12 @@ import {
   laborShortfall,
   cancellable,
   laborThisTurn,
+  orderedLastTurn,
   orderedThisTurn,
   projectCost,
   queuedCost,
   queuedFor,
+  siegeLaborShortfall,
   withProjectCancelled,
   withProjectOrdered,
 } from './projects';
@@ -190,6 +192,134 @@ describe('laborThisTurn', () => {
     const later = { ...planned, turn: planned.turn + 1 };
 
     expect(laborThisTurn(later)).toBe(0);
+  });
+});
+
+/**
+ * A clean Siege Defense's Labor arrives through the same gate as the rest of
+ * the pool (pg. 86, #183): the next turn's, once its Planning Phase has
+ * assigned the team the points are counted on.
+ */
+describe('the Labor a clean siege adds', () => {
+  const cleanSiegeLastTurn = (campaign: Campaign): Campaign => ({
+    ...campaign,
+    log: [
+      {
+        turn: campaign.turn - 1,
+        phase: 'mission',
+        at: '2026-09-12T09:00:00.000Z',
+        event: { kind: 'siege-defense-resolved', zombiesLeft: 0, survivorsExited: 0 },
+      },
+      ...campaign.log,
+    ],
+  });
+
+  it('is spendable once this turn has planned, a point for each of the team', () => {
+    expect(laborThisTurn(cleanSiegeLastTurn(community()))).toBe(12);
+    expect(laborAvailable(cleanSiegeLastTurn(community({ projects: [WORKSHOP] })))).toBe(10);
+  });
+
+  it('is nothing before this turn’s Planning Phase, like the rest of the pool', () => {
+    const unplanned = cleanSiegeLastTurn({ ...community(), log: [] });
+
+    expect(laborThisTurn(unplanned)).toBe(0);
+  });
+
+  /**
+   * A departing project-team member takes their own point with their Tier
+   * (pg. 23): the point was given for being on the team.
+   */
+  it('leaves with a survivor who leaves the team', () => {
+    const ordered = cleanSiegeLastTurn(community({ projects: [WORKSHOP, WORKSHOP, WORKSHOP] }));
+    const shrunk = { ...ordered, ...projectTeamWorth(2) };
+
+    expect(laborShortfall(ordered)).toBe(0);
+    // Two Tier 1s and a point each is 4, against 6 ordered.
+    expect(laborShortfall(shrunk)).toBe(2);
+  });
+});
+
+/**
+ * A survivor reduced to 0 Health in this turn's siege takes their Labor off
+ * the team that paid for last turn's orders (pg. 23, the FAQ's "Siege Defense
+ * and Labor"; #183) — and those orders have not landed yet.
+ */
+describe('siegeLaborShortfall', () => {
+  const lastTurns = (labor: number): Project => ({
+    ...WORKSHOP,
+    orderedOnTurn: 2,
+    charged: { hardware: 3, labor },
+  });
+
+  const siege = (turn: number, zombiesLeft = 1): Campaign['log'][number] => ({
+    turn,
+    phase: 'mission',
+    at: '2026-09-12T09:00:00.000Z',
+    event: { kind: 'siege-defense-resolved', zombiesLeft, survivorsExited: 0 },
+  });
+
+  /**
+   * Turn 3's Mission Phase, with turn 2's team of six still assigned and four
+   * Labor of turn 2's orders waiting to land — and `hurt` of them at 0 Health.
+   */
+  function besieged(hurt: number, log = [siege(3)], projects = [lastTurns(2), lastTurns(2)]) {
+    const team = projectTeamWorth(6);
+
+    return {
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      turn: 3,
+      base: { id: 'hobby-farm', slots: {} },
+      survivors: team.survivors.map((survivor, at) =>
+        at < hurt ? { ...survivor, currentHp: 0 } : survivor,
+      ),
+      assignments: team.assignments,
+      projects,
+      log,
+    } satisfies Campaign;
+  }
+
+  it('is nothing while the team that is left still covers the orders', () => {
+    expect(siegeLaborShortfall(besieged(0))).toBe(0);
+    expect(siegeLaborShortfall(besieged(2))).toBe(0);
+  });
+
+  it('is what the orders are over by once the siege’s casualties come off the team', () => {
+    expect(siegeLaborShortfall(besieged(3))).toBe(1);
+    expect(siegeLaborShortfall(besieged(6))).toBe(4);
+  });
+
+  it('is nothing on a turn whose Siege Defense is not recorded', () => {
+    expect(siegeLaborShortfall(besieged(6, []))).toBe(0);
+    expect(siegeLaborShortfall(besieged(6, [siege(2)]))).toBe(0);
+  });
+
+  /**
+   * Only last turn's: this turn's orders are Departures' to leave unfinished,
+   * and the siege is fought before this turn's Planning Phase orders any.
+   */
+  it('counts last turn’s orders and no others', () => {
+    const mixed = besieged(6, [siege(3)], [lastTurns(2), { ...WORKSHOP, orderedOnTurn: 3 }]);
+
+    expect(siegeLaborShortfall(mixed)).toBe(2);
+    expect(orderedLastTurn(mixed).map(({ at }) => at)).toEqual([0]);
+  });
+
+  /**
+   * The team's own turn's pool: a clean siege the turn before it gave each of
+   * them a point, and a casualty takes theirs off with their Tier.
+   */
+  it('measures against the pool the team generated on its own turn', () => {
+    const rewarded = besieged(3, [siege(1, 0), siege(3)]);
+
+    // Three Tier 1s left, and a point each for turn 1's clean siege: 6 against 4.
+    expect(siegeLaborShortfall(rewarded)).toBe(0);
+    expect(siegeLaborShortfall(besieged(4, [siege(1, 0), siege(3)]))).toBe(0);
+    expect(siegeLaborShortfall(besieged(5, [siege(1, 0), siege(3)]))).toBe(2);
+  });
+
+  /** A different number from this turn's own shortfall, which is about this turn's orders. */
+  it('is not this turn’s shortfall', () => {
+    expect(laborShortfall(besieged(6))).toBe(0);
   });
 });
 

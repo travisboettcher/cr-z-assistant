@@ -38,12 +38,13 @@
  */
 
 import { FACILITIES, type Cost, type Facility, type UpgradeId } from '../data/facilities';
-import { laborPool } from './assignments';
+import { laborOf, laborPool } from './assignments';
 import type { Occupant } from './base';
 import { clearingProject, occupantAt, replacedBy, upgradeCost } from './base';
 import type { Campaign, PlacedOrder, Project } from './campaign';
 import type { Violation } from './checks';
 import { planningHasBegun } from './planning';
+import { projectTeamThatWorked, siegeDefended } from './siegeWork';
 import { phaseOf } from './turn';
 
 /**
@@ -290,6 +291,54 @@ export function laborAvailable(campaign: Campaign): number {
  */
 export function laborShortfall(campaign: Campaign): number {
   return Math.max(0, -laborAvailable(campaign));
+}
+
+/**
+ * How much Labor last turn's orders are short, because this turn's siege took
+ * somebody off the team that paid for them (pg. 23, the FAQ's "Siege Defense
+ * and Labor"; #183).
+ *
+ * **The one shortfall that reaches back a turn**, and the reason is when a
+ * siege is fought. `management/projectUnfinished` refuses last turn's orders
+ * because they "were paid for by a team that has already been reassigned" —
+ * true at Departures, which runs after this turn's Planning Phase. A siege is
+ * fought in the Mission Phase, *before* it: the team the previous Planning
+ * Phase assigned is still the team, its orders have not landed yet, and a
+ * survivor reduced to 0 Health takes their Labor off it (`siegeWork.ts`). So
+ * the rule pg. 23 gives a departure — the Tier comes off the unused Labor, and
+ * a project goes unfinished if that runs it negative — is the rule here, one
+ * turn's orders earlier.
+ *
+ * Measured against the pool that team generated **on its own turn**, which is
+ * why `laborOf` takes one: the base's share, and a point each if the turn
+ * before *that* ended in a clean siege, both belong to the turn the team was
+ * assigned. A casualty takes their point off with their Tier, as a leaver does.
+ *
+ * Zero on any turn without a recorded Siege Defense, so nothing about an
+ * ordinary turn moves. It does not ask who caused a shortfall: one left over
+ * from last turn's own Departures, unresolved, is counted too, because the
+ * question is whether the team that is left can pay for what is about to land.
+ */
+export function siegeLaborShortfall(campaign: Campaign): number {
+  if (!siegeDefended(campaign)) return 0;
+
+  const lastTurn = campaign.turn - 1;
+  const owed = orderedLastTurn(campaign).reduce(
+    (total, { project }) => total + project.charged.labor,
+    0,
+  );
+
+  return Math.max(0, owed - laborOf(campaign, projectTeamThatWorked(campaign), lastTurn));
+}
+
+/**
+ * Last turn's orders still in the queue, each with its position — the ones a
+ * siege's shortfall can leave unfinished, and only those.
+ */
+export function orderedLastTurn(campaign: Campaign): readonly QueuedProject[] {
+  return campaign.projects
+    .map((project, at) => ({ at, project }))
+    .filter((queued) => queued.project.orderedOnTurn === campaign.turn - 1);
 }
 
 /**

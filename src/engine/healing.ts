@@ -40,6 +40,7 @@
 
 import { REST_HEALTH, SURVIVORS_RESTING_PER_TURN, type HealthSource } from '../data/turn';
 import { beforePlanning, staffOf, survivorsDoing } from './assignments';
+import { whoWorked } from './siegeWork';
 import { suppliedOccupants } from './utilities';
 import type { Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
@@ -185,10 +186,13 @@ export function healingPool(campaign: Campaign): number {
 
   // Staffed last Planning Phase, read this Advancement one — so it is asked of
   // the campaign as it stood before this turn's Planning cleared the answer.
+  // A medic the siege left at 0 Health heals nobody this turn (#183).
   const staffed = beforePlanning(campaign);
 
   for (const occupant of suppliedOccupants(staffed)) {
-    for (const line of facilityProduction(occupant, staffOf(staffed, occupant), penalty)) {
+    const staff = whoWorked(campaign, staffOf(staffed, occupant));
+
+    for (const line of facilityProduction(occupant, staff, penalty)) {
       if (line.outputs.includes('health')) total += line.amount;
     }
   }

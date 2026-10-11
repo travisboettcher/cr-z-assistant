@@ -114,6 +114,7 @@ describe('the event samples', () => {
     'horde-checked': true,
     'siege-defense-resolved': true,
     'thin-the-herd-resolved': true,
+    'stood-in': true,
     'survivor-added': true,
     'survivor-recruited': true,
     'survivor-left': true,

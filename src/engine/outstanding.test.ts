@@ -179,6 +179,34 @@ describe('outstanding', () => {
   });
 
   /**
+   * #183: a siege's casualty takes their Labor off the team that paid for last
+   * turn's orders, before those orders land — the same question, one turn
+   * earlier, at the step that would otherwise finish them all.
+   */
+  it('names last turn’s orders a siege left short', () => {
+    const team = projectTeamWorth(1);
+    const besieged = settled({
+      survivors: team.survivors.map((survivor) => ({ ...survivor, currentHp: 0 })),
+      assignments: team.assignments,
+      projects: [
+        queued(
+          { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 2 },
+          { hardware: 3, labor: 1 },
+        ),
+      ],
+      log: [
+        ...settled().log,
+        entry({ kind: 'siege-defense-resolved', zombiesLeft: 0, survivorsExited: 0 }),
+      ],
+    });
+
+    const owed = outstanding(besieged).find((entry) => entry.says.includes('after the siege'));
+
+    expect(owed?.step).toBe('add-facilities-and-upgrades');
+    expect(owed?.says).toContain('1 Labor short');
+  });
+
+  /**
    * Exhaustion carries the pressure here: eleven survivors and four beds is
    * eight, plus the base's own Siege Threat, which clears the threshold of ten
    * without a Labor shortfall to arrange.

@@ -236,6 +236,9 @@ const EVENT_FIELD_CHECKS = {
   // renamed.
   optionalId: (value: unknown) =>
     value === undefined || (typeof value === 'string' && value !== ''),
+  // The same shape for a name, beside an optional id: a stand-in's, on an
+  // entry that may record that nobody stands in at all (#183).
+  optionalName: (value: unknown) => value === undefined || typeof value === 'string',
   // Everybody who deployed to a Siege Defense, by name (pg. 85). A list rather
   // than a count, and of names rather than ids, because it is a record for a
   // reader: a community that fought a siege is the roster as it stood, and the
@@ -361,6 +364,14 @@ const EVENT_FIELDS: Record<
     // As above, and for the same reason: the refund is the same one.
     ['hardware', 'optionalCount'],
     ['built', 'optionalId'],
+  ],
+  'stood-in': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    // Absent where the place was left empty again — choosing "nobody" is an
+    // answer, and the latest entry is the one that counts.
+    ['by', 'optionalId'],
+    ['byName', 'optionalName'],
   ],
   'storage-checked': [
     ['food', 'count'],
