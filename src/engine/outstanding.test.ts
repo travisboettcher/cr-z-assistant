@@ -69,6 +69,26 @@ describe('outstanding', () => {
     expect(steps(quiet)).toEqual(['check-the-horde']);
   });
 
+  /**
+   * A siege the horde called is the one mission the app knows was played, and
+   * its outcome is what decides whether the turns since the last siege go back
+   * to 0 (pg. 86) — so leaving it out is not neutral.
+   */
+  it('names a Siege Defense whose outcome is not recorded', () => {
+    const besieged = settled({
+      log: [entry({ kind: 'horde-checked', roll: 9, threat: 9, siege: true }, 2), ...settled().log],
+    });
+    const recorded = settled({
+      log: [
+        ...besieged.log,
+        entry({ kind: 'siege-defense-resolved', zombiesLeft: 2, survivorsExited: 0 }),
+      ],
+    });
+
+    expect(steps(besieged)).toEqual(['tactical-mission']);
+    expect(steps(recorded)).toEqual([]);
+  });
+
   it('names a survivor at 0 Health whose check has not run', () => {
     const dying = settled({
       survivors: [{ ...createSurvivor('Earl Rhodes', 4, { id: 'earl' }), currentHp: 0 }],

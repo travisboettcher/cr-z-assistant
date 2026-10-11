@@ -352,6 +352,16 @@ const EVENT_FIELDS: Record<
     ['threat', 'amount'],
     ['siege', 'flag'],
   ],
+  'siege-defense-resolved': [
+    ['zombiesLeft', 'count'],
+    ['survivorsExited', 'count'],
+  ],
+  'thin-the-herd-resolved': [
+    ['startingZombies', 'count'],
+    ['zombiesLeft', 'count'],
+    ['survivorsExited', 'count'],
+    ['allIncapacitated', 'flag'],
+  ],
   'health-restored': [
     ['survivor', 'id'],
     ['name', 'name'],

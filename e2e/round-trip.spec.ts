@@ -1824,6 +1824,30 @@ test('a turn ends with the horde called and somebody walking out', async ({ page
     'This turn’s mission is a Siege Defense',
   );
 
+  /*
+   * Ruling 9 (pp. 81, 86): playing the siege resets nothing on its own — how it
+   * ended does. The table counts, the app says what the counts do, and the
+   * outcome is the record the turns since the last siege are read from.
+   */
+  const turnTwo = page.getByRole('region', { name: 'Turn 2' });
+  await turnTwo.getByRole('button', { name: 'Next: Equip the Mission Team' }).click();
+  await turnTwo.getByRole('button', { name: 'Next: Play the Mission' }).click();
+
+  const record = turnTwo.getByRole('button', { name: 'Record the Siege Defense' });
+  await expect(record).toBeDisabled();
+  await turnTwo.getByLabel('zombies left on the mission area').fill('0');
+  await turnTwo.getByLabel('survivors out over the map edge').fill('1');
+  await expect(turnTwo).toContainText('The turns since the last siege go back to 0.');
+  await record.click();
+  await expect(turnTwo).toContainText('Siege Defense: 0 zombies left, 1 survivor out');
+
+  const defended = JSON.parse((await exportCampaign(page)).text) as {
+    log: { turn: number; event: { kind: string } }[];
+  };
+  expect(
+    defended.log.filter((entry) => entry.event.kind === 'siege-defense-resolved'),
+  ).toMatchObject([{ turn: 2, event: { zombiesLeft: 0, survivorsExited: 1 } }]);
+
   await startFreshCampaign(page, 'Millbrook');
   await page.setInputFiles('input[type="file"]', exported.path);
   await page.getByRole('button', { name: /replace it/i }).click();

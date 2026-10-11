@@ -79,6 +79,9 @@ Phase 1 code.**
   facility staffing, and last until the next turn's Planning Phase (pg. 20).
 - **The siege trigger reads d10 + Siege Threat ≥ 16** (pg. 23). Numerically identical to v1.25's
   "higher than 15"; use the published phrasing.
+- **The turns since the last siege reset on a mission's outcome, not on a siege** (pp. 81, 86): a
+  Siege Defense or a Thin the Herd that leaves no zombie on the area resets it, and a Thin the Herd
+  can halve it. See [ruling 9](phase-3-stories.md#rulings-the-book-leaves-open).
 - **Rare Goods trade dice are the combined Scout score *plus* Coop stat** across the community,
   rolled as d10s onto the Rare Item Table (pg. 21). v1.25 said *or*. A real change.
 - **The Rot check is against the Medicine score of Medical Clinic staff** (pg. 22).

@@ -276,7 +276,7 @@ having no UI-reachable exercise while the only two entries that use it do nothin
 
 ## Rulings the book leaves open
 
-Seven places where the printed text does not decide the answer. Each needs a table ruling before
+Places where the printed text does not decide the answer, or where the tracker read it wrong. Each needs a table ruling before
 the story that depends on it, and each is recorded here rather than settled quietly in code — a
 house rule that lives in a function is indistinguishable from a rule.
 
@@ -377,6 +377,53 @@ house rule that lives in a function is indistinguishable from a rule.
    was awarded under a line saying it had been replaced. One `canTeach` against one `teaching > 0`
    is the whole of the difference, if a table wants it the other way.
 
+9. **What resets the turns since the last siege (pp. 81, 86) — CONFIRMED.** The tracker used to
+   read the reset into the siege itself: "turns since" counted from the turn a Siege Defense was
+   fought, so playing one put the term back to 0 whatever happened on the table. Checked against
+   the book, that is not where the reset lives. It is a **mission reward**, and it depends on how
+   the mission ended:
+
+   | Mission | Recorded outcome | Turns since the last siege |
+   |---|---|---|
+   | Siege Defense (pg. 86) | no zombie left on the mission area | back to 0 |
+   | Siege Defense | a zombie left and somebody out over the map edge | unchanged — the base is overrun |
+   | Siege Defense | a zombie left, nobody out | unchanged — no reset is stated |
+   | Thin the Herd (pg. 81) | no zombie left | back to 0 |
+   | Thin the Herd | at least one left but fewer than half the starting count, and somebody out over the map edge | halved |
+   | Thin the Herd | every survivor incapacitated | unchanged, and the next Siege Threat roll succeeds on its own |
+
+   **So the counter moves when an outcome is recorded, never because a siege was called or
+   fought.** The Mission Phase's Play the Mission step records the counts the rule reads — zombies
+   left, survivors out over the edge, and for Thin the Herd the starting count and whether everyone
+   went down — as a `siege-defense-resolved` or `thin-the-herd-resolved` log entry, and
+   `turnsSinceLastSiege` folds the recorded outcomes in order. Nothing is stored beside them, so a
+   reader is never one field away from disagreeing with the log. Schema v12.
+
+   **Halving rounds down**, which the book does not say. The counter is a whole number of turns
+   added to a d10 and to Unrest, neither of which has a half; rounding down is the plain reading of
+   halving a count, and the only one that never leaves the counter above half of what it was. "Fewer
+   than half" is strict: 3 left of 6 is half, and halves nothing.
+
+   **The September playtest bug stays fixed** ([#103](https://github.com/travisboettcher/cr-z-assistant/issues/103)).
+   It was Departures at step 7 testing a lower pressure than Check the Horde had rolled against at
+   step 6, because calling a siege collapsed the term. Outcomes are recorded in the Mission Phase,
+   and nothing in the Management Phase writes one, so nothing between step 6 and step 7 can move the
+   term. `siege.test.ts` still pins that.
+
+   **"The next mission is automatically a Siege"** after an all-incapacitated Thin the Herd is
+   built as the book words it: the next Check the Horde calls the siege whatever the roll, and the
+   existing `horde-checked` entry carries it into the next turn's Mission Phase. The roll is still
+   entered and logged, because it is still the table's.
+
+   **What is left to a later phase.** An overrun base's three ways on — rebuild through Claim a New
+   Base, restart through Start a New Community, abandon the survivors — are named on screen and not
+   run: two are missions and one ends the campaign, all Phase 4's. A clean siege's other reward, a
+   point of Labor for each project-team survivor next turn, is not applied yet. A Siege Defense the
+   horde did not call (the Regional Firehouse's `ring-the-bell`) cannot be recorded until mission
+   selection exists. And a campaign migrated from v11 counts from turn 1: its log records the
+   sieges it fought and never how they ended, and inventing a clean ending for them would be
+   writing history.
+
 **Recorded without a ruling: Siege Threat can go below zero.** Observed at −1 on the Hydroelectric
 Dam — one staffed facility, nobody on the project team, no base features, one turn since the last
 siege, and −3 from a Watchtower with a Long Guns 3 lookout. The arithmetic is right and the book
@@ -388,7 +435,7 @@ and because the number feeds **two** different thresholds that were written for 
 the horde roll (d10 + Threat ≥ 16) and the departure test (Unrest + Threat ≥ 10). A negative Threat
 therefore makes a community *harder* to send somebody away from, which reads as intended — a
 well-watched base is a calmer one — but no rule says so. If a table wants a floor of zero it goes in
-`siegeThreat`, in one place, and this paragraph becomes ruling 9.
+`siegeThreat`, in one place, and this paragraph becomes ruling 10.
 
 ---
 
@@ -1005,6 +1052,13 @@ field; nothing is lost, because every write to it happened in the same reducer s
 The general lesson is the architecture rule the repo already had: **derived is never stored.** One
 field cannot hold both "when the last siege was fought" and "when the next one is", and writing the
 second over the first is how the history was lost.
+
+**And the reset itself was in the wrong place** — superseded by
+[ruling 9](#rulings-the-book-leaves-open). Counting from the turn a siege was *fought* still read the
+reset into the siege; the book puts it in the Siege Defense's and Thin the Herd's rewards, on how
+they ended (pp. 81, 86). Since v12 the term folds over recorded mission outcomes instead, and a siege
+called or fought moves nothing — which keeps the fix above, because no outcome is written between
+step 6 and step 7.
 
 **`siegeDue` and `hordeCame` are different questions, and conflating them was a real bug.** The
 screen first reported the outcome of the check with `siegeDue`, which is false on the turn of the
