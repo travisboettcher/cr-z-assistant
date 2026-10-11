@@ -40,7 +40,7 @@ import { dueProjects, laborShortfall, siegeLaborShortfall } from './projects';
 import { mustCheck, rotCheckResolved } from './rot';
 import { hordeChecked, missionResolved, siegeDue } from './siege';
 import { anythingOverCap, storageChecked } from './storage';
-import { someoneDeparted, someoneIsLeaving } from './departures';
+import { departureCandidates, someoneDeparted, someoneIsLeaving } from './departures';
 
 /** Why a step is outstanding, in the words the walk shows the player. */
 export interface Outstanding {
@@ -127,7 +127,9 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
     owed.push({ step: 'check-the-horde', says: 'The horde has not been checked for.' });
   }
 
-  if (someoneIsLeaving(campaign) && !someoneDeparted(campaign)) {
+  // Owed only while a standing survivor can take it: with everyone at 0 Health the step
+  // refuses every id and the turn would report unfinished business forever.
+  if (someoneIsLeaving(campaign) && departureCandidates(campaign).length > 0 && !someoneDeparted(campaign)) {
     owed.push({ step: 'departures', says: 'Somebody is leaving and has not gone.' });
   }
 

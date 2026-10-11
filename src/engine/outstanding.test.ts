@@ -233,6 +233,16 @@ describe('outstanding', () => {
       expect(steps(gone)).not.toContain('departures');
     });
 
+    it('is not owed when everyone who could leave is down at 0 Health', () => {
+      const siege = crowded();
+      const allDown = {
+        ...siege,
+        survivors: siege.survivors.map((survivor) => ({ ...survivor, currentHp: 0 })),
+      };
+
+      expect(steps(allDown)).not.toContain('departures');
+    });
+
     it('is not owed while nobody is under enough pressure to leave', () => {
       expect(steps(settled())).not.toContain('departures');
     });
