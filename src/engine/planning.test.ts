@@ -347,6 +347,31 @@ describe('checkAssignment', () => {
       ).toEqual(['already-at-full-health', 'no-medical-clinic']);
     });
 
+    /**
+     * A Viral survivor at full Health with Infection is somebody the Clinic can
+     * still help — a point may remove Infection instead (pg. 19, 123; R18).
+     */
+    it('says nothing about full Health when there is Infection to clear', () => {
+      const infected: Campaign = {
+        ...community({}, clinic()),
+        origin: 'viral',
+        survivors: community().survivors.map((survivor) =>
+          survivor.id === EARL ? { ...survivor, infection: 2 } : survivor,
+        ),
+      };
+
+      expect(checkAssignment(infected, EARL, { task: 'healing' }).warnings).toEqual([]);
+      expect(checkAssignment(infected, EARL, { task: 'rest' }).warnings).toEqual([]);
+    });
+
+    it('names Infection in the warning when the campaign has it', () => {
+      const viral: Campaign = { ...community({}, clinic()), origin: 'viral' };
+
+      expect(checkAssignment(viral, EARL, { task: 'healing' }).warnings[0]?.message).toBe(
+        'At full Health with no Infection, so healing would do nothing.',
+      );
+    });
+
     it('lets any number be healed, unlike resting', () => {
       const check = checkAssignment(community({ [EARL]: { task: 'healing' } }, clinic()), CARLA, {
         task: 'healing',
@@ -365,6 +390,24 @@ describe('checkAssignment', () => {
 
     it('says nothing about one at full Health', () => {
       expect(checkAssignment(community(), EARL, { task: 'mission', team: 1 }).warnings).toEqual([]);
+    });
+
+    /**
+     * Incapacitated whatever their Health (pg. 123), so full Health does not
+     * make them fit. Nine is not down, and Infection is not a wound — R18.
+     */
+    it('warns about one at full Health and 10 Infection, and not at 9', () => {
+      const infected = (infection: number): Campaign => ({
+        ...community(),
+        survivors: community().survivors.map((survivor) =>
+          survivor.id === EARL ? { ...survivor, infection } : survivor,
+        ),
+      });
+
+      expect(
+        codes(checkAssignment(infected(10), EARL, { task: 'mission', team: 1 }).warnings),
+      ).toEqual(['incapacitated-on-a-mission']);
+      expect(checkAssignment(infected(9), EARL, { task: 'mission', team: 1 }).warnings).toEqual([]);
     });
   });
 

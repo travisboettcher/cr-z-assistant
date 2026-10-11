@@ -10,7 +10,11 @@
  *
  * A survivor at 0 Health can neither leave nor be chosen: they are in no state
  * to walk anywhere, and they have a Rot check of their own at the top of the
- * next Management Phase.
+ * next Management Phase. **Nor can one at 10 Infection** under the Viral
+ * origin, who is incapacitated whatever their Health (pg. 123) — the first
+ * reason holds for them exactly, though the second does not. That is `isDown`
+ * rather than `outOfHealth`, and
+ * [R18](../../docs/rulings.md#r18--what-infection-incapacitates) is why.
  *
  * ## Read live, never cached
  *
@@ -28,6 +32,7 @@ import { DEPARTURE_THRESHOLD } from '../data/turn';
 import type { Campaign, Survivor } from './campaign';
 import { unrest } from './feeding';
 import { siegeThreat } from './siege';
+import { isDown } from './survivor';
 
 /** Unrest plus Siege Threat, which is the number the rule reads (pg. 23). */
 export function departurePressure(campaign: Campaign): number {
@@ -44,13 +49,12 @@ export function someoneIsLeaving(campaign: Campaign): boolean {
  *
  * More than one only where they tie, and that is the whole reason this returns
  * a list — the player picks between equals rather than the app deciding for
- * them. Empty when nobody is leaving, or when everybody left standing is at 0
- * Health.
+ * them. Empty when nobody is leaving, or when everybody left is down.
  */
 export function departureCandidates(campaign: Campaign): readonly Survivor[] {
   if (!someoneIsLeaving(campaign)) return [];
 
-  const standing = campaign.survivors.filter((survivor) => survivor.currentHp > 0);
+  const standing = campaign.survivors.filter((survivor) => !isDown(survivor));
   const lowest = standing.reduce(
     (found, survivor) => Math.min(found, survivor.tier),
     Number.POSITIVE_INFINITY,

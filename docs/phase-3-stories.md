@@ -344,6 +344,23 @@ between upgrades on, overstated by 33% with one upgrade and 60% with three
 names itself as one the Advancement Phase will not hand out, and the card totals what will not
 arrive, in the same shape as the Generator and Well Pump note above.
 
+**Infection is stored, because the book carries it** ([#176](https://github.com/travisboettcher/cr-z-assistant/issues/176)).
+Under the Viral origin a zombie's damage adds Infection, it carries from one mission to the next,
+and at 10 a survivor is incapacitated whatever their Health (pg. 123). None of that is a ruling:
+nothing in the book resets it, so a campaign that did not keep it was handing every survivor a
+clean slate. Every survivor has `infection` from schema v14, 0 for every older save, and the sheet
+of a Viral campaign records it by hand the way Health was recorded before this phase healed it —
+the mission that adds it is Phase 4's. Heal Wounds is the book's way to take it away again: each
+Health point a survivor would receive may remove a point of Infection instead, decided point by
+point (pg. 19), so `healing.ts`'s split between the points awarded and what they restore became
+two decisions as it was built to. The step offers the split per award, Health first, and the
+`health-restored` entry records how many points went on Infection. Disinfectant and the Medicated
+Wrap remove a point too, but only Infection gained on the same mission (pg. 47); they are
+equipment, which is [#177](https://github.com/travisboettcher/cr-z-assistant/issues/177)'s. What
+the book does *not* settle — which "0 Health" rules a survivor down on Infection also falls under,
+and whether a survivor at full Health takes a share of the Clinic's points for their Infection —
+is [R18](rulings.md#r18--what-infection-incapacitates).
+
 ## Rulings the book leaves open
 
 Moved to **[the rulings registry](rulings.md)**, which gathers every ruling this app has made
@@ -359,9 +376,11 @@ Score-0 Teacher), [R9](rulings.md#r9--how-broadly-the-utilities-substitution-app
 Utilities substitution, still open),
 [R12](rulings.md#r12--wounded-and-injured-are-one-state) (wounded and injured),
 [R13](rulings.md#r13--siege-threat-may-go-below-zero--recorded-without-a-ruling) (negative Siege
-Threat, recorded without a ruling), and
+Threat, recorded without a ruling),
 [R16](rulings.md#r16--what-resets-the-turns-since-the-last-siege--confirmed) (what resets the turns
-since the last siege).
+since the last siege), and
+[R18](rulings.md#r18--what-infection-incapacitates) (what Infection incapacitates, and what Heal
+Wounds offers it).
 
 This list numbered its own rulings 1–9 until the registry was written down. Three of them changed
 number on the way: ruling 4 is now R9, ruling 5 is now R12, and ruling 9 — the siege counter,

@@ -361,8 +361,8 @@ test('a roster survives export, a reload, and import', async ({ page }) => {
 
   const exported = await exportCampaign(page);
   expect(JSON.parse(exported.text).survivors).toMatchObject([
-    { name: 'Earl Rhodes', tier: 4, currentHp: 4 },
-    { name: 'Carla Proust', tier: 3, currentHp: 3 },
+    { name: 'Earl Rhodes', tier: 4, currentHp: 4, infection: 0 },
+    { name: 'Carla Proust', tier: 3, currentHp: 3, infection: 0 },
   ]);
 
   await waitForAutosave(page, 'Earl Rhodes');

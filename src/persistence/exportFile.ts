@@ -74,6 +74,7 @@ function orderedSurvivor(survivor: Survivor): Record<keyof Survivor, unknown> {
     move: survivor.move,
     defense: survivor.defense,
     currentHp: survivor.currentHp,
+    infection: survivor.infection,
     xp: survivor.xp,
   };
 }

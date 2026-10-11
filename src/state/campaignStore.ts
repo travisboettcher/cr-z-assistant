@@ -53,7 +53,12 @@ import {
 } from '../engine/materials';
 import { checkConversion, conversions, withConversion } from '../engine/conversions';
 import { checkXpAward, withXpAwarded } from '../engine/experience';
-import { healthAwards, withWoundsHealed, woundsHealed } from '../engine/healing';
+import {
+  healthAwards,
+  withInfectionSpent,
+  withWoundsHealed,
+  woundsHealed,
+} from '../engine/healing';
 import { foodRequired, hungerIfFedNow, survivorsFed, withSurvivorsFed } from '../engine/feeding';
 import { rotCheckResolved, rotOutcome, rotTarget, withRotApplied } from '../engine/rot';
 import { overCap, storageChecked, withStorageChecked } from '../engine/storage';
@@ -232,6 +237,16 @@ export type CampaignAction =
    * recorded: the player types what happened at the table.
    */
   | { readonly type: 'survivor/hpSet'; readonly id: string; readonly currentHp: number }
+  /**
+   * Set a survivor's Infection (pg. 123).
+   *
+   * The same correction as Health, for the same reason: Infection is gained
+   * from a zombie's damage on a mission, which the tracker does not run, so the
+   * table types in what happened. Only a Viral campaign's sheet offers it; the
+   * reducer does not ask, because the field is on every survivor and a 0 set
+   * on a campaign that never raises it changes nothing (#176).
+   */
+  | { readonly type: 'survivor/infectionSet'; readonly id: string; readonly infection: number }
   /**
    * Replace a survivor's four stat values wholesale.
    *
@@ -438,14 +453,25 @@ export type CampaignAction =
   /**
    * Share out a turn's Health, in the Heal Wounds step (pg. 19).
    *
-   * Carries nothing but the clock: who gets what is `healing.ts`'s to work
-   * out from the assignments and the base, and a screen that sent a
-   * distribution would be a second copy of the equal-shares rule.
+   * Carries the clock, and **what each award is spent on, never how big it
+   * is**: who gets how many points is `healing.ts`'s to work out from the
+   * assignments and the base, and a screen that sent a distribution would be a
+   * second copy of the equal-shares rule.
+   *
+   * `infection` is the player's one decision here under the Viral origin —
+   * how many of an award's points remove Infection instead of closing a wound
+   * (pg. 19, 123) — keyed by `awardKey`. Absent means Health first, which is
+   * every campaign that is not Viral. The reducer holds each number to
+   * `infectionRange` rather than trusting it.
    *
    * Refused when this turn already has an entry — the step raises Health and
    * the walk can go back over it.
    */
-  | { readonly type: 'advancement/woundsHealed'; readonly at: string }
+  | {
+      readonly type: 'advancement/woundsHealed';
+      readonly at: string;
+      readonly infection?: Readonly<Record<string, number>>;
+    }
   /**
    * Give a survivor one XP from one of the four sources (pg. 18).
    *
@@ -703,6 +729,12 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return editSurvivor(state, action.id, (survivor) => ({
         ...survivor,
         currentHp: action.currentHp,
+      }));
+
+    case 'survivor/infectionSet':
+      return editSurvivor(state, action.id, (survivor) => ({
+        ...survivor,
+        infection: action.infection,
       }));
 
     case 'survivor/statsSet':
@@ -1067,11 +1099,14 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return withCampaign(state, (campaign) => {
         if (woundsHealed(campaign)) return campaign;
 
-        const awards = healthAwards(campaign);
+        const awards = withInfectionSpent(healthAwards(campaign), action.infection ?? {});
 
         // One entry per survivor, so the history says who recovered rather
         // than what the Clinic made. Folded rather than pushed, because
         // `logged` stamps each entry against the campaign it is appending to.
+        //
+        // The Infection count only where a point went on it, so every entry a
+        // campaign that is not Viral writes is the entry it always wrote.
         return awards.reduce(
           (healing, award) =>
             logged(healing, action.at, {
@@ -1080,6 +1115,7 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
               name: award.survivor.name,
               health: award.health,
               source: award.source,
+              ...(award.infection > 0 ? { infection: award.infection } : {}),
             }),
           withWoundsHealed(campaign, awards),
         );

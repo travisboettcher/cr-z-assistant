@@ -412,8 +412,20 @@ export type CampaignEvent =
       readonly kind: 'health-restored';
       readonly survivor: string;
       readonly name: string;
+      /** Every Health point received, whatever it was spent on. */
       readonly health: number;
       readonly source: HealthSource;
+      /**
+       * How many of those points removed Infection instead of closing a wound
+       * (pg. 19, 123; #176).
+       *
+       * Absent where none did — which is every entry written before Infection
+       * was stored, and every entry a campaign that is not Viral writes — so
+       * an old entry still reads as what it was: all of it Health. A count of
+       * the *points*, because that is the player's decision; the Health they
+       * restored is `health` less this.
+       */
+      readonly infection?: number;
     }
   | {
       readonly kind: 'xp-awarded';

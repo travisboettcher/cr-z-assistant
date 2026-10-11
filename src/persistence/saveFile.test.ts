@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import currentFixture from './__fixtures__/campaign-v13.json';
+import currentFixture from './__fixtures__/campaign-v14.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -17,6 +17,7 @@ const VALID_SURVIVOR = {
   move: 7,
   defense: 6,
   currentHp: 3,
+  infection: 0,
   xp: 5,
 };
 
@@ -253,7 +254,11 @@ describe('parseCampaignFile with a roster', () => {
     // number among the nested ones. v12 carries a siege and how it ended,
     // which pins that an outcome's counts come back as they were written. From
     // v13 each project carries a `charged` pair, which pins the one nested
-    // object inside an array element.
+    // object inside an array element. v14 gives every survivor an Infection,
+    // between their Health and their experience — and runs Viral, so the
+    // numbers in it are ones a table could actually have written, including a
+    // Heal Wounds entry that spent a point on Infection, whose optional count
+    // has to come back in its sorted place.
     const text = `${JSON.stringify(currentFixture, null, 2)}\n`;
     const result = parseCampaignFile(text);
 
@@ -292,6 +297,10 @@ describe('parseCampaignFile with a roster', () => {
       { ...VALID_SURVIVOR, skills: { whittling: 1 } },
     ],
     ['has unreadable health', 'unreadable health', { ...VALID_SURVIVOR, currentHp: 'hurt' }],
+    // A current-version file with no Infection is damaged, not old: the v13 →
+    // v14 step is what fills it in, and this file has already passed it.
+    ['has no infection', 'unreadable infection', { ...VALID_SURVIVOR, infection: undefined }],
+    ['has negative infection', 'unreadable infection', { ...VALID_SURVIVOR, infection: -1 }],
   ])('reports a survivor that %s', (_label, expected, survivor) => {
     const result = parseCampaignFile(savedWith({ survivors: [survivor] }));
 
@@ -535,6 +544,7 @@ describe('a survivor whose fields are the wrong type', () => {
     ['a negative move score', { move: -1 }],
     ['a string defense score', { defense: '6' }],
     ['a fractional health', { currentHp: 1.5 }],
+    ['a fractional infection', { infection: 0.5 }],
     ['a negative experience balance', { xp: -5 }],
   ])('refuses %s', (_label, overrides) => {
     const result = withSurvivor(overrides);
@@ -552,6 +562,7 @@ describe('a survivor whose fields are the wrong type', () => {
       move: 0,
       defense: 0,
       currentHp: 0,
+      infection: 0,
       xp: 0,
     });
 
@@ -988,6 +999,7 @@ describe('a campaign whose assignments are damaged', () => {
       move: 6,
       defense: 6,
       currentHp: 4,
+      infection: 0,
       xp: 0,
     },
   ];

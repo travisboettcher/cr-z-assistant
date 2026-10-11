@@ -96,6 +96,25 @@ describe('departureCandidates', () => {
     expect(departureCandidates(campaign).map((survivor) => survivor.id)).not.toContain('webb');
   });
 
+  /**
+   * Incapacitated whatever their Health (pg. 123), so in no more state to walk
+   * than a survivor at 0 — R18. Nine is not down, and is still chosen.
+   */
+  it('passes over a survivor at 10 Infection, with Health to spare', () => {
+    const fevered = { ...createSurvivor('Marcus Webb', 1, { id: 'webb' }), infection: 10 };
+    const unwell = { ...createSurvivor('Ada Poole', 1, { id: 'ada' }), infection: 9 };
+    const campaign = community([
+      fevered,
+      unwell,
+      ...Array.from({ length: 7 }, (_, at) =>
+        createSurvivor(`Hero ${String(at)}`, 4, { id: `hero-${String(at)}` }),
+      ),
+    ]);
+
+    expect(someoneIsLeaving(campaign)).toBe(true);
+    expect(departureCandidates(campaign).map((survivor) => survivor.id)).toEqual(['ada']);
+  });
+
   it('is nobody at all when everybody left standing is at 0 Health', () => {
     const campaign = community(
       Array.from({ length: 9 }, (_, at) => ({
