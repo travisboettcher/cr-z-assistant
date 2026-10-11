@@ -1,9 +1,9 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { TIERS, TIER_RULES } from '../data/tiers';
-import { createSurvivor } from './survivor';
-import { room, sharedEqually } from './healing';
-import type { Survivor } from './campaign';
+import { createSurvivor, maxHp } from './survivor';
+import { awardKey, need, sharedEqually, withInfectionSpent, withWoundsHealed } from './healing';
+import { createNewCampaign, type Survivor } from './campaign';
 
 /** See `roundTrip.property.test.ts` for why the seed is fixed rather than random. */
 const RUNS = { seed: 20260911, numRuns: 400 } as const;
@@ -18,14 +18,24 @@ const RUNS = { seed: 20260911, numRuns: 400 } as const;
  * no room get nothing. The interesting path is a pool being shared out, so this
  * generates survivors who can take a point — with full-Health survivors mixed
  * in, because somebody filling up mid-distribution is the whole algorithm.
+ *
+ * Infection half the time, up to the 10 that puts somebody down (pg. 123), so
+ * the properties hold for a Viral campaign as well as for one where nobody has
+ * any — and a full-Health survivor with Infection, who takes points for it
+ * alone, turns up often (#176).
  */
 function woundedArbitrary(): fc.Arbitrary<Survivor> {
   return fc
-    .record({ tier: fc.constantFrom(...TIERS), index: fc.integer({ min: 0, max: 99 }) })
-    .chain(({ tier, index }) =>
+    .record({
+      tier: fc.constantFrom(...TIERS),
+      index: fc.integer({ min: 0, max: 99 }),
+      infection: fc.oneof(fc.constant(0), fc.integer({ min: 0, max: 10 })),
+    })
+    .chain(({ tier, index, infection }) =>
       fc.integer({ min: 0, max: TIER_RULES[tier].maxHp }).map((currentHp) => ({
         ...createSurvivor(`Survivor ${String(index)}`, tier, { id: `survivor-${String(index)}` }),
         currentHp,
+        infection,
       })),
     );
 }
@@ -52,11 +62,11 @@ describe('sharing a pool of Health equally', () => {
     );
   });
 
-  it('never takes a survivor past their maximum', () => {
+  it('never gives a survivor more points than they can use', () => {
     fc.assert(
       fc.property(communityArbitrary, anyPool, (survivors, pool) => {
         for (const award of sharedEqually(survivors, pool)) {
-          expect(award.health).toBeLessThanOrEqual(room(award.survivor));
+          expect(award.health).toBeLessThanOrEqual(need(award.survivor));
         }
       }),
       RUNS,
@@ -64,9 +74,48 @@ describe('sharing a pool of Health equally', () => {
   });
 
   /**
+   * The split, under any choice a screen could send: no survivor past their
+   * maximum Health, none below no Infection, and every point spent on one or
+   * the other. A split that lost a point, or made one up, fails here.
+   */
+  it('never takes a survivor past their maximum or below no Infection, however it is spent', () => {
+    fc.assert(
+      fc.property(
+        communityArbitrary,
+        anyPool,
+        fc.integer({ min: -3, max: 12 }),
+        (survivors, pool, choice) => {
+          const shared = sharedEqually(survivors, pool);
+          const awards = withInfectionSpent(
+            shared,
+            Object.fromEntries(shared.map((award) => [awardKey(award), choice])),
+          );
+          const healed = withWoundsHealed(
+            { ...createNewCampaign('Cedar Hollow'), survivors },
+            awards,
+          );
+
+          for (const [at, after] of healed.survivors.entries()) {
+            const before = survivors[at] as Survivor;
+            const given = awards.find((award) => award.survivor.id === before.id)?.health ?? 0;
+
+            expect(after.currentHp).toBeLessThanOrEqual(maxHp(after));
+            expect(after.infection).toBeGreaterThanOrEqual(0);
+            expect(after.currentHp - before.currentHp + before.infection - after.infection).toBe(
+              given,
+            );
+          }
+        },
+      ),
+      RUNS,
+    );
+  });
+
+  /**
    * The rule itself. Two survivors who both still have room must be within one
    * point of each other — that is what "equally" means once somebody filling up
-   * has stopped it being a division.
+   * has stopped it being a division. Room for a point is `need`: a wound, or
+   * Infection the point could remove instead.
    */
   it('keeps two survivors who both still have room within a point of each other', () => {
     fc.assert(
@@ -75,7 +124,7 @@ describe('sharing a pool of Health equally', () => {
         const given = (survivor: Survivor) =>
           awards.find((award) => award.survivor.id === survivor.id)?.health ?? 0;
 
-        const stillTaking = survivors.filter((survivor) => given(survivor) < room(survivor));
+        const stillTaking = survivors.filter((survivor) => given(survivor) < need(survivor));
 
         for (const one of stillTaking) {
           for (const other of stillTaking) {
@@ -90,7 +139,7 @@ describe('sharing a pool of Health equally', () => {
   it('spends the whole pool whenever the community can absorb it', () => {
     fc.assert(
       fc.property(communityArbitrary, anyPool, (survivors, pool) => {
-        const space = survivors.reduce((total, survivor) => total + room(survivor), 0);
+        const space = survivors.reduce((total, survivor) => total + need(survivor), 0);
 
         expect(handedOut(sharedEqually(survivors, pool))).toBe(Math.min(pool, space));
       }),
@@ -112,7 +161,7 @@ describe('sharing a pool of Health equally', () => {
         const awards = sharedEqually(survivors, pool);
         if (awards.length > 0) shared += 1;
 
-        const filled = awards.some((award) => award.health === room(award.survivor));
+        const filled = awards.some((award) => award.health === need(award.survivor));
 
         if (filled && survivors.length > 1) filledSomebody += 1;
       }),

@@ -113,6 +113,31 @@ describe('the sentences the log writes', () => {
     ).toContain('Ordered Restraints');
   });
 
+  /**
+   * Under the Viral origin a point may remove Infection instead (pg. 19, 123),
+   * and the line says how the points were spent. An entry without the count is
+   * all Health, which is what every entry before #176 meant.
+   */
+  it('says how a turn’s Health was spent when some went on Infection', () => {
+    const restored = (infection?: number) =>
+      describeEvent({
+        kind: 'health-restored',
+        survivor: 'earl',
+        name: 'Earl Rhodes',
+        health: 3,
+        source: 'facility',
+        ...(infection === undefined ? {} : { infection }),
+      }).text;
+
+    expect(restored()).toBe('Earl Rhodes recovered 3 Health from the community’s Health.');
+    expect(restored(2)).toBe(
+      'Earl Rhodes took 3 Health from the community’s Health: 2 of it against Infection, 1 on wounds.',
+    );
+    expect(restored(3)).toBe(
+      'Earl Rhodes took 3 Health from the community’s Health: all of it against Infection.',
+    );
+  });
+
   it('agrees it with a number too', () => {
     const rolled = describeEvent({
       kind: 'rot-checked',

@@ -378,6 +378,21 @@ asks the one it means:
 at full Health and 9 Infection may join a mission team, and one at 3/4 Health and no Infection
 still may not. Nothing about R12 changes.
 
+**Heal Wounds counts a point as one a survivor "would receive" if they have a use for it** — a
+wound, or Infection it could remove instead (pg. 19, 123). The equal share is measured against
+that (`need` in `healing.ts`), so a survivor at full Health with Infection takes a share like
+anybody wounded, and their points can only go on Infection. Read strictly, a survivor at full
+Health would receive no Health at all, and a survivor down on Infection with Health left — the
+case [#176](https://github.com/travisboettcher/cr-z-assistant/issues/176) was opened for — could
+never be helped by the Clinic. The same holds for a resting survivor's own point, which is a
+Health point received like any other. Healing and resting no longer warn "already at full
+Health" about a survivor with Infection to clear.
+
+**Health comes first unless the player says otherwise.** Each award opens with its points on
+Health and only what Health cannot hold on Infection; the step then offers the rest of the split
+point by point. The book's "may instead" makes the trade an option, so the default is not taking
+it — and it is what every campaign that is not Viral has always done.
+
 **What it costs.** A survivor at 10 Infection with Health left faces no Rot check and cannot
 turn at the base, which may be gentler than the book means. If it is, the place to say so is the
 Viral origin's own Infection check, which `src/data/dice.ts` records against pg. 22 and which

@@ -454,6 +454,19 @@ describe('the survivor actions', () => {
     expect(campaign.survivors).toHaveLength(2);
   });
 
+  it('sets Infection without touching anything else about the survivor', () => {
+    const before = expectOpen(withRoster()).survivors[0];
+    const after = expectOpen(
+      campaignReducer(withRoster(), {
+        type: 'survivor/infectionSet',
+        id: SURVIVOR_ID,
+        infection: 10,
+      }),
+    ).survivors[0];
+
+    expect(after).toEqual({ ...before, infection: 10 });
+  });
+
   it('removes only the named survivor', () => {
     const campaign = expectOpen(
       campaignReducer(withRoster(), { type: 'survivor/removed', at: AT, id: SURVIVOR_ID }),
@@ -497,6 +510,7 @@ describe('editing actions against the empty state', () => {
     },
     { type: 'survivor/renamed', id: SURVIVOR_ID, name: 'Earl Rhodes Jr' },
     { type: 'survivor/hpSet', id: SURVIVOR_ID, currentHp: 1 },
+    { type: 'survivor/infectionSet', id: SURVIVOR_ID, infection: 4 },
     { type: 'survivor/removed', at: AT, id: SURVIVOR_ID },
   ];
 
@@ -538,6 +552,7 @@ describe('purity', () => {
     },
     { type: 'survivor/renamed', id: SURVIVOR_ID, name: 'Earl Rhodes Jr' },
     { type: 'survivor/hpSet', id: SURVIVOR_ID, currentHp: 1 },
+    { type: 'survivor/infectionSet', id: SURVIVOR_ID, infection: 4 },
     { type: 'survivor/removed', at: AT, id: SURVIVOR_ID },
   ];
 
@@ -2346,6 +2361,12 @@ describe('what earns a line in the log', () => {
       action: { type: 'survivor/hpSet', id: LOGGED_SURVIVOR, currentHp: 1 },
       entry: null,
     },
+    // Infection is the same hand entry, for the mission the tracker does not
+    // run (#176). Heal Wounds removing it is what earns a line.
+    'survivor/infectionSet': {
+      action: { type: 'survivor/infectionSet', id: LOGGED_SURVIVOR, infection: 3 },
+      entry: null,
+    },
     'survivor/statsSet': {
       action: {
         type: 'survivor/statsSet',
@@ -2995,6 +3016,68 @@ describe('the Advancement Phase steps', () => {
     expect(expectOpen(once).survivors[0]?.currentHp).toBe(2);
     expect(expectOpen(twice).survivors[0]?.currentHp).toBe(2);
     expect(expectOpen(twice).log).toHaveLength(1);
+  });
+
+  /**
+   * Under the Viral origin each point may remove Infection instead (pg. 19,
+   * 123; #176). The screen sends how each award is spent; the reducer holds
+   * it to the range and says so in the entry.
+   */
+  describe('spending Heal Wounds on Infection', () => {
+    const fevered = (currentHp: number) =>
+      openState({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        origin: 'viral',
+        turn: 3,
+        survivors: [{ ...createSurvivor('Marcus Webb', 4, { id: EARL }), currentHp, infection: 5 }],
+        assignments: { [EARL]: { task: 'rest' } },
+      });
+
+    it('spends the point where the player chose, and records it', () => {
+      const after = expectOpen(
+        campaignReducer(fevered(1), {
+          type: 'advancement/woundsHealed',
+          at: AT,
+          infection: { [`rest:${EARL}`]: 1 },
+        }),
+      );
+
+      expect(after.survivors[0]).toMatchObject({ currentHp: 1, infection: 4 });
+      expect(after.log[0]?.event).toEqual({
+        kind: 'health-restored',
+        survivor: EARL,
+        name: 'Marcus Webb',
+        health: 1,
+        source: 'rest',
+        infection: 1,
+      });
+    });
+
+    it('puts every point on Health and writes no count when nobody chose', () => {
+      const after = expectOpen(
+        campaignReducer(fevered(1), { type: 'advancement/woundsHealed', at: AT }),
+      );
+
+      expect(after.survivors[0]).toMatchObject({ currentHp: 2, infection: 5 });
+      expect(after.log[0]?.event).not.toHaveProperty('infection');
+    });
+
+    /**
+     * A survivor at full Health and infected still takes the point (R18), and
+     * it has nowhere to go but Infection — whatever the screen sent.
+     */
+    it('spends a point on Infection when Health cannot hold it, whatever was sent', () => {
+      const after = expectOpen(
+        campaignReducer(fevered(4), {
+          type: 'advancement/woundsHealed',
+          at: AT,
+          infection: { [`rest:${EARL}`]: 0 },
+        }),
+      );
+
+      expect(after.survivors[0]).toMatchObject({ currentHp: 4, infection: 4 });
+      expect(after.log[0]?.event).toMatchObject({ health: 1, infection: 1 });
+    });
   });
 
   it('gives a survivor the XP their pool holds', () => {

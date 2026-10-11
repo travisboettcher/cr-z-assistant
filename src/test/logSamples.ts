@@ -63,6 +63,8 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'xp-awarded', ...SURVIVOR, amount: 2, source: 'mission-teaching' },
   { kind: 'health-restored', ...SURVIVOR, health: 2, source: 'facility' },
   { kind: 'health-restored', ...SURVIVOR, health: 1, source: 'rest' },
+  // Under the Viral origin a point may remove Infection instead (#176).
+  { kind: 'health-restored', ...SURVIVOR, health: 3, source: 'facility', infection: 2 },
   { kind: 'survivors-fed', required: 10, hunger: 0 },
   { kind: 'survivors-fed', required: 10, hunger: 6 },
   { kind: 'rot-checked', ...SURVIVOR, roll: 7, target: 12, passed: false },

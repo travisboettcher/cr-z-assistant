@@ -8,16 +8,21 @@ import {
 } from './campaign';
 import { createSurvivor } from './survivor';
 import {
+  awardKey,
   beingHealed,
   checkHealing,
   goingSpare,
   healingPool,
   healthAwards,
+  infectionRange,
+  need,
   resting,
   room,
   sharedEqually,
+  withInfectionSpent,
   withWoundsHealed,
   woundsHealed,
+  type HealthAward,
 } from './healing';
 import type { LogEntry } from './log';
 import { generatingFlatUtility, generatingUtilities, staffedWith } from '../test/campaigns';
@@ -214,7 +219,7 @@ describe('healthAwards', () => {
     const campaign = community([wounded('a', 'A', 1)], { a: { task: 'rest' } });
 
     expect(healthAwards(campaign)).toEqual([
-      { survivor: campaign.survivors[0], health: 1, source: 'rest' },
+      { survivor: campaign.survivors[0], health: 1, infection: 0, source: 'rest' },
     ]);
   });
 
@@ -394,7 +399,7 @@ describe('withWoundsHealed', () => {
   it('raises the Health of the survivors named and nobody else', () => {
     const before = pair();
     const after = withWoundsHealed(before, [
-      { survivor: before.survivors[0] as Survivor, health: 2, source: 'facility' },
+      { survivor: before.survivors[0] as Survivor, health: 2, infection: 0, source: 'facility' },
     ]);
 
     expect(after.survivors.map((survivor) => survivor.currentHp)).toEqual([3, 2]);
@@ -408,8 +413,8 @@ describe('withWoundsHealed', () => {
     const both = pair();
     const earl = both.survivors[0] as Survivor;
     const after = withWoundsHealed(both, [
-      { survivor: earl, health: 1, source: 'facility' },
-      { survivor: earl, health: 1, source: 'rest' },
+      { survivor: earl, health: 1, infection: 0, source: 'facility' },
+      { survivor: earl, health: 1, infection: 0, source: 'rest' },
     ]);
 
     expect(after.survivors[0]?.currentHp).toBe(3);
@@ -420,5 +425,125 @@ describe('withWoundsHealed', () => {
     const after = withWoundsHealed(before, []);
 
     expect(after).toEqual(before);
+  });
+
+  it('spends a point on Infection instead of on Health, point for point', () => {
+    const before = community([{ ...wounded('a', 'A', 1), infection: 5 }]);
+    const after = withWoundsHealed(before, [
+      { survivor: before.survivors[0] as Survivor, health: 3, infection: 2, source: 'facility' },
+    ]);
+
+    expect(after.survivors[0]).toMatchObject({ currentHp: 2, infection: 3 });
+  });
+
+  /**
+   * Two awards each held to the Infection the survivor started with could
+   * together remove a point that was never there.
+   */
+  it('never takes Infection below zero', () => {
+    const before = community([{ ...wounded('a', 'A', 4), infection: 1 }]);
+    const earl = before.survivors[0] as Survivor;
+    const after = withWoundsHealed(before, [
+      { survivor: earl, health: 1, infection: 1, source: 'facility' },
+      { survivor: earl, health: 1, infection: 1, source: 'rest' },
+    ]);
+
+    expect(after.survivors[0]?.infection).toBe(0);
+  });
+});
+
+/**
+ * Heal Wounds under the Viral origin (pg. 19, 123; #176): each point a
+ * survivor would receive may remove a point of Infection instead. The equal
+ * share is unchanged; only what each point is spent on moves.
+ */
+describe('Infection in Heal Wounds', () => {
+  const infected = (id: string, currentHp: number, infection: number): Survivor => ({
+    ...wounded(id, id.toUpperCase(), currentHp),
+    infection,
+  });
+
+  it('counts Infection as something a point can be used on', () => {
+    expect(need(infected('a', 4, 3))).toBe(3);
+    expect(need(infected('a', 2, 3))).toBe(5);
+    // Outside a Viral campaign it is room, and nothing else.
+    expect(need(wounded('a', 'A', 2))).toBe(room(wounded('a', 'A', 2)));
+  });
+
+  /**
+   * The case the issue was opened for: a survivor down on Infection with
+   * Health left. At full Health they would take nothing from a pool measured in
+   * wounds, and the Clinic could never help them (R18).
+   */
+  it('shares a point with somebody at full Health who is infected', () => {
+    const awards = sharedEqually([infected('fevered', 4, 10), wounded('hurt', 'Hurt', 3)], 2);
+
+    expect(shares(awards)).toEqual({ fevered: 1, hurt: 1 });
+    // At full Health, the point has nowhere to go but Infection.
+    expect(awards[0]?.infection).toBe(1);
+    expect(awards[1]?.infection).toBe(0);
+  });
+
+  it('defaults every point to Health while there is a wound to close', () => {
+    const [award] = sharedEqually([infected('a', 1, 5)], 2);
+
+    expect(award).toMatchObject({ health: 2, infection: 0 });
+  });
+
+  it.each([
+    // Health, Infection, points: least and most on Infection.
+    [1, 5, 2, 0, 2],
+    [3, 5, 3, 2, 3],
+    [4, 2, 2, 2, 2],
+    [1, 0, 3, 0, 0],
+    [1, 1, 3, 0, 1],
+  ])(
+    'at %i Health and %i Infection, %i points may put between their least and most on Infection',
+    (currentHp, infection, health, least, most) => {
+      const award = {
+        survivor: infected('a', currentHp, infection),
+        health,
+        infection: 0,
+        source: 'facility' as const,
+      };
+
+      expect(infectionRange(award)).toEqual({ least, most });
+    },
+  );
+
+  it('applies the player’s choice, held to the range', () => {
+    const [award] = sharedEqually([infected('a', 1, 5)], 3);
+    const key = awardKey(award as HealthAward);
+
+    expect(withInfectionSpent([award as HealthAward], { [key]: 2 })[0]?.infection).toBe(2);
+    expect(withInfectionSpent([award as HealthAward], { [key]: 9 })[0]?.infection).toBe(3);
+    expect(withInfectionSpent([award as HealthAward], { [key]: -1 })[0]?.infection).toBe(0);
+    expect(withInfectionSpent([award as HealthAward], {})[0]?.infection).toBe(0);
+  });
+
+  /**
+   * One survivor can hold two awards — the warned-about rest-and-heal — and a
+   * choice about one is not a choice about the other.
+   */
+  it('keys a choice to the award, not just the survivor', () => {
+    const survivor = infected('a', 1, 5);
+    const awards: HealthAward[] = [
+      { survivor, health: 1, infection: 0, source: 'facility' },
+      { survivor, health: 1, infection: 0, source: 'rest' },
+    ];
+
+    expect(
+      withInfectionSpent(awards, { [awardKey(awards[1] as HealthAward)]: 1 }).map(
+        (each) => each.infection,
+      ),
+    ).toEqual([0, 1]);
+  });
+
+  it('lets a resting survivor’s own point go on Infection', () => {
+    const campaign = community([infected('a', 4, 3)], { a: { task: 'rest' } });
+
+    expect(healthAwards(campaign)).toEqual([
+      { survivor: campaign.survivors[0], health: 1, infection: 1, source: 'rest' },
+    ]);
   });
 });

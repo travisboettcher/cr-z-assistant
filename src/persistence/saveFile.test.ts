@@ -256,7 +256,9 @@ describe('parseCampaignFile with a roster', () => {
     // v13 each project carries a `charged` pair, which pins the one nested
     // object inside an array element. v14 gives every survivor an Infection,
     // between their Health and their experience — and runs Viral, so the
-    // numbers in it are ones a table could actually have written.
+    // numbers in it are ones a table could actually have written, including a
+    // Heal Wounds entry that spent a point on Infection, whose optional count
+    // has to come back in its sorted place.
     const text = `${JSON.stringify(currentFixture, null, 2)}\n`;
     const result = parseCampaignFile(text);
 

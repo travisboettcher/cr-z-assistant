@@ -387,6 +387,10 @@ const EVENT_FIELDS: Record<
     ['name', 'name'],
     ['health', 'countFromOne'],
     ['source', 'healthSource'],
+    // Recorded since a point could remove Infection instead (#176); entries
+    // written before that, and every one outside a Viral campaign, do not
+    // carry it.
+    ['infection', 'optionalCount'],
   ],
   'xp-awarded': [
     ['survivor', 'id'],

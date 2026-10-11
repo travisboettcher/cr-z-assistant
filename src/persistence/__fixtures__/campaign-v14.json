@@ -319,6 +319,19 @@
     },
     {
       "turn": 3,
+      "phase": "advancement",
+      "at": "2026-09-01T19:05:26.000Z",
+      "event": {
+        "kind": "health-restored",
+        "health": 2,
+        "infection": 1,
+        "name": "Carla Proust",
+        "source": "facility",
+        "survivor": "d2c93a75-1e48-4f60-b8d7-5a3e0c96f41b"
+      }
+    },
+    {
+      "turn": 3,
       "phase": "planning",
       "at": "2026-09-01T19:09:30.000Z",
       "event": {

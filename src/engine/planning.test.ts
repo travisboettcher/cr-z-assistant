@@ -347,6 +347,31 @@ describe('checkAssignment', () => {
       ).toEqual(['already-at-full-health', 'no-medical-clinic']);
     });
 
+    /**
+     * A Viral survivor at full Health with Infection is somebody the Clinic can
+     * still help — a point may remove Infection instead (pg. 19, 123; R18).
+     */
+    it('says nothing about full Health when there is Infection to clear', () => {
+      const infected: Campaign = {
+        ...community({}, clinic()),
+        origin: 'viral',
+        survivors: community().survivors.map((survivor) =>
+          survivor.id === EARL ? { ...survivor, infection: 2 } : survivor,
+        ),
+      };
+
+      expect(checkAssignment(infected, EARL, { task: 'healing' }).warnings).toEqual([]);
+      expect(checkAssignment(infected, EARL, { task: 'rest' }).warnings).toEqual([]);
+    });
+
+    it('names Infection in the warning when the campaign has it', () => {
+      const viral: Campaign = { ...community({}, clinic()), origin: 'viral' };
+
+      expect(checkAssignment(viral, EARL, { task: 'healing' }).warnings[0]?.message).toBe(
+        'At full Health with no Infection, so healing would do nothing.',
+      );
+    });
+
     it('lets any number be healed, unlike resting', () => {
       const check = checkAssignment(community({ [EARL]: { task: 'healing' } }, clinic()), CARLA, {
         task: 'healing',

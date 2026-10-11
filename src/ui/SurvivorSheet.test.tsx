@@ -140,6 +140,41 @@ describe('SurvivorSheet', () => {
     ).toBeInTheDocument();
   });
 
+  /**
+   * Infection is the Viral origin's (pg. 123), and a sheet that offered it to
+   * every campaign would be a control for a number nothing else raises.
+   */
+  it('offers no Infection outside a Viral campaign', async () => {
+    const { sheet } = await openSheetFor('Earl Rhodes', '4');
+
+    expect(within(sheet).queryByText(/infection/i)).not.toBeInTheDocument();
+  });
+
+  /**
+   * Typed in, like Health: it comes from a mission the tracker does not run,
+   * and carries to the next one. At 10 the survivor is down whatever their
+   * Health, and the sheet says so (#176).
+   */
+  it('records Infection through the store in a Viral campaign', async () => {
+    const user = open({
+      ...createNewCampaign('Cedar Hollow'),
+      origin: 'viral',
+      survivors: [createSurvivor('Earl Rhodes', 4, { id: 'earl' })],
+    });
+    await user.click(screen.getByRole('button', { name: /^sheet$/i }));
+    const sheet = screen.getByRole('region', { name: 'Earl Rhodes' });
+
+    await user.click(within(sheet).getByRole('button', { name: /^set infection$/i }));
+    const field = screen.getByLabelText(/infection for earl rhodes/i);
+    await user.clear(field);
+    await user.type(field, '10');
+    await user.click(screen.getByRole('button', { name: /save infection/i }));
+
+    expect(within(sheet).getByText(/incapacitated/i)).toBeInTheDocument();
+    // Down on Infection, not on Health: the Health reading is untouched.
+    expect(within(sheet).getByText('4 / 4')).toBeInTheDocument();
+  });
+
   it('closes on request', async () => {
     const { user } = await openSheetFor('Earl Rhodes', '4');
 
