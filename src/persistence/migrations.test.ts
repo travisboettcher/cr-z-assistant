@@ -23,6 +23,7 @@ const SAMPLE_SURVIVOR = {
   move: 7,
   defense: 6,
   currentHp: 3,
+  infection: 0,
   xp: 5,
 } satisfies Survivor;
 
@@ -491,12 +492,60 @@ describe('the v12 to v13 recorded charge', () => {
 
   /** A save that was already v13 keeps the numbers it was written with. */
   it('leaves a v13 queue alone', () => {
-    const v13 = fixtures.find((fixture) => fixture.version === CURRENT_SCHEMA_VERSION);
+    const v13 = fixtures.find((fixture) => fixture.version === 13);
     const result = migrate(v13?.contents);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
     expect(result.campaign.projects[0]?.charged).toEqual({ hardware: 3, labor: 2 });
+  });
+});
+
+/**
+ * The first step to reach inside the roster rather than add a top-level field,
+ * so the key guard above is blind to it — this is the assertion its comment
+ * asks for, beside the survivor-shape one that would catch a missing key but
+ * not a wrong value.
+ */
+describe('the v13 to v14 infection', () => {
+  it('brings every earlier survivor forward clean', () => {
+    for (const fixture of fixtures.filter((f) => f.version < 14)) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok) continue;
+
+      // Zero rather than anything inferred from their Health: a v13 build had
+      // nowhere to write Infection, so no earlier save can have lost any.
+      for (const survivor of result.campaign.survivors) {
+        expect(survivor.infection, `${fixture.path} ${survivor.name}`).toBe(0);
+      }
+    }
+  });
+
+  it('keeps a v14 survivor’s own Infection', () => {
+    const v14 = fixtures.find((fixture) => fixture.version === 14);
+    const result = migrate(v14?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.survivors.map((survivor) => survivor.infection)).toEqual([0, 4, 10, 0]);
+  });
+
+  /**
+   * A roster that is not a list is somebody else's problem: `saveFile.ts`
+   * refuses it with a message about the roster, which is the damage. A step
+   * that "repaired" it would be writing a campaign nobody saved.
+   */
+  it('hands an unreadable roster on untouched', () => {
+    const v13 = fixtures.find((fixture) => fixture.version === 13);
+    const result = migrate({ ...(v13?.contents as object), survivors: 'everybody' });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.survivors).toBe('everybody');
   });
 });

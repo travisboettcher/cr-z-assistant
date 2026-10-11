@@ -102,6 +102,7 @@ describe('Survivor', () => {
       move: 7,
       defense: 6,
       currentHp: 3,
+      infection: 0,
       xp: 5,
     } satisfies Survivor;
 
@@ -109,6 +110,7 @@ describe('Survivor', () => {
       'currentHp',
       'defense',
       'id',
+      'infection',
       'move',
       'name',
       'skills',
@@ -133,6 +135,7 @@ describe('Survivor', () => {
       move: 6,
       defense: 6,
       currentHp: 1,
+      infection: 0,
       xp: 0,
     } satisfies Survivor;
 

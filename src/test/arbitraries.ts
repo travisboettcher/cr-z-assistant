@@ -164,6 +164,7 @@ export function survivorArbitrary(): fc.Arbitrary<Survivor> {
     move: anyCount,
     defense: anyCount,
     currentHp: anyCount,
+    infection: anyCount,
     xp: anyCount,
   });
 }

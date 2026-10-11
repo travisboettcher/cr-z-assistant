@@ -352,6 +352,44 @@ const projectsRecordTheirCharge: MigrationStep = {
   },
 };
 
+/**
+ * v13 → v14: every survivor carries their Infection (pg. 123, #176).
+ *
+ * **Zero, for every survivor in every save, and that is the truth rather than a
+ * guess.** Infection is the Viral origin's, gained from a zombie's damage on a
+ * mission, and a v13 build had nowhere to write it — so a v13 roster holds no
+ * Infection the file could have lost. A Viral table that had been keeping it on
+ * paper beside the app types it in on the sheet once, the same way wounds were
+ * recorded before the Advancement Phase healed them.
+ *
+ * **The first step in this chain to reach inside the roster.** Every earlier
+ * one moved a top-level field, which is why the guard in `migrations.test.ts`
+ * could see it; this one adds a key one level down, where that guard cannot,
+ * so the survivor-shape assertion beside it is what holds this step to account.
+ *
+ * Defensive about what it reads, like v12 → v13: a roster that is not a list,
+ * or a survivor that is not an object, is handed on untouched for
+ * `saveFile.ts` to refuse with a message about the actual damage, rather than
+ * being repaired into something that loads and was never written. A survivor
+ * who somehow already has an Infection keeps it.
+ */
+const infectionRecorded: MigrationStep = {
+  from: 13,
+  to: 14,
+  up: (previous) => {
+    if (!Array.isArray(previous.survivors)) return previous;
+
+    return {
+      ...previous,
+      survivors: (previous.survivors as unknown[]).map((survivor) =>
+        typeof survivor === 'object' && survivor !== null && !('infection' in survivor)
+          ? { ...survivor, infection: 0 }
+          : survivor,
+      ),
+    };
+  },
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -366,6 +404,7 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   siegesBecameDerived,
   siegeOutcomesRecorded,
   projectsRecordTheirCharge,
+  infectionRecorded,
 ];
 
 /** Why a save could not be brought forward. */

@@ -31,6 +31,7 @@ const EARL = {
   move: 6,
   defense: 6,
   currentHp: 4,
+  infection: 0,
   xp: 0,
 } satisfies Survivor;
 
@@ -44,6 +45,7 @@ const CARLA = {
   move: 6,
   defense: 6,
   currentHp: 3,
+  infection: 0,
   xp: 0,
 } satisfies Survivor;
 

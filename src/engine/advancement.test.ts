@@ -23,6 +23,7 @@ const CARLA = {
   move: 6,
   defense: 6,
   currentHp: 3,
+  infection: 0,
   xp: 20,
 } satisfies Survivor;
 
@@ -36,6 +37,7 @@ const MARCUS = {
   move: 6,
   defense: 6,
   currentHp: 2,
+  infection: 0,
   xp: 20,
 } satisfies Survivor;
 

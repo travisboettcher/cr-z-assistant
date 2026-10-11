@@ -202,6 +202,9 @@ export function createSurvivor(
     defense: COMMON_SKILL_START_SCORE,
     // Joining at full health. Wounds come from missions, which is Phase 4.
     currentHp: TIER_RULES[tier].maxHp,
+    // Clean, whatever the origin. Infection is gained from a zombie's damage on
+    // a mission (pg. 123), and nobody joins a community having taken any.
+    infection: 0,
     xp: 0,
   };
 }

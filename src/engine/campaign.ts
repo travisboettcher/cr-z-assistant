@@ -32,7 +32,7 @@ import type { LogEntry } from './log';
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 13;
+export const CURRENT_SCHEMA_VERSION = 14;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -79,6 +79,23 @@ export interface Survivor {
 
   /** Max HP is the Tier and is derived; this is the survivor's current health. */
   currentHp: number;
+
+  /**
+   * Infection, under the Viral origin (pg. 123).
+   *
+   * **Stored, and on every survivor.** A zombie's damage adds it on a mission,
+   * and unlike a mission's wounds it does not go away when the mission ends:
+   * it carries into the next one, so a campaign that did not keep it would hand
+   * every survivor a clean slate the book never gives. At 10 the survivor is
+   * incapacitated whatever their Health, which is what `isDown` reads.
+   *
+   * A number on every survivor rather than an optional one on Viral survivors,
+   * because an absent field and a zero would be the same fact spelled two ways
+   * — the reason `SlotState` writes nothing rather than `false`. Outside a
+   * Viral campaign nothing raises it, so it stays 0 and nothing reads a
+   * difference (#176).
+   */
+  infection: number;
 
   xp: number;
 }
