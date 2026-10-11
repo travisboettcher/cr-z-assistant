@@ -39,16 +39,47 @@ const RESOLUTION_BUILT_HERE = [
   'src/engine/utilities.ts',
   'src/engine/assignments.ts',
   'src/engine/build.ts',
+  // The two that ask `occupantAt` the narrower layout question `build.ts` is
+  // here for: what is standing in this slot, and what does its facility offer.
+  // A price and a catalogue lookup, neither of which a utility can change —
+  // `projects.ts` asks what an upgrade replaces and `upgrade.ts` asks which
+  // upgrades a facility has.
+  'src/engine/projects.ts',
+  'src/engine/upgrade.ts',
 ];
 
 /** Tests name the raw list on purpose — `base.test.ts` is its own suite. */
 const TESTS = ['**/*.test.ts', '**/*.test.tsx'];
 
+/**
+ * Both names, because `occupantAt` is a thin wrapper returning the same raw
+ * `Occupant` and the rule that named only `occupants` covered about half the
+ * surface it claimed (#166). A caller importing the wrapper could read `.power`
+ * and `.water` and call `staffCapacity` with lint exiting 0 — no live violation
+ * at the time, but the rule exists to make the class unrepresentable and it
+ * did not.
+ */
 const RAW_OCCUPANTS = {
   group: ['**/base', '**/engine/base'],
-  importNames: ['occupants'],
+  importNames: ['occupants', 'occupantAt'],
   message: OCCUPANTS_MUST_BE_RESOLVED,
 };
+
+/**
+ * Every directory whose modules hold a whole campaign, which is every directory
+ * where reading a slot's stored flags is the mistake this rule is about.
+ *
+ * The rule was attached to `src/engine` and `src/ui` only. `src/state` and
+ * `src/persistence` were uncovered, and `campaignStore.ts` is campaign-level by
+ * its own behaviour — it already calls `suppliedOccupants` where it resolves a
+ * claim. A probe importing `occupants` there linted clean (#166).
+ */
+const CAMPAIGN_LEVEL = [
+  'src/engine/**/*.ts',
+  'src/ui/**/*.{ts,tsx}',
+  'src/state/**/*.{ts,tsx}',
+  'src/persistence/**/*.ts',
+];
 
 const NO_REACT_IN_ENGINE = [
   { group: ['react', 'react-dom', 'react/*', 'react-dom/*'], message: ENGINE_IS_PURE },
@@ -139,7 +170,7 @@ export default tseslint.config(
   },
 
   {
-    files: ['src/ui/**/*.{ts,tsx}'],
+    files: CAMPAIGN_LEVEL.filter((glob) => !glob.startsWith('src/engine/')),
     ignores: TESTS,
     rules: {
       'no-restricted-imports': ['error', { patterns: [RAW_OCCUPANTS] }],

@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign, type Project } from './campaign';
 import { builtEvent, checkOrder, orderedEvent } from './orders';
-import { withProjectOrdered } from './projects';
+import { permitted } from './checks';
+import type { TurnStepId } from '../data/turn';
+import { cancellable, orderable, withProjectOrdered } from './projects';
 import { projectTeamWorth, withPlanningBegun } from '../test/campaigns';
+import { queued } from '../test/queued';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 
@@ -10,6 +13,10 @@ function community(overrides: Partial<Campaign> = {}): Campaign {
   return withPlanningBegun({
     ...createNewCampaign('Cedar Hollow', FIXED),
     turn: 3,
+    // In the phase orders are placed in, which R14 confines them to: every
+    // question below this one is about what else is wrong with an order, and a
+    // campaign standing anywhere else answers only the phase (#171).
+    step: 'assign-project-team',
     materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
     base: { id: 'hobby-farm', slots: {} },
     ...projectTeamWorth(6),
@@ -22,14 +29,21 @@ const WORKSHOP: Project = {
   slot: 'front-yard',
   facility: 'workshop',
   orderedOnTurn: 3,
+  charged: { hardware: 3, labor: 2 },
 };
 const GAS_RANGE: Project = {
   kind: 'upgrade',
   slot: 'kitchen',
   upgrade: 'gas-range',
   orderedOnTurn: 3,
+  charged: { hardware: 2, labor: 1 },
 };
-const COOP: Project = { kind: 'clearing', slot: 'ruined-chicken-coop', orderedOnTurn: 3 };
+const COOP: Project = {
+  kind: 'clearing',
+  slot: 'ruined-chicken-coop',
+  orderedOnTurn: 3,
+  charged: { hardware: 0, labor: 2 },
+};
 
 describe('checkOrder', () => {
   it('permits each of the three verbs when nothing is wrong', () => {
@@ -101,7 +115,7 @@ describe('checkOrder', () => {
             slots: { 'back-yard': { built: { facility: 'garden', builtOnTurn: 1 } } },
           },
         }),
-        project: { kind: 'upgrade', slot: 'back-yard', upgrade: 'fence', orderedOnTurn: 3 },
+        project: queued({ kind: 'upgrade', slot: 'back-yard', upgrade: 'fence', orderedOnTurn: 3 }),
         code: 'one-per-facility',
         refusal: 'warnings',
       },
@@ -201,5 +215,71 @@ describe('orderedEvent and builtEvent', () => {
     ]);
 
     expect(new Set(kinds).size).toBe(kinds.length);
+  });
+});
+
+/**
+ * **#171, and R14.** `cancellable` was guarded to the phase that placed the
+ * order and `project/ordered` was not, so an order could be placed where it
+ * could never be withdrawn: the slot card read "Cancelled in the Planning Phase
+ * that ordered it" with no Planning Phase left this turn, and next turn's
+ * refused it on `orderedOnTurn`.
+ *
+ * The guard and its inverse are one decision, so the pairing is asserted in
+ * both directions rather than each half on its own.
+ */
+describe('when an order may be placed', () => {
+  const PLANNING: readonly TurnStepId[] = [
+    'assign-facility-staff',
+    'assign-project-team',
+    'assign-rest-and-healing',
+    'assign-mission-team',
+  ];
+
+  const ELSEWHERE: readonly TurnStepId[] = [
+    'select-mission',
+    'tactical-mission',
+    'character-advancement',
+    'add-facilities-and-upgrades',
+    'check-for-rot',
+    'feed-your-survivors',
+    'departures',
+  ];
+
+  it.each(PLANNING)('is permitted at %s, which is a Planning step', (step) => {
+    expect(orderable(community({ step }))).toBe(true);
+    expect(checkOrder(community({ step }), WORKSHOP).blockers).toEqual([]);
+  });
+
+  it.each(ELSEWHERE)('is refused at %s, which is not', (step) => {
+    expect(orderable(community({ step }))).toBe(false);
+    expect(checkOrder(community({ step }), WORKSHOP).blockers.map((one) => one.code)).toEqual([
+      'outside-the-planning-phase',
+    ]);
+  });
+
+  /**
+   * A blocker rather than a warning, which is the whole point: `permitted`
+   * unlocks warnings only, so Z1-7's override cannot wave this one through into
+   * a state with no way out.
+   */
+  it('refuses rather than warning, so no override reaches it', () => {
+    const late = community({ step: 'check-storage' });
+
+    expect(checkOrder(late, WORKSHOP).warnings).toEqual([]);
+    expect(permitted(checkOrder(late, WORKSHOP), true)).toBe(false);
+  });
+
+  /**
+   * The pairing, in both directions and on the same campaign: every step that
+   * may place an order may take it back, and no step may do one without the
+   * other. That is what makes it one decision rather than two guards that
+   * happen to agree today.
+   */
+  it.each([...PLANNING, ...ELSEWHERE])('may cancel at %s exactly where it may order', (step) => {
+    const one = withProjectOrdered(community({ step: 'assign-project-team' }), WORKSHOP);
+    const standing = { ...one, step };
+
+    expect(cancellable(standing, 0)).toBe(orderable(standing));
   });
 });

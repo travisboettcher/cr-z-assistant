@@ -3,7 +3,10 @@ import { storageCaps } from './base';
 import { createNewCampaign, type Base, type Campaign, type Survivor } from './campaign';
 import { createSurvivor } from './survivor';
 import type { FacilityId, Utility } from '../data/facilities';
-import { generatingUtilities } from '../test/campaigns';
+import { generatingUtilities, staffedWith } from '../test/campaigns';
+import { hungerPenalty } from './feeding';
+import { utilitiesScore } from './assignments';
+import type { LogEntry } from './log';
 import {
   assignedCount,
   checkUtility,
@@ -467,5 +470,92 @@ describe('the Hydroelectric Dam', () => {
 
       expect(suppliesEveryFacility(home)).toBe(false);
     });
+  });
+});
+
+/**
+ * **R3-M4.** Utilities are generated and assigned at Planning Step 1 and last
+ * until the next Planning Phase (pg. 20, 67). The hunger penalty lands at
+ * Management Step 2, four steps later in the same turn, and lowers Cooperation
+ * — so a legal assignment became illegal retroactively, the base sheet read
+ * "POWER ASSIGNED 4 / 2 — Over what the base generates", and points were
+ * silently dropped in layout order (#169).
+ */
+describe('a hunger penalty landing after the points were assigned', () => {
+  const AT = '2026-09-13T09:00:00.000Z';
+
+  /** Feeding this turn, short enough to cost every stat this much. */
+  const fed = (turn: number, hunger: number, population: number): LogEntry => ({
+    turn,
+    phase: 'management',
+    at: AT,
+    event: { kind: 'survivors-fed', required: hunger, hunger, population },
+  });
+
+  /**
+   * A Station worked by somebody with Utilities 4, and four points assigned
+   * across the base — the whole pool, spent legally.
+   */
+  const assigned = (): Campaign => {
+    const worker = {
+      ...createSurvivor('Nell Haig', 4, { id: 'nell' }),
+      stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: 4 },
+      skills: { utilities: 0 as const },
+    };
+
+    return {
+      ...staffedWith(
+        {
+          ...createNewCampaign('Cedar Hollow', FIXED),
+          turn: 3,
+          step: 'check-for-rot',
+          base: {
+            id: 'hobby-farm',
+            slots: {
+              kitchen: { power: true, water: true },
+              garden: { power: true, water: true },
+            },
+          },
+        },
+        'utility-station',
+        [worker],
+      ),
+    };
+  };
+
+  it('leaves every assigned point backed', () => {
+    const before = assigned();
+
+    // Four generated, four assigned: legal, and the Station's own built-in
+    // Well Pump is flat generation on top.
+    expect(utilitiesScore(before)).toBe(4);
+    expect(suppliedOccupants(before).filter((one) => one.power && one.water)).toHaveLength(2);
+  });
+
+  it('keeps them backed when the Feed step costs the community a stat', () => {
+    // One survivor eating two against nothing stored: a shortfall of two over a
+    // head count of one, so every stat drops by one and Utilities with it.
+    const starving = { ...assigned(), log: [fed(3, 2, 1)] };
+
+    expect(hungerPenalty(starving)).toBe(1);
+    expect(utilitiesScore(starving)).toBe(4);
+    expect(suppliedOccupants(starving).filter((one) => one.power && one.water)).toHaveLength(2);
+  });
+
+  /**
+   * And the consequence the rule *does* have: the penalty runs into the next
+   * turn's Planning Phase (pg. 22), so it reduces what that turn can generate.
+   * The assignment standing is about points already on the board, not about a
+   * penalty that does nothing.
+   */
+  it('reduces what the next turn’s Planning Step 1 can generate', () => {
+    const next: Campaign = {
+      ...assigned(),
+      turn: 4,
+      step: 'assign-facility-staff',
+      log: [fed(3, 2, 1)],
+    };
+
+    expect(utilitiesScore(next)).toBe(3);
   });
 });

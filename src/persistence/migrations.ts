@@ -12,7 +12,13 @@
  */
 
 import { CAMPAIGN_PHASES, TURN_STEPS } from '../data/turn';
-import { CURRENT_SCHEMA_VERSION, type Campaign } from '../engine/campaign';
+import {
+  CURRENT_SCHEMA_VERSION,
+  type Campaign,
+  type PlacedOrder,
+  type Project,
+} from '../engine/campaign';
+import { projectCost } from '../engine/projects';
 
 /**
  * A save part-way through the chain. Not a `Campaign` — only the final step's
@@ -308,6 +314,44 @@ const siegeOutcomesRecorded: MigrationStep = {
   up: (previous) => previous,
 };
 
+/**
+ * v12 → v13: a queued project records what it was charged.
+ *
+ * A project's price depends on what was queued ahead of it, so cancelling an
+ * earlier order used to change what a later one refunded — Hardware created or
+ * destroyed by a player changing their mind (#165). The charge is a fact of the
+ * order now, not a sum done again later.
+ *
+ * **Rebuilt by replaying the queue**, which is the only honest answer available:
+ * what each order actually cost on the day is not in the file, so each project
+ * is priced against the ones ahead of it exactly as it would have been when it
+ * was placed. For a queue nobody has cancelled from — and a v11 save can only
+ * hold orders from the turn in progress, and neither can a v12 one — that is the original number. For one
+ * that has been cancelled from, it is what this build would have refunded
+ * anyway, so no campaign is worse off than it was before opening.
+ *
+ * Empty for almost every save: only a campaign saved mid-Planning-Phase with
+ * orders in flight has a queue at all.
+ */
+const projectsRecordTheirCharge: MigrationStep = {
+  from: 12,
+  to: 13,
+  up: (previous) => {
+    const projects = Array.isArray(previous.projects) ? (previous.projects as PlacedOrder[]) : [];
+
+    return {
+      ...previous,
+      projects: projects.reduce<Project[]>((queued, project) => {
+        // Priced against the prefix, so each order sees exactly the orders that
+        // were ahead of it — the base from the save, the queue as far as here.
+        const ahead = { ...previous, projects: queued } as unknown as Campaign;
+
+        return [...queued, { ...project, charged: projectCost(ahead, project) }];
+      }, []),
+    };
+  },
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -321,6 +365,7 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   projectsBecameQueued,
   siegesBecameDerived,
   siegeOutcomesRecorded,
+  projectsRecordTheirCharge,
 ];
 
 /** Why a save could not be brought forward. */

@@ -4,6 +4,7 @@ import { TIER_RULES, type Tier } from '../data/tiers';
 import type { Survivor } from './campaign';
 import {
   communityViolations,
+  promotionViolations,
   skillSlotsAreFull,
   survivorViolations,
   withStatValue,
@@ -235,5 +236,51 @@ describe('the edges the tests were missing', () => {
 
     expect(Object.values(hero.stats)).not.toContain(9);
     expect(withStatValue(hero, 'strength', 9)).toEqual(hero.stats);
+  });
+});
+
+/**
+ * **R3-M3.** The cap was computed, displayed on the base sheet and reported as
+ * exceeded, and never mentioned at the moment of the purchase — the only moment
+ * a player could act on it. A Tier 2 base took a third and then a fourth Hero
+ * with no warning and no blocker (#168).
+ */
+describe('promotionViolations', () => {
+  const leader = (): Survivor => createSurvivor('Earl Rhodes', 3, { id: 'earl' });
+
+  it('says nothing while the community is under the cap', () => {
+    expect(promotionViolations(leader(), 1, 2)).toEqual([]);
+  });
+
+  it('warns on the promotion that would reach the cap', () => {
+    const [violation] = promotionViolations(leader(), 2, 2);
+
+    expect(violation?.code).toBe('over-hero-cap');
+    expect(violation?.message).toContain('2 Hero-Tier survivors');
+    expect(violation?.pages).toBe(54);
+  });
+
+  it('goes on warning past it, because the community is still over', () => {
+    expect(promotionViolations(leader(), 4, 2)).toHaveLength(1);
+  });
+
+  /** The singular, and the base that allows none at all. */
+  it.each([
+    [1, 1, 'allows 1 Hero-Tier survivor'],
+    [0, 0, 'no Hero-Tier survivors at all'],
+  ])('reads properly at a cap of %i', (heroes, cap, says) => {
+    expect(promotionViolations(leader(), heroes, cap)[0]?.message).toContain(says);
+  });
+
+  /**
+   * Only the promotion that makes a Hero. Every other one leaves the count
+   * alone, and the cap is about who is Tier 4 rather than about promotions.
+   */
+  it.each([1, 2] as const)('says nothing about a promotion from Tier %i', (tier) => {
+    expect(promotionViolations(createSurvivor('Carla', tier, { id: 'c' }), 9, 1)).toEqual([]);
+  });
+
+  it('says nothing to a survivor already at the top', () => {
+    expect(promotionViolations(createSurvivor('Nell', 4, { id: 'n' }), 9, 1)).toEqual([]);
   });
 });

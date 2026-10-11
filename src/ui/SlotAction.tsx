@@ -14,6 +14,7 @@
 
 import type { ReactNode } from 'react';
 import { ORDER_STEP } from '../data/turn';
+import { orderable } from '../engine/projects';
 import type { Campaign } from '../engine/campaign';
 import type { Check } from '../engine/checks';
 import { permitted } from '../engine/checks';
@@ -48,7 +49,16 @@ export function SlotAction<Code extends string>({
   overrideLabel,
   onCommit,
 }: SlotActionProps<Code>) {
-  const refused = check.blockers.length > 0;
+  // The phase is asked here rather than carried in the `Check`, for the same
+  // reason the sentence below is: it is one rule across all three verbs, and
+  // three closed unions would each need a member for it. The reducer asks
+  // `checkOrder`, which asks `orderable` too — this is the half that stops the
+  // button rather than the half that stops the campaign.
+  const refusedByPhase = !orderable(campaign);
+
+  // Counted as a refusal, so the override checkbox stays away: R14 is not a
+  // rule a player may wave through, and Z1-7's override unlocks warnings.
+  const refused = refusedByPhase || check.blockers.length > 0;
   const violations = [...check.blockers, ...check.warnings];
 
   return (
@@ -73,25 +83,38 @@ export function SlotAction<Code extends string>({
       {/*
        * Projects are *ordered* in the Planning Phase and finish in the next
        * Advancement Phase (pp. 20, 19) — so this note moved with Z3-11, from
-       * the step that used to build to the step that now orders. Phase 2
-       * shipped building as something you could do at any moment, and taking
-       * that away now would break every campaign mid-turn, so the app says
-       * which step this belongs to and leaves the button alone. A note rather
+       * the step that used to build to the step that now orders. A note rather
        * than a `Check` code, because it is the same sentence for all three
        * verbs and would otherwise be a fourth member of three separate closed
        * unions.
+       *
+       * **Outside the Planning Phase it refuses rather than notes**
+       * ([R14](../../docs/rulings.md)). It was a note for two phases because
+       * taking the affordance away looked like a bigger change than it was —
+       * and what it left behind was an order the player could never cancel,
+       * because `cancellable` had been guarded to the phase that placed it and
+       * this had not (#171). Inside the Planning Phase the step is still only a
+       * nudge: the rule is the phase, which is what `orderable` says.
        */}
-      {campaign.step !== ORDER_STEP && (
+      {refusedByPhase ? (
         <p className="mt-2 text-sm text-amber-800 dark:text-amber-300">
-          Projects are ordered in {STEP_LABELS[ORDER_STEP]}, and the turn is at{' '}
-          {STEP_LABELS[campaign.step]}. <PageRef pages={20} />
+          Projects are ordered in the Planning Phase, and the turn is at{' '}
+          {STEP_LABELS[campaign.step]}. An order placed here could not be cancelled.{' '}
+          <PageRef pages={20} />
         </p>
+      ) : (
+        campaign.step !== ORDER_STEP && (
+          <p className="mt-2 text-sm text-amber-800 dark:text-amber-300">
+            Projects are ordered in {STEP_LABELS[ORDER_STEP]}, and the turn is at{' '}
+            {STEP_LABELS[campaign.step]}. <PageRef pages={20} />
+          </p>
+        )
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <button
           type="button"
-          disabled={!permitted(check, overridden)}
+          disabled={refused || !permitted(check, overridden)}
           onClick={onCommit}
           className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg bg-amber-600 px-4 font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-600 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400 dark:disabled:bg-stone-700 dark:disabled:text-stone-400`}
         >

@@ -293,7 +293,7 @@ describe('building into a slot', () => {
     // when it is placed and nothing on the screen said so (#148).
     await user.click(
       screen.getByRole('button', {
-        name: /cancel bunk room in the garage — its hardware comes back/i,
+        name: /cancel bunk room in the garage — its 3 hardware comes back/i,
       }),
     );
 
@@ -304,7 +304,7 @@ describe('building into a slot', () => {
     // cannot know the second before the press, and "the Garage project" alone
     // is ambiguous the moment two are queued there (#151).
     expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
-      'Cancelled the Bunk Room on the Garage — 3 Hardware came back',
+      'Cancelled the Bunk Room in the Garage — 3 Hardware came back',
     );
   });
 
@@ -389,6 +389,8 @@ describe('upgrading a facility', () => {
     return openWith(
       withPlanningBegun({
         ...createNewCampaign('Cedar Hollow'),
+        // The phase orders are placed in, which R14 confines them to (#171).
+        step: 'assign-project-team',
         materials: { food: 0, fuel: 0, hardware, rare: 0 },
         base: { id: 'small-town-home', slots: {} },
         ...projectTeamWorth(5),
@@ -439,6 +441,7 @@ describe('upgrading a facility', () => {
         // Past the turn the Garden went up, so the same-turn rule is not what
         // this test is about (pg. 54).
         turn: 3,
+        step: 'assign-project-team',
         materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
         base: {
           id: 'small-town-home',
@@ -495,6 +498,7 @@ describe('upgrading a facility', () => {
     const user = openWith(
       withPlanningBegun({
         ...createNewCampaign('Cedar Hollow'),
+        step: 'assign-project-team',
         materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
         base: {
           id: 'small-town-home',
@@ -543,6 +547,7 @@ describe('clearing a slot', () => {
     return openWith(
       withPlanningBegun({
         ...createNewCampaign('Cedar Hollow'),
+        step: 'assign-project-team',
         base: { id: 'hobby-farm', slots: {} },
         ...projectTeamWorth(labor),
       }),
@@ -962,5 +967,174 @@ describe('staffing from the base screen', () => {
 
     const working = screen.getByRole('group', { name: /working here/i });
     expect(within(working).getByRole('checkbox', { name: /earl/i })).toBeEnabled();
+  });
+});
+
+/**
+ * **#171, on the screen that offered the trap.** Outside the Planning Phase the
+ * three verbs used to carry a note and a live button, so an order could be
+ * placed in the Management Phase and never taken back — the card said
+ * "Cancelled in the Planning Phase that ordered it" with no Planning Phase left
+ * (R14).
+ */
+describe('ordering outside the Planning Phase', () => {
+  const atManagement = () =>
+    openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        turn: 3,
+        step: 'check-storage',
+        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        base: { id: 'small-town-home', slots: {} },
+        ...projectTeamWorth(5),
+      }),
+    );
+
+  it('refuses the order and says why', async () => {
+    const user = atManagement();
+    await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
+
+    expect(screen.getByText(/could not be cancelled/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /order the upgrade/i })).toBeDisabled();
+  });
+
+  /** No override, because R14 is not a rule a player may wave through. */
+  it('offers no way to do it anyway', async () => {
+    const user = atManagement();
+    await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
+
+    expect(screen.queryByLabelText(/order it anyway/i)).toBeNull();
+  });
+
+  /** Inside the phase, the step is a nudge and the button works. */
+  it('leaves the button alone at another Planning step', async () => {
+    const user = openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        turn: 3,
+        step: 'assign-mission-team',
+        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        base: { id: 'small-town-home', slots: {} },
+        ...projectTeamWorth(5),
+      }),
+    );
+    await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
+
+    expect(screen.getByText(/projects are ordered in assign project team/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /order the upgrade/i })).toBeEnabled();
+  });
+});
+
+/**
+ * **R3-M2.** A Training Room's upgrades produce XP spendable only on the skills
+ * of one stat (pg. 73), and the engine deliberately does not model restricted
+ * XP — a survivor's `xp` is a single number with no stat on it. The card listed
+ * the restricted amounts beside the unrestricted one with nothing to tell them
+ * apart, so a room with all three read as 10 and the Advancement Phase offered
+ * 4: a number the player chooses between upgrades on, overstated by 60% (#172).
+ */
+describe('a Training Room’s restricted XP', () => {
+  const room = (upgrades: readonly UpgradeId[]) =>
+    withPlanningBegun({
+      ...createNewCampaign('Cedar Hollow'),
+      turn: 3,
+      survivors: [
+        {
+          ...createSurvivor('Nell Haig', 4, { id: 'nell' }),
+          stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: 4 },
+          skills: { teaching: 0 },
+        },
+      ],
+      assignments: { nell: { task: 'staff', slot: 'front-yard' } },
+      base: {
+        id: 'hobby-farm',
+        slots: {
+          'front-yard': {
+            built: { facility: 'training-room', builtOnTurn: 1 },
+            upgrades: [...upgrades],
+          },
+        },
+      },
+    });
+
+  const openCard = async (upgrades: readonly UpgradeId[]) => {
+    const user = openWith(room(upgrades));
+    await user.click(screen.getByRole('button', { name: /upgrade front yard/i }));
+  };
+
+  it('marks each restricted line as one the Advancement Phase will not hand out', async () => {
+    await openCard(['classroom']);
+
+    expect(screen.getByText(/intelligence skills only — not handed out yet/i)).toBeInTheDocument();
+  });
+
+  it('says how much of the total will not arrive', async () => {
+    await openCard(['weight-room', 'ropes-course', 'classroom']);
+
+    expect(screen.getByText(/6 of that XP is restricted/i)).toBeInTheDocument();
+    expect(screen.getByText(/does not model restricted XP/i)).toBeInTheDocument();
+  });
+
+  /** A room with no restricted upgrades promises nothing it cannot pay. */
+  it('says nothing where every line is XP the pool will offer', async () => {
+    await openCard([]);
+
+    expect(screen.queryByText(/restricted/i)).toBeNull();
+  });
+});
+
+/** **#173's slot-map lines**, each a sentence the screen got wrong. */
+describe('what the slot map says about itself', () => {
+  it('counts the slots that are actually empty, not the ones the base shipped with', () => {
+    const built = openWith({
+      ...createNewCampaign('Cedar Hollow'),
+      turn: 3,
+      base: {
+        id: 'small-town-home',
+        slots: { garage: { built: { facility: 'workshop', builtOnTurn: 1 } } },
+      },
+    });
+    expect(built).toBeDefined();
+
+    // The Small Town Home ships with two empty slots and one is now a Workshop.
+    expect(slotMap().textContent).toContain('1 empty');
+  });
+
+  it('counts an upgrade slot in the singular where there is one', async () => {
+    const user = openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        turn: 3,
+        step: 'assign-project-team',
+        base: {
+          id: 'small-town-home',
+          slots: { kitchen: { upgrades: ['gas-range', 'refrigerator'] } },
+        },
+      }),
+    );
+    expect(user).toBeDefined();
+
+    expect(screen.getByText(/room for 1 more/i)).toBeInTheDocument();
+    expect(screen.queryByText(/room for 1 upgrades/i)).toBeNull();
+  });
+
+  /** A clearing costs no Hardware, so the button must not promise any back. */
+  it('promises no Hardware back from cancelling a clearing', async () => {
+    const user = openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        turn: 3,
+        step: 'assign-project-team',
+        base: { id: 'hobby-farm', slots: {} },
+        ...projectTeamWorth(5),
+      }),
+    );
+
+    await user.click(screen.getByRole('button', { name: /clear ruined chicken coop/i }));
+    await user.click(screen.getByRole('button', { name: /order the clearing/i }));
+
+    expect(
+      screen.getByRole('button', { name: /^cancel clearing the ruined chicken coop$/i }),
+    ).toBeInTheDocument();
   });
 });

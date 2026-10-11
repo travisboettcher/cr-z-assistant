@@ -67,7 +67,7 @@ export function skillScore(survivor: Survivor, skill: Skill, penalty: number): n
  *
  * Floored at zero: a penalty of five against a Tier 4's array of [4, 3, 2, 1]
  * would otherwise produce negative Skill Scores, which nothing in the book
- * contemplates. See ruling 1 in `docs/phase-3-stories.md`.
+ * contemplates. See R1 in `docs/rulings.md`.
  */
 export function statValue(survivor: Survivor, stat: Stat, penalty: number): number {
   return Math.max(0, survivor.stats[stat] - penalty);

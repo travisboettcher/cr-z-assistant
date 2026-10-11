@@ -1,13 +1,21 @@
 /**
  * Add Materials to Storage — the third step of the Advancement Phase (pg. 18–19).
  *
- * ## Two sources, added together and accepted once
+ * ## Three sources, added together and accepted once
  *
- * A turn's materials come from two places the book keeps apart. The mission
+ * A turn's materials come from places the book keeps apart. The mission
  * recovers some: **one d10 per material recovered**, entered as rolled, which
  * is why nothing here generates a number. The base makes the rest, and Z3-5
  * already computes that from who is working what — this module only totals it
  * per material so the step can propose it.
+ *
+ * And a community that skipped the mission may have sent somebody scavenging
+ * (pg. 17), which pays a flat haul rather than a rolled one. That third source
+ * was assignable, validated, persisted and labelled for two rounds of playtest
+ * and **paid out nothing**, because the two constants saying what it yields had
+ * no reader (#163). Every visible part of the feature existed; only the part
+ * that does the work was missing, which is why walking the phases never found
+ * it and playing twenty turns did.
  *
  * ## A substitution changes a roll; it never adds one
  *
@@ -32,15 +40,18 @@ import { suppliedOccupants } from './utilities';
 import {
   MATERIAL_ROLL_TABLE,
   MATERIAL_SUBSTITUTIONS,
+  SCAVENGE_PER_MATERIAL_WITH_SKILL,
+  SCAVENGE_TOTAL_WITHOUT_SKILL,
   SUBSTITUTION_SKILLS,
   type SubstitutionSkill,
 } from '../data/turn';
 import type { D10Result } from '../data/dice';
 import { storageCaps } from './base';
-import { beforePlanning, missionTeam, staffOf } from './assignments';
-import type { Campaign } from './campaign';
+import { beforePlanning, staffOf, survivorsDoing } from './assignments';
+import { deployed } from './siege';
+import type { Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
-import { facilityProduction } from './production';
+import { facilityProduction, NO_PENALTY } from './production';
 import { hungerPenalty } from './feeding';
 import { skillScore } from './survivor';
 
@@ -116,7 +127,7 @@ export function baseProduction(campaign: Campaign): Materials {
   const staffed = beforePlanning(campaign);
 
   for (const occupant of suppliedOccupants(staffed)) {
-    for (const line of facilityProduction(occupant, staffOf(staffed, occupant.slotId), penalty)) {
+    for (const line of facilityProduction(occupant, staffOf(staffed, occupant), penalty)) {
       for (const output of line.outputs) {
         if (isMaterial(output)) total[output] += line.amount;
       }
@@ -124,6 +135,81 @@ export function baseProduction(campaign: Campaign): Materials {
   }
 
   return total;
+}
+
+/**
+ * The survivor who scavenged this turn, if anybody did (pg. 17).
+ *
+ * Read off `beforePlanning` like the mission team and the base's production,
+ * and for the same reason: the assignment was made in the Planning Phase of the
+ * turn that has just played, and this turn's Planning Phase clears it.
+ *
+ * One at most. Two would be a rule the Planning Phase warns about
+ * (`someone-else-scavenging`) rather than refuses, so roster order picks — the
+ * same answer `staffOf` gives an over-staffed facility, and stable.
+ */
+export function scavenger(campaign: Campaign): Survivor | undefined {
+  return survivorsDoing(beforePlanning(campaign), (task) => task.task === 'scavenging')[0];
+}
+
+/**
+ * Whether this survivor scavenges as the skill does (pg. 17).
+ *
+ * **Having the skill, not scoring in it**, which is R8's shape: the book names
+ * the skill as the trigger and never mentions a Score, and a Scavenge of 0 is
+ * reachable through a hunger penalty. `skillScore` returns null for a survivor
+ * who never learnt it and a number for one who has, including zero.
+ */
+export function scavengesEverything(survivor: Survivor): boolean {
+  return skillScore(survivor, 'scavenge', NO_PENALTY) !== null;
+}
+
+/**
+ * What the scavenger brings back (pg. 17).
+ *
+ * With the skill, one of **every** material type. Without it, one of a single
+ * type — and which one is the player's to say, so this takes the choice rather
+ * than picking. Nothing until they have chosen: a haul this step has not been
+ * told about is not a haul of Food by default.
+ *
+ * Flat either way. The Scavenge Score scales nothing here, which is why the two
+ * constants are counts rather than multipliers.
+ *
+ * Not conditioned on the mission actually being skipped. Mission setup is Phase
+ * 4's and this app cannot see whether the community went out, so the Planning
+ * Phase says the rule at the point of assignment
+ * (`scavenging-needs-the-mission-skipped`) and this pays whoever was assigned —
+ * Z3-6's posture, where the walk guides and does not refuse.
+ */
+export function scavenged(campaign: Campaign, chosen?: Material): Materials {
+  const survivor = scavenger(campaign);
+  const total = noMaterials();
+
+  if (survivor === undefined) return total;
+
+  if (scavengesEverything(survivor)) {
+    for (const material of MATERIALS) total[material] = SCAVENGE_PER_MATERIAL_WITH_SKILL;
+
+    return total;
+  }
+
+  if (chosen !== undefined) total[chosen] = SCAVENGE_TOTAL_WITHOUT_SKILL;
+
+  return total;
+}
+
+/**
+ * Whether the step is still waiting to be told which material was scavenged.
+ *
+ * The one thing on this step a player can leave unanswered that costs them
+ * something: an unskilled scavenger's whole turn comes to nothing if the step
+ * is committed without a choice. The screen asks, and this is what it asks
+ * about.
+ */
+export function scavengeNeedsAChoice(campaign: Campaign, chosen?: Material): boolean {
+  const survivor = scavenger(campaign);
+
+  return survivor !== undefined && !scavengesEverything(survivor) && chosen === undefined;
 }
 
 function isMaterial(output: string): output is Material {
@@ -140,7 +226,10 @@ function isMaterial(output: string): output is Material {
 export function substitutionUses(campaign: Campaign, skill: SubstitutionSkill): number {
   const penalty = hungerPenalty(campaign);
 
-  return missionTeam(beforePlanning(campaign)).reduce(
+  // The same team the XP pools read: everybody deploys to a Siege Defense
+  // (pg. 85), so a siege turn's substitutions are the whole community's Scores
+  // rather than an empty team's nothing (#167).
+  return deployed(campaign).reduce(
     (total, survivor) => total + (skillScore(survivor, skill, penalty) ?? 0),
     0,
   );

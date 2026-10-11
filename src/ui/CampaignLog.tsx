@@ -80,7 +80,7 @@ export function CampaignLog({ campaign }: CampaignLogProps) {
 
             <ol className="mt-2 flex flex-col gap-2">
               {group.entries.map((entry, index) => {
-                const label = describeEvent(entry.event);
+                const label = describeEvent(entry.event, entry.turn);
 
                 return (
                   <li

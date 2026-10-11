@@ -96,3 +96,63 @@ describe('describeEvent', () => {
     expect(text).not.toMatch(/undefined|null|\[object/i);
   });
 });
+
+/**
+ * **#173's log lines.** Each of these was a sentence the history got wrong and
+ * a player could not edit — the article, the preposition, a refund the entry
+ * did not mention, and a turn 1 that claimed to have cleared a turn 0.
+ */
+describe('the sentences the log writes', () => {
+  it('agrees the article with what follows it', () => {
+    expect(
+      describeEvent({ kind: 'upgrade-ordered', slot: 'kitchen', upgrade: 'extra-bed' }).text,
+    ).toContain('an Extra Bed');
+
+    expect(
+      describeEvent({ kind: 'upgrade-ordered', slot: 'kitchen', upgrade: 'restraints' }).text,
+    ).toContain('Ordered Restraints');
+  });
+
+  it('agrees it with a number too', () => {
+    const rolled = describeEvent({
+      kind: 'rot-checked',
+      survivor: 'earl',
+      name: 'Earl Rhodes',
+      roll: 8,
+      target: 12,
+      passed: false,
+    });
+
+    expect(rolled.text).toContain('rolling an 8');
+  });
+
+  /**
+   * The queue line says "Bunk Room **in** the Overflow Parking" and the log
+   * used to say "on the", because the entry carries a bare id with no kind.
+   * The id is enough: the two label maps share no key.
+   */
+  it('puts a facility in a slot and an upgrade on one', () => {
+    expect(
+      describeEvent({ kind: 'project-cancelled', slot: 'garage', built: 'workshop', hardware: 3 })
+        .text,
+    ).toContain('the Workshop in the Garage');
+
+    expect(
+      describeEvent({ kind: 'project-cancelled', slot: 'kitchen', built: 'gas-range', hardware: 2 })
+        .text,
+    ).toContain('the Gas Range on the Kitchen');
+  });
+
+  /** The sibling entry names the materials; this one named only the Labor. */
+  it('says what came back when a project went unfinished', () => {
+    expect(
+      describeEvent({ kind: 'project-unfinished', slot: 'garage', built: 'workshop', hardware: 3 })
+        .text,
+    ).toContain('3 Hardware came back');
+  });
+
+  it('does not clear a turn that never happened', () => {
+    expect(describeEvent({ kind: 'planning-began' }, 1).text).toBe('Started planning.');
+    expect(describeEvent({ kind: 'planning-began' }, 2).text).toContain('last turn’s tasks');
+  });
+});

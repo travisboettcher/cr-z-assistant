@@ -92,7 +92,7 @@ function upgradeSummary(campaign: Campaign, occupant: Occupant): string | null {
   if (names.length === 0) {
     return remaining === 0
       ? `Takes no more upgrades${ordered}`
-      : `Room for ${String(remaining)} upgrades${ordered}`;
+      : `Room for ${String(remaining)} upgrade${remaining === 1 ? '' : 's'}${ordered}`;
   }
 
   const used = upgradesUsed(occupant);
@@ -105,9 +105,11 @@ function upgradeSummary(campaign: Campaign, occupant: Occupant): string | null {
  * What this slot has on order, and the way back out of it.
  *
  * Rendered on every card whatever state the slot is in, and above the verb
- * rather than below it: a slot with a Workshop on order still offers "Build in
- * Garage", because ordering twice is legal and the base is what says otherwise
- * a turn later. The line is what stops the second order being a surprise.
+ * rather than below it. The card still offers "Build in Garage" with a Workshop
+ * on order, because the verb belongs to the slot's state — but the order itself
+ * is refused now: `build.ts` blocks a second facility for a slot that already
+ * has one coming (#140), where this comment used to say it was legal. The line
+ * is what makes the refusal make sense when it arrives.
  */
 function QueuedProjects({
   campaign,
@@ -148,7 +150,10 @@ function QueuedProjects({
               }}
               className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 px-3 text-sm font-medium dark:border-stone-700`}
             >
-              Cancel {describeProject(project)} — its Hardware comes back
+              Cancel {describeProject(project)}
+              {project.charged.hardware > 0 && (
+                <> — its {project.charged.hardware} Hardware comes back</>
+              )}
             </button>
           ) : (
             <span className="text-xs text-stone-500 dark:text-stone-400">
@@ -317,7 +322,17 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
   const rules = BASES[base.id];
   const found = suppliedOccupants(campaign);
   const slots = layoutOf(base);
-  const empty = slots.filter((slot) => slot.state === 'empty').length;
+
+  // The base as it stands, not as it shipped. This counted `state === 'empty'`
+  // off the layout, which never moves: at turn 17 of a twenty-turn campaign
+  // every slot was full and the line still read "6 empty" (#173). A slot with
+  // rubble in it is not empty either — it is a clearing project — and one that
+  // has been cleared is.
+  const empty = slots.filter(
+    (slot) =>
+      found.every((occupant) => occupant.slotId !== slot.id) &&
+      (slot.state === 'empty' || base.slots[slot.id]?.cleared === true),
+  ).length;
 
   return (
     <section
