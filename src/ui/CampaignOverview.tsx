@@ -10,7 +10,7 @@
 import { useId } from 'react';
 import { MATERIALS } from '../data/materials';
 import type { Campaign } from '../engine/campaign';
-import { downloadCampaign } from '../persistence/exportFile';
+import { downloadCampaign } from '../persistence/download';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
 import { StartNewCampaign } from './StartNewCampaign';
