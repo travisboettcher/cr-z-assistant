@@ -1055,6 +1055,14 @@ app making up a rule the book deliberately leaves to the table. A survivor at 0 
 leave nor be chosen, and a community where everybody left standing is at 0 Health loses nobody at
 all: the screen says so rather than silently doing nothing.
 
+**And the walk agrees with it.** `outstanding` owed the step whenever the pressure reached ten, so
+that same community — a siege's defenders all at 0 Health, found by a property test that played
+random campaigns — owed a departure that `management/departed` refused for every id, and the turn
+reported it forever ([#192](https://github.com/travisboettcher/cr-z-assistant/issues/192)).
+`someoneIsLeaving` now means somebody *is* leaving: the threshold **and** a candidate to send. The
+threshold alone is `departureCalled`, which is what the screen reads to say that somebody would
+have gone. Who counts as down is still R18's `isDown`; only the empty case changed.
+
 **Z3-7's "storage caps are reported, not enforced" finally has its other half.** The overflow a haul
 creates in the Advancement Phase is lost here, a whole phase later, exactly as that story said it
 would be. Rare is never trimmed, because the book gives it no cap.

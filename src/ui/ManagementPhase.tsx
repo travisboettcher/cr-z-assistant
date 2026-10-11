@@ -47,10 +47,10 @@ import {
 } from '../engine/siege';
 import { anythingOverCap, overCap, storageChecked } from '../engine/storage';
 import {
+  departureCalled,
   departureCandidates,
   departurePressure,
   someoneDeparted,
-  someoneIsLeaving,
 } from '../engine/departures';
 import { MATERIAL_LABELS, slotLabel } from './baseLabels';
 import { STORED_MATERIALS } from '../data/materials';
@@ -674,6 +674,11 @@ function CheckTheHorde({ campaign }: { readonly campaign: Campaign }) {
  * and then, once the pressure fell under the threshold, announce that the
  * community holds together one line below the log entry saying somebody left.
  * It did both, until the step started reading its own record.
+ *
+ * **"Would leave" is `departureCalled`, not `someoneIsLeaving`.** The second
+ * needs somebody able to go, which is what the walk owes (#192); the first is
+ * the threshold alone, and is what lets this say that somebody would have left
+ * and everybody is down, rather than that the community holds together.
  */
 function Departures({ campaign }: { readonly campaign: Campaign }) {
   const { dispatch } = useCampaign();
@@ -695,7 +700,7 @@ function Departures({ campaign }: { readonly campaign: Campaign }) {
           Somebody has already left this turn. The rules send one survivor away, however far over
           the threshold the pressure is.
         </p>
-      ) : !someoneIsLeaving(campaign) ? (
+      ) : !departureCalled(campaign) ? (
         <p className="mt-3 text-sm font-medium">Nobody is leaving. The community holds together.</p>
       ) : candidates.length === 0 ? (
         <p className="mt-3 text-sm font-medium">

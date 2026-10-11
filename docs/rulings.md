@@ -236,6 +236,27 @@ may not join a mission team.
 *Recorded as an open question in `phase-3-stories.md` while the round-one report described it as
 implemented. It is settled here.*
 
+### Amendment, October 2026 — R12 reaches 0 Health
+
+[#190](https://github.com/travisboettcher/cr-z-assistant/issues/190) asked whether a survivor
+at 0 Health may work at all: `laborPool` counts their Tier and `facilityProduction` their Score,
+and nothing in the Planning Phase warns. **They may, and this ruling is why.** 0 Health is below
+maximum Health, so it is "wounded" in the sense above, and a wounded survivor may staff a facility
+or join the project team, forfeiting healing (pp. 20–21). The book draws no second line further
+down, and drawing one here would be this app making up a rule. Nothing changes in the code, and
+no new warning is raised.
+
+**The exception is the siege's, and it is narrower.** The FAQ's "Siege Defense and Labor" takes a
+survivor *reduced to 0 Health during a siege* off their work for that turn —
+[R17](#r17--what-a-siege-defense-does-to-the-turns-work), which is specific to the siege and does
+not generalise back into this ruling. Outside a siege, a survivor at 0 Health works like any other
+wounded one, and makes their Rot check as well (pg. 22).
+
+**Scavenging is not a mission team**, so R12 says nothing against it either: `scavengingWarnings`
+raises no Health warning, and `scavenged` pays a scavenger at 0 Health the full haul. That is
+consistent with this ruling and stands. The mission team itself is unchanged — 0 Health is a
+wound, and a wounded survivor still may not join one.
+
 ---
 
 ## R13 — Siege Threat may go below zero — **recorded without a ruling**
@@ -441,7 +462,7 @@ asks the one it means:
 | Rule | Reads | Why |
 |---|---|---|
 | Check for Rot (pg. 22) | `outOfHealth` | It names Health, and is about somebody bleeding out. A survivor kept down by Infection with Health left has not been brought to 0, and Heal Wounds can still take the Infection away. |
-| Departures (pg. 23) | `isDown` | The exclusion is about being in no state to walk anywhere, which pg. 123's incapacitation is exactly. |
+| Departures (pg. 23) | `isDown` | The exclusion is about being in no state to walk anywhere, which pg. 123's incapacitation is exactly. Where that is everybody, nobody is leaving and the turn owes no Departures step ([#192](https://github.com/travisboettcher/cr-z-assistant/issues/192)). |
 | Siege casualties and stand-ins (FAQ, [R17](#r17--what-a-siege-defense-does-to-the-turns-work)) | `outOfHealth` | The FAQ names "reduced to 0 Health" for who stops working and "not at 0 Health" for who may substitute. |
 | Mission team | both, separately | 0 Health is a wound, and R12 already keeps every wounded survivor off a team; 10 Infection adds its own warning, because full Health does not make an incapacitated survivor fit. |
 

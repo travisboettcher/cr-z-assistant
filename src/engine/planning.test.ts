@@ -412,10 +412,48 @@ describe('checkAssignment', () => {
   });
 
   describe('scavenging', () => {
-    it('always says it needs the mission skipped, which this app cannot know', () => {
-      expect(codes(checkAssignment(community(), EARL, { task: 'scavenging' }).warnings)).toEqual([
-        'scavenging-needs-the-mission-skipped',
-      ]);
+    /**
+     * #191: the warning used to be on every scavenger, so "no warnings" could
+     * never mean a legal one. Skipping the mission is leaving the team empty
+     * (pg. 17), which the Planning Phase can see.
+     */
+    it('says nothing with nobody on the mission team', () => {
+      expect(checkAssignment(community(), EARL, { task: 'scavenging' }).warnings).toEqual([]);
+    });
+
+    it('needs the mission skipped while somebody is on the team, and names them', () => {
+      const check = checkAssignment(community({ [CARLA]: { task: 'mission', team: 1 } }), EARL, {
+        task: 'scavenging',
+      });
+
+      expect(codes(check.warnings)).toEqual(['scavenging-needs-the-mission-skipped']);
+      expect(check.warnings[0]?.message).toContain('Carla Proust is on the mission team');
+    });
+
+    it('names everybody on the team, not the first of them', () => {
+      const two: Campaign = {
+        ...community({
+          [CARLA]: { task: 'mission', team: 1 },
+          dell: { task: 'mission', team: 1 },
+        }),
+        survivors: [...community().survivors, createSurvivor('Dell Ames', 2, { id: 'dell' })],
+      };
+
+      expect(checkAssignment(two, EARL, { task: 'scavenging' }).warnings[0]?.message).toContain(
+        'Carla Proust and Dell Ames are on the mission team',
+      );
+    });
+
+    /**
+     * Asked before the click: scavenging takes Earl off the team, and a team
+     * of Earl alone is then empty — the mission skipped, which is the point.
+     */
+    it('does not count the scavenger’s own seat on the team', () => {
+      expect(
+        checkAssignment(community({ [EARL]: { task: 'mission', team: 1 } }), EARL, {
+          task: 'scavenging',
+        }).warnings,
+      ).toEqual([]);
     });
 
     it('warns when somebody else is already going, and names them', () => {
@@ -423,20 +461,15 @@ describe('checkAssignment', () => {
         task: 'scavenging',
       });
 
-      expect(codes(check.warnings)).toEqual([
-        'someone-else-scavenging',
-        'scavenging-needs-the-mission-skipped',
-      ]);
+      expect(codes(check.warnings)).toEqual(['someone-else-scavenging']);
       expect(check.warnings[0]?.message).toContain('Earl Rhodes');
     });
 
     it('counts who is scavenging, not who is busy', () => {
       expect(
-        codes(
-          checkAssignment(community({ [EARL]: { task: 'project' } }), CARLA, { task: 'scavenging' })
-            .warnings,
-        ),
-      ).toEqual(['scavenging-needs-the-mission-skipped']);
+        checkAssignment(community({ [EARL]: { task: 'project' } }), CARLA, { task: 'scavenging' })
+          .warnings,
+      ).toEqual([]);
     });
   });
 });

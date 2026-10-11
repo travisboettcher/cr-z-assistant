@@ -31,7 +31,7 @@ import { suppliedOccupants } from './utilities';
 import type { Facility, Upgrade } from '../data/facilities';
 import type { Assignment, Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
-import { survivorsDoing } from './assignments';
+import { missionTeam, survivorsDoing } from './assignments';
 import { incapacitatedByInfection, maxHp } from './survivor';
 
 export type PlanningViolationCode =
@@ -390,14 +390,33 @@ function scavengingWarnings(campaign: Campaign, survivor: Survivor): readonly Pl
     });
   }
 
-  // Always, because this app does not model opting out of a mission — that is
-  // the Mission Phase, and Phase 4's. Said rather than assumed, so a player
-  // scavenging on a turn they fought is told which rule they are playing past.
-  warnings.push({
-    code: 'scavenging-needs-the-mission-skipped',
-    message: 'Only when the community skips this turn\u2019s mission.',
-    pages: 17,
-  });
+  /*
+   * Scavenging is what the community does *instead of* a mission (pg. 17), so
+   * it warns while a mission team is assigned beside it — and only then. It
+   * used to warn always, on the grounds that this app cannot see whether a
+   * mission was skipped; but a warning that every scavenger carries is one no
+   * caller can tell a legal assignment from (#191). Opting out of the mission
+   * *is* leaving the team empty, which the app can see.
+   *
+   * **The assignments as they stand, not `beforePlanning`.** This is asked in
+   * the Planning Phase, which writes next turn's mission team and its
+   * scavenger together (pg. 21); the team that has already played is last
+   * turn's, and has nothing to say about who goes next.
+   *
+   * Everybody on the team **but this survivor**, because the check is asked
+   * before the click (see `checkAssignment`) and scavenging takes them off the
+   * team: moving the team's one member to scavenging leaves the mission
+   * skipped, which is the legal case.
+   */
+  const team = missionTeam(campaign).filter((member) => member.id !== survivor.id);
+
+  if (team.length > 0) {
+    warnings.push({
+      code: 'scavenging-needs-the-mission-skipped',
+      message: `Only when the community skips the mission, and ${team.map((member) => member.name).join(' and ')} ${team.length === 1 ? 'is' : 'are'} on the mission team.`,
+      pages: 17,
+    });
+  }
 
   return warnings;
 }

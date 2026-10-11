@@ -3456,7 +3456,13 @@ describe('the Management Phase', () => {
   });
 
   it('records a check that fails, and the survivor who left with it', () => {
-    const after = expectOpen(campaignReducer(dying(2), check(1, null)));
+    // Ruby off the Clinic's list, so there is nobody to bite and nobody is
+    // the right answer (pg. 22).
+    const alone = openState({
+      ...expectOpen(dying(2)),
+      assignments: { [DECOY]: { task: 'project' }, [CHECKED]: { task: 'healing' } },
+    });
+    const after = expectOpen(campaignReducer(alone, check(1, null)));
 
     expect(after.survivors.map((survivor) => survivor.id)).toEqual([DECOY]);
     expect(after.log.map((line) => line.event)).toEqual([
@@ -3470,6 +3476,18 @@ describe('the Management Phase', () => {
       },
       { kind: 'survivor-left', survivor: CHECKED, name: 'Marcus Webb', tier: 2 },
     ]);
+  });
+
+  /**
+   * #189: the turned survivor bites somebody being healed (pg. 22), and only
+   * the screen's default used to make sure of it. Refused whole — no check
+   * recorded without its Damage, and nobody removed.
+   */
+  it('refuses a failed check that bites nobody while somebody is being healed', () => {
+    const before = dying(2);
+
+    expect(campaignReducer(before, check(1, null))).toEqual(before);
+    expect(campaignReducer(before, check(1, 'nobody'))).toEqual(before);
   });
 
   it('records the bite as well, where somebody takes one and lives', () => {
