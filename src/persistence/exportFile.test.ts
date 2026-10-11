@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { createNewCampaign } from '../engine/campaign';
-import { campaignFileName, downloadCampaign, serializeCampaign } from './exportFile';
+import { campaignFileName, serializeCampaign } from './exportFile';
 import { parseCampaignFile } from './saveFile';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
@@ -91,33 +91,5 @@ describe('campaignFileName', () => {
     const name = campaignFileName(campaign, EXPORTED_AT);
 
     expect(name.length).toBeLessThan(100);
-  });
-});
-
-describe('downloadCampaign', () => {
-  it('offers the serialized campaign under the generated filename', () => {
-    const campaign = createNewCampaign('Cedar Hollow', FIXED);
-    const createObjectURL = vi.fn(() => 'blob:stub');
-    const revokeObjectURL = vi.fn();
-    vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL });
-
-    const clicked: HTMLAnchorElement[] = [];
-    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
-      this: HTMLAnchorElement,
-    ) {
-      clicked.push(this);
-    });
-
-    downloadCampaign(campaign, EXPORTED_AT);
-
-    expect(clicked).toHaveLength(1);
-    expect(clicked[0]?.download).toBe('cedar-hollow-turn-1-2026-08-30.json');
-    expect(createObjectURL).toHaveBeenCalledOnce();
-
-    // The link must not be left behind in the document after the download.
-    expect(document.querySelector('a[download]')).toBeNull();
-
-    click.mockRestore();
-    vi.unstubAllGlobals();
   });
 });

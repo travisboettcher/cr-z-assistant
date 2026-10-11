@@ -31,7 +31,7 @@
 
 import { BASES } from '../data/bases';
 import { occupants, staffCapacity, type Occupant } from './base';
-import { planningPenalty } from './feeding';
+import { exhaustion, planningPenalty } from './feeding';
 import type { Assignment, Campaign, Survivor } from './campaign';
 import { facilityProduction, type ProductionLine } from './production';
 import { labor } from './survivor';
@@ -415,4 +415,48 @@ export function missionTeamReduced(campaign: Campaign): boolean {
   return campaign.log.some(
     (entry) => entry.turn === campaign.turn && entry.event.kind === 'mission-team-reduced',
   );
+}
+
+/**
+ * Whether Exhaustion takes somebody off the mission team this turn (pg. 23).
+ *
+ * Exhaustion above the team's size takes one survivor off it — **above**, so a
+ * team of two against two Exhaustion goes out whole. An empty team has nobody
+ * to lose and is never owed the penalty, however many are sleeping on the
+ * floor. And once one has come off, the answer is no for the rest of the turn:
+ * `missionTeamReduced` is the record, for the reason its own note gives.
+ *
+ * **The question lived in the screen until #181**, as
+ * `short > team.length && team.length > 0` beside a separate check of the log,
+ * so the engine could not say whether the turn owed a removal and nothing
+ * outside Assign Beds could apply the rule. Worse, the reducer asked only half
+ * of it: it refused a second removal and a survivor who was not on the team,
+ * but took somebody off a team the Exhaustion did not reach whenever the action
+ * arrived — the screen's condition was the only thing standing between the
+ * action and an edit the rule never called for. Both ask here now.
+ *
+ * **The team is the one in `assignments`, as it stands**, not
+ * `beforePlanning`'s rewind. The Management Phase runs after the Planning
+ * Phase's clear, and the team a tired community is short of is the one going
+ * out next — which is the one Planning just assigned, and the one the reducer
+ * takes the survivor off. Rewinding would weigh the Exhaustion against a team
+ * that has already played and that no edit here could touch.
+ *
+ * **A yes or no rather than the team affected**, because that is all any
+ * caller is asking. The people come from `missionTeam` either way — every
+ * survivor on it is a candidate, and *which* one is the player's choice — and
+ * both callers already hold that list for reasons of their own: the screen to
+ * name the candidates, the reducer to check the one it was handed. Returning
+ * the team would make "nothing owed" an empty list, and each caller would then
+ * re-derive the answer as `length > 0`, which is the copy this replaced. The
+ * app writes only team 1 for now (see `missionTeam`); when it writes more, the
+ * book's "the mission team" will need a ruling, and that is the moment for a
+ * richer return rather than this one.
+ */
+export function overworked(campaign: Campaign): boolean {
+  if (missionTeamReduced(campaign)) return false;
+
+  const team = missionTeam(campaign).length;
+
+  return team > 0 && exhaustion(campaign) > team;
 }

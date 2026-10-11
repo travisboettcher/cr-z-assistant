@@ -86,6 +86,43 @@ const NO_REACT_IN_ENGINE = [
   { group: ['**/ui/**', '**/ui'], message: ENGINE_IS_PURE },
 ];
 
+/**
+ * The serialiser stays loadable without a browser (#180).
+ *
+ * `exportFile.ts` decides what a save file contains, and a program that
+ * type-checks without the DOM library — a headless harness, a command-line tool
+ * — needs exactly that and nothing else. It could not have it while
+ * `downloadCampaign` shared the module, so that moved to `download.ts`, and this
+ * keeps it from drifting back one convenient `document` at a time.
+ *
+ * A named list rather than "every browser global", because the config's
+ * `globals.browser` is merged rather than replaced per block, so there is no
+ * way to take the browser away from one file — only to forbid what in it would
+ * matter. These are the names `downloadCampaign` used plus the ones an export
+ * would plausibly reach for next. `globalThis` is on it because
+ * `globalThis.document` is the obvious way round the rest, and a pure function
+ * over a `Campaign` has no reason to touch the global object at all.
+ */
+const BROWSER_IN_THE_SERIALISER = [
+  'document',
+  'window',
+  'self',
+  'globalThis',
+  'navigator',
+  'location',
+  'localStorage',
+  'sessionStorage',
+  'Blob',
+  'File',
+  'FileReader',
+  'URL',
+  'requestAnimationFrame',
+].map((name) => ({
+  name,
+  message:
+    'src/persistence/exportFile.ts must stay pure so it can be imported without a DOM (#180). Browser glue belongs in src/persistence/download.ts.',
+}));
+
 const DATA_IS_THE_BOTTOM =
   'src/data must not import from src/engine — the engine is a set of functions over the rules, not where they live. If the engine holds something a rules file needs, move it down into src/data (materials, origins and the campaign phases all made that trip).';
 
@@ -174,6 +211,13 @@ export default tseslint.config(
     ignores: TESTS,
     rules: {
       'no-restricted-imports': ['error', { patterns: [RAW_OCCUPANTS] }],
+    },
+  },
+
+  {
+    files: ['src/persistence/exportFile.ts'],
+    rules: {
+      'no-restricted-globals': ['error', ...BROWSER_IN_THE_SERIALISER],
     },
   },
 
