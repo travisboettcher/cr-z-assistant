@@ -15,6 +15,7 @@ import {
   baseLaborBonus,
   beforePlanning,
   laborPool,
+  overworked,
   projectTeam,
   sameTask,
   staffOf,
@@ -457,5 +458,88 @@ describe('a base that adds to the Labor pool', () => {
     expect(baseLaborBonus(dam({ [CARLA]: { task: 'project' } }))).toBe(2);
     expect(baseLaborBonus(dam())).toBe(0);
     expect(baseLaborBonus(community({ [CARLA]: { task: 'project' } }))).toBe(0);
+  });
+});
+
+/**
+ * The condition the Assign Beds step offers its removal on and the reducer
+ * refuses one without (pg. 23, #181). `community` has no base, so all three of
+ * its survivors are Exhaustion and the team's size is what each case varies.
+ */
+describe('overworked', () => {
+  const AT = '2026-08-30T00:00:00.000Z';
+  const mission: Assignment = { task: 'mission', team: 1 };
+
+  const reduced = (turn: number): LogEntry => ({
+    turn,
+    phase: 'management',
+    at: AT,
+    event: { kind: 'mission-team-reduced', survivor: EARL, name: 'Earl Rhodes' },
+  });
+
+  it('takes nobody off a team as large as the Exhaustion', () => {
+    // Three Exhaustion against a team of three: the rule says *above*.
+    expect(overworked(community({ [EARL]: mission, [CARLA]: mission, [RUBY]: mission }))).toBe(
+      false,
+    );
+  });
+
+  it('takes one off a team smaller than the Exhaustion', () => {
+    expect(overworked(community({ [EARL]: mission, [CARLA]: mission }))).toBe(true);
+  });
+
+  it('owes nothing when nobody is on a mission team', () => {
+    // Three Exhaustion above a team of none — and nobody to take.
+    expect(overworked(community({ [EARL]: { task: 'project' } }))).toBe(false);
+  });
+
+  it('counts only the mission team, not everybody with a task', () => {
+    // Two assigned, one of them to a mission: a team of one, not two.
+    expect(
+      overworked(community({ [EARL]: mission, [CARLA]: mission, [RUBY]: { task: 'project' } })),
+    ).toBe(true);
+  });
+
+  /**
+   * Taking somebody off does not lower the Exhaustion that called for it, so
+   * without the record the condition stays true and the step empties the team.
+   */
+  it('owes nothing once somebody has come off this turn', () => {
+    const campaign = { ...community({ [CARLA]: mission }), turn: 3, log: [reduced(3)] };
+
+    expect(overworked(campaign)).toBe(false);
+  });
+
+  it('owes it again on the turn after the last removal', () => {
+    const campaign = { ...community({ [CARLA]: mission }), turn: 4, log: [reduced(3)] };
+
+    expect(overworked(campaign)).toBe(true);
+  });
+
+  /**
+   * The Management Phase means the team going out next, which is the one in
+   * `assignments` once Planning has cleared and reassigned — not the one the
+   * clear recorded. Here the team that just played was the whole community and
+   * is not short; the one Planning has since assigned is.
+   */
+  it('weighs the team as assigned now, not the one Planning cleared', () => {
+    const campaign: Campaign = {
+      ...community({ [EARL]: mission }),
+      turn: 3,
+      log: [
+        {
+          turn: 3,
+          phase: 'planning',
+          at: AT,
+          event: {
+            kind: 'planning-began',
+            cleared: { [EARL]: mission, [CARLA]: mission, [RUBY]: mission },
+          },
+        },
+      ],
+    };
+
+    expect(overworked(campaign)).toBe(true);
+    expect(overworked(beforePlanning(campaign))).toBe(false);
   });
 });

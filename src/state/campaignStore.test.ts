@@ -2084,6 +2084,27 @@ describe('the steps that may only run once a turn', () => {
       expect(campaignReducer(before, take('survivor-5', AT))).toEqual(before);
     });
 
+    /**
+     * The half of the rule that lived only in the screen until #181. Two
+     * survivors, a team of two, and no base: two Exhaustion is not *above* the
+     * team, so the rule takes nobody and an action asking it to is refused.
+     */
+    it('does nothing when Exhaustion is not above the team’s size', () => {
+      const before = openState({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        turn: 3,
+        survivors: Array.from({ length: 2 }, (_, at) =>
+          createSurvivor(`Survivor ${String(at)}`, 1, { id: `survivor-${String(at)}` }),
+        ),
+        assignments: {
+          'survivor-0': { task: 'mission', team: 1 },
+          'survivor-1': { task: 'mission', team: 1 },
+        },
+      });
+
+      expect(campaignReducer(before, take('survivor-0', AT))).toEqual(before);
+    });
+
     it('does nothing when no campaign is open', () => {
       expect(campaignReducer(INITIAL_CAMPAIGN_STATE, take('survivor-0', AT))).toEqual(
         INITIAL_CAMPAIGN_STATE,
