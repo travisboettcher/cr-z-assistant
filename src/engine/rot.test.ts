@@ -10,6 +10,7 @@ import type { UpgradeId } from '../data/facilities';
 import { createSurvivor } from './survivor';
 import {
   biteCandidates,
+  checkBite,
   mustCheck,
   restraints,
   restraintsFree,
@@ -415,14 +416,18 @@ describe('rotOutcome and withRotApplied', () => {
     expect(withRotApplied(barely, outcome).assignments).toEqual({});
   });
 
-  it('bites nobody when the player picked nobody', () => {
+  /**
+   * A preview of a form with no name on it. Recording it is refused —
+   * `checkBite`, below — but showing it is not, so it says what it would cost.
+   */
+  it('previews a bite on nobody when the player picked nobody', () => {
     const outcome = rotOutcome(clinicful(), 'turning', 1, null);
 
     expect(outcome.bitten).toBeNull();
     expect(withRotApplied(clinicful(), outcome).survivors).toEqual([at('healed', 'Healed', 2)]);
   });
 
-  it('bites nobody when the pick is not a candidate', () => {
+  it('previews a bite on nobody when the pick is not a candidate', () => {
     const elsewhere = community([at('turning', 'Turning', 0), at('busy', 'Busy', 2)], {
       turning: { task: 'healing' },
       busy: { task: 'project' },
@@ -503,6 +508,98 @@ describe('rotOutcome and withRotApplied', () => {
     const after = withRotApplied(before, rotOutcome(before, 'turning', 10, 'healed'));
 
     expect(after).toEqual(before);
+  });
+});
+
+/**
+ * pg. 22: a survivor who turns bites another before being destroyed. Who is
+ * the player's; whether is not — and until #189 only the screen's default
+ * stopped a caller sending nobody.
+ */
+describe('checkBite', () => {
+  /** Turning at 0 Health, two survivors being healed beside them. */
+  const crowded = () =>
+    community([at('turning', 'Turning', 0), at('ada', 'Ada', 2), at('bea', 'Bea', 2)], {
+      turning: { task: 'healing' },
+      ada: { task: 'healing' },
+      bea: { task: 'healing' },
+    });
+
+  const restrained = (): Campaign => ({
+    ...crowded(),
+    base: {
+      id: 'small-town-home',
+      slots: {
+        garage: { built: { facility: 'medical-clinic', builtOnTurn: 1 }, upgrades: ['restraints'] },
+      },
+    },
+  });
+
+  const codes = (check: ReturnType<typeof checkBite>) => check.blockers.map(({ code }) => code);
+
+  it('refuses a failed check that bites nobody while somebody is there to bite', () => {
+    const check = checkBite(crowded(), 'turning', 1, null);
+
+    expect(codes(check)).toEqual(['bite-required']);
+    expect(check.blockers[0]?.pages).toBe(22);
+    expect(check.warnings).toEqual([]);
+  });
+
+  /** Somebody the community holds, but not somebody being healed. */
+  it('refuses a pick that is not a candidate', () => {
+    const elsewhere: Campaign = {
+      ...crowded(),
+      assignments: { ...crowded().assignments, bea: { task: 'project' } },
+    };
+
+    expect(codes(checkBite(elsewhere, 'turning', 1, 'bea'))).toEqual(['bite-required']);
+    // …and the turning survivor cannot bite themselves.
+    expect(codes(checkBite(crowded(), 'turning', 1, 'turning'))).toEqual(['bite-required']);
+  });
+
+  /** Either candidate: the choice between them stays the table's. */
+  it('accepts any candidate', () => {
+    expect(checkBite(crowded(), 'turning', 1, 'ada').blockers).toEqual([]);
+    expect(checkBite(crowded(), 'turning', 1, 'bea').blockers).toEqual([]);
+  });
+
+  it('accepts nobody where nobody else is being healed', () => {
+    const alone = community([at('turning', 'Turning', 0), at('ada', 'Ada', 2)], {
+      turning: { task: 'healing' },
+      ada: { task: 'project' },
+    });
+
+    expect(checkBite(alone, 'turning', 1, null).blockers).toEqual([]);
+  });
+
+  /** A set of Restraints holds them, so there is no bite to name (pp. 72–73). */
+  it('accepts nobody while a set of Restraints is free', () => {
+    expect(checkBite(restrained(), 'turning', 1, null).blockers).toEqual([]);
+  });
+
+  it('asks for a name again once the turn’s sets are used up', () => {
+    const spent: Campaign = {
+      ...restrained(),
+      log: [
+        {
+          turn: 3,
+          phase: 'management',
+          at: AT,
+          event: { kind: 'bite-restrained', survivor: 'somebody', name: 'Somebody' },
+        },
+      ],
+    };
+
+    expect(codes(checkBite(spent, 'turning', 1, null))).toEqual(['bite-required']);
+  });
+
+  /** A check that holds turns nobody, so nobody bites. */
+  it('accepts nobody when the check passes', () => {
+    expect(checkBite(crowded(), 'turning', 10, null).blockers).toEqual([]);
+  });
+
+  it('says nothing about a survivor the community does not hold', () => {
+    expect(checkBite(crowded(), 'nobody', 1, null)).toEqual({ blockers: [], warnings: [] });
   });
 });
 

@@ -61,7 +61,7 @@ import {
   woundsHealed,
 } from '../engine/healing';
 import { foodRequired, hungerIfFedNow, survivorsFed, withSurvivorsFed } from '../engine/feeding';
-import { rotCheckResolved, rotOutcome, rotTarget, withRotApplied } from '../engine/rot';
+import { checkBite, rotCheckResolved, rotOutcome, rotTarget, withRotApplied } from '../engine/rot';
 import { overCap, storageChecked, withStorageChecked } from '../engine/storage';
 import {
   deployed,
@@ -454,7 +454,9 @@ export type CampaignAction =
    * The roll comes from the table, like a field recruit's. `bitten` is the
    * survivor the player picked to take the bite, or null where nobody else is
    * being healed — the book does not say who is bitten when more than one is,
-   * so the choice is the table's.
+   * so the choice is the table's. *Whether* somebody is bitten is not: a failed
+   * check with a candidate and no free Restraints that names nobody is refused
+   * (`checkBite`, #189).
    *
    * Not guarded against repeats: a survivor who turns is removed, so the
    * second press has nobody to check. Passing twice is a second entry in the
@@ -1092,6 +1094,14 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
         const survivor = campaign.survivors.find((candidate) => candidate.id === action.survivor);
         if (survivor === undefined) return campaign;
+
+        // A turning that bites nobody when somebody is there to bite is half
+        // the rule (pg. 22). Refused whole, check and all, rather than recorded
+        // without the Damage: the roll stays on the form to be sent again with
+        // a name (#189).
+        if (checkBite(campaign, action.survivor, action.roll, action.bitten).blockers.length > 0) {
+          return campaign;
+        }
 
         const outcome = rotOutcome(campaign, action.survivor, action.roll, action.bitten);
 
