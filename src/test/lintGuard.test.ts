@@ -25,11 +25,15 @@ const eslint = new ESLint({ cwd: process.cwd() });
 /** The rule's own id, so a probe that fails for some other reason is not a pass. */
 const RULE = 'no-restricted-imports';
 
-async function messagesFor(filePath: string, source: string): Promise<readonly string[]> {
+async function messagesFor(
+  filePath: string,
+  source: string,
+  rule: string = RULE,
+): Promise<readonly string[]> {
   const [result] = await eslint.lintText(source, { filePath, warnIgnored: false });
 
   return (result?.messages ?? [])
-    .filter((message) => message.ruleId === RULE)
+    .filter((message) => message.ruleId === rule)
     .map((message) => message.message);
 }
 
@@ -110,5 +114,56 @@ describe('the raw-occupants rule', () => {
     'src/engine/upgrade.ts',
   ])('leaves %s alone, because the resolution is built there', async (filePath) => {
     expect(await messagesFor(filePath, "import { occupants } from './base';\n")).toEqual([]);
+  });
+});
+
+/**
+ * The #180 guard, held to the same standard.
+ *
+ * `downloadCampaign` moved out of `exportFile.ts` so the serialiser can be
+ * imported by a program with no DOM, and `no-restricted-globals` keeps it out.
+ * A rule scoped to one file is the easiest kind to detach by accident — a
+ * rename, a glob that no longer matches — so these lint probes against the real
+ * path and assert they are refused, and that the module the glue moved *to* is
+ * not.
+ */
+describe('the pure-serialiser rule', () => {
+  const SERIALISER = 'src/persistence/exportFile.ts';
+  const GLOBALS = 'no-restricted-globals';
+
+  it.each([
+    ["document.createElement('a');\n", 'document'],
+    ["new Blob(['{}']);\n", 'Blob'],
+    ["URL.createObjectURL(new Blob(['{}']));\n", 'URL'],
+    ['window.alert(1);\n', 'window'],
+    ['requestAnimationFrame(() => {});\n', 'requestAnimationFrame'],
+    ['globalThis.document;\n', 'globalThis'],
+  ])('refuses %o in exportFile.ts (%s)', async (source) => {
+    const said = await messagesFor(SERIALISER, source, GLOBALS);
+
+    expect(said.length).toBeGreaterThan(0);
+    expect(said[0]).toContain('download.ts');
+  });
+
+  /** The serialiser's own vocabulary is untouched: it is plain ES2022. */
+  it('permits JSON, Date and Object in exportFile.ts', async () => {
+    expect(
+      await messagesFor(
+        SERIALISER,
+        'JSON.stringify(Object.keys({}), null, 2) + new Date().getFullYear();\n',
+        GLOBALS,
+      ),
+    ).toEqual([]);
+  });
+
+  /** And the browser glue is allowed exactly where it was moved to. */
+  it('leaves download.ts alone, because that is where the glue lives', async () => {
+    expect(
+      await messagesFor(
+        'src/persistence/download.ts',
+        "document.createElement('a');\nURL.createObjectURL(new Blob(['{}']));\n",
+        GLOBALS,
+      ),
+    ).toEqual([]);
   });
 });

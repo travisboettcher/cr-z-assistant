@@ -3,8 +3,16 @@
  *
  * The exported `.json` is the **durable** save. `localStorage` (Z0-10) is a
  * convenience layer on top of it; a cleared browser must not cost a campaign.
- * So this module has two jobs beyond calling `JSON.stringify`: produce
- * something a person can read and diff, and hand it to the browser.
+ * So this module's job beyond calling `JSON.stringify` is to produce something
+ * a person can read and diff, under a name that sorts sensibly in a folder.
+ *
+ * **Handing it to the browser is not this module's job, on purpose (#180).**
+ * Everything here is pure: no `document`, no `Blob`, no `URL.createObjectURL`.
+ * `downloadCampaign` lived here too until a program that type-checks without
+ * the DOM — a headless harness, a command-line tool — needed the serialiser and
+ * could not import it without the browser coming along. It is in
+ * `download.ts` now, and `eslint.config.js` refuses browser globals in this file
+ * so the two cannot drift back together.
  */
 
 import { BASES } from '../data/bases';
@@ -283,41 +291,3 @@ export function campaignFileName(campaign: Campaign, exportedAt: Date): string {
 
   return `${slugify(campaign.name)}-turn-${campaign.turn}-${day}.json`;
 }
-
-/**
- * Hands the file to the browser as a download.
- *
- * The one impure function here, and deliberately the thinnest wrapper possible:
- * everything worth testing lives in `serializeCampaign` and `campaignFileName`,
- * which are pure and tested directly.
- *
- * The object URL is revoked on the next frame rather than immediately —
- * revoking synchronously after `click()` races the browser's read of the blob
- * in some engines, and leaking a URL for one frame is cheaper than a download
- * that silently produces an empty file.
- */
-// Stryker disable all: the body below is platform glue, and its real check is
-// the e2e export in `e2e/round-trip.spec.ts` — a genuine browser downloading a
-// genuine file whose bytes are then re-imported. A jsdom assertion that
-// `document.body.append` was called proves the code calls it, not that a
-// download works, so mutants here would be killed by a test worth less than the
-// mutant. Everything that decides *what* the file contains is in
-// `serializeCampaign` and `campaignFileName`, which are pure, mutated, and at
-// 100%.
-export function downloadCampaign(campaign: Campaign, exportedAt: Date = new Date()): void {
-  const url = URL.createObjectURL(
-    new Blob([serializeCampaign(campaign)], { type: 'application/json' }),
-  );
-  const link = document.createElement('a');
-
-  link.href = url;
-  link.download = campaignFileName(campaign, exportedAt);
-  document.body.append(link);
-  link.click();
-  link.remove();
-
-  requestAnimationFrame(() => {
-    URL.revokeObjectURL(url);
-  });
-}
-// Stryker restore all
