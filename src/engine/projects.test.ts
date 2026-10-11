@@ -193,6 +193,50 @@ describe('laborThisTurn', () => {
   });
 });
 
+/**
+ * A clean Siege Defense's Labor arrives through the same gate as the rest of
+ * the pool (pg. 86, #183): the next turn's, once its Planning Phase has
+ * assigned the team the points are counted on.
+ */
+describe('the Labor a clean siege adds', () => {
+  const cleanSiegeLastTurn = (campaign: Campaign): Campaign => ({
+    ...campaign,
+    log: [
+      {
+        turn: campaign.turn - 1,
+        phase: 'mission',
+        at: '2026-09-12T09:00:00.000Z',
+        event: { kind: 'siege-defense-resolved', zombiesLeft: 0, survivorsExited: 0 },
+      },
+      ...campaign.log,
+    ],
+  });
+
+  it('is spendable once this turn has planned, a point for each of the team', () => {
+    expect(laborThisTurn(cleanSiegeLastTurn(community()))).toBe(12);
+    expect(laborAvailable(cleanSiegeLastTurn(community({ projects: [WORKSHOP] })))).toBe(10);
+  });
+
+  it('is nothing before this turn’s Planning Phase, like the rest of the pool', () => {
+    const unplanned = cleanSiegeLastTurn({ ...community(), log: [] });
+
+    expect(laborThisTurn(unplanned)).toBe(0);
+  });
+
+  /**
+   * A departing project-team member takes their own point with their Tier
+   * (pg. 23): the point was given for being on the team.
+   */
+  it('leaves with a survivor who leaves the team', () => {
+    const ordered = cleanSiegeLastTurn(community({ projects: [WORKSHOP, WORKSHOP, WORKSHOP] }));
+    const shrunk = { ...ordered, ...projectTeamWorth(2) };
+
+    expect(laborShortfall(ordered)).toBe(0);
+    // Two Tier 1s and a point each is 4, against 6 ordered.
+    expect(laborShortfall(shrunk)).toBe(2);
+  });
+});
+
 describe('laborShortfall', () => {
   it('is nothing while the queue fits the pool', () => {
     expect(laborShortfall(community())).toBe(0);

@@ -344,6 +344,22 @@ between upgrades on, overstated by 33% with one upgrade and 60% with three
 names itself as one the Advancement Phase will not hand out, and the card totals what will not
 arrive, in the same shape as the Generator and Well Pump note above.
 
+**A clean Siege Defense's Labor lands on the next turn's project team, and the book says which turn
+rather than this app ruling it** ([#183](https://github.com/travisboettcher/cr-z-assistant/issues/183)).
+pg. 86 rewards a siege that left no zombie on the mission area with a point of Labor for each
+survivor on the project team *the next campaign turn*. The siege is fought in turn N's Mission
+Phase, so the next campaign turn is N + 1 — and a turn's Labor exists only once its own Planning
+Phase has assigned the team that generates it (`laborThisTurn`, #97). So the point is counted on
+the team turn N + 1 assigns, spent in that Planning Phase, and still on the pool through its
+Management Phase. Turn N's own Planning Phase, which is the first Labor pool generated after the
+siege, gets nothing: it is the same campaign turn as the siege.
+
+**Derived, like the counter the same outcome resets.** `laborPool` reads the
+`siege-defense-resolved` entry on the turn before its own, with the condition `siegeCounterChange`
+calls a reset; nothing is stored beside the entry. It is a point *per survivor*, so a departing
+project-team member takes theirs off with their Tier (pg. 23), and both Labor captions name the
+bonus beside the Catwalks', for the reason #143 gave the Catwalks a caption at all.
+
 ## Rulings the book leaves open
 
 Moved to **[the rulings registry](rulings.md)**, which gathers every ruling this app has made

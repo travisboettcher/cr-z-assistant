@@ -14,9 +14,11 @@ import { facilityProduction } from './production';
 import {
   baseLaborBonus,
   beforePlanning,
+  laborOf,
   laborPool,
   projectTeam,
   sameTask,
+  siegeLaborBonus,
   staffOf,
   staffedFacilityCount,
   survivorsDoing,
@@ -457,5 +459,78 @@ describe('a base that adds to the Labor pool', () => {
     expect(baseLaborBonus(dam({ [CARLA]: { task: 'project' } }))).toBe(2);
     expect(baseLaborBonus(dam())).toBe(0);
     expect(baseLaborBonus(community({ [CARLA]: { task: 'project' } }))).toBe(0);
+  });
+});
+
+/**
+ * A Siege Defense that leaves no zombie on the mission area adds a point of
+ * Labor for each survivor on the project team, the campaign turn after it
+ * (pg. 86, #183). Read off the outcome's log entry, like the counter the same
+ * outcome resets — nothing is stored.
+ */
+describe('the turn after a clean Siege Defense', () => {
+  const defended = (turn: number, zombiesLeft: number): LogEntry => ({
+    turn,
+    phase: 'mission',
+    at: '2026-09-12T09:00:00.000Z',
+    event: { kind: 'siege-defense-resolved', zombiesLeft, survivorsExited: 0 },
+  });
+
+  /** On turn 5, with Earl (4) and Ruby (1) on the project team. */
+  const after = (log: readonly LogEntry[], base: Base | null = null): Campaign => ({
+    ...community(
+      { [EARL]: { task: 'project' }, [CARLA]: { task: 'rest' }, [RUBY]: { task: 'project' } },
+      base,
+    ),
+    turn: 5,
+    log,
+  });
+
+  it('adds a point for each survivor on the project team', () => {
+    // 4 + 1 of their own, and one each for the siege on turn 4.
+    expect(laborPool(after([defended(4, 0)]))).toBe(7);
+    expect(siegeLaborBonus(after([defended(4, 0)]))).toBe(2);
+  });
+
+  it('adds nothing when the siege left a zombie standing', () => {
+    expect(laborPool(after([defended(4, 1)]))).toBe(5);
+    expect(siegeLaborBonus(after([defended(4, 1)]))).toBe(0);
+  });
+
+  /**
+   * The next campaign turn and only that one. The siege's own turn is the turn
+   * it was fought in, and its Planning Phase is not the "next" anything.
+   */
+  it('is the next turn’s, not the siege’s own turn and not the one after', () => {
+    expect(laborPool(after([defended(5, 0)]))).toBe(5);
+    expect(laborPool(after([defended(3, 0)]))).toBe(5);
+  });
+
+  it('is nothing for a team with nobody on it', () => {
+    const idle: Campaign = { ...community(), turn: 5, log: [defended(4, 0)] };
+
+    expect(laborPool(idle)).toBe(0);
+    expect(siegeLaborBonus(idle)).toBe(0);
+  });
+
+  it('stacks with what the base adds, and each says only its own share', () => {
+    const dam = after([defended(4, 0)], { id: 'hydroelectric-dam', slots: {} });
+
+    expect(laborPool(dam)).toBe(9);
+    expect(baseLaborBonus(dam)).toBe(2);
+    expect(siegeLaborBonus(dam)).toBe(2);
+  });
+
+  /**
+   * The point belongs to the survivor, so a team asked about on another turn is
+   * rewarded for that turn's siege — which is how the Labor a siege takes away
+   * is measured against the pool the team generated when it ordered.
+   */
+  it('asks about the turn it is given rather than the campaign’s', () => {
+    const team = [createSurvivor('Ruby Vance', 1, { id: RUBY })];
+    const campaign = after([defended(3, 0)]);
+
+    expect(laborOf(campaign, team, 4)).toBe(2);
+    expect(laborOf(campaign, team, 5)).toBe(1);
   });
 });

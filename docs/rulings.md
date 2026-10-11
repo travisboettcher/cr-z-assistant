@@ -352,3 +352,10 @@ writing history.
 *Written as `phase-3-stories.md` ruling 9 by
 [#175](https://github.com/travisboettcher/cr-z-assistant/pull/175), on a branch cut before this
 registry existed, and moved here with its text unchanged.*
+
+### Amendment, October 2026 — the clean siege's Labor is applied
+
+[#183](https://github.com/travisboettcher/cr-z-assistant/issues/183) applies the reward the
+paragraph above left for later: a point of Labor for each survivor on the project team, the
+campaign turn after a Siege Defense that left no zombie standing. Which turn that is, is the
+book's answer rather than a ruling, and is recorded with the Phase 3 decisions.

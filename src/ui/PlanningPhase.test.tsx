@@ -96,6 +96,42 @@ describe('the Planning Phase steps', () => {
     expect(within(walk()).getByText(/generates/i).textContent).toMatch(/4/);
   });
 
+  /**
+   * The turn after a Siege Defense left no zombie standing, the team generates
+   * a point each on top of their Tiers (pg. 86, #183) — and the sentence beside
+   * the number says so, or a 6 for a Tier 4 and a Tier 1 reads as a bug (#143).
+   */
+  it('names the point each a clean siege last turn adds', async () => {
+    const user = open(
+      planning({
+        step: 'assign-project-team',
+        assignments: { [EARL]: { task: 'project' }, [CARLA]: { task: 'project' } },
+        log: [
+          {
+            turn: 2,
+            phase: 'mission',
+            at: '2026-09-12T09:00:00.000Z',
+            event: { kind: 'siege-defense-resolved', zombiesLeft: 0, survivorsExited: 1 },
+          },
+        ],
+      }),
+    );
+
+    const caption = within(walk()).getByText(/generates/i).textContent;
+
+    // A Hero's four and a Veteran's three, and a point each.
+    expect(caption).toMatch(/generates 9 Labor/);
+    expect(caption).toMatch(/plus 2 — a point each — for last turn’s Siege Defense/);
+
+    await user.click(
+      within(screen.getByRole('group', { name: /on the project team/i })).getByRole('checkbox', {
+        name: /carla/i,
+      }),
+    );
+
+    expect(within(walk()).getByText(/generates/i).textContent).toMatch(/generates 5 Labor/);
+  });
+
   it('warns about resting at full Health without refusing it', async () => {
     const user = open(planning({ step: 'assign-rest-and-healing' }));
 

@@ -19,7 +19,13 @@ import type { Campaign } from '../engine/campaign';
 import type { TurnStepId } from '../data/turn';
 import { staffCapacity, type Occupant } from '../engine/base';
 import { suppliedOccupants } from '../engine/utilities';
-import { assignedTo, baseLaborBonus, laborPool, utilitiesScore } from '../engine/assignments';
+import {
+  assignedTo,
+  baseLaborBonus,
+  laborPool,
+  siegeLaborBonus,
+  utilitiesScore,
+} from '../engine/assignments';
 import { unassigned } from '../engine/planning';
 import { AssignTask } from './AssignTask';
 import { FACILITY_LABELS, slotLabel } from './baseLabels';
@@ -46,6 +52,13 @@ export function PlanningPhase({ campaign, step }: PlanningPhaseProps) {
               <>
                 , plus the <span className="tabular-nums">{baseLaborBonus(campaign)}</span> this
                 base adds while somebody is on the team
+              </>
+            )}
+            {siegeLaborBonus(campaign) > 0 && (
+              <>
+                , plus <span className="tabular-nums">{siegeLaborBonus(campaign)}</span> — a point
+                each — for last turn&rsquo;s Siege Defense leaving no zombie standing{' '}
+                <PageRef pages={86} />
               </>
             )}
             . Whatever is left at the end of the turn is lost <PageRef pages={20} />
