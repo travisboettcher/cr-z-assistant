@@ -16,7 +16,7 @@
 import { FACILITIES, type Facility, type FacilityId } from '../data/facilities';
 import type { Campaign } from './campaign';
 import { layoutOf, occupants } from './base';
-import { laborRefusal, queuedKindFor } from './projects';
+import { laborRefusal, queuedKindFor, type Pricing } from './projects';
 import type { Check, Violation } from './checks';
 
 /**
@@ -54,8 +54,17 @@ export interface BuildRequest {
   readonly facility: FacilityId;
 }
 
-/** Everything wrong with this build, or two empty lists. */
-export function checkBuild(campaign: Campaign, request: BuildRequest): BuildCheck {
+/**
+ * Everything wrong with this build, or two empty lists.
+ *
+ * Priced against this turn's Labor, or against `pricing`'s pool when a caller
+ * names one — see `Pricing` in `projects.ts`.
+ */
+export function checkBuild(
+  campaign: Campaign,
+  request: BuildRequest,
+  pricing?: Pricing,
+): BuildCheck {
   const blockers: BuildViolation[] = [];
   const warnings: BuildViolation[] = [];
 
@@ -130,7 +139,7 @@ export function checkBuild(campaign: Campaign, request: BuildRequest): BuildChec
     });
   }
 
-  const labor = laborRefusal(campaign, facility.cost.labor, '72–73');
+  const labor = laborRefusal(campaign, facility.cost.labor, '72–73', pricing);
   if (labor !== undefined) blockers.push(labor);
 
   if (facility.requires?.slot !== undefined && facility.requires.slot !== slot.kind) {
