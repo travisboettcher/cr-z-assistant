@@ -36,54 +36,218 @@ import { siegeThreatFromBase, siegeThreatReduction } from './base';
 import { hungerPenalty } from './feeding';
 import { facilityProduction } from './production';
 import type { Campaign } from './campaign';
+import type { CampaignEvent, LogEntry } from './log';
+import { phaseOf } from './turn';
 
 /**
- * The turn a campaign that has never been besieged counts from.
+ * The turn a campaign with no mission outcome behind it counts from.
  *
- * A save from before v9 records no siege, and neither does a campaign in its
- * first turn — so "turns since" counts from the beginning of play. Named rather
- * than written as a bare 1, because it is an answer to a question the book does
- * not ask and a reader should be able to find it.
+ * A save from before v12 records no outcome, and neither does a campaign in
+ * its first turn — so "turns since" counts from the beginning of play. Named
+ * rather than written as a bare 1, because it is an answer to a question the
+ * book does not ask and a reader should be able to find it. It is also turn 1's
+ * mission: the First Mission (pg. 75), which is why no Thin the Herd is
+ * recorded on it.
  */
 export const FIRST_TURN = 1;
 
 /**
- * The turns a Siege Defense has actually been played on, oldest first.
+ * The turns a Siege Defense has been or will be played on, oldest first.
  *
  * A siege called by turn N's Check the Horde is fought in turn N + 1's Mission
  * Phase (pg. 23), so each `siege: true` roll names a turn one later than its
- * own — and a call that has not come round yet names a turn in the future,
- * which is why the readers below filter rather than take the last.
+ * own. What the siege did to the counter is not here: that is its outcome's,
+ * read by `turnsSinceLastSiege`.
  */
 function siegeTurns(campaign: Campaign): readonly number[] {
-  return campaign.log.flatMap((entry) =>
-    entry.event.kind === 'horde-checked' && entry.event.siege ? [entry.turn + 1] : [],
+  // A filter and a map rather than a `flatMap` returning `[]`: since only
+  // `includes` reads this, a mutation run showed an empty array swapped for a
+  // stray entry could not be told apart from the real thing.
+  return campaign.log
+    .filter((entry) => entry.event.kind === 'horde-checked' && entry.event.siege)
+    .map((entry) => entry.turn + 1);
+}
+
+/**
+ * A Siege Defense's or a Thin the Herd's outcome, as the player records it
+ * (pp. 81, 86). The two missions whose rewards move the turns since the last
+ * siege.
+ */
+export type MissionOutcome = Extract<
+  CampaignEvent,
+  { readonly kind: 'siege-defense-resolved' | 'thin-the-herd-resolved' }
+>;
+
+/** What a recorded outcome does to the turns since the last siege. */
+export type SiegeCounterChange = 'reset' | 'halved' | 'none';
+
+function isOutcome(event: CampaignEvent): event is MissionOutcome {
+  return event.kind === 'siege-defense-resolved' || event.kind === 'thin-the-herd-resolved';
+}
+
+/**
+ * What one outcome does to the counter (pp. 81, 86).
+ *
+ * - **Reset** when no zombie was left on the mission area — both missions say
+ *   so in their rewards.
+ * - **Halved** for a Thin the Herd that left at least one zombie, but fewer
+ *   than half the ones it started with, and got at least one survivor out over
+ *   the map edge. "Fewer than half" is strict, so it is compared doubled rather
+ *   than divided: 3 left of 6 is half, not fewer.
+ * - **Nothing** otherwise. A Siege Defense fought with zombies still standing
+ *   states no reset, and this app does not supply one.
+ */
+export function siegeCounterChange(outcome: MissionOutcome): SiegeCounterChange {
+  // The cast is the correlated-union gap: TypeScript cannot see that the kind
+  // picks the rule written for it. Looked up rather than branched on, so an
+  // entry that is not an outcome has no rule at all instead of quietly
+  // reading as "none".
+  return (COUNTER_CHANGE[outcome.kind] as (of: MissionOutcome) => SiegeCounterChange)(outcome);
+}
+
+/** Each mission's own rule, read only off its own fields. */
+const COUNTER_CHANGE: {
+  readonly [Kind in MissionOutcome['kind']]: (
+    outcome: Extract<MissionOutcome, { readonly kind: Kind }>,
+  ) => SiegeCounterChange;
+} = {
+  'siege-defense-resolved': (outcome) => (outcome.zombiesLeft === 0 ? 'reset' : 'none'),
+  'thin-the-herd-resolved': (outcome) => {
+    if (outcome.zombiesLeft === 0) return 'reset';
+
+    return outcome.survivorsExited > 0 && outcome.zombiesLeft * 2 < outcome.startingZombies
+      ? 'halved'
+      : 'none';
+  },
+};
+
+/**
+ * The counter after a change.
+ *
+ * **Halving rounds down.** The book does not say, and the counter is a whole
+ * number of turns — it is added to a d10 and to Unrest, neither of which has a
+ * half. Rounding down is the plain reading of halving a count (7 turns are
+ * worth 3 whole turns after it, not 3½ and not 4), and it is the one that
+ * never leaves the counter higher than half of what it was, which is the
+ * smallest promise "halve" makes.
+ */
+const COUNTER_AFTER: Record<SiegeCounterChange, (count: number) => number> = {
+  reset: () => 0,
+  halved: (count) => Math.floor(count / 2),
+  none: (count) => count,
+};
+
+/**
+ * Whether a Siege Defense left the base overrun (pg. 86).
+ *
+ * At least one zombie still on the mission area and at least one survivor
+ * gone over the map edge. The book then gives the player three ways to go on —
+ * rebuilding through Claim a New Base, restarting through Start a New
+ * Community, or abandoning the survivors. None of the three is built yet (they
+ * are missions and a campaign ending, Phase 4's), so the screen names the
+ * choice and leaves it to the table.
+ */
+export function baseOverrun(outcome: MissionOutcome): boolean {
+  return (
+    outcome.kind === 'siege-defense-resolved' &&
+    outcome.zombiesLeft > 0 &&
+    outcome.survivorsExited > 0
   );
 }
 
 /**
- * How long the horde has left this community alone (pg. 23).
+ * How long the horde has left this community alone (pg. 23), as the outcomes
+ * of Siege Defense and Thin the Herd have moved it (pp. 81, 86).
  *
- * **Counts only sieges already fought.** This is the term the September
- * playtest caught: it read a stored `lastSiegeTurn` that the check wrote
- * forward-dated to the turn the siege *would* be fought on, so calling a siege
- * at step 6 took the term to 0 for the rest of that phase — and Departures at
- * step 7 tested a pressure lower than the one the horde had just been rolled
- * against. Observed falling 12 → 8 within the phase, which saved a survivor
- * from leaving.
+ * **A siege being called or fought moves nothing; a mission outcome does.**
+ * Until v12 this counted from the turn a siege was fought, which read the
+ * reset into the siege itself. The book puts it in the missions' rewards
+ * instead: a Siege Defense resets it only if it left no zombie on the area,
+ * and a Thin the Herd can reset it or halve it. So the counter is folded over
+ * the recorded outcomes, oldest first — each one sees the count as it stood on
+ * its own turn, and every turn after adds one.
  *
- * The clamp that used to be here was reasoned about as *preventing* exactly
- * that, and did the opposite: it stopped the term going to −1 and let it go
- * to 0, which was the whole of the damage.
+ * **The September playtest stays fixed by construction.** It caught the term
+ * falling inside one Management Phase: a stored, forward-dated siege turn
+ * took it to 0 the moment Check the Horde called a siege, so Departures at
+ * step 7 tested a pressure lower than the horde had just been rolled against
+ * (observed 12 → 8, which saved a survivor from leaving). Nothing the
+ * Management Phase writes is an outcome, so nothing between step 6 and step 7
+ * can move this.
  *
- * Derived rather than stored, which is what makes it possible at all. One field
- * cannot hold both "when the last siege was fought" and "when the next one is",
- * and writing the second over the first is how the history was lost.
+ * Derived rather than stored, which is what makes the fold possible at all.
  */
 export function turnsSinceLastSiege(campaign: Campaign): number {
-  const fought = siegeTurns(campaign).filter((turn) => turn <= campaign.turn);
+  const last = campaign.log
+    .filter((entry): entry is LogEntry & { readonly event: MissionOutcome } =>
+      isOutcome(entry.event),
+    )
+    .reduce(
+      (counter, entry) => ({
+        turn: entry.turn,
+        count: COUNTER_AFTER[siegeCounterChange(entry.event)](
+          counter.count + entry.turn - counter.turn,
+        ),
+      }),
+      { turn: FIRST_TURN, count: 0 },
+    );
 
-  return campaign.turn - (fought.at(-1) ?? FIRST_TURN);
+  return last.count + campaign.turn - last.turn;
+}
+
+/** Whether this turn's mission outcome has been recorded. */
+export function missionResolved(campaign: Campaign): boolean {
+  return campaign.log.some((entry) => entry.turn === campaign.turn && isOutcome(entry.event));
+}
+
+/**
+ * Whether the next Siege Threat roll succeeds on its own (pg. 81).
+ *
+ * A Thin the Herd on which every survivor was incapacitated says the next
+ * mission is a Siege — which the book delivers by having the Siege Threat roll
+ * succeed automatically the next time it is made. "Next time" is read off the
+ * log: such an outcome recorded after the most recent Check the Horde. The
+ * check itself still calls the siege through its own entry, so `siegeDue`
+ * and `hordeCame` need nothing new.
+ */
+export function hordeForced(campaign: Campaign): boolean {
+  const lastCheck = campaign.log.map((entry) => entry.event.kind).lastIndexOf('horde-checked');
+
+  return campaign.log
+    .slice(lastCheck + 1)
+    .some((entry) => entry.event.kind === 'thin-the-herd-resolved' && entry.event.allIncapacitated);
+}
+
+/**
+ * Why this outcome cannot be recorded now, or `null` if it can.
+ *
+ * In the Mission Phase, once a turn, and never on turn 1, which is the First
+ * Mission (pg. 75). A Siege Defense only on a turn the horde called one for,
+ * and a Thin the Herd only on a turn it did not — a called siege *is* the
+ * turn's mission (pg. 23). The counts are whole numbers from zero, and nothing
+ * else is checked against anything: they are what the table counted, and the
+ * book gives no rule that two of them must agree.
+ */
+export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcome): string | null {
+  if (phaseOf(campaign.step) !== 'mission') return 'A mission is recorded in the Mission Phase.';
+  if (missionResolved(campaign)) return 'This turn’s mission is already recorded.';
+  if (campaign.turn === FIRST_TURN) return 'Turn 1’s mission is the First Mission.';
+
+  const siege = outcome.kind === 'siege-defense-resolved';
+
+  if (siege !== siegeDue(campaign)) {
+    return siege
+      ? 'The horde has not called a siege for this turn.'
+      : 'This turn’s mission is the Siege Defense the horde called.';
+  }
+
+  const counts = siege
+    ? [outcome.zombiesLeft, outcome.survivorsExited]
+    : [outcome.startingZombies, outcome.zombiesLeft, outcome.survivorsExited];
+
+  return counts.every((count) => Number.isSafeInteger(count) && count >= 0)
+    ? null
+    : 'Every count is a whole number, from zero.';
 }
 
 /** Each term of Siege Threat on its own, for the screen that shows the sum. */

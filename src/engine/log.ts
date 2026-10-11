@@ -313,6 +313,40 @@ export type CampaignEvent =
       readonly siege: boolean;
     }
   /**
+   * How a Siege Defense ended, as the table counted it (pg. 86).
+   *
+   * The two counts the mission's rewards read and nothing else: whether any
+   * zombie was left on the mission area, and whether anybody got out over the
+   * map edge. What they come to — the turns since the last siege back to 0, or
+   * the base overrun — is `siege.ts`'s to work out, because a verdict written
+   * into the entry would be a second copy of the rule that could disagree with
+   * the first.
+   *
+   * **Load-bearing**: `turnsSinceLastSiege` reads these back. Since v12 a
+   * siege being *fought* resets nothing; its outcome does.
+   */
+  | {
+      readonly kind: 'siege-defense-resolved';
+      readonly zombiesLeft: number;
+      readonly survivorsExited: number;
+    }
+  /**
+   * How a Thin the Herd ended (pg. 81).
+   *
+   * The starting count as well, because one of its rewards is measured against
+   * it: fewer than half of them left halves the turns since the last siege.
+   * And whether every survivor on it went down, which the book answers by
+   * making the next Siege Threat roll succeed on its own — read back by
+   * `hordeForced`.
+   */
+  | {
+      readonly kind: 'thin-the-herd-resolved';
+      readonly startingZombies: number;
+      readonly zombiesLeft: number;
+      readonly survivorsExited: number;
+      readonly allIncapacitated: boolean;
+    }
+  /**
    * Health went to a survivor, in the Heal Wounds step (pg. 19).
    *
    * One entry per survivor rather than one for the step, because who was

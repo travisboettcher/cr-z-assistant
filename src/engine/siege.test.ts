@@ -8,14 +8,20 @@ import {
 } from './campaign';
 import { createSurvivor } from './survivor';
 import {
+  baseOverrun,
   hordeCame,
   hordeChecked,
+  hordeForced,
+  missionOutcomeProblem,
+  missionResolved,
+  siegeCounterChange,
   siegeDue,
   siegeThreat,
   siegeThreatTerms,
   siegeTriggered,
   towersWithoutTheSkill,
   turnsSinceLastSiege,
+  type MissionOutcome,
 } from './siege';
 import type { LogEntry } from './log';
 import { staffedWith } from '../test/campaigns';
@@ -53,47 +59,244 @@ const rolled = (turn: number, siege: boolean): LogEntry => ({
 const called = (turn: number, now = turn): Campaign =>
   community({ turn: now, log: [rolled(turn, true)] });
 
+/** A Siege Defense's outcome, recorded in the Mission Phase of `turn`. */
+const defended = (turn: number, zombiesLeft: number, survivorsExited = 0): LogEntry => ({
+  turn,
+  phase: 'mission',
+  at: AT,
+  event: { kind: 'siege-defense-resolved', zombiesLeft, survivorsExited },
+});
+
+/** A Thin the Herd's outcome, recorded in the Mission Phase of `turn`. */
+const thinned = (
+  turn: number,
+  startingZombies: number,
+  zombiesLeft: number,
+  survivorsExited = 0,
+  allIncapacitated = false,
+): LogEntry => ({
+  turn,
+  phase: 'mission',
+  at: AT,
+  event: {
+    kind: 'thin-the-herd-resolved',
+    startingZombies,
+    zombiesLeft,
+    survivorsExited,
+    allIncapacitated,
+  },
+});
+
+const outcomeOf = (entry: LogEntry): MissionOutcome => entry.event as MissionOutcome;
+
 describe('turnsSinceLastSiege', () => {
-  it('counts from the first turn for a community the horde has never found', () => {
+  it('counts from the first turn for a community with no outcome behind it', () => {
     expect(turnsSinceLastSiege(community({ turn: 1 }))).toBe(0);
     expect(turnsSinceLastSiege(community({ turn: 5 }))).toBe(4);
   });
 
-  it('counts from the siege once there has been one', () => {
-    // Called on turn 3, so fought on turn 4, and it is now turn 7.
-    expect(turnsSinceLastSiege(called(3, 7))).toBe(3);
+  /**
+   * The ruling, pinned (pp. 81, 86). The counter used to go back to 0 on the
+   * turn a siege was fought; the book resets it on how a mission *ends*. A
+   * siege called, and a siege played with nothing recorded, move nothing.
+   */
+  it('is not reset by a siege being called or fought', () => {
+    // Called on turn 3, fought on turn 4.
+    expect(turnsSinceLastSiege(called(3, 4))).toBe(3);
+    expect(turnsSinceLastSiege(called(3, 7))).toBe(6);
   });
 
-  it('is nothing on the turn a siege is fought', () => {
-    expect(turnsSinceLastSiege(called(3, 4))).toBe(0);
+  it('goes back to 0 on a Siege Defense that left no zombie, and counts on from there', () => {
+    const clean = (now: number) => community({ turn: now, log: [rolled(3, true), defended(4, 0)] });
+
+    expect(turnsSinceLastSiege(clean(4))).toBe(0);
+    expect(turnsSinceLastSiege(clean(7))).toBe(3);
+  });
+
+  /** No reset is stated for a siege fought with zombies still standing. */
+  it('keeps counting through a Siege Defense that left zombies, overrun or not', () => {
+    const held = community({ turn: 6, log: [rolled(3, true), defended(4, 2)] });
+    const overrun = community({ turn: 6, log: [rolled(3, true), defended(4, 2, 1)] });
+
+    expect(turnsSinceLastSiege(held)).toBe(5);
+    expect(turnsSinceLastSiege(overrun)).toBe(5);
+  });
+
+  it('goes back to 0 on a Thin the Herd that left no zombie', () => {
+    expect(turnsSinceLastSiege(community({ turn: 5, log: [thinned(5, 8, 0)] }))).toBe(0);
+    expect(turnsSinceLastSiege(community({ turn: 6, log: [thinned(5, 8, 0)] }))).toBe(1);
   });
 
   /**
-   * **The playtest bug, pinned.** Between the check that calls a siege and the
-   * turn it is fought on, nothing has happened yet — so the term must keep
-   * counting from the *previous* siege. It went to 0 instead, inside the same
-   * Management Phase that had just rolled against it, and Departures two steps
-   * later tested a pressure lower than the horde was measured by.
-   *
-   * A single stored field could not do this: writing the coming siege's turn
-   * destroyed the last one's.
+   * Seven turns since play began is 3½ halved, and the counter is whole turns.
+   * Rounded down — the book does not say, and an odd count is the case that
+   * tells floor from ceiling and from rounding.
    */
-  it('keeps counting from the last siege fought while another is still coming', () => {
-    const coming = community({ turn: 6, log: [rolled(2, true), rolled(6, true)] });
-
-    // Fought on turn 3; the turn-6 call is for turn 7 and has not happened.
-    expect(turnsSinceLastSiege(coming)).toBe(3);
+  it('is halved, rounding down, by a Thin the Herd that thinned it enough', () => {
+    expect(turnsSinceLastSiege(community({ turn: 8, log: [thinned(8, 8, 3, 1)] }))).toBe(3);
+    expect(turnsSinceLastSiege(community({ turn: 10, log: [thinned(8, 8, 3, 1)] }))).toBe(5);
   });
 
-  it('ignores a check that called no siege', () => {
+  it('is left alone by a Thin the Herd that did not', () => {
+    // Exactly half left is not fewer than half.
+    expect(turnsSinceLastSiege(community({ turn: 8, log: [thinned(8, 6, 3, 1)] }))).toBe(7);
+    // Nobody got out over the edge.
+    expect(turnsSinceLastSiege(community({ turn: 8, log: [thinned(8, 8, 3, 0)] }))).toBe(7);
+  });
+
+  /** Each outcome sees the count as it stood on its own turn. */
+  it('folds every outcome in order', () => {
+    const both = community({ turn: 11, log: [defended(4, 0), thinned(9, 8, 1, 2)] });
+
+    // 0 on turn 4, 5 by turn 9 and halved to 2, then two more turns.
+    expect(turnsSinceLastSiege(both)).toBe(4);
+  });
+
+  it('ignores a check, called or not', () => {
     expect(turnsSinceLastSiege(community({ turn: 5, log: [rolled(3, false)] }))).toBe(4);
   });
+});
 
-  /** Two sieges: the most recent one that has actually been fought. */
-  it('counts from the latest siege fought, not the first', () => {
-    const twice = community({ turn: 9, log: [rolled(1, true), rolled(5, true)] });
+describe('siegeCounterChange', () => {
+  it('resets on no zombie left, whichever mission', () => {
+    expect(siegeCounterChange(outcomeOf(defended(4, 0, 2)))).toBe('reset');
+    expect(siegeCounterChange(outcomeOf(thinned(4, 8, 0, 0, true)))).toBe('reset');
+  });
 
-    expect(turnsSinceLastSiege(twice)).toBe(3);
+  it('halves only a Thin the Herd with somebody out and fewer than half left', () => {
+    expect(siegeCounterChange(outcomeOf(thinned(4, 3, 1, 1)))).toBe('halved');
+    expect(siegeCounterChange(outcomeOf(thinned(4, 6, 3, 1)))).toBe('none');
+    expect(siegeCounterChange(outcomeOf(thinned(4, 8, 1, 0)))).toBe('none');
+  });
+
+  /**
+   * A Siege Defense has no halving, whatever else its entry carries. A save is
+   * checked for the fields an entry must have, not for ones it must not, so a
+   * hand-edited file can put a starting count on a siege — and it means
+   * nothing there.
+   */
+  it('never halves a Siege Defense', () => {
+    const stray = { ...outcomeOf(defended(4, 1, 1)), startingZombies: 8 } as MissionOutcome;
+
+    expect(siegeCounterChange(stray)).toBe('none');
+  });
+});
+
+describe('baseOverrun', () => {
+  it('is a Siege Defense that left a zombie and got somebody out', () => {
+    expect(baseOverrun(outcomeOf(defended(4, 2, 1)))).toBe(true);
+  });
+
+  it('needs both halves', () => {
+    expect(baseOverrun(outcomeOf(defended(4, 0, 1)))).toBe(false);
+    expect(baseOverrun(outcomeOf(defended(4, 2, 0)))).toBe(false);
+  });
+
+  it('is never a Thin the Herd', () => {
+    expect(baseOverrun(outcomeOf(thinned(4, 8, 2, 1)))).toBe(false);
+  });
+});
+
+describe('missionResolved', () => {
+  it('is false until this turn has an outcome', () => {
+    expect(missionResolved(community({ log: [rolled(3, true)] }))).toBe(false);
+    expect(missionResolved(community({ log: [thinned(2, 8, 0)] }))).toBe(false);
+  });
+
+  it('is true for either mission this turn', () => {
+    expect(missionResolved(community({ log: [thinned(3, 8, 0)] }))).toBe(true);
+    expect(missionResolved(community({ log: [defended(3, 2)] }))).toBe(true);
+  });
+});
+
+describe('hordeForced', () => {
+  it('is false for a community that has thinned nothing', () => {
+    expect(hordeForced(community())).toBe(false);
+  });
+
+  it('is true after a Thin the Herd that put everybody down', () => {
+    expect(hordeForced(community({ log: [rolled(2, false), thinned(3, 8, 6, 0, true)] }))).toBe(
+      true,
+    );
+  });
+
+  it('is false after one that did not', () => {
+    expect(hordeForced(community({ log: [thinned(3, 8, 6, 0, false)] }))).toBe(false);
+  });
+
+  /** "The next time it is made" — once made, it is spent. */
+  it('is spent by the next roll', () => {
+    expect(hordeForced(community({ log: [thinned(3, 8, 6, 0, true), rolled(3, true)] }))).toBe(
+      false,
+    );
+  });
+
+  /** As with `siegeCounterChange`: a field means nothing on the wrong kind. */
+  it('reads the flag on a Thin the Herd only', () => {
+    const stray: LogEntry = {
+      ...defended(3, 2),
+      event: { ...outcomeOf(defended(3, 2)), allIncapacitated: true } as MissionOutcome,
+    };
+
+    expect(hordeForced(community({ log: [stray] }))).toBe(false);
+  });
+});
+
+describe('missionOutcomeProblem', () => {
+  type Of<Kind> = Extract<MissionOutcome, { readonly kind: Kind }>;
+  const siege = outcomeOf(defended(4, 0, 1)) as Of<'siege-defense-resolved'>;
+  const herd = outcomeOf(thinned(4, 8, 0, 1)) as Of<'thin-the-herd-resolved'>;
+  const playing = (overrides: Partial<Campaign> = {}): Campaign =>
+    community({ step: 'tactical-mission', ...overrides });
+  /** Turn 4, with the siege turn 3's check called. */
+  const besieged = (overrides: Partial<Campaign> = {}): Campaign =>
+    playing({ turn: 4, log: [rolled(3, true)], ...overrides });
+
+  it('takes a Siege Defense on the turn the horde called one for', () => {
+    expect(missionOutcomeProblem(besieged(), siege)).toBeNull();
+  });
+
+  it('takes a Thin the Herd on a turn with no siege, from the first step of the phase', () => {
+    expect(missionOutcomeProblem(playing({ step: 'select-mission' }), herd)).toBeNull();
+  });
+
+  it('refuses outside the Mission Phase', () => {
+    expect(missionOutcomeProblem(besieged({ step: 'check-the-horde' }), siege)).toMatch(
+      /Mission Phase/,
+    );
+  });
+
+  it('refuses a second outcome in one turn', () => {
+    expect(
+      missionOutcomeProblem(besieged({ log: [rolled(3, true), defended(4, 2)] }), siege),
+    ).toMatch(/already/);
+  });
+
+  it('refuses on turn 1, which is the First Mission', () => {
+    expect(missionOutcomeProblem(playing({ turn: 1 }), herd)).toMatch(/First Mission/);
+  });
+
+  it('refuses a Siege Defense nobody called, and a Thin the Herd in place of one', () => {
+    expect(missionOutcomeProblem(playing(), siege)).toMatch(/not called/);
+    expect(missionOutcomeProblem(besieged(), herd)).toMatch(/is the Siege Defense/);
+  });
+
+  it('takes a count of zero', () => {
+    expect(missionOutcomeProblem(playing(), outcomeOf(thinned(3, 0, 0, 0)))).toBeNull();
+  });
+
+  it.each([
+    ['a negative', -1],
+    ['a fractional', 1.5],
+    ['an unreadable', Number.NaN],
+  ])('refuses %s count in any field', (_, bad) => {
+    const refused = /whole number/;
+
+    expect(missionOutcomeProblem(besieged(), { ...siege, zombiesLeft: bad })).toMatch(refused);
+    expect(missionOutcomeProblem(besieged(), { ...siege, survivorsExited: bad })).toMatch(refused);
+    expect(missionOutcomeProblem(playing(), { ...herd, startingZombies: bad })).toMatch(refused);
+    expect(missionOutcomeProblem(playing(), { ...herd, zombiesLeft: bad })).toMatch(refused);
+    expect(missionOutcomeProblem(playing(), { ...herd, survivorsExited: bad })).toMatch(refused);
   });
 });
 
@@ -198,6 +401,20 @@ describe('siegeTriggered', () => {
 });
 
 describe('siegeDue', () => {
+  /**
+   * Only a horde check calls a siege. A save is checked for the fields an
+   * entry must have and not for ones it must not, so a hand-edited file can
+   * put a `siege` flag on anything — and it means nothing there.
+   */
+  it('reads the flag on a horde check only', () => {
+    const stray: LogEntry = {
+      ...defended(3, 2),
+      event: { ...outcomeOf(defended(3, 2)), siege: true } as unknown as MissionOutcome,
+    };
+
+    expect(siegeDue(community({ turn: 4, log: [stray] }))).toBe(false);
+  });
+
   it('is not due on the turn the horde was checked', () => {
     expect(siegeDue(called(3))).toBe(false);
   });
@@ -292,17 +509,19 @@ describe('a siege called at step 6 and the threat step 7 reads', () => {
     expect(siegeThreat(after)).toBe(siegeThreat(before));
   });
 
-  it('still resets on the turn the siege is actually fought', () => {
+  /**
+   * And it resets where the book puts the reset — on the siege's outcome, in
+   * the next turn's Mission Phase (pg. 86) — not on the call, and not on the
+   * siege merely being played.
+   */
+  it('resets on the turn the siege ends clean, and only then', () => {
     const called = community({ turn: 5, log: [rolled(5, true)] });
     const fought: Campaign = { ...called, turn: 6 };
+    const clean: Campaign = { ...fought, log: [...fought.log, defended(6, 0)] };
 
     expect(turnsSinceLastSiege(called)).toBe(4);
-    expect(turnsSinceLastSiege(fought)).toBe(0);
-  });
-
-  /** And starts counting again from the siege, not from the start of play. */
-  it('counts from the siege on the turns after it', () => {
-    expect(turnsSinceLastSiege(community({ turn: 8, log: [rolled(5, true)] }))).toBe(2);
+    expect(turnsSinceLastSiege(fought)).toBe(5);
+    expect(turnsSinceLastSiege(clean)).toBe(0);
   });
 });
 
