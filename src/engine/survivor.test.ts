@@ -6,9 +6,12 @@ import type { Survivor } from './campaign';
 import {
   communityTierLevels,
   createSurvivor,
+  incapacitatedByInfection,
   inventorySlots,
+  isDown,
   labor,
   maxHp,
+  outOfHealth,
   recruitSurvivor,
   skillScore,
   statValue,
@@ -129,6 +132,38 @@ describe('maxHp and labor', () => {
   });
 });
 
+/**
+ * Two ways down, and one of them is not the Rot check's (pg. 22, 123; R18).
+ * The boundaries are the point: 0 Health and 10 Infection are down, 1 and 9
+ * are not.
+ */
+describe('isDown, outOfHealth and incapacitatedByInfection', () => {
+  const survivorAt = (currentHp: number, infection: number): Survivor => ({
+    ...EARL,
+    currentHp,
+    infection,
+  });
+
+  it.each([
+    [4, 0, false, false, false],
+    [1, 9, false, false, false],
+    [0, 0, true, false, true],
+    [-1, 0, true, false, true],
+    [4, 10, false, true, true],
+    [2, 12, false, true, true],
+    [0, 10, true, true, true],
+  ])(
+    'at %i Health and %i Infection: out of Health %s, infected past bearing %s, down %s',
+    (currentHp, infection, health, infected, down) => {
+      const survivor = survivorAt(currentHp, infection);
+
+      expect(outOfHealth(survivor)).toBe(health);
+      expect(incapacitatedByInfection(survivor)).toBe(infected);
+      expect(isDown(survivor)).toBe(down);
+    },
+  );
+});
+
 describe('inventorySlots', () => {
   /**
    * The rulebook's own arithmetic, and the reason this function is worth
@@ -174,6 +209,7 @@ describe('createSurvivor', () => {
     expect(leader.move).toBe(6);
     expect(leader.defense).toBe(6);
     expect(leader.xp).toBe(0);
+    expect(leader.infection).toBe(0);
   });
 
   /**

@@ -697,7 +697,9 @@ function Departures({ campaign }: { readonly campaign: Campaign }) {
         <p className="mt-3 text-sm font-medium">Nobody is leaving. The community holds together.</p>
       ) : candidates.length === 0 ? (
         <p className="mt-3 text-sm font-medium">
-          Somebody would leave, but everybody left is at 0 Health and in no state to walk anywhere.
+          {/* Infection is only mentioned where it can be the reason (pg. 123). */}
+          Somebody would leave, but everybody left is at 0 Health
+          {campaign.origin === 'viral' ? ' or 10 Infection' : ''} and in no state to walk anywhere.
         </p>
       ) : (
         <>

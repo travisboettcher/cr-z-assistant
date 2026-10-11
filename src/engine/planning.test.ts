@@ -366,6 +366,24 @@ describe('checkAssignment', () => {
     it('says nothing about one at full Health', () => {
       expect(checkAssignment(community(), EARL, { task: 'mission', team: 1 }).warnings).toEqual([]);
     });
+
+    /**
+     * Incapacitated whatever their Health (pg. 123), so full Health does not
+     * make them fit. Nine is not down, and Infection is not a wound — R18.
+     */
+    it('warns about one at full Health and 10 Infection, and not at 9', () => {
+      const infected = (infection: number): Campaign => ({
+        ...community(),
+        survivors: community().survivors.map((survivor) =>
+          survivor.id === EARL ? { ...survivor, infection } : survivor,
+        ),
+      });
+
+      expect(
+        codes(checkAssignment(infected(10), EARL, { task: 'mission', team: 1 }).warnings),
+      ).toEqual(['incapacitated-on-a-mission']);
+      expect(checkAssignment(infected(9), EARL, { task: 'mission', team: 1 }).warnings).toEqual([]);
+    });
   });
 
   describe('scavenging', () => {

@@ -16,3 +16,14 @@
 export const CAMPAIGN_ORIGINS = ['viral', 'cosmic-horror', 'magic'] as const;
 
 export type CampaignOrigin = (typeof CAMPAIGN_ORIGINS)[number];
+
+/**
+ * The Infection at which a survivor is incapacitated, whatever their Health
+ * (pg. 123).
+ *
+ * The Viral origin's, and named here rather than written as a bare 10 where it
+ * is read, because it is a rule and rules belong in this directory. Only
+ * `incapacitatedByInfection` in `src/engine/survivor.ts` reads it; everything
+ * else asks that, or `isDown` (#176).
+ */
+export const INFECTION_INCAPACITATES = 10;
