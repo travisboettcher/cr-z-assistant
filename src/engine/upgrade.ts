@@ -36,7 +36,7 @@ import {
   type UpgradeId,
 } from '../data/facilities';
 import { occupantAt, replacedBy, upgradeCost, upgradesRemaining, upgradesUsed } from './base';
-import { laborRefusal, occupantAwaiting, queuedUpgradesFor } from './projects';
+import { laborRefusal, occupantAwaiting, queuedUpgradesFor, type Pricing } from './projects';
 import type { Check, Violation } from './checks';
 import type { Campaign } from './campaign';
 
@@ -85,8 +85,17 @@ function counting(onOrder: readonly UpgradeId[]): string {
   return onOrder.length === 0 ? '' : ` (${String(onOrder.length)} on order)`;
 }
 
-/** Everything wrong with adding this upgrade, or two empty lists. */
-export function checkUpgrade(campaign: Campaign, request: UpgradeRequest): UpgradeCheck {
+/**
+ * Everything wrong with adding this upgrade, or two empty lists.
+ *
+ * Priced against this turn's Labor, or against `pricing`'s pool when a caller
+ * names one — see `Pricing` in `projects.ts`.
+ */
+export function checkUpgrade(
+  campaign: Campaign,
+  request: UpgradeRequest,
+  pricing?: Pricing,
+): UpgradeCheck {
   const blockers: UpgradeViolation[] = [];
   const warnings: UpgradeViolation[] = [];
 
@@ -144,7 +153,7 @@ export function checkUpgrade(campaign: Campaign, request: UpgradeRequest): Upgra
     });
   }
 
-  const labor = laborRefusal(campaign, cost.labor, '72–73');
+  const labor = laborRefusal(campaign, cost.labor, '72–73', pricing);
   if (labor !== undefined) blockers.push(labor);
 
   if (!occupant.upgradable) {

@@ -356,6 +356,25 @@ export function orderedThisTurn(campaign: Campaign): readonly QueuedProject[] {
 }
 
 /**
+ * A Labor pool to price an order against, in place of this turn's (#188).
+ *
+ * **It replaces the pool, not what is left of it.** `laborAvailable` is two
+ * questions subtracted: what this turn's project team generates, which is only
+ * ever known once this turn's Planning Phase has begun, and what this turn's
+ * orders have already committed, which is arithmetic over the queue. A caller
+ * naming a pool answers the first one for itself — "what could a 4-Labor team
+ * afford?", asked during the Advancement Phase about the Planning Phase to come
+ * — and the second is still the queue's, so a second order is measured by what
+ * the first one left exactly as it is when nobody names a pool (Z3-11).
+ *
+ * An object of one field rather than a bare number, so a call site reads
+ * `{ labor: 4 }` and not a `4` that could be Hardware.
+ */
+export interface Pricing {
+  readonly labor: number;
+}
+
+/**
  * The refusal all three verbs give when a project's Labor is not there.
  *
  * One function rather than the same four lines in `build`, `upgrade` and
@@ -371,19 +390,26 @@ export function orderedThisTurn(campaign: Campaign): readonly QueuedProject[] {
  * caller's — a facility's is the cost table, a clearing project's is the base
  * chapter — while the reason that has nothing to do with the cost cites the
  * rule it is actually about.
+ *
+ * Given a `pricing`, the pool is the caller's and the second sentence is never
+ * said: "this turn's team is not assigned yet" is an answer about *now*, and a
+ * caller who named a pool has asked about a team that is not this turn's on
+ * purpose (#188).
  */
 export function laborRefusal(
   campaign: Campaign,
   labor: number,
   pages: number | string,
+  pricing?: Pricing,
 ): Violation<'not-enough-labor'> | undefined {
-  const available = laborAvailable(campaign);
+  const available =
+    pricing === undefined ? laborAvailable(campaign) : pricing.labor - laborCommitted(campaign);
 
   // A project that costs no Labor is refused by neither: there is nothing to
   // take from a pool that is not this turn's.
   if (available >= labor) return undefined;
 
-  if (!planningHasBegun(campaign)) {
+  if (pricing === undefined && !planningHasBegun(campaign)) {
     return {
       code: 'not-enough-labor',
       message: `Costs ${String(labor)} Labor, and this turn’s project team is assigned in the Planning Phase — last turn’s does not pay for this turn’s work.`,

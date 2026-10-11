@@ -44,7 +44,7 @@ import {
   withProjectCancelled,
   withProjectOrdered,
 } from '../engine/projects';
-import { builtEvent, checkOrder, orderedEvent } from '../engine/orders';
+import { builtEvent, builtOf, checkOrder, orderedEvent } from '../engine/orders';
 import { withUtilityToggled } from '../engine/utilities';
 import { createNewCampaign } from '../engine/campaign';
 import { logged } from '../engine/log';
@@ -782,10 +782,10 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
     /*
      * The five project cases from here to `advancement/projectsCompleted` are
      * the one family of forms #179 leaves composed in the store. How an order
-     * is priced and what an entry says it built are moving into
-     * `src/engine/orders.ts` on their own (#188), and lifting the cases
-     * alongside would be two changes to the same lines at once. They take the
-     * shape of the rest once that has landed.
+     * is priced and what an entry says it built moved into
+     * `src/engine/orders.ts` on their own (#188), written at the same time as
+     * #179, and lifting the cases alongside would have been two changes to the
+     * same lines at once. They take the shape of the rest in a follow-up.
      */
 
     /**
@@ -957,21 +957,6 @@ function editSurvivor(
       survivor.id === id ? edit(survivor) : survivor,
     ),
   }));
-}
-
-/**
- * What a project was, for the two entries that record it leaving the queue.
- *
- * Spread rather than returned as a field, because `exactOptionalPropertyTypes`
- * makes an explicit `built: undefined` a different thing from an absent one —
- * and absent is what a clearing writes, having nothing to name. One id for
- * either kind, the way `materials-converted` names its `source`.
- */
-function builtOf(project: Project): { readonly built?: string } {
-  if (project.kind === 'facility') return { built: project.facility };
-  if (project.kind === 'upgrade') return { built: project.upgrade };
-
-  return {};
 }
 
 function withCampaign(state: CampaignState, edit: (campaign: Campaign) => Campaign): CampaignState {
