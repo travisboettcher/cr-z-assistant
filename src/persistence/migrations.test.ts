@@ -448,7 +448,7 @@ describe('the v7 to v8 assignments default', () => {
  * The nested change the top-level key guard cannot see, which is why the guard
  * says a change like this deserves its own assertion beside its step.
  */
-describe('the v11 to v12 recorded charge', () => {
+describe('the v12 to v13 recorded charge', () => {
   it('gives every queued project a charge, whatever version it came from', () => {
     for (const fixture of fixtures) {
       const result = migrate(fixture.contents);
@@ -489,10 +489,10 @@ describe('the v11 to v12 recorded charge', () => {
     ]);
   });
 
-  /** A save that was already v12 keeps the numbers it was written with. */
-  it('leaves a v12 queue alone', () => {
-    const v12 = fixtures.find((fixture) => fixture.version === CURRENT_SCHEMA_VERSION);
-    const result = migrate(v12?.contents);
+  /** A save that was already v13 keeps the numbers it was written with. */
+  it('leaves a v13 queue alone', () => {
+    const v13 = fixtures.find((fixture) => fixture.version === CURRENT_SCHEMA_VERSION);
+    const result = migrate(v13?.contents);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;

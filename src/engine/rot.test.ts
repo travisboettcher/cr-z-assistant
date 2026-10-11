@@ -191,7 +191,7 @@ describe('rotTarget', () => {
   });
 
   /**
-   * Ruling 2: the book states no floor, the natural-1 rule already stops the
+   * R2: the book states no floor, the natural-1 rule already stops the
    * check becoming a certainty, and clamping would be inventing a rule.
    */
   it('has no floor, and will go below zero for a well-staffed Clinic', () => {

@@ -57,7 +57,16 @@ import { healthAwards, withWoundsHealed, woundsHealed } from '../engine/healing'
 import { foodRequired, hungerIfFedNow, survivorsFed, withSurvivorsFed } from '../engine/feeding';
 import { rotCheckResolved, rotOutcome, rotTarget, withRotApplied } from '../engine/rot';
 import { overCap, storageChecked, withStorageChecked } from '../engine/storage';
-import { deployed, hordeChecked, siegeDue, siegeThreat, siegeTriggered } from '../engine/siege';
+import {
+  deployed,
+  hordeChecked,
+  hordeForced,
+  missionOutcomeProblem,
+  siegeDue,
+  siegeThreat,
+  siegeTriggered,
+  type MissionOutcome,
+} from '../engine/siege';
 import { departureCandidates, someoneDeparted, withDeparture } from '../engine/departures';
 import { missionTeam, missionTeamReduced } from '../engine/assignments';
 import { storageCaps } from '../engine/base';
@@ -380,6 +389,16 @@ export type CampaignAction =
    * one every time a player steps back.
    */
   | { readonly type: 'management/hordeChecked'; readonly roll: D10Result; readonly at: string }
+  /**
+   * Record how this turn's Siege Defense or Thin the Herd ended (pp. 81, 86).
+   *
+   * The counts the table made at the end of the mission, and nothing worked
+   * out from them: what they do to the turns since the last siege is
+   * `siege.ts`'s, read back from the entry this writes. Refused outside the
+   * Mission Phase, a second time in a turn, for a mission the turn is not
+   * playing, and for a count that is not a whole number.
+   */
+  | { readonly type: 'mission/resolved'; readonly outcome: MissionOutcome; readonly at: string }
   /**
    * Send one survivor away (pg. 23).
    *
@@ -910,7 +929,9 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         if (hordeChecked(campaign)) return campaign;
 
         const threat = siegeThreat(campaign);
-        const siege = siegeTriggered(action.roll, threat);
+        // A Thin the Herd that put everybody down makes this roll succeed on
+        // its own (pg. 81). The roll is still the table's, and still recorded.
+        const siege = hordeForced(campaign) || siegeTriggered(action.roll, threat);
 
         // The entry is the whole record: a siege called on this turn is fought
         // on the next, which `siege.ts` works out from the turn stamped here.
@@ -924,6 +945,13 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
           siege,
         });
       });
+
+    case 'mission/resolved':
+      return withCampaign(state, (campaign) =>
+        missionOutcomeProblem(campaign, action.outcome) === null
+          ? logged(campaign, action.at, action.outcome)
+          : campaign,
+      );
 
     case 'management/departed':
       return withCampaign(state, (campaign) => {

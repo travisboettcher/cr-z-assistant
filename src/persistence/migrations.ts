@@ -289,9 +289,33 @@ const siegesBecameDerived: MigrationStep = {
   },
 };
 
-/** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 /**
- * v11 → v12: a queued project records what it was charged.
+ * v11 → v12: a siege's *outcome* moves the turns since the last siege, not the
+ * siege (pp. 81, 86).
+ *
+ * **A no-op on data.** What changed is the log's vocabulary — two entries,
+ * `siege-defense-resolved` and `thin-the-herd-resolved` — and what the counter
+ * reads. The bump earns its keep the way v1 → v2 did: a v12 save carrying an
+ * outcome, opened in a v11 build, is refused as newer rather than reported as
+ * damaged for an entry kind that build has never heard of.
+ *
+ * **What a migrated campaign should know.** A v11 save records the sieges it
+ * fought and never how they ended, and v11 read the fighting as the reset. The
+ * book does not: a siege that left zombies standing resets nothing. So the
+ * honest answer for a v11 campaign is that no outcome is on record, and its
+ * turns since the last siege count from turn 1 — inventing a clean outcome for
+ * a siege nobody recorded would be writing history. A table whose last siege
+ * did end clean will see a higher Siege Threat than it did before the update,
+ * and the next recorded clean outcome sets it right.
+ */
+const siegeOutcomesRecorded: MigrationStep = {
+  from: 11,
+  to: 12,
+  up: (previous) => previous,
+};
+
+/**
+ * v12 → v13: a queued project records what it was charged.
  *
  * A project's price depends on what was queued ahead of it, so cancelling an
  * earlier order used to change what a later one refunded — Hardware created or
@@ -302,7 +326,7 @@ const siegesBecameDerived: MigrationStep = {
  * what each order actually cost on the day is not in the file, so each project
  * is priced against the ones ahead of it exactly as it would have been when it
  * was placed. For a queue nobody has cancelled from — and a v11 save can only
- * hold orders from the turn in progress — that is the original number. For one
+ * hold orders from the turn in progress, and neither can a v12 one — that is the original number. For one
  * that has been cancelled from, it is what this build would have refunded
  * anyway, so no campaign is worse off than it was before opening.
  *
@@ -310,8 +334,8 @@ const siegesBecameDerived: MigrationStep = {
  * orders in flight has a queue at all.
  */
 const projectsRecordTheirCharge: MigrationStep = {
-  from: 11,
-  to: 12,
+  from: 12,
+  to: 13,
   up: (previous) => {
     const projects = Array.isArray(previous.projects) ? (previous.projects as PlacedOrder[]) : [];
 
@@ -328,6 +352,7 @@ const projectsRecordTheirCharge: MigrationStep = {
   },
 };
 
+/** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
   startingCommunityBuiltRecorded,
@@ -339,6 +364,7 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   siegesBecameRecorded,
   projectsBecameQueued,
   siegesBecameDerived,
+  siegeOutcomesRecorded,
   projectsRecordTheirCharge,
 ];
 

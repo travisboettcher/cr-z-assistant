@@ -21,6 +21,9 @@ reports — and was assigned here. Where a ruling came from `phase-3-stories.md`
 kept its digit wherever the inherited four allowed, so most existing citations did not have to
 move: only that list's rulings 4 and 5 were renumbered, to R9 and R12.
 
+R16 arrived from the other direction: it was written as `phase-3-stories.md`'s ruling 9 on a branch
+cut before this registry existed, and took the next free number when the two met.
+
 Rulings that are still open are marked **OPEN**. They are recorded rather than settled quietly,
 which is the point of the registry — a question nobody has answered looks exactly like a question
 nobody noticed, unless it is written down.
@@ -294,3 +297,58 @@ their Tier level." It had the vocabulary and did not use it here.
 **What it costs** is the benched-by-a-reward outcome, which is real. But it follows from R12
 excluding wounded survivors from mission teams rather than from the promotion rule, and it is
 arguably the right flavour: you promoted somebody who was still hurt.
+
+---
+
+## R16 — What resets the turns since the last siege — **CONFIRMED**
+
+**pp. 81, 86.** The tracker used to
+read the reset into the siege itself: "turns since" counted from the turn a Siege Defense was
+fought, so playing one put the term back to 0 whatever happened on the table. Checked against
+the book, that is not where the reset lives. It is a **mission reward**, and it depends on how
+the mission ended:
+
+| Mission | Recorded outcome | Turns since the last siege |
+|---|---|---|
+| Siege Defense (pg. 86) | no zombie left on the mission area | back to 0 |
+| Siege Defense | a zombie left and somebody out over the map edge | unchanged — the base is overrun |
+| Siege Defense | a zombie left, nobody out | unchanged — no reset is stated |
+| Thin the Herd (pg. 81) | no zombie left | back to 0 |
+| Thin the Herd | at least one left but fewer than half the starting count, and somebody out over the map edge | halved |
+| Thin the Herd | every survivor incapacitated | unchanged, and the next Siege Threat roll succeeds on its own |
+
+**So the counter moves when an outcome is recorded, never because a siege was called or
+fought.** The Mission Phase's Play the Mission step records the counts the rule reads — zombies
+left, survivors out over the edge, and for Thin the Herd the starting count and whether everyone
+went down — as a `siege-defense-resolved` or `thin-the-herd-resolved` log entry, and
+`turnsSinceLastSiege` folds the recorded outcomes in order. Nothing is stored beside them, so a
+reader is never one field away from disagreeing with the log. Schema v12.
+
+**Halving rounds down**, which the book does not say. The counter is a whole number of turns
+added to a d10 and to Unrest, neither of which has a half; rounding down is the plain reading of
+halving a count, and the only one that never leaves the counter above half of what it was. "Fewer
+than half" is strict: 3 left of 6 is half, and halves nothing.
+
+**The September playtest bug stays fixed** ([#103](https://github.com/travisboettcher/cr-z-assistant/issues/103)).
+It was Departures at step 7 testing a lower pressure than Check the Horde had rolled against at
+step 6, because calling a siege collapsed the term. Outcomes are recorded in the Mission Phase,
+and nothing in the Management Phase writes one, so nothing between step 6 and step 7 can move the
+term. `siege.test.ts` still pins that.
+
+**"The next mission is automatically a Siege"** after an all-incapacitated Thin the Herd is
+built as the book words it: the next Check the Horde calls the siege whatever the roll, and the
+existing `horde-checked` entry carries it into the next turn's Mission Phase. The roll is still
+entered and logged, because it is still the table's.
+
+**What is left to a later phase.** An overrun base's three ways on — rebuild through Claim a New
+Base, restart through Start a New Community, abandon the survivors — are named on screen and not
+run: two are missions and one ends the campaign, all Phase 4's. A clean siege's other reward, a
+point of Labor for each project-team survivor next turn, is not applied yet. A Siege Defense the
+horde did not call (the Regional Firehouse's `ring-the-bell`) cannot be recorded until mission
+selection exists. And a campaign migrated from v11 counts from turn 1: its log records the
+sieges it fought and never how they ended, and inventing a clean ending for them would be
+writing history.
+
+*Written as `phase-3-stories.md` ruling 9 by
+[#175](https://github.com/travisboettcher/cr-z-assistant/pull/175), on a branch cut before this
+registry existed, and moved here with its text unchanged.*

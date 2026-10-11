@@ -357,12 +357,16 @@ penalty, and the amendment recording that its expiry is turn-based rather than a
 [R8](rulings.md#r8--a-teacher-with-a-score-of-nothing-still-replaces-the-discretionary-point) (the
 Score-0 Teacher), [R9](rulings.md#r9--how-broadly-the-utilities-substitution-applies--open) (the
 Utilities substitution, still open),
-[R12](rulings.md#r12--wounded-and-injured-are-one-state) (wounded and injured), and
+[R12](rulings.md#r12--wounded-and-injured-are-one-state) (wounded and injured),
 [R13](rulings.md#r13--siege-threat-may-go-below-zero--recorded-without-a-ruling) (negative Siege
-Threat, recorded without a ruling).
+Threat, recorded without a ruling), and
+[R16](rulings.md#r16--what-resets-the-turns-since-the-last-siege--confirmed) (what resets the turns
+since the last siege).
 
-This list numbered its own rulings 1–8 until the registry was written down. Two of them changed
-number on the way: ruling 4 is now R9 and ruling 5 is now R12.
+This list numbered its own rulings 1–9 until the registry was written down. Three of them changed
+number on the way: ruling 4 is now R9, ruling 5 is now R12, and ruling 9 — the siege counter,
+written while the registry was being drafted on another branch — is now R16. The Siege Threat note
+that would have become ruling 10 is R13.
 
 ---
 
@@ -979,6 +983,13 @@ field; nothing is lost, because every write to it happened in the same reducer s
 The general lesson is the architecture rule the repo already had: **derived is never stored.** One
 field cannot hold both "when the last siege was fought" and "when the next one is", and writing the
 second over the first is how the history was lost.
+
+**And the reset itself was in the wrong place** — superseded by
+[R16](rulings.md#r16--what-resets-the-turns-since-the-last-siege--confirmed). Counting from the turn a siege was *fought* still read the
+reset into the siege; the book puts it in the Siege Defense's and Thin the Herd's rewards, on how
+they ended (pp. 81, 86). Since v12 the term folds over recorded mission outcomes instead, and a siege
+called or fought moves nothing — which keeps the fix above, because no outcome is written between
+step 6 and step 7.
 
 **`siegeDue` and `hordeCame` are different questions, and conflating them was a real bug.** The
 screen first reported the outcome of the check with `siegeDue`, which is false on the turn of the

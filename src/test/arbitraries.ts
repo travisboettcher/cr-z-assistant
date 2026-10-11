@@ -306,6 +306,18 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       siege: fc.boolean(),
     }),
     fc.record({
+      kind: fc.constant('siege-defense-resolved' as const),
+      zombiesLeft: anyCount,
+      survivorsExited: anyCount,
+    }),
+    fc.record({
+      kind: fc.constant('thin-the-herd-resolved' as const),
+      startingZombies: anyCount,
+      zombiesLeft: anyCount,
+      survivorsExited: anyCount,
+      allIncapacitated: fc.boolean(),
+    }),
+    fc.record({
       kind: fc.constant('health-restored' as const),
       survivor: anyId,
       name: anyName,

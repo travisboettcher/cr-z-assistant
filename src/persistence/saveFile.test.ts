@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import currentFixture from './__fixtures__/campaign-v12.json';
+import currentFixture from './__fixtures__/campaign-v13.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -250,8 +250,10 @@ describe('parseCampaignFile with a roster', () => {
     // project queue, which pins that an ordered array keeps its order and that
     // each kind keeps its own fields. v11 took the last siege's turn back out
     // again — it is read off the log now — so the campaign has one fewer plain
-    // number among the nested ones. From v12 each project carries a `charged`
-    // pair, which pins the one nested object inside an array element.
+    // number among the nested ones. v12 carries a siege and how it ended,
+    // which pins that an outcome's counts come back as they were written. From
+    // v13 each project carries a `charged` pair, which pins the one nested
+    // object inside an array element.
     const text = `${JSON.stringify(currentFixture, null, 2)}\n`;
     const result = parseCampaignFile(text);
 

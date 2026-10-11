@@ -108,7 +108,7 @@ describe('canForce', () => {
   });
 
   /**
-   * Ruling 4. The book writes Utilities as "a given material" where the other
+   * R9. The book writes Utilities as "a given material" where the other
    * two name one, and this takes the literal reading — Rare included, which is
    * the reading's most surprising consequence and therefore the one worth
    * writing down.

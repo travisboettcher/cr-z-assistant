@@ -20,6 +20,7 @@ import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
 import { AdvancementPhase } from './AdvancementPhase';
 import { FirstMission } from './FirstMission';
+import { MissionOutcome } from './MissionOutcome';
 import { ManagementPhase } from './ManagementPhase';
 import { PlanningPhase } from './PlanningPhase';
 import { FIRST_TURN, siegeDue } from '../engine/siege';
@@ -273,6 +274,14 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
             {phase === 'mission' && campaign.turn === FIRST_TURN && (
               <FirstMission campaign={campaign} />
             )}
+
+            {/*
+             * The third: how a Siege Defense or a Thin the Herd ended, which is
+             * what moves the turns since the last siege (pp. 81, 86). At the
+             * step the mission is played in, because that is when the table
+             * has the counts in front of it.
+             */}
+            {campaign.step === 'tactical-mission' && <MissionOutcome campaign={campaign} />}
 
             <p className="mt-4 text-sm text-stone-600 dark:text-stone-400">
               This step is not built yet — work it on paper and move on when the table has.{' '}

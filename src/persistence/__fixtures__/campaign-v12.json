@@ -133,30 +133,18 @@
   "projects": [
     {
       "kind": "facility",
-      "charged": {
-        "hardware": 3,
-        "labor": 2
-      },
       "facility": "workshop",
       "orderedOnTurn": 3,
       "slot": "garage"
     },
     {
       "kind": "upgrade",
-      "charged": {
-        "hardware": 2,
-        "labor": 1
-      },
       "orderedOnTurn": 3,
       "slot": "kitchen",
       "upgrade": "gas-range"
     },
     {
       "kind": "clearing",
-      "charged": {
-        "hardware": 0,
-        "labor": 2
-      },
       "orderedOnTurn": 3,
       "slot": "front-yard"
     }
@@ -251,11 +239,32 @@
       }
     },
     {
+      "turn": 2,
+      "phase": "management",
+      "at": "2026-08-31T20:02:41.000Z",
+      "event": {
+        "kind": "horde-checked",
+        "roll": 9,
+        "siege": true,
+        "threat": 7
+      }
+    },
+    {
       "turn": 3,
       "phase": "mission",
       "at": "2026-09-01T18:40:00.000Z",
       "event": {
         "kind": "turn-began"
+      }
+    },
+    {
+      "turn": 3,
+      "phase": "mission",
+      "at": "2026-09-01T18:47:15.000Z",
+      "event": {
+        "kind": "siege-defense-resolved",
+        "survivorsExited": 1,
+        "zombiesLeft": 0
       }
     },
     {

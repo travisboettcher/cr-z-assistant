@@ -19,7 +19,7 @@
 import { MATERIALS, type Material } from '../data/materials';
 import { articleForNumber, withArticle } from './articles';
 import { FIRST_TURN } from '../engine/siege';
-import { XP_SOURCE_PAGES, type HealthSource, type XpSource } from '../data/turn';
+import { SIEGE_TRIGGER, XP_SOURCE_PAGES, type HealthSource, type XpSource } from '../data/turn';
 import type { CampaignEvent, LogEntry } from '../engine/log';
 import {
   BASE_LABELS,
@@ -30,6 +30,7 @@ import {
   UPGRADE_LABELS,
   slotLabel,
 } from './baseLabels';
+import { describeOutcome, MISSION_PAGES } from './missionLabels';
 import { PHASE_LABELS } from './turnLabels';
 import { COMMON_SKILL_LABELS, SKILL_LABELS } from './skillLabels';
 import { TIER_LABELS } from './tierLabels';
@@ -263,10 +264,21 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
     case 'horde-checked':
       return {
         text: event.siege
-          ? `The horde came: ${articleForNumber(event.roll)} ${String(event.roll)} against a Siege Threat of ${String(event.threat)}. Next turn is a Siege Defense.`
+          ? `The horde came: ${articleForNumber(event.roll)} ${String(event.roll)} against a Siege Threat of ${String(event.threat)}. Next turn is a Siege Defense.${
+              // Only a Thin the Herd that put everybody down brings it on a
+              // roll that falls short (pg. 81), and the entry already says
+              // how short — so the reason is read off the two numbers.
+              event.roll + event.threat < SIEGE_TRIGGER
+                ? ' It came on its own, after the Thin the Herd.'
+                : ''
+            }`
           : `The horde stayed away: ${articleForNumber(event.roll)} ${String(event.roll)} against a Siege Threat of ${String(event.threat)}.`,
         pages: 23,
       };
+
+    case 'siege-defense-resolved':
+    case 'thin-the-herd-resolved':
+      return { text: describeOutcome(event), pages: MISSION_PAGES[event.kind] };
 
     case 'health-restored':
       return {

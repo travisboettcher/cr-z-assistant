@@ -70,7 +70,7 @@ describe('Feed your Survivors', () => {
   });
 
   /**
-   * Ruling 1, on the screen: two survivors absorb a shortfall of two, and the
+   * R1, on the screen: two survivors absorb a shortfall of two, and the
    * third point is the one that costs everybody a stat.
    */
   it('names the head count as the threshold the penalty starts at', () => {
@@ -644,6 +644,35 @@ describe('Check the Horde', () => {
     await user.click(within(walk()).getByRole('button', { name: /check the horde/i }));
 
     expect(walk().textContent).toContain('The horde stayed away');
+  });
+
+  /** pg. 81: everybody down on Thin the Herd, and the next roll cannot miss. */
+  it('calls the siege on any roll after a Thin the Herd that put everybody down', async () => {
+    const user = open(
+      onTheStep({
+        log: [
+          {
+            turn: 3,
+            phase: 'mission',
+            at: '2026-09-12T09:00:00.000Z',
+            event: {
+              kind: 'thin-the-herd-resolved',
+              startingZombies: 8,
+              zombiesLeft: 6,
+              survivorsExited: 0,
+              allIncapacitated: true,
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(walk().textContent).toContain('this roll succeeds whatever it comes to');
+    expect(walk().textContent).toContain('The horde comes regardless');
+
+    await user.click(within(walk()).getByRole('button', { name: /check the horde/i }));
+
+    expect(walk().textContent).toContain('Next turn’s mission is a Siege Defense');
   });
 });
 

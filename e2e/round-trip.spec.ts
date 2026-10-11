@@ -1631,7 +1631,7 @@ test('a hungry community rolls worse everywhere, and nothing is written down', a
   await page.getByLabel(/^food$/i).fill('0');
 
   // Three Heroes eat six a turn (pg. 22). With empty stores that is a shortfall
-  // of six against a head count of three: a penalty of three (ruling 1).
+  // of six against a head count of three: a penalty of three (R1).
   for (const name of ['Nell Haig', 'Tomas Ford', 'Ada Poole']) {
     await page.getByLabel(/survivor name/i).fill(name);
     await page.getByLabel(/^tier$/i).selectOption('4');
@@ -1750,7 +1750,7 @@ test('a turn ends with the horde called and somebody walking out', async ({ page
   await page.getByRole('button', { name: 'Next: Feed your Survivors' }).click();
 
   // Eight Rookies eat eight and there is nothing, so eight Hunger — and the
-  // head count absorbs all of it, so no stat penalty (ruling 1).
+  // head count absorbs all of it, so no stat penalty (R1).
   await expect(walk).toContainText('8 Hunger');
   await expect(walk).toContainText('large enough to absorb it');
   await walk.getByRole('button', { name: /feed the community/i }).click();
@@ -1824,6 +1824,30 @@ test('a turn ends with the horde called and somebody walking out', async ({ page
     'This turn’s mission is a Siege Defense',
   );
 
+  /*
+   * R16 (pp. 81, 86): playing the siege resets nothing on its own — how it
+   * ended does. The table counts, the app says what the counts do, and the
+   * outcome is the record the turns since the last siege are read from.
+   */
+  const turnTwo = page.getByRole('region', { name: 'Turn 2' });
+  await turnTwo.getByRole('button', { name: 'Next: Equip the Mission Team' }).click();
+  await turnTwo.getByRole('button', { name: 'Next: Play the Mission' }).click();
+
+  const record = turnTwo.getByRole('button', { name: 'Record the Siege Defense' });
+  await expect(record).toBeDisabled();
+  await turnTwo.getByLabel('zombies left on the mission area').fill('0');
+  await turnTwo.getByLabel('survivors out over the map edge').fill('1');
+  await expect(turnTwo).toContainText('The turns since the last siege go back to 0.');
+  await record.click();
+  await expect(turnTwo).toContainText('Siege Defense: 0 zombies left, 1 survivor out');
+
+  const defended = JSON.parse((await exportCampaign(page)).text) as {
+    log: { turn: number; event: { kind: string } }[];
+  };
+  expect(
+    defended.log.filter((entry) => entry.event.kind === 'siege-defense-resolved'),
+  ).toMatchObject([{ turn: 2, event: { zombiesLeft: 0, survivorsExited: 1 } }]);
+
   await startFreshCampaign(page, 'Millbrook');
   await page.setInputFiles('input[type="file"]', exported.path);
   await page.getByRole('button', { name: /replace it/i }).click();
@@ -1890,10 +1914,17 @@ test('a turn’s Labor is a budget, and the queue survives the round trip', asyn
   await expect(page.getByLabel(/^hardware$/i)).toHaveValue('9');
 
   // The queue is stored, so it survives a reload with the turn it was ordered
-  // on — which is what says when it is due.
+  // on — which is what says when it is due — and what it was charged, which is
+  // what a cancellation hands back however the queue has moved since (#165).
   const queued = await exportCampaign(page);
   expect(JSON.parse(queued.text).projects).toEqual([
-    { kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 1 },
+    {
+      kind: 'facility',
+      slot: 'garage',
+      facility: 'workshop',
+      orderedOnTurn: 1,
+      charged: { hardware: 3, labor: 2 },
+    },
   ]);
 
   await waitForAutosave(page, 'Cedar Hollow');
@@ -1930,7 +1961,7 @@ test('a turn’s Labor is a budget, and the queue survives the round trip', asyn
   await expect(history).toContainText('Ordered a Workshop for the Garage');
   await expect(history).toContainText('Built a Workshop in the Garage');
   await expect(history).toContainText(
-    'Cancelled the Watchtower on the Front Yard — 3 Hardware came back',
+    'Cancelled the Watchtower in the Front Yard — 3 Hardware came back',
   );
 
   const exported = await exportCampaign(page);

@@ -112,6 +112,8 @@ describe('the event samples', () => {
     'project-cancelled': true,
     'project-unfinished': true,
     'horde-checked': true,
+    'siege-defense-resolved': true,
+    'thin-the-herd-resolved': true,
     'survivor-added': true,
     'survivor-recruited': true,
     'survivor-left': true,

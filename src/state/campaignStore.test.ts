@@ -2448,6 +2448,28 @@ describe('what earns a line in the log', () => {
       action: { type: 'management/hordeChecked', at: AT, roll: 9 },
       entry: entry(3, 'mission', { kind: 'horde-checked', roll: 9, threat: 2, siege: false }),
     },
+    'mission/resolved': {
+      // `rich()` stands on Play the Mission of turn 3 with no siege called, so
+      // its mission may be a Thin the Herd.
+      action: {
+        type: 'mission/resolved',
+        at: AT,
+        outcome: {
+          kind: 'thin-the-herd-resolved',
+          startingZombies: 8,
+          zombiesLeft: 0,
+          survivorsExited: 2,
+          allIncapacitated: false,
+        },
+      },
+      entry: entry(3, 'mission', {
+        kind: 'thin-the-herd-resolved',
+        startingZombies: 8,
+        zombiesLeft: 0,
+        survivorsExited: 2,
+        allIncapacitated: false,
+      }),
+    },
     'management/departed': {
       // Six Exhaustion with no base to sleep in is six Unrest, which with two
       // turns of quiet is over the threshold of ten.
@@ -3279,5 +3301,85 @@ describe('a siege turn beginning', () => {
     expect(
       expectOpen(state).log.filter((entry) => entry.event.kind === 'siege-fought'),
     ).toHaveLength(1);
+  });
+});
+
+/**
+ * R16 (pp. 81, 86): a mission's outcome is what moves the turns since the
+ * last siege, and the reducer is where an outcome becomes a record.
+ */
+describe('mission/resolved', () => {
+  const called: LogEntry = entry(3, 'management', {
+    kind: 'horde-checked',
+    roll: 9,
+    threat: 8,
+    siege: true,
+  });
+
+  /** Turn 4, standing on Play the Mission, with the siege turn 3 called. */
+  const besieged = () =>
+    openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      turn: 4,
+      step: 'tactical-mission',
+      log: [called],
+    });
+
+  const resolve = (zombiesLeft: number): CampaignAction => ({
+    type: 'mission/resolved',
+    at: AT,
+    outcome: { kind: 'siege-defense-resolved', zombiesLeft, survivorsExited: 1 },
+  });
+
+  it('writes the outcome as it was counted, and nothing else', () => {
+    const after = expectOpen(campaignReducer(besieged(), resolve(0)));
+
+    expect(after.log.at(-1)).toEqual(
+      entry(4, 'mission', { kind: 'siege-defense-resolved', zombiesLeft: 0, survivorsExited: 1 }),
+    );
+    expect({ ...after, log: [] }).toEqual({ ...expectOpen(besieged()), log: [] });
+  });
+
+  it('refuses what the engine says cannot be recorded — here, a second outcome', () => {
+    const once = campaignReducer(besieged(), resolve(2));
+
+    expect(campaignReducer(once, resolve(0))).toEqual(once);
+  });
+});
+
+/** The other half of pg. 81: everybody down on Thin the Herd brings the horde. */
+describe('management/hordeChecked after a Thin the Herd that went badly', () => {
+  const herd = (allIncapacitated: boolean) =>
+    openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      turn: 3,
+      step: 'check-the-horde',
+      log: [
+        entry(3, 'mission', {
+          kind: 'thin-the-herd-resolved',
+          startingZombies: 8,
+          zombiesLeft: 6,
+          survivorsExited: 0,
+          allIncapacitated,
+        }),
+      ],
+    });
+
+  const check: CampaignAction = { type: 'management/hordeChecked', at: AT, roll: 1 };
+
+  it('calls the siege whatever the roll', () => {
+    // A 1 against a threat of 2 is nowhere near sixteen.
+    expect(expectOpen(campaignReducer(herd(true), check)).log.at(-1)?.event).toEqual({
+      kind: 'horde-checked',
+      roll: 1,
+      threat: 2,
+      siege: true,
+    });
+  });
+
+  it('leaves the roll to decide when somebody stayed up', () => {
+    expect(expectOpen(campaignReducer(herd(false), check)).log.at(-1)?.event).toMatchObject({
+      siege: false,
+    });
   });
 });

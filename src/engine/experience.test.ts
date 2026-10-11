@@ -246,7 +246,7 @@ describe('xpPools', () => {
   });
 
   /**
-   * Ruling 7, and the turn it describes: a Teacher whose Score is 0 replaces
+   * R8, and the turn it describes: a Teacher whose Score is 0 replaces
    * the discretionary point and hands out none, so the mission awards nothing
    * beyond its one-each. The arithmetic asked the Score and the message said
    * the sentence above, so the point stayed standing under a line saying it

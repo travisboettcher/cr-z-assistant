@@ -159,7 +159,7 @@ describe('hunger', () => {
 
 describe('the hunger penalty', () => {
   /**
-   * Ruling 1: a starvation threshold, not a tax. The community absorbs a
+   * R1: a starvation threshold, not a tax. The community absorbs a
    * shortfall up to its head count and every point past that costs a stat.
    */
   it('fires only once the shortfall passes the head count', () => {

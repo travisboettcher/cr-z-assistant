@@ -38,7 +38,7 @@ import { healthAwards, woundsHealed } from './healing';
 import { materialsAdded } from './materials';
 import { dueProjects, laborShortfall } from './projects';
 import { mustCheck, rotCheckResolved } from './rot';
-import { hordeChecked } from './siege';
+import { hordeChecked, missionResolved, siegeDue } from './siege';
 import { anythingOverCap, storageChecked } from './storage';
 import { someoneDeparted, someoneIsLeaving } from './departures';
 
@@ -73,6 +73,15 @@ function rotOutstanding(campaign: Campaign): boolean {
  */
 export function outstanding(campaign: Campaign): readonly Outstanding[] {
   const owed: Outstanding[] = [];
+
+  // Only the siege, because it is the only mission the app knows was played:
+  // the horde called it. A Thin the Herd is the player's choice and recorded
+  // when it was one. An unrecorded siege leaves the turns since the last siege
+  // counting, which is the right answer for one that left zombies standing and
+  // the wrong one for one that did not (pg. 86).
+  if (siegeDue(campaign) && !missionResolved(campaign)) {
+    owed.push({ step: 'tactical-mission', says: 'The Siege Defense’s outcome is not recorded.' });
+  }
 
   if (projectsOutstanding(campaign)) {
     owed.push({

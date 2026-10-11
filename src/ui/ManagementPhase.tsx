@@ -39,6 +39,7 @@ import { missionTeam, missionTeamReduced } from '../engine/assignments';
 import {
   hordeCame,
   hordeChecked,
+  hordeForced,
   siegeThreat,
   siegeThreatTerms,
   siegeTriggered,
@@ -568,6 +569,7 @@ function CheckTheHorde({ campaign }: { readonly campaign: Campaign }) {
   const terms = siegeThreatTerms(campaign);
   const threat = siegeThreat(campaign);
   const unskilled = towersWithoutTheSkill(campaign);
+  const forced = hordeForced(campaign);
 
   return (
     <>
@@ -629,10 +631,19 @@ function CheckTheHorde({ campaign }: { readonly campaign: Campaign }) {
             </select>
           </div>
 
+          {forced && (
+            <p className="mt-2 text-sm font-medium text-amber-800 dark:text-amber-300">
+              Everybody went down on the last Thin the Herd, so this roll succeeds whatever it comes
+              to <PageRef pages={81} />
+            </p>
+          )}
+
           <p className={`mt-2 ${HINT}`}>
-            {siegeTriggered(roll, threat)
-              ? `${roll} + ${threat} is ${roll + threat}. The horde comes.`
-              : `${roll} + ${threat} is ${roll + threat}. Not this turn.`}
+            {forced
+              ? `${roll} + ${threat} is ${roll + threat}. The horde comes regardless.`
+              : siegeTriggered(roll, threat)
+                ? `${roll} + ${threat} is ${roll + threat}. The horde comes.`
+                : `${roll} + ${threat} is ${roll + threat}. Not this turn.`}
           </p>
 
           <button

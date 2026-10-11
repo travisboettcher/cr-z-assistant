@@ -83,6 +83,25 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   // A base built for defence can drive the threat below zero (pg. 73), so the
   // validator has to accept a negative where no count would.
   { kind: 'horde-checked', roll: 10, threat: -3, siege: false },
+  // Called on a roll that fell short: a Thin the Herd that put everybody down
+  // makes the next roll succeed on its own (pg. 81).
+  { kind: 'horde-checked', roll: 2, threat: 4, siege: true },
+  { kind: 'siege-defense-resolved', zombiesLeft: 0, survivorsExited: 2 },
+  { kind: 'siege-defense-resolved', zombiesLeft: 3, survivorsExited: 1 },
+  {
+    kind: 'thin-the-herd-resolved',
+    startingZombies: 8,
+    zombiesLeft: 3,
+    survivorsExited: 1,
+    allIncapacitated: false,
+  },
+  {
+    kind: 'thin-the-herd-resolved',
+    startingZombies: 8,
+    zombiesLeft: 6,
+    survivorsExited: 0,
+    allIncapacitated: true,
+  },
   { kind: 'survivor-added', ...SURVIVOR, tier: 3 },
   { kind: 'survivor-recruited', ...SURVIVOR, tier: 2, roll: 6 },
   { kind: 'survivor-left', ...SURVIVOR, tier: 1 },
