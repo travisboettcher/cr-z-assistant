@@ -20,7 +20,7 @@
 
 import { MATERIALS, type Material } from '../data/materials';
 import { clearingProject, layoutOf } from './base';
-import { laborRefusal, queuedKindFor } from './projects';
+import { laborRefusal, queuedKindFor, type Pricing } from './projects';
 import type { Check, Violation } from './checks';
 import type { Campaign } from './campaign';
 
@@ -41,8 +41,17 @@ export interface ClearingRequest {
   /** Labor available this turn, entered by hand — see `build.ts`. */
 }
 
-/** Everything wrong with clearing this slot, or two empty lists. */
-export function checkClearing(campaign: Campaign, request: ClearingRequest): ClearingCheck {
+/**
+ * Everything wrong with clearing this slot, or two empty lists.
+ *
+ * Priced against this turn's Labor, or against `pricing`'s pool when a caller
+ * names one — see `Pricing` in `projects.ts`.
+ */
+export function checkClearing(
+  campaign: Campaign,
+  request: ClearingRequest,
+  pricing?: Pricing,
+): ClearingCheck {
   const base = campaign.base;
 
   if (base === null) {
@@ -101,7 +110,7 @@ export function checkClearing(campaign: Campaign, request: ClearingRequest): Cle
     };
   }
 
-  const labor = laborRefusal(campaign, slot.labor, 54);
+  const labor = laborRefusal(campaign, slot.labor, 54, pricing);
 
   if (labor !== undefined) return { blockers: [labor], warnings: [] };
 

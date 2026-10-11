@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { createNewCampaign, type Campaign, type Project } from './campaign';
-import { builtEvent, checkOrder, orderedEvent } from './orders';
+import { createNewCampaign, type Campaign, type Project, type ProjectOrder } from './campaign';
+import { builtEvent, builtOf, checkOrder, orderedEvent, orderOptions } from './orders';
 import { permitted } from './checks';
 import type { TurnStepId } from '../data/turn';
+import { layoutOf } from './base';
+import { buildableFacilities } from './build';
+import { upgradesFor } from './upgrade';
 import { cancellable, orderable, withProjectOrdered } from './projects';
 import { projectTeamWorth, withPlanningBegun } from '../test/campaigns';
 import { queued } from '../test/queued';
@@ -77,7 +80,6 @@ describe('checkOrder', () => {
       kind: 'facility',
       slot: 'kitchen',
       facility: 'garden',
-      orderedOnTurn: 3,
     });
 
     expect(check.warnings.map((warning) => warning.code)).toContain('wrong-slot-kind');
@@ -281,5 +283,236 @@ describe('when an order may be placed', () => {
     const standing = { ...one, step };
 
     expect(cancellable(standing, 0)).toBe(orderable(standing));
+  });
+});
+
+/**
+ * The same community before its Planning Phase: standing in this turn's
+ * Advancement Phase with last turn's project team still on the record and no
+ * `planning-began` entry for this turn. What #188 is about is asking this
+ * campaign what the Planning Phase to come could afford, without faking one.
+ */
+function advancing(overrides: Partial<Campaign> = {}): Campaign {
+  return {
+    ...createNewCampaign('Cedar Hollow', FIXED),
+    turn: 3,
+    step: 'add-facilities-and-upgrades',
+    materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+    base: { id: 'hobby-farm', slots: {} },
+    ...projectTeamWorth(6),
+    ...overrides,
+  };
+}
+
+/** The orders offered for one slot, without their checks. */
+function offeredFor(campaign: Campaign, slot: string): readonly ProjectOrder[] {
+  return orderOptions(campaign)
+    .map((option) => option.order)
+    .filter((order) => order.slot === slot);
+}
+
+/**
+ * **#188.** The walk the slot map does — `layoutOf`, then each card's picker —
+ * as one engine call, so "what could this base build?" is not a fourth copy of
+ * it. Each branch is pinned against the function the screen's picker reads,
+ * so the two cannot drift apart without one of these failing.
+ */
+describe('orderOptions', () => {
+  it('offers every facility the build picker offers for an empty slot', () => {
+    const campaign = community();
+
+    expect(offeredFor(campaign, 'front-yard')).toEqual(
+      buildableFacilities(campaign).map((facility) => ({
+        kind: 'facility',
+        slot: 'front-yard',
+        facility: facility.id,
+      })),
+    );
+  });
+
+  it('offers the upgrades a standing facility has, and no facility for its slot', () => {
+    const campaign = community({
+      base: {
+        id: 'hobby-farm',
+        slots: { 'back-yard': { built: { facility: 'garden', builtOnTurn: 1 } } },
+      },
+    });
+
+    for (const slot of ['kitchen', 'back-yard']) {
+      expect(offeredFor(campaign, slot)).toEqual(
+        upgradesFor(campaign, slot).map((upgrade) => ({
+          kind: 'upgrade',
+          slot,
+          upgrade: upgrade.id,
+        })),
+      );
+    }
+
+    expect(offeredFor(campaign, 'back-yard').length).toBeGreaterThan(0);
+  });
+
+  it('offers to clear rubble, and to build once it has been cleared', () => {
+    expect(offeredFor(community(), 'ruined-chicken-coop')).toEqual([
+      { kind: 'clearing', slot: 'ruined-chicken-coop' },
+    ]);
+
+    const cleared = community({
+      base: { id: 'hobby-farm', slots: { 'ruined-chicken-coop': { cleared: true } } },
+    });
+
+    expect(offeredFor(cleared, 'ruined-chicken-coop')).toEqual(
+      offeredFor(cleared, 'front-yard').map((order) => ({ ...order, slot: 'ruined-chicken-coop' })),
+    );
+  });
+
+  it('walks the slots in the order the layout lists them', () => {
+    const slots = orderOptions(community()).map((option) => option.order.slot);
+
+    expect([...new Set(slots)]).toEqual(
+      layoutOf({ id: 'hobby-farm', slots: {} }).map((slot) => slot.id),
+    );
+  });
+
+  it('puts every option to checkOrder, and lists the refused ones', () => {
+    const poor = community({ materials: { food: 0, fuel: 0, hardware: 0, rare: 0 } });
+    const options = orderOptions(poor);
+
+    for (const { order, check } of options) {
+      expect(check).toEqual(checkOrder(poor, order));
+    }
+
+    const workshop = options.find(
+      ({ order }) =>
+        order.kind === 'facility' && order.slot === 'front-yard' && order.facility === 'workshop',
+    );
+
+    expect(workshop?.check.blockers.map((blocker) => blocker.code)).toEqual([
+      'not-enough-hardware',
+    ]);
+  });
+
+  it('offers nothing to a community with no base', () => {
+    expect(orderOptions(community({ base: null }))).toEqual([]);
+  });
+
+  /**
+   * R14 is the phase's refusal, not a reason to offer less: the list is the
+   * same list, and every entry on it says why it cannot be placed here.
+   */
+  it('lists the same orders outside the Planning Phase, each refused by R14 alone', () => {
+    const late = orderOptions(advancing());
+
+    expect(late.map((option) => option.order)).toEqual(
+      orderOptions(community()).map((option) => option.order),
+    );
+
+    for (const { check } of late) {
+      expect(check.blockers.map((blocker) => blocker.code)).toEqual(['outside-the-planning-phase']);
+      expect(check.warnings).toEqual([]);
+    }
+  });
+
+  it('prices every option against a Labor the caller names', () => {
+    const priced = orderOptions(advancing(), { labor: 2 });
+
+    for (const { order, check } of priced) {
+      expect(check).toEqual(checkOrder(advancing(), order, { labor: 2 }));
+      expect(check.blockers.map((blocker) => blocker.code)).not.toContain(
+        'outside-the-planning-phase',
+      );
+    }
+
+    const refusals = (upgrade: string) =>
+      priced
+        .find(({ order }) => order.kind === 'upgrade' && order.upgrade === upgrade)
+        ?.check.blockers.map((blocker) => blocker.code);
+
+    // A Gas Range costs 1 Labor and a Biofuel Lab 3, against 2.
+    expect(refusals('gas-range')).toEqual([]);
+    expect(refusals('biofuel-lab')).toEqual(['not-enough-labor']);
+  });
+});
+
+/**
+ * **#188.** `checkOrder` answered only about now: it refuses outside the
+ * Planning Phase, and it prices Labor only once a `planning-began` entry
+ * exists. A caller naming its own pool is asking a different question — what
+ * this order costs against that much Labor — and both *now* parts give way.
+ */
+describe('checkOrder, priced against a given Labor', () => {
+  it('quotes an order from the Advancement Phase without faking a Planning Phase', () => {
+    // Unpriced, the phase answers first and alone, exactly as before.
+    expect(checkOrder(advancing(), WORKSHOP).blockers.map((one) => one.code)).toEqual([
+      'outside-the-planning-phase',
+    ]);
+
+    expect(checkOrder(advancing(), WORKSHOP, { labor: 2 }).blockers).toEqual([]);
+    expect(checkOrder(advancing(), WORKSHOP, { labor: 1 }).blockers).toEqual([
+      { code: 'not-enough-labor', message: 'Costs 2 Labor and 1 is available.', pages: '72–73' },
+    ]);
+  });
+
+  it('replaces the team’s pool, in the Planning Phase as well', () => {
+    expect(checkOrder(community(), WORKSHOP, { labor: 1 }).blockers.map((one) => one.code)).toEqual(
+      ['not-enough-labor'],
+    );
+    expect(
+      checkOrder(community({ ...projectTeamWorth(0) }), WORKSHOP, { labor: 2 }).blockers,
+    ).toEqual([]);
+  });
+
+  /**
+   * The pool, not what is left of it: the queue's commitments are arithmetic
+   * over the queue and still count, so a second order is measured by what the
+   * first one left whoever named the pool (Z3-11).
+   */
+  it('still subtracts what this turn’s orders have committed', () => {
+    const ordered = withProjectOrdered(community(), WORKSHOP);
+    const second = { ...WORKSHOP, slot: 'back-yard' };
+
+    expect(checkOrder(ordered, second, { labor: 3 }).blockers).toEqual([
+      { code: 'not-enough-labor', message: 'Costs 2 Labor and 1 is available.', pages: '72–73' },
+    ]);
+    expect(checkOrder(ordered, second, { labor: 4 }).blockers).toEqual([]);
+  });
+
+  it('never says the team is not assigned yet, because the caller named one', () => {
+    const unassigned = advancing({ step: 'assign-project-team' });
+    const [unpriced] = checkOrder(unassigned, WORKSHOP).blockers;
+
+    expect(unpriced?.code).toBe('not-enough-labor');
+    expect(unpriced?.message).toContain('Planning Phase');
+
+    expect(checkOrder(unassigned, WORKSHOP, { labor: 0 }).blockers).toEqual([
+      { code: 'not-enough-labor', message: 'Costs 2 Labor and 0 is available.', pages: '72–73' },
+    ]);
+  });
+
+  it('asks everything else of the campaign as it stands', () => {
+    const poor = advancing({ materials: { food: 0, fuel: 0, hardware: 0, rare: 0 } });
+
+    expect(checkOrder(poor, WORKSHOP, { labor: 10 }).blockers.map((one) => one.code)).toEqual([
+      'not-enough-hardware',
+    ]);
+    expect(checkOrder(advancing(), COOP, { labor: 1 }).blockers.map((one) => one.code)).toEqual([
+      'not-enough-labor',
+    ]);
+
+    const intoTheKitchen: ProjectOrder = { kind: 'facility', slot: 'kitchen', facility: 'garden' };
+
+    expect(
+      checkOrder(advancing(), intoTheKitchen, { labor: 10 }).blockers.map((one) => one.code),
+    ).toEqual(['slot-occupied']);
+  });
+});
+
+describe('builtOf', () => {
+  it('names what a facility or an upgrade was, and nothing for a clearing', () => {
+    expect(builtOf(WORKSHOP)).toEqual({ built: 'workshop' });
+    expect(builtOf(GAS_RANGE)).toEqual({ built: 'gas-range' });
+
+    // Absent rather than `undefined`, which `exactOptionalPropertyTypes` tells
+    // apart and the log's entries are written against.
+    expect('built' in builtOf(COOP)).toBe(false);
   });
 });
