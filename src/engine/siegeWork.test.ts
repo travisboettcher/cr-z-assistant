@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Assignment, type Campaign, type Survivor } from './campaign';
 import type { LogEntry } from './log';
 import { createSurvivor } from './survivor';
-import { fellInTheSiege, projectTeamThatWorked, siegeDefended, whoWorked } from './siegeWork';
+import {
+  fellInTheSiege,
+  projectTeamThatWorked,
+  siegeDefended,
+  standInCandidates,
+  standInProblem,
+  standIns,
+  whoWorked,
+} from './siegeWork';
 import { baseProduction } from './materials';
 import { healingPool } from './healing';
 import { deployed } from './siege';
@@ -196,5 +204,180 @@ describe('projectTeamThatWorked', () => {
 
   it('leaves the team on the campaign alone', () => {
     expect(ids(projectTeam(besieged(undefined, [MASON])))).toEqual([MASON]);
+  });
+});
+
+/**
+ * Because no ordinary mission went out, the mission team's fit survivors may
+ * substitute for the siege's casualties (pg. 23, the FAQ; #183) — one each,
+ * into the casualty's own place.
+ */
+describe('stand-ins', () => {
+  const BAKER = 'baker';
+
+  /** `besieged`, with a second cook on the mission team as well as the scout. */
+  function withABaker(log?: readonly LogEntry[], hurt: readonly string[] = []): Campaign {
+    const campaign = besieged(log, hurt);
+    const baker = skilled('Iris Bell', BAKER, 'rationing');
+
+    return {
+      ...campaign,
+      step: 'tactical-mission',
+      survivors: [...campaign.survivors, hurt.includes(BAKER) ? { ...baker, currentHp: 0 } : baker],
+      assignments: { ...campaign.assignments, [BAKER]: { task: 'mission', team: 1 } },
+    };
+  }
+
+  const stoodIn = (place: string, by?: string): LogEntry => ({
+    turn: 4,
+    phase: 'mission',
+    at: AT,
+    event:
+      by === undefined
+        ? { kind: 'stood-in', survivor: place, name: place }
+        : { kind: 'stood-in', survivor: place, name: place, by, byName: by },
+  });
+
+  const choosing = (campaign: Campaign, ...entries: readonly LogEntry[]): Campaign => ({
+    ...campaign,
+    log: [...campaign.log, ...entries],
+  });
+
+  describe('standInCandidates', () => {
+    it('is the mission team the siege displaced, less anybody it left at 0 Health', () => {
+      expect(ids(standInCandidates(withABaker()))).toEqual([SCOUT, BAKER]);
+      expect(ids(standInCandidates(withABaker(undefined, [BAKER])))).toEqual([SCOUT]);
+    });
+
+    it('is nobody before the siege is recorded', () => {
+      expect(standInCandidates(withABaker([called]))).toEqual([]);
+    });
+  });
+
+  describe('standIns', () => {
+    it('reads the latest choice for each place', () => {
+      const campaign = choosing(
+        withABaker(undefined, [COOK]),
+        stoodIn(COOK, SCOUT),
+        stoodIn(COOK, BAKER),
+      );
+
+      expect(standIns(campaign).get(COOK)?.id).toBe(BAKER);
+    });
+
+    it('lets a place be left empty again', () => {
+      const campaign = choosing(withABaker(undefined, [COOK]), stoodIn(COOK, BAKER), stoodIn(COOK));
+
+      expect(standIns(campaign).size).toBe(0);
+    });
+
+    /**
+     * Checked against the campaign as it is now: a casualty whose Health is
+     * corrected back up has no place to fill, and a stand-in who is hurt
+     * cannot fill one.
+     */
+    it('drops a choice the roster no longer supports', () => {
+      const chosen = choosing(withABaker(undefined, [COOK]), stoodIn(COOK, BAKER));
+
+      // The cook's Health corrected back up: no place to fill.
+      expect(standIns({ ...chosen, survivors: withABaker().survivors }).size).toBe(0);
+      expect(
+        standIns(choosing(withABaker(undefined, [COOK, BAKER]), stoodIn(COOK, BAKER))).size,
+      ).toBe(0);
+    });
+
+    it('is only this turn’s', () => {
+      const lastTurns = { ...stoodIn(COOK, BAKER), turn: 3 };
+
+      expect(standIns(choosing(withABaker(undefined, [COOK]), lastTurns)).size).toBe(0);
+    });
+
+    it('gives one survivor one place, the first chosen', () => {
+      const campaign = choosing(
+        withABaker(undefined, [COOK, MASON]),
+        stoodIn(COOK, BAKER),
+        stoodIn(MASON, BAKER),
+      );
+
+      expect([...standIns(campaign).keys()]).toEqual([COOK]);
+    });
+  });
+
+  describe('the work a stand-in does', () => {
+    /** The Kitchen's 2 Food is back, from the baker's own Rationing. */
+    it('puts their skills in the casualty’s facility', () => {
+      const campaign = choosing(withABaker(undefined, [COOK]), stoodIn(COOK, BAKER));
+
+      expect(baseProduction(campaign).food).toBe(4);
+    });
+
+    it('brings their own skills rather than the casualty’s', () => {
+      // The scout has no Rationing, so the Kitchen makes nothing with them in it.
+      const campaign = choosing(withABaker(undefined, [COOK]), stoodIn(COOK, SCOUT));
+
+      expect(baseProduction(campaign).food).toBe(2);
+    });
+
+    it('puts their own Labor on the project team in the casualty’s place', () => {
+      const campaign = choosing(withABaker(undefined, [MASON]), stoodIn(MASON, SCOUT));
+
+      expect(ids(projectTeamThatWorked(campaign))).toEqual([SCOUT]);
+    });
+
+    it('takes their place only, so a facility nobody fell from is unchanged', () => {
+      const campaign = choosing(withABaker(undefined, [MASON]), stoodIn(MASON, BAKER));
+
+      expect(baseProduction(campaign).food).toBe(4);
+      expect(ids(projectTeamThatWorked(campaign))).toEqual([BAKER]);
+    });
+  });
+
+  describe('standInProblem', () => {
+    const fallen = () => withABaker(undefined, [COOK, MASON]);
+
+    it('accepts a fit mission-team survivor for a casualty', () => {
+      expect(standInProblem(fallen(), COOK, BAKER)).toBeNull();
+    });
+
+    it('is in the Mission Phase only', () => {
+      expect(standInProblem({ ...fallen(), step: 'heal-wounds' }, COOK, BAKER)).toMatch(
+        /Mission Phase/,
+      );
+    });
+
+    it('needs the siege recorded', () => {
+      expect(standInProblem(withABaker([called], [COOK]), COOK, BAKER)).toMatch(/recorded/);
+    });
+
+    it('needs a casualty to stand in for', () => {
+      expect(standInProblem(fallen(), MEDIC, BAKER)).toMatch(/took off their work/);
+    });
+
+    it('needs a fit survivor from the mission team', () => {
+      expect(standInProblem(fallen(), COOK, MEDIC)).toMatch(/mission team/);
+      expect(standInProblem(withABaker(undefined, [COOK, BAKER]), COOK, BAKER)).toMatch(
+        /mission team/,
+      );
+    });
+
+    it('fills one place per survivor', () => {
+      const chosen = choosing(fallen(), stoodIn(MASON, BAKER));
+
+      expect(standInProblem(chosen, COOK, BAKER)).toMatch(/somebody else/);
+    });
+
+    it('refuses a choice that changes nothing', () => {
+      expect(standInProblem(fallen(), COOK, undefined)).toMatch(/Nobody is standing in/);
+      expect(standInProblem(choosing(fallen(), stoodIn(COOK, BAKER)), COOK, BAKER)).toMatch(
+        /already/,
+      );
+    });
+
+    it('lets a choice be taken back or changed', () => {
+      const chosen = choosing(fallen(), stoodIn(COOK, BAKER));
+
+      expect(standInProblem(chosen, COOK, undefined)).toBeNull();
+      expect(standInProblem(chosen, COOK, SCOUT)).toBeNull();
+    });
   });
 });

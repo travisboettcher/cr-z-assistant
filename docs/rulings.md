@@ -395,6 +395,18 @@ recorded", for a survivor holding a work task.** Wounds reach the campaign throu
 correction that is deliberately not logged, so there is no record of *when* anybody went down. Read
 live, so correcting a survivor's Health on the roster puts them back to work.
 
+**A substitute takes one casualty's place.** Because no ordinary mission went out, the mission
+team's survivors who are not at 0 Health may substitute (pg. 23, the FAQ) — "the mission team"
+being the one the previous Planning Phase assigned to the mission the siege displaced. The book
+does not say whether a substitute fills a casualty's place or may be put to any work at all. The
+ruling is the first: "substitute" is standing in for somebody, so a stand-in takes exactly one
+casualty's task — their facility, or their seat on the project team — and brings their own Tier and
+Scores to it. A facility nobody fell from, or one that was never staffed, is not theirs to work.
+The choice is made in the Mission Phase once the outcome is recorded, before anything it changes
+has been settled, and kept in the log (`stood-in`) rather than in the assignments, because this
+turn's Planning Phase clears those and the Advancement Phase behind it still has to read who stood
+in. The latest entry for a casualty is the choice, so it can be changed or taken back.
+
 **The utilities a Station's staff generated stand.** They were generated and assigned at Planning
 Step 1, before the siege, and last until the next Planning Phase (pg. 20, 67) — the same reason a
 hunger penalty arriving later in a turn revokes no point (#169). Supply is worked out from the
@@ -407,4 +419,6 @@ not provable. Health entered before the outcome is recorded counts the same as H
 it. And a siege fought but not yet recorded takes nobody off work; the walk already names an
 unrecorded siege as outstanding. The mission's own pools — the Teaching on the mission and the
 substitutions a haul can be forced with — stay with everybody who fought, because the FAQ's sentence
-is about the base's work.
+is about the base's work. The one-for-one reading of a substitute is the narrower one: a table that
+reads the FAQ as freeing the mission team to work anywhere gets less from it here, and the
+widening would be `whoWorked` adding stand-ins to a post rather than swapping them into one.

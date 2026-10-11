@@ -94,14 +94,38 @@
  * haul can be forced with — stay with `deployed`. They are the mission's, and
  * the FAQ's sentence is about the base's work.
  *
+ * ## Stand-ins
+ *
+ * Because no ordinary mission went out, the mission team's survivors who are
+ * not at 0 Health may substitute, adding their Labor to projects or their
+ * skills to staff a facility (pg. 23, the FAQ). **A substitute takes one
+ * casualty's place** — their task, their slot — and that is the whole of the
+ * rule as this app reads it: "substitute" is standing in for somebody, not a
+ * second chance to assign the mission team anywhere. It keeps capacity right
+ * without a check, since a place can only hold the one survivor it held, and
+ * it leaves a facility nobody fell from exactly as the Planning Phase left it.
+ *
+ * What the substitute brings is their own: their Tier to the project team,
+ * their Scores to the facility. A Rookie standing in for a Hero is a Rookie's
+ * Labor, which is what "adding their Labor" says.
+ *
+ * Chosen in the Mission Phase, once the siege is recorded — before anything
+ * the Advancement Phase settles has been settled — and kept in the log
+ * (`stood-in`) rather than in `assignments`, because this turn's Planning
+ * Phase clears the assignments and the Advancement Phase behind it still has
+ * to read who stood in. Read live like the casualties: a stand-in for a
+ * survivor whose Health is corrected back above 0 simply has nobody to stand
+ * in for, and comes back off the post.
+ *
  * [R17](../../docs/rulings.md#r17--what-a-siege-defense-does-to-the-turns-work)
  * records the parts of this the book leaves open.
  *
  * Pure, like the rest of `src/engine`.
  */
 
-import { beforePlanning, projectTeam, survivorsDoing } from './assignments';
+import { beforePlanning, missionTeam, projectTeam, survivorsDoing } from './assignments';
 import type { Assignment, Campaign, Survivor } from './campaign';
+import { phaseOf } from './turn';
 
 /**
  * Whether this turn's Siege Defense has been played and its outcome recorded.
@@ -137,21 +161,30 @@ export function fellInTheSiege(campaign: Campaign): readonly Survivor[] {
 }
 
 /**
- * Who of these actually did the work the Advancement Phase is settling.
+ * Who of these actually did the work the Advancement Phase is settling: each
+ * casualty replaced by whoever stands in for them, or by nobody.
  *
  * Asked of a list a caller already has — one facility's `staffOf`, or the
  * project team — rather than of the campaign as a whole, because every caller
  * has already picked the occupant and resolved its capacity. Capacity is
- * applied first and the casualties taken out after, so a siege can only ever
- * leave a facility with fewer hands than it had: a second survivor assigned
- * over capacity does not step into a fallen one's seat on their own.
+ * applied first and the casualties swapped out after, so a siege can only
+ * ever leave a facility with as many hands as it had or fewer: a second
+ * survivor assigned over capacity does not step into a fallen one's seat on
+ * their own, and a stand-in takes exactly one.
  *
  * Everybody, unchanged, on any turn without a recorded siege.
  */
 export function whoWorked(campaign: Campaign, assigned: readonly Survivor[]): readonly Survivor[] {
   const fallen = new Set(fellInTheSiege(campaign).map((survivor) => survivor.id));
+  const standing = standIns(campaign);
 
-  return assigned.filter((survivor) => !fallen.has(survivor.id));
+  return assigned.flatMap((survivor) => {
+    if (!fallen.has(survivor.id)) return [survivor];
+
+    const standIn = standing.get(survivor.id);
+
+    return standIn === undefined ? [] : [standIn];
+  });
 }
 
 /**
@@ -160,4 +193,96 @@ export function whoWorked(campaign: Campaign, assigned: readonly Survivor[]): re
  */
 export function projectTeamThatWorked(campaign: Campaign): readonly Survivor[] {
   return whoWorked(campaign, projectTeam(beforePlanning(campaign)));
+}
+
+/**
+ * Who may stand in: the mission team the siege displaced, less anybody it
+ * left at 0 Health (pg. 23, the FAQ).
+ *
+ * The team the *previous* Planning Phase assigned, which is the one that would
+ * have gone out this turn — through `beforePlanning`, so it is still the
+ * answer once this turn's Planning has cleared it. Nobody on a turn without a
+ * recorded siege, because there is nothing to stand in for.
+ */
+export function standInCandidates(campaign: Campaign): readonly Survivor[] {
+  if (!siegeDefended(campaign)) return [];
+
+  return missionTeam(beforePlanning(campaign)).filter((survivor) => survivor.currentHp > 0);
+}
+
+/**
+ * Who stands in for whom this turn, by the casualty's id.
+ *
+ * The latest `stood-in` entry for each casualty is the choice, so choosing
+ * again is appending again. Each one is checked against the campaign as it is
+ * now rather than trusted: a casualty whose Health has been corrected back up
+ * has no place to fill, and a stand-in who has since been hurt, or taken off
+ * the mission team, cannot fill one. One survivor fills one place — if two
+ * entries ever name the same stand-in, the place chosen for first keeps them,
+ * which the screen cannot produce and a hand-edited save can.
+ */
+export function standIns(campaign: Campaign): ReadonlyMap<string, Survivor> {
+  const fallen = new Set(fellInTheSiege(campaign).map((survivor) => survivor.id));
+  const candidates = standInCandidates(campaign);
+
+  const latest = new Map<string, string | undefined>();
+  for (const entry of campaign.log) {
+    if (entry.turn === campaign.turn && entry.event.kind === 'stood-in') {
+      latest.set(entry.event.survivor, entry.event.by);
+    }
+  }
+
+  const chosen = new Map<string, Survivor>();
+  const taken = new Set<string>();
+
+  for (const [place, by] of latest) {
+    const standIn = candidates.find((candidate) => candidate.id === by);
+    if (!fallen.has(place) || standIn === undefined || taken.has(standIn.id)) continue;
+
+    taken.add(standIn.id);
+    chosen.set(place, standIn);
+  }
+
+  return chosen;
+}
+
+/**
+ * Why this stand-in cannot be chosen now, or `null` if it can.
+ *
+ * `by` of `undefined` is choosing nobody — leaving the place empty again.
+ *
+ * In the Mission Phase, once this turn's Siege Defense is recorded: the
+ * casualties are counted at the table then, and nothing they would have worked
+ * on has been settled yet. The casualty must be one, and the stand-in must be
+ * on the mission team, not at 0 Health, and not already filling another place.
+ * Choosing what is already chosen is refused too, so a press that changes
+ * nothing writes nothing.
+ */
+export function standInProblem(
+  campaign: Campaign,
+  place: string,
+  by: string | undefined,
+): string | null {
+  if (phaseOf(campaign.step) !== 'mission') {
+    return 'A stand-in is chosen in the Mission Phase, once the siege is recorded.';
+  }
+  if (!siegeDefended(campaign))
+    return 'Only a recorded Siege Defense leaves anybody to stand in for.';
+  if (!fellInTheSiege(campaign).some((survivor) => survivor.id === place)) {
+    return 'Only somebody the siege took off their work can be stood in for.';
+  }
+
+  const standing = standIns(campaign);
+  if (standing.get(place)?.id === by) {
+    return by === undefined ? 'Nobody is standing in already.' : 'They are standing in already.';
+  }
+  if (by === undefined) return null;
+
+  if (!standInCandidates(campaign).some((candidate) => candidate.id === by)) {
+    return 'Only somebody on the mission team who is not at 0 Health can stand in.';
+  }
+
+  return [...standing.values()].some((standIn) => standIn.id === by)
+    ? 'They are already standing in for somebody else.'
+    : null;
 }

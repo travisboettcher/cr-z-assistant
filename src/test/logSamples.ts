@@ -88,6 +88,9 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'horde-checked', roll: 2, threat: 4, siege: true },
   { kind: 'siege-defense-resolved', zombiesLeft: 0, survivorsExited: 2 },
   { kind: 'siege-defense-resolved', zombiesLeft: 3, survivorsExited: 1 },
+  { kind: 'stood-in', ...SURVIVOR, by: 'ruby', byName: 'Ruby Vance' },
+  // Nobody: the place left empty again, which is a choice the log keeps.
+  { kind: 'stood-in', ...SURVIVOR },
   {
     kind: 'thin-the-herd-resolved',
     startingZombies: 8,

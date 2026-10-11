@@ -126,3 +126,105 @@ describe('who still works on a siege turn (pg. 23, #183)', () => {
     expect(within(walk()).getByRole('button', { name: /finish the project/i })).toBeEnabled();
   });
 });
+
+/**
+ * No ordinary mission went out, so the mission team's fit survivors may take
+ * a casualty's place (pg. 23, the FAQ; #183).
+ */
+describe('standing in for a casualty of the siege', () => {
+  const MEDIC = 'medic';
+
+  /** `besieged`, with a second Veteran on the mission team. */
+  function withAMedic(overrides: Partial<Campaign> = {}, hurt: readonly string[] = []): Campaign {
+    const campaign = besieged(overrides, hurt);
+
+    return {
+      ...campaign,
+      survivors: [...campaign.survivors, createSurvivor('Ada Ferro', 3, { id: MEDIC })],
+      assignments: { ...campaign.assignments, [MEDIC]: { task: 'mission', team: 1 } },
+    };
+  }
+
+  it('offers the fit mission team, and nobody else, for each casualty', () => {
+    open(withAMedic({}, [COOK, MASON]));
+
+    const choice = within(panel()).getByLabelText(/standing in for nell haig/i);
+    const options = within(choice)
+      .getAllByRole('option')
+      .map((option) => option.textContent);
+
+    expect(options).toEqual(['Nobody', 'Ruby Vance', 'Ada Ferro']);
+  });
+
+  it('names the stand-in, and keeps one survivor to one place', async () => {
+    const user = open(withAMedic({}, [COOK, MASON]));
+
+    await user.selectOptions(
+      within(panel()).getByLabelText(/standing in for earl rhodes/i),
+      'Ada Ferro',
+    );
+
+    expect(panel().textContent).toContain(
+      'Earl Rhodes was on the project team, and Ada Ferro stands in.',
+    );
+    expect(
+      within(panel()).getByRole('option', { name: /ada ferro \(standing in for earl rhodes\)/i }),
+    ).toBeDisabled();
+  });
+
+  /**
+   * A Veteran's three Labor in the Veteran's place: the Workshop is paid for
+   * again, and lands.
+   */
+  it('pays for last turn’s orders with the stand-in’s Labor', async () => {
+    const user = open(withAMedic({}, [MASON]));
+    expect(panel().textContent).toContain('3 Labor short');
+
+    await user.selectOptions(
+      within(panel()).getByLabelText(/standing in for earl rhodes/i),
+      'Ada Ferro',
+    );
+
+    expect(panel().textContent).not.toContain('Labor short');
+  });
+
+  it('can be taken back', async () => {
+    const user = open(withAMedic({}, [MASON]));
+    const choice = () => within(panel()).getByLabelText(/standing in for earl rhodes/i);
+
+    await user.selectOptions(choice(), 'Ada Ferro');
+    await user.selectOptions(choice(), 'Nobody');
+
+    expect(panel().textContent).toContain('Earl Rhodes was on the project team, and works nothing');
+  });
+
+  it('is a record, not a choice, once the Mission Phase is over', () => {
+    open(
+      withAMedic(
+        {
+          step: 'character-advancement',
+          log: [
+            called,
+            defended,
+            {
+              turn: 4,
+              phase: 'mission',
+              at: AT,
+              event: {
+                kind: 'stood-in',
+                survivor: MASON,
+                name: 'Earl Rhodes',
+                by: MEDIC,
+                byName: 'Ada Ferro',
+              },
+            },
+          ],
+        },
+        [MASON],
+      ),
+    );
+
+    expect(panel().textContent).toContain('Ada Ferro stands in.');
+    expect(within(panel()).queryByRole('combobox')).toBeNull();
+  });
+});

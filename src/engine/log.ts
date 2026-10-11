@@ -399,6 +399,30 @@ export type CampaignEvent =
       readonly allIncapacitated: boolean;
     }
   /**
+   * A mission-team survivor took the place of a worker this turn's Siege
+   * Defense left at 0 Health — or, with nobody named, the place was left empty
+   * again (pg. 23, the FAQ's "Siege Defense and Labor"; #183).
+   *
+   * **The fallen worker is the subject**, because the entry is about their
+   * place: who fills it is the choice, and "nobody" is one of the answers. So
+   * `survivor` and `name` are always the casualty's, and `by` and `byName` are
+   * the stand-in's when there is one. A record rather than an edit to
+   * `assignments`, for two reasons: the pairing is the rule — a substitute
+   * takes one casualty's place, not a seat anywhere — and the assignments
+   * it would edit are cleared by this turn's Planning Phase, which a stand-in
+   * has to outlive for the Advancement Phase behind it to read.
+   *
+   * **Load-bearing**: `standIns` reads the latest entry for each casualty, so
+   * choosing again is appending again, and the log stays append-only.
+   */
+  | {
+      readonly kind: 'stood-in';
+      readonly survivor: string;
+      readonly name: string;
+      readonly by?: string;
+      readonly byName?: string;
+    }
+  /**
    * Health went to a survivor, in the Heal Wounds step (pg. 19).
    *
    * One entry per survivor rather than one for the step, because who was

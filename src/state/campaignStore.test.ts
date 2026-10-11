@@ -2608,6 +2608,36 @@ describe('what earns a line in the log', () => {
         allIncapacitated: false,
       }),
     },
+    'mission/stoodIn': {
+      // Turn 3's Siege Defense is recorded and left a laborer at 0 Health, and
+      // Marcus was on the mission team the siege displaced (pg. 23, #183).
+      state: (() => {
+        const campaign = expectOpen(rich());
+
+        return openState({
+          ...campaign,
+          survivors: campaign.survivors.map((survivor) =>
+            survivor.id === 'laborer-1' ? { ...survivor, currentHp: 0 } : survivor,
+          ),
+          assignments: { ...campaign.assignments, [LOGGED_SURVIVOR]: { task: 'mission', team: 1 } },
+          log: [
+            entry(3, 'mission', {
+              kind: 'siege-defense-resolved',
+              zombiesLeft: 0,
+              survivorsExited: 0,
+            }),
+          ],
+        });
+      })(),
+      action: { type: 'mission/stoodIn', at: AT, survivor: 'laborer-1', by: LOGGED_SURVIVOR },
+      entry: entry(3, 'mission', {
+        kind: 'stood-in',
+        survivor: 'laborer-1',
+        name: 'Laborer 1',
+        by: LOGGED_SURVIVOR,
+        byName: 'Marcus Webb',
+      }),
+    },
     'management/departed': {
       // Six Exhaustion with no base to sleep in is six Unrest, which with two
       // turns of quiet is over the threshold of ten.
@@ -3482,6 +3512,80 @@ describe('mission/resolved', () => {
     const once = campaignReducer(besieged(), resolve(2));
 
     expect(campaignReducer(once, resolve(0))).toEqual(once);
+  });
+});
+
+/**
+ * A fit mission-team survivor stands in for a worker the siege left at 0
+ * Health (pg. 23, the FAQ's "Siege Defense and Labor"; #183). The rules about
+ * who may are `standInProblem`'s and tested beside it; these are the store's
+ * half — that a refusal writes nothing and a choice can be taken back.
+ */
+describe('mission/stoodIn', () => {
+  /** Turn 4's siege recorded, with Earl off the Kitchen at 0 Health and Ruby on the mission team. */
+  const besieged = () =>
+    openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      turn: 4,
+      step: 'tactical-mission',
+      survivors: [
+        { ...createSurvivor('Earl Rhodes', 3, { id: 'earl' }), currentHp: 0 },
+        createSurvivor('Ruby Vance', 1, { id: 'ruby' }),
+      ],
+      assignments: {
+        earl: { task: 'staff', slot: 'kitchen' },
+        ruby: { task: 'mission', team: 1 },
+      },
+      base: { id: 'small-town-home', slots: {} },
+      log: [
+        entry(4, 'mission', { kind: 'siege-defense-resolved', zombiesLeft: 1, survivorsExited: 0 }),
+      ],
+    });
+
+  const standIn = (by: string | null): CampaignAction => ({
+    type: 'mission/stoodIn',
+    at: AT,
+    survivor: 'earl',
+    by,
+  });
+
+  it('records the stand-in, and leaves the assignments alone', () => {
+    const after = expectOpen(campaignReducer(besieged(), standIn('ruby')));
+
+    expect(after.log.at(-1)?.event).toEqual({
+      kind: 'stood-in',
+      survivor: 'earl',
+      name: 'Earl Rhodes',
+      by: 'ruby',
+      byName: 'Ruby Vance',
+    });
+    expect(after.assignments).toEqual(expectOpen(besieged()).assignments);
+  });
+
+  it('can leave the place empty again, and says so', () => {
+    const chosen = campaignReducer(besieged(), standIn('ruby'));
+    const after = expectOpen(campaignReducer(chosen, standIn(null)));
+
+    expect(after.log.at(-1)?.event).toEqual({
+      kind: 'stood-in',
+      survivor: 'earl',
+      name: 'Earl Rhodes',
+    });
+  });
+
+  it('does nothing when the choice is refused', () => {
+    const before = besieged();
+    const elsewhere = openState({ ...expectOpen(before), step: 'character-advancement' });
+
+    // Nobody standing in already, and the Advancement Phase is too late.
+    expect(campaignReducer(before, standIn(null))).toEqual(before);
+    expect(campaignReducer(elsewhere, standIn('ruby'))).toEqual(elsewhere);
+  });
+
+  it('does nothing when no campaign is open', () => {
+    expect(campaignReducer(INITIAL_CAMPAIGN_STATE, standIn('ruby'))).toEqual(
+      INITIAL_CAMPAIGN_STATE,
+    );
   });
 });
 

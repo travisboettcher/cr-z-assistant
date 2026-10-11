@@ -69,6 +69,7 @@ import {
   type MissionOutcome,
 } from '../engine/siege';
 import { departureCandidates, someoneDeparted, withDeparture } from '../engine/departures';
+import { standInProblem } from '../engine/siegeWork';
 import { missionTeam, missionTeamReduced } from '../engine/assignments';
 import { storageCaps } from '../engine/base';
 import { ROT_BITE_DAMAGE } from '../data/turn';
@@ -400,6 +401,21 @@ export type CampaignAction =
    * playing, and for a count that is not a whole number.
    */
   | { readonly type: 'mission/resolved'; readonly outcome: MissionOutcome; readonly at: string }
+  /**
+   * Fill a place this turn's siege emptied with a fit mission-team survivor,
+   * or leave it empty again with `by: null` (pg. 23, the FAQ's "Siege Defense
+   * and Labor"; #183).
+   *
+   * `survivor` is the casualty whose place it is — the place is the subject,
+   * and who fills it is the choice. Checked against `standInProblem` here
+   * rather than trusted from the screen.
+   */
+  | {
+      readonly type: 'mission/stoodIn';
+      readonly survivor: string;
+      readonly by: string | null;
+      readonly at: string;
+    }
   /**
    * Send one survivor away (pg. 23).
    *
@@ -970,6 +986,26 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
           ? logged(campaign, action.at, action.outcome)
           : campaign,
       );
+
+    case 'mission/stoodIn':
+      return withCampaign(state, (campaign) => {
+        const by = action.by ?? undefined;
+        if (standInProblem(campaign, action.survivor, by) !== null) return campaign;
+
+        // Both present by now: `standInProblem` has found the casualty among
+        // the fallen and the stand-in among the candidates, both of which are
+        // read off this roster.
+        const named = (id: string) =>
+          (campaign.survivors.find((survivor) => survivor.id === id) as Survivor).name;
+        const standIn = by === undefined ? {} : { by, byName: named(by) };
+
+        return logged(campaign, action.at, {
+          kind: 'stood-in',
+          survivor: action.survivor,
+          name: named(action.survivor),
+          ...standIn,
+        });
+      });
 
     case 'management/departed':
       return withCampaign(state, (campaign) => {
