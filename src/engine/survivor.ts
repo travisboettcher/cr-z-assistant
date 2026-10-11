@@ -18,6 +18,7 @@ import {
   type Stat,
 } from '../data/skills';
 import type { D10Result } from '../data/dice';
+import { INFECTION_INCAPACITATES } from '../data/origins';
 import {
   PLAYERS_CHOICE,
   RECRUIT_SKILL_TABLE,
@@ -76,6 +77,49 @@ export function statValue(survivor: Survivor, stat: Stat, penalty: number): numb
 /** Health points (pg. 7). */
 export function maxHp(survivor: Survivor): number {
   return TIER_RULES[survivor.tier].maxHp;
+}
+
+/**
+ * At 0 Health — the state the Rot check asks about (pg. 22).
+ *
+ * `<=` rather than `===`, because Health is typed in and a bite can land on a
+ * survivor already at nothing; below zero is still zero to every rule.
+ *
+ * **Not the same question as `isDown`**, and the difference is the point of
+ * having both. Check for Rot is about a survivor's *Health* — "every survivor
+ * at 0 Health makes a Tier check" — and a survivor kept down by Infection with
+ * Health left has not been brought to it. See
+ * [R18](../../docs/rulings.md#r18--what-infection-incapacitates).
+ */
+export function outOfHealth(survivor: Survivor): boolean {
+  return survivor.currentHp <= 0;
+}
+
+/**
+ * Incapacitated by Infection, whatever their Health (pg. 123).
+ *
+ * Only a Viral campaign raises Infection, so everywhere else this is false
+ * without anybody having to ask what origin the campaign is running.
+ */
+export function incapacitatedByInfection(survivor: Survivor): boolean {
+  return survivor.infection >= INFECTION_INCAPACITATES;
+}
+
+/**
+ * Out of action: at 0 Health, or at 10 Infection under the Viral origin
+ * (pg. 22, 123).
+ *
+ * **The one place the rule lives.** Before Infection there was one way down,
+ * and every reader spelled it `currentHp <= 0` or `> 0` for itself; a second
+ * way down would have had to be remembered at every one of them, which is
+ * exactly how a survivor at 10 Infection would have walked out at Departures.
+ * Each reader now picks the question it is actually asking — this one, or
+ * `outOfHealth` where the book means Health and nothing else — and
+ * [R18](../../docs/rulings.md#r18--what-infection-incapacitates) records which
+ * is which (#176).
+ */
+export function isDown(survivor: Survivor): boolean {
+  return outOfHealth(survivor) || incapacitatedByInfection(survivor);
 }
 
 /** Labor contributed to a project team (pg. 7); the pool is its total (pg. 20). */
@@ -202,6 +246,9 @@ export function createSurvivor(
     defense: COMMON_SKILL_START_SCORE,
     // Joining at full health. Wounds come from missions, which is Phase 4.
     currentHp: TIER_RULES[tier].maxHp,
+    // Clean, whatever the origin. Infection is gained from a zombie's damage on
+    // a mission (pg. 123), and nobody joins a community having taken any.
+    infection: 0,
     xp: 0,
   };
 }

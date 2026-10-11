@@ -837,6 +837,22 @@ describe('Departures', () => {
 
     expect(walk().textContent).toContain('in no state to walk anywhere');
   });
+
+  /** Down on Infection with Health left is down at Departures too (pg. 123, R18). */
+  it('counts 10 Infection as no state to walk in, in a Viral campaign', () => {
+    open(
+      crowded({
+        origin: 'viral',
+        survivors: Array.from({ length: 9 }, (_, at) => ({
+          ...createSurvivor(`Survivor ${String(at)}`, 1, { id: `survivor-${String(at)}` }),
+          infection: 10,
+        })),
+      }),
+    );
+
+    expect(walk().textContent).toContain('at 0 Health or 10 Infection and in no state to walk');
+    expect(within(walk()).queryByRole('button', { name: /send away/i })).not.toBeInTheDocument();
+  });
 });
 
 /**

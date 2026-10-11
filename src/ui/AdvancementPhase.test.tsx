@@ -689,6 +689,72 @@ describe('Heal Wounds', () => {
 
     expect(within(walk()).getByText(/nobody has a wound this step can close/i)).toBeTruthy();
   });
+
+  /**
+   * Under the Viral origin each point may remove Infection instead, decided
+   * point by point (pg. 19, 123; #176). Everywhere else there is no choice to
+   * offer, and offering one would be a control for a number nothing raises.
+   */
+  describe('under the Viral origin', () => {
+    const medic: Survivor = {
+      ...createSurvivor('Nell Haig', 4, { id: 'medic' }),
+      stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: 3 },
+      skills: { medicine: 0 },
+    };
+
+    /**
+     * Earl at 1 of 4 with 3 Infection, Carla at full Health with 2. Three
+     * points: two to Earl and one to Carla, who takes a share for her
+     * Infection alone (R18).
+     */
+    const fevered = () =>
+      withClinic({
+        origin: 'viral',
+        survivors: [
+          medic,
+          { ...createSurvivor('Earl Rhodes', 4, { id: EARL }), currentHp: 1, infection: 3 },
+          { ...createSurvivor('Carla Proust', 3, { id: CARLA }), infection: 2 },
+        ],
+      });
+
+    it('offers no Infection choice to a campaign that is not Viral', () => {
+      open(withClinic());
+
+      expect(within(walk()).queryByLabelText(/points against infection/i)).toBeNull();
+      expect(within(walk()).queryByText(/infection/i)).toBeNull();
+    });
+
+    it('shares a point with somebody at full Health for their Infection', () => {
+      open(fevered());
+
+      expect(within(walk()).getByText(/Earl Rhodes \+2 Health/)).toBeTruthy();
+      expect(within(walk()).getByText(/Carla Proust \+1 Health/)).toBeTruthy();
+      // Carla has nowhere to put it but Infection, so there is nothing to pick.
+      expect(within(walk()).getByText(/all of it against infection/i)).toBeTruthy();
+      expect(within(walk()).queryByLabelText(/points against infection for carla/i)).toBeNull();
+    });
+
+    it('spends the points as chosen, and the history says how', async () => {
+      const user = open(fevered());
+
+      await user.selectOptions(
+        within(walk()).getByLabelText(/points against infection for earl rhodes/i),
+        '1',
+      );
+      // Shown before it is applied: one on a wound, one on Infection.
+      expect(within(walk()).getByText(/to 2, Infection 2/)).toBeTruthy();
+
+      await user.click(within(walk()).getByRole('button', { name: /heal wounds/i }));
+
+      const history = screen.getByRole('region', { name: /history/i }).textContent;
+      expect(history).toContain(
+        'Earl Rhodes took 2 Health from the community’s Health: 1 of it against Infection, 1 on wounds.',
+      );
+      expect(history).toContain(
+        'Carla Proust took 1 Health from the community’s Health: all of it against Infection.',
+      );
+    });
+  });
 });
 
 describe('the step that points somewhere else', () => {

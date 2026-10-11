@@ -25,7 +25,13 @@ import {
 } from '../engine/advancement';
 import type { Survivor } from '../engine/campaign';
 import { skillSlotsAreFull, survivorViolations, withStatValue } from '../engine/legality';
-import { inventorySlots, maxHp, skillScore, statValue } from '../engine/survivor';
+import {
+  incapacitatedByInfection,
+  inventorySlots,
+  maxHp,
+  skillScore,
+  statValue,
+} from '../engine/survivor';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
 import { promotionViolations } from '../engine/legality';
@@ -127,7 +133,12 @@ function Violations({ survivor }: { readonly survivor: Survivor }) {
 
 /** HP, Inventory Slots and XP — the three numbers checked most often mid-turn. */
 function Vitals({ survivor, penalty }: { readonly survivor: Survivor; readonly penalty: number }) {
-  const { dispatch } = useCampaign();
+  const { state, dispatch } = useCampaign();
+
+  // Infection is the Viral origin's (pg. 123). The field is on every survivor
+  // and stays 0 elsewhere, so the control is shown only where it can mean
+  // something — a Cosmic Horror table has no use for a number nothing raises.
+  const viral = state.status === 'open' && state.campaign.origin === 'viral';
 
   return (
     <div className="mt-6 flex flex-wrap items-end gap-x-8 gap-y-4 border-t border-stone-200 pt-6 dark:border-stone-800">
@@ -144,6 +155,41 @@ function Vitals({ survivor, penalty }: { readonly survivor: Survivor; readonly p
         fieldLabel={`Current health for ${survivor.name}`}
         onSave={(currentHp) => dispatch({ type: 'survivor/hpSet', id: survivor.id, currentHp })}
       />
+
+      {/*
+       * Typed in, like Health and for the same reason: a zombie's damage adds
+       * it on a mission, which the tracker does not run, and it carries from
+       * one mission to the next (pg. 123). Heal Wounds is what takes it away.
+       * No maximum on the field — at 10 the survivor is down, and the sheet
+       * says so rather than refusing the number (#176).
+       */}
+      {viral && (
+        <EditableNumber
+          heading={
+            <>
+              Infection <PageRef pages={123} />
+            </>
+          }
+          display={
+            incapacitatedByInfection(survivor) ? (
+              <>
+                {survivor.infection}{' '}
+                <span className="text-sm font-medium text-red-700 dark:text-red-400">
+                  incapacitated
+                </span>
+              </>
+            ) : (
+              survivor.infection
+            )
+          }
+          value={survivor.infection}
+          what="infection"
+          fieldLabel={`Infection for ${survivor.name}`}
+          onSave={(infection) =>
+            dispatch({ type: 'survivor/infectionSet', id: survivor.id, infection })
+          }
+        />
+      )}
 
       <div>
         <p className={VITAL_HEADING}>
@@ -201,10 +247,10 @@ interface EditableNumberProps {
 /**
  * A stored number the player edits by hand.
  *
- * Shared by health and experience because they are the same interaction and,
- * more to the point, the same *kind* of fact: something that happened at the
- * table which the app has no way to know. Both go away as the phases that
- * generate them land.
+ * Shared by health, Infection and experience because they are the same
+ * interaction and, more to the point, the same *kind* of fact: something that
+ * happened at the table which the app has no way to know. All three go away
+ * as the phases that generate them land.
  */
 function EditableNumber({
   heading,

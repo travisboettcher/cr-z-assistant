@@ -164,6 +164,7 @@ export function survivorArbitrary(): fc.Arbitrary<Survivor> {
     move: anyCount,
     defense: anyCount,
     currentHp: anyCount,
+    infection: anyCount,
     xp: anyCount,
   });
 }
@@ -317,13 +318,19 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       survivorsExited: anyCount,
       allIncapacitated: fc.boolean(),
     }),
-    fc.record({
-      kind: fc.constant('health-restored' as const),
-      survivor: anyId,
-      name: anyName,
-      health: fc.integer({ min: 1, max: 20 }),
-      source: fc.constantFrom(...HEALTH_SOURCES),
-    }),
+    // The Infection count is optional, and a round trip has to keep it absent
+    // where it was absent as well as keep it where it was written (#176).
+    fc.record(
+      {
+        kind: fc.constant('health-restored' as const),
+        survivor: anyId,
+        name: anyName,
+        health: fc.integer({ min: 1, max: 20 }),
+        source: fc.constantFrom(...HEALTH_SOURCES),
+        infection: fc.integer({ min: 1, max: 20 }),
+      },
+      { requiredKeys: ['kind', 'survivor', 'name', 'health', 'source'] },
+    ),
     fc.record({
       kind: fc.constant('xp-awarded' as const),
       survivor: anyId,

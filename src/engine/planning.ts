@@ -32,7 +32,7 @@ import type { Facility, Upgrade } from '../data/facilities';
 import type { Assignment, Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
 import { survivorsDoing } from './assignments';
-import { maxHp } from './survivor';
+import { incapacitatedByInfection, maxHp } from './survivor';
 
 export type PlanningViolationCode =
   | 'nothing-in-slot'
@@ -42,6 +42,7 @@ export type PlanningViolationCode =
   | 'someone-else-resting'
   | 'no-medical-clinic'
   | 'injured-on-a-mission'
+  | 'incapacitated-on-a-mission'
   | 'a-second-hero-on-one-mission'
   | 'someone-else-scavenging'
   | 'scavenging-needs-the-mission-skipped';
@@ -109,6 +110,26 @@ function hasMedicalClinic(campaign: Campaign): boolean {
 /** Whether this survivor has taken damage, which is what "injured" reads as. */
 function isInjured(survivor: Survivor): boolean {
   return survivor.currentHp < maxHp(survivor);
+}
+
+/**
+ * Whether resting or healing could do this survivor any good.
+ *
+ * A wound, or Infection a point could remove instead (pg. 19, 123): a Viral
+ * survivor at full Health with Infection is somebody the Clinic can still
+ * help, and warning that it "would do nothing" would talk the table out of
+ * the one thing that clears it (#176). Outside a Viral campaign this is
+ * `isInjured`, because nobody has any Infection.
+ */
+function hasSomethingToHeal(survivor: Survivor): boolean {
+  return isInjured(survivor) || survivor.infection > 0;
+}
+
+/** "Full Health", or "full Health and no Infection" where Infection is a thing. */
+function nothingToHeal(campaign: Campaign): string {
+  return campaign.origin === 'viral'
+    ? 'At full Health with no Infection'
+    : 'Already at full Health';
 }
 
 /** Somebody other than this survivor already doing the task. */
@@ -239,10 +260,10 @@ function staffingWarnings(campaign: Campaign, slot: string): readonly PlanningVi
 function restWarnings(campaign: Campaign, survivor: Survivor): readonly PlanningViolation[] {
   const warnings: PlanningViolation[] = [];
 
-  if (!isInjured(survivor)) {
+  if (!hasSomethingToHeal(survivor)) {
     warnings.push({
       code: 'already-at-full-health',
-      message: 'Already at full Health, so resting would do nothing.',
+      message: `${nothingToHeal(campaign)}, so resting would do nothing.`,
       pages: 21,
     });
   }
@@ -269,10 +290,10 @@ function restWarnings(campaign: Campaign, survivor: Survivor): readonly Planning
 function healingWarnings(campaign: Campaign, survivor: Survivor): readonly PlanningViolation[] {
   const warnings: PlanningViolation[] = [];
 
-  if (!isInjured(survivor)) {
+  if (!hasSomethingToHeal(survivor)) {
     warnings.push({
       code: 'already-at-full-health',
-      message: 'Already at full Health, so healing would do nothing.',
+      message: `${nothingToHeal(campaign)}, so healing would do nothing.`,
       pages: 21,
     });
   }
@@ -300,6 +321,24 @@ function missionWarnings(
       code: 'injured-on-a-mission',
       message: 'Injured survivors cannot be sent on a mission.',
       pages: 21,
+    });
+  }
+
+  /*
+   * Down on Infection, whatever their Health (pg. 123) — so a Viral survivor at
+   * full Health and 10 Infection would start the mission incapacitated.
+   *
+   * The Infection half of `isDown` rather than the whole of it, because the
+   * Health half is already said above: 0 Health is a wound, and R12 keeps
+   * every wounded survivor off a team. Asking `isDown` here would say the same
+   * thing twice about a survivor at 0, and nothing new about one at 10
+   * Infection. Infection below 10 is not a wound and says nothing at all — R18.
+   */
+  if (incapacitatedByInfection(survivor)) {
+    warnings.push({
+      code: 'incapacitated-on-a-mission',
+      message: 'At 10 Infection, so they would start the mission incapacitated.',
+      pages: 123,
     });
   }
 

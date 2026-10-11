@@ -49,7 +49,16 @@ import {
   type Conversion,
 } from '../engine/conversions';
 import { checkXpAward, xpPools, type XpPoolEmptiness } from '../engine/experience';
-import { checkHealing, healingPool, healthAwards, woundsHealed } from '../engine/healing';
+import {
+  awardKey,
+  checkHealing,
+  healingPool,
+  healthAwards,
+  infectionRange,
+  withInfectionSpent,
+  woundsHealed,
+  type HealthAward,
+} from '../engine/healing';
 import {
   dueProjects,
   isDue,
@@ -637,8 +646,18 @@ function converterName(conversion: Conversion): string {
 function HealWounds({ campaign }: { readonly campaign: Campaign }) {
   const { dispatch } = useCampaign();
 
+  /*
+   * How many of each award's points go on Infection, by `awardKey` — the one
+   * decision this step leaves the table, and only under the Viral origin
+   * (pg. 19, 123; #176). Held here until the press rather than stored: nothing
+   * has happened until the wounds are healed, and the reducer holds every
+   * number to its range again rather than trusting this one.
+   */
+  const viral = campaign.origin === 'viral';
+  const [onInfection, setOnInfection] = useState<Record<string, number>>({});
+
   const done = woundsHealed(campaign);
-  const awards = healthAwards(campaign);
+  const awards = withInfectionSpent(healthAwards(campaign), onInfection);
   const pool = healingPool(campaign);
   const { warnings } = checkHealing(campaign);
 
@@ -650,6 +669,12 @@ function HealWounds({ campaign }: { readonly campaign: Campaign }) {
         until everyone has had a first. A resting survivor’s point is their own{' '}
         <PageRef pages={19} />
       </p>
+      {viral && (
+        <p className={`mt-1 ${HINT}`}>
+          Any point may remove a point of Infection instead of closing a wound, and a survivor with
+          Infection takes a share for it even at full Health <PageRef pages={123} />
+        </p>
+      )}
 
       {done ? (
         <p className="mt-3 text-sm font-medium">
@@ -663,15 +688,24 @@ function HealWounds({ campaign }: { readonly campaign: Campaign }) {
             <ul className="mt-3 flex flex-col gap-1">
               {awards.map((award) => (
                 <li
-                  key={`${award.survivor.id}-${award.source}`}
+                  key={awardKey(award)}
                   className="text-sm tabular-nums text-stone-600 dark:text-stone-400"
                 >
                   {award.survivor.name} +{award.health} Health
                   <span className="text-xs">
                     {' '}
                     ({HEALTH_SOURCE_LABELS[award.source]}, to{' '}
-                    {award.survivor.currentHp + award.health})
+                    {award.survivor.currentHp + award.health - award.infection}
+                    {viral && `, Infection ${String(award.survivor.infection - award.infection)}`})
                   </span>
+                  {viral && (
+                    <InfectionSpent
+                      award={award}
+                      onChange={(points) => {
+                        setOnInfection({ ...onInfection, [awardKey(award)]: points });
+                      }}
+                    />
+                  )}
                 </li>
               ))}
             </ul>
@@ -687,7 +721,19 @@ function HealWounds({ campaign }: { readonly campaign: Campaign }) {
             type="button"
             className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
             onClick={() => {
-              dispatch({ type: 'advancement/woundsHealed', at: new Date().toISOString() });
+              dispatch({
+                type: 'advancement/woundsHealed',
+                at: new Date().toISOString(),
+                // Every award's split as shown, defaults included, so what the
+                // press does is what the list said it would.
+                ...(viral
+                  ? {
+                      infection: Object.fromEntries(
+                        awards.map((award) => [awardKey(award), award.infection]),
+                      ),
+                    }
+                  : {}),
+              });
             }}
           >
             Heal wounds
@@ -702,6 +748,57 @@ const HEALTH_SOURCE_LABELS: Record<HealthSource, string> = {
   facility: 'shared out',
   rest: 'from resting',
 };
+
+/**
+ * How many of one award's points go on Infection (pg. 19, 123).
+ *
+ * Point by point, which is how the book puts it, and a choice of a number
+ * rather than a toggle per point because the points are interchangeable — two
+ * on Infection is two on Infection whichever two they were. Only the numbers
+ * `infectionRange` allows are offered: a survivor at full Health has nothing
+ * to choose (every point goes on Infection) and one with no Infection has
+ * nothing either, so the control says what happens rather than offering one
+ * option.
+ */
+function InfectionSpent({
+  award,
+  onChange,
+}: {
+  readonly award: HealthAward;
+  readonly onChange: (points: number) => void;
+}) {
+  const id = useId();
+  const { least, most } = infectionRange(award);
+
+  if (most === least) {
+    return least === 0 ? null : (
+      <span className="block text-xs">
+        {least === award.health ? 'All of it' : String(least)} against Infection — Health can take
+        no more
+      </span>
+    );
+  }
+
+  return (
+    <span className="mt-1 flex items-center gap-2 text-xs">
+      <label htmlFor={id}>Points against Infection for {award.survivor.name}</label>
+      <select
+        id={id}
+        value={award.infection}
+        className={`${FOCUS_RING} rounded-lg border border-stone-300 px-2 py-1 text-sm dark:border-stone-600 dark:bg-stone-800`}
+        onChange={(changed) => {
+          onChange(Number(changed.target.value));
+        }}
+      >
+        {Array.from({ length: most - least + 1 }, (_, at) => least + at).map((points) => (
+          <option key={points} value={points}>
+            {points} of {award.health}
+          </option>
+        ))}
+      </select>
+    </span>
+  );
+}
 
 /**
  * The substitution control for one roll (pg. 12).

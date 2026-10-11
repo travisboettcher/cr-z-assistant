@@ -117,6 +117,9 @@ function describeSurvivorProblem(value: unknown): string | null {
   if (!isCountFromZero(value.move)) return 'has no move score';
   if (!isCountFromZero(value.defense)) return 'has no defense score';
   if (!isCountFromZero(value.currentHp)) return 'has unreadable health';
+  // Any count, not capped at 10: a survivor at 10 is down rather than gone
+  // (pg. 123), and what is above it is a table's typing, not a damaged file.
+  if (!isCountFromZero(value.infection)) return 'has unreadable infection';
   if (!isCountFromZero(value.xp)) return 'has unreadable experience';
 
   return null;
@@ -395,6 +398,10 @@ const EVENT_FIELDS: Record<
     ['name', 'name'],
     ['health', 'countFromOne'],
     ['source', 'healthSource'],
+    // Recorded since a point could remove Infection instead (#176); entries
+    // written before that, and every one outside a Viral campaign, do not
+    // carry it.
+    ['infection', 'optionalCount'],
   ],
   'xp-awarded': [
     ['survivor', 'id'],

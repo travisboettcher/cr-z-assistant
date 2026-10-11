@@ -289,11 +289,26 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
         pages: 23,
       };
 
-    case 'health-restored':
+    case 'health-restored': {
+      // An entry with no Infection count is all Health, which is every entry
+      // outside a Viral campaign and every one written before #176.
+      const onInfection = event.infection ?? 0;
+      const healed = event.health - onInfection;
+
+      if (onInfection === 0) {
+        return {
+          text: `${event.name} recovered ${event.health} Health ${HEALTH_SOURCE_PHRASES[event.source]}.`,
+          pages: 19,
+        };
+      }
+
       return {
-        text: `${event.name} recovered ${event.health} Health ${HEALTH_SOURCE_PHRASES[event.source]}.`,
-        pages: 19,
+        text: `${event.name} took ${event.health} Health ${HEALTH_SOURCE_PHRASES[event.source]}: ${
+          healed === 0 ? 'all of it' : `${String(onInfection)} of it`
+        } against Infection${healed === 0 ? '' : `, ${String(healed)} on wounds`}.`,
+        pages: '19, 123',
       };
+    }
 
     case 'xp-awarded':
       return {

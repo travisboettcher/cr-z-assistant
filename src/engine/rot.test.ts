@@ -53,6 +53,20 @@ describe('mustCheck', () => {
   it('includes a survivor below zero, which a save can hold', () => {
     expect(mustCheck(community([at('a', 'A', -1)])).map((survivor) => survivor.id)).toEqual(['a']);
   });
+
+  /**
+   * The check is about Health (pg. 22), and a survivor held down by Infection
+   * with Health left has not been brought to 0 — R18. One at 0 Health checks
+   * whatever their Infection.
+   */
+  it('passes over a survivor down on Infection with Health left', () => {
+    const campaign = community([
+      { ...at('a', 'A', 2), infection: 10 },
+      { ...at('b', 'B', 0), infection: 10 },
+    ]);
+
+    expect(mustCheck(campaign).map((survivor) => survivor.id)).toEqual(['b']);
+  });
 });
 
 describe('stillToCheck', () => {

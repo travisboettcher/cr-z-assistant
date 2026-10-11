@@ -125,6 +125,7 @@
 
 import { beforePlanning, missionTeam, projectTeam, survivorsDoing } from './assignments';
 import type { Assignment, Campaign, Survivor } from './campaign';
+import { outOfHealth } from './survivor';
 import { phaseOf } from './turn';
 
 /**
@@ -155,9 +156,7 @@ function isWork(assignment: Assignment): boolean {
 export function fellInTheSiege(campaign: Campaign): readonly Survivor[] {
   if (!siegeDefended(campaign)) return [];
 
-  return survivorsDoing(beforePlanning(campaign), isWork).filter(
-    (survivor) => survivor.currentHp <= 0,
-  );
+  return survivorsDoing(beforePlanning(campaign), isWork).filter(outOfHealth);
 }
 
 /**
@@ -207,7 +206,7 @@ export function projectTeamThatWorked(campaign: Campaign): readonly Survivor[] {
 export function standInCandidates(campaign: Campaign): readonly Survivor[] {
   if (!siegeDefended(campaign)) return [];
 
-  return missionTeam(beforePlanning(campaign)).filter((survivor) => survivor.currentHp > 0);
+  return missionTeam(beforePlanning(campaign)).filter((survivor) => !outOfHealth(survivor));
 }
 
 /**

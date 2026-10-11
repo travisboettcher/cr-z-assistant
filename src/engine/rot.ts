@@ -47,11 +47,20 @@ import { staffOf, survivorsDoing } from './assignments';
 import { suppliedOccupants } from './utilities';
 import type { Campaign, Survivor } from './campaign';
 import { hungerPenalty } from './feeding';
-import { skillScore } from './survivor';
+import { outOfHealth, skillScore } from './survivor';
 
-/** Everybody at 0 Health, who must check this turn (pg. 22). */
+/**
+ * Everybody at 0 Health, who must check this turn (pg. 22).
+ *
+ * **`outOfHealth`, not `isDown`.** The rule names Health, and a survivor held
+ * down by Infection with Health left (pg. 123) has not been brought to 0 by
+ * anything — Heal Wounds can still take the Infection away. Reading the wider
+ * question here would put a Viral survivor with two Health in front of the
+ * same check as one bleeding out. See
+ * [R18](../../docs/rulings.md#r18--what-infection-incapacitates).
+ */
 export function mustCheck(campaign: Campaign): readonly Survivor[] {
-  return campaign.survivors.filter((survivor) => survivor.currentHp <= 0);
+  return campaign.survivors.filter(outOfHealth);
 }
 
 /**
@@ -232,7 +241,12 @@ export function rotOutcome(
     bitten:
       bitten === undefined
         ? null
-        : { survivor: bitten, dies: bitten.currentHp - ROT_BITE_DAMAGE <= 0 },
+        : // Removed if the bite takes their *Health* to zero (pg. 22) — the
+          // same question `mustCheck` asks, asked of them after the Damage.
+          {
+            survivor: bitten,
+            dies: outOfHealth({ ...bitten, currentHp: bitten.currentHp - ROT_BITE_DAMAGE }),
+          },
     restrained: false,
   };
 }
