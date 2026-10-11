@@ -168,6 +168,10 @@ Neither replaces the tests built from the rulebook's own worked characters (pg. 
 check the app against the *rules*; these check the tests against the *code*. A perfect mutation
 score on a function implementing the wrong rule is still the wrong rule.
 
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) — and comment on an issue before starting on it.
+
 ## License
 
 The code is dual-licensed under either
