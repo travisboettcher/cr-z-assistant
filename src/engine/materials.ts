@@ -183,9 +183,10 @@ export function scavengesEverything(survivor: Survivor): boolean {
  *
  * Not conditioned on the mission actually being skipped. Mission setup is Phase
  * 4's and this app cannot see whether the community went out, so the Planning
- * Phase says the rule at the point of assignment
- * (`scavenging-needs-the-mission-skipped`) and this pays whoever was assigned —
- * Z3-6's posture, where the walk guides and does not refuse.
+ * Phase says the rule at the point of assignment — while a mission team is
+ * assigned beside the scavenger (`scavenging-needs-the-mission-skipped`, #191)
+ * — and this pays whoever was assigned: Z3-6's posture, where the walk guides
+ * and does not refuse.
  */
 export function scavenged(campaign: Campaign, chosen?: Material): Materials {
   const survivor = scavenger(campaign);
