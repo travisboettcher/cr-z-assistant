@@ -1,17 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { FACILITIES, type Exchange, type Facility, type Upgrade } from '../data/facilities';
+import {
+  FACILITIES,
+  type Exchange,
+  type Facility,
+  type Upgrade,
+  type UpgradeId,
+} from '../data/facilities';
 import { MATERIALS } from '../data/materials';
 import { createNewCampaign, type Campaign } from './campaign';
+import { occupants } from './base';
 import {
   checkConversion,
   conversions,
   gainedBy,
   spentBy,
   timesConverted,
+  unmodelledExchanges,
   withConversion,
   type Conversion,
 } from './conversions';
 import type { LogEntry } from './log';
+import { generatingUtilities } from '../test/campaigns';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 const AT = '2026-09-11T09:00:00.000Z';
@@ -65,17 +74,27 @@ describe('conversions', () => {
    * needs Power *and* Water.
    */
   it('does not offer a trade from something switched off for want of a utility', () => {
-    const campaign = withGasRange({
-      base: {
-        id: 'hobby-farm',
-        slots: { kitchen: { upgrades: ['gas-range', 'biofuel-lab'], power: true } },
-      },
-    });
+    const campaign = generatingUtilities(
+      withGasRange({
+        base: {
+          id: 'hobby-farm',
+          slots: { kitchen: { upgrades: ['gas-range', 'biofuel-lab'], power: true } },
+        },
+      }),
+      1,
+      'utility-station',
+    );
 
     expect(conversions(campaign).map(({ source }) => source.id)).toEqual(['gas-range']);
   });
 
-  it('offers it once both are supplied', () => {
+  /**
+   * The same slot, the same two flags, and nobody in the Station — so neither
+   * point is backed and the Lab is switched off for want of the Power the base
+   * is not making. `conversions` asked the stored flags until R2-H1 (#139),
+   * which made this campaign and the one above indistinguishable.
+   */
+  it('does not offer it when nothing is generating the points it is assigned', () => {
     const campaign = withGasRange({
       base: {
         id: 'hobby-farm',
@@ -84,6 +103,23 @@ describe('conversions', () => {
         },
       },
     });
+
+    expect(conversions(campaign).map(({ source }) => source.id)).toEqual(['gas-range']);
+  });
+
+  it('offers it once both are supplied', () => {
+    const campaign = generatingUtilities(
+      withGasRange({
+        base: {
+          id: 'hobby-farm',
+          slots: {
+            kitchen: { upgrades: ['gas-range', 'biofuel-lab'], power: true, water: true },
+          },
+        },
+      }),
+      2,
+      'utility-station',
+    );
 
     expect(conversions(campaign).map(({ source }) => source.id)).toEqual([
       'gas-range',
@@ -205,6 +241,57 @@ describe('checkConversion', () => {
     const campaign = withGasRange({ log: [converted(3, 'bunk-room-1', 'gas-range')] });
 
     expect(timesConverted(campaign, gasRange(campaign))).toBe(0);
+  });
+});
+
+/**
+ * #150: the Generator and the Well Pump are transcribed, do nothing, and said
+ * nothing. Which step owns a Fuel-for-utility trade is an open question; being
+ * silent about it while a player pays Hardware and Labor for the upgrade was
+ * not.
+ */
+describe('unmodelledExchanges', () => {
+  const stationAt = (slot: string, upgrades: readonly UpgradeId[]) =>
+    withGasRange({
+      base: {
+        id: 'hobby-farm',
+        slots: {
+          [slot]: {
+            built: { facility: 'utility-station', builtOnTurn: 1 },
+            upgrades: [...upgrades],
+          },
+        },
+      },
+    });
+
+  const at = (campaign: Campaign, slot: string) => {
+    const found = occupants(campaign.base as NonNullable<Campaign['base']>).find(
+      (occupant) => occupant.slotId === slot,
+    );
+    if (found === undefined) throw new Error('no such slot');
+
+    return found;
+  };
+
+  it('names the two trades this version does not run', () => {
+    const campaign = stationAt('front-yard', ['generator', 'well-pump']);
+
+    expect(unmodelledExchanges(at(campaign, 'front-yard')).map((entry) => entry.id)).toEqual([
+      'generator',
+      'well-pump',
+    ]);
+  });
+
+  it('says nothing about a trade that gains a material, which this version runs', () => {
+    const campaign = withGasRange();
+
+    expect(unmodelledExchanges(at(campaign, 'kitchen'))).toEqual([]);
+  });
+
+  it('says nothing about a facility with no trades at all', () => {
+    const campaign = stationAt('front-yard', []);
+
+    expect(unmodelledExchanges(at(campaign, 'front-yard'))).toEqual([]);
   });
 });
 

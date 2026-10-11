@@ -46,7 +46,7 @@ import {
   type XpSource,
 } from '../data/turn';
 import { beforePlanning, missionTeam, staffOf } from './assignments';
-import { occupants } from './base';
+import { suppliedOccupants } from './utilities';
 import type { Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
 import { facilityProduction } from './production';
@@ -143,9 +143,8 @@ export function missionTeaching(campaign: Campaign): number {
  * card shows, halving for want of Power included.
  */
 export function trainingRoomXp(campaign: Campaign): number {
-  const base = campaign.base;
-  if (base === null) return 0;
-
+  // No base-less guard: `suppliedOccupants` returns nothing to loop over, which
+  // is the same zero.
   const penalty = hungerPenalty(campaign);
   let total = 0;
 
@@ -153,7 +152,7 @@ export function trainingRoomXp(campaign: Campaign): number {
   // the campaign as it stood before this turn's Planning cleared the answer.
   const staffed = beforePlanning(campaign);
 
-  for (const occupant of occupants(base)) {
+  for (const occupant of suppliedOccupants(staffed)) {
     for (const line of facilityProduction(occupant, staffOf(staffed, occupant.slotId), penalty)) {
       if (line.restrictedToStat !== undefined) continue;
       if (line.outputs.includes('xp')) total += line.amount;
@@ -192,6 +191,24 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
   const onTheMission = new Set(team.map((survivor) => survivor.id));
   const offTheMission = campaign.survivors.filter((survivor) => !onTheMission.has(survivor.id));
 
+  /*
+   * Whether anybody on the team *has* Teaching, as against how much of it they
+   * have between them — and it is this, not the Score, that takes the
+   * discretionary point away ([ruling 7](../../docs/phase-3-stories.md)).
+   *
+   * pg. 12 triggers the replacement on a Teacher going out; the Score is how
+   * many survivors the Teacher then hands a point to. So a Teacher whose Score
+   * is 0 replaces the point and hands out none, which is a bad turn rather
+   * than an impossible one.
+   *
+   * The arithmetic read `teaching > 0` and the message said the sentence
+   * above, so a Score-0 Teacher left the discretionary point standing under a
+   * line saying it had been replaced — and the point was awarded (#143). This
+   * is the half that moved, because the comment arguing for it was already
+   * here and the code disagreed with its own reasoning.
+   */
+  const canTeach = team.some((survivor) => survivor.skills['teaching'] !== undefined);
+
   const totals: Record<XpSource, number> = {
     // One each (pg. 18). `MISSION_XP` is 1, so nothing can tell this
     // multiplication from a division and one mutant lives here permanently —
@@ -200,7 +217,7 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
     // suite would catch it the same day.
     mission: team.length * MISSION_XP,
     // Replaced, not topped up: a Teacher on the mission takes the point away.
-    discretionary: teaching > 0 ? 0 : DISCRETIONARY_MISSION_XP,
+    discretionary: canTeach ? 0 : DISCRETIONARY_MISSION_XP,
     'mission-teaching': teaching,
     'training-room': trainingRoomXp(campaign),
   };
@@ -221,17 +238,7 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
     'training-room': offTheMission,
   };
 
-  /*
-   * Why each pool is empty, asked of the campaign rather than of the source.
-   *
-   * `teaching` is the summed Score; `canTeach` is whether anybody on the team
-   * *has* the skill at all. pg. 12 triggers the replacement on a Teacher being
-   * on the team, and the Score is how many survivors get a point — so a Teacher
-   * whose Score is zero replaces the discretionary point and hands out nothing.
-   * That reading is arguably the table's; the *message* is not, and it said
-   * nobody on the team had Teaching while somebody did.
-   */
-  const canTeach = team.some((survivor) => survivor.skills['teaching'] !== undefined);
+  /* Why each pool is empty, asked of the campaign rather than of the source. */
   const roomIsStaffed = trainingRoomIsStaffed(campaign);
 
   const emptiness: Record<XpSource, XpPoolEmptiness> = {
@@ -260,13 +267,13 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
  * skill is Rationing produces no XP and is not "no staffed Training Room".
  */
 function trainingRoomIsStaffed(campaign: Campaign): boolean {
-  const base = campaign.base;
-  if (base === null) return false;
+  // Both halves asked of the same campaign, and no base-less guard: an empty
+  // list has nobody in a Training Room, which is the same false.
+  const staffed = beforePlanning(campaign);
 
-  return occupants(base).some(
+  return suppliedOccupants(staffed).some(
     (occupant) =>
-      occupant.facility.id === 'training-room' &&
-      staffOf(beforePlanning(campaign), occupant.slotId).length > 0,
+      occupant.facility.id === 'training-room' && staffOf(staffed, occupant.slotId).length > 0,
   );
 }
 

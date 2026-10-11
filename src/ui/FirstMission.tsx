@@ -22,24 +22,65 @@
  */
 
 import type { Campaign } from '../engine/campaign';
+import { beforePlanning, missionTeam } from '../engine/assignments';
+import { planningHasBegun } from '../engine/planning';
 import { AssignTask } from './AssignTask';
 import { PageRef } from './PageRef';
 
 export function FirstMission({ campaign }: { readonly campaign: Campaign }) {
+  /*
+   * A record once turn 1's Planning Phase has begun, and a control before it.
+   *
+   * The walk lets a player step back within a turn, so this panel outlived the
+   * phase it belongs to — and by then it was wrong twice over. It showed
+   * **nobody** on the First Mission, because Planning had cleared the
+   * assignments it reads, while the Advancement Phase went on correctly naming
+   * whoever went. And ticking a name wrote `{task: 'mission'}` into the
+   * *current* turn: the survivor left the project team, taking Labor with them
+   * after projects had been ordered against it, and joined turn 2's mission
+   * team instead (#144).
+   *
+   * `beforePlanning` is the same reader the Advancement Phase uses, so what
+   * this shows and what that awards XP for are one answer.
+   */
+  const recorded = missionTeam(beforePlanning(campaign));
+  const chosen = planningHasBegun(campaign);
+
   return (
     <>
       <p className="mt-4 text-sm text-stone-600 dark:text-stone-400">
         The First Mission is played on turn 1, so its team is chosen here rather than in a Planning
         Phase that has not happened yet. Everyone who goes earns a point of XP, and their skills are
-        what this turn’s haul can be forced with <PageRef pages={75} />
+        what this turn’s haul can be forced with <PageRef pages="12, 18" />
       </p>
 
-      <AssignTask
-        campaign={campaign}
-        task={{ task: 'mission', team: 1 }}
-        legend="On the First Mission"
-        pages={75}
-      />
+      {chosen ? (
+        <p className="mt-3 text-sm">
+          {recorded.length === 0 ? (
+            <span className="text-stone-600 dark:text-stone-400">
+              Nobody went on the First Mission.
+            </span>
+          ) : (
+            <>
+              <span className="font-medium">
+                {recorded.map((survivor) => survivor.name).join(', ')}
+              </span>{' '}
+              <span className="text-stone-600 dark:text-stone-400">went on the First Mission.</span>
+            </>
+          )}{' '}
+          <span className="text-stone-600 dark:text-stone-400">
+            This turn’s Planning Phase has begun, so the team is on the record and what is assigned
+            now belongs to turn 2 <PageRef pages={20} />
+          </span>
+        </p>
+      ) : (
+        <AssignTask
+          campaign={campaign}
+          task={{ task: 'mission', team: 1 }}
+          legend="On the First Mission"
+          pages={75}
+        />
+      )}
     </>
   );
 }

@@ -45,6 +45,47 @@ describe('checkBuild', () => {
     expect(codes(check.blockers)).toContain('slot-occupied');
   });
 
+  /**
+   * The second half of "something is already built here", one turn earlier
+   * (#140). Two facilities ordered into one slot in a single Planning Phase
+   * each spent their Hardware; one landed, `completeProjects` dropped the
+   * other, and nothing refunded it or wrote it down.
+   */
+  it('refuses a slot that already has a facility on order', () => {
+    const queued = campaignWith(smallTownHome(), {
+      projects: [{ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 4 }],
+    });
+
+    const check = checkBuild(queued, { slot: 'garage', facility: 'training-room' });
+
+    expect(codes(check.blockers)).toContain('facility-on-order');
+
+    // The slot beside it is untouched: this is about the slot, not the queue.
+    expect(checkBuild(queued, { slot: 'front-yard', facility: 'garden' }).blockers).toEqual([]);
+  });
+
+  /**
+   * The kind is part of the question, not only the slot. A clearing on order
+   * for the very slot being built into blocks the build for the reason it has
+   * always blocked it — the rubble — and not as a facility it is not.
+   */
+  it('does not count a clearing on order as a facility on order', () => {
+    const queued = campaignWith(
+      { id: 'hobby-farm', slots: {} },
+      {
+        projects: [{ kind: 'clearing', slot: 'ruined-chicken-coop', orderedOnTurn: 4 }],
+      },
+    );
+
+    expect(
+      codes(checkBuild(queued, { slot: 'ruined-chicken-coop', facility: 'garden' }).blockers),
+    ).toEqual(['slot-not-cleared']);
+
+    expect(codes(checkBuild(queued, { slot: 'front-yard', facility: 'garden' }).blockers)).toEqual(
+      [],
+    );
+  });
+
   it('refuses a slot whose rubble has not been cleared, and allows it once it has', () => {
     const blocked = checkBuild(campaignWith({ id: 'hobby-farm', slots: {} }), {
       slot: 'ruined-chicken-coop',

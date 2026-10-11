@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign, type Survivor } from '../engine/campaign';
 import { createSurvivor } from '../engine/survivor';
-import { withPlanningBegun } from '../test/campaigns';
+import { generatingFlatUtility, withPlanningBegun } from '../test/campaigns';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
 
@@ -87,6 +87,42 @@ describe('Feed your Survivors', () => {
   });
 });
 
+/**
+ * #102 fixed the penalty in the engine and left the Feed screen computing its
+ * own: a recorded shortfall against a **live** head count, which is the same
+ * arithmetic the issue was about (#143).
+ */
+describe('the penalty the Feed step reports', () => {
+  /** Four Heroes eat eight; with two Food stored that is a shortfall of six. */
+  const starving = () =>
+    management({
+      survivors: [
+        createSurvivor('Earl Rhodes', 4, { id: EARL }),
+        createSurvivor('Carla Proust', 4, { id: CARLA }),
+        createSurvivor('Nell Haig', 4, { id: 'nell' }),
+      ],
+      materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+    });
+
+  it('keeps saying what it said when the step ran, after the roster changes', async () => {
+    const user = open(starving());
+
+    // Six short against three survivors: three off every stat.
+    await user.click(within(walk()).getByRole('button', { name: /feed the community/i }));
+
+    expect(walk().textContent).toContain('every survivor’s stats drop by 3');
+
+    // A survivor arrives afterwards. The penalty in force was priced at Feed
+    // and does not move (ruling 1) — so this line must not move either.
+    await user.type(screen.getByLabelText(/survivor name/i), 'Gil Moss');
+    await user.selectOptions(screen.getByLabelText(/^tier$/i), '4');
+    await user.click(screen.getByRole('button', { name: /add survivor/i }));
+
+    expect(walk().textContent).toContain('every survivor’s stats drop by 3');
+    expect(walk().textContent).toContain('head count of 3');
+  });
+});
+
 describe('Assign Beds', () => {
   const onTheStep = (overrides: Partial<Campaign> = {}) =>
     management({ step: 'assign-beds', ...overrides });
@@ -165,12 +201,32 @@ describe('Check for Rot', () => {
       within(screen.getByRole('region', { name: /community/i })).getAllByRole('listitem'),
     ).toHaveLength(2);
 
-    // The form stays: holding on is not the same as being healed, and Earl is
-    // still at 0 Health. What changed is the history.
-    expect(within(walk()).getByRole('button', { name: /resolve earl/i })).toBeTruthy();
+    // The form goes, and the step says why. Earl is still at 0 Health — which
+    // is what kept him in `mustCheck` and kept the form on screen through
+    // #104's fix, with a reset roll select, a preview reading "turns and is
+    // removed", and a button the reducer's guard silently swallowed (#143).
+    expect(within(walk()).queryByRole('button', { name: /resolve earl/i })).toBeNull();
+    expect(walk().textContent).toContain('Earl Rhodes held on this turn');
     expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
       'Earl Rhodes held on',
     );
+  });
+
+  /**
+   * A roll has to be entered before there is anything to preview. It started at
+   * 1 — a natural failure — so an untouched form, or one that had come back
+   * from a reload, stood there announcing a death nobody had rolled for.
+   */
+  it('says nothing about an outcome until a roll is entered', async () => {
+    const user = open(dying());
+
+    expect(walk().textContent).toContain('Enter Earl Rhodes’s roll');
+    expect(walk().textContent).not.toContain('turns and is removed');
+    expect(within(walk()).getByRole('button', { name: /resolve earl/i })).toBeDisabled();
+
+    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '10');
+
+    expect(within(walk()).getByRole('button', { name: /resolve earl/i })).toBeEnabled();
   });
 
   /** The worst case the story names: one failed check, two survivors gone. */
@@ -444,6 +500,54 @@ describe('Check Storage', () => {
   });
 });
 
+/**
+ * R2-M7 (#147): the shortfall was reported in the Departures step alone, while
+ * End turn is offered from all seven — so the rule's consequence was optional
+ * in practice.
+ */
+describe('a Labor shortfall outstanding', () => {
+  /** A Workshop ordered against a project team that has since walked out. */
+  const overspent = (step: Campaign['step']) =>
+    withPlanningBegun({
+      ...management({ step }),
+      assignments: {},
+      projects: [{ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 3 }],
+    });
+
+  /**
+   * The banner's own sentence rather than the number. The End-turn dialog is in
+   * the DOM at every step whether or not it is open, and it names the shortfall
+   * too — so an assertion on "2 Labor short" alone passes without the banner
+   * existing, which is how the first draft of this test passed against the bug.
+   */
+  const banner = /the choice is in Departures/i;
+
+  it.each(['feed-your-survivors', 'check-storage', 'departures'] as const)(
+    'is on screen at the %s step, not only at the one that offers the choice',
+    (step) => {
+      open(overspent(step));
+
+      expect(within(walk()).getByText(banner)).toBeVisible();
+    },
+  );
+
+  it('says nothing while the queue still fits the pool', () => {
+    open(management({ step: 'departures' }));
+
+    expect(within(walk()).queryByText(banner)).toBeNull();
+  });
+
+  it('is named in the End-turn dialog, with what it costs', async () => {
+    const user = open(overspent('departures'));
+
+    await user.click(within(walk()).getByRole('button', { name: /^end turn 3$/i }));
+
+    expect(
+      within(screen.getByRole('dialog')).getByText(/2 Labor short of what it ordered/),
+    ).toBeVisible();
+  });
+});
+
 describe('Check the Horde', () => {
   const onTheStep = (overrides: Partial<Campaign> = {}) =>
     management({ step: 'check-the-horde', ...overrides });
@@ -454,6 +558,41 @@ describe('Check the Horde', () => {
     expect(walk().textContent).toContain('+1 on the project team');
     expect(walk().textContent).toContain('+2 turns since the last siege');
     expect(walk().textContent).toContain('Siege Threat 3');
+  });
+
+  /**
+   * "+0 watched" is what an empty tower gives and what a tower full of people
+   * who cannot shoot gives, and only one of those is a mistake the player can
+   * fix. `missingSkill` has distinguished them since Z3-6 and nothing printed
+   * it here (#143).
+   */
+  it('says when the lookout has none of the four skills', () => {
+    const tower = onTheStep({
+      base: {
+        id: 'small-town-home',
+        slots: { 'front-yard': { built: { facility: 'watchtower', builtOnTurn: 1 } } },
+      },
+      assignments: { [EARL]: { task: 'staff', slot: 'front-yard' } },
+    });
+
+    open(tower);
+
+    expect(walk().textContent).toContain('+0 watched from a staffed Watchtower');
+    expect(walk().textContent).toContain('Front Yard — nobody there has Long Guns');
+  });
+
+  /** An empty tower is not a mistake, so it says nothing extra. */
+  it('says nothing about skills when nobody is in the tower', () => {
+    open(
+      onTheStep({
+        base: {
+          id: 'small-town-home',
+          slots: { 'front-yard': { built: { facility: 'watchtower', builtOnTurn: 1 } } },
+        },
+      }),
+    );
+
+    expect(walk().textContent).not.toContain('has Long Guns');
   });
 
   it('says what the entered roll would mean, before it means it', async () => {
@@ -623,8 +762,10 @@ describe('Departures', () => {
     // The Hardware comes back, as it does on a cancellation: the work was
     // never done.
     expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(12);
+    // Named, not just placed: the entry says which project left the queue, the
+    // way the order and built entries always have (#151).
     expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
-      'went unfinished',
+      'The Workshop on the Garage went unfinished',
     );
   });
 
@@ -674,19 +815,25 @@ describe('a shortfall reaches every screen at once', () => {
    * with Water, so its Health is her Medicine Score rather than half of it.
    */
   const starving = () =>
-    management({
-      survivors: [
-        medic,
-        createSurvivor('Earl Rhodes', 4, { id: EARL }),
-        createSurvivor('Carla Proust', 4, { id: CARLA }),
-      ],
-      materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
-      assignments: { medic: { task: 'staff', slot: 'garage' } },
-      base: {
-        id: 'small-town-home',
-        slots: { garage: { built: { facility: 'medical-clinic', builtOnTurn: 1 }, water: true } },
-      },
-    });
+    // Rain Collectors rather than a second Station worker: the head count is
+    // half this fixture's arrangement, and flat generation backs the Clinic's
+    // point (#139) without adding a mouth to feed.
+    generatingFlatUtility(
+      management({
+        survivors: [
+          medic,
+          createSurvivor('Earl Rhodes', 4, { id: EARL }),
+          createSurvivor('Carla Proust', 4, { id: CARLA }),
+        ],
+        materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+        assignments: { medic: { task: 'staff', slot: 'garage' } },
+        base: {
+          id: 'small-town-home',
+          slots: { garage: { built: { facility: 'medical-clinic', builtOnTurn: 1 }, water: true } },
+        },
+      }),
+      'water',
+    );
 
   /**
    * The Clinic's slot card with its work panel open, which is where a facility's

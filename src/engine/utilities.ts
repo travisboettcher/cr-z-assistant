@@ -72,6 +72,35 @@ export function staffedSpent(base: Base): number {
 }
 
 /**
+ * The most points one pool can back right now (pg. 20, 67).
+ *
+ * Its own flat generation, plus whatever of the staffed Score the *other* pool
+ * is not already spending. Deliberately not a constant: flat Power cannot
+ * become Water, but a staffed point can be either, so moving a point from one
+ * pool to the other moves this with it. That is what "split across the two
+ * however the player likes" means, expressed as a number.
+ *
+ * The base sheet used to print flat generation alone as the denominator, which
+ * reported a legal assignment as an over-assignment the moment the point came
+ * from a staffed Station — `Power assigned 1 / 0 flat`, with the Station right
+ * there generating it. The staffed half was two rows further down under its
+ * own heading, so the pair was complete and the line was not.
+ */
+export function utilityCapacity(campaign: Campaign, utility: Utility): number {
+  const base = campaign.base;
+  if (base === null) return 0;
+
+  const spentElsewhere = UTILITIES.filter((other) => other !== utility).reduce(
+    (total, other) => total + shortfall(base, other),
+    0,
+  );
+
+  return (
+    flatUtilitiesGenerated(base)[utility] + Math.max(0, utilitiesScore(campaign) - spentElsewhere)
+  );
+}
+
+/**
  * The community's combined Utilities Score (pg. 61).
  *
  * Every survivor who has the skill, whether or not they are working a Station —

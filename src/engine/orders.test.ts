@@ -70,6 +70,71 @@ describe('checkOrder', () => {
   });
 
   /**
+   * **Contract 2 of #138**, and the regression test for all four of R2-H2's
+   * symptoms at once: every verb consults the queue, not only installed state.
+   *
+   * Written as a `Record` over `Project['kind']` on purpose. A fourth verb
+   * added to the union does not quietly inherit the old bug — it fails to
+   * compile until somebody says what a second order of it looks like and what
+   * refusing one says. That is the only part of this a comment could not do,
+   * and a comment is what the contract was for two phases.
+   *
+   * The two destructive ones are blockers; the two the base can hold in a
+   * shape the book merely disallows are warnings, which is how this app has
+   * always split the two — a facility ordered twice into one slot destroys
+   * Hardware, and a fourth upgrade is a rule a table may play past.
+   */
+  it.each(
+    Object.entries({
+      facility: {
+        campaign: community(),
+        project: WORKSHOP,
+        code: 'facility-on-order',
+        refusal: 'blockers',
+      },
+      // The Fence is one of the two upgrades the catalogue caps per facility,
+      // so a second one is a repeat the rules have an opinion about.
+      upgrade: {
+        campaign: community({
+          base: {
+            id: 'hobby-farm',
+            slots: { 'back-yard': { built: { facility: 'garden', builtOnTurn: 1 } } },
+          },
+        }),
+        project: { kind: 'upgrade', slot: 'back-yard', upgrade: 'fence', orderedOnTurn: 3 },
+        code: 'one-per-facility',
+        refusal: 'warnings',
+      },
+      clearing: {
+        campaign: community(),
+        project: COOP,
+        code: 'clearing-on-order',
+        refusal: 'blockers',
+      },
+    } satisfies Record<
+      Project['kind'],
+      {
+        campaign: Campaign;
+        project: Project;
+        code: string;
+        refusal: 'blockers' | 'warnings';
+      }
+    >),
+  )('says something about a second %s ordered for the same slot', (_kind, expected) => {
+    const first = checkOrder(expected.campaign, expected.project);
+
+    expect(first.blockers).toEqual([]);
+    expect(first.warnings).toEqual([]);
+
+    const again = checkOrder(
+      withProjectOrdered(expected.campaign, expected.project),
+      expected.project,
+    );
+
+    expect(again[expected.refusal].map((violation) => violation.code)).toContain(expected.code);
+  });
+
+  /**
    * The arithmetic Z3-11 put underneath all three checks. The first order
    * commits Labor that the second is measured against, so a team that could
    * afford either alone can afford only one.

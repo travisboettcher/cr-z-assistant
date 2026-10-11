@@ -33,7 +33,7 @@
 
 import { REST_HEALTH, SURVIVORS_RESTING_PER_TURN, type HealthSource } from '../data/turn';
 import { beforePlanning, staffOf, survivorsDoing } from './assignments';
-import { occupants } from './base';
+import { suppliedOccupants } from './utilities';
 import type { Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
 import { facilityProduction } from './production';
@@ -84,9 +84,8 @@ export function room(survivor: Survivor): number {
  * output is its staff's combined Medicine Score, halved for want of Water.
  */
 export function healingPool(campaign: Campaign): number {
-  const base = campaign.base;
-  if (base === null) return 0;
-
+  // No base-less guard: `suppliedOccupants` returns nothing to loop over, which
+  // is the same zero.
   const penalty = hungerPenalty(campaign);
   let total = 0;
 
@@ -94,7 +93,7 @@ export function healingPool(campaign: Campaign): number {
   // the campaign as it stood before this turn's Planning cleared the answer.
   const staffed = beforePlanning(campaign);
 
-  for (const occupant of occupants(base)) {
+  for (const occupant of suppliedOccupants(staffed)) {
     for (const line of facilityProduction(occupant, staffOf(staffed, occupant.slotId), penalty)) {
       if (line.outputs.includes('health')) total += line.amount;
     }

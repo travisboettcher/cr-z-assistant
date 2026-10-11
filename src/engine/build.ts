@@ -16,7 +16,7 @@
 import { FACILITIES, type Facility, type FacilityId } from '../data/facilities';
 import type { Campaign } from './campaign';
 import { layoutOf, occupants } from './base';
-import { laborRefusal } from './projects';
+import { laborRefusal, queuedKindFor } from './projects';
 import type { Check, Violation } from './checks';
 
 /**
@@ -30,6 +30,7 @@ export type BuildViolationCode =
   | 'no-base'
   | 'no-such-slot'
   | 'slot-occupied'
+  | 'facility-on-order'
   | 'slot-not-cleared'
   | 'not-enough-hardware'
   | 'not-enough-labor'
@@ -96,6 +97,18 @@ export function checkBuild(campaign: Campaign, request: BuildRequest): BuildChec
       code: 'slot-occupied',
       message: 'Something is already built in this slot, and a built facility is permanent.',
       pages: 54,
+    });
+  }
+
+  // A blocker rather than a warning, and the only one of #140's four that had
+  // to be: two facilities ordered into one slot both spend their Hardware,
+  // `completeProjects` drops whichever loses the race, and nothing refunds it
+  // or writes it down. A rule a table may play past does not destroy materials.
+  if (queuedKindFor(campaign, request.slot, 'facility')) {
+    blockers.push({
+      code: 'facility-on-order',
+      message: 'A facility is already on order for this slot, and only one of them could be built.',
+      pages: 20,
     });
   }
 

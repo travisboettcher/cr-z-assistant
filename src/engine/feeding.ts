@@ -147,11 +147,24 @@ export function hungerPenalty(campaign: Campaign): number {
   const fed = feedings(campaign, false).at(-1);
   if (fed === undefined) return 0;
 
-  // `population` is absent from entries written before it was recorded. The
-  // live head count is the only number available for those, and is what they
-  // were read with anyway — so an old save behaves exactly as it did rather
-  // than acquiring a new answer on load.
-  return penaltyFor(fed.hunger, fed.population ?? campaign.survivors.length);
+  return penaltyFor(fed.hunger, fedPopulation(campaign));
+}
+
+/**
+ * The head count the penalty in force was priced against (pg. 22, ruling 1).
+ *
+ * Exported because the Feed step says the threshold out loud — "the penalty
+ * starts once the shortfall passes the head count of 5" — and a screen reading
+ * the live roster for that sentence prints a different rule from the one in
+ * force, which is #102 again one layer up (#143).
+ *
+ * `population` is absent from entries written before it was recorded. The live
+ * head count is the only number available for those, and is what they were read
+ * with anyway — so an old save behaves exactly as it did rather than acquiring
+ * a new answer on load.
+ */
+export function fedPopulation(campaign: Campaign): number {
+  return feedings(campaign, false).at(-1)?.population ?? campaign.survivors.length;
 }
 
 /**

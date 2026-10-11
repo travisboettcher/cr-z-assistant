@@ -17,7 +17,7 @@ import {
 } from './materials';
 import type { LogEntry } from './log';
 import { MATERIALS, type Material } from '../data/materials';
-import { staffedWith } from '../test/campaigns';
+import { generatingUtilities, staffedWith, utilityWorker } from '../test/campaigns';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
 const AT = '2026-09-11T09:00:00.000Z';
@@ -217,6 +217,61 @@ describe('baseProduction', () => {
     // The Farm's own two, plus this Garden's one, less the Herb Plot's one.
     expect(baseProduction(community({}, base)).food).toBe(2);
     expect(baseProduction(community({}, { ...base, slots: {} })).food).toBe(2);
+  });
+
+  /**
+   * The Hydroelectric Dam supplies every facility once the community's combined
+   * Utilities Score reaches 6 (pg. 61). It is one of the two rules that live
+   * only in the resolved list, and production read the stored flags until #139
+   * — so the Dam, which ships no Station and no flat generation, could never
+   * supply anything and its Workshop was halved forever.
+   */
+  it("counts the Dam's blanket supply, so its Workshop is not halved", () => {
+    const mechanic = {
+      ...createSurvivor('Ada Pratt', 4, { id: 'mechanic' }),
+      stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: 4 },
+      skills: { mechanics: 0 },
+    };
+
+    const dam = staffedWith(community({}, { id: 'hydroelectric-dam', slots: {} }), 'workshop', [
+      mechanic,
+    ]);
+
+    // Not staffing anything: the Dam's special reads the *community's* combined
+    // Score, which is what makes it different from the staffed pool.
+    const supplied = { ...dam, survivors: [...dam.survivors, utilityWorker(6)] };
+    const short = { ...dam, survivors: [...dam.survivors, utilityWorker(5)] };
+
+    expect(baseProduction(supplied).hardware).toBe(4);
+
+    // One under the threshold, halved for want of Power and rounding up.
+    expect(baseProduction(short).hardware).toBe(2);
+  });
+
+  /**
+   * The other rule that lives only in the resolved list (#111): assignment
+   * persists on the slot and generation does not, so a Kitchen keeps its point
+   * of Water after the Station empties. Production asked the flag until #139.
+   */
+  it('halves a facility whose assigned point has nothing generating it', () => {
+    const cook = {
+      ...createSurvivor('Nell Haig', 4, { id: 'cook' }),
+      stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: 3 },
+      skills: { rationing: 0 },
+    };
+
+    const assigned = staffedWith(
+      community({}, { id: 'hobby-farm', slots: { kitchen: { water: true } } }),
+      'kitchen',
+      [cook],
+    );
+
+    // The Farm's own 2 Food, plus the Kitchen's 3 halved to 2 — the same number
+    // the unassigned Kitchen makes, because the point is not backed.
+    expect(baseProduction(assigned).food).toBe(2 + 2);
+
+    // Backed by a Station, and the Score comes through whole.
+    expect(baseProduction(generatingUtilities(assigned, 1, 'utility-station')).food).toBe(2 + 3);
   });
 
   it('ignores production that does not go in storage', () => {

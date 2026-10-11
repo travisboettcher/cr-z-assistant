@@ -257,9 +257,26 @@ mean one migration step doing two unrelated things, and the migration chain is t
 keeps an in-progress campaign openable — it is worth more as a record of what changed and when
 than as a short file.
 
+**The Generator and the Well Pump are transcribed and not wired up, and the screen says so.** Both
+trade 1 Fuel for a point of Power or Water, up to three a turn (pp. 72–73). Every other exchange in
+the catalogue gains a *material*, and Add Materials to Storage runs those. These two gain a
+**utility**, and a utility lasts until the next turn's Planning Phase (pg. 20, 67) — so a point
+bought in the Advancement Phase would be cleared by the Planning Phase one phase later, and a point
+bought in the Planning Phase's utility step would be bought with Fuel the Advancement Phase has not
+yet hauled in. **Which step owns a Fuel-for-utility trade is the open question**, and it is a real
+one rather than an oversight.
+
+What was wrong was the silence: a player built either upgrade, paid its Hardware and Labor, and got
+nothing, with the whole trace of it on screen being a slot-card line naming the upgrade
+([#150](https://github.com/travisboettcher/cr-z-assistant/issues/150)). The card says it now, in the
+same shape as this app's other "a later phase owns this" notes. `conversions.test.ts` still fails if
+a third utility trade is added without deciding, and the cap those two state is exercised against a
+trade built in the test rather than one looked up — which is the honest answer to `maxPerTurn`
+having no UI-reachable exercise while the only two entries that use it do nothing.
+
 ## Rulings the book leaves open
 
-Six places where the printed text does not decide the answer. Each needs a table ruling before
+Seven places where the printed text does not decide the answer. Each needs a table ruling before
 the story that depends on it, and each is recorded here rather than settled quietly in code — a
 house rule that lives in a function is indistinguishable from a rule.
 
@@ -321,6 +338,57 @@ house rule that lives in a function is indistinguishable from a rule.
    The spread rather than a page, because the two transcriptions of this upgrade disagree:
    `facilities.ts` recorded it as pg. 73 and the September playtest read it off pg. 72. Narrow it
    next time the book is open.
+7. **What happens to XP already awarded when the mission team changes (pg. 18,
+   [#145](https://github.com/travisboettcher/cr-z-assistant/issues/145)) — RULED.** A table can
+   correct a mission team after handing its XP out — most easily on turn 1, where the team is
+   recorded rather than assigned a turn ahead. The book has nothing to say about it, because it
+   does not imagine the record being edited.
+
+   **The ruling is that a point handed out stays handed out.** An award is written in the log and
+   on the survivor's sheet; taking somebody off the team afterwards reaches back through neither.
+   So a two-person mission whose points are spent has no third point for a late arrival, and the
+   survivor who left keeps theirs.
+
+   The alternative — the pool describes the *current* team, so removing somebody frees their
+   point — reads well until the freed point is handed to a third survivor and the mission has
+   paid out three points for two people, because the first award is still on the sheet it was
+   written to. Undoing an award to match would be the app editing a survivor nobody asked it to
+   touch.
+
+   What the ruling costs is a row that can be shown as eligible and pressed no further, so the
+   screen says which of the two it is: the reason sits beside the button rather than being left
+   to the greyed-out state, which the awards have wanted since they were written.
+
+8. **What a Teacher with a Score of nothing replaces (pg. 12,
+   [#143](https://github.com/travisboettcher/cr-z-assistant/issues/143)) — RULED.** A Teacher on
+   the mission team replaces the discretionary point, and their Teaching Score is how many
+   survivors they then hand a point to. The book does not say what happens when those two come
+   apart — a survivor who has the skill at Score 0, which a Cooperation of 0 and a level of 0
+   produces.
+
+   **The ruling is that having the skill is what replaces the point.** A Teacher whose Score is 0
+   replaces the discretionary point and hands out none, so that turn awards one XP each for going
+   out and nothing else. The trigger the book names is the Teacher being on the team, not a
+   number; the Score appears only in the sentence about who receives points.
+
+   The alternative — the Score replaces the point, so a Score-0 Teacher leaves it standing — is
+   defensible and was what the code did, while the message on the screen said the ruling above.
+   Either is playable; what is not is the pair disagreeing, which is how a discretionary point
+   was awarded under a line saying it had been replaced. One `canTeach` against one `teaching > 0`
+   is the whole of the difference, if a table wants it the other way.
+
+**Recorded without a ruling: Siege Threat can go below zero.** Observed at −1 on the Hydroelectric
+Dam — one staffed facility, nobody on the project team, no base features, one turn since the last
+siege, and −3 from a Watchtower with a Long Guns 3 lookout. The arithmetic is right and the book
+states no floor, which is the same position as the Rot check target in ruling 2 above, so nothing
+here is a bug.
+
+It is written down because it became newly easy to reach when the Watchtower started subtracting,
+and because the number feeds **two** different thresholds that were written for a positive quantity:
+the horde roll (d10 + Threat ≥ 16) and the departure test (Unrest + Threat ≥ 10). A negative Threat
+therefore makes a community *harder* to send somebody away from, which reads as intended — a
+well-watched base is a calmer one — but no rule says so. If a table wants a floor of zero it goes in
+`siegeThreat`, in one place, and this paragraph becomes ruling 9.
 
 ---
 

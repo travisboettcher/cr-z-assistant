@@ -1,11 +1,16 @@
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { BASES, BASE_IDS } from '../data/bases';
 import type { UpgradeId } from '../data/facilities';
 import { createNewCampaign, type Campaign } from '../engine/campaign';
 import { createSurvivor } from '../engine/survivor';
-import { generatingUtilities, projectTeamWorth, withPlanningBegun } from '../test/campaigns';
+import {
+  generatingUtilities,
+  projectTeamWorth,
+  staffedWith,
+  withPlanningBegun,
+} from '../test/campaigns';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
 import { BaseSlotMap } from './BaseSlotMap';
@@ -113,7 +118,12 @@ describe('claiming a base', () => {
 
     // Its Storage Area ships Refrigeration and is locked against further
     // upgrades, which is the roster's own 6/6(8)/6 showing up on a screen.
-    expect(within(map).getByText(/refrigeration — 1 of 3, no room for more/i)).toBeInTheDocument();
+    //
+    // The reason is the base's rule, not the cap: "1 of 3, no room for more"
+    // gave the cap and then denied the room it had just described (#151).
+    expect(
+      within(map).getByText(/refrigeration — came with the base and takes no more/i),
+    ).toBeInTheDocument();
   });
 
   it('says what a clearing project costs and yields', async () => {
@@ -181,6 +191,9 @@ describe('building into a slot', () => {
       withPlanningBegun({
         ...createNewCampaign('Cedar Hollow'),
         materials: { food: 0, fuel: 0, hardware, rare: 0 },
+        // The step that places an order, which is also the only one that may
+        // take it back (#148).
+        step: 'assign-project-team',
         base: { id: 'small-town-home', slots: {} },
         ...projectTeamWorth(labor),
       }),
@@ -276,10 +289,44 @@ describe('building into a slot', () => {
 
     expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(6);
 
-    await user.click(screen.getByRole('button', { name: /cancel bunk room in the garage/i }));
+    // The button says what comes back, because an order spends its Hardware
+    // when it is placed and nothing on the screen said so (#148).
+    await user.click(
+      screen.getByRole('button', {
+        name: /cancel bunk room in the garage — its hardware comes back/i,
+      }),
+    );
 
     expect(screen.queryByText(/on order:/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(9);
+
+    // And the history says what it was and how much came back — the button
+    // cannot know the second before the press, and "the Garage project" alone
+    // is ambiguous the moment two are queued there (#151).
+    expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
+      'Cancelled the Bunk Room on the Garage — 3 Hardware came back',
+    );
+  });
+
+  /**
+   * R2-M8 (#148): cancelling is a decision taken back within the phase that
+   * made it, which is the app's own ruling and was enforced nowhere. Last
+   * turn's order was cancelled during the next turn's Mission Phase for a full
+   * refund.
+   */
+  it('stops offering the cancellation once the phase that ordered it has passed', async () => {
+    const user = readyToBuild(5, 9);
+    await user.click(garage());
+    await user.click(screen.getByRole('button', { name: /order the build/i }));
+
+    expect(screen.getByText(/on order:/i)).toBeInTheDocument();
+
+    // On through the turn: the Management Phase is the same turn, and past it.
+    await user.click(screen.getByRole('button', { name: /^skip to management$/i }));
+
+    expect(screen.getByText(/on order:/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^cancel bunk room/i })).toBeNull();
+    expect(screen.getByText(/cancelled in the planning phase that ordered it/i)).toBeVisible();
   });
 
   /** Labor is committed rather than spent, and the pool above says so. */
@@ -370,8 +417,11 @@ describe('upgrading a facility', () => {
     expect(
       within(card as HTMLElement).getByText(/on order: gas range on the kitchen/i),
     ).toBeInTheDocument();
-    // Not installed: the Kitchen still has all three of its slots free.
-    expect(within(card as HTMLElement).getByText(/room for 3 upgrades/i)).toBeInTheDocument();
+    // Not installed — and not free either. The line read "Room for 3 upgrades"
+    // over a queue that had spoken for one of them (#151).
+    expect(
+      within(card as HTMLElement).getByText(/room for 2 upgrades, 1 on order/i),
+    ).toBeInTheDocument();
     // A Gas Range costs 2 Hardware, spent when the order is placed.
     expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(7);
   });
@@ -574,23 +624,30 @@ describe('assigning Power and Water', () => {
     await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
   };
 
-  it('shows what each pool generates and what the Score is covering', () => {
+  /**
+   * Against what the pool can back, not against flat generation alone. A
+   * Station generating two means either pool can take two, and the old
+   * denominator — flat only — reported that as `0 / 0 flat`.
+   */
+  it('shows what each pool can back and what the Score is covering', () => {
     readyToSupply();
 
-    expect(screen.getByRole('definition', { name: /power assigned/i })).toHaveTextContent(
-      '0 / 0 flat',
-    );
+    expect(screen.getByRole('definition', { name: /power assigned/i })).toHaveTextContent('0 / 2');
     expect(screen.getByRole('definition', { name: /score spent/i })).toHaveTextContent('0 / 2');
   });
 
+  /**
+   * And the two pools share it: a point of Water takes one of the two the
+   * Station generates, so Power can back one fewer than it could a moment ago.
+   * Flat Power cannot become Water, but a staffed point can be either.
+   */
   it('assigns a point, and the readout follows it', async () => {
     const user = readyToSupply();
     await openKitchen(user);
     await user.click(screen.getByRole('checkbox', { name: /water/i }));
 
-    expect(screen.getByRole('definition', { name: /water assigned/i })).toHaveTextContent(
-      '1 / 0 flat',
-    );
+    expect(screen.getByRole('definition', { name: /water assigned/i })).toHaveTextContent('1 / 2');
+    expect(screen.getByRole('definition', { name: /power assigned/i })).toHaveTextContent('0 / 1');
     expect(screen.getByRole('definition', { name: /score spent/i })).toHaveTextContent('1 / 2');
     // And the card says so with the form closed.
     await user.click(screen.getByRole('button', { name: /^cancel$/i }));
@@ -612,6 +669,58 @@ describe('assigning Power and Water', () => {
 
     expect(screen.getAllByText(/needs 1 more than this base generates/i)).toHaveLength(2);
     expect(screen.getByRole('checkbox', { name: /water/i })).toBeDisabled();
+  });
+
+  /**
+   * The card and the facility have to agree (#139). "Supplied with Water" was
+   * read off the stored flag while the Kitchen's output was read off the
+   * resolved list — so an emptied Station left a card claiming a supply beside
+   * a production line halved for want of it.
+   */
+  it('stops calling a slot supplied when its Station empties, and the output follows', async () => {
+    const cook = {
+      ...createSurvivor('Nell Haig', 4, { id: 'cook' }),
+      stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: 3 },
+      skills: { rationing: 0 },
+    };
+
+    const user = openWith(
+      staffedWith(
+        generatingUtilities(
+          {
+            ...createNewCampaign('Cedar Hollow'),
+            base: { id: 'small-town-home', slots: { kitchen: { water: true } } },
+          },
+          1,
+        ),
+        'kitchen',
+        [cook],
+      ),
+    );
+
+    const kitchen = () =>
+      within(slots())
+        .getAllByRole('listitem')
+        .find((slot) => /Kitchen/.test(slot.textContent ?? '')) as HTMLElement;
+
+    await openKitchen(user);
+    expect(kitchen().textContent).toContain('Supplied with Water');
+    expect(kitchen().textContent).toContain('+3 Food');
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }));
+
+    // Take the Station's worker off it, as a Planning Phase re-assignment
+    // would. The point stays assigned — it is the generation that stopped.
+    await user.click(screen.getByRole('button', { name: /upgrade front yard/i }));
+    await user.click(
+      within(screen.getByRole('group', { name: /working here/i })).getByRole('checkbox', {
+        name: /^Utilities/,
+      }),
+    );
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }));
+
+    await openKitchen(user);
+    expect(kitchen().textContent).not.toContain('Supplied with Water');
+    expect(kitchen().textContent).toContain('+2 Food, halved for want of a utility');
   });
 
   it('lets a point go back even when the Score no longer covers it', async () => {
@@ -760,6 +869,68 @@ describe('staffing a facility', () => {
  * planning reset — silently. The build controls on the same card have always
  * said which step they belong to; this one said nothing.
  */
+/**
+ * Two things the slot card says about a facility that are not about what it
+ * produces: whether staffing put on it now will survive, and whether anything
+ * on it is a rule this version has not built (#150, #151).
+ */
+describe('what a slot card says about itself', () => {
+  const stationWith = (upgrades: readonly UpgradeId[], step: Campaign['step']): Campaign => ({
+    ...createNewCampaign('Cedar Hollow'),
+    step,
+    base: {
+      id: 'small-town-home' as const,
+      slots: {
+        'front-yard': {
+          built: { facility: 'utility-station' as const, builtOnTurn: 1 },
+          upgrades: [...upgrades],
+        },
+      },
+    },
+  });
+
+  async function openFrontYard(campaign: Campaign) {
+    const user = openWith(campaign);
+    await user.click(screen.getByRole('button', { name: /upgrade front yard/i }));
+
+    return user;
+  }
+
+  it('says a Generator’s trade is not run by this version, rather than nothing', async () => {
+    await openFrontYard(stationWith(['generator', 'well-pump'], 'select-mission'));
+
+    expect(
+      screen.getByText(/generator and well pump trade fuel for a utility/i),
+    ).toBeInTheDocument();
+  });
+
+  it('says nothing of the kind about a Station with no such upgrade', async () => {
+    await openFrontYard(stationWith([], 'select-mission'));
+
+    expect(screen.queryByText(/trades? fuel for a utility/i)).toBeNull();
+  });
+
+  /**
+   * The note promised to wipe an assignment that in fact survives: the clear
+   * runs at the top of the Planning Phase, so once it has run, staffing stands
+   * until the next turn's (#151).
+   */
+  it('promises the clear before Planning and the opposite after it', async () => {
+    await openFrontYard(stationWith([], 'select-mission'));
+
+    expect(screen.getByText(/will be cleared when the planning phase begins/i)).toBeVisible();
+
+    cleanup();
+
+    await openFrontYard(
+      withPlanningBegun({ ...stationWith([], 'check-storage'), turn: 1 }) as Campaign,
+    );
+
+    expect(screen.queryByText(/will be cleared when the planning phase begins/i)).toBeNull();
+    expect(screen.getByText(/stands until next turn’s planning phase clears it/i)).toBeVisible();
+  });
+});
+
 describe('staffing from the base screen', () => {
   const atStep = (step: Campaign['step']): Campaign => ({
     ...createNewCampaign('Cedar Hollow'),

@@ -16,9 +16,9 @@
 import { STORED_MATERIALS } from '../data/materials';
 import { suppliedOccupants } from '../engine/utilities';
 import { UTILITIES } from '../data/facilities';
-import { beds, flatUtilitiesGenerated, maxHeroes, storageCaps } from '../engine/base';
+import { beds, maxHeroes, storageCaps } from '../engine/base';
 import type { Campaign } from '../engine/campaign';
-import { assignedCount, staffedSpent } from '../engine/utilities';
+import { assignedCount, staffedSpent, utilityCapacity } from '../engine/utilities';
 import { utilitiesScore } from '../engine/assignments';
 import { siegeThreat } from '../engine/siege';
 import { UTILITY_LABELS } from './baseLabels';
@@ -75,7 +75,6 @@ export function BaseSheet({ campaign }: BaseSheetProps) {
 
   const standing = suppliedOccupants(campaign);
   const caps = storageCaps(base, standing);
-  const flat = flatUtilitiesGenerated(base);
   const heroes = campaign.survivors.filter((survivor) => survivor.tier === 4).length;
   const cap = maxHeroes(base);
   const siege = siegeThreat(campaign);
@@ -96,15 +95,28 @@ export function BaseSheet({ campaign }: BaseSheetProps) {
         />
       ))}
 
-      {UTILITIES.map((utility) => (
-        <Figure
-          key={utility}
-          label={`${UTILITY_LABELS[utility]} assigned`}
-          value={`${String(assignedCount(base, utility))} / ${String(flat[utility])} flat`}
-          note={undefined}
-          pages={67}
-        />
-      ))}
+      {/*
+       * Against what the pool can actually back, not against its flat
+       * generation: a point from a staffed Station is as real as one from a
+       * Solar Panel, and printing `1 / 0 flat` beside the Station generating it
+       * reported a legal assignment as an over-assignment. The staffed half was
+       * two rows down under its own heading — the pair was complete and the
+       * line was not.
+       */}
+      {UTILITIES.map((utility) => {
+        const assigned = assignedCount(base, utility);
+        const capacity = utilityCapacity(campaign, utility);
+
+        return (
+          <Figure
+            key={utility}
+            label={`${UTILITY_LABELS[utility]} assigned`}
+            value={`${String(assigned)} / ${String(capacity)}`}
+            note={assigned > capacity ? 'Over what the base generates' : undefined}
+            pages={67}
+          />
+        );
+      })}
 
       {/*
        * The total, since Z3-10. Through Z2-3's `siegeThreatFromBase` and the

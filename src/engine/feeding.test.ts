@@ -7,6 +7,7 @@ import {
   foodRequiredAsFed,
   hunger,
   hungerIfFedNow,
+  fedPopulation,
   hungerPenalty,
   penaltyFor,
   survivorsFed,
@@ -231,6 +232,33 @@ describe('the hunger penalty', () => {
 
     expect(hungerPenalty(older)).toBe(2);
     expect(hungerPenalty({ ...older, survivors: older.survivors.slice(1) })).toBe(3);
+  });
+
+  /**
+   * The same head count, said out loud. The Feed step names the threshold —
+   * "the penalty starts once the shortfall passes the head count of 4" — and a
+   * screen reading the live roster for that sentence prints a different rule
+   * from the one in force (#143).
+   */
+  it('exposes the head count the penalty was priced against', () => {
+    const atFeed = withLog(community(4, 4, 0), [fed(3, 8, 6, 4)]);
+
+    expect(fedPopulation(atFeed)).toBe(4);
+    expect(fedPopulation({ ...atFeed, survivors: atFeed.survivors.slice(1) })).toBe(4);
+
+    // And the same fallback: an entry with none is read with the live count.
+    const older = withLog(community(4, 4, 0), [fed(3, 8, 6)]);
+
+    expect(fedPopulation({ ...older, survivors: older.survivors.slice(1) })).toBe(3);
+
+    // Nothing recorded at all is the community as it stands.
+    expect(fedPopulation(community(4, 4, 0))).toBe(4);
+
+    // And it carries past the turn it was written in, like the penalty it
+    // prices: this turn's Feed has not run, and last turn's is still in force.
+    const carried: Campaign = { ...atFeed, turn: 4, survivors: atFeed.survivors.slice(2) };
+
+    expect(fedPopulation(carried)).toBe(4);
   });
 });
 
