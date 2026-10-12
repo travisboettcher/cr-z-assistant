@@ -31,7 +31,7 @@ import {
   slotLabel,
 } from './baseLabels';
 import { MISSIONS } from '../data/missions';
-import { describeOutcome, describeSelection, MISSION_PAGES } from './missionLabels';
+import { describeOutcome, describeSelection, outcomePages } from './missionLabels';
 import { PHASE_LABELS } from './turnLabels';
 import { COMMON_SKILL_LABELS, SKILL_LABELS } from './skillLabels';
 import { TIER_LABELS } from './tierLabels';
@@ -285,7 +285,14 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
 
     case 'siege-defense-resolved':
     case 'thin-the-herd-resolved':
-      return { text: describeOutcome(event), pages: MISSION_PAGES[event.kind] };
+    case 'first-mission-resolved':
+    case 'claim-a-new-base-resolved':
+    case 'gather-materials-resolved':
+    case 'retrieve-new-vehicles-resolved':
+    case 'rescue-strangers-resolved':
+    case 'rare-goods-trader-resolved':
+    case 'mission-played':
+      return { text: describeOutcome(event), pages: outcomePages(event) };
 
     case 'stood-in':
       return {
@@ -336,6 +343,19 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
             : `${event.name} was recruited as ${withArticle(TIER_LABELS[event.tier])}, rolling ${articleForNumber(event.roll)} ${String(event.roll)}.`,
         pages: 15,
       };
+
+    case 'stranger-joined': {
+      // Which team brought them out, because a turn of two rescues reads as
+      // two arrivals with nothing to tell them apart otherwise (Z4-5).
+      const joined = `${event.name} joined as ${withArticle(TIER_LABELS[event.tier])}, rescued by mission team ${String(event.team)}`;
+
+      return event.roll === undefined
+        ? { text: `${joined}.`, pages: 19 }
+        : {
+            text: `${joined}, rolling ${articleForNumber(event.roll)} ${String(event.roll)}.`,
+            pages: '15, 19',
+          };
+    }
 
     case 'survivor-left':
       return {

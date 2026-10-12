@@ -100,7 +100,51 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   },
   { kind: 'mission-skipped' },
   { kind: 'siege-defense-resolved', zombiesLeft: 0, survivorsExited: 2 },
+  // A team, which every outcome written since Z4-3 carries.
+  { kind: 'siege-defense-resolved', zombiesLeft: 1, survivorsExited: 0, team: 1 },
+  { kind: 'first-mission-resolved', team: 1, endCondition: 2, strangers: [1, 2] },
+  // No end condition met, which is the failure R21 reads.
+  { kind: 'first-mission-resolved', team: 1, endCondition: null, strangers: [] },
+  {
+    kind: 'claim-a-new-base-resolved',
+    team: 2,
+    endCondition: 1,
+    strangers: [3],
+    vehiclesOnArea: 1,
+  },
+  // A Rookie its setup placed on the area (pg. 79).
+  { kind: 'gather-materials-resolved', team: 1, materialsCarriedOut: 5, strangers: [1] },
+  { kind: 'retrieve-new-vehicles-resolved', team: 3, vehiclesDrivenOff: 0, strangers: [] },
+  { kind: 'rescue-strangers-resolved', team: 1, strangers: [2] },
+  { kind: 'rare-goods-trader-resolved', team: 2, survivorsExited: 1, strangers: [3] },
+  { kind: 'mission-played', team: 1, mission: 'left-behind-1' },
   { kind: 'siege-defense-resolved', zombiesLeft: 3, survivorsExited: 1 },
+  // The team's wounds, which every outcome written since Z4-4 carries: Health
+  // at the end, 0 included, and Infection only in a Viral campaign.
+  {
+    kind: 'siege-defense-resolved',
+    zombiesLeft: 0,
+    survivorsExited: 1,
+    team: 1,
+    wounds: [
+      { ...SURVIVOR, health: 0 },
+      { survivor: 'ruby', name: 'Ruby Vance', health: 3 },
+    ],
+  },
+  {
+    kind: 'mission-played',
+    team: 2,
+    mission: 'medical-salvage',
+    wounds: [{ survivor: 'carla', name: 'Carla Proust', health: 2, infection: 4 }],
+  },
+  // A team with nobody left on it records nobody's Health.
+  {
+    kind: 'gather-materials-resolved',
+    team: 1,
+    materialsCarriedOut: 0,
+    strangers: [],
+    wounds: [],
+  },
   { kind: 'stood-in', ...SURVIVOR, by: 'ruby', byName: 'Ruby Vance' },
   // Nobody: the place left empty again, which is a choice the log keeps.
   { kind: 'stood-in', ...SURVIVOR },
@@ -120,6 +164,9 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   },
   { kind: 'survivor-added', ...SURVIVOR, tier: 3 },
   { kind: 'survivor-recruited', ...SURVIVOR, tier: 2, roll: 6 },
+  { kind: 'stranger-joined', ...SURVIVOR, tier: 2, team: 2, stranger: 0, roll: 6 },
+  // A Rookie, who does not roll (pg. 7), and the second stranger on a team.
+  { kind: 'stranger-joined', ...SURVIVOR, tier: 1, team: 1, stranger: 1 },
   { kind: 'survivor-left', ...SURVIVOR, tier: 1 },
   { kind: 'survivor-departed', ...SURVIVOR, tier: 1 },
   { kind: 'mission-team-reduced', ...SURVIVOR },

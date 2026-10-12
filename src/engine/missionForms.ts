@@ -2,13 +2,14 @@
  * The Mission Phase's forms, each guard, change and entry in one place (#179).
  *
  * The mission itself is played on the table and the tracker does not run it.
- * What it records is which mission each team chose (pg. 17; Z4-2), how a Siege
- * Defense or a Thin the Herd ended (pp. 81, 86), and who stands in for
- * somebody the siege took off their work (pg. 23, the FAQ's "Siege Defense and
- * Labor"; #183). None of them changes anything on the campaign but its log:
- * who went out, what they do to the turns since the last siege, and to the
- * Labor of the orders the siege interrupted, is read back from the entries by
- * `missions.ts`, `siege.ts` and `siegeWork.ts`.
+ * What it records is which mission each team chose (pg. 17; Z4-2), how each
+ * team's mission ended (pp. 77–86; Z4-3) and the Health it came home with
+ * (Z4-4), and who stands in for somebody the siege took off their work
+ * (pg. 23, the FAQ's "Siege Defense and Labor"; #183). The wounds are the one
+ * thing here that changes the campaign beyond its log — they set the roster's
+ * Health. Everything else — who went out, what they do to the turns since the
+ * last siege, and to the Labor of the orders the siege interrupted — is read
+ * back from the entries by `missions.ts`, `siege.ts` and `siegeWork.ts`.
  *
  * Moved out of `campaignStore.ts` without changing what either accepts or
  * refuses. The shape of what they return is `forms.ts`'s.
@@ -16,16 +17,19 @@
 
 import type { Campaign, Survivor } from './campaign';
 import { accepted, refused, type FormResult } from './forms';
-import { logged } from './log';
+import { logged, type MissionWound } from './log';
 import {
   missionOutcomeProblem,
   missionTeams,
+  outcomeTeam,
   selectionProblem,
   skipProblem,
+  withWounds,
+  woundsAsTheyStand,
   type MissionChoice,
+  type MissionOutcome,
   type MissionTeam,
 } from './missions';
-import type { MissionOutcome } from './siege';
 import { standInProblem } from './siegeWork';
 
 /**
@@ -69,13 +73,22 @@ export function submitMissionSkip(campaign: Campaign, at: string): FormResult {
 }
 
 /**
- * Record how this turn's Siege Defense or Thin the Herd ended (pp. 81, 86).
+ * Record how a team's mission ended (pp. 77–86; Z4-3), and the Health it came
+ * home with (Z4-4).
  *
  * The counts the table made at the end of the mission, and nothing worked out
  * from them; the outcome is its own entry. Refused for whatever
- * `missionOutcomeProblem` says — outside the Mission Phase, a second time in a
- * turn, for a mission the turn is not playing, and for a count that is not a
- * whole number.
+ * `missionOutcomeProblem` says — outside the Mission Phase, a second time for
+ * the team, for a mission the team did not choose, for a count that is not a
+ * whole number, and for wounds that are not the whole team's or are out of
+ * range (`woundsProblem`).
+ *
+ * **The only change it makes is the wounds** (`withWounds`): each member's
+ * Health, and Infection in a Viral campaign, set to what the table counted at
+ * the end. The roster's own Health correction stays as it was, unlogged, for
+ * fixing a mistake. The entry's wounds are written in team order with each
+ * survivor's name as the roster has it now, whatever the screen sent, so the
+ * history names them the way every other entry about a person does.
  */
 export function submitMissionOutcome(
   campaign: Campaign,
@@ -83,8 +96,24 @@ export function submitMissionOutcome(
   at: string,
 ): FormResult {
   const problem = missionOutcomeProblem(campaign, outcome);
+  if (problem !== null) return refused(problem);
 
-  return problem === null ? accepted(logged(campaign, at, outcome)) : refused(problem);
+  // Every wound names a team member exactly once by now: `woundsProblem`
+  // refuses anything else, so this reorders and renames and never drops one.
+  const wounds = woundsAsTheyStand(campaign, outcomeTeam(outcome)).map((member) => {
+    const { health, infection } = (outcome.wounds as readonly MissionWound[]).find(
+      (wound) => wound.survivor === member.survivor,
+    ) as MissionWound;
+
+    return {
+      survivor: member.survivor,
+      name: member.name,
+      health,
+      ...(infection === undefined ? {} : { infection }),
+    };
+  });
+
+  return accepted(logged(withWounds(campaign, wounds), at, { ...outcome, wounds }));
 }
 
 /** A place the siege emptied, and who fills it. */

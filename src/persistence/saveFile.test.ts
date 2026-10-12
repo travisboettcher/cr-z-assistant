@@ -833,8 +833,75 @@ describe('a campaign whose log is damaged', () => {
       ],
       /unreadable skill/i,
     ],
+    // Which rescue a stranger who joined answers (Z4-5): a team from one and
+    // a place in its list from zero.
+    [
+      'a stranger who joined from before the first in the list',
+      [
+        {
+          ...good,
+          event: { ...good.event, kind: 'stranger-joined', team: 1, stranger: -1 },
+        },
+      ],
+      /unreadable stranger/i,
+    ],
+    [
+      'a stranger who joined from mission team 0',
+      [
+        {
+          ...good,
+          event: { ...good.event, kind: 'stranger-joined', team: 0, stranger: 0 },
+        },
+      ],
+      /unreadable team/i,
+    ],
   ])('refuses %s', (_label, log, expected) => {
     expect(refusalFor(log)).toMatch(expected);
+  });
+
+  /**
+   * A mission's wounds (Z4-4): absent on every outcome written before them,
+   * and checked for shape only when present — never against the roster or a
+   * survivor's maximum, because the survivor may have left or been promoted
+   * since.
+   */
+  describe('the wounds a mission outcome carries', () => {
+    const outcome = (wounds: unknown) => ({
+      ...good,
+      phase: 'mission',
+      event: {
+        kind: 'gather-materials-resolved',
+        strangers: [],
+        team: 1,
+        materialsCarriedOut: 2,
+        ...(wounds === undefined ? {} : { wounds }),
+      },
+    });
+
+    it.each([
+      ['none, as an outcome written before them', undefined],
+      ['nobody', []],
+      ['Health and nothing else', [{ survivor: 'a', name: 'Earl', health: 0 }]],
+      ['Infection beside it', [{ survivor: 'a', name: 'Earl', health: 9, infection: 12 }]],
+    ])('accepts %s', (_label, wounds) => {
+      expect(parseCampaignFile(savedWith({ log: [outcome(wounds)] })).ok).toBe(true);
+    });
+
+    it.each([
+      ['not a list', { a: 1 }],
+      ['a wound that is not an object', [3]],
+      ['a wound naming nobody', [{ name: 'Earl', health: 1 }]],
+      ['a wound naming an empty id', [{ survivor: '', name: 'Earl', health: 1 }]],
+      ['a wound with no name', [{ survivor: 'a', health: 1 }]],
+      ['a wound with negative Health', [{ survivor: 'a', name: 'Earl', health: -1 }]],
+      ['a wound with no Health', [{ survivor: 'a', name: 'Earl' }]],
+      [
+        'a wound with fractional Infection',
+        [{ survivor: 'a', name: 'E', health: 1, infection: 0.5 }],
+      ],
+    ])('refuses %s', (_label, wounds) => {
+      expect(refusalFor([outcome(wounds)])).toMatch(/unreadable wounds/i);
+    });
   });
 
   /**

@@ -41,6 +41,7 @@ import {
   scavenged,
   scavenger,
   withMaterialsAdded,
+  gathered,
   type MaterialRoll,
 } from './materials';
 
@@ -62,7 +63,8 @@ export interface HaulForm {
 }
 
 /**
- * Put this turn's haul in storage — the mission's rolls, what the base made,
+ * Put this turn's haul in storage — the mission's rolls, what a Gather
+ * Materials team brought back without one (pg. 80; Z4-6), what the base made,
  * and a scavenger's find (pp. 17–19). Once a turn: the step is destructive and
  * the walk can go back over it.
  *
@@ -74,7 +76,10 @@ export function submitHaul(campaign: Campaign, form: HaulForm, at: string): Form
   if (materialsAdded(campaign)) return refused('This turn’s haul is already in storage.');
 
   const found = scavenged(campaign, form.scavenged);
-  const adding = combined(combined(recovered(form.rolls), baseProduction(campaign)), found);
+  const adding = combined(
+    combined(combined(recovered(form.rolls), gathered(campaign)), baseProduction(campaign)),
+    found,
+  );
   const stored = logged(withMaterialsAdded(campaign, adding), at, {
     kind: 'materials-added',
     ...adding,

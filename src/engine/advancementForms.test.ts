@@ -71,6 +71,48 @@ describe('submitHaul', () => {
     ]);
   });
 
+  it('adds what a Gather Materials team brought back without a roll (pg. 80; Z4-6)', () => {
+    const gathered = afterAMission();
+    const after = expectAccepted(
+      submitHaul(
+        {
+          ...gathered,
+          log: [
+            {
+              turn: 3,
+              phase: 'mission',
+              at: AT,
+              event: {
+                kind: 'mission-selected',
+                team: 1,
+                mission: 'gather-materials',
+                names: ['Earl Rhodes'],
+                material: 'hardware',
+              },
+            },
+            {
+              turn: 3,
+              phase: 'mission',
+              at: AT,
+              event: {
+                kind: 'gather-materials-resolved',
+                team: 1,
+                materialsCarriedOut: 4,
+                strangers: [],
+              },
+            },
+          ],
+        },
+        { rolls: [{ roll: 4 }] },
+        AT,
+      ),
+    );
+
+    // One each of Food, Fuel and Hardware, the fourth in Hardware, and the
+    // rolled 4 a Food.
+    expect(after.materials).toEqual({ food: 2, fuel: 1, hardware: 2, rare: 0 });
+  });
+
   it('records a scavenger’s find after the haul, with what they chose', () => {
     const after = expectAccepted(
       submitHaul(

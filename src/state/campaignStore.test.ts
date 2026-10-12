@@ -644,6 +644,51 @@ describe('campaign/startingCommunityBuiltSet', () => {
   });
 });
 
+/**
+ * Advancement Step 2 (pg. 19; Z4-5): a stranger the turn's missions rescued
+ * joins as the form builds them, and a refusal changes nothing.
+ */
+describe('advancement/strangerJoined', () => {
+  const rescued = (): CampaignState =>
+    openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      turn: 3,
+      step: 'create-new-survivors',
+      log: [entry(3, 'mission', { kind: 'rescue-strangers-resolved', team: 2, strangers: [3] })],
+    });
+
+  const join = (name: string): CampaignAction => ({
+    type: 'advancement/strangerJoined',
+    at: AT,
+    team: 2,
+    stranger: 0,
+    name,
+    roll: 6,
+    id: SURVIVOR_ID,
+  });
+
+  it('adds the stranger at the Tier the mission counted', () => {
+    const campaign = expectOpen(campaignReducer(rescued(), join('Carla Proust')));
+
+    // A six is Archery (pg. 15).
+    expect(campaign.survivors).toEqual([
+      recruitSurvivor('Carla Proust', 3, 6, { id: SURVIVOR_ID }),
+    ]);
+  });
+
+  it('does nothing the second time, because the stranger has joined', () => {
+    const once = campaignReducer(rescued(), join('Carla Proust'));
+
+    expect(campaignReducer(once, join('Carla again'))).toEqual(once);
+  });
+
+  it('does nothing when no campaign is open', () => {
+    expect(campaignReducer(INITIAL_CAMPAIGN_STATE, join('Carla Proust'))).toEqual(
+      INITIAL_CAMPAIGN_STATE,
+    );
+  });
+});
+
 describe('survivor/recruited', () => {
   it('adds the recruit the rulebook’s own example produces', () => {
     const campaign = expectOpen(
@@ -2675,6 +2720,8 @@ describe('what earns a line in the log', () => {
           zombiesLeft: 0,
           survivorsExited: 2,
           allIncapacitated: false,
+          // Every outcome since Z4-4 carries its team's Health at the end.
+          wounds: [{ survivor: LOGGED_SURVIVOR, name: 'Marcus Webb', health: 1 }],
         },
       },
       entry: entry(3, 'mission', {
@@ -2683,6 +2730,7 @@ describe('what earns a line in the log', () => {
         zombiesLeft: 0,
         survivorsExited: 2,
         allIncapacitated: false,
+        wounds: [{ survivor: LOGGED_SURVIVOR, name: 'Marcus Webb', health: 1 }],
       }),
     },
     'mission/stoodIn': {
@@ -2811,6 +2859,38 @@ describe('what earns a line in the log', () => {
         ...WEBB,
         amount: 1,
         source: 'discretionary',
+      }),
+    },
+    'advancement/strangerJoined': {
+      // Turn 3's Create New Survivors, after Marcus's team rescued a Citizen.
+      // Already settled, so the join is the one entry; the settling a stranger
+      // also does is the form's suite's to pin.
+      state: openState({
+        ...expectOpen(
+          marcusOnTeamOne([
+            entry(3, 'mission', { kind: 'rescue-strangers-resolved', team: 1, strangers: [2] }),
+          ]),
+        ),
+        step: 'create-new-survivors',
+        startingCommunityBuilt: true,
+      }),
+      action: {
+        type: 'advancement/strangerJoined',
+        at: AT,
+        team: 1,
+        stranger: 0,
+        name: 'Carla Proust',
+        roll: 6,
+        id: 'carla',
+      },
+      entry: entry(3, 'advancement', {
+        kind: 'stranger-joined',
+        survivor: 'carla',
+        name: 'Carla Proust',
+        tier: 2,
+        team: 1,
+        stranger: 0,
+        roll: 6,
       }),
     },
     // Assignments move around several times while a turn is being planned, for
@@ -3641,36 +3721,49 @@ describe('mission/resolved', () => {
     siege: true,
   });
 
-  /** Turn 4, standing on Play the Mission, with the siege turn 3 called. */
+  /**
+   * Turn 4, standing on Play the Mission, with the siege turn 3 called — so
+   * Earl, the whole community, is team 1 (pg. 85).
+   */
   const besieged = () =>
     openState({
       ...createNewCampaign('Cedar Hollow', FIXED),
       turn: 4,
       step: 'tactical-mission',
+      survivors: [createSurvivor('Earl Rhodes', 3, { id: 'earl' })],
       log: [
         called,
         entry(4, 'mission', {
           kind: 'mission-selected',
           team: 1,
           mission: 'siege-defense',
-          names: [],
+          names: ['Earl Rhodes'],
         }),
       ],
     });
 
+  const wounds = [{ survivor: 'earl', name: 'Earl Rhodes', health: 1 }];
+
   const resolve = (zombiesLeft: number): CampaignAction => ({
     type: 'mission/resolved',
     at: AT,
-    outcome: { kind: 'siege-defense-resolved', zombiesLeft, survivorsExited: 1 },
+    outcome: { kind: 'siege-defense-resolved', zombiesLeft, survivorsExited: 1, wounds },
   });
 
-  it('writes the outcome as it was counted, and nothing else', () => {
+  it('writes the outcome as it was counted, and sets the Health it recorded (Z4-4)', () => {
+    const before = expectOpen(besieged());
     const after = expectOpen(campaignReducer(besieged(), resolve(0)));
 
     expect(after.log.at(-1)).toEqual(
-      entry(4, 'mission', { kind: 'siege-defense-resolved', zombiesLeft: 0, survivorsExited: 1 }),
+      entry(4, 'mission', {
+        kind: 'siege-defense-resolved',
+        zombiesLeft: 0,
+        survivorsExited: 1,
+        wounds,
+      }),
     );
-    expect({ ...after, log: [] }).toEqual({ ...expectOpen(besieged()), log: [] });
+    expect(after.survivors.map((survivor) => survivor.currentHp)).toEqual([1]);
+    expect({ ...after, log: [], survivors: [] }).toEqual({ ...before, log: [], survivors: [] });
   });
 
   it('refuses what the engine says cannot be recorded — here, a second outcome', () => {

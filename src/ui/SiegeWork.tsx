@@ -8,10 +8,11 @@
  * the player sees it happen, once the outcome is recorded: who fell from which
  * post, and what it costs the turn.
  *
- * **It reads Health, and says so.** The outcome does not record who went down,
- * and wounds are entered on the roster. So the panel tells the player that it
- * follows the roster, rather than letting a casualty appear or vanish without
- * a reason on screen.
+ * **It reads Health, and says which.** Since Z4-4 the outcome records the
+ * Health everybody ended the siege on, and the panel follows that; a siege
+ * recorded before then carries none, and the panel follows the roster. Either
+ * way it tells the player which, rather than letting a casualty appear or
+ * vanish without a reason on screen (`siegeHealthRecorded`).
  *
  * Shown twice: in the Mission Phase where the siege is recorded, and above the
  * Advancement Phase whose production, healing and projects it changes — a
@@ -35,6 +36,7 @@ import { siegeLaborShortfall } from '../engine/projects';
 import {
   fellInTheSiege,
   siegeDefended,
+  siegeHealthRecorded,
   standInCandidates,
   standInProblem,
   standIns,
@@ -72,14 +74,16 @@ export function SiegeWork({ campaign }: { readonly campaign: Campaign }) {
 
       <p className={`mt-1 ${HINT}`}>
         Projects and staffed facilities keep running through a siege, but anybody it left at 0
-        Health works nothing this turn — no Labor and no skills. This follows the Health on the
-        roster below.
+        Health works nothing this turn — no Labor and no skills.{' '}
+        {siegeHealthRecorded(campaign)
+          ? 'This follows the Health recorded with the siege’s outcome.'
+          : 'This follows the Health on the roster below.'}
       </p>
 
       {fallen.length === 0 ? (
         <p className={`mt-2 ${HINT}`}>
-          Nobody working a facility or on the project team is at 0 Health, so the base&rsquo;s work
-          goes on as assigned.
+          The siege left nobody working a facility or on the project team at 0 Health, so the
+          base&rsquo;s work goes on as assigned.
         </p>
       ) : (
         <>

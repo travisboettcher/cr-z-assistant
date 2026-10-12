@@ -12,7 +12,6 @@ import {
   hordeCame,
   hordeChecked,
   hordeForced,
-  missionResolved,
   siegeCounterChange,
   siegeDue,
   siegeThreat,
@@ -20,7 +19,7 @@ import {
   siegeTriggered,
   towersWithoutTheSkill,
   turnsSinceLastSiege,
-  type MissionOutcome,
+  type CounterOutcome,
 } from './siege';
 import type { LogEntry } from './log';
 import { staffedWith } from '../test/campaigns';
@@ -86,7 +85,7 @@ const thinned = (
   },
 });
 
-const outcomeOf = (entry: LogEntry): MissionOutcome => entry.event as MissionOutcome;
+const outcomeOf = (entry: LogEntry): CounterOutcome => entry.event as CounterOutcome;
 
 describe('turnsSinceLastSiege', () => {
   it('counts from the first turn for a community with no outcome behind it', () => {
@@ -175,7 +174,7 @@ describe('siegeCounterChange', () => {
    * nothing there.
    */
   it('never halves a Siege Defense', () => {
-    const stray = { ...outcomeOf(defended(4, 1, 1)), startingZombies: 8 } as MissionOutcome;
+    const stray = { ...outcomeOf(defended(4, 1, 1)), startingZombies: 8 } as CounterOutcome;
 
     expect(siegeCounterChange(stray)).toBe('none');
   });
@@ -193,18 +192,6 @@ describe('baseOverrun', () => {
 
   it('is never a Thin the Herd', () => {
     expect(baseOverrun(outcomeOf(thinned(4, 8, 2, 1)))).toBe(false);
-  });
-});
-
-describe('missionResolved', () => {
-  it('is false until this turn has an outcome', () => {
-    expect(missionResolved(community({ log: [rolled(3, true)] }))).toBe(false);
-    expect(missionResolved(community({ log: [thinned(2, 8, 0)] }))).toBe(false);
-  });
-
-  it('is true for either mission this turn', () => {
-    expect(missionResolved(community({ log: [thinned(3, 8, 0)] }))).toBe(true);
-    expect(missionResolved(community({ log: [defended(3, 2)] }))).toBe(true);
   });
 });
 
@@ -234,7 +221,7 @@ describe('hordeForced', () => {
   it('reads the flag on a Thin the Herd only', () => {
     const stray: LogEntry = {
       ...defended(3, 2),
-      event: { ...outcomeOf(defended(3, 2)), allIncapacitated: true } as MissionOutcome,
+      event: { ...outcomeOf(defended(3, 2)), allIncapacitated: true } as CounterOutcome,
     };
 
     expect(hordeForced(community({ log: [stray] }))).toBe(false);
@@ -350,7 +337,7 @@ describe('siegeDue', () => {
   it('reads the flag on a horde check only', () => {
     const stray: LogEntry = {
       ...defended(3, 2),
-      event: { ...outcomeOf(defended(3, 2)), siege: true } as unknown as MissionOutcome,
+      event: { ...outcomeOf(defended(3, 2)), siege: true } as unknown as CounterOutcome,
     };
 
     expect(siegeDue(community({ turn: 4, log: [stray] }))).toBe(false);

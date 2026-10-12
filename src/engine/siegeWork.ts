@@ -47,32 +47,42 @@
  *
  * ## "Reduced to 0 Health during the siege"
  *
- * The recorded outcome does not say who went down, and wounds reach the
- * campaign through `survivor/hpSet` — an unlogged correction, deliberately
- * (the log records what happened, not repairs to the record). So the reading
- * here is the closest one the campaign can answer: **a survivor holding a work
- * task who is at 0 Health on a turn whose Siege Defense outcome has been
- * recorded.** Read live, like everything in `src/engine`, so correcting a
- * survivor's Health on the roster puts them back to work at once.
+ * **Since Z4-4 the outcome says.** Every outcome carries its team's Health at
+ * the end, and a siege's team is everybody, so the `siege-defense-resolved`
+ * entry is a record of who the siege left at 0 Health. The reading is **a
+ * survivor holding a work task whom this turn's recorded Siege Defense left at
+ * 0 Health** — and they stay a casualty when their Health is corrected back up
+ * on the roster afterwards, because the correction repairs the roster and the
+ * entry is what happened. The same record answers who is fit to stand in.
+ *
+ * **An entry written before Z4-4 records no Health**, and for it the reading is
+ * the one this module had before: a survivor holding a work task who is at 0
+ * Health *now*, on a turn whose Siege Defense outcome has been recorded — read
+ * live, so correcting Health on the roster puts them back to work at once. The
+ * fallback is per survivor (`asTheSiegeLeft`), so the one way a newer entry
+ * can leave somebody out — a hand-edited save — reads them the old way rather
+ * than not at all.
  *
  * Its limits are real and are stated rather than hidden:
  *
- * - **It cannot tell "went down in the siege" from "was already down".** A
- *   survivor at 0 Health *before* the siege — wounded, still working because
- *   R12 lets a wounded survivor staff a facility, and holding on through Rot
- *   checks — counts as a casualty too. That is arguably right (pg. 85 sent
- *   them into the fight as well) and certainly unprovable either way.
- * - **Health recorded before the outcome counts the same as Health recorded
- *   after it.** The outcome entry is the trigger, not a timestamp to compare
- *   against, because nothing about a Health change is timestamped.
+ * - **It cannot tell "went down in the siege" from "was already down".** The
+ *   entry records Health at the end, not Health lost, so a survivor at 0
+ *   Health *before* the siege — wounded, still working because R12 lets a
+ *   wounded survivor staff a facility, and holding on through Rot checks —
+ *   ends it at 0 and counts as a casualty too. That is arguably right (pg. 85
+ *   sent them into the fight as well) and certainly unprovable either way.
+ * - **On an entry written before Z4-4, Health entered before the outcome
+ *   counts the same as Health entered after it.** That entry is the trigger,
+ *   not a timestamp to compare against, because nothing about a Health
+ *   correction is timestamped.
  * - **Nothing before the outcome is recorded.** A siege the table has fought
  *   and not yet written down takes nobody off work; the walk already names an
  *   unrecorded siege as outstanding.
  *
- * The working survivors' Health cannot move under this during the Advancement
- * Phase by the rules: a survivor working a facility or on the project team
- * forfeits healing that turn (pg. 20–21, R12), so Heal Wounds never reaches
- * them.
+ * Where the reading is live, the working survivors' Health cannot move under
+ * it during the Advancement Phase by the rules: a survivor working a facility
+ * or on the project team forfeits healing that turn (pg. 20–21, R12), so Heal
+ * Wounds never reaches them.
  *
  * ## What "contributes nothing" reaches, and what it does not
  *
@@ -113,9 +123,10 @@
  * the Advancement Phase settles has been settled — and kept in the log
  * (`stood-in`) rather than in `assignments`, because this turn's Planning
  * Phase clears the assignments and the Advancement Phase behind it still has
- * to read who stood in. Read live like the casualties: a stand-in for a
- * survivor whose Health is corrected back above 0 simply has nobody to stand
- * in for, and comes back off the post.
+ * to read who stood in. Read the way the casualties are: a stand-in for
+ * somebody who is no longer a casualty — on an entry before Z4-4, a survivor
+ * whose Health is corrected back above 0 — simply has nobody to stand in for,
+ * and comes back off the post.
  *
  * [R17](../../docs/rulings.md#r17--what-a-siege-defense-does-to-the-turns-work)
  * records the parts of this the book leaves open.
@@ -125,20 +136,55 @@
 
 import { beforePlanning, missionTeam, projectTeam, survivorsDoing } from './assignments';
 import type { Assignment, Campaign, Survivor } from './campaign';
+import type { CampaignEvent, LogEntry } from './log';
 import { outOfHealth } from './survivor';
 import { phaseOf } from './turn';
 
+/** A Siege Defense's outcome entry. */
+type SiegeOutcome = Extract<CampaignEvent, { readonly kind: 'siege-defense-resolved' }>;
+
 /**
- * Whether this turn's Siege Defense has been played and its outcome recorded.
+ * This turn's Siege Defense outcome, or `undefined` before it is recorded.
  *
- * Read off the log rather than through `siege.ts`, which imports the module
- * this one is built on — the same entry `missionResolved` looks for, narrowed
- * to the one mission that is fought at the base.
+ * Read off the log rather than through `siege.ts` or `missions.ts`, which
+ * import the module this one is built on — the Siege Defense's own outcome
+ * entry, the one mission that is fought at the base. A siege turn has one
+ * team (pg. 85), and a team one outcome, so there is no second entry to
+ * choose between.
  */
+function siegeOutcome(campaign: Campaign): SiegeOutcome | undefined {
+  return campaign.log.find(
+    (entry): entry is LogEntry & { readonly event: SiegeOutcome } =>
+      entry.turn === campaign.turn && entry.event.kind === 'siege-defense-resolved',
+  )?.event;
+}
+
+/** Whether this turn's Siege Defense has been played and its outcome recorded. */
 export function siegeDefended(campaign: Campaign): boolean {
-  return campaign.log.some(
-    (entry) => entry.turn === campaign.turn && entry.event.kind === 'siege-defense-resolved',
-  );
+  return siegeOutcome(campaign) !== undefined;
+}
+
+/**
+ * Whether this turn's recorded Siege Defense carries its team's Health (Z4-4),
+ * so who it left at 0 Health is read off the entry rather than the roster —
+ * for the screen, which says which of the two it is following.
+ */
+export function siegeHealthRecorded(campaign: Campaign): boolean {
+  return siegeOutcome(campaign)?.wounds !== undefined;
+}
+
+/**
+ * A survivor as the siege left them: at the Health its outcome recorded for
+ * them (Z4-4), or as the roster has them now where it recorded none — which
+ * is every entry written before Z4-4.
+ *
+ * A survivor rather than a number, so the question asked of it is still
+ * `outOfHealth`, the one R18 says the siege asks: Health, not Infection.
+ */
+function asTheSiegeLeft(outcome: SiegeOutcome, survivor: Survivor): Survivor {
+  const wound = outcome.wounds?.find((candidate) => candidate.survivor === survivor.id);
+
+  return wound === undefined ? survivor : { ...survivor, currentHp: wound.health };
 }
 
 /** The two tasks the FAQ says keep running through a siege. */
@@ -147,16 +193,20 @@ function isWork(assignment: Assignment): boolean {
 }
 
 /**
- * Everybody the previous Planning Phase put to work who is at 0 Health now
- * that this turn's siege is recorded — read as "reduced to 0 Health during the
- * siege", with the limits this module's note gives.
+ * Everybody the previous Planning Phase put to work whom this turn's recorded
+ * siege left at 0 Health — read as "reduced to 0 Health during the siege",
+ * with the limits this module's note gives. Off the outcome's wounds where it
+ * has them, and off the roster's Health for an entry written before Z4-4.
  *
  * In roster order, like every list of survivors the screens show.
  */
 export function fellInTheSiege(campaign: Campaign): readonly Survivor[] {
-  if (!siegeDefended(campaign)) return [];
+  const outcome = siegeOutcome(campaign);
+  if (outcome === undefined) return [];
 
-  return survivorsDoing(beforePlanning(campaign), isWork).filter(outOfHealth);
+  return survivorsDoing(beforePlanning(campaign), isWork).filter((survivor) =>
+    outOfHealth(asTheSiegeLeft(outcome, survivor)),
+  );
 }
 
 /**
@@ -202,11 +252,20 @@ export function projectTeamThatWorked(campaign: Campaign): readonly Survivor[] {
  * have gone out this turn — through `beforePlanning`, so it is still the
  * answer once this turn's Planning has cleared it. Nobody on a turn without a
  * recorded siege, because there is nothing to stand in for.
+ *
+ * "Left at 0 Health" is read the way `fellInTheSiege` reads it — off the
+ * outcome's wounds where it has them (Z4-4), and the roster's Health for an
+ * entry written before — because the FAQ's two halves are one question about
+ * the same moment: who the siege left at 0 Health stops working, and who it
+ * did not may substitute.
  */
 export function standInCandidates(campaign: Campaign): readonly Survivor[] {
-  if (!siegeDefended(campaign)) return [];
+  const outcome = siegeOutcome(campaign);
+  if (outcome === undefined) return [];
 
-  return missionTeam(beforePlanning(campaign)).filter((survivor) => !outOfHealth(survivor));
+  return missionTeam(beforePlanning(campaign)).filter(
+    (survivor) => !outOfHealth(asTheSiegeLeft(outcome, survivor)),
+  );
 }
 
 /**
@@ -214,9 +273,10 @@ export function standInCandidates(campaign: Campaign): readonly Survivor[] {
  *
  * The latest `stood-in` entry for each casualty is the choice, so choosing
  * again is appending again. Each one is checked against the campaign as it is
- * now rather than trusted: a casualty whose Health has been corrected back up
- * has no place to fill, and a stand-in who has since been hurt, or taken off
- * the mission team, cannot fill one. One survivor fills one place — if two
+ * now rather than trusted, through `fellInTheSiege` and `standInCandidates`:
+ * somebody who is no longer a casualty has no place to fill, and a stand-in
+ * who is no longer a candidate — taken off the mission team, or, on an entry
+ * written before Z4-4, hurt since — cannot fill one. One survivor fills one place — if two
  * entries ever name the same stand-in, the place chosen for first keeps them,
  * which the screen cannot produce and a hand-edited save can.
  */

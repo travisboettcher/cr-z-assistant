@@ -45,7 +45,7 @@ import {
   SIEGE_THREAT_TERMS,
   TURN_STEPS,
 } from './turn';
-import { MISSIONS, type MissionFamily } from './missions';
+import { GATHERED_MATERIALS, MISSIONS, type MissionFamily } from './missions';
 
 describe('stats and skills', () => {
   it('has four stats and twenty governed skills', () => {
@@ -782,6 +782,10 @@ describe('the missions', () => {
     expect(MISSIONS['rare-goods-trader'].availability).toBe('any-time');
   });
 
+  it('gathers one each of the three stored materials, and not Rare (pg. 80)', () => {
+    expect([...GATHERED_MATERIALS].sort()).toEqual(['food', 'fuel', 'hardware']);
+  });
+
   it('asks only Gather Materials for anything at selection', () => {
     for (const [id, mission] of entries) {
       if (mission.family !== 'standard') continue;
@@ -800,7 +804,18 @@ describe('the missions', () => {
     ]);
   });
 
-  it('records strangers wherever a mission can rescue them (pp. 77, 79, 83)', () => {
+  it('numbers three end conditions for exactly the missions that record which was met', () => {
+    for (const [id, mission] of entries) {
+      if (mission.family !== 'standard') continue;
+
+      const records = (mission.counts as readonly string[]).includes('end-condition');
+      const conditions = 'endConditions' in mission ? mission.endConditions : undefined;
+
+      expect([id, conditions]).toEqual([id, records ? 3 : undefined]);
+    }
+  });
+
+  it('records strangers wherever a mission’s setup can place one (pp. 76–84)', () => {
     const rescuing = entries
       .filter(
         ([, mission]) =>
@@ -809,7 +824,15 @@ describe('the missions', () => {
       )
       .map(([id]) => id);
 
-    expect(rescuing).toEqual(['first-mission', 'claim-a-new-base', 'rescue-strangers']);
+    // Every standard mission but the two fought over the siege counter (pp. 80, 85).
+    expect(rescuing).toEqual([
+      'first-mission',
+      'claim-a-new-base',
+      'gather-materials',
+      'retrieve-new-vehicles',
+      'rescue-strangers',
+      'rare-goods-trader',
+    ]);
   });
 
   it('gives every origin mission an origin, three to each', () => {

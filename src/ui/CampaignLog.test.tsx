@@ -138,6 +138,29 @@ describe('the sentences the log writes', () => {
     );
   });
 
+  /** Z4-5: which team's rescue, and the die only where one was thrown. */
+  it('says which team rescued a stranger who joined, and what they rolled', () => {
+    const joined = (tier: 1 | 2, roll?: 8) =>
+      describeEvent({
+        kind: 'stranger-joined',
+        survivor: 'carla',
+        name: 'Carla Proust',
+        tier,
+        team: 2,
+        stranger: 0,
+        ...(roll === undefined ? {} : { roll }),
+      });
+
+    expect(joined(1)).toEqual({
+      text: 'Carla Proust joined as a Rookie, rescued by mission team 2.',
+      pages: 19,
+    });
+    expect(joined(2, 8)).toEqual({
+      text: 'Carla Proust joined as a Citizen, rescued by mission team 2, rolling an 8.',
+      pages: '15, 19',
+    });
+  });
+
   it('agrees it with a number too', () => {
     const rolled = describeEvent({
       kind: 'rot-checked',

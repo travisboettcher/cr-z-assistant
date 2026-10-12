@@ -2,6 +2,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign, type Survivor } from '../engine/campaign';
+import type { LogEntry } from '../engine/log';
 import { createSurvivor } from '../engine/survivor';
 import { PENDING_ROLLS_KEY } from '../persistence/pendingRolls';
 import { serializeCampaign } from '../persistence/exportFile';
@@ -174,6 +175,49 @@ describe('Add Materials to Storage', () => {
     // is produced and the step still says what it is proposing.
     expect(within(walk()).getByText(/going into storage/i)).toBeTruthy();
     expect(within(walk()).getByText(/\+0 Food/)).toBeTruthy();
+  });
+
+  /** A Gather Materials team's choice and outcome on turn 3 (pg. 80; Z4-6). */
+  const gatheredLog = (carried: number): LogEntry[] => [
+    {
+      turn: 3,
+      phase: 'mission',
+      at: '2026-10-12T09:00:00.000Z',
+      event: {
+        kind: 'mission-selected',
+        team: 1,
+        mission: 'gather-materials',
+        names: ['Earl Rhodes'],
+        material: 'fuel',
+      },
+    },
+    {
+      turn: 3,
+      phase: 'mission',
+      at: '2026-10-12T09:00:00.000Z',
+      event: {
+        kind: 'gather-materials-resolved',
+        team: 1,
+        materialsCarriedOut: carried,
+        strangers: [],
+      },
+    },
+  ];
+
+  it('counts what Gather Materials brought back without a roll (pg. 80; Z4-6)', () => {
+    open(onTheStep({ log: gatheredLog(5) }));
+
+    expect(within(walk()).getByText(/5 carried off come without a roll/i)).toBeTruthy();
+    // One each, and the two over in Fuel.
+    expect(within(walk()).getByText(/\+3 Fuel/)).toBeTruthy();
+    expect(within(walk()).getByText(/\+1 Hardware/)).toBeTruthy();
+  });
+
+  it('says a short Gather Materials haul is rolled with the rest', () => {
+    open(onTheStep({ log: gatheredLog(2) }));
+
+    expect(within(walk()).getByText(/2 carried off are fewer than one of each/i)).toBeTruthy();
+    expect(within(walk()).queryByText(/without a roll/i)).toBeNull();
   });
 
   /**
@@ -757,11 +801,95 @@ describe('Heal Wounds', () => {
   });
 });
 
-describe('the step that points somewhere else', () => {
-  it('says what create-new-survivors is for', () => {
+/**
+ * Step 2, which Z4-5 turned from a pointer to the roster into the step itself:
+ * every stranger the turn's outcomes counted, each offered once (pg. 19).
+ */
+describe('Create New Survivors', () => {
+  const rescuedBy = (team: number, strangers: readonly (1 | 2 | 3)[]): LogEntry => ({
+    turn: 3,
+    phase: 'mission',
+    at: '2026-10-12T09:00:00.000Z',
+    event: { kind: 'rescue-strangers-resolved', team, strangers },
+  });
+
+  /** Earl's team rescued a Citizen; Carla's, out as team 2, a Rookie. */
+  const twoRescues = (): Campaign =>
+    advancement({
+      step: 'create-new-survivors',
+      startingCommunityBuilt: true,
+      assignments: { [EARL]: { task: 'mission', team: 1 }, [CARLA]: { task: 'mission', team: 2 } },
+      log: [rescuedBy(1, [2]), rescuedBy(2, [1])],
+    });
+
+  const stranger = (name: RegExp) => within(within(walk()).getByRole('group', { name }));
+
+  it('says what the step is for, and that nobody was rescued', () => {
     open(advancement({ step: 'create-new-survivors' }));
 
-    expect(within(walk()).getByText(/strangers rescued on the mission/i)).toBeTruthy();
+    expect(within(walk()).getByText(/strangers rescued on the missions/i)).toBeTruthy();
+    expect(within(walk()).getByText(/nobody was rescued/i)).toBeTruthy();
+  });
+
+  it('offers each team’s stranger at the Tier the mission counted', () => {
+    open(twoRescues());
+
+    expect(
+      stranger(/mission team 1, stranger 1: a citizen/i).getByLabelText('Skill roll'),
+    ).toBeTruthy();
+    // A Rookie does not roll for a skill (pg. 7), so is not asked to.
+    expect(
+      stranger(/mission team 2, stranger 1: a rookie/i).queryByLabelText('Skill roll'),
+    ).toBeNull();
+  });
+
+  it('waits for a name before it lets anybody join', async () => {
+    const user = open(twoRescues());
+    const citizen = stranger(/mission team 1/i);
+
+    expect(citizen.getByRole('button', { name: 'Join the community' })).toBeDisabled();
+
+    await user.type(citizen.getByLabelText('Name'), 'Ruby Vance');
+
+    expect(citizen.getByRole('button', { name: 'Join the community' })).toBeEnabled();
+  });
+
+  /** The acceptance: two strangers from two teams are two survivors, each offered once. */
+  it('adds each stranger to the roster once', async () => {
+    const user = open(twoRescues());
+
+    await user.type(stranger(/mission team 1/i).getByLabelText('Name'), 'Ruby Vance');
+    await user.selectOptions(stranger(/mission team 1/i).getByLabelText('Skill roll'), '6');
+    await user.click(
+      stranger(/mission team 1/i).getByRole('button', { name: 'Join the community' }),
+    );
+
+    expect(within(walk()).queryByRole('group', { name: /mission team 1/i })).toBeNull();
+
+    await user.type(stranger(/mission team 2/i).getByLabelText('Name'), 'Pip');
+    await user.click(
+      stranger(/mission team 2/i).getByRole('button', { name: 'Join the community' }),
+    );
+
+    expect(within(walk()).getByText(/every stranger rescued this turn has joined/i)).toBeTruthy();
+
+    const roster = within(screen.getByRole('region', { name: /^community$/i }));
+    expect(roster.getByText('Ruby Vance')).toBeTruthy();
+    expect(roster.getByText('Pip')).toBeTruthy();
+  });
+
+  it('does not offer a stranger again after the walk goes back over the step', async () => {
+    const user = open(twoRescues());
+
+    await user.type(stranger(/mission team 2/i).getByLabelText('Name'), 'Pip');
+    await user.click(
+      stranger(/mission team 2/i).getByRole('button', { name: 'Join the community' }),
+    );
+    await user.click(next());
+    await user.click(screen.getByRole('button', { name: /^back to create new survivors$/i }));
+
+    expect(within(walk()).queryByRole('group', { name: /mission team 2/i })).toBeNull();
+    expect(within(walk()).getByRole('group', { name: /mission team 1/i })).toBeTruthy();
   });
 });
 
@@ -991,6 +1119,6 @@ describe('walking through the phase', () => {
     await user.click(next());
 
     expect(within(walk()).queryByText(/for going on the mission/i)).toBeNull();
-    expect(within(walk()).getByText(/strangers rescued on the mission/i)).toBeTruthy();
+    expect(within(walk()).getByText(/strangers rescued on the missions/i)).toBeTruthy();
   });
 });

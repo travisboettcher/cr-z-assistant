@@ -458,10 +458,11 @@ export function missionTeamReduced(campaign: Campaign): boolean {
  * the team would make "nothing owed" an empty list, and each caller would then
  * re-derive the answer as `length > 0`, which is the copy this replaced.
  *
- * **Every team together.** Since Z4-2 Planning can split the mission survivors
- * between teams (pg. 21), and which of them pg. 23's "the mission team" means
- * is open — R23. Until it is ruled this counts all of them, as it always has,
- * and that is the moment for a richer return rather than this one.
+ * **Every team together** (R23). Since Z4-2 Planning can split the mission
+ * survivors between teams (pg. 21), and pg. 23's "the mission team" is read as
+ * all of them — the whole group pg. 21 names before it splits — so this counts
+ * them together, as it always has, and the survivor taken off may come from
+ * any team.
  */
 export function overworked(campaign: Campaign): boolean {
   if (missionTeamReduced(campaign)) return false;

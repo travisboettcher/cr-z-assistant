@@ -114,9 +114,106 @@ describe('outstanding', () => {
       log: [...assigned.log, entry({ kind: 'mission-skipped' })],
     });
 
+    const played = settled({
+      ...chosen,
+      log: [
+        ...chosen.log,
+        entry({
+          kind: 'thin-the-herd-resolved',
+          team: 1,
+          startingZombies: 6,
+          zombiesLeft: 0,
+          survivorsExited: 1,
+          allIncapacitated: false,
+        }),
+      ],
+    });
+
     expect(steps(assigned)).toEqual(['select-mission']);
-    expect(steps(chosen)).toEqual([]);
+    // Chosen, so its outcome is owed (Z4-3), and recorded, nothing is.
+    expect(steps(chosen)).toEqual(['tactical-mission']);
+    expect(steps(played)).toEqual([]);
     expect(steps(skipped)).toEqual([]);
+  });
+
+  it('owes the First Mission again when no end condition was met (R21)', () => {
+    const earl = createSurvivor('Earl Rhodes', 2, { id: 'earl' });
+    const failed = settled({
+      turn: 1,
+      survivors: [earl],
+      assignments: { earl: { task: 'mission', team: 1 } },
+      log: [
+        ...settled().log.map((logged) => ({ ...logged, turn: 1 })),
+        entry({ kind: 'mission-selected', team: 1, mission: 'first-mission', names: [] }, 1),
+        entry({ kind: 'first-mission-resolved', team: 1, endCondition: null, strangers: [] }, 1),
+      ],
+    });
+
+    expect(steps(failed)).toEqual(['select-mission']);
+  });
+
+  /**
+   * Z4-5: every stranger the turn's outcomes counted joins at Advancement
+   * Step 2 (pg. 19), and the walk owes the step until each one has.
+   */
+  describe('rescued strangers', () => {
+    const earl = createSurvivor('Earl Rhodes', 2, { id: 'earl' });
+    const ruby = createSurvivor('Ruby Vance', 3, { id: 'ruby' });
+    const rescuing = settled({
+      survivors: [earl, ruby],
+      assignments: { earl: { task: 'mission', team: 1 }, ruby: { task: 'mission', team: 2 } },
+      log: [
+        ...settled().log,
+        entry({ kind: 'mission-selected', team: 1, mission: 'rescue-strangers', names: [] }),
+        entry({ kind: 'mission-selected', team: 2, mission: 'rescue-strangers', names: [] }),
+        entry({ kind: 'rescue-strangers-resolved', team: 1, strangers: [2] }),
+        entry({ kind: 'rescue-strangers-resolved', team: 2, strangers: [1] }),
+      ],
+    });
+    const joined = (stranger: number, team: number): LogEntry =>
+      entry({
+        kind: 'stranger-joined',
+        survivor: `new-${String(team)}`,
+        name: 'Somebody',
+        tier: 1,
+        team,
+        stranger,
+      });
+
+    it('owes the step for two strangers nobody has added, and says how many', () => {
+      expect(outstanding(rescuing)).toEqual([
+        {
+          step: 'create-new-survivors',
+          says: '2 rescued strangers have not joined the community.',
+        },
+      ]);
+    });
+
+    it('says so of the one stranger left', () => {
+      const one = settled({ ...rescuing, log: [...rescuing.log, joined(0, 2)] });
+
+      expect(outstanding(one)).toEqual([
+        { step: 'create-new-survivors', says: 'A rescued stranger has not joined the community.' },
+      ]);
+    });
+
+    it('owes nothing once every stranger has joined', () => {
+      const both = settled({ ...rescuing, log: [...rescuing.log, joined(0, 1), joined(0, 2)] });
+
+      expect(steps(both)).toEqual([]);
+    });
+
+    /** Last turn's rescues were last turn's step, and the turn that owed them is over. */
+    it('owes nothing for a stranger an earlier turn rescued', () => {
+      const earlier = settled({
+        log: [
+          ...settled().log,
+          entry({ kind: 'rescue-strangers-resolved', team: 1, strangers: [2] }, 2),
+        ],
+      });
+
+      expect(steps(earlier)).toEqual([]);
+    });
   });
 
   it('names a survivor at 0 Health whose check has not run', () => {

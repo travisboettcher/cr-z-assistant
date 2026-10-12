@@ -73,7 +73,10 @@ Part 1 explicitly does **not** include:
 
 ## The rules this phase encodes
 
-Transcribed from the rulebook extract of 2026-10-12 ("batch 12"), printed page numbers.
+Transcribed from the rulebook extract of 2026-10-12 ("batch 12"), printed page numbers, and
+corrected from "batch 14" the same day: a stranger's Tier is set by each mission's own setup
+(pg. 15), every standard mission but the Thin the Herd and the Siege Defense can place one, and
+none places a Hero (pg. 7; R24).
 
 **The eight standard missions** (pg. 75), any of which may be chosen on any turn but the Siege Defense:
 
@@ -81,11 +84,11 @@ Transcribed from the rulebook extract of 2026-10-12 ("batch 12"), printed page n
 |---|---|---|---|
 | First Mission: Start a New Community | 76–77 | Which end condition was met, if any; strangers rescued, with their Tiers | The first base (already recorded by `base-claimed`); strangers join at Advancement Step 2 (pg. 19) |
 | Claim a New Base | 78–79 | Which end condition was met, if any; strangers rescued; working vehicles on the area | #182's: a new base, its Inventory, Unrest locked at 0 for the turn |
-| Gather Materials | 79–80 | Materials carried off the map; the material type chosen at selection | One of each type, remainder in the chosen type, **instead of** rolling the Material Type table (pg. 19) |
+| Gather Materials | 79–80 | Materials carried off the map; the material type chosen at selection; a stranger its setup may place | One each of Food, Fuel and Hardware, remainder in the chosen type, **instead of** rolling the Material Type table (pg. 19); fewer than three are rolled |
 | Thin the Herd | 80–81 | Starting zombies, zombies left, survivors exited, whether all were incapacitated | As #175: the siege counter reset or halved, or the next siege automatic |
-| Retrieve New Vehicles | 81–82 | Vehicles repaired and driven off | Phase 5's: each into the base Inventory |
+| Retrieve New Vehicles | 81–82 | Vehicles repaired and driven off; a stranger its setup may place | Phase 5's: each into the base Inventory |
 | Rescue Strangers | 82–83 | Strangers rescued, with their Tiers | They join at Advancement Step 2 (pg. 19); a rescuer's Tier is at least the stranger's (pg. 31) |
-| Rare Goods Trader | 83–84 | Whether anybody exited | Phase 5's: traded items arrive, or are lost |
+| Rare Goods Trader | 83–84 | Whether anybody exited; a stranger its setup may place | Phase 5's: traded items arrive, or are lost |
 | Siege Defense | 85–86 | Zombies left, survivors exited | As #175: the counter reset and a point of Labor per project-team survivor next turn; or the base overrun |
 
 The story (pp. 87–102), origin (pp. 103–115) and Road Trip (pp. 164–167) missions go into the
@@ -117,9 +120,10 @@ siege turn it is the whole community, as team 1. *This replaces the first draft 
 which formed teams at Select Mission from an unsplit pool — written before noticing that pg. 21
 puts the split in the Planning Phase and that the assignments already carry it.*
 
-**Which "mission team" Exhaustion counts is open** — [R23](rulings.md#r23--which-mission-team-exhaustion-counts--open).
+**Exhaustion counts every team together** — [R23](rulings.md#r23--which-mission-team-exhaustion-counts).
 Pg. 23 compares Exhaustion with "the mission team", singular, and with teams split in Planning
-there can be several. `overworked` still counts every survivor on any team, as it always has.
+there can be several; pg. 21 defines the singular as everybody going out. `overworked` counts
+every survivor on any team, as it always has.
 
 **A team's number is the Planning Phase's**, carried on the selection and, from Z4-3, the
 outcome, so an outcome names the team it ends. #175's two outcome kinds gain the field as optional:
@@ -166,6 +170,13 @@ Four, confirmed 2026-10-12 and recorded in [the registry](rulings.md):
   met no end condition leaves Select Mission open in turn 1 for another attempt.
 - [R22](rulings.md#r22--what-a-failed-rare-goods-trader-loses) — a failed Rare Goods Trader loses
   what was traded and returns what was set aside for items not yet traded. Phase 5's to build.
+
+Two more, found while building, and settled from the batch-14 extract:
+
+- [R23](rulings.md#r23--which-mission-team-exhaustion-counts) — Exhaustion counts every mission
+  team together, and the survivor taken off may come from any of them.
+- [R24](rulings.md#r24--a-rescued-stranger-is-never-a-hero) — a mission outcome records strangers
+  of Tier 1 to 3 only (pg. 7), and every rescued stranger joins as a field recruit.
 
 ---
 
@@ -246,6 +257,19 @@ Four, confirmed 2026-10-12 and recorded in [the registry](rulings.md):
   `baseOverrun`, `hordeForced` — read the same values from the same entries as before.
 - An outcome for a team that was not selected, or a second one for the same team, is refused.
 
+**Four things this story turned out to include.** `MissionOutcome` is now every mission's
+outcome, in `missions.ts`, and the two that move the siege counter are `CounterOutcome` in
+`siege.ts` — the readers #175 wrote take only those two, so nothing about the counter changed.
+`missionResolved`, which asked whether the turn had *an* outcome, is gone: the guard and the walk
+ask per team (`teamOutcomes`, `unresolvedTeams`), because "once a turn" stopped being true the
+day a turn could have two missions. R21 is built here rather than in Z4-2, because a failed First
+Mission is only knowable from an outcome: one that met no end condition reopens Select Mission on
+turn 1 (`retryOwed`), choosing it again clears the outcome, and the walk owes the retry. And a
+team's choice is locked once its outcome is recorded, and an opt-out once anything is played —
+otherwise a correction to the choice would leave an outcome that belongs to nothing. Each
+standard mission's number of end conditions is in the catalogue (`endConditions`), so the guard
+checks the condition against data rather than a 3 in code.
+
 ---
 
 ## Z4-4 — Wounds on the outcome
@@ -264,6 +288,24 @@ Four, confirmed 2026-10-12 and recorded in [the registry](rulings.md):
   corrected back up on the roster.
 - Health above the survivor's maximum, or Infection in a campaign that is not Viral, is refused.
 
+**What this story turned out to include.** The wounds are a list on the entry, one
+`{ survivor, name, health, infection? }` per team member (`MissionWound` in `log.ts`), with the
+name kept for the history as every entry about a person keeps one; `infection` is on every wound a
+Viral campaign records and on none anywhere else. **Every member is listed, once, and nobody
+else**: a member left out would leave the roster's Health standing as though it were the end value
+with nothing to say whether it was, and the form starts everybody at their current Health
+(`woundsAsTheyStand`) so listing them all costs nothing. So an outcome submitted with no wounds is
+refused; only entries written before Z4-4 lack them, and those are read, never submitted. Health is
+a whole number from 0 to `maxHp`; Infection a whole number from 0 with no ceiling, the range the
+survivor sheet and the save file already give it, because at 10 a survivor is down rather than
+gone (#176). The form writes the wounds in team order under the roster's names, whatever the screen
+sent. **The stand-ins read the same record as the casualties** — R17's amendment says why — so
+`standInCandidates` changed beside `fellInTheSiege`, and the Siege Work panel says whether it is
+following the outcome's Health or the roster's (`siegeHealthRecorded`). A Thin the Herd's "every
+survivor incapacitated" stays a count the table makes, not something read off the wounds: the book
+gives no rule that the two must agree, and the guard compares no other two counts either. No
+schema bump: the field is optional on every outcome kind, as the team was in Z4-3.
+
 ---
 
 ## Z4-5 — Strangers rescued join the community
@@ -281,6 +323,25 @@ and creating them is Phase 4."
 - Two strangers rescued by two teams are two survivors, each offered once.
 - A stranger already added is not offered again after the walk goes back over the step.
 
+**What this story turned out to include.** A stranger is named by the team whose outcome counted
+them and their place in that outcome's list, from 0, and joining writes its own entry,
+`stranger-joined`, carrying that pair — so "who is still waiting" is read off the log
+(`strangersWaiting` in `src/engine/strangers.ts`) rather than stored, and a walk back over the step
+finds the entry and offers nobody twice. Its own kind rather than a field on `survivor-recruited`,
+because the Tier is the outcome's rather than the form's. A Rookie, Citizen or Leader joins as the roster's field recruit does — the Tier's stat
+array, and from Tier 2 one skill off the d10 (pp. 7, 15) — and settles the starting community the
+way a recruit does. No stranger is a Hero
+([R24](rulings.md#r24--a-rescued-stranger-is-never-a-hero)). The step accepts a stranger
+only in the Advancement Phase, and only one this turn's outcomes counted (`teamOutcomes`), so a
+team that played its First Mission again (R21) offers its latest list, and a join from the failed
+attempt answers nothing in it. A stranger nobody adds is not refused anything and not offered
+again: the walk owes the step, the End-turn dialog names it like any other step left undone, and
+the turn that rescued them takes them with it. There is no entry for turning a stranger away,
+because the book has none: a rescued stranger is added to the community (pg. 19), and a community
+without the beds for them pays in Exhaustion (pg. 23). Exiling a Lost survivor (pg. 124) is the
+Cosmic Horror origin's, and Phase 7's. The roster's own Add
+and Recruit forms are unchanged, for everybody who arrives some other way.
+
 ---
 
 ## Z4-6 — Gather Materials replaces the roll
@@ -296,6 +357,14 @@ and creating them is Phase 4."
 - Materials carried out arrive as one of each type and the rest in the chosen type, with the
   types and the split confirmed against pg. 80 when the story is built.
 - A turn with no Gather Materials team rolls exactly as before.
+
+**Confirmed against pg. 80 when it was built (2026-10-12).** "Each type" is the three stored
+materials — Food, Fuel and Hardware — so Rare is neither given nor offered as the chosen type
+(`GATHERED_MATERIALS` in `src/data/missions.ts`), and Select Mission refuses it. A team that carries
+off fewer than three gets no split: its materials are rolled on the Material Type table like any
+others, and the step says how many. Several Gather Materials teams in one turn are each split on
+their own (R19). What was gathered counts against the storage caps the haul is warned about, as
+rolled materials do.
 
 ---
 

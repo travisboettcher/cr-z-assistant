@@ -32,6 +32,7 @@
  * job.
  */
 
+import { STORED_MATERIALS } from './materials';
 import type { CampaignOrigin } from './origins';
 
 /** The four families of mission (pp. 75, 87, 103, 158). */
@@ -75,8 +76,9 @@ export type SelectionChoice = 'material';
  *
  * - `end-condition` — which of the numbered end conditions was met, or none
  *   (pp. 77, 79).
- * - `strangers-rescued` — each stranger brought out, with their Tier (pp. 77,
- *   79, 83).
+ * - `strangers-rescued` — each stranger brought out, with their Tier, which the
+ *   mission's own setup decides (pp. 15, 76, 78, 79, 81, 82, 84). Only the
+ *   Thin the Herd and the Siege Defense never have one.
  * - `vehicles-on-area` — working vehicles left on the mission area of a base
  *   claimed (pg. 79).
  * - `materials-carried-out` — materials an exiting character carried off the
@@ -116,6 +118,13 @@ export interface StandardMission {
 
   /** What its outcome records, in the order the book's end rules give them. */
   readonly counts: readonly OutcomeCount[];
+
+  /**
+   * How many numbered end conditions it has, for a mission whose outcome
+   * records which one was met (`end-condition`; pp. 77, 79). Absent for the
+   * rest.
+   */
+  readonly endConditions?: number;
 }
 
 /** A story or Road Trip mission: named and cited, not modelled (Phase 7). */
@@ -155,6 +164,7 @@ export const MISSIONS = {
     availability: 'first-turn',
     asks: [],
     counts: ['end-condition', 'strangers-rescued'],
+    endConditions: 3,
   },
   'claim-a-new-base': {
     family: 'standard',
@@ -162,13 +172,14 @@ export const MISSIONS = {
     availability: 'any-time',
     asks: [],
     counts: ['end-condition', 'strangers-rescued', 'vehicles-on-area'],
+    endConditions: 3,
   },
   'gather-materials': {
     family: 'standard',
     pages: '79–80',
     availability: 'any-time',
     asks: ['material'],
-    counts: ['materials-carried-out'],
+    counts: ['materials-carried-out', 'strangers-rescued'],
   },
   'thin-the-herd': {
     family: 'standard',
@@ -182,7 +193,7 @@ export const MISSIONS = {
     pages: '81–82',
     availability: 'any-time',
     asks: [],
-    counts: ['vehicles-driven-off'],
+    counts: ['vehicles-driven-off', 'strangers-rescued'],
   },
   'rescue-strangers': {
     family: 'standard',
@@ -196,7 +207,7 @@ export const MISSIONS = {
     pages: '83–84',
     availability: 'any-time',
     asks: [],
-    counts: ['survivors-exited'],
+    counts: ['survivors-exited', 'strangers-rescued'],
   },
   'siege-defense': {
     family: 'standard',
@@ -240,3 +251,13 @@ export type MissionId = keyof typeof MISSIONS;
 export type StandardMissionId = {
   [Id in MissionId]: (typeof MISSIONS)[Id]['family'] extends 'standard' ? Id : never;
 }[MissionId];
+
+/**
+ * The types a Gather Materials team takes one of each of, and may take its
+ * remainder in (pg. 80; Z4-6): the three stored materials. Rare is not one of
+ * them, so it is neither given nor offered as the chosen type. A team that
+ * carries off fewer materials than this list is long gets no split at all, and
+ * its materials are rolled on the Material Type table like any others.
+ * Confirmed against the book 2026-10-12.
+ */
+export const GATHERED_MATERIALS = STORED_MATERIALS;

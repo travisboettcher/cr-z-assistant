@@ -44,6 +44,7 @@ import type { FacilityId, UpgradeId } from '../data/facilities';
 import type { Material } from '../data/materials';
 import type { MissionId } from '../data/missions';
 import type { CommonSkill, Skill } from '../data/skills';
+import type { FieldRecruitTier } from '../data/recruitTable';
 import type { Tier } from '../data/tiers';
 import type { CampaignPhase, HealthSource, XpSource } from '../data/turn';
 import { phaseOf } from './turn';
@@ -52,6 +53,33 @@ import { phaseOf } from './turn';
 // no runtime cycle — and the alternative, a third module holding one of them,
 // would separate `Campaign` from the shape of its own field.
 import type { Assignment, Campaign } from './campaign';
+
+/**
+ * One team member as a mission left them, carried on its outcome (#178, Z4-4).
+ *
+ * **Health at the end, not Health lost.** The end value is what the
+ * survivor's card says when the table counts (pg. 7), and it is what recording
+ * the outcome sets the roster to; a loss would have to be added to a number
+ * the roster may already have been corrected away from. `infection` is the
+ * same for the Viral origin's Infection (pg. 123): present on every wound a
+ * Viral campaign records, and on none anywhere else, because an absent field
+ * and a zero would be the same fact spelled two ways — the reason the
+ * survivor's own `infection` is a number on everybody rather than optional.
+ *
+ * Carries the name beside the id, like every other entry about a person, and
+ * as it was at the time: the survivor may have walked out by the time anybody
+ * reads the history back.
+ *
+ * **Load-bearing for the siege**: `fellInTheSiege` and `standInCandidates`
+ * read who a Siege Defense left at 0 Health off these, rather than off Health
+ * as the roster has it now (R17's October 2026 amendment).
+ */
+export interface MissionWound {
+  readonly survivor: string;
+  readonly name: string;
+  readonly health: number;
+  readonly infection?: number;
+}
 
 /**
  * One thing that happened.
@@ -417,6 +445,10 @@ export type CampaignEvent =
       readonly kind: 'siege-defense-resolved';
       readonly zombiesLeft: number;
       readonly survivorsExited: number;
+      /** The team that played it; absent on entries written before Z4-3. */
+      readonly team?: number;
+      /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
+      readonly wounds?: readonly MissionWound[];
     }
   /**
    * How a Thin the Herd ended (pg. 81).
@@ -433,6 +465,98 @@ export type CampaignEvent =
       readonly zombiesLeft: number;
       readonly survivorsExited: number;
       readonly allIncapacitated: boolean;
+      /** The team that played it; absent on entries written before Z4-3. */
+      readonly team?: number;
+      /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
+      readonly wounds?: readonly MissionWound[];
+    }
+  /**
+   * How the First Mission ended (pg. 77; Z4-3): which numbered end condition
+   * was met, or `null` for none, and the Tier of each stranger brought out.
+   *
+   * Like #175's two outcomes, **the counts and nothing worked out from them**:
+   * success is an end condition met, and a failure — none met — is what R21
+   * reads to reopen Select Mission. The strangers join the community at
+   * Advancement Step 2 (pg. 19), which is Z4-5's to read back.
+   */
+  | {
+      readonly kind: 'first-mission-resolved';
+      readonly team: number;
+      readonly endCondition: number | null;
+      readonly strangers: readonly FieldRecruitTier[];
+      /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
+      readonly wounds?: readonly MissionWound[];
+    }
+  /**
+   * How a Claim a New Base ended (pg. 79; Z4-3). As the First Mission's, and
+   * the working vehicles left on the mission area. What a claim does to the
+   * base is #182's, read back from this entry.
+   */
+  | {
+      readonly kind: 'claim-a-new-base-resolved';
+      readonly team: number;
+      readonly endCondition: number | null;
+      readonly strangers: readonly FieldRecruitTier[];
+      readonly vehiclesOnArea: number;
+      /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
+      readonly wounds?: readonly MissionWound[];
+    }
+  /** How many materials a Gather Materials team carried off the map (pg. 80; Z4-3). */
+  | {
+      readonly kind: 'gather-materials-resolved';
+      readonly team: number;
+      readonly materialsCarriedOut: number;
+      /** A stranger its setup may place on the area (pg. 79). */
+      readonly strangers: readonly FieldRecruitTier[];
+      /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
+      readonly wounds?: readonly MissionWound[];
+    }
+  /**
+   * How many vehicles a Retrieve New Vehicles team repaired and drove off
+   * (pg. 82; Z4-3). Where they go is the base Inventory, which is Phase 5's.
+   */
+  | {
+      readonly kind: 'retrieve-new-vehicles-resolved';
+      readonly team: number;
+      readonly vehiclesDrivenOff: number;
+      /** A stranger its setup may place on the area (pg. 81). */
+      readonly strangers: readonly FieldRecruitTier[];
+      /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
+      readonly wounds?: readonly MissionWound[];
+    }
+  /** The Tier of each stranger a Rescue Strangers team brought out (pg. 83; Z4-3). */
+  | {
+      readonly kind: 'rescue-strangers-resolved';
+      readonly team: number;
+      readonly strangers: readonly FieldRecruitTier[];
+      /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
+      readonly wounds?: readonly MissionWound[];
+    }
+  /**
+   * How many survivors a Rare Goods Trader team got out over the map edge
+   * (pg. 84; Z4-3), which decides whether its trade arrives — Phase 5's, and
+   * R22's.
+   */
+  | {
+      readonly kind: 'rare-goods-trader-resolved';
+      readonly team: number;
+      readonly survivorsExited: number;
+      /** A stranger its setup may place on the area (pg. 84). */
+      readonly strangers: readonly FieldRecruitTier[];
+      /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
+      readonly wounds?: readonly MissionWound[];
+    }
+  /**
+   * A story, origin or Road Trip mission was played (Z4-3). Which one, by
+   * which team, and since Z4-4 the Health it came home with; its rewards are
+   * Phase 7's, so nothing more is counted.
+   */
+  | {
+      readonly kind: 'mission-played';
+      readonly team: number;
+      readonly mission: MissionId;
+      /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
+      readonly wounds?: readonly MissionWound[];
     }
   /**
    * A mission-team survivor took the place of a worker this turn's Siege
@@ -514,6 +638,35 @@ export type CampaignEvent =
        * did not have. The log is append-only by design, so a sentence that was
        * never true stayed true-looking forever.
        */
+      readonly roll?: D10Result;
+    }
+  /**
+   * A stranger rescued on this turn's missions joined the community, at
+   * Advancement Step 2 (pg. 19; Z4-5).
+   *
+   * **`team` and `stranger` name which rescue this fulfils**: the mission team
+   * whose outcome counted the stranger, and the stranger's position in that
+   * outcome's `strangers`, from 0. That pair is what `strangersWaiting` reads
+   * back, so a walk that goes back over the step offers nobody twice — and it
+   * is the log rather than a flag on the campaign, because whether a rescue
+   * has been answered is a fact about what happened, like every other step's.
+   *
+   * Its own kind rather than a field on `survivor-recruited`, for two reasons.
+   * A stranger's Tier is the outcome's rather than the form's — a Rookie,
+   * Citizen or Leader, never a Hero (pg. 7; R24). And "has this stranger
+   * joined" is then a question about one kind of entry, not about which
+   * recruits happened to carry the field.
+   *
+   * The Tier and the roll as `survivor-recruited` carries them: the Tier as it
+   * was on joining, and the d10 only where one chose a skill (pp. 7, 15).
+   */
+  | {
+      readonly kind: 'stranger-joined';
+      readonly survivor: string;
+      readonly name: string;
+      readonly tier: Tier;
+      readonly team: number;
+      readonly stranger: number;
       readonly roll?: D10Result;
     }
   | {

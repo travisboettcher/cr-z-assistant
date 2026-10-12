@@ -22,6 +22,7 @@ import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS } from '../data/materials';
 import { MISSIONS } from '../data/missions';
+import { FIELD_RECRUITABLE_TIERS } from '../data/recruitTable';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { CAMPAIGN_PHASES, HEALTH_SOURCES, XP_SOURCES } from '../data/turn';
 import type { Assignment, Campaign, Project } from '../engine/campaign';
@@ -277,6 +278,34 @@ const EVENT_FIELD_CHECKS = {
   base: (value: unknown) => typeof value === 'string' && isKeyOf(BASES, value),
   facility: (value: unknown) => typeof value === 'string' && isKeyOf(FACILITIES, value),
   mission: (value: unknown) => typeof value === 'string' && isKeyOf(MISSIONS, value),
+  // The team an outcome ends; absent on a Siege Defense or Thin the Herd
+  // recorded before Z4-3, which was the turn's only team.
+  optionalTeam: (value: unknown) => value === undefined || isCountFromOne(value),
+  // Each team member's Health at the end, and Infection in a Viral campaign
+  // (Z4-4); absent on every outcome written before. Shape only: not held to
+  // the roster or to anybody's maximum, for the reason `optionalAssignments`
+  // is not — this is history, and the survivor it names may have left, or
+  // been promoted, since. Infection is any count, as on the survivor.
+  optionalWounds: (value: unknown) =>
+    value === undefined ||
+    (Array.isArray(value) &&
+      value.every(
+        (wound) =>
+          isRecord(wound) &&
+          typeof wound.survivor === 'string' &&
+          wound.survivor !== '' &&
+          typeof wound.name === 'string' &&
+          isCountFromZero(wound.health) &&
+          (wound.infection === undefined || isCountFromZero(wound.infection)),
+      )),
+  // Which numbered end condition was met, or `null` for none (pp. 77, 79).
+  // Which numbers a mission has is the engine's to check, not a file's.
+  endCondition: (value: unknown) => value === null || isCountFromOne(value),
+  // The Tier of each stranger brought out, in the order the table counted them:
+  // a Rookie, Citizen or Leader, since a Hero is never rescued (pg. 7; R24).
+  tiers: (value: unknown) =>
+    Array.isArray(value) &&
+    value.every((one) => FIELD_RECRUITABLE_TIERS.some((tier) => tier === one)),
   // Gather Materials' remainder type (pg. 80), and absent for every other
   // mission. Which mission asks for one is the engine's to check, not a file's.
   optionalMaterial: (value: unknown) =>
@@ -399,12 +428,57 @@ const EVENT_FIELDS: Record<
   'siege-defense-resolved': [
     ['zombiesLeft', 'count'],
     ['survivorsExited', 'count'],
+    ['team', 'optionalTeam'],
+    ['wounds', 'optionalWounds'],
   ],
   'thin-the-herd-resolved': [
     ['startingZombies', 'count'],
     ['zombiesLeft', 'count'],
     ['survivorsExited', 'count'],
     ['allIncapacitated', 'flag'],
+    ['team', 'optionalTeam'],
+    ['wounds', 'optionalWounds'],
+  ],
+  'first-mission-resolved': [
+    ['team', 'countFromOne'],
+    ['endCondition', 'endCondition'],
+    ['strangers', 'tiers'],
+    ['wounds', 'optionalWounds'],
+  ],
+  'claim-a-new-base-resolved': [
+    ['team', 'countFromOne'],
+    ['endCondition', 'endCondition'],
+    ['strangers', 'tiers'],
+    ['vehiclesOnArea', 'count'],
+    ['wounds', 'optionalWounds'],
+  ],
+  'gather-materials-resolved': [
+    ['team', 'countFromOne'],
+    ['materialsCarriedOut', 'count'],
+    ['strangers', 'tiers'],
+    ['wounds', 'optionalWounds'],
+  ],
+  'retrieve-new-vehicles-resolved': [
+    ['team', 'countFromOne'],
+    ['vehiclesDrivenOff', 'count'],
+    ['strangers', 'tiers'],
+    ['wounds', 'optionalWounds'],
+  ],
+  'rescue-strangers-resolved': [
+    ['team', 'countFromOne'],
+    ['strangers', 'tiers'],
+    ['wounds', 'optionalWounds'],
+  ],
+  'rare-goods-trader-resolved': [
+    ['team', 'countFromOne'],
+    ['survivorsExited', 'count'],
+    ['strangers', 'tiers'],
+    ['wounds', 'optionalWounds'],
+  ],
+  'mission-played': [
+    ['team', 'countFromOne'],
+    ['mission', 'mission'],
+    ['wounds', 'optionalWounds'],
   ],
   'health-restored': [
     ['survivor', 'id'],
@@ -431,6 +505,17 @@ const EVENT_FIELDS: Record<
     ['survivor', 'id'],
     ['name', 'name'],
     ['tier', 'tier'],
+    ['roll', 'optionalRoll'],
+  ],
+  'stranger-joined': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['tier', 'tier'],
+    // Which rescue this answers: the team whose outcome counted the stranger,
+    // and their place in its list from 0 (Z4-5). Whether that outcome exists
+    // is the engine's to ask, as an outcome's team is.
+    ['team', 'countFromOne'],
+    ['stranger', 'count'],
     ['roll', 'optionalRoll'],
   ],
   'survivor-left': [

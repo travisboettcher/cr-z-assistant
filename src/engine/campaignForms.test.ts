@@ -9,7 +9,10 @@ import {
   submitRecruit,
   submitRemoval,
   submitStartingCommunity,
+  submitStrangerJoined,
 } from './campaignForms';
+import type { LogEntry } from './log';
+import { strangersWaiting } from './strangers';
 import { expectAccepted, expectRefused } from '../test/forms';
 
 /**
@@ -197,6 +200,135 @@ describe('submitRecruit', () => {
     expect(after.log.map((entry) => entry.event)).toEqual([
       { kind: 'survivor-recruited', survivor: 'pip', name: 'Pip', tier: 1 },
     ]);
+  });
+});
+
+describe('submitStrangerJoined', () => {
+  const rescued = (team: number, strangers: readonly (1 | 2 | 3)[]): LogEntry => ({
+    turn: 3,
+    phase: 'mission',
+    at: AT,
+    event: { kind: 'rescue-strangers-resolved', team, strangers },
+  });
+
+  /** Turn 3's Create New Survivors, after two teams each rescued somebody. */
+  const twoRescues = (): Campaign => ({
+    ...opened('create-new-survivors', 3),
+    startingCommunityBuilt: true,
+    log: [rescued(1, [2]), rescued(2, [1])],
+  });
+
+  it('adds the stranger at the Tier the outcome counted, and names the rescue', () => {
+    const after = expectAccepted(
+      submitStrangerJoined(
+        twoRescues(),
+        { id: 'carla', team: 1, stranger: 0, name: 'Carla Proust', roll: 6 },
+        AT,
+      ),
+    );
+
+    // A six is Archery (pg. 15).
+    expect(after.survivors).toEqual([recruitSurvivor('Carla Proust', 2, 6, { id: 'carla' })]);
+    expect(after.log.slice(2)).toEqual([
+      {
+        turn: 3,
+        phase: 'advancement',
+        at: AT,
+        event: {
+          kind: 'stranger-joined',
+          survivor: 'carla',
+          name: 'Carla Proust',
+          tier: 2,
+          team: 1,
+          stranger: 0,
+          roll: 6,
+        },
+      },
+    ]);
+  });
+
+  /** The acceptance: two strangers rescued by two teams are two survivors, each once. */
+  it('takes each of two teams’ strangers once, and then neither again', () => {
+    const first = expectAccepted(
+      submitStrangerJoined(twoRescues(), { id: 'carla', team: 1, stranger: 0, name: 'Carla' }, AT),
+    );
+    const both = expectAccepted(
+      submitStrangerJoined(first, { id: 'pip', team: 2, stranger: 0, name: 'Pip' }, AT),
+    );
+
+    expect(both.survivors.map((survivor) => [survivor.name, survivor.tier])).toEqual([
+      ['Carla', 2],
+      ['Pip', 1],
+    ]);
+    expect(strangersWaiting(both)).toEqual([]);
+    expect(
+      expectRefused(
+        submitStrangerJoined(both, { id: 'again', team: 1, stranger: 0, name: 'Carla' }, AT),
+      ),
+    ).toMatch(/already joined/);
+  });
+
+  /** Gone back over: stepping back and forward through the step changes nothing it read. */
+  it('does not offer a stranger again after the walk goes back over the step', () => {
+    const joined = expectAccepted(
+      submitStrangerJoined(twoRescues(), { id: 'carla', team: 1, stranger: 0, name: 'Carla' }, AT),
+    );
+    const walkedBack = submitAdvance(
+      { ...submitAdvance(joined, 'step', AT).campaign, step: 'character-advancement' },
+      'step',
+      AT,
+    ).campaign;
+
+    expect(walkedBack.step).toBe('create-new-survivors');
+    expect(strangersWaiting(walkedBack)).toEqual([{ team: 2, stranger: 0, tier: 1 }]);
+  });
+
+  /** Proof play has begun, for the reason a field recruit is (pg. 13). */
+  it('settles a starting community still being built, saying so once', () => {
+    const after = expectAccepted(
+      submitStrangerJoined(
+        { ...twoRescues(), startingCommunityBuilt: false },
+        { id: 'pip', team: 2, stranger: 0, name: 'Pip' },
+        AT,
+      ),
+    );
+
+    expect(after.startingCommunityBuilt).toBe(true);
+    expect(kinds(after).slice(2)).toEqual(['stranger-joined', 'starting-community-settled']);
+  });
+
+  /** A Rookie throws no die, and the entry does not claim one. */
+  it('records no roll that was not made', () => {
+    const after = expectAccepted(
+      submitStrangerJoined(twoRescues(), { id: 'pip', team: 2, stranger: 0, name: 'Pip' }, AT),
+    );
+
+    expect(after.log.at(-1)?.event).toEqual({
+      kind: 'stranger-joined',
+      survivor: 'pip',
+      name: 'Pip',
+      tier: 1,
+      team: 2,
+      stranger: 0,
+    });
+    expect(after.log.at(-1)?.event).not.toHaveProperty('roll');
+  });
+
+  it('refuses what `strangerProblem` refuses, and changes nothing', () => {
+    expect(
+      expectRefused(
+        submitStrangerJoined(
+          { ...twoRescues(), step: 'tactical-mission' },
+          { id: 'carla', team: 1, stranger: 0, name: 'Carla' },
+          AT,
+        ),
+      ),
+    ).toMatch(/Advancement/);
+    expect(
+      expectRefused(
+        submitStrangerJoined(twoRescues(), { id: 'x', team: 1, stranger: 1, name: 'X' }, AT),
+      ),
+    ).toMatch(/no such stranger/i);
   });
 });
 

@@ -75,6 +75,13 @@ describe('Select Mission (pg. 17; Z4-2)', () => {
     expect(team(2).queryByLabelText('The rest in')).toBeNull();
 
     await user.selectOptions(team(2).getByLabelText('Mission'), 'gather-materials');
+    // Food, Fuel and Hardware, and not Rare (pg. 80; Z4-6).
+    expect(
+      within(team(2).getByLabelText('The rest in'))
+        .getAllByRole('option')
+        .map((option) => option.textContent)
+        .sort(),
+    ).toEqual(['Food', 'Fuel', 'Hardware']);
     await user.selectOptions(team(2).getByLabelText('The rest in'), 'fuel');
     await user.click(team(2).getByRole('button', { name: 'Choose for team 2' }));
 
