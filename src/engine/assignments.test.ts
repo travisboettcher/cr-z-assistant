@@ -70,12 +70,14 @@ describe('sameTask', () => {
   });
 
   /**
-   * Two survivors on the same mission team and two on different ones are all
-   * doing the same *job* — the number says which team, not which task, and a
-   * comparison that split on it would offer a checkbox per team.
+   * A checkbox per team is what Planning offers since Z4-2 split the mission
+   * survivors between teams (pg. 21): each team plays its own mission, so being
+   * on team 2 is not being on team 1. Until then every assignment was team 1
+   * and the number was ignored here.
    */
-  it('ignores which mission team it is', () => {
-    expect(sameTask({ task: 'mission', team: 1 }, { task: 'mission', team: 2 })).toBe(true);
+  it('tells one mission team from another', () => {
+    expect(sameTask({ task: 'mission', team: 1 }, { task: 'mission', team: 2 })).toBe(false);
+    expect(sameTask({ task: 'mission', team: 2 }, { task: 'mission', team: 2 })).toBe(true);
   });
 
   it('never matches across tasks, whatever they carry', () => {

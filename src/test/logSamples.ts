@@ -88,6 +88,17 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   // Called on a roll that fell short: a Thin the Herd that put everybody down
   // makes the next roll succeed on its own (pg. 81).
   { kind: 'horde-checked', roll: 2, threat: 4, siege: true },
+  { kind: 'mission-selected', team: 1, mission: 'thin-the-herd', names: ['Earl Rhodes'] },
+  // The one mission that asks for anything, and a second team: pg. 21 splits
+  // the mission survivors between any number of them.
+  {
+    kind: 'mission-selected',
+    team: 2,
+    mission: 'gather-materials',
+    names: ['Carla Proust', 'Ruby Vance'],
+    material: 'fuel',
+  },
+  { kind: 'mission-skipped' },
   { kind: 'siege-defense-resolved', zombiesLeft: 0, survivorsExited: 2 },
   { kind: 'siege-defense-resolved', zombiesLeft: 3, survivorsExited: 1 },
   { kind: 'stood-in', ...SURVIVOR, by: 'ruby', byName: 'Ruby Vance' },

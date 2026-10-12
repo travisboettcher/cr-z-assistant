@@ -42,6 +42,7 @@ import type { BaseId } from '../data/bases';
 import type { D10Result } from '../data/dice';
 import type { FacilityId, UpgradeId } from '../data/facilities';
 import type { Material } from '../data/materials';
+import type { MissionId } from '../data/missions';
 import type { CommonSkill, Skill } from '../data/skills';
 import type { Tier } from '../data/tiers';
 import type { CampaignPhase, HealthSource, XpSource } from '../data/turn';
@@ -364,6 +365,41 @@ export type CampaignEvent =
       readonly threat: number;
       readonly siege: boolean;
     }
+  /**
+   * A mission team's mission, chosen at Select Mission (pg. 17; Z4-2).
+   *
+   * **The team is the Planning Phase's**: pg. 21 splits the survivors assigned
+   * to missions "between any number of mission teams" at Planning Step 4, and
+   * each `mission` assignment already carries its team's number. This entry
+   * names the mission that team plays. On a siege turn the team is the whole
+   * community, as team 1 (pg. 85).
+   *
+   * **The latest entry for a team is its choice**, so choosing again is
+   * appending again, as `stood-in` does, and a `mission-skipped` after it
+   * clears it. `names` is who was on the team when it chose, for a reader of
+   * the history: the roster it names can have changed by the time anybody
+   * looks, which is why `siege-fought` carries names too. `material` is the
+   * type a Gather Materials team takes its remainder in (pg. 80), and is
+   * present for that mission only.
+   *
+   * **Load-bearing**: `missions.ts` reads it back for who went out, which
+   * mission XP and the haul's substitutions are counted from.
+   */
+  | {
+      readonly kind: 'mission-selected';
+      readonly team: number;
+      readonly mission: MissionId;
+      readonly names: readonly string[];
+      readonly material?: Material;
+    }
+  /**
+   * The community opted out of this turn's mission (pg. 17).
+   *
+   * Clears any team's choice before it, and a selection after it takes the
+   * opt-out back. Load-bearing for the same reader as `mission-selected`:
+   * nobody went out.
+   */
+  | { readonly kind: 'mission-skipped' }
   /**
    * How a Siege Defense ended, as the table counted it (pg. 86).
    *

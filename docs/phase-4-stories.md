@@ -108,23 +108,23 @@ catalogue by id, name and pages only.
 
 ## Decisions recorded, rather than left to the implementation
 
-**A team is formed at Select Mission, from the survivors Planning assigned to missions.** Planning
-Step 4 assigns survivors to *missions* for next turn (pg. 21) — the pool — and the split into
-teams is only meaningful once each team has a mission, which is the Mission Phase's first step. So
-the `mission-selected` entry names its team's survivors, drawn from the pool, and nothing changes
-in `assignments`: no schema bump, and the Planning Phase stays as it is. On turn 1 the pool is the
-First Mission's, which `FirstMission` already writes as ordinary mission assignments; on a siege
-turn it is the whole community.
+**The teams are the Planning Phase's; Select Mission chooses their missions.** Pg. 21 splits
+the survivors assigned to missions "between any number of mission teams" at Planning Step 4, and
+every `mission` assignment has carried a team number since Phase 3 for exactly this. So Planning
+offers team 2, 3, … beside team 1, and the `mission-selected` entry names a team and its mission,
+with the team's names copied in only for the history to read. No schema bump: the field was
+already there. On turn 1 the team is the one `FirstMission` assigns at the start of the turn; on a
+siege turn it is the whole community, as team 1. *This replaces the first draft of this decision,
+which formed teams at Select Mission from an unsplit pool — written before noticing that pg. 21
+puts the split in the Planning Phase and that the assignments already carry it.*
 
-**Exhaustion counts the pool, which is what it already counts.** Pg. 23 compares Exhaustion with
-"the mission team", singular. In this app's order the question does not arise: Exhaustion is
-settled in the Management Phase against the pool the Planning Phase just assigned, before the next
-Mission Phase splits it. `overworked` is unchanged.
+**Which "mission team" Exhaustion counts is open** — [R23](rulings.md#r23--which-mission-team-exhaustion-counts--open).
+Pg. 23 compares Exhaustion with "the mission team", singular, and with teams split in Planning
+there can be several. `overworked` still counts every survivor on any team, as it always has.
 
-**A team is a number within its turn.** Team 1, 2, … in the order they were chosen, carried on
-both the selection and the outcome, so an outcome names the team it ends and a turn's history
-reads in the order the table played it. #175's two outcome kinds gain the field as optional: an
-entry without one is the turn's only team, which every entry written so far is.
+**A team's number is the Planning Phase's**, carried on the selection and, from Z4-3, the
+outcome, so an outcome names the team it ends. #175's two outcome kinds gain the field as optional:
+an entry without one is the turn's only team, which every entry written so far is.
 
 **Each mission has its own outcome kind**, as #175 began: `first-mission-resolved`,
 `gather-materials-resolved` and so on, all members of one `MissionOutcome` union, with the fields
@@ -143,9 +143,9 @@ becomes the fallback for entries written before it.
 catalogue id, the team, and its wounds. Their rewards are Phase 7's, but a table that plays one
 still has a turn to walk, XP to award and Health to record.
 
-**Old turns are not backfilled.** A turn played before Z4-2 has no `mission-selected` entry. Its
-mission is read from its outcome entry where it has one (a Siege Defense or a Thin the Herd) and
-is "not recorded" otherwise. The walk owes a selection only from the turn this lands on.
+**Old turns are not backfilled.** A turn played before Z4-2 has no `mission-selected` entry, and
+reads as every team going out, which is what every turn read as before; its outcome entry, where it
+has one, still says what it played. The walk owes a selection only from the turn this lands on.
 
 ## The data this phase cannot invent
 
@@ -198,29 +198,32 @@ Four, confirmed 2026-10-12 and recorded in [the registry](rulings.md):
 **Why:** The fact everything after it hangs off: what the turn played, and who played it.
 
 **Scope**
-- A `mission-selected` entry: the team number, the mission, the survivors on the team, and the
-  material type for Gather Materials. A `mission-skipped` entry for a community that opts out
-  (pg. 17).
-- `submitMissionSelection` in `missionForms.ts`, refusing: outside the Select Mission step; a
-  survivor who is not in the pool or is already on a team this turn; anything but the First
-  Mission on turn 1 (again, after a failed attempt — R21), or anything but a Siege Defense with
-  every survivor on a siege turn; a mission
-  whose catalogue entry says it cannot be chosen now; a second Claim a New Base (R20).
-  A wounded survivor draws R12's warning, as at Planning.
-- The step is owed until every survivor in the pool is on a team, or the turn is skipped.
-- The Select Mission screen: choose a mission, tick its team from the pool, repeat while anybody
-  in the pool is left.
-- `deployed` reads the turn's teams where they are recorded, so mission XP and the Teaching pool
-  go to the survivors who actually went.
+- A `mission-selected` entry: the team number, the mission, the team's names for the history, and
+  the material type for Gather Materials. A `mission-skipped` entry for a community that opts out
+  (pg. 17). The latest entry for a team is its choice; an opt-out clears the choices before it.
+- `src/engine/missions.ts`: the turn's teams (`missionTeams`), what was chosen (`turnMissions`),
+  what is on offer (`missionsOnOffer`), and why a choice or an opt-out is refused.
+- `submitMissionSelection` refusing: outside the Mission Phase; a team nobody is on; anything but
+  the First Mission on turn 1, or anything but the Siege Defense on a siege turn; the First Mission
+  or a Siege Defense on any other turn; another Origin's mission; a second Claim a New Base (R20);
+  and a material type unless the mission asks for one. `submitMissionSkip` refusing turn 1, a
+  siege turn, and a second opt-out.
+- Planning Step 4 offers team 2, 3, … beside team 1 (pg. 21), and `sameTask` tells mission teams
+  apart so the screen can.
+- The step is owed until every team has a mission, or the turn is skipped.
+- The Select Mission screen: a mission per team, grouped by family, and a material type for
+  Gather Materials.
+- `deployed` moves here from `siege.ts` and reads the teams that chose, so mission XP, the
+  Teaching pool and the haul's substitutions go to the survivors who actually went. The outcome
+  guard moves with it and stops guessing.
 - Log labels, and `EVENT_FIELDS` validation for both kinds.
 
 **Acceptance**
-- A turn with two teams records two selections, and the same survivor cannot be on both.
-- A siege turn accepts only a Siege Defense with the whole community, and turn 1 only the First
-  Mission.
-- A save from before this story loads, and its turns read their mission from their outcome entry
-  where they have one.
-- `missionOutcomeProblem` stops guessing: an outcome is checked against the team's selection.
+- A turn with two teams records two choices, and each team reads its own.
+- A siege turn accepts only the Siege Defense, for the whole community, and turn 1 only the First
+  Mission. Neither may be skipped.
+- A save from before this story loads, and its turns read as every team going out.
+- `missionOutcomeProblem` stops guessing: an outcome is refused for a mission no team chose.
 
 ---
 

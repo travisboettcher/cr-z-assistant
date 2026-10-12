@@ -13,7 +13,7 @@ import {
 } from './siegeWork';
 import { baseProduction } from './materials';
 import { healingPool } from './healing';
-import { deployed } from './siege';
+import { deployed } from './missions';
 import { projectTeam } from './assignments';
 import { withPlanningBegun } from '../test/campaigns';
 

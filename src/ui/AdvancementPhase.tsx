@@ -39,7 +39,7 @@ import {
   substitutionsSpent,
   type MaterialRoll,
 } from '../engine/materials';
-import { deployed } from '../engine/siege';
+import { deployed } from '../engine/missions';
 import {
   checkConversion,
   conversions,

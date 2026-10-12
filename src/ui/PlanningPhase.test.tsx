@@ -172,6 +172,29 @@ describe('the Planning Phase steps', () => {
     expect(team.getByText(/injured survivors cannot be sent/i)).toBeTruthy();
   });
 
+  it('offers a second mission team once somebody is on the first (pg. 21; Z4-2)', async () => {
+    const user = open(planning({ step: 'assign-mission-team' }));
+
+    expect(screen.queryByRole('group', { name: /on mission team 2/i })).toBeNull();
+
+    await user.click(
+      within(screen.getByRole('group', { name: /on the mission team/i })).getByRole('checkbox', {
+        name: /earl/i,
+      }),
+    );
+    const second = within(screen.getByRole('group', { name: /on mission team 2/i }));
+    expect(second.getByRole('checkbox', { name: /earl/i })).not.toBeChecked();
+
+    // Moving Earl to team 2 takes him off team 1, rather than putting him on both.
+    await user.click(second.getByRole('checkbox', { name: /earl/i }));
+    expect(second.getByRole('checkbox', { name: /earl/i })).toBeChecked();
+    expect(
+      within(screen.getByRole('group', { name: /on the mission team/i })).getByRole('checkbox', {
+        name: /earl/i,
+      }),
+    ).not.toBeChecked();
+  });
+
   it('moves a survivor between tasks rather than giving them two', async () => {
     const user = open(planning({ step: 'assign-rest-and-healing' }));
 

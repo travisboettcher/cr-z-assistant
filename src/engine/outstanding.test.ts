@@ -79,15 +79,44 @@ describe('outstanding', () => {
     const besieged = settled({
       log: [entry({ kind: 'horde-checked', roll: 9, threat: 9, siege: true }, 2), ...settled().log],
     });
-    const recorded = settled({
+    const chosen = settled({
       log: [
         ...besieged.log,
+        entry({ kind: 'mission-selected', team: 1, mission: 'siege-defense', names: [] }),
+      ],
+    });
+    const recorded = settled({
+      log: [
+        ...chosen.log,
         entry({ kind: 'siege-defense-resolved', zombiesLeft: 2, survivorsExited: 0 }),
       ],
     });
 
-    expect(steps(besieged)).toEqual(['tactical-mission']);
+    expect(steps(chosen)).toEqual(['tactical-mission']);
     expect(steps(recorded)).toEqual([]);
+  });
+
+  it('names a mission team with no mission chosen (pg. 17; Z4-2)', () => {
+    const earl = createSurvivor('Earl Rhodes', 2, { id: 'earl' });
+    const assigned = settled({
+      survivors: [earl],
+      assignments: { earl: { task: 'mission', team: 1 } },
+    });
+    const chosen = settled({
+      ...assigned,
+      log: [
+        ...assigned.log,
+        entry({ kind: 'mission-selected', team: 1, mission: 'thin-the-herd', names: [] }),
+      ],
+    });
+    const skipped = settled({
+      ...assigned,
+      log: [...assigned.log, entry({ kind: 'mission-skipped' })],
+    });
+
+    expect(steps(assigned)).toEqual(['select-mission']);
+    expect(steps(chosen)).toEqual([]);
+    expect(steps(skipped)).toEqual([]);
   });
 
   it('names a survivor at 0 Health whose check has not run', () => {

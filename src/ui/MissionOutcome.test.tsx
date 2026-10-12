@@ -16,6 +16,14 @@ const called: LogEntry = {
   event: { kind: 'horde-checked', roll: 9, threat: 8, siege: true },
 };
 
+/** A team's choice at Select Mission, which the outcome is asked for (Z4-2). */
+const chose = (mission: 'siege-defense' | 'thin-the-herd'): LogEntry => ({
+  turn: 4,
+  phase: 'mission',
+  at: AT,
+  event: { kind: 'mission-selected', team: 1, mission, names: [] },
+});
+
 function playing(overrides: Partial<Campaign> = {}): Campaign {
   return {
     ...createNewCampaign('Cedar Hollow'),
@@ -42,7 +50,7 @@ const field = (name: RegExp) => within(walk()).getByLabelText(name);
 
 describe('the outcome of a Siege Defense (pg. 86)', () => {
   it('waits for the counts before it can be recorded', () => {
-    open(playing({ log: [called] }));
+    open(playing({ log: [called, chose('siege-defense')] }));
 
     expect(
       within(walk()).getByRole('button', { name: /record the siege defense/i }),
@@ -50,7 +58,7 @@ describe('the outcome of a Siege Defense (pg. 86)', () => {
   });
 
   it('says what a clean siege does, and keeps saying it once recorded', async () => {
-    const user = open(playing({ log: [called] }));
+    const user = open(playing({ log: [called, chose('siege-defense')] }));
 
     await user.type(field(/zombies left/i), '0');
     await user.type(field(/out over the map edge/i), '2');
@@ -64,7 +72,7 @@ describe('the outcome of a Siege Defense (pg. 86)', () => {
   });
 
   it('names an overrun base, and the choice the app leaves to the table', async () => {
-    const user = open(playing({ log: [called] }));
+    const user = open(playing({ log: [called, chose('siege-defense')] }));
 
     await user.type(field(/zombies left/i), '3');
     await user.type(field(/out over the map edge/i), '1');
@@ -75,20 +83,20 @@ describe('the outcome of a Siege Defense (pg. 86)', () => {
 });
 
 describe('the outcome of a Thin the Herd (pg. 81)', () => {
-  it('is offered on a turn with no siege', () => {
-    open(playing());
+  it('is offered when a team chose it', () => {
+    open(playing({ log: [chose('thin-the-herd')] }));
 
     expect(within(walk()).getByRole('group', { name: /thin the herd/i })).toBeInTheDocument();
   });
 
-  it('is not offered on turn 1, which is the First Mission', () => {
-    open(playing({ turn: 1 }));
+  it('is not offered when no team chose it', () => {
+    open(playing());
 
     expect(within(walk()).queryByRole('group', { name: /thin the herd/i })).toBeNull();
   });
 
   it('halves the counter, and says everybody down brings the horde', async () => {
-    const user = open(playing());
+    const user = open(playing({ log: [chose('thin-the-herd')] }));
 
     await user.type(field(/at the start/i), '8');
     await user.type(field(/zombies left/i), '3');

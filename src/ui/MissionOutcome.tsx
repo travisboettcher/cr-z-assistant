@@ -3,9 +3,9 @@
  *
  * The Mission Phase is still played on the table, and this is the one thing
  * the app needs back from it: the counts the turns since the last siege are
- * moved by. A Siege Defense is asked for whenever the horde called one, because
- * the app knows it was played; a Thin the Herd is offered on any other turn but
- * the first, because only the player knows it was chosen.
+ * moved by. Each is asked for when a team chose it at Select Mission (Z4-2):
+ * a siege turn's whole community chooses the Siege Defense, and any other
+ * turn's team may choose Thin the Herd.
  *
  * The form records counts and nothing it works out from them. What they do —
  * the counter reset or halved, the base overrun, the next horde roll made
@@ -16,12 +16,8 @@
 
 import { useState } from 'react';
 import type { Campaign } from '../engine/campaign';
-import {
-  FIRST_TURN,
-  missionOutcomeProblem,
-  siegeDue,
-  type MissionOutcome as Outcome,
-} from '../engine/siege';
+import { missionOutcomeProblem, turnMissions } from '../engine/missions';
+import type { MissionOutcome as Outcome } from '../engine/siege';
 import { useCampaign } from '../state/useCampaign';
 import { describeOutcome, MISSION_PAGES, outcomeConsequences } from './missionLabels';
 import { PageRef } from './PageRef';
@@ -95,10 +91,13 @@ export function MissionOutcome({ campaign }: { readonly campaign: Campaign }) {
     );
   }
 
-  const siege = siegeDue(campaign);
+  // Asked for the mission a team chose at Select Mission, and only those two
+  // until Z4-3 gives every mission an outcome: a siege turn's one team plays
+  // the Siege Defense, and a Thin the Herd is recorded when a team chose it.
+  const chosen = turnMissions(campaign).choices.map((choice) => choice.mission);
+  const siege = chosen.includes('siege-defense');
 
-  // Turn 1 is the First Mission (pg. 75), and no outcome of it moves anything.
-  if (!siege && campaign.turn === FIRST_TURN) return null;
+  if (!siege && !chosen.includes('thin-the-herd')) return null;
 
   const outcome: Outcome = siege
     ? { kind: 'siege-defense-resolved', zombiesLeft: count(left), survivorsExited: count(exited) }
@@ -114,14 +113,14 @@ export function MissionOutcome({ campaign }: { readonly campaign: Campaign }) {
   return (
     <fieldset className="mt-4 flex flex-col gap-2 rounded-lg border border-stone-200 p-3 dark:border-stone-700">
       <legend className="px-1 text-sm font-semibold">
-        {siege ? 'How the Siege Defense ended' : 'If this turn’s mission was Thin the Herd'}{' '}
+        {siege ? 'How the Siege Defense ended' : 'How the Thin the Herd ended'}{' '}
         <PageRef pages={MISSION_PAGES[outcome.kind]} />
       </legend>
 
       <p className={HINT}>
         {siege
           ? 'Count what was on the mission area when it ended, and who got out over the map edge. Whether the turns since the last siege go back to 0 depends on it.'
-          : 'Its outcome can reset or halve the turns since the last siege. Any other mission leaves them counting, and needs nothing here.'}
+          : 'Count what was on the mission area at the start and at the end, and who got out over the map edge. It can reset or halve the turns since the last siege.'}
       </p>
 
       {!siege && (

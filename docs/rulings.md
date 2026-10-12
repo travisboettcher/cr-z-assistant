@@ -564,3 +564,17 @@ true at once: the second is about what was traded, the first about what was not.
 **What it costs.** A stricter table loses everything set aside. Nothing builds this until the trade
 itself arrives with equipment in Phase 5; it is recorded now because #178's outcome entry for the
 mission carries the one field it reads.
+
+---
+
+## R23 — Which mission team Exhaustion counts — OPEN
+
+**pp. 21, 23; [#178](https://github.com/travisboettcher/cr-z-assistant/issues/178).** Exhaustion
+above "the mission team" takes one survivor off it (pg. 23). Since Z4-2 the Planning Phase splits
+the mission survivors between several teams (pg. 21), so there may be more than one team for the
+rule to mean.
+
+**Open.** Until it is ruled, `overworked` counts **every survivor on any mission team together**,
+which is what it has always counted, and the survivor taken off may come from any team. The
+alternatives are to compare Exhaustion with each team separately, or with the largest. Recorded so
+that the current reading is not mistaken for a decision.

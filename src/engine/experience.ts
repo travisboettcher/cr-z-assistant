@@ -46,7 +46,7 @@ import {
   type XpSource,
 } from '../data/turn';
 import { beforePlanning, staffOf } from './assignments';
-import { deployed } from './siege';
+import { deployed } from './missions';
 import { whoWorked } from './siegeWork';
 import { suppliedOccupants } from './utilities';
 import type { Campaign, Survivor } from './campaign';
