@@ -75,7 +75,7 @@ Part 1 explicitly does **not** include:
 
 Transcribed from the rulebook extract of 2026-10-12 ("batch 12"), printed page numbers.
 
-**The eight standard missions** (pg. 75; "any time, except for Siege Defense"):
+**The eight standard missions** (pg. 75), any of which may be chosen on any turn but the Siege Defense:
 
 | Mission | Pages | Counted at the end | Read back as |
 |---|---|---|---|
@@ -95,21 +95,20 @@ catalogue by id, name and pages only.
 
 - Turn 1 is always the First Mission (pg. 76). It is played again only as the overrun base's
   second continuation (pg. 86), which is #182's.
-- A Siege Defense is forced when d10 + Siege Threat ≥ 16 at Management Step 6, and "must be picked
-  during the next Choose Mission step" (pg. 23). It deploys every survivor (pg. 85), so a siege
+- A Siege Defense is forced when d10 + Siege Threat ≥ 16 at Management Step 6, and is the next
+  Select Mission's only choice (pg. 23). It deploys every survivor (pg. 85), so a siege
   turn has exactly one mission.
 - Claim a New Base has no timing restriction: it is not tied to an overrun base (pp. 75, 86).
 - The community may opt out of the mission; one survivor with no other assignment may scavenge
   (pg. 17).
-- **Several missions in one turn are literal**: mission-team survivors "can be split between any
-  number of mission teams, so more than one mission can be completed during the next campaign
-  turn" (pg. 21; "the tabletop mission or missions", pg. 17). A survivor holds one assignment per
-  turn (pg. 20), so is on one team at most.
+- **Several missions in one turn are literal**: the mission survivors may be split into any number
+  of teams, each completing its own mission in the same turn (pg. 21; pg. 17 also allows for more
+  than one). A survivor holds one assignment per turn (pg. 20), so is on one team at most.
 
 ## Decisions recorded, rather than left to the implementation
 
 **The teams are the Planning Phase's; Select Mission chooses their missions.** Pg. 21 splits
-the survivors assigned to missions "between any number of mission teams" at Planning Step 4, and
+the survivors assigned to missions between any number of teams at Planning Step 4, and
 every `mission` assignment has carried a team number since Phase 3 for exactly this. So Planning
 offers team 2, 3, … beside team 1, and the `mission-selected` entry names a team and its mission,
 with the team's names copied in only for the history to read. No schema bump: the field was

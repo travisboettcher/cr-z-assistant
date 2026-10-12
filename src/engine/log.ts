@@ -369,7 +369,7 @@ export type CampaignEvent =
    * A mission team's mission, chosen at Select Mission (pg. 17; Z4-2).
    *
    * **The team is the Planning Phase's**: pg. 21 splits the survivors assigned
-   * to missions "between any number of mission teams" at Planning Step 4, and
+   * to missions between any number of teams at Planning Step 4, and
    * each `mission` assignment already carries its team's number. This entry
    * names the mission that team plays. On a siege turn the team is the whole
    * community, as team 1 (pg. 85).

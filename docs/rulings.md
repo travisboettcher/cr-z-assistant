@@ -499,11 +499,11 @@ decision.
 
 ## R19 — Missions in one turn are independent
 
-**pp. 17–19, 21; [#178](https://github.com/travisboettcher/cr-z-assistant/issues/178).** Mission
-teams "can be split between any number of mission teams, so more than one mission can be completed
-during the next campaign turn" (pg. 21). The book does not say in what order a turn's missions are
+**pp. 17–19, 21; [#178](https://github.com/travisboettcher/cr-z-assistant/issues/178).** The
+mission survivors may be split into any number of teams, each completing its own mission in the
+same turn (pg. 21). The book does not say in what order a turn's missions are
 played, or whether the result of one reaches another — a vehicle driven off, a base claimed
-mid-turn — and the Advancement Phase is written for one mission ("the previous mission").
+mid-turn — and the Advancement Phase is written as though there were one mission.
 
 **The ruling is that each outcome applies on its own, and none is read by another in the same
 turn.** What the Advancement Phase gathers from them is gathered across all of them: mission XP is
@@ -537,8 +537,8 @@ wins — that the book does not give.
 ## R21 — A failed First Mission is played again in turn 1
 
 **pp. 76–77; [#178](https://github.com/travisboettcher/cr-z-assistant/issues/178).** The First
-Mission fails when no survivors are left in the mission area, and the community "may retry with
-new or the same survivors, or changed difficulty" (pg. 77). The book does not say whether the retry
+Mission fails when no survivors are left in the mission area, and the community may then try it
+again (pg. 77). The book does not say whether the retry
 is the same campaign turn — but a community without a base has no turn 2 to play it in: every
 later phase reads the base.
 
@@ -553,9 +553,9 @@ decision about turn structure the text leaves implicit.
 
 ## R22 — What a failed Rare Goods Trader loses
 
-**pg. 84; recorded ahead of Phase 5.** Rare Goods Trader's rewards read two ways. One bullet says
-that if nobody exits, "the items on the trade list are marked off; return the untraded
-materials"; the next says "all traded items and materials are lost".
+**pg. 84; recorded ahead of Phase 5.** Rare Goods Trader's rewards read two ways. When nobody exits,
+one bullet returns the materials of items not yet traded, and the next loses every traded item and
+its materials.
 
 **The ruling is that traded items and the materials paid for them are lost, and materials set
 aside for items not yet traded go back to storage.** It is the reading that lets both bullets be

@@ -14,8 +14,8 @@
  *
  * ## Four families, and only one of them modelled
  *
- * The chapter splits missions into **standard** (pg. 75: "any time, except for
- * Siege Defense"), **story** (tied to a survivor, pg. 87) and **origin**
+ * The chapter splits missions into **standard** (pg. 75: any turn, but the
+ * Siege Defense), **story** (tied to a survivor, pg. 87) and **origin**
  * (pg. 103); the optional **Road Trip** chapter has three more (pp. 164–167).
  * Nothing else in the book is called a mission — the Complications on
  * pp. 141–149 modify one, and the Travel Complications on pp. 162–163 are
@@ -46,8 +46,8 @@ export type MissionFamily = (typeof MISSION_FAMILIES)[number];
  *   played again only as the overrun base's second continuation (pg. 86),
  *   which is #182's, and as a retry after a failed attempt (R21).
  * - `forced-by-siege` — only when the horde called a siege at Management Step
- *   6, and then it "must be picked during the next Choose Mission step"
- *   (pg. 23). Never chosen freely (pg. 75).
+ *   6, and then it is the next Select Mission's only choice (pg. 23). Never
+ *   chosen freely (pg. 75).
  * - `any-time` — the rest (pg. 75). Claim a New Base is one of them: nothing
  *   ties it to an overrun base (pp. 75, 86).
  *

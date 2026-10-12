@@ -5,8 +5,8 @@
  * ## The teams are the Planning Phase's; the missions are Select Mission's
  *
  * Planning Step 4 assigns survivors to missions for next turn, and pg. 21 lets
- * them "be split between any number of mission teams, so more than one
- * mission can be completed during the next campaign turn". Every `mission`
+ * them be split into any number of teams, each completing its own mission in
+ * the same turn. Every `mission`
  * assignment has carried a team number since Phase 3 for exactly this. So a
  * team is formed where the book forms it, and Select Mission — the first step
  * of the turn it goes out on (pg. 17) — records the one thing left to decide:
@@ -185,7 +185,7 @@ export function missionsChosen(campaign: Campaign): boolean {
  *
  * The First Mission on turn 1 (pg. 76), the Siege Defense on a siege turn
  * (pg. 23), and otherwise every mission but those two — the standard ones,
- * which "can be attempted at any time" (pg. 75), the story and Road Trip ones,
+ * which may be chosen on any turn (pg. 75), the story and Road Trip ones,
  * and the origin missions of the campaign's own Origin of the Rot. Their
  * prerequisites inside an origin or a story are Phase 7's.
  *
@@ -271,7 +271,7 @@ export function selectionProblem(campaign: Campaign, choice: MissionChoice): str
  * (pg. 17).
  *
  * Not on turn 1, whose First Mission is how a community gets a base at all
- * (pg. 76); not on a siege turn, whose Siege Defense "must be picked" (pg. 23);
+ * (pg. 76); not on a siege turn, whose Siege Defense is the only choice (pg. 23);
  * and not twice.
  */
 export function skipProblem(campaign: Campaign): string | null {
