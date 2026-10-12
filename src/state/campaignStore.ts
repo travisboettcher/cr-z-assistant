@@ -18,6 +18,15 @@
  *    time. `createNewCampaign` was built to accept exactly those two values for
  *    this reason, so this module builds on it rather than inlining a second
  *    campaign factory.
+ *
+ * **A form is the engine's, not the store's** (#179). Where an action is a
+ * form — a guard, a change and the entries that record it — the composition
+ * is one function in `src/engine/*Forms.ts`, and the case here hands it the
+ * campaign, the action's fields and the action's `at` through `submitted`.
+ * The store's share is the open-or-empty question and keeping the campaign as
+ * it was on a refusal. What is left written out below is the corrections,
+ * which have no guard and no entry, and the project cases (see the note above
+ * `project/ordered`).
  */
 
 import type { BaseId } from '../data/bases';
@@ -25,9 +34,8 @@ import type { Utility } from '../data/facilities';
 import type { Material } from '../data/materials';
 import type { D10Result } from '../data/dice';
 import type { FieldRecruitTier } from '../data/recruitTable';
-import { MIN_SKILL_LEVEL, type CommonSkill, type Skill, type Stat } from '../data/skills';
+import type { CommonSkill, Skill, Stat } from '../data/skills';
 import type { Tier } from '../data/tiers';
-import { withCommonSkillBought, withSkillLevelBought, withTierBought } from '../engine/advancement';
 import {
   cancellable,
   completeProjects,
@@ -37,48 +45,42 @@ import {
   withProjectOrdered,
 } from '../engine/projects';
 import { builtEvent, builtOf, checkOrder, orderedEvent } from '../engine/orders';
-import { suppliedOccupants, withUtilityToggled } from '../engine/utilities';
+import { withUtilityToggled } from '../engine/utilities';
 import { createNewCampaign } from '../engine/campaign';
-import { logged, type CampaignEvent } from '../engine/log';
-import { advance, reverse, type AdvanceBy } from '../engine/turn';
-import { FIRST_PLANNING_STEP, planningHasBegun, withPlanningReset } from '../engine/planning';
+import { logged } from '../engine/log';
+import { reverse, type AdvanceBy } from '../engine/turn';
+import type { MaterialRoll } from '../engine/materials';
 import {
-  baseProduction,
-  combined,
-  materialsAdded,
-  recovered,
-  scavenged,
-  scavenger,
-  withMaterialsAdded,
-  type MaterialRoll,
-} from '../engine/materials';
-import { checkConversion, conversions, withConversion } from '../engine/conversions';
-import { checkXpAward, withXpAwarded } from '../engine/experience';
+  submitCommonSkill,
+  submitConversion,
+  submitHaul,
+  submitHealing,
+  submitNewSkill,
+  submitPromotion,
+  submitSkillLevel,
+  submitXpAward,
+} from '../engine/advancementForms';
+import type { MissionOutcome } from '../engine/siege';
+import { submitMissionOutcome, submitStandIn } from '../engine/missionForms';
 import {
-  healthAwards,
-  withInfectionSpent,
-  withWoundsHealed,
-  woundsHealed,
-} from '../engine/healing';
-import { foodRequired, hungerIfFedNow, survivorsFed, withSurvivorsFed } from '../engine/feeding';
-import { checkBite, rotCheckResolved, rotOutcome, rotTarget, withRotApplied } from '../engine/rot';
-import { overCap, storageChecked, withStorageChecked } from '../engine/storage';
+  submitAdvance,
+  submitBaseClaim,
+  submitNewSurvivor,
+  submitRecruit,
+  submitRemoval,
+  submitStartingCommunity,
+} from '../engine/campaignForms';
+import { withoutAssignment } from '../engine/assignments';
+import type { FormResult } from '../engine/forms';
 import {
-  deployed,
-  hordeChecked,
-  hordeForced,
-  missionOutcomeProblem,
-  siegeDue,
-  siegeThreat,
-  siegeTriggered,
-  type MissionOutcome,
-} from '../engine/siege';
-import { departureCandidates, someoneDeparted, withDeparture } from '../engine/departures';
-import { standInProblem } from '../engine/siegeWork';
-import { missionTeam, overworked } from '../engine/assignments';
-import { storageCaps } from '../engine/base';
-import { ROT_BITE_DAMAGE } from '../data/turn';
-import { XP_AWARD, type XpSource } from '../data/turn';
+  submitDeparture,
+  submitFeeding,
+  submitHordeCheck,
+  submitRotCheck,
+  submitStorageCheck,
+  submitTeamReduction,
+} from '../engine/managementForms';
+import type { XpSource } from '../data/turn';
 import type {
   Assignment,
   Campaign,
@@ -87,7 +89,6 @@ import type {
   Stats,
   Survivor,
 } from '../engine/campaign';
-import { createSurvivor, recruitSurvivor } from '../engine/survivor';
 
 /**
  * The app boots with nothing loaded, and Z0-7's empty state renders off that
@@ -606,74 +607,8 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
     case 'campaign/renamed':
       return withCampaign(state, (campaign) => ({ ...campaign, name: action.name }));
 
-    /**
-     * Moves, then records — so an entry lands in the phase or turn just
-     * entered rather than the one left behind.
-     *
-     * A move that ends the turn logs `turn-began` and nothing else, though it
-     * enters a new phase as well: "turn 4 began" already says the Mission Phase
-     * is open, and two entries for one press would be the log narrating rather
-     * than recording. A move inside a phase logs nothing at all — nineteen
-     * entries a turn for pressing Next is a history nobody can read.
-     */
     case 'turn/advanced':
-      return withCampaign(state, (campaign) => {
-        const move = advance(campaign.step, action.by);
-        const moved: Campaign = move.endsTurn
-          ? { ...campaign, step: move.step, turn: campaign.turn + 1 }
-          : { ...campaign, step: move.step };
-
-        /*
-         * Entering the Planning Phase clears last turn's tasks and utility
-         * points (pg. 20, 67) — but only once a turn. `planningHasBegun` reads
-         * the log for this turn's own entry, so stepping back into the
-         * Advancement Phase and forward again lands here a second time and
-         * changes nothing. The walk exists to let a table correct itself, and
-         * a correction that destroyed the planning just done would be the
-         * opposite of that.
-         */
-        if (move.step === FIRST_PLANNING_STEP && !planningHasBegun(moved)) {
-          /*
-           * The entry carries what it cleared. Everything the Advancement
-           * Phase reads about the turn just played — who went on the mission,
-           * who staffed the Kitchen, who was resting — lived only in
-           * `assignments`, and this is the step that empties them. Skipping
-           * forward to Planning from an unfinished Advancement step therefore
-           * destroyed the turn's own facts, and stepping back showed a turn
-           * where nobody had done anything (issue #95). Written here rather
-           * than read back from anywhere, because after this line the only
-           * copy is gone.
-           */
-          return logged(withPlanningReset(moved), action.at, {
-            kind: 'planning-began',
-            cleared: moved.assignments,
-          });
-        }
-
-        if (move.endsTurn) {
-          const begun = logged(moved, action.at, { kind: 'turn-began' });
-
-          /*
-           * A siege is a fact of the turn it is fought on, and the turn is
-           * where it becomes one: `siegeDue` reads the previous turn's
-           * `horde-checked` entry, so the answer is known the moment the turn
-           * opens and nothing later in the walk announces it. Two sieges in a
-           * twenty-turn campaign left no trace at all (#167).
-           *
-           * Written once, because a turn begins once — stepping back and
-           * forward within the turn does not pass through here.
-           */
-          return siegeDue(begun)
-            ? logged(begun, action.at, {
-                kind: 'siege-fought',
-                names: deployed(begun).map((survivor) => survivor.name),
-              })
-            : begun;
-        }
-        if (move.entersPhase) return logged(moved, action.at, { kind: 'phase-entered' });
-
-        return moved;
-      });
+      return submitted(state, (campaign) => submitAdvance(campaign, action.by, action.at));
 
     case 'turn/reversed':
       return withCampaign(state, (campaign) => {
@@ -683,32 +618,25 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       });
 
     case 'campaign/startingCommunityBuiltSet':
-      return withCampaign(state, (campaign) =>
-        campaign.startingCommunityBuilt === action.built
-          ? campaign
-          : logged({ ...campaign, startingCommunityBuilt: action.built }, action.at, {
-              kind: 'starting-community-settled',
-              built: action.built,
-            }),
+      return submitted(state, (campaign) =>
+        submitStartingCommunity(campaign, action.built, action.at),
       );
 
     case 'survivor/added':
-      return withCampaign(state, (campaign) =>
-        logged(
-          {
-            ...campaign,
-            survivors: [
-              ...campaign.survivors,
-              createSurvivor(action.name, action.tier, { id: action.id }),
-            ],
-          },
+      return submitted(state, (campaign) =>
+        submitNewSurvivor(
+          campaign,
+          { id: action.id, name: action.name, tier: action.tier },
           action.at,
-          {
-            kind: 'survivor-added',
-            survivor: action.id,
-            name: action.name,
-            tier: action.tier,
-          },
+        ),
+      );
+
+    case 'survivor/recruited':
+      return submitted(state, (campaign) =>
+        submitRecruit(
+          campaign,
+          { id: action.id, name: action.name, tier: action.tier, roll: action.roll },
+          action.at,
         ),
       );
 
@@ -716,48 +644,6 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
      * Renaming is by id rather than by index: the roster is reordered by
      * removals, and a stale index renames the wrong person.
      */
-    case 'survivor/recruited':
-      return withCampaign(state, (campaign) => {
-        const recruited = logged(
-          {
-            ...campaign,
-            survivors: [
-              ...campaign.survivors,
-              recruitSurvivor(action.name, action.tier, action.roll, { id: action.id }),
-            ],
-          },
-          action.at,
-          // Spread rather than `roll: action.roll`: `exactOptionalPropertyTypes`
-          // makes a present-but-undefined `roll` a different thing from an
-          // absent one, and only the absent one is true.
-          {
-            kind: 'survivor-recruited',
-            survivor: action.id,
-            name: action.name,
-            tier: action.tier,
-            ...(action.roll === undefined ? {} : { roll: action.roll }),
-          },
-        );
-
-        /*
-         * A survivor found in the field is proof the campaign is past building
-         * its starting community: the ten-tier-level budget is a rule about
-         * *building* one (pg. 13), and Rescue Strangers exists to grow it past
-         * that (pg. 15). The playtest recruited through this app's own form and
-         * was told the community "spends 11" — growth reported as an error.
-         *
-         * A second entry rather than a quiet flag, and only when it changes:
-         * the switch is the player's to throw, and one thrown on their behalf
-         * should say so where they can see it.
-         */
-        return recruited.startingCommunityBuilt
-          ? recruited
-          : logged({ ...recruited, startingCommunityBuilt: true }, action.at, {
-              kind: 'starting-community-settled',
-              built: true,
-            });
-      });
-
     case 'survivor/renamed':
       return editSurvivor(state, action.id, (survivor) => ({ ...survivor, name: action.name }));
 
@@ -777,10 +663,9 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return editSurvivor(state, action.id, (survivor) => ({ ...survivor, stats: action.stats }));
 
     case 'survivor/skillAdded':
-      return editSurvivor(state, action.id, (survivor) => ({
-        ...survivor,
-        skills: { ...survivor.skills, [action.skill]: MIN_SKILL_LEVEL },
-      }));
+      return submitted(state, (campaign) =>
+        submitNewSkill(campaign, { survivor: action.id, skill: action.skill }),
+      );
 
     /**
      * Removed, not zeroed. A skill at level 0 is one the survivor *has* and is
@@ -800,121 +685,37 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
     case 'survivor/xpSet':
       return editSurvivor(state, action.id, (survivor) => ({ ...survivor, xp: action.xp }));
 
-    /**
-     * The three purchases delegate wholesale. Each `with*Bought` re-runs its own
-     * price and legality check and **returns the survivor unchanged** when the
-     * purchase is blocked, so this reducer cannot spend XP the survivor does not
-     * have by forgetting to ask — there is nothing here to forget.
-     *
-     * That same unchanged return is what `editSurvivorLogged` reads to decide
-     * whether anything happened. A refused purchase leaves no entry, because a
-     * log of attempts is not a log of a campaign.
+    /*
+     * The three purchases carry no price and the store asks no question: each
+     * form re-runs its own purchase check in the engine, so this reducer cannot
+     * spend XP the survivor does not have by forgetting to ask — there is
+     * nothing here to forget. A refused purchase leaves no entry, because a log
+     * of attempts is not a log of a campaign.
      */
     case 'survivor/skillLevelBought':
-      return editSurvivorLogged(state, action.id, action.at, (survivor) => {
-        const bought = withSkillLevelBought(survivor, action.skill);
-        if (bought === survivor) return null;
-
-        return {
-          survivor: bought,
-          event: {
-            kind: 'skill-level-bought',
-            survivor: survivor.id,
-            name: survivor.name,
-            skill: action.skill,
-            // The level reached, read off the result rather than worked out
-            // here: what a purchase buys is `advancement.ts`'s to say.
-            level: bought.skills[action.skill] ?? 0,
-          },
-        };
-      });
+      return submitted(state, (campaign) =>
+        submitSkillLevel(campaign, { survivor: action.id, skill: action.skill }, action.at),
+      );
 
     case 'survivor/commonSkillBought':
-      return editSurvivorLogged(state, action.id, action.at, (survivor) => {
-        const bought = withCommonSkillBought(survivor, action.skill);
-        if (bought === survivor) return null;
-
-        return {
-          survivor: bought,
-          event: {
-            kind: 'common-skill-bought',
-            survivor: survivor.id,
-            name: survivor.name,
-            skill: action.skill,
-            score: bought[action.skill],
-          },
-        };
-      });
+      return submitted(state, (campaign) =>
+        submitCommonSkill(campaign, { survivor: action.id, skill: action.skill }, action.at),
+      );
 
     case 'survivor/tierBought':
-      return editSurvivorLogged(state, action.id, action.at, (survivor) => {
-        const promoted = withTierBought(survivor, action.raise);
-        if (promoted === survivor) return null;
+      return submitted(state, (campaign) =>
+        submitPromotion(campaign, { survivor: action.id, raise: action.raise }, action.at),
+      );
 
-        return {
-          survivor: promoted,
-          event: {
-            kind: 'survivor-promoted',
-            survivor: survivor.id,
-            name: survivor.name,
-            tier: promoted.tier,
-          },
-        };
-      });
-
-    /**
-     * **Refuses a base for a community that already has one.**
-     *
-     * Moving house is the Claim a New Base mission, and it carries questions
-     * this action has no answer for — what Inventory comes along, and which
-     * Hero leaves when the new base's Tier caps them lower (pg. 54). Those are
-     * Phase 4's. Replacing the base here would drop every slot the player has
-     * built into, silently, in one dispatch.
-     *
-     * The screen does not offer the action once a base is claimed, so this is
-     * a backstop rather than the guard a player meets. It is here because the
-     * screen is the wrong place for the only thing standing between a
-     * mis-dispatch and a wiped base.
+    /*
+     * Refused for a community that already has a base. The screen does not
+     * offer the action once one is claimed, so the engine's refusal is a
+     * backstop rather than the guard a player meets — and the screen is the
+     * wrong place for the only thing standing between a mis-dispatch and a
+     * wiped base.
      */
     case 'base/claimed':
-      return withCampaign(state, (campaign) => {
-        // Refuses a base for a community that already has one: replacing a base
-        // is Claim a New Base, which is a mission and Phase 4's.
-        if (campaign.base !== null) return campaign;
-
-        const base = { id: action.base, slots: {} };
-
-        /*
-         * **The first base arrives full** (pg. 19, 54). A community that
-         * reaches one stocks every capped material to its maximum; a *later*
-         * base starts with only what was carried over, and that is Phase 4's
-         * Claim a New Base. Only the first is in scope, and `base === null`
-         * above is exactly what makes this the first.
-         *
-         * It matters more than it sounds: a starting community of ten Tier
-         * points eats six Food a turn against a Tier 1 cap of four, so
-         * beginning at zero rather than four changes the whole opening — and
-         * it is the pressure the opening is designed around. The app already
-         * knew the caps and showed "0 / 4" beside them.
-         */
-        // The caps of the base as it stands the moment it is claimed. Since
-        // #127 that is a question about the roster as well as the layout —
-        // a facility whose Power is not backed does not raise a cap — so the
-        // occupants are resolved against the campaign the claim produces
-        // rather than read off the layout alone.
-        const claimed = { ...campaign, base };
-        const caps = storageCaps(base, suppliedOccupants(claimed));
-        const stocked = { ...campaign.materials, ...caps };
-
-        return logged(
-          logged({ ...claimed, materials: stocked }, action.at, {
-            kind: 'base-claimed',
-            base: action.base,
-          }),
-          action.at,
-          { kind: 'base-stocked', ...caps },
-        );
-      });
+      return submitted(state, (campaign) => submitBaseClaim(campaign, action.base, action.at));
 
     case 'campaign/materialSet':
       return withCampaign(state, (campaign) => ({
@@ -923,289 +724,69 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       }));
 
     case 'advancement/materialsAdded':
-      return withCampaign(state, (campaign) => {
-        if (materialsAdded(campaign)) return campaign;
-
-        const found = scavenged(campaign, action.scavenged);
-        const adding = combined(combined(recovered(action.rolls), baseProduction(campaign)), found);
-        const stored = logged(withMaterialsAdded(campaign, adding), action.at, {
-          kind: 'materials-added',
-          ...adding,
-        });
-
-        // After the haul rather than before it, so the history reads in the
-        // order the step happened: what went into storage, and then what one
-        // survivor's turn away from the mission was worth. Nothing to say when
-        // nobody scavenged.
-        const survivor = scavenger(campaign);
-        if (survivor === undefined) return stored;
-
-        return logged(stored, action.at, {
-          kind: 'materials-scavenged',
-          survivor: survivor.id,
-          name: survivor.name,
-          ...found,
-        });
-      });
+      return submitted(state, (campaign) =>
+        submitHaul(campaign, { rolls: action.rolls, scavenged: action.scavenged }, action.at),
+      );
 
     case 'advancement/materialsConverted':
-      return withCampaign(state, (campaign) => {
-        const conversion = conversions(campaign).find(
-          (candidate) => candidate.slot === action.slot && candidate.source.id === action.source,
-        );
-
-        if (conversion === undefined) return campaign;
-        if (checkConversion(campaign, conversion).blockers.length > 0) return campaign;
-
-        return logged(withConversion(campaign, conversion), action.at, {
-          kind: 'materials-converted',
-          slot: conversion.slot,
-          source: conversion.source.id,
-          spent: conversion.exchange.spend,
-          gained: conversion.exchange.gain as Partial<Record<Material, number>>,
-        });
-      });
+      return submitted(state, (campaign) =>
+        submitConversion(campaign, { slot: action.slot, source: action.source }, action.at),
+      );
 
     case 'management/survivorsFed':
-      return withCampaign(state, (campaign) => {
-        if (survivorsFed(campaign)) return campaign;
-
-        return logged(withSurvivorsFed(campaign), action.at, {
-          kind: 'survivors-fed',
-          required: foodRequired(campaign),
-          hunger: hungerIfFedNow(campaign),
-          // The head count at the moment of eating, because the penalty is
-          // fixed here and held until the next Management Phase (pg. 22).
-          population: campaign.survivors.length,
-        });
-      });
+      return submitted(state, (campaign) => submitFeeding(campaign, action.at));
 
     case 'management/storageChecked':
-      return withCampaign(state, (campaign) => {
-        if (storageChecked(campaign)) return campaign;
-
-        const spilled = overCap(campaign);
-
-        return logged(withStorageChecked(campaign), action.at, {
-          kind: 'storage-checked',
-          ...spilled,
-        });
-      });
+      return submitted(state, (campaign) => submitStorageCheck(campaign, action.at));
 
     case 'management/hordeChecked':
-      return withCampaign(state, (campaign) => {
-        if (hordeChecked(campaign)) return campaign;
-
-        const threat = siegeThreat(campaign);
-        // A Thin the Herd that put everybody down makes this roll succeed on
-        // its own (pg. 81). The roll is still the table's, and still recorded.
-        const siege = hordeForced(campaign) || siegeTriggered(action.roll, threat);
-
-        // The entry is the whole record: a siege called on this turn is fought
-        // on the next, which `siege.ts` works out from the turn stamped here.
-        // Nothing is written onto the campaign, because a forward-dated field
-        // beside it destroyed the previous siege's turn — and with it the
-        // Siege Threat term that Departures reads two steps later.
-        return logged(campaign, action.at, {
-          kind: 'horde-checked',
-          roll: action.roll,
-          threat,
-          siege,
-        });
-      });
+      return submitted(state, (campaign) => submitHordeCheck(campaign, action.roll, action.at));
 
     case 'mission/resolved':
-      return withCampaign(state, (campaign) =>
-        missionOutcomeProblem(campaign, action.outcome) === null
-          ? logged(campaign, action.at, action.outcome)
-          : campaign,
+      return submitted(state, (campaign) =>
+        submitMissionOutcome(campaign, action.outcome, action.at),
       );
 
     case 'mission/stoodIn':
-      return withCampaign(state, (campaign) => {
-        const by = action.by ?? undefined;
-        if (standInProblem(campaign, action.survivor, by) !== null) return campaign;
-
-        // Both present by now: `standInProblem` has found the casualty among
-        // the fallen and the stand-in among the candidates, both of which are
-        // read off this roster.
-        const named = (id: string) =>
-          (campaign.survivors.find((survivor) => survivor.id === id) as Survivor).name;
-        const standIn = by === undefined ? {} : { by, byName: named(by) };
-
-        return logged(campaign, action.at, {
-          kind: 'stood-in',
-          survivor: action.survivor,
-          name: named(action.survivor),
-          ...standIn,
-        });
-      });
+      return submitted(state, (campaign) =>
+        submitStandIn(campaign, { survivor: action.survivor, by: action.by }, action.at),
+      );
 
     case 'management/departed':
-      return withCampaign(state, (campaign) => {
-        // The rule sends one (pg. 23). Nothing in the campaign says it has
-        // happened — a departure lowers the very pressure it was measured
-        // against, so re-deriving `someoneIsLeaving` afterwards answers a
-        // different question. Hence the log, like every other step here.
-        if (someoneDeparted(campaign)) return campaign;
-
-        // Asked of *this* campaign rather than trusted from the screen.
-        const leaving = departureCandidates(campaign).find(
-          (candidate) => candidate.id === action.survivor,
-        );
-        if (leaving === undefined) return campaign;
-
-        return logged(withDeparture(campaign, action.survivor), action.at, {
-          kind: 'survivor-departed',
-          survivor: leaving.id,
-          name: leaving.name,
-          tier: leaving.tier,
-        });
-      });
+      return submitted(state, (campaign) => submitDeparture(campaign, action.survivor, action.at));
 
     case 'management/teamReduced':
-      return withCampaign(state, (campaign) => {
-        // One survivor, once, and only when Exhaustion is above the team's size
-        // (pg. 23). Exhaustion does not fall when they come off the team, so
-        // without the record the step offers the same removal until the team
-        // is empty — `overworked` reads that record as well as the condition.
-        //
-        // Asked of *this* campaign rather than trusted from the screen, like
-        // a departure. This guard used to check only the record, so a removal
-        // the Exhaustion never called for went through whenever the action
-        // arrived; the condition lived in the screen alone until #181.
-        if (!overworked(campaign)) return campaign;
-
-        const tired = missionTeam(campaign).find((candidate) => candidate.id === action.survivor);
-        if (tired === undefined) return campaign;
-
-        return logged(
-          { ...campaign, assignments: withoutAssignment(campaign.assignments, action.survivor) },
-          action.at,
-          { kind: 'mission-team-reduced', survivor: tired.id, name: tired.name },
-        );
-      });
+      return submitted(state, (campaign) =>
+        submitTeamReduction(campaign, action.survivor, action.at),
+      );
 
     case 'management/rotChecked':
-      return withCampaign(state, (campaign) => {
-        // Per survivor rather than per step: this one resolves a check for each
-        // survivor at 0 Health, so "already done" is a question about a person.
-        if (rotCheckResolved(campaign, action.survivor)) return campaign;
-
-        const survivor = campaign.survivors.find((candidate) => candidate.id === action.survivor);
-        if (survivor === undefined) return campaign;
-
-        // A turning that bites nobody when somebody is there to bite is half
-        // the rule (pg. 22). Refused whole, check and all, rather than recorded
-        // without the Damage: the roll stays on the form to be sent again with
-        // a name (#189).
-        if (checkBite(campaign, action.survivor, action.roll, action.bitten).blockers.length > 0) {
-          return campaign;
-        }
-
-        const outcome = rotOutcome(campaign, action.survivor, action.roll, action.bitten);
-
-        // The check itself is recorded whether it passed or failed: a step that
-        // only wrote down the deaths would read as though nobody else had been
-        // in danger.
-        const checked = logged(withRotApplied(campaign, outcome), action.at, {
-          kind: 'rot-checked',
-          survivor: survivor.id,
-          name: survivor.name,
-          roll: action.roll,
-          target: rotTarget(campaign),
-          passed: outcome.turned === null,
-        });
-
-        if (outcome.turned === null) return checked;
-
-        const turned = logged(checked, action.at, {
-          kind: 'survivor-left',
-          survivor: outcome.turned.id,
-          name: outcome.turned.name,
-          tier: outcome.turned.tier,
-        });
-
-        /*
-         * A set of Restraints held them (pg. 72). Written down because
-         * `restraintsFree` counts these back — a turn with two sets holds two
-         * survivors and no more, and nothing else on the campaign remembers
-         * that the first one was held.
-         */
-        if (outcome.restrained) {
-          return logged(turned, action.at, {
-            kind: 'bite-restrained',
-            survivor: outcome.turned.id,
-            name: outcome.turned.name,
-          });
-        }
-
-        if (outcome.bitten === null) return turned;
-
-        const bitten = logged(turned, action.at, {
-          kind: 'survivor-bitten',
-          survivor: outcome.bitten.survivor.id,
-          name: outcome.bitten.survivor.name,
-          damage: ROT_BITE_DAMAGE,
-        });
-
-        if (!outcome.bitten.dies) return bitten;
-
-        return logged(bitten, action.at, {
-          kind: 'survivor-left',
-          survivor: outcome.bitten.survivor.id,
-          name: outcome.bitten.survivor.name,
-          tier: outcome.bitten.survivor.tier,
-        });
-      });
+      return submitted(state, (campaign) =>
+        submitRotCheck(
+          campaign,
+          { survivor: action.survivor, roll: action.roll, bitten: action.bitten },
+          action.at,
+        ),
+      );
 
     case 'advancement/woundsHealed':
-      return withCampaign(state, (campaign) => {
-        if (woundsHealed(campaign)) return campaign;
+      return submitted(state, (campaign) =>
+        submitHealing(campaign, action.infection ?? {}, action.at),
+      );
 
-        const awards = withInfectionSpent(healthAwards(campaign), action.infection ?? {});
-
-        // One entry per survivor, so the history says who recovered rather
-        // than what the Clinic made. Folded rather than pushed, because
-        // `logged` stamps each entry against the campaign it is appending to.
-        //
-        // The Infection count only where a point went on it, so every entry a
-        // campaign that is not Viral writes is the entry it always wrote.
-        return awards.reduce(
-          (healing, award) =>
-            logged(healing, action.at, {
-              kind: 'health-restored',
-              survivor: award.survivor.id,
-              name: award.survivor.name,
-              health: award.health,
-              source: award.source,
-              ...(award.infection > 0 ? { infection: award.infection } : {}),
-            }),
-          withWoundsHealed(campaign, awards),
-        );
-      });
-
-    /**
-     * Through the same helper as the three advancement purchases, which is
-     * what it is: a survivor gains something and the log says so. The check is
-     * asked here rather than trusted from the screen — a pool that has run out
-     * is a blocker, and awarding past it would invent XP.
-     */
     case 'advancement/xpAwarded':
-      return editSurvivorLogged(state, action.survivor, action.at, (survivor, campaign) => {
-        if (checkXpAward(campaign, action.survivor, action.source).blockers.length > 0) return null;
+      return submitted(state, (campaign) =>
+        submitXpAward(campaign, { survivor: action.survivor, source: action.source }, action.at),
+      );
 
-        return {
-          survivor: withXpAwarded(survivor, XP_AWARD),
-          event: {
-            kind: 'xp-awarded',
-            survivor: survivor.id,
-            name: survivor.name,
-            amount: XP_AWARD,
-            source: action.source,
-          },
-        };
-      });
+    /*
+     * The five project cases from here to `advancement/projectsCompleted` are
+     * the one family of forms #179 leaves composed in the store. How an order
+     * is priced and what an entry says it built moved into
+     * `src/engine/orders.ts` on their own (#188), written at the same time as
+     * #179, and lifting the cases alongside would have been two changes to the
+     * same lines at once. They take the shape of the rest in a follow-up.
+     */
 
     /**
      * Delegates wholesale, the way the three advancement purchases do.
@@ -1340,35 +921,8 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         withUtilityToggled(campaign, { slot: action.slot, utility: action.utility }),
       );
 
-    /**
-     * Reads the survivor before removing them, because the entry has to outlive
-     * the roster: once they are gone their name is the only thing left to
-     * render, and it is nowhere else in the campaign. An id that is not on the
-     * roster removes nobody and records nothing.
-     */
     case 'survivor/removed':
-      return withCampaign(state, (campaign) => {
-        const leaving = campaign.survivors.find((survivor) => survivor.id === action.id);
-        if (leaving === undefined) return campaign;
-
-        return logged(
-          {
-            ...campaign,
-            survivors: campaign.survivors.filter((survivor) => survivor.id !== action.id),
-            // Their task goes with them. An assignment keyed by an id nobody
-            // holds is a damaged save, and it is the kind of orphan that
-            // survives a file and breaks a screen three turns later.
-            assignments: withoutAssignment(campaign.assignments, action.id),
-          },
-          action.at,
-          {
-            kind: 'survivor-left',
-            survivor: leaving.id,
-            name: leaving.name,
-            tier: leaving.tier,
-          },
-        );
-      });
+      return submitted(state, (campaign) => submitRemoval(campaign, action.id, action.at));
 
     default:
       return assertNever(action);
@@ -1392,69 +946,6 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
  * not on the roster changes nothing — the survivor may have been removed
  * between a control rendering and being pressed.
  */
-/**
- * The assignments, minus one survivor's.
- *
- * A fresh copy with the key deleted, so the reducer stays pure. Written out
- * rather than rest-destructured because the idiom for a computed key leaves an
- * unused binding behind, which is the same call `survivor/skillRemoved` makes.
- *
- * Deleting a key the record does not have is a no-op, so there is no guard for
- * that case. There was one — an early return that kept the record's identity
- * when nothing changed — and a mutation run showed it surviving every test,
- * because `withCampaign` builds a new state object regardless and nothing
- * anywhere observes whether this particular record kept its reference.
- */
-function withoutAssignment(
-  assignments: Readonly<Record<string, Assignment>>,
-  survivor: string,
-): Readonly<Record<string, Assignment>> {
-  const remaining = { ...assignments };
-  delete remaining[survivor];
-
-  return remaining;
-}
-
-/**
- * Applies an edit to one survivor and records what it did, or does neither.
- *
- * The edit returns `null` for "nothing happened", which is how a refused
- * purchase leaves the campaign — and the log — untouched. It returns the event
- * alongside the new survivor rather than the store working one out afterwards,
- * because the interesting fields (the level reached, the Tier reached) are on
- * the *result*, and the name is on the survivor as they were before.
- */
-function editSurvivorLogged(
-  state: CampaignState,
-  id: string,
-  at: string,
-  // The campaign as well as the survivor, for the edits whose rules are about
-  // the community rather than the person — an XP pool belongs to the turn.
-  edit: (
-    survivor: Survivor,
-    campaign: Campaign,
-  ) => { survivor: Survivor; event: CampaignEvent } | null,
-): CampaignState {
-  return withCampaign(state, (campaign) => {
-    const found = campaign.survivors.find((survivor) => survivor.id === id);
-    if (found === undefined) return campaign;
-
-    const done = edit(found, campaign);
-    if (done === null) return campaign;
-
-    return logged(
-      {
-        ...campaign,
-        survivors: campaign.survivors.map((survivor) =>
-          survivor.id === id ? done.survivor : survivor,
-        ),
-      },
-      at,
-      done.event,
-    );
-  });
-}
-
 function editSurvivor(
   state: CampaignState,
   id: string,
@@ -1473,6 +964,27 @@ function withCampaign(state: CampaignState, edit: (campaign: Campaign) => Campai
     return state;
   }
   return { status: 'open', campaign: edit(state.campaign) };
+}
+
+/**
+ * Submits a turn form to the engine, and keeps the campaign as it was when the
+ * form is refused (#179).
+ *
+ * The whole of what is left of a form in this module. The guard, the change and
+ * the entry are the engine's (`src/engine/forms.ts`); the store's part is the
+ * open-or-empty question `withCampaign` answers, and the refusal's `problem` is
+ * dropped here, because a log of attempts is not a log of a campaign and the
+ * screen already said why the button was not offered.
+ */
+function submitted(
+  state: CampaignState,
+  submit: (campaign: Campaign) => FormResult,
+): CampaignState {
+  return withCampaign(state, (campaign) => {
+    const result = submit(campaign);
+
+    return result.ok ? result.campaign : campaign;
+  });
 }
 
 /**

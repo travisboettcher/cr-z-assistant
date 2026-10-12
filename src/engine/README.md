@@ -26,3 +26,11 @@ happened, so it holds no arithmetic and cites no page; it is in the engine becau
 has a `log` field and the shape of a field belongs beside the shape it is part of. Entries are
 structured, never sentences — turning one into a line someone reads is `src/ui/logLabels.ts`,
 which is what keeps a later markdown export a second reader rather than a second format.
+
+**The `*Forms.ts` modules are the turn's forms** (#179) — the guard, the change and the log
+entry of one press, composed once. `forms.ts` holds the shape every one of them returns, the
+next campaign or the refusal, and why; `missionForms.ts`, `advancementForms.ts` and
+`managementForms.ts` hold a phase's forms each, and `campaignForms.ts` the ones that belong to
+no single phase. They sit above the rule modules and nothing in the engine imports them: a
+screen asks the rule modules what it may offer, and the store submits a form when it is
+pressed.

@@ -348,7 +348,7 @@ export function checkXpAward(campaign: Campaign, survivorId: string, source: XpS
  *
  * Takes a survivor and returns one, like the three purchases in
  * `advancement.ts` — the other half of the same transaction, and the shape the
- * store's `editSurvivorLogged` already knows how to drive. An earlier draft
+ * `withSurvivorEdited` in `advancementForms.ts` drives. An earlier draft
  * took the whole campaign and an id, which meant the reducer had to look the
  * survivor up itself and guard against not finding one. Two places answering
  * "is this survivor real" is one too many, and the second one's guard was

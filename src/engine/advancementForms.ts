@@ -1,0 +1,390 @@
+/**
+ * The Advancement Phase's forms (pp. 18–19), each guard, change and entry in
+ * one place (#179).
+ *
+ * Experience first — XP handed out from the four sources, then spent on the
+ * three purchases or a new skill taken into an open slot — and then the base's
+ * turn: the haul into storage, a conversion run, and Heal Wounds. The projects
+ * the last Planning Phase ordered also finish in this phase, and are still the
+ * reducer's; see the note in `campaignStore.ts`.
+ *
+ * Moved out of `campaignStore.ts` without changing what any of them accepts or
+ * refuses. The shape of what they return is `forms.ts`'s.
+ *
+ * Pure, like the rest of `src/engine`: rolls are the table's, the clock is the
+ * caller's.
+ */
+
+import type { Material } from '../data/materials';
+import { MIN_SKILL_LEVEL, type CommonSkill, type Skill, type Stat } from '../data/skills';
+import { XP_AWARD, type XpSource } from '../data/turn';
+import {
+  commonSkillPurchase,
+  skillLevelPurchase,
+  tierPurchase,
+  withCommonSkillBought,
+  withSkillLevelBought,
+  withTierBought,
+  type PurchaseBlock,
+} from './advancement';
+import type { Campaign, Survivor } from './campaign';
+import { checkConversion, conversions, withConversion } from './conversions';
+import { checkXpAward, withXpAwarded } from './experience';
+import { accepted, blockedBy, refused, type FormResult, type Refused } from './forms';
+import { healthAwards, withInfectionSpent, withWoundsHealed, woundsHealed } from './healing';
+import { logged, type CampaignEvent } from './log';
+import {
+  baseProduction,
+  combined,
+  materialsAdded,
+  recovered,
+  scavenged,
+  scavenger,
+  withMaterialsAdded,
+  type MaterialRoll,
+} from './materials';
+
+/** This turn's haul, as the table rolled it (pp. 17–19). */
+export interface HaulForm {
+  /**
+   * The mission's rolls rather than their total, so the arithmetic that turns a
+   * die into a material stays in `materials.ts` where the substitution rule
+   * lives.
+   */
+  readonly rolls: readonly MaterialRoll[];
+
+  /**
+   * The one thing about the haul the campaign cannot work out: a scavenger
+   * without the Scavenge skill brings back one material of a type the *player*
+   * picks (pg. 17). Ignored with the skill, and with nobody scavenging.
+   */
+  readonly scavenged?: Material | undefined;
+}
+
+/**
+ * Put this turn's haul in storage — the mission's rolls, what the base made,
+ * and a scavenger's find (pp. 17–19). Once a turn: the step is destructive and
+ * the walk can go back over it.
+ *
+ * Two entries where somebody scavenged, the haul first, so the history reads in
+ * the order the step happened: what went into storage, and then what one
+ * survivor's turn away from the mission was worth.
+ */
+export function submitHaul(campaign: Campaign, form: HaulForm, at: string): FormResult {
+  if (materialsAdded(campaign)) return refused('This turn’s haul is already in storage.');
+
+  const found = scavenged(campaign, form.scavenged);
+  const adding = combined(combined(recovered(form.rolls), baseProduction(campaign)), found);
+  const stored = logged(withMaterialsAdded(campaign, adding), at, {
+    kind: 'materials-added',
+    ...adding,
+  });
+
+  const survivor = scavenger(campaign);
+  if (survivor === undefined) return accepted(stored);
+
+  return accepted(
+    logged(stored, at, {
+      kind: 'materials-scavenged',
+      survivor: survivor.id,
+      name: survivor.name,
+      ...found,
+    }),
+  );
+}
+
+/**
+ * Which conversion to run (pp. 19, 72–73): named by where it lives rather than
+ * by what it trades, because a base can hold two Kitchens and "2 Fuel for 1
+ * Food" does not say which one was used.
+ */
+export interface ConversionForm {
+  readonly slot: string;
+
+  /** The facility or upgrade in that slot doing the converting. */
+  readonly source: string;
+}
+
+/**
+ * Run one facility or upgrade's conversion (pp. 19, 72–73).
+ *
+ * Refused when the base has no such conversion, and when `checkConversion`
+ * blocks it — the materials are not there, or the book's cap for this turn is
+ * spent. Both are blockers rather than warnings: a store cannot go negative,
+ * and a stated cap is a rule rather than advice.
+ */
+export function submitConversion(campaign: Campaign, form: ConversionForm, at: string): FormResult {
+  const conversion = conversions(campaign).find(
+    (candidate) => candidate.slot === form.slot && candidate.source.id === form.source,
+  );
+  if (conversion === undefined) return refused('Nothing in that slot converts that way.');
+
+  const problem = blockedBy(checkConversion(campaign, conversion));
+  if (problem !== null) return refused(problem);
+
+  return accepted(
+    logged(withConversion(campaign, conversion), at, {
+      kind: 'materials-converted',
+      slot: conversion.slot,
+      source: conversion.source.id,
+      spent: conversion.exchange.spend,
+      gained: conversion.exchange.gain as Partial<Record<Material, number>>,
+    }),
+  );
+}
+
+/**
+ * Share out a turn's Health, in the Heal Wounds step (pg. 19). Once a turn: the
+ * step raises Health and the walk can go back over it.
+ *
+ * `infection` is the player's one decision here under the Viral origin — how
+ * many of an award's points remove Infection instead of closing a wound
+ * (pp. 19, 123) — keyed by `awardKey`. Empty means Health first, which is every
+ * campaign that is not Viral. Each number is held to `infectionRange` by
+ * `withInfectionSpent` rather than trusted.
+ *
+ * One entry per survivor, so the history says who recovered rather than what
+ * the Clinic made. Folded rather than pushed, because `logged` stamps each
+ * entry against the campaign it is appending to. The Infection count only where
+ * a point went on it, so every entry a campaign that is not Viral writes is the
+ * entry it always wrote.
+ */
+export function submitHealing(
+  campaign: Campaign,
+  infection: Readonly<Record<string, number>>,
+  at: string,
+): FormResult {
+  if (woundsHealed(campaign)) return refused('This turn’s Health has already been shared out.');
+
+  const awards = withInfectionSpent(healthAwards(campaign), infection);
+
+  return accepted(
+    awards.reduce(
+      (healing, award) =>
+        logged(healing, at, {
+          kind: 'health-restored',
+          survivor: award.survivor.id,
+          name: award.survivor.name,
+          health: award.health,
+          source: award.source,
+          ...(award.infection > 0 ? { infection: award.infection } : {}),
+        }),
+      withWoundsHealed(campaign, awards),
+    ),
+  );
+}
+
+/** One point of XP for one survivor, from one of the four sources (pg. 18). */
+export interface XpAwardForm {
+  readonly survivor: string;
+  readonly source: XpSource;
+}
+
+/**
+ * Give a survivor one XP (pg. 18).
+ *
+ * One survivor and one point at a time, because that is how the book hands it
+ * out and because both 2-XP caps count per survivor per source. Asked of
+ * `checkXpAward` rather than trusted from the screen — a pool that has run out
+ * is a blocker, and awarding past it would invent XP.
+ */
+export function submitXpAward(campaign: Campaign, form: XpAwardForm, at: string): FormResult {
+  return withSurvivorEdited(campaign, form.survivor, at, (survivor) => {
+    const problem = blockedBy(checkXpAward(campaign, form.survivor, form.source));
+    if (problem !== null) return refused(problem);
+
+    return {
+      survivor: withXpAwarded(survivor, XP_AWARD),
+      event: {
+        kind: 'xp-awarded',
+        survivor: survivor.id,
+        name: survivor.name,
+        amount: XP_AWARD,
+        source: form.source,
+      },
+    };
+  });
+}
+
+/** The next level of a skill the survivor already has (pg. 18). */
+export interface SkillLevelForm {
+  readonly survivor: string;
+  readonly skill: Skill;
+}
+
+/**
+ * Spend XP on the next level of a skill (pg. 18).
+ *
+ * The three purchases carry no price: the cost is a rule, and each
+ * `with*Bought` in `advancement.ts` re-runs its own purchase check. The refusal
+ * is read off that same check, so the two cannot disagree about whether a
+ * purchase went through.
+ */
+export function submitSkillLevel(campaign: Campaign, form: SkillLevelForm, at: string): FormResult {
+  return withSurvivorEdited(campaign, form.survivor, at, (survivor) => {
+    const { blocked } = skillLevelPurchase(survivor, form.skill);
+    if (blocked !== null) return refused(PURCHASE_BLOCKED[blocked]);
+
+    const bought = withSkillLevelBought(survivor, form.skill);
+
+    return {
+      survivor: bought,
+      event: {
+        kind: 'skill-level-bought',
+        survivor: survivor.id,
+        name: survivor.name,
+        skill: form.skill,
+        // The level reached, read off the result rather than worked out here:
+        // what a purchase buys is `advancement.ts`'s to say.
+        level: bought.skills[form.skill] ?? 0,
+      },
+    };
+  });
+}
+
+/** One more point of Move or Defense (pg. 18). */
+export interface CommonSkillForm {
+  readonly survivor: string;
+  readonly skill: CommonSkill;
+}
+
+/** Spend XP on one more point of Move or Defense (pg. 18). */
+export function submitCommonSkill(
+  campaign: Campaign,
+  form: CommonSkillForm,
+  at: string,
+): FormResult {
+  return withSurvivorEdited(campaign, form.survivor, at, (survivor) => {
+    const { blocked } = commonSkillPurchase(survivor, form.skill);
+    if (blocked !== null) return refused(PURCHASE_BLOCKED[blocked]);
+
+    const bought = withCommonSkillBought(survivor, form.skill);
+
+    return {
+      survivor: bought,
+      event: {
+        kind: 'common-skill-bought',
+        survivor: survivor.id,
+        name: survivor.name,
+        skill: form.skill,
+        score: bought[form.skill],
+      },
+    };
+  });
+}
+
+/** A promotion one Tier up (pg. 18). */
+export interface PromotionForm {
+  readonly survivor: string;
+
+  /**
+   * The stat the player chose to lift off 0, or `null` where there was nothing
+   * to choose — which `tierPurchase` re-checks, and blocks if there was.
+   */
+  readonly raise: Stat | null;
+}
+
+/** Spend XP on promoting a survivor one Tier, rebuilding their stats (pg. 18). */
+export function submitPromotion(campaign: Campaign, form: PromotionForm, at: string): FormResult {
+  return withSurvivorEdited(campaign, form.survivor, at, (survivor) => {
+    const { blocked } = tierPurchase(survivor, form.raise);
+    if (blocked !== null) return refused(PURCHASE_BLOCKED[blocked]);
+
+    const promoted = withTierBought(survivor, form.raise);
+
+    return {
+      survivor: promoted,
+      event: {
+        kind: 'survivor-promoted',
+        survivor: survivor.id,
+        name: survivor.name,
+        tier: promoted.tier,
+      },
+    };
+  });
+}
+
+/** A skill taken into a slot, at level 0 (pg. 8). */
+export interface NewSkillForm {
+  readonly survivor: string;
+  readonly skill: Skill;
+}
+
+/**
+ * Take a skill, at level 0 — skills all start there (pg. 8).
+ *
+ * **Writes no entry.** Taking a skill is a slot decision that costs nothing,
+ * and the sheet uses the same control to repair a survivor typed in wrong; the
+ * purchase that follows it is what the log records. Refused only for somebody
+ * who is not on the roster — what fits in a survivor's slots is
+ * `skillSlotsAreFull`'s to warn about, as it always has been, rather than this
+ * form's to refuse.
+ */
+export function submitNewSkill(campaign: Campaign, form: NewSkillForm): FormResult {
+  if (!campaign.survivors.some((survivor) => survivor.id === form.survivor)) {
+    return refused(NOT_ON_THE_ROSTER);
+  }
+
+  return accepted({
+    ...campaign,
+    survivors: campaign.survivors.map((survivor) =>
+      survivor.id === form.survivor
+        ? { ...survivor, skills: { ...survivor.skills, [form.skill]: MIN_SKILL_LEVEL } }
+        : survivor,
+    ),
+  });
+}
+
+/**
+ * Why each purchase block stops a purchase, as a sentence.
+ *
+ * Its own wording rather than the sheet's, which is a fragment written to sit
+ * under a greyed-out button; the engine cannot import the UI's, and the sheet
+ * does not show these.
+ */
+const PURCHASE_BLOCKED: Record<PurchaseBlock, string> = {
+  'not-enough-xp': 'They do not have the experience for this yet.',
+  'at-tier-maximum': 'That skill is already at the highest level their Tier allows.',
+  'at-score-maximum': 'That Score is already at its maximum.',
+  'skill-not-taken': 'They have not taken that skill.',
+  'already-a-hero': 'A Hero has no higher Tier to reach.',
+  'stat-choice-required': 'Choose which stat the promotion lifts off zero.',
+};
+
+const NOT_ON_THE_ROSTER = 'Only somebody in the community can be changed.';
+
+/**
+ * One survivor changed and the change recorded, or neither.
+ *
+ * The edit returns the event alongside the new survivor rather than this
+ * working one out afterwards, because the interesting fields (the level
+ * reached, the Tier reached) are on the *result*, and the name is on the
+ * survivor as they were before. By id rather than by index: removals reorder
+ * the roster, and an index captured a render ago edits whoever moved into it.
+ */
+function withSurvivorEdited(
+  campaign: Campaign,
+  id: string,
+  at: string,
+  edit: (survivor: Survivor) => { survivor: Survivor; event: CampaignEvent } | Refused,
+): FormResult {
+  const found = campaign.survivors.find((survivor) => survivor.id === id);
+  if (found === undefined) return refused(NOT_ON_THE_ROSTER);
+
+  const done = edit(found);
+  // A refusal is the only thing the edit can return that carries `ok`.
+  if ('ok' in done) return done;
+
+  return accepted(
+    logged(
+      {
+        ...campaign,
+        survivors: campaign.survivors.map((survivor) =>
+          survivor.id === id ? done.survivor : survivor,
+        ),
+      },
+      at,
+      done.event,
+    ),
+  );
+}
