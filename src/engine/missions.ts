@@ -37,8 +37,9 @@ import { MISSIONS, type MissionId, type StandardMissionId } from '../data/missio
 import { TIERS, type Tier } from '../data/tiers';
 import { beforePlanning } from './assignments';
 import type { Campaign, Survivor } from './campaign';
-import type { CampaignEvent } from './log';
+import type { CampaignEvent, MissionWound } from './log';
 import { FIRST_TURN, siegeDue } from './siege';
+import { maxHp } from './survivor';
 import { phaseOf } from './turn';
 
 /** A mission team and who is on it. */
@@ -313,6 +314,11 @@ const OUTCOME_KINDS = [
  * that name no failure at all need nothing here to say what one would be. A
  * story, origin or Road Trip mission records only that it was played
  * (`mission-played`); its rewards are Phase 7's.
+ *
+ * Every kind, `mission-played` included, also carries the team's wounds since
+ * Z4-4: each member's Health at the end, and Infection in a Viral campaign
+ * (`MissionWound`). Recording the outcome applies them (`withWounds`); an
+ * entry written before Z4-4 has none, and its readers fall back to the roster.
  */
 export type MissionOutcome = Extract<
   CampaignEvent,
@@ -416,16 +422,25 @@ export interface OutcomeCounts {
   readonly survivorsExited: number;
   readonly allIncapacitated: boolean;
   readonly vehiclesDrivenOff: number;
+
+  /**
+   * Each team member's Health at the end, and their Infection in a Viral
+   * campaign (Z4-4). Every mission records them, so unlike the counts above
+   * they go on every kind; `woundsAsTheyStand` is where a form starts them.
+   */
+  readonly wounds: readonly MissionWound[];
 }
 
 /**
  * The outcome entry for a team's choice, from the counts its form gathered —
  * only the counts that mission records (`MISSIONS[…].counts`), under its own
  * kind, and `mission-played` for a mission that is not one of the standard
- * eight. Checked by `missionOutcomeProblem` like any other.
+ * eight — and on every one of them the team's wounds (Z4-4). Checked by
+ * `missionOutcomeProblem` like any other.
  */
 export function outcomeOf(choice: MissionChoice, counts: OutcomeCounts): MissionOutcome {
   const { team } = choice;
+  const { wounds } = counts;
 
   switch (choice.mission) {
     case 'first-mission':
@@ -434,6 +449,7 @@ export function outcomeOf(choice: MissionChoice, counts: OutcomeCounts): Mission
         team,
         endCondition: counts.endCondition,
         strangers: counts.strangers,
+        wounds,
       };
     case 'claim-a-new-base':
       return {
@@ -442,12 +458,14 @@ export function outcomeOf(choice: MissionChoice, counts: OutcomeCounts): Mission
         endCondition: counts.endCondition,
         strangers: counts.strangers,
         vehiclesOnArea: counts.vehiclesOnArea,
+        wounds,
       };
     case 'gather-materials':
       return {
         kind: 'gather-materials-resolved',
         team,
         materialsCarriedOut: counts.materialsCarriedOut,
+        wounds,
       };
     case 'thin-the-herd':
       return {
@@ -457,26 +475,34 @@ export function outcomeOf(choice: MissionChoice, counts: OutcomeCounts): Mission
         zombiesLeft: counts.zombiesLeft,
         survivorsExited: counts.survivorsExited,
         allIncapacitated: counts.allIncapacitated,
+        wounds,
       };
     case 'retrieve-new-vehicles':
       return {
         kind: 'retrieve-new-vehicles-resolved',
         team,
         vehiclesDrivenOff: counts.vehiclesDrivenOff,
+        wounds,
       };
     case 'rescue-strangers':
-      return { kind: 'rescue-strangers-resolved', team, strangers: counts.strangers };
+      return { kind: 'rescue-strangers-resolved', team, strangers: counts.strangers, wounds };
     case 'rare-goods-trader':
-      return { kind: 'rare-goods-trader-resolved', team, survivorsExited: counts.survivorsExited };
+      return {
+        kind: 'rare-goods-trader-resolved',
+        team,
+        survivorsExited: counts.survivorsExited,
+        wounds,
+      };
     case 'siege-defense':
       return {
         kind: 'siege-defense-resolved',
         team,
         zombiesLeft: counts.zombiesLeft,
         survivorsExited: counts.survivorsExited,
+        wounds,
       };
     default:
-      return { kind: 'mission-played', team, mission: choice.mission };
+      return { kind: 'mission-played', team, mission: choice.mission, wounds };
   }
 }
 
@@ -513,10 +539,12 @@ function countsOf(outcome: MissionOutcome): readonly number[] {
  * with a siege due was assumed to be playing the Siege Defense; once per team
  * since its choice, rather than once a turn; with every count a whole number
  * from zero, an end condition the mission has (pp. 77, 79) or none, and a real
- * Tier for each stranger. Nothing else is checked against anything: the counts
- * are what the table counted, and the book gives no rule that two of them must
- * agree. Whether a rescuer could carry a stranger is a warning, not this
- * (`strangerWarning`).
+ * Tier for each stranger; and the team's wounds as `woundsProblem` reads them
+ * (Z4-4). Nothing else is checked against anything: the counts are what the
+ * table counted, and the book gives no rule that two of them must agree — so a
+ * Thin the Herd's "every survivor incapacitated" is not compared with the
+ * Health its wounds record either. Whether a rescuer could carry a stranger is
+ * a warning, not this (`strangerWarning`).
  */
 export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcome): string | null {
   if (phaseOf(campaign.step) !== 'mission') return 'A mission is recorded in the Mission Phase.';
@@ -555,7 +583,119 @@ export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcom
     return 'Every stranger has a Tier from 1 to 4.';
   }
 
-  return null;
+  return woundsProblem(campaign, outcome);
+}
+
+/** Who is on a team this turn, or nobody for a team that does not exist. */
+function membersOf(campaign: Campaign, team: number): readonly Survivor[] {
+  return missionTeams(campaign).find((candidate) => candidate.team === team)?.members ?? [];
+}
+
+/**
+ * Each member of a team as they stand now, written as the wounds a form
+ * starts from (Z4-4): their current Health, and their Infection in a Viral
+ * campaign. In team order, which is roster order.
+ *
+ * So recording everybody is the natural thing to do — a member who came back
+ * unhurt needs nothing typed — and a correction already made on the roster
+ * carries into the outcome instead of being undone by it.
+ */
+export function woundsAsTheyStand(campaign: Campaign, team: number): readonly MissionWound[] {
+  const viral = campaign.origin === 'viral';
+
+  return membersOf(campaign, team).map((survivor) => ({
+    survivor: survivor.id,
+    name: survivor.name,
+    health: survivor.currentHp,
+    ...(viral ? { infection: survivor.infection } : {}),
+  }));
+}
+
+/**
+ * Why an outcome's wounds cannot be recorded, or `null` if they can (Z4-4).
+ *
+ * **Everybody on the team, once each, and nobody else.** Every member is
+ * listed because the entry is the record of how the team came home, and a
+ * member left out would leave the roster's Health standing as if it were the
+ * end value with nothing in the history to say whether it was; the form starts
+ * every member at their current Health (`woundsAsTheyStand`), so listing them
+ * all costs nothing. Nobody else, because a survivor who did not go has no
+ * Health from this mission to record.
+ *
+ * **Health a whole number from 0 to the survivor's maximum** (`maxHp`), the
+ * range the roster's own Health holds. **Infection in a Viral campaign only,
+ * and on every wound there**, because only that origin has it (pg. 123);
+ * a whole number from 0 with no ceiling, the same range the survivor sheet and
+ * the save file give it — at 10 the survivor is down rather than gone, and
+ * what is above it is the table's count, not a mistake (#176).
+ *
+ * An outcome with no wounds at all is refused like one that leaves somebody
+ * out: only entries written before Z4-4 lack them, and those are read, never
+ * submitted.
+ */
+export function woundsProblem(campaign: Campaign, outcome: MissionOutcome): string | null {
+  const team = outcomeTeam(outcome);
+  const members = membersOf(campaign, team);
+  const viral = campaign.origin === 'viral';
+  const recorded = new Set<string>();
+
+  for (const wound of outcome.wounds ?? []) {
+    const survivor = members.find((member) => member.id === wound.survivor);
+
+    if (survivor === undefined) {
+      return `Only somebody on mission team ${String(team)} has Health to record from its mission.`;
+    }
+    if (recorded.has(survivor.id)) return `${survivor.name}’s Health is recorded once.`;
+    recorded.add(survivor.id);
+
+    const most = maxHp(survivor);
+    if (!Number.isSafeInteger(wound.health) || wound.health < 0 || wound.health > most) {
+      return `${survivor.name}’s Health is a whole number from 0 to ${String(most)}.`;
+    }
+
+    // One mutant survives below and is equivalent: `wound.infection ===
+    // undefined` replaced by `false`. `Number.isSafeInteger(undefined)` is
+    // already false, so a missing Infection is refused by the next test either
+    // way; the first is there for the typechecker, which cannot compare a
+    // possibly-absent number with 0, and it is the narrowing that earns it.
+    if (!viral) {
+      if (wound.infection !== undefined) return 'Only a Viral campaign records Infection.';
+    } else if (
+      wound.infection === undefined ||
+      !Number.isSafeInteger(wound.infection) ||
+      wound.infection < 0
+    ) {
+      return `${survivor.name}’s Infection is a whole number, from zero.`;
+    }
+  }
+
+  return recorded.size === members.length
+    ? null
+    : `Everybody on mission team ${String(team)} has their Health at the end recorded.`;
+}
+
+/**
+ * The roster as an outcome's wounds leave it: each survivor named at the
+ * Health recorded, and at the Infection recorded where there is one (Z4-4).
+ *
+ * The same change the roster's own correction makes, which stays the way to
+ * fix a mistake — this is the one that happened, and its entry says so.
+ */
+export function withWounds(campaign: Campaign, wounds: readonly MissionWound[]): Campaign {
+  return {
+    ...campaign,
+    survivors: campaign.survivors.map((survivor) => {
+      const wound = wounds.find((candidate) => candidate.survivor === survivor.id);
+
+      return wound === undefined
+        ? survivor
+        : {
+            ...survivor,
+            currentHp: wound.health,
+            ...(wound.infection === undefined ? {} : { infection: wound.infection }),
+          };
+    }),
+  };
 }
 
 /**
@@ -570,8 +710,7 @@ export function strangerWarning(campaign: Campaign, outcome: MissionOutcome): st
   if (!('strangers' in outcome)) return null;
 
   const team = outcomeTeam(outcome);
-  const members =
-    missionTeams(campaign).find((candidate) => candidate.team === team)?.members ?? [];
+  const members = membersOf(campaign, team);
   const highest = Math.max(0, ...members.map((survivor) => survivor.tier));
   const beyond = outcome.strangers.filter((tier: Tier) => tier > highest);
 

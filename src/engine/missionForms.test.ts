@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign } from './campaign';
 import { createSurvivor } from './survivor';
+import type { MissionWound } from './log';
 import type { MissionOutcome } from './missions';
 import {
   submitMissionOutcome,
@@ -107,11 +108,18 @@ describe('submitMissionSkip', () => {
 });
 
 describe('submitMissionOutcome', () => {
-  /** Turn 4, standing on Play the Mission, with the siege turn 3 called. */
-  const besieged = (): Campaign => ({
+  /**
+   * Turn 4, standing on Play the Mission, with the siege turn 3 called: the
+   * whole community — Earl, Tier 3, and Ruby, Tier 2 — is team 1 (pg. 85).
+   */
+  const besieged = (overrides: Partial<Campaign> = {}): Campaign => ({
     ...createNewCampaign('Cedar Hollow', FIXED),
     turn: 4,
     step: 'tactical-mission',
+    survivors: [
+      createSurvivor('Earl Rhodes', 3, { id: 'earl' }),
+      { ...createSurvivor('Ruby Vance', 2, { id: 'ruby' }), currentHp: 1 },
+    ],
     log: [
       {
         turn: 3,
@@ -124,28 +132,108 @@ describe('submitMissionOutcome', () => {
         turn: 4,
         phase: 'mission',
         at: AT,
-        event: { kind: 'mission-selected', team: 1, mission: 'siege-defense', names: [] },
+        event: {
+          kind: 'mission-selected',
+          team: 1,
+          mission: 'siege-defense',
+          names: ['Earl Rhodes', 'Ruby Vance'],
+        },
       },
     ],
+    ...overrides,
   });
 
-  const defended = (zombiesLeft: number): MissionOutcome => ({
+  const defended = (
+    zombiesLeft: number,
+    wounds: readonly MissionWound[] = [
+      { survivor: 'earl', name: 'Earl Rhodes', health: 0 },
+      { survivor: 'ruby', name: 'Ruby Vance', health: 2 },
+    ],
+  ): MissionOutcome => ({
     kind: 'siege-defense-resolved',
     zombiesLeft,
     survivorsExited: 1,
+    wounds,
   });
 
-  it('writes the outcome as it was counted, and nothing else', () => {
-    const before = besieged();
-    const after = expectAccepted(submitMissionOutcome(before, defended(0), LATER));
+  it('writes the outcome as it was counted, with the team’s Health at the end', () => {
+    const after = expectAccepted(submitMissionOutcome(besieged(), defended(0), LATER));
 
-    expect(after.log.at(-1)).toEqual({
+    expect(after.log.at(-1)).toStrictEqual({
       turn: 4,
       phase: 'mission',
       at: LATER,
-      event: { kind: 'siege-defense-resolved', zombiesLeft: 0, survivorsExited: 1 },
+      event: {
+        kind: 'siege-defense-resolved',
+        zombiesLeft: 0,
+        survivorsExited: 1,
+        wounds: [
+          { survivor: 'earl', name: 'Earl Rhodes', health: 0 },
+          { survivor: 'ruby', name: 'Ruby Vance', health: 2 },
+        ],
+      },
     });
-    expect({ ...after, log: before.log }).toEqual(before);
+  });
+
+  it('sets the roster to the Health recorded, and changes nothing else (Z4-4)', () => {
+    const before = besieged();
+    const after = expectAccepted(submitMissionOutcome(before, defended(0), LATER));
+
+    expect(after.survivors.map((survivor) => survivor.currentHp)).toEqual([0, 2]);
+    expect({ ...after, log: before.log, survivors: before.survivors }).toStrictEqual(before);
+  });
+
+  it('writes the wounds in team order, under the names the roster has now', () => {
+    const after = expectAccepted(
+      submitMissionOutcome(
+        besieged(),
+        defended(0, [
+          { survivor: 'ruby', name: 'somebody', health: 1 },
+          { survivor: 'earl', name: '', health: 3 },
+        ]),
+        LATER,
+      ),
+    );
+
+    expect(after.log.at(-1)?.event).toMatchObject({
+      wounds: [
+        { survivor: 'earl', name: 'Earl Rhodes', health: 3 },
+        { survivor: 'ruby', name: 'Ruby Vance', health: 1 },
+      ],
+    });
+  });
+
+  it('records and sets Infection in a Viral campaign (pg. 123)', () => {
+    const viral = besieged({ origin: 'viral' });
+    const after = expectAccepted(
+      submitMissionOutcome(
+        viral,
+        defended(0, [
+          { survivor: 'earl', name: 'Earl Rhodes', health: 3, infection: 10 },
+          { survivor: 'ruby', name: 'Ruby Vance', health: 2, infection: 0 },
+        ]),
+        LATER,
+      ),
+    );
+
+    expect(after.survivors.map((survivor) => survivor.infection)).toEqual([10, 0]);
+    expect(after.log.at(-1)?.event).toMatchObject({
+      wounds: [
+        { survivor: 'earl', name: 'Earl Rhodes', health: 3, infection: 10 },
+        { survivor: 'ruby', name: 'Ruby Vance', health: 2, infection: 0 },
+      ],
+    });
+  });
+
+  it('writes no Infection where the campaign has none', () => {
+    const after = expectAccepted(submitMissionOutcome(besieged(), defended(0), LATER));
+
+    expect(after.log.at(-1)?.event).toMatchObject({
+      wounds: [{ survivor: 'earl', health: 0 }, { survivor: 'ruby' }],
+    });
+    for (const wound of (after.log.at(-1)?.event as MissionOutcome).wounds ?? []) {
+      expect(wound).not.toHaveProperty('infection');
+    }
   });
 
   it('refuses with the engine’s own reason — here, a second outcome', () => {
@@ -154,6 +242,36 @@ describe('submitMissionOutcome', () => {
     expect(expectRefused(submitMissionOutcome(once, defended(0), LATER))).toBe(
       'Mission team 1’s outcome is already recorded.',
     );
+  });
+
+  it('refuses Health above a survivor’s maximum, and changes nothing', () => {
+    expect(
+      expectRefused(
+        submitMissionOutcome(
+          besieged(),
+          defended(0, [
+            { survivor: 'earl', name: 'Earl Rhodes', health: 3 },
+            { survivor: 'ruby', name: 'Ruby Vance', health: 3 },
+          ]),
+          LATER,
+        ),
+      ),
+    ).toBe('Ruby Vance’s Health is a whole number from 0 to 2.');
+  });
+
+  it('refuses Infection in a campaign that is not Viral', () => {
+    expect(
+      expectRefused(
+        submitMissionOutcome(
+          besieged(),
+          defended(0, [
+            { survivor: 'earl', name: 'Earl Rhodes', health: 3, infection: 1 },
+            { survivor: 'ruby', name: 'Ruby Vance', health: 1 },
+          ]),
+          LATER,
+        ),
+      ),
+    ).toBe('Only a Viral campaign records Infection.');
   });
 });
 

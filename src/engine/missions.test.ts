@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Assignment, type Campaign, type Survivor } from './campaign';
-import type { CampaignEvent, LogEntry } from './log';
+import type { CampaignEvent, LogEntry, MissionWound } from './log';
 import {
   deployed,
   firstMissionFailed,
   missionOutcomeProblem,
   outcomeMission,
   outcomeOf,
+  outcomeTeam,
   retryOwed,
   strangerWarning,
   teamOutcomes,
@@ -17,6 +18,10 @@ import {
   selectionProblem,
   skipProblem,
   turnMissions,
+  withWounds,
+  woundsAsTheyStand,
+  woundsProblem,
+  type MissionOutcome,
 } from './missions';
 import { createSurvivor } from './survivor';
 
@@ -67,6 +72,17 @@ const skipped = (turn = 4): LogEntry => at(turn, { kind: 'mission-skipped' });
 const calledForTurn4 = at(3, { kind: 'horde-checked', roll: 9, threat: 8, siege: true });
 
 const ids = (survivors: readonly Survivor[]) => survivors.map((survivor) => survivor.id);
+
+/**
+ * The outcome guard, with the team as it stands written in as the outcome's
+ * wounds unless the outcome gives its own — so the tests about counts are
+ * about counts. The wounds have their own tests, under `woundsProblem`.
+ */
+const outcomeProblem = (campaign: Campaign, outcome: MissionOutcome) =>
+  missionOutcomeProblem(campaign, {
+    wounds: woundsAsTheyStand(campaign, outcomeTeam(outcome)),
+    ...outcome,
+  });
 
 describe('missionTeams', () => {
   it('reads the teams Planning split the mission survivors into, in team order (pg. 21)', () => {
@@ -414,18 +430,18 @@ describe('missionOutcomeProblem', () => {
     });
 
   it('takes the outcome of a mission a team chose', () => {
-    expect(missionOutcomeProblem(thinning(), herd)).toBeNull();
-    expect(missionOutcomeProblem(besieged(), siege)).toBeNull();
+    expect(outcomeProblem(thinning(), herd)).toBeNull();
+    expect(outcomeProblem(besieged(), siege)).toBeNull();
   });
 
   it('refuses a mission no team chose, rather than guessing from the siege', () => {
-    expect(missionOutcomeProblem(playing({ step: 'tactical-mission' }), herd)).toMatch(
+    expect(outcomeProblem(playing({ step: 'tactical-mission' }), herd)).toMatch(
       /has not chosen a mission/,
     );
     expect(
-      missionOutcomeProblem(playing({ step: 'tactical-mission', log: [calledForTurn4] }), siege),
+      outcomeProblem(playing({ step: 'tactical-mission', log: [calledForTurn4] }), siege),
     ).toMatch(/has not chosen a mission/);
-    expect(missionOutcomeProblem(thinning(), siege)).toMatch(/not the mission team 1 chose/);
+    expect(outcomeProblem(thinning(), siege)).toMatch(/not the mission team 1 chose/);
   });
 
   it('checks each team’s outcome against its own choice (Z4-3)', () => {
@@ -439,24 +455,24 @@ describe('missionOutcomeProblem', () => {
       strangers: [1] as const,
     };
 
-    expect(missionOutcomeProblem(two, rescued)).toBeNull();
-    expect(missionOutcomeProblem(two, { ...rescued, team: 1 })).toMatch(/not the mission/);
+    expect(outcomeProblem(two, rescued)).toBeNull();
+    expect(outcomeProblem(two, { ...rescued, team: 1 })).toMatch(/not the mission/);
     // Team 1's outcome does not count as team 2's.
-    expect(missionOutcomeProblem({ ...two, log: [...two.log, at(4, herd)] }, rescued)).toBeNull();
-    expect(missionOutcomeProblem({ ...two, log: [...two.log, at(4, rescued)] }, rescued)).toMatch(
+    expect(outcomeProblem({ ...two, log: [...two.log, at(4, herd)] }, rescued)).toBeNull();
+    expect(outcomeProblem({ ...two, log: [...two.log, at(4, rescued)] }, rescued)).toMatch(
       /team 2’s outcome is already recorded/,
     );
   });
 
   it('refuses outside the Mission Phase, and a second outcome in one turn', () => {
-    expect(missionOutcomeProblem(thinning({ step: 'heal-wounds' }), herd)).toMatch(/Mission Phase/);
+    expect(outcomeProblem(thinning({ step: 'heal-wounds' }), herd)).toMatch(/Mission Phase/);
     expect(
-      missionOutcomeProblem(thinning({ log: [chose(1, 'thin-the-herd'), at(4, herd)] }), herd),
+      outcomeProblem(thinning({ log: [chose(1, 'thin-the-herd'), at(4, herd)] }), herd),
     ).toMatch(/already/);
   });
 
   it('takes a count of zero', () => {
-    expect(missionOutcomeProblem(thinning(), { ...herd, startingZombies: 0 })).toBeNull();
+    expect(outcomeProblem(thinning(), { ...herd, startingZombies: 0 })).toBeNull();
   });
 
   it.each([
@@ -466,11 +482,11 @@ describe('missionOutcomeProblem', () => {
   ])('refuses %s count in any field', (_, bad) => {
     const refused = /whole number/;
 
-    expect(missionOutcomeProblem(besieged(), { ...siege, zombiesLeft: bad })).toMatch(refused);
-    expect(missionOutcomeProblem(besieged(), { ...siege, survivorsExited: bad })).toMatch(refused);
-    expect(missionOutcomeProblem(thinning(), { ...herd, startingZombies: bad })).toMatch(refused);
-    expect(missionOutcomeProblem(thinning(), { ...herd, zombiesLeft: bad })).toMatch(refused);
-    expect(missionOutcomeProblem(thinning(), { ...herd, survivorsExited: bad })).toMatch(refused);
+    expect(outcomeProblem(besieged(), { ...siege, zombiesLeft: bad })).toMatch(refused);
+    expect(outcomeProblem(besieged(), { ...siege, survivorsExited: bad })).toMatch(refused);
+    expect(outcomeProblem(thinning(), { ...herd, startingZombies: bad })).toMatch(refused);
+    expect(outcomeProblem(thinning(), { ...herd, zombiesLeft: bad })).toMatch(refused);
+    expect(outcomeProblem(thinning(), { ...herd, survivorsExited: bad })).toMatch(refused);
   });
 });
 
@@ -492,18 +508,18 @@ describe('the outcomes of the other standard missions (Z4-3)', () => {
   });
 
   it('takes an end condition the mission has, or none (pg. 77)', () => {
-    expect(missionOutcomeProblem(firstTurn(), first(1))).toBeNull();
-    expect(missionOutcomeProblem(firstTurn(), first(3))).toBeNull();
-    expect(missionOutcomeProblem(firstTurn(), first(null))).toBeNull();
-    expect(missionOutcomeProblem(firstTurn(), first(4))).toMatch(/1 to 3/);
-    expect(missionOutcomeProblem(firstTurn(), first(0))).toMatch(/1 to 3/);
-    expect(missionOutcomeProblem(firstTurn(), first(1.5))).toMatch(/1 to 3/);
-    expect(missionOutcomeProblem(firstTurn(), first(Number.NaN))).toMatch(/1 to 3/);
+    expect(outcomeProblem(firstTurn(), first(1))).toBeNull();
+    expect(outcomeProblem(firstTurn(), first(3))).toBeNull();
+    expect(outcomeProblem(firstTurn(), first(null))).toBeNull();
+    expect(outcomeProblem(firstTurn(), first(4))).toMatch(/1 to 3/);
+    expect(outcomeProblem(firstTurn(), first(0))).toMatch(/1 to 3/);
+    expect(outcomeProblem(firstTurn(), first(1.5))).toMatch(/1 to 3/);
+    expect(outcomeProblem(firstTurn(), first(Number.NaN))).toMatch(/1 to 3/);
   });
 
   it('takes strangers with real Tiers', () => {
-    expect(missionOutcomeProblem(firstTurn(), first(2, [1, 4]))).toBeNull();
-    expect(missionOutcomeProblem(firstTurn(), { ...first(2), strangers: [5 as 4] })).toMatch(
+    expect(outcomeProblem(firstTurn(), first(2, [1, 4]))).toBeNull();
+    expect(outcomeProblem(firstTurn(), { ...first(2), strangers: [5 as 4] })).toMatch(
       /Tier from 1 to 4/,
     );
   });
@@ -549,8 +565,8 @@ describe('the outcomes of the other standard missions (Z4-3)', () => {
       ],
     });
 
-    expect(missionOutcomeProblem(campaign, outcome)).toBeNull();
-    expect(missionOutcomeProblem(campaign, { ...outcome, ...bad })).toMatch(/whole number/);
+    expect(outcomeProblem(campaign, outcome)).toBeNull();
+    expect(outcomeProblem(campaign, { ...outcome, ...bad })).toMatch(/whole number/);
   });
 
   it('takes a story, origin or Road Trip mission as played, and only the one chosen', () => {
@@ -560,14 +576,14 @@ describe('the outcomes of the other standard missions (Z4-3)', () => {
     });
 
     expect(
-      missionOutcomeProblem(campaign, {
+      outcomeProblem(campaign, {
         kind: 'mission-played',
         team: 1,
         mission: 'left-behind-1',
       }),
     ).toBeNull();
     expect(
-      missionOutcomeProblem(campaign, { kind: 'mission-played', team: 1, mission: 'chased' }),
+      outcomeProblem(campaign, { kind: 'mission-played', team: 1, mission: 'chased' }),
     ).toMatch(/not the mission/);
   });
 
@@ -599,7 +615,7 @@ describe('the outcomes of the other standard missions (Z4-3)', () => {
 
     expect(teamOutcomes(again).size).toBe(0);
     expect(unresolvedTeams(again)).toEqual([1]);
-    expect(missionOutcomeProblem(again, first(2))).toBeNull();
+    expect(outcomeProblem(again, first(2))).toBeNull();
   });
 
   it('refuses an opt-out once a mission has been played', () => {
@@ -629,6 +645,7 @@ describe('the outcomes of the other standard missions (Z4-3)', () => {
 });
 
 describe('outcomeOf', () => {
+  const wounds = [{ survivor: 'earl', name: 'Earl Rhodes', health: 1 }];
   const counts = {
     endCondition: 2,
     strangers: [1, 2] as const,
@@ -639,6 +656,7 @@ describe('outcomeOf', () => {
     survivorsExited: 1,
     allIncapacitated: false,
     vehiclesDrivenOff: 2,
+    wounds,
   };
 
   it('writes each standard mission’s own kind, with only the counts it records', () => {
@@ -648,16 +666,18 @@ describe('outcomeOf', () => {
       endCondition: 2,
       strangers: [1, 2],
       vehiclesOnArea: 1,
+      wounds,
     });
     expect(outcomeOf({ team: 1, mission: 'siege-defense' }, counts)).toStrictEqual({
       kind: 'siege-defense-resolved',
       team: 1,
       zombiesLeft: 3,
       survivorsExited: 1,
+      wounds,
     });
   });
 
-  it('gives every standard mission an outcome its own guard reads back as that mission', () => {
+  it('gives every standard mission an outcome its own guard reads back as that mission, with the team’s wounds (Z4-4)', () => {
     for (const mission of [
       'first-mission',
       'claim-a-new-base',
@@ -668,16 +688,188 @@ describe('outcomeOf', () => {
       'rare-goods-trader',
       'siege-defense',
     ] as const) {
-      expect(outcomeMission(outcomeOf({ team: 1, mission }, counts))).toBe(mission);
+      const outcome = outcomeOf({ team: 1, mission }, counts);
+
+      expect(outcomeMission(outcome)).toBe(mission);
+      expect(outcome.wounds).toBe(wounds);
     }
   });
 
-  it('records any other mission as played', () => {
+  it('records any other mission as played, with its wounds too', () => {
     expect(outcomeOf({ team: 3, mission: 'the-dark' }, counts)).toStrictEqual({
       kind: 'mission-played',
       team: 3,
       mission: 'the-dark',
+      wounds,
     });
+  });
+});
+
+describe('woundsAsTheyStand', () => {
+  it('starts each member of the team at their Health now, in roster order', () => {
+    const hurt = playing({ survivors: [{ ...earl, currentHp: 1 }, carla, ruby, nell] });
+
+    expect(woundsAsTheyStand(hurt, 1)).toStrictEqual([
+      { survivor: 'earl', name: 'Earl Rhodes', health: 1 },
+      { survivor: 'carla', name: 'Carla Proust', health: 2 },
+    ]);
+  });
+
+  it('adds their Infection in a Viral campaign, and only there (pg. 123)', () => {
+    const viral = playing({ origin: 'viral', survivors: [earl, carla, { ...ruby, infection: 3 }] });
+
+    expect(woundsAsTheyStand(viral, 2)).toStrictEqual([
+      { survivor: 'ruby', name: 'Ruby Vance', health: 3, infection: 3 },
+    ]);
+    expect(woundsAsTheyStand(playing({ origin: 'magic' }), 2)).toStrictEqual([
+      { survivor: 'ruby', name: 'Ruby Vance', health: 3 },
+    ]);
+  });
+
+  it('has nobody for a team nobody is on', () => {
+    expect(woundsAsTheyStand(playing(), 3)).toEqual([]);
+  });
+
+  it('is the whole community on a siege turn (pg. 85)', () => {
+    expect(
+      woundsAsTheyStand(playing({ log: [calledForTurn4] }), 1).map((wound) => wound.survivor),
+    ).toEqual(['earl', 'carla', 'ruby', 'nell']);
+  });
+});
+
+describe('woundsProblem', () => {
+  /** Team 1 — Earl and Carla, both Tier 2, so 2 Health at most — playing a Thin the Herd. */
+  const thinning = (overrides: Partial<Campaign> = {}) =>
+    playing({ step: 'tactical-mission', log: [chose(1, 'thin-the-herd')], ...overrides });
+  const wounded = (...wounds: MissionWound[]): MissionOutcome => ({
+    ...thinHerd(),
+    team: 1,
+    wounds,
+  });
+  const EARL = { survivor: 'earl', name: 'Earl Rhodes' };
+  const CARLA = { survivor: 'carla', name: 'Carla Proust' };
+
+  it('takes every member at a Health from 0 to their maximum (pg. 7)', () => {
+    expect(
+      woundsProblem(thinning(), wounded({ ...EARL, health: 0 }, { ...CARLA, health: 2 })),
+    ).toBeNull();
+    expect(
+      missionOutcomeProblem(thinning(), wounded({ ...CARLA, health: 1 }, { ...EARL, health: 2 })),
+    ).toBeNull();
+  });
+
+  it.each([
+    ['above the maximum', 3],
+    ['below 0', -1],
+    ['fractional', 1.5],
+    ['unreadable', Number.NaN],
+  ])('refuses Health %s, naming whose and the range', (_, health) => {
+    expect(
+      missionOutcomeProblem(thinning(), wounded({ ...EARL, health }, { ...CARLA, health: 2 })),
+    ).toBe('Earl Rhodes’s Health is a whole number from 0 to 2.');
+  });
+
+  it('reads the maximum off each survivor’s own Tier', () => {
+    const veteran = thinning({ assignments: { ruby: onTeam(1) } });
+    const RUBY = { survivor: 'ruby', name: 'Ruby Vance' };
+
+    expect(woundsProblem(veteran, wounded({ ...RUBY, health: 3 }))).toBeNull();
+    expect(woundsProblem(veteran, wounded({ ...RUBY, health: 4 }))).toMatch(/from 0 to 3/);
+  });
+
+  it('refuses a team with somebody left out, or with no wounds at all', () => {
+    expect(woundsProblem(thinning(), wounded({ ...EARL, health: 2 }))).toBe(
+      'Everybody on mission team 1 has their Health at the end recorded.',
+    );
+    expect(woundsProblem(thinning(), thinHerd())).toMatch(/Everybody on mission team 1/);
+    expect(missionOutcomeProblem(thinning(), { ...thinHerd(), team: 1 })).toMatch(
+      /has their Health at the end recorded/,
+    );
+  });
+
+  it('refuses somebody twice, even when the count of wounds is right', () => {
+    expect(woundsProblem(thinning(), wounded({ ...EARL, health: 2 }, { ...EARL, health: 1 }))).toBe(
+      'Earl Rhodes’s Health is recorded once.',
+    );
+  });
+
+  it('refuses somebody who is not on the team', () => {
+    expect(
+      woundsProblem(
+        thinning(),
+        wounded(
+          { ...EARL, health: 2 },
+          { ...CARLA, health: 2 },
+          { survivor: 'ruby', name: 'Ruby Vance', health: 3 },
+        ),
+      ),
+    ).toBe('Only somebody on mission team 1 has Health to record from its mission.');
+  });
+
+  it('takes no wounds for a team with nobody on it', () => {
+    const empty = playing({
+      step: 'tactical-mission',
+      survivors: [],
+      log: [calledForTurn4, chose(1, 'thin-the-herd')],
+    });
+
+    expect(woundsProblem(empty, { ...thinHerd(), team: 1, wounds: [] })).toBeNull();
+  });
+
+  it('refuses Infection in a campaign that is not Viral (pg. 123)', () => {
+    expect(
+      woundsProblem(
+        thinning(),
+        wounded({ ...EARL, health: 2, infection: 0 }, { ...CARLA, health: 2 }),
+      ),
+    ).toBe('Only a Viral campaign records Infection.');
+  });
+
+  describe('in a Viral campaign', () => {
+    const viral = () => thinning({ origin: 'viral' });
+
+    it('takes Infection from 0 with no ceiling, as the survivor sheet does (#176)', () => {
+      expect(
+        woundsProblem(
+          viral(),
+          wounded({ ...EARL, health: 2, infection: 0 }, { ...CARLA, health: 0, infection: 12 }),
+        ),
+      ).toBeNull();
+    });
+
+    it.each([
+      ['missing', undefined],
+      ['below 0', -1],
+      ['fractional', 0.5],
+      ['unreadable', Number.NaN],
+    ])('refuses Infection %s, naming whose', (_, infection) => {
+      expect(
+        woundsProblem(
+          viral(),
+          wounded(
+            { ...EARL, health: 2, infection: 1 },
+            { ...CARLA, health: 2, ...(infection === undefined ? {} : { infection }) },
+          ),
+        ),
+      ).toBe('Carla Proust’s Infection is a whole number, from zero.');
+    });
+  });
+});
+
+describe('withWounds', () => {
+  it('sets each named survivor’s Health, and Infection where it is given, and nobody else’s', () => {
+    const before = playing({ survivors: [earl, { ...carla, infection: 2 }, ruby] });
+    const after = withWounds(before, [
+      { survivor: 'earl', name: 'Earl Rhodes', health: 0, infection: 5 },
+      { survivor: 'carla', name: 'Carla Proust', health: 1 },
+    ]);
+
+    expect(after.survivors).toStrictEqual([
+      { ...earl, currentHp: 0, infection: 5 },
+      { ...carla, currentHp: 1, infection: 2 },
+      ruby,
+    ]);
+    expect({ ...after, survivors: before.survivors }).toStrictEqual(before);
   });
 });
 

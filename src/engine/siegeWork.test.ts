@@ -6,6 +6,7 @@ import {
   fellInTheSiege,
   projectTeamThatWorked,
   siegeDefended,
+  siegeHealthRecorded,
   standInCandidates,
   standInProblem,
   standIns,
@@ -292,6 +293,17 @@ describe('stand-ins', () => {
       expect(standIns(choosing(withABaker(undefined, [COOK]), lastTurns)).size).toBe(0);
     });
 
+    it('reads only stand-in entries, not another entry about the same casualty', () => {
+      const campaign = choosing(withABaker(undefined, [COOK]), stoodIn(COOK, BAKER), {
+        turn: 4,
+        phase: 'mission',
+        at: AT,
+        event: { kind: 'mission-team-reduced', survivor: COOK, name: 'Nell Haig' },
+      });
+
+      expect(standIns(campaign).get(COOK)?.id).toBe(BAKER);
+    });
+
     it('gives one survivor one place, the first chosen', () => {
       const campaign = choosing(
         withABaker(undefined, [COOK, MASON]),
@@ -368,8 +380,8 @@ describe('stand-ins', () => {
 
     it('refuses a choice that changes nothing', () => {
       expect(standInProblem(fallen(), COOK, undefined)).toMatch(/Nobody is standing in/);
-      expect(standInProblem(choosing(fallen(), stoodIn(COOK, BAKER)), COOK, BAKER)).toMatch(
-        /already/,
+      expect(standInProblem(choosing(fallen(), stoodIn(COOK, BAKER)), COOK, BAKER)).toBe(
+        'They are standing in already.',
       );
     });
 
@@ -379,5 +391,100 @@ describe('stand-ins', () => {
       expect(standInProblem(chosen, COOK, undefined)).toBeNull();
       expect(standInProblem(chosen, COOK, SCOUT)).toBeNull();
     });
+  });
+});
+
+/**
+ * Since Z4-4 a Siege Defense's outcome records everybody's Health at the end,
+ * and "reduced to 0 Health during the siege" is read off that rather than off
+ * the roster (R17's October 2026 amendment). The tests above use entries
+ * written before, which carry no Health and fall back to the roster.
+ */
+describe('the siege’s own record of who it left at 0 Health (Z4-4)', () => {
+  /** Turn 4's Siege Defense, recorded with these Health values and everybody else at 1. */
+  const recorded = (health: Readonly<Record<string, number>>): LogEntry => ({
+    ...defended,
+    event: {
+      kind: 'siege-defense-resolved',
+      zombiesLeft: 1,
+      survivorsExited: 0,
+      team: 1,
+      wounds: [COOK, MEDIC, MASON, SCOUT].map((id) => ({
+        survivor: id,
+        name: id,
+        health: health[id] ?? 1,
+      })),
+    },
+  });
+
+  it('is a casualty when the outcome recorded them at 0, after the roster is corrected back up', () => {
+    // Nobody is at 0 on the roster: the cook's Health was corrected afterwards.
+    const campaign = besieged([called, recorded({ [COOK]: 0 })]);
+
+    expect(ids(fellInTheSiege(campaign))).toEqual([COOK]);
+    expect(baseProduction(campaign).food).toBe(2);
+  });
+
+  it('is not a casualty when the outcome recorded Health left, whatever the roster says now', () => {
+    const campaign = besieged([called, recorded({})], [MASON]);
+
+    expect(fellInTheSiege(campaign)).toEqual([]);
+    expect(ids(projectTeamThatWorked(campaign))).toEqual([MASON]);
+  });
+
+  it('falls back to the roster for somebody the outcome does not name', () => {
+    const named: LogEntry = {
+      ...defended,
+      event: {
+        kind: 'siege-defense-resolved',
+        zombiesLeft: 1,
+        survivorsExited: 0,
+        wounds: [{ survivor: COOK, name: 'Nell Haig', health: 0 }],
+      },
+    };
+
+    expect(ids(fellInTheSiege(besieged([called, named], [MASON])))).toEqual([COOK, MASON]);
+  });
+
+  it('reads who may stand in off the same record', () => {
+    // The scout went down in the siege and was patched up on the roster since.
+    expect(standInCandidates(besieged([called, recorded({ [SCOUT]: 0 })]))).toEqual([]);
+    // And the other way: the record has the scout standing, the roster does not.
+    expect(ids(standInCandidates(besieged([called, recorded({})], [SCOUT])))).toEqual([SCOUT]);
+  });
+
+  it('keeps a stand-in in a casualty’s place after the casualty’s Health is corrected', () => {
+    const campaign = besieged([
+      called,
+      recorded({ [COOK]: 0 }),
+      {
+        turn: 4,
+        phase: 'mission',
+        at: AT,
+        event: {
+          kind: 'stood-in',
+          survivor: COOK,
+          name: 'Nell Haig',
+          by: SCOUT,
+          byName: 'Ruby Vance',
+        },
+      },
+    ]);
+
+    expect(standIns(campaign).get(COOK)?.id).toBe(SCOUT);
+    expect(standInProblem(campaign, COOK, undefined)).toBeNull();
+  });
+});
+
+describe('siegeHealthRecorded', () => {
+  it('is whether this turn’s recorded siege carries its team’s Health', () => {
+    const withWounds: LogEntry = {
+      ...defended,
+      event: { kind: 'siege-defense-resolved', zombiesLeft: 0, survivorsExited: 0, wounds: [] },
+    };
+
+    expect(siegeHealthRecorded(besieged([called, withWounds]))).toBe(true);
+    expect(siegeHealthRecorded(besieged())).toBe(false);
+    expect(siegeHealthRecorded(besieged([called]))).toBe(false);
   });
 });

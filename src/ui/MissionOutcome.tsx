@@ -13,20 +13,30 @@
  * certain, the First Mission played again — is shown under the fields before
  * the press, from the same engine functions that will read the entry back, so
  * the line on screen is the line the log keeps.
+ *
+ * **Every form also asks for the team's Health at the end** (Z4-4), and their
+ * Infection in a Viral campaign — one field per member, starting at what the
+ * roster says now (`woundsAsTheyStand`), so a member who came back unhurt
+ * needs nothing typed and a correction already made on the sheet is kept.
+ * Recording sets the roster to these; the sheet's own Health stays the place
+ * to fix a mistake afterwards.
  */
 
 import { useState } from 'react';
 import { MISSIONS, type MissionId, type OutcomeCount } from '../data/missions';
 import { TIERS, type Tier } from '../data/tiers';
 import type { Campaign } from '../engine/campaign';
+import type { MissionWound } from '../engine/log';
 import {
   missionOutcomeProblem,
   outcomeOf,
   strangerWarning,
   teamOutcomes,
   turnMissions,
+  woundsAsTheyStand,
   type MissionChoice,
 } from '../engine/missions';
+import { maxHp } from '../engine/survivor';
 import { useCampaign } from '../state/useCampaign';
 import {
   COUNT_LABELS,
@@ -107,6 +117,115 @@ function CountField({
   );
 }
 
+/** What has been typed over a member's Health or Infection, by survivor id. */
+type Typed = Partial<Record<string, { readonly health?: string; readonly infection?: string }>>;
+
+/**
+ * The team's wounds as the form stands: each member where the roster has them,
+ * with whatever has been typed over that. An emptied field is no number at
+ * all, which the engine refuses, rather than a 0 nobody meant.
+ */
+function woundsTyped(standing: readonly MissionWound[], typed: Typed): readonly MissionWound[] {
+  return standing.map((wound) => {
+    const over = typed[wound.survivor];
+
+    return {
+      ...wound,
+      ...(over?.health === undefined ? {} : { health: count(over.health) }),
+      ...(over?.infection === undefined ? {} : { infection: count(over.infection) }),
+    };
+  });
+}
+
+/** One row per team member: their Health at the end, and their Infection if the campaign has it. */
+function WoundFields({
+  campaign,
+  prefix,
+  wounds,
+  typed,
+  onType,
+}: {
+  readonly campaign: Campaign;
+  readonly prefix: string;
+  readonly wounds: readonly MissionWound[];
+  readonly typed: Typed;
+  readonly onType: (survivor: string, field: 'health' | 'infection', value: string) => void;
+}) {
+  if (wounds.length === 0) return null;
+
+  // Whether Infection is asked is the engine's answer (`woundsAsTheyStand`
+  // gives it to every member of a Viral campaign and nobody else), not a
+  // second reading of the origin here.
+  const viral = wounds.some((wound) => wound.infection !== undefined);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-sm font-medium">
+        Health at the end <PageRef pages={7} />
+        {viral && (
+          <>
+            {' '}
+            and Infection <PageRef pages={123} />
+          </>
+        )}
+      </p>
+      <p className={HINT}>
+        Everybody starts where the roster has them now. Change anybody the mission left differently;
+        recording sets the roster to these.
+      </p>
+      {wounds.map((wound) => {
+        const survivor = campaign.survivors.find((one) => one.id === wound.survivor);
+        const health = `${prefix}-health-${wound.survivor}`;
+        const infection = `${prefix}-infection-${wound.survivor}`;
+        const most = survivor === undefined ? undefined : maxHp(survivor);
+
+        return (
+          <div key={wound.survivor} className="flex flex-wrap items-center gap-2">
+            <label className="text-sm" htmlFor={health}>
+              {wound.name}’s Health
+            </label>
+            <input
+              id={health}
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={most}
+              step={1}
+              value={typed[wound.survivor]?.health ?? String(wound.health)}
+              className={FIELD}
+              onChange={(changed) => {
+                onType(wound.survivor, 'health', changed.target.value);
+              }}
+            />
+            {most !== undefined && (
+              <span className={`${HINT} tabular-nums`}>of {String(most)}</span>
+            )}
+            {wound.infection !== undefined && (
+              <>
+                <label className="ml-2 text-sm" htmlFor={infection}>
+                  {wound.name}’s Infection
+                </label>
+                <input
+                  id={infection}
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  step={1}
+                  value={typed[wound.survivor]?.infection ?? String(wound.infection)}
+                  className={FIELD}
+                  onChange={(changed) => {
+                    onType(wound.survivor, 'infection', changed.target.value);
+                  }}
+                />
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function TeamOutcome({
   campaign,
   choice,
@@ -123,9 +242,11 @@ function TeamOutcome({
   const [strangers, setStrangers] = useState<readonly Tier[]>([]);
   const [nextStranger, setNextStranger] = useState<Tier>(1);
   const [allDown, setAllDown] = useState(false);
+  const [typed, setTyped] = useState<Typed>({});
 
   const asked = countsFor(choice.mission);
   const number = (of: OutcomeCount) => count(numbers[of] ?? '');
+  const wounds = woundsTyped(woundsAsTheyStand(campaign, choice.team), typed);
   const outcome = outcomeOf(choice, {
     endCondition: endCondition === 'none' ? null : count(endCondition),
     strangers,
@@ -136,6 +257,7 @@ function TeamOutcome({
     survivorsExited: number('survivors-exited'),
     allIncapacitated: allDown,
     vehiclesDrivenOff: number('vehicles-driven-off'),
+    wounds,
   });
   const problem = missionOutcomeProblem(campaign, outcome);
   const warning = problem === null ? strangerWarning(campaign, outcome) : null;
@@ -266,6 +388,16 @@ function TeamOutcome({
             );
         }
       })}
+
+      <WoundFields
+        campaign={campaign}
+        prefix={prefix}
+        wounds={wounds}
+        typed={typed}
+        onType={(survivor, field, value) => {
+          setTyped({ ...typed, [survivor]: { ...typed[survivor], [field]: value } });
+        }}
+      />
 
       {warning !== null && <p className={WARNING}>{warning}</p>}
       <p className={HINT}>{problem ?? outcomeConsequences(outcome).join(' ')}</p>

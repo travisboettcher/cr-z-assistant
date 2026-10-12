@@ -118,6 +118,26 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'rare-goods-trader-resolved', team: 2, survivorsExited: 1 },
   { kind: 'mission-played', team: 1, mission: 'left-behind-1' },
   { kind: 'siege-defense-resolved', zombiesLeft: 3, survivorsExited: 1 },
+  // The team's wounds, which every outcome written since Z4-4 carries: Health
+  // at the end, 0 included, and Infection only in a Viral campaign.
+  {
+    kind: 'siege-defense-resolved',
+    zombiesLeft: 0,
+    survivorsExited: 1,
+    team: 1,
+    wounds: [
+      { ...SURVIVOR, health: 0 },
+      { survivor: 'ruby', name: 'Ruby Vance', health: 3 },
+    ],
+  },
+  {
+    kind: 'mission-played',
+    team: 2,
+    mission: 'medical-salvage',
+    wounds: [{ survivor: 'carla', name: 'Carla Proust', health: 2, infection: 4 }],
+  },
+  // A team with nobody left on it records nobody's Health.
+  { kind: 'gather-materials-resolved', team: 1, materialsCarriedOut: 0, wounds: [] },
   { kind: 'stood-in', ...SURVIVOR, by: 'ruby', byName: 'Ruby Vance' },
   // Nobody: the place left empty again, which is a choice the log keeps.
   { kind: 'stood-in', ...SURVIVOR },

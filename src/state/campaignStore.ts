@@ -243,8 +243,10 @@ export type CampaignAction =
    *
    * Only *current* health — max HP is the Tier and is derived, so there is
    * nothing to set. Wounds come from the Mission Layer, which the app does not
-   * simulate, so until the Advancement Phase lands this is how a wound gets
-   * recorded: the player types what happened at the table.
+   * simulate; since Z4-4 they arrive with the mission's outcome
+   * (`mission/resolved`), which sets Health and logs it. This stays the
+   * unlogged correction for fixing a mistake, and does not rewrite what the
+   * outcome recorded.
    */
   | { readonly type: 'survivor/hpSet'; readonly id: string; readonly currentHp: number }
   /**
@@ -432,13 +434,13 @@ export type CampaignAction =
   /** The community opts out of this turn's mission (pg. 17). */
   | { readonly type: 'mission/skipped'; readonly at: string }
   /**
-   * Record how this turn's Siege Defense or Thin the Herd ended (pp. 81, 86).
+   * Record how a team's mission ended (pp. 77–86; Z4-3), and the Health — and
+   * in a Viral campaign the Infection — its members came home with (Z4-4).
    *
    * The counts the table made at the end of the mission, and nothing worked
    * out from them: what they do to the turns since the last siege is
-   * `siege.ts`'s, read back from the entry this writes. Refused outside the
-   * Mission Phase, a second time in a turn, for a mission the turn is not
-   * playing, and for a count that is not a whole number.
+   * `siege.ts`'s, read back from the entry this writes. The wounds are set on
+   * the roster as well. Refused for whatever `submitMissionOutcome` refuses.
    */
   | { readonly type: 'mission/resolved'; readonly outcome: MissionOutcome; readonly at: string }
   /**

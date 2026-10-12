@@ -90,6 +90,36 @@ describe('who still works on a siege turn (pg. 23, #183)', () => {
     open(besieged());
 
     expect(panel().textContent).toContain('goes on as assigned');
+    // An outcome recorded before Z4-4 carries no Health, so the roster is read.
+    expect(panel().textContent).toContain('follows the Health on the roster');
+  });
+
+  it('follows the Health the siege’s outcome recorded, once it records any (Z4-4)', () => {
+    // The cook went down in the siege and has been patched up on the roster since.
+    open(
+      besieged({
+        log: [
+          called,
+          {
+            ...defended,
+            event: {
+              kind: 'siege-defense-resolved',
+              zombiesLeft: 1,
+              survivorsExited: 0,
+              team: 1,
+              wounds: [
+                { survivor: COOK, name: 'Nell Haig', health: 0 },
+                { survivor: MASON, name: 'Earl Rhodes', health: 3 },
+                { survivor: SCOUT, name: 'Ruby Vance', health: 1 },
+              ],
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(panel().textContent).toContain('follows the Health recorded with the siege’s outcome');
+    expect(panel().textContent).toContain('Nell Haig was working the Kitchen');
   });
 
   it('names who the siege took off which post', () => {

@@ -54,6 +54,33 @@ import { phaseOf } from './turn';
 import type { Assignment, Campaign } from './campaign';
 
 /**
+ * One team member as a mission left them, carried on its outcome (#178, Z4-4).
+ *
+ * **Health at the end, not Health lost.** The end value is what the
+ * survivor's card says when the table counts (pg. 7), and it is what recording
+ * the outcome sets the roster to; a loss would have to be added to a number
+ * the roster may already have been corrected away from. `infection` is the
+ * same for the Viral origin's Infection (pg. 123): present on every wound a
+ * Viral campaign records, and on none anywhere else, because an absent field
+ * and a zero would be the same fact spelled two ways — the reason the
+ * survivor's own `infection` is a number on everybody rather than optional.
+ *
+ * Carries the name beside the id, like every other entry about a person, and
+ * as it was at the time: the survivor may have walked out by the time anybody
+ * reads the history back.
+ *
+ * **Load-bearing for the siege**: `fellInTheSiege` and `standInCandidates`
+ * read who a Siege Defense left at 0 Health off these, rather than off Health
+ * as the roster has it now (R17's October 2026 amendment).
+ */
+export interface MissionWound {
+  readonly survivor: string;
+  readonly name: string;
+  readonly health: number;
+  readonly infection?: number;
+}
+
+/**
  * One thing that happened.
  *
  * Ids are past tense and hyphenated rather than mirroring the action names that
@@ -419,6 +446,8 @@ export type CampaignEvent =
       readonly survivorsExited: number;
       /** The team that played it; absent on entries written before Z4-3. */
       readonly team?: number;
+      /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
+      readonly wounds?: readonly MissionWound[];
     }
   /**
    * How a Thin the Herd ended (pg. 81).
@@ -437,6 +466,8 @@ export type CampaignEvent =
       readonly allIncapacitated: boolean;
       /** The team that played it; absent on entries written before Z4-3. */
       readonly team?: number;
+      /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
+      readonly wounds?: readonly MissionWound[];
     }
   /**
    * How the First Mission ended (pg. 77; Z4-3): which numbered end condition
@@ -452,6 +483,8 @@ export type CampaignEvent =
       readonly team: number;
       readonly endCondition: number | null;
       readonly strangers: readonly Tier[];
+      /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
+      readonly wounds?: readonly MissionWound[];
     }
   /**
    * How a Claim a New Base ended (pg. 79; Z4-3). As the First Mission's, and
@@ -464,12 +497,16 @@ export type CampaignEvent =
       readonly endCondition: number | null;
       readonly strangers: readonly Tier[];
       readonly vehiclesOnArea: number;
+      /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
+      readonly wounds?: readonly MissionWound[];
     }
   /** How many materials a Gather Materials team carried off the map (pg. 80; Z4-3). */
   | {
       readonly kind: 'gather-materials-resolved';
       readonly team: number;
       readonly materialsCarriedOut: number;
+      /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
+      readonly wounds?: readonly MissionWound[];
     }
   /**
    * How many vehicles a Retrieve New Vehicles team repaired and drove off
@@ -479,12 +516,16 @@ export type CampaignEvent =
       readonly kind: 'retrieve-new-vehicles-resolved';
       readonly team: number;
       readonly vehiclesDrivenOff: number;
+      /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
+      readonly wounds?: readonly MissionWound[];
     }
   /** The Tier of each stranger a Rescue Strangers team brought out (pg. 83; Z4-3). */
   | {
       readonly kind: 'rescue-strangers-resolved';
       readonly team: number;
       readonly strangers: readonly Tier[];
+      /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
+      readonly wounds?: readonly MissionWound[];
     }
   /**
    * How many survivors a Rare Goods Trader team got out over the map edge
@@ -495,15 +536,20 @@ export type CampaignEvent =
       readonly kind: 'rare-goods-trader-resolved';
       readonly team: number;
       readonly survivorsExited: number;
+      /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
+      readonly wounds?: readonly MissionWound[];
     }
   /**
-   * A story, origin or Road Trip mission was played (Z4-3). Which one, and by
-   * which team; its rewards are Phase 7's, so nothing more is counted.
+   * A story, origin or Road Trip mission was played (Z4-3). Which one, by
+   * which team, and since Z4-4 the Health it came home with; its rewards are
+   * Phase 7's, so nothing more is counted.
    */
   | {
       readonly kind: 'mission-played';
       readonly team: number;
       readonly mission: MissionId;
+      /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
+      readonly wounds?: readonly MissionWound[];
     }
   /**
    * A mission-team survivor took the place of a worker this turn's Siege
