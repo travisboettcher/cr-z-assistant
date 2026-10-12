@@ -36,10 +36,10 @@ import type { Campaign } from './campaign';
 import { survivorsFed } from './feeding';
 import { healthAwards, woundsHealed } from './healing';
 import { materialsAdded } from './materials';
-import { missionsChosen } from './missions';
+import { firstMissionFailed, missionsChosen, unresolvedTeams } from './missions';
 import { dueProjects, laborShortfall, siegeLaborShortfall } from './projects';
 import { mustCheck, rotCheckResolved } from './rot';
-import { hordeChecked, missionResolved, siegeDue } from './siege';
+import { hordeChecked } from './siege';
 import { anythingOverCap, storageChecked } from './storage';
 import { someoneDeparted, someoneIsLeaving } from './departures';
 
@@ -81,13 +81,20 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
     owed.push({ step: 'select-mission', says: 'A mission team has no mission chosen.' });
   }
 
-  // Only the siege, because it is the only mission the app knows was played:
-  // the horde called it. A Thin the Herd is the player's choice and recorded
-  // when it was one. An unrecorded siege leaves the turns since the last siege
-  // counting, which is the right answer for one that left zombies standing and
-  // the wrong one for one that did not (pg. 86).
-  if (siegeDue(campaign) && !missionResolved(campaign)) {
-    owed.push({ step: 'tactical-mission', says: 'The Siege Defense’s outcome is not recorded.' });
+  // Every team that chose a mission owes its outcome (Z4-3): what it counted
+  // is what its rewards, the turns since the last siege among them, are read
+  // from. Before Z4-3 only a siege was owed, because only a siege was known to
+  // have been played.
+  for (const team of unresolvedTeams(campaign)) {
+    owed.push({
+      step: 'tactical-mission',
+      says: `Mission team ${String(team)}’s outcome is not recorded.`,
+    });
+  }
+
+  // A First Mission that met no end condition is played again in turn 1 (R21).
+  if (firstMissionFailed(campaign)) {
+    owed.push({ step: 'select-mission', says: 'The First Mission failed, and is played again.' });
   }
 
   if (projectsOutstanding(campaign)) {

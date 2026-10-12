@@ -61,7 +61,7 @@ import {
   submitSkillLevel,
   submitXpAward,
 } from '../engine/advancementForms';
-import type { MissionOutcome } from '../engine/siege';
+import type { MissionOutcome } from '../engine/missions';
 import {
   submitMissionOutcome,
   submitMissionSelection,

@@ -800,6 +800,17 @@ describe('the missions', () => {
     ]);
   });
 
+  it('numbers three end conditions for exactly the missions that record which was met', () => {
+    for (const [id, mission] of entries) {
+      if (mission.family !== 'standard') continue;
+
+      const records = (mission.counts as readonly string[]).includes('end-condition');
+      const conditions = 'endConditions' in mission ? mission.endConditions : undefined;
+
+      expect([id, conditions]).toEqual([id, records ? 3 : undefined]);
+    }
+  });
+
   it('records strangers wherever a mission can rescue them (pp. 77, 79, 83)', () => {
     const rescuing = entries
       .filter(

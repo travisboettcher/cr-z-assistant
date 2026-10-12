@@ -33,10 +33,12 @@
  */
 
 import { MATERIALS, type Material } from '../data/materials';
-import { MISSIONS, type MissionId } from '../data/missions';
+import { MISSIONS, type MissionId, type StandardMissionId } from '../data/missions';
+import { TIERS, type Tier } from '../data/tiers';
 import { beforePlanning } from './assignments';
 import type { Campaign, Survivor } from './campaign';
-import { FIRST_TURN, missionResolved, siegeDue, type MissionOutcome } from './siege';
+import type { CampaignEvent } from './log';
+import { FIRST_TURN, siegeDue } from './siege';
 import { phaseOf } from './turn';
 
 /** A mission team and who is on it. */
@@ -224,7 +226,8 @@ export function asksForMaterial(mission: MissionId): boolean {
  * offer (`missionsOnOffer`); not a second Claim a New Base beside another
  * team's (R20); and with a material type exactly when the mission asks for one.
  * Choosing again for a team that already chose is allowed — it is how a choice
- * is corrected.
+ * is corrected — until the team's outcome is recorded: a mission that has been
+ * played is not chosen again, except a failed First Mission (R21).
  */
 export function selectionProblem(campaign: Campaign, choice: MissionChoice): string | null {
   if (phaseOf(campaign.step) !== 'mission') return 'A mission is chosen in the Mission Phase.';
@@ -233,6 +236,10 @@ export function selectionProblem(campaign: Campaign, choice: MissionChoice): str
 
   if (!missionTeams(campaign).some((team) => team.team === choice.team)) {
     return 'Only a mission team with somebody on it chooses a mission.';
+  }
+
+  if (teamOutcomes(campaign).has(choice.team) && !retryOwed(campaign, choice.team)) {
+    return `Mission team ${String(choice.team)}’s mission is played and its outcome recorded.`;
   }
 
   if (!missionsOnOffer(campaign).includes(choice.mission)) {
@@ -272,54 +279,303 @@ export function selectionProblem(campaign: Campaign, choice: MissionChoice): str
  *
  * Not on turn 1, whose First Mission is how a community gets a base at all
  * (pg. 76); not on a siege turn, whose Siege Defense is the only choice (pg. 23);
- * and not twice.
+ * not once a team's mission has been played; and not twice.
  */
 export function skipProblem(campaign: Campaign): string | null {
   if (phaseOf(campaign.step) !== 'mission') return 'A mission is skipped in the Mission Phase.';
   if (campaign.turn === FIRST_TURN) return 'Turn 1’s First Mission cannot be skipped.';
   if (siegeDue(campaign)) return 'A siege the horde called cannot be skipped.';
   if (turnMissions(campaign).skipped) return 'This turn’s mission is already skipped.';
+  if (teamOutcomes(campaign).size > 0) return 'A mission already played cannot be skipped.';
 
   return null;
 }
 
-/** The mission each recorded outcome kind belongs to. */
-const OUTCOME_MISSION: Record<MissionOutcome['kind'], MissionId> = {
-  'siege-defense-resolved': 'siege-defense',
+/** The outcome kinds, one per standard mission and one for every other (Z4-3). */
+const OUTCOME_KINDS = [
+  'first-mission-resolved',
+  'claim-a-new-base-resolved',
+  'gather-materials-resolved',
+  'thin-the-herd-resolved',
+  'retrieve-new-vehicles-resolved',
+  'rescue-strangers-resolved',
+  'rare-goods-trader-resolved',
+  'siege-defense-resolved',
+  'mission-played',
+] as const;
+
+/**
+ * How a team's mission ended, as the table counted it (pp. 77–86; Z4-3).
+ *
+ * One entry kind per standard mission, shaped as #175 shaped the two that move
+ * the siege counter: the counts its rewards read, and never a verdict. Success
+ * and failure are read back from the counts — which is also why the missions
+ * that name no failure at all need nothing here to say what one would be. A
+ * story, origin or Road Trip mission records only that it was played
+ * (`mission-played`); its rewards are Phase 7's.
+ */
+export type MissionOutcome = Extract<
+  CampaignEvent,
+  { readonly kind: (typeof OUTCOME_KINDS)[number] }
+>;
+
+/** The standard mission each standard outcome kind belongs to. */
+const OUTCOME_MISSION: Record<
+  Exclude<MissionOutcome['kind'], 'mission-played'>,
+  StandardMissionId
+> = {
+  'first-mission-resolved': 'first-mission',
+  'claim-a-new-base-resolved': 'claim-a-new-base',
+  'gather-materials-resolved': 'gather-materials',
   'thin-the-herd-resolved': 'thin-the-herd',
+  'retrieve-new-vehicles-resolved': 'retrieve-new-vehicles',
+  'rescue-strangers-resolved': 'rescue-strangers',
+  'rare-goods-trader-resolved': 'rare-goods-trader',
+  'siege-defense-resolved': 'siege-defense',
 };
+
+/** Whether an entry is a mission's outcome. */
+export function isMissionOutcome(event: CampaignEvent): event is MissionOutcome {
+  return (OUTCOME_KINDS as readonly string[]).includes(event.kind);
+}
+
+/** The mission an outcome is the outcome of. */
+export function outcomeMission(outcome: MissionOutcome): MissionId {
+  return outcome.kind === 'mission-played' ? outcome.mission : OUTCOME_MISSION[outcome.kind];
+}
+
+/**
+ * The team an outcome ends. A Siege Defense or a Thin the Herd recorded before
+ * Z4-3 carries none, and was the turn's only team, which is team 1.
+ */
+export function outcomeTeam(outcome: MissionOutcome): number {
+  return outcome.team ?? 1;
+}
+
+/**
+ * This turn's recorded outcome for each team that has one, since that team's
+ * latest choice.
+ *
+ * Read in the order things happened: an outcome is the team's until the team
+ * chooses again — which only a failed First Mission may (R21) — and an opt-out
+ * clears them all, though one cannot be made once anything is played.
+ */
+export function teamOutcomes(campaign: Campaign): ReadonlyMap<number, MissionOutcome> {
+  const outcomes = new Map<number, MissionOutcome>();
+
+  for (const entry of campaign.log) {
+    if (entry.turn !== campaign.turn) continue;
+
+    const { event } = entry;
+
+    if (event.kind === 'mission-selected') outcomes.delete(event.team);
+    else if (event.kind === 'mission-skipped') outcomes.clear();
+    else if (isMissionOutcome(event)) outcomes.set(outcomeTeam(event), event);
+  }
+
+  return outcomes;
+}
+
+/**
+ * The teams that chose a mission this turn and have no outcome recorded, in
+ * team order.
+ */
+export function unresolvedTeams(campaign: Campaign): readonly number[] {
+  const outcomes = teamOutcomes(campaign);
+
+  return turnMissions(campaign)
+    .choices.map((choice) => choice.team)
+    .filter((team) => !outcomes.has(team));
+}
+
+/**
+ * Whether this team's First Mission failed, so turn 1 plays it again (R21).
+ *
+ * Failed is no end condition met (pg. 77). Only on turn 1: the First Mission
+ * played again later is the overrun base's second continuation (pg. 86), which
+ * is #182's.
+ */
+export function retryOwed(campaign: Campaign, team: number): boolean {
+  const outcome = teamOutcomes(campaign).get(team);
+
+  return (
+    campaign.turn === FIRST_TURN &&
+    outcome?.kind === 'first-mission-resolved' &&
+    outcome.endCondition === null
+  );
+}
+
+/** Everything a Tactical Mission form may count, whichever mission it is for. */
+export interface OutcomeCounts {
+  readonly endCondition: number | null;
+  readonly strangers: readonly Tier[];
+  readonly vehiclesOnArea: number;
+  readonly materialsCarriedOut: number;
+  readonly startingZombies: number;
+  readonly zombiesLeft: number;
+  readonly survivorsExited: number;
+  readonly allIncapacitated: boolean;
+  readonly vehiclesDrivenOff: number;
+}
+
+/**
+ * The outcome entry for a team's choice, from the counts its form gathered —
+ * only the counts that mission records (`MISSIONS[…].counts`), under its own
+ * kind, and `mission-played` for a mission that is not one of the standard
+ * eight. Checked by `missionOutcomeProblem` like any other.
+ */
+export function outcomeOf(choice: MissionChoice, counts: OutcomeCounts): MissionOutcome {
+  const { team } = choice;
+
+  switch (choice.mission) {
+    case 'first-mission':
+      return {
+        kind: 'first-mission-resolved',
+        team,
+        endCondition: counts.endCondition,
+        strangers: counts.strangers,
+      };
+    case 'claim-a-new-base':
+      return {
+        kind: 'claim-a-new-base-resolved',
+        team,
+        endCondition: counts.endCondition,
+        strangers: counts.strangers,
+        vehiclesOnArea: counts.vehiclesOnArea,
+      };
+    case 'gather-materials':
+      return {
+        kind: 'gather-materials-resolved',
+        team,
+        materialsCarriedOut: counts.materialsCarriedOut,
+      };
+    case 'thin-the-herd':
+      return {
+        kind: 'thin-the-herd-resolved',
+        team,
+        startingZombies: counts.startingZombies,
+        zombiesLeft: counts.zombiesLeft,
+        survivorsExited: counts.survivorsExited,
+        allIncapacitated: counts.allIncapacitated,
+      };
+    case 'retrieve-new-vehicles':
+      return {
+        kind: 'retrieve-new-vehicles-resolved',
+        team,
+        vehiclesDrivenOff: counts.vehiclesDrivenOff,
+      };
+    case 'rescue-strangers':
+      return { kind: 'rescue-strangers-resolved', team, strangers: counts.strangers };
+    case 'rare-goods-trader':
+      return { kind: 'rare-goods-trader-resolved', team, survivorsExited: counts.survivorsExited };
+    case 'siege-defense':
+      return {
+        kind: 'siege-defense-resolved',
+        team,
+        zombiesLeft: counts.zombiesLeft,
+        survivorsExited: counts.survivorsExited,
+      };
+    default:
+      return { kind: 'mission-played', team, mission: choice.mission };
+  }
+}
+
+/** Whether any team's First Mission failed this turn, so it is owed again (R21). */
+export function firstMissionFailed(campaign: Campaign): boolean {
+  return [...teamOutcomes(campaign).keys()].some((team) => retryOwed(campaign, team));
+}
+
+/** The counts an outcome records, for the check that each is a whole number. */
+function countsOf(outcome: MissionOutcome): readonly number[] {
+  switch (outcome.kind) {
+    case 'siege-defense-resolved':
+      return [outcome.zombiesLeft, outcome.survivorsExited];
+    case 'thin-the-herd-resolved':
+      return [outcome.startingZombies, outcome.zombiesLeft, outcome.survivorsExited];
+    case 'claim-a-new-base-resolved':
+      return [outcome.vehiclesOnArea];
+    case 'gather-materials-resolved':
+      return [outcome.materialsCarriedOut];
+    case 'retrieve-new-vehicles-resolved':
+      return [outcome.vehiclesDrivenOff];
+    case 'rare-goods-trader-resolved':
+      return [outcome.survivorsExited];
+    default:
+      return [];
+  }
+}
 
 /**
  * Why this outcome cannot be recorded now, or `null` if it can.
  *
- * In the Mission Phase, once a turn, and for a mission a team chose at Select
- * Mission — which is what stopped this guessing: before Z4-2 a turn with a
- * siege due was assumed to be playing the Siege Defense and any other turn but
- * the first was allowed a Thin the Herd. The counts are whole numbers from
- * zero, and nothing else is checked against anything: they are what the table
- * counted, and the book gives no rule that two of them must agree.
- *
- * Moved here from `siege.ts` with `deployed`, because it reads the choice and
- * `siege.ts` cannot import this module without a cycle.
+ * In the Mission Phase; for a team that chose a mission this turn, and the
+ * mission it chose — which is what stopped this guessing: before Z4-2 a turn
+ * with a siege due was assumed to be playing the Siege Defense; once per team
+ * since its choice, rather than once a turn; with every count a whole number
+ * from zero, an end condition the mission has (pp. 77, 79) or none, and a real
+ * Tier for each stranger. Nothing else is checked against anything: the counts
+ * are what the table counted, and the book gives no rule that two of them must
+ * agree. Whether a rescuer could carry a stranger is a warning, not this
+ * (`strangerWarning`).
  */
 export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcome): string | null {
   if (phaseOf(campaign.step) !== 'mission') return 'A mission is recorded in the Mission Phase.';
-  if (missionResolved(campaign)) return 'This turn’s mission is already recorded.';
 
-  const mission = OUTCOME_MISSION[outcome.kind];
+  const team = outcomeTeam(outcome);
+  const choice = turnMissions(campaign).choices.find((candidate) => candidate.team === team);
 
-  if (!turnMissions(campaign).choices.some((choice) => choice.mission === mission)) {
-    return mission === 'siege-defense'
-      ? 'Choose the Siege Defense at Select Mission first.'
-      : 'No team chose Thin the Herd this turn.';
+  if (choice === undefined) {
+    return `Mission team ${String(team)} has not chosen a mission this turn.`;
+  }
+  if (outcomeMission(outcome) !== choice.mission) {
+    return `That is not the mission team ${String(team)} chose.`;
+  }
+  if (teamOutcomes(campaign).has(team)) {
+    return `Mission team ${String(team)}’s outcome is already recorded.`;
   }
 
-  const counts =
-    outcome.kind === 'siege-defense-resolved'
-      ? [outcome.zombiesLeft, outcome.survivorsExited]
-      : [outcome.startingZombies, outcome.zombiesLeft, outcome.survivorsExited];
+  if (!countsOf(outcome).every((count) => Number.isSafeInteger(count) && count >= 0)) {
+    return 'Every count is a whole number, from zero.';
+  }
 
-  return counts.every((count) => Number.isSafeInteger(count) && count >= 0)
+  if ('endCondition' in outcome && outcome.endCondition !== null) {
+    const mission: (typeof MISSIONS)[MissionId] = MISSIONS[choice.mission];
+    const conditions = 'endConditions' in mission ? mission.endConditions : 0;
+
+    if (
+      !Number.isSafeInteger(outcome.endCondition) ||
+      outcome.endCondition < 1 ||
+      outcome.endCondition > conditions
+    ) {
+      return `The end condition met is one of 1 to ${String(conditions)}, or none.`;
+    }
+  }
+
+  if ('strangers' in outcome && !outcome.strangers.every((tier) => TIERS.includes(tier))) {
+    return 'Every stranger has a Tier from 1 to 4.';
+  }
+
+  return null;
+}
+
+/**
+ * A warning when a stranger outranks everybody who could have rescued them, or
+ * `null` (pg. 31).
+ *
+ * A rescuer's Tier must be at least the stranger's. A warning rather than a
+ * refusal, because the team's Tiers are read as they stand and the table may
+ * have counted the rescue differently; the outcome is still what it counted.
+ */
+export function strangerWarning(campaign: Campaign, outcome: MissionOutcome): string | null {
+  if (!('strangers' in outcome)) return null;
+
+  const team = outcomeTeam(outcome);
+  const members =
+    missionTeams(campaign).find((candidate) => candidate.team === team)?.members ?? [];
+  const highest = Math.max(0, ...members.map((survivor) => survivor.tier));
+  const beyond = outcome.strangers.filter((tier: Tier) => tier > highest);
+
+  return beyond.length === 0
     ? null
-    : 'Every count is a whole number, from zero.';
+    : `Nobody on mission team ${String(team)} is Tier ${String(Math.max(...beyond))} or higher, and a stranger is rescued by somebody of at least their Tier.`;
 }

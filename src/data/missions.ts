@@ -116,6 +116,13 @@ export interface StandardMission {
 
   /** What its outcome records, in the order the book's end rules give them. */
   readonly counts: readonly OutcomeCount[];
+
+  /**
+   * How many numbered end conditions it has, for a mission whose outcome
+   * records which one was met (`end-condition`; pp. 77, 79). Absent for the
+   * rest.
+   */
+  readonly endConditions?: number;
 }
 
 /** A story or Road Trip mission: named and cited, not modelled (Phase 7). */
@@ -155,6 +162,7 @@ export const MISSIONS = {
     availability: 'first-turn',
     asks: [],
     counts: ['end-condition', 'strangers-rescued'],
+    endConditions: 3,
   },
   'claim-a-new-base': {
     family: 'standard',
@@ -162,6 +170,7 @@ export const MISSIONS = {
     availability: 'any-time',
     asks: [],
     counts: ['end-condition', 'strangers-rescued', 'vehicles-on-area'],
+    endConditions: 3,
   },
   'gather-materials': {
     family: 'standard',

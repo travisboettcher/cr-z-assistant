@@ -23,9 +23,9 @@ import {
   selectionProblem,
   skipProblem,
   type MissionChoice,
+  type MissionOutcome,
   type MissionTeam,
 } from './missions';
-import type { MissionOutcome } from './siege';
 import { standInProblem } from './siegeWork';
 
 /**

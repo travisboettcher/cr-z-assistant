@@ -70,9 +70,10 @@ function siegeTurns(campaign: Campaign): readonly number[] {
 /**
  * A Siege Defense's or a Thin the Herd's outcome, as the player records it
  * (pp. 81, 86). The two missions whose rewards move the turns since the last
- * siege.
+ * siege — two members of the wider `MissionOutcome` in `missions.ts`, which
+ * every mission records since Z4-3.
  */
-export type MissionOutcome = Extract<
+export type CounterOutcome = Extract<
   CampaignEvent,
   { readonly kind: 'siege-defense-resolved' | 'thin-the-herd-resolved' }
 >;
@@ -80,7 +81,7 @@ export type MissionOutcome = Extract<
 /** What a recorded outcome does to the turns since the last siege. */
 export type SiegeCounterChange = 'reset' | 'halved' | 'none';
 
-function isOutcome(event: CampaignEvent): event is MissionOutcome {
+function isOutcome(event: CampaignEvent): event is CounterOutcome {
   return event.kind === 'siege-defense-resolved' || event.kind === 'thin-the-herd-resolved';
 }
 
@@ -96,18 +97,18 @@ function isOutcome(event: CampaignEvent): event is MissionOutcome {
  * - **Nothing** otherwise. A Siege Defense fought with zombies still standing
  *   states no reset, and this app does not supply one.
  */
-export function siegeCounterChange(outcome: MissionOutcome): SiegeCounterChange {
+export function siegeCounterChange(outcome: CounterOutcome): SiegeCounterChange {
   // The cast is the correlated-union gap: TypeScript cannot see that the kind
   // picks the rule written for it. Looked up rather than branched on, so an
   // entry that is not an outcome has no rule at all instead of quietly
   // reading as "none".
-  return (COUNTER_CHANGE[outcome.kind] as (of: MissionOutcome) => SiegeCounterChange)(outcome);
+  return (COUNTER_CHANGE[outcome.kind] as (of: CounterOutcome) => SiegeCounterChange)(outcome);
 }
 
 /** Each mission's own rule, read only off its own fields. */
 const COUNTER_CHANGE: {
-  readonly [Kind in MissionOutcome['kind']]: (
-    outcome: Extract<MissionOutcome, { readonly kind: Kind }>,
+  readonly [Kind in CounterOutcome['kind']]: (
+    outcome: Extract<CounterOutcome, { readonly kind: Kind }>,
   ) => SiegeCounterChange;
 } = {
   'siege-defense-resolved': (outcome) => (outcome.zombiesLeft === 0 ? 'reset' : 'none'),
@@ -146,7 +147,7 @@ const COUNTER_AFTER: Record<SiegeCounterChange, (count: number) => number> = {
  * are missions and a campaign ending, Phase 4's), so the screen names the
  * choice and leaves it to the table.
  */
-export function baseOverrun(outcome: MissionOutcome): boolean {
+export function baseOverrun(outcome: CounterOutcome): boolean {
   return (
     outcome.kind === 'siege-defense-resolved' &&
     outcome.zombiesLeft > 0 &&
@@ -178,7 +179,7 @@ export function baseOverrun(outcome: MissionOutcome): boolean {
  */
 export function turnsSinceLastSiege(campaign: Campaign): number {
   const last = campaign.log
-    .filter((entry): entry is LogEntry & { readonly event: MissionOutcome } =>
+    .filter((entry): entry is LogEntry & { readonly event: CounterOutcome } =>
       isOutcome(entry.event),
     )
     .reduce(
@@ -192,11 +193,6 @@ export function turnsSinceLastSiege(campaign: Campaign): number {
     );
 
   return last.count + campaign.turn - last.turn;
-}
-
-/** Whether this turn's mission outcome has been recorded. */
-export function missionResolved(campaign: Campaign): boolean {
-  return campaign.log.some((entry) => entry.turn === campaign.turn && isOutcome(entry.event));
 }
 
 /**

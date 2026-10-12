@@ -100,6 +100,23 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   },
   { kind: 'mission-skipped' },
   { kind: 'siege-defense-resolved', zombiesLeft: 0, survivorsExited: 2 },
+  // A team, which every outcome written since Z4-3 carries.
+  { kind: 'siege-defense-resolved', zombiesLeft: 1, survivorsExited: 0, team: 1 },
+  { kind: 'first-mission-resolved', team: 1, endCondition: 2, strangers: [1, 2] },
+  // No end condition met, which is the failure R21 reads.
+  { kind: 'first-mission-resolved', team: 1, endCondition: null, strangers: [] },
+  {
+    kind: 'claim-a-new-base-resolved',
+    team: 2,
+    endCondition: 1,
+    strangers: [3],
+    vehiclesOnArea: 1,
+  },
+  { kind: 'gather-materials-resolved', team: 1, materialsCarriedOut: 5 },
+  { kind: 'retrieve-new-vehicles-resolved', team: 3, vehiclesDrivenOff: 0 },
+  { kind: 'rescue-strangers-resolved', team: 1, strangers: [2] },
+  { kind: 'rare-goods-trader-resolved', team: 2, survivorsExited: 1 },
+  { kind: 'mission-played', team: 1, mission: 'left-behind-1' },
   { kind: 'siege-defense-resolved', zombiesLeft: 3, survivorsExited: 1 },
   { kind: 'stood-in', ...SURVIVOR, by: 'ruby', byName: 'Ruby Vance' },
   // Nobody: the place left empty again, which is a choice the log keeps.

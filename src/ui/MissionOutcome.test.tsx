@@ -2,7 +2,9 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign } from '../engine/campaign';
+import type { MissionId } from '../data/missions';
 import type { LogEntry } from '../engine/log';
+import { createSurvivor } from '../engine/survivor';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
 
@@ -105,5 +107,90 @@ describe('the outcome of a Thin the Herd (pg. 81)', () => {
 
     await user.click(within(walk()).getByLabelText(/incapacitated/i));
     expect(walk().textContent).toContain('next roll against the horde succeeds on its own');
+  });
+});
+
+/** A choice by any team for any mission, for the Z4-3 forms below. */
+const teamChose = (team: number, mission: MissionId, turn = 4): LogEntry => ({
+  turn,
+  phase: 'mission',
+  at: AT,
+  event: { kind: 'mission-selected', team, mission, names: [] },
+});
+
+const group = (name: RegExp) => within(within(walk()).getByRole('group', { name }));
+
+describe('an outcome for every mission a team chose (Z4-3)', () => {
+  it('asks each team for its own mission’s counts, and names the teams', async () => {
+    const user = open(
+      playing({
+        survivors: [
+          createSurvivor('Earl Rhodes', 2, { id: 'earl' }),
+          createSurvivor('Ruby Vance', 3, { id: 'ruby' }),
+        ],
+        assignments: {
+          earl: { task: 'mission', team: 1 },
+          ruby: { task: 'mission', team: 2 },
+        },
+        log: [teamChose(1, 'gather-materials'), teamChose(2, 'rescue-strangers')],
+      }),
+    );
+
+    const gathering = group(/mission team 1: how gather materials ended/i);
+    const rescuing = group(/mission team 2: how rescue strangers ended/i);
+
+    await user.type(gathering.getByLabelText(/materials carried off the map/i), '5');
+    await user.click(gathering.getByRole('button', { name: 'Record Gather Materials' }));
+    expect(walk().textContent).toContain('Gather Materials: 5 materials carried off the map.');
+
+    // Ruby is Tier 3: a Tier 4 stranger is past anybody on her team (pg. 31).
+    await user.selectOptions(rescuing.getByLabelText('Stranger’s Tier'), '4');
+    await user.click(rescuing.getByRole('button', { name: 'Add a stranger' }));
+    expect(rescuing.getByText(/Tier 4 or higher/)).toBeInTheDocument();
+
+    await user.click(rescuing.getByRole('button', { name: 'Record Rescue Strangers' }));
+    expect(walk().textContent).toContain(
+      'Rescue Strangers (mission team 2): 1 stranger rescued (Tier 4).',
+    );
+  });
+
+  it('waits for an end condition, and plays a failed First Mission again (R21)', async () => {
+    const user = open(
+      playing({
+        turn: 1,
+        survivors: [createSurvivor('Earl Rhodes', 2, { id: 'earl' })],
+        assignments: { earl: { task: 'mission', team: 1 } },
+        log: [teamChose(1, 'first-mission', 1)],
+      }),
+    );
+
+    const first = group(/how the first mission ended/i);
+    const record = first.getByRole('button', { name: 'Record the First Mission' });
+    expect(record).toBeDisabled();
+
+    await user.selectOptions(first.getByLabelText(/end condition met/i), 'none');
+    expect(walk().textContent).toContain('turn 1 plays the First Mission again');
+
+    await user.click(record);
+    expect(walk().textContent).toContain(
+      'First Mission: no end condition met, no strangers rescued.',
+    );
+  });
+
+  it('records a story mission as played, with nothing to count', async () => {
+    const user = open(
+      playing({
+        survivors: [createSurvivor('Earl Rhodes', 2, { id: 'earl' })],
+        assignments: { earl: { task: 'mission', team: 1 } },
+        log: [teamChose(1, 'sentimental-value')],
+      }),
+    );
+
+    await user.click(
+      group(/how sentimental value ended/i).getByRole('button', {
+        name: 'Record Sentimental Value',
+      }),
+    );
+    expect(walk().textContent).toContain('Sentimental Value: played.');
   });
 });

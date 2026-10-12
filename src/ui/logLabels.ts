@@ -31,7 +31,7 @@ import {
   slotLabel,
 } from './baseLabels';
 import { MISSIONS } from '../data/missions';
-import { describeOutcome, describeSelection, MISSION_PAGES } from './missionLabels';
+import { describeOutcome, describeSelection, outcomePages } from './missionLabels';
 import { PHASE_LABELS } from './turnLabels';
 import { COMMON_SKILL_LABELS, SKILL_LABELS } from './skillLabels';
 import { TIER_LABELS } from './tierLabels';
@@ -285,7 +285,14 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
 
     case 'siege-defense-resolved':
     case 'thin-the-herd-resolved':
-      return { text: describeOutcome(event), pages: MISSION_PAGES[event.kind] };
+    case 'first-mission-resolved':
+    case 'claim-a-new-base-resolved':
+    case 'gather-materials-resolved':
+    case 'retrieve-new-vehicles-resolved':
+    case 'rescue-strangers-resolved':
+    case 'rare-goods-trader-resolved':
+    case 'mission-played':
+      return { text: describeOutcome(event), pages: outcomePages(event) };
 
     case 'stood-in':
       return {

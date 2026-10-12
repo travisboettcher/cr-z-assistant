@@ -277,6 +277,15 @@ const EVENT_FIELD_CHECKS = {
   base: (value: unknown) => typeof value === 'string' && isKeyOf(BASES, value),
   facility: (value: unknown) => typeof value === 'string' && isKeyOf(FACILITIES, value),
   mission: (value: unknown) => typeof value === 'string' && isKeyOf(MISSIONS, value),
+  // The team an outcome ends; absent on a Siege Defense or Thin the Herd
+  // recorded before Z4-3, which was the turn's only team.
+  optionalTeam: (value: unknown) => value === undefined || isCountFromOne(value),
+  // Which numbered end condition was met, or `null` for none (pp. 77, 79).
+  // Which numbers a mission has is the engine's to check, not a file's.
+  endCondition: (value: unknown) => value === null || isCountFromOne(value),
+  // The Tier of each stranger brought out, in the order the table counted them.
+  tiers: (value: unknown) =>
+    Array.isArray(value) && value.every((one) => TIERS.some((tier) => tier === one)),
   // Gather Materials' remainder type (pg. 80), and absent for every other
   // mission. Which mission asks for one is the engine's to check, not a file's.
   optionalMaterial: (value: unknown) =>
@@ -399,12 +408,45 @@ const EVENT_FIELDS: Record<
   'siege-defense-resolved': [
     ['zombiesLeft', 'count'],
     ['survivorsExited', 'count'],
+    ['team', 'optionalTeam'],
   ],
   'thin-the-herd-resolved': [
     ['startingZombies', 'count'],
     ['zombiesLeft', 'count'],
     ['survivorsExited', 'count'],
     ['allIncapacitated', 'flag'],
+    ['team', 'optionalTeam'],
+  ],
+  'first-mission-resolved': [
+    ['team', 'countFromOne'],
+    ['endCondition', 'endCondition'],
+    ['strangers', 'tiers'],
+  ],
+  'claim-a-new-base-resolved': [
+    ['team', 'countFromOne'],
+    ['endCondition', 'endCondition'],
+    ['strangers', 'tiers'],
+    ['vehiclesOnArea', 'count'],
+  ],
+  'gather-materials-resolved': [
+    ['team', 'countFromOne'],
+    ['materialsCarriedOut', 'count'],
+  ],
+  'retrieve-new-vehicles-resolved': [
+    ['team', 'countFromOne'],
+    ['vehiclesDrivenOff', 'count'],
+  ],
+  'rescue-strangers-resolved': [
+    ['team', 'countFromOne'],
+    ['strangers', 'tiers'],
+  ],
+  'rare-goods-trader-resolved': [
+    ['team', 'countFromOne'],
+    ['survivorsExited', 'count'],
+  ],
+  'mission-played': [
+    ['team', 'countFromOne'],
+    ['mission', 'mission'],
   ],
   'health-restored': [
     ['survivor', 'id'],

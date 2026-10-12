@@ -1,5 +1,5 @@
 /**
- * How a Siege Defense's or a Thin the Herd's outcome reads (pp. 81, 86).
+ * How a mission's choice and outcome read (pp. 75–86).
  *
  * One phrasing for two readers — the history and the Mission Phase's own
  * record of what it just wrote — so the line the player sees when they record
@@ -8,12 +8,14 @@
  */
 
 import type { Material } from '../data/materials';
-import { MISSIONS, type MissionId } from '../data/missions';
+import { MISSIONS, type MissionId, type OutcomeCount } from '../data/missions';
+import type { Tier } from '../data/tiers';
 import { MATERIAL_LABELS } from './baseLabels';
+import { outcomeMission, outcomeTeam, type MissionOutcome } from '../engine/missions';
 import {
   baseOverrun,
   siegeCounterChange,
-  type MissionOutcome,
+  type CounterOutcome,
   type SiegeCounterChange,
 } from '../engine/siege';
 
@@ -69,10 +71,29 @@ export function describeSelection(selection: {
   return `Mission team ${String(selection.team)} chose ${MISSION_LABELS[selection.mission]}${remainder}${who}.`;
 }
 
+/** A mission's title at the start of a line: "Siege Defense", not "the Siege Defense". */
+export function missionTitle(mission: MissionId): string {
+  const label = MISSION_LABELS[mission].replace(/^the /, '');
+
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 /** The whole mission's pages, from the catalogue (Z4-1). */
-export const MISSION_PAGES: Record<MissionOutcome['kind'], number | string> = {
-  'siege-defense-resolved': MISSIONS['siege-defense'].pages,
-  'thin-the-herd-resolved': MISSIONS['thin-the-herd'].pages,
+export function outcomePages(outcome: MissionOutcome): number | string {
+  return MISSIONS[outcomeMission(outcome)].pages;
+}
+
+/** What the Tactical Mission form calls each count the table makes (Z4-3). */
+export const COUNT_LABELS: Record<OutcomeCount, string> = {
+  'end-condition': 'End condition met',
+  'strangers-rescued': 'Strangers rescued',
+  'vehicles-on-area': 'working vehicles on the mission area',
+  'materials-carried-out': 'materials carried off the map',
+  'starting-zombies': 'zombies at the start',
+  'zombies-left': 'zombies left on the mission area',
+  'survivors-exited': 'survivors out over the map edge',
+  'all-incapacitated': 'Every survivor on it was incapacitated',
+  'vehicles-driven-off': 'vehicles repaired and driven off',
 };
 
 const COUNTER_PHRASES: Record<SiegeCounterChange, string> = {
@@ -85,18 +106,56 @@ function plural(count: number, one: string, many: string): string {
   return `${String(count)} ${count === 1 ? one : many}`;
 }
 
+function strangersOf(strangers: readonly Tier[]): string {
+  return strangers.length === 0
+    ? 'no strangers rescued'
+    : `${plural(strangers.length, 'stranger', 'strangers')} rescued (${strangers
+        .map((tier) => `Tier ${String(tier)}`)
+        .join(', ')})`;
+}
+
+function endOf(endCondition: number | null): string {
+  return endCondition === null
+    ? 'no end condition met'
+    : `end condition ${String(endCondition)} met`;
+}
+
 /** What was counted at the end, in a sentence. */
 function counted(outcome: MissionOutcome): string {
-  const left =
-    outcome.kind === 'thin-the-herd-resolved'
-      ? `${String(outcome.zombiesLeft)} of ${plural(outcome.startingZombies, 'zombie', 'zombies')} left`
-      : `${plural(outcome.zombiesLeft, 'zombie', 'zombies')} left`;
+  switch (outcome.kind) {
+    case 'siege-defense-resolved':
+      return `${plural(outcome.zombiesLeft, 'zombie', 'zombies')} left, ${plural(outcome.survivorsExited, 'survivor', 'survivors')} out over the map edge`;
+    case 'thin-the-herd-resolved':
+      return `${String(outcome.zombiesLeft)} of ${plural(outcome.startingZombies, 'zombie', 'zombies')} left, ${plural(outcome.survivorsExited, 'survivor', 'survivors')} out over the map edge`;
+    case 'first-mission-resolved':
+      return `${endOf(outcome.endCondition)}, ${strangersOf(outcome.strangers)}`;
+    case 'claim-a-new-base-resolved':
+      return `${endOf(outcome.endCondition)}, ${strangersOf(outcome.strangers)}, ${plural(outcome.vehiclesOnArea, 'working vehicle', 'working vehicles')} on the mission area`;
+    case 'gather-materials-resolved':
+      return `${plural(outcome.materialsCarriedOut, 'material', 'materials')} carried off the map`;
+    case 'retrieve-new-vehicles-resolved':
+      return `${plural(outcome.vehiclesDrivenOff, 'vehicle', 'vehicles')} repaired and driven off`;
+    case 'rescue-strangers-resolved':
+      return strangersOf(outcome.strangers);
+    case 'rare-goods-trader-resolved':
+      return `${plural(outcome.survivorsExited, 'survivor', 'survivors')} out over the map edge`;
+    case 'mission-played':
+      return 'played';
+  }
+}
 
-  return `${left}, ${plural(outcome.survivorsExited, 'survivor', 'survivors')} out over the map edge`;
+function isCounterOutcome(outcome: MissionOutcome): outcome is CounterOutcome {
+  return outcome.kind === 'siege-defense-resolved' || outcome.kind === 'thin-the-herd-resolved';
 }
 
 /** What the outcome does to the campaign, in this app's words. */
 export function outcomeConsequences(outcome: MissionOutcome): readonly string[] {
+  if (outcome.kind === 'first-mission-resolved' && outcome.endCondition === null) {
+    return ['No end condition was met, so turn 1 plays the First Mission again (R21).'];
+  }
+
+  if (!isCounterOutcome(outcome)) return [];
+
   const consequences = [COUNTER_PHRASES[siegeCounterChange(outcome)]];
 
   if (baseOverrun(outcome)) {
@@ -114,8 +173,17 @@ export function outcomeConsequences(outcome: MissionOutcome): readonly string[] 
   return consequences;
 }
 
+/**
+ * An outcome in a line: the mission, what was counted, and what it does. A
+ * team other than team 1 is named, so two teams' outcomes in one turn can be
+ * told apart in the history.
+ */
 export function describeOutcome(outcome: MissionOutcome): string {
-  const mission = outcome.kind === 'siege-defense-resolved' ? 'Siege Defense' : 'Thin the Herd';
+  const team = outcomeTeam(outcome);
+  const who = team === 1 ? '' : ` (mission team ${String(team)})`;
 
-  return [`${mission}: ${counted(outcome)}.`, ...outcomeConsequences(outcome)].join(' ');
+  return [
+    `${missionTitle(outcomeMission(outcome))}${who}: ${counted(outcome)}.`,
+    ...outcomeConsequences(outcome),
+  ].join(' ');
 }

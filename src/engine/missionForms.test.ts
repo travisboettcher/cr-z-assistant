@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign } from './campaign';
 import { createSurvivor } from './survivor';
-import type { MissionOutcome } from './siege';
+import type { MissionOutcome } from './missions';
 import {
   submitMissionOutcome,
   submitMissionSelection,
@@ -152,7 +152,7 @@ describe('submitMissionOutcome', () => {
     const once = expectAccepted(submitMissionOutcome(besieged(), defended(2), AT));
 
     expect(expectRefused(submitMissionOutcome(once, defended(0), LATER))).toBe(
-      'This turn’s mission is already recorded.',
+      'Mission team 1’s outcome is already recorded.',
     );
   });
 });

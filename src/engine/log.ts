@@ -417,6 +417,8 @@ export type CampaignEvent =
       readonly kind: 'siege-defense-resolved';
       readonly zombiesLeft: number;
       readonly survivorsExited: number;
+      /** The team that played it; absent on entries written before Z4-3. */
+      readonly team?: number;
     }
   /**
    * How a Thin the Herd ended (pg. 81).
@@ -433,6 +435,75 @@ export type CampaignEvent =
       readonly zombiesLeft: number;
       readonly survivorsExited: number;
       readonly allIncapacitated: boolean;
+      /** The team that played it; absent on entries written before Z4-3. */
+      readonly team?: number;
+    }
+  /**
+   * How the First Mission ended (pg. 77; Z4-3): which numbered end condition
+   * was met, or `null` for none, and the Tier of each stranger brought out.
+   *
+   * Like #175's two outcomes, **the counts and nothing worked out from them**:
+   * success is an end condition met, and a failure — none met — is what R21
+   * reads to reopen Select Mission. The strangers join the community at
+   * Advancement Step 2 (pg. 19), which is Z4-5's to read back.
+   */
+  | {
+      readonly kind: 'first-mission-resolved';
+      readonly team: number;
+      readonly endCondition: number | null;
+      readonly strangers: readonly Tier[];
+    }
+  /**
+   * How a Claim a New Base ended (pg. 79; Z4-3). As the First Mission's, and
+   * the working vehicles left on the mission area. What a claim does to the
+   * base is #182's, read back from this entry.
+   */
+  | {
+      readonly kind: 'claim-a-new-base-resolved';
+      readonly team: number;
+      readonly endCondition: number | null;
+      readonly strangers: readonly Tier[];
+      readonly vehiclesOnArea: number;
+    }
+  /** How many materials a Gather Materials team carried off the map (pg. 80; Z4-3). */
+  | {
+      readonly kind: 'gather-materials-resolved';
+      readonly team: number;
+      readonly materialsCarriedOut: number;
+    }
+  /**
+   * How many vehicles a Retrieve New Vehicles team repaired and drove off
+   * (pg. 82; Z4-3). Where they go is the base Inventory, which is Phase 5's.
+   */
+  | {
+      readonly kind: 'retrieve-new-vehicles-resolved';
+      readonly team: number;
+      readonly vehiclesDrivenOff: number;
+    }
+  /** The Tier of each stranger a Rescue Strangers team brought out (pg. 83; Z4-3). */
+  | {
+      readonly kind: 'rescue-strangers-resolved';
+      readonly team: number;
+      readonly strangers: readonly Tier[];
+    }
+  /**
+   * How many survivors a Rare Goods Trader team got out over the map edge
+   * (pg. 84; Z4-3), which decides whether its trade arrives — Phase 5's, and
+   * R22's.
+   */
+  | {
+      readonly kind: 'rare-goods-trader-resolved';
+      readonly team: number;
+      readonly survivorsExited: number;
+    }
+  /**
+   * A story, origin or Road Trip mission was played (Z4-3). Which one, and by
+   * which team; its rewards are Phase 7's, so nothing more is counted.
+   */
+  | {
+      readonly kind: 'mission-played';
+      readonly team: number;
+      readonly mission: MissionId;
     }
   /**
    * A mission-team survivor took the place of a worker this turn's Siege

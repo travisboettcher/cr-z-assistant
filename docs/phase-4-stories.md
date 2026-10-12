@@ -246,6 +246,19 @@ Four, confirmed 2026-10-12 and recorded in [the registry](rulings.md):
   `baseOverrun`, `hordeForced` — read the same values from the same entries as before.
 - An outcome for a team that was not selected, or a second one for the same team, is refused.
 
+**Four things this story turned out to include.** `MissionOutcome` is now every mission's
+outcome, in `missions.ts`, and the two that move the siege counter are `CounterOutcome` in
+`siege.ts` — the readers #175 wrote take only those two, so nothing about the counter changed.
+`missionResolved`, which asked whether the turn had *an* outcome, is gone: the guard and the walk
+ask per team (`teamOutcomes`, `unresolvedTeams`), because "once a turn" stopped being true the
+day a turn could have two missions. R21 is built here rather than in Z4-2, because a failed First
+Mission is only knowable from an outcome: one that met no end condition reopens Select Mission on
+turn 1 (`retryOwed`), choosing it again clears the outcome, and the walk owes the retry. And a
+team's choice is locked once its outcome is recorded, and an opt-out once anything is played —
+otherwise a correction to the choice would leave an outcome that belongs to nothing. Each
+standard mission's number of end conditions is in the catalogue (`endConditions`), so the guard
+checks the condition against data rather than a 3 in code.
+
 ---
 
 ## Z4-4 — Wounds on the outcome

@@ -114,9 +114,42 @@ describe('outstanding', () => {
       log: [...assigned.log, entry({ kind: 'mission-skipped' })],
     });
 
+    const played = settled({
+      ...chosen,
+      log: [
+        ...chosen.log,
+        entry({
+          kind: 'thin-the-herd-resolved',
+          team: 1,
+          startingZombies: 6,
+          zombiesLeft: 0,
+          survivorsExited: 1,
+          allIncapacitated: false,
+        }),
+      ],
+    });
+
     expect(steps(assigned)).toEqual(['select-mission']);
-    expect(steps(chosen)).toEqual([]);
+    // Chosen, so its outcome is owed (Z4-3), and recorded, nothing is.
+    expect(steps(chosen)).toEqual(['tactical-mission']);
+    expect(steps(played)).toEqual([]);
     expect(steps(skipped)).toEqual([]);
+  });
+
+  it('owes the First Mission again when no end condition was met (R21)', () => {
+    const earl = createSurvivor('Earl Rhodes', 2, { id: 'earl' });
+    const failed = settled({
+      turn: 1,
+      survivors: [earl],
+      assignments: { earl: { task: 'mission', team: 1 } },
+      log: [
+        ...settled().log.map((logged) => ({ ...logged, turn: 1 })),
+        entry({ kind: 'mission-selected', team: 1, mission: 'first-mission', names: [] }, 1),
+        entry({ kind: 'first-mission-resolved', team: 1, endCondition: null, strangers: [] }, 1),
+      ],
+    });
+
+    expect(steps(failed)).toEqual(['select-mission']);
   });
 
   it('names a survivor at 0 Health whose check has not run', () => {

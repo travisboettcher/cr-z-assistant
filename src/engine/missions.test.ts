@@ -3,7 +3,14 @@ import { createNewCampaign, type Assignment, type Campaign, type Survivor } from
 import type { CampaignEvent, LogEntry } from './log';
 import {
   deployed,
+  firstMissionFailed,
   missionOutcomeProblem,
+  outcomeMission,
+  outcomeOf,
+  retryOwed,
+  strangerWarning,
+  teamOutcomes,
+  unresolvedTeams,
   missionsChosen,
   missionsOnOffer,
   missionTeams,
@@ -44,6 +51,15 @@ const at = (turn: number, event: CampaignEvent): LogEntry => ({
 
 const chose = (team: number, mission: 'thin-the-herd' | 'rescue-strangers', turn = 4): LogEntry =>
   at(turn, { kind: 'mission-selected', team, mission, names: [] });
+
+/** A Thin the Herd's outcome, everything cleared and one survivor out. */
+const thinHerd = () => ({
+  kind: 'thin-the-herd-resolved' as const,
+  startingZombies: 6,
+  zombiesLeft: 0,
+  survivorsExited: 1,
+  allIncapacitated: false,
+});
 
 const skipped = (turn = 4): LogEntry => at(turn, { kind: 'mission-skipped' });
 
@@ -404,12 +420,32 @@ describe('missionOutcomeProblem', () => {
 
   it('refuses a mission no team chose, rather than guessing from the siege', () => {
     expect(missionOutcomeProblem(playing({ step: 'tactical-mission' }), herd)).toMatch(
-      /No team chose/,
+      /has not chosen a mission/,
     );
     expect(
       missionOutcomeProblem(playing({ step: 'tactical-mission', log: [calledForTurn4] }), siege),
-    ).toMatch(/Choose the Siege Defense/);
-    expect(missionOutcomeProblem(thinning(), siege)).toMatch(/Choose the Siege Defense/);
+    ).toMatch(/has not chosen a mission/);
+    expect(missionOutcomeProblem(thinning(), siege)).toMatch(/not the mission team 1 chose/);
+  });
+
+  it('checks each team’s outcome against its own choice (Z4-3)', () => {
+    const two = playing({
+      step: 'tactical-mission',
+      log: [chose(1, 'thin-the-herd'), chose(2, 'rescue-strangers')],
+    });
+    const rescued = {
+      kind: 'rescue-strangers-resolved' as const,
+      team: 2,
+      strangers: [1] as const,
+    };
+
+    expect(missionOutcomeProblem(two, rescued)).toBeNull();
+    expect(missionOutcomeProblem(two, { ...rescued, team: 1 })).toMatch(/not the mission/);
+    // Team 1's outcome does not count as team 2's.
+    expect(missionOutcomeProblem({ ...two, log: [...two.log, at(4, herd)] }, rescued)).toBeNull();
+    expect(missionOutcomeProblem({ ...two, log: [...two.log, at(4, rescued)] }, rescued)).toMatch(
+      /team 2’s outcome is already recorded/,
+    );
   });
 
   it('refuses outside the Mission Phase, and a second outcome in one turn', () => {
@@ -435,5 +471,299 @@ describe('missionOutcomeProblem', () => {
     expect(missionOutcomeProblem(thinning(), { ...herd, startingZombies: bad })).toMatch(refused);
     expect(missionOutcomeProblem(thinning(), { ...herd, zombiesLeft: bad })).toMatch(refused);
     expect(missionOutcomeProblem(thinning(), { ...herd, survivorsExited: bad })).toMatch(refused);
+  });
+});
+
+describe('the outcomes of the other standard missions (Z4-3)', () => {
+  const firstTurn = (log: readonly LogEntry[] = []) =>
+    playing({
+      turn: 1,
+      step: 'tactical-mission',
+      log: [
+        at(1, { kind: 'mission-selected', team: 1, mission: 'first-mission', names: [] }),
+        ...log,
+      ],
+    });
+  const first = (endCondition: number | null, strangers: readonly (1 | 2 | 3 | 4)[] = []) => ({
+    kind: 'first-mission-resolved' as const,
+    team: 1,
+    endCondition,
+    strangers,
+  });
+
+  it('takes an end condition the mission has, or none (pg. 77)', () => {
+    expect(missionOutcomeProblem(firstTurn(), first(1))).toBeNull();
+    expect(missionOutcomeProblem(firstTurn(), first(3))).toBeNull();
+    expect(missionOutcomeProblem(firstTurn(), first(null))).toBeNull();
+    expect(missionOutcomeProblem(firstTurn(), first(4))).toMatch(/1 to 3/);
+    expect(missionOutcomeProblem(firstTurn(), first(0))).toMatch(/1 to 3/);
+    expect(missionOutcomeProblem(firstTurn(), first(1.5))).toMatch(/1 to 3/);
+    expect(missionOutcomeProblem(firstTurn(), first(Number.NaN))).toMatch(/1 to 3/);
+  });
+
+  it('takes strangers with real Tiers', () => {
+    expect(missionOutcomeProblem(firstTurn(), first(2, [1, 4]))).toBeNull();
+    expect(missionOutcomeProblem(firstTurn(), { ...first(2), strangers: [5 as 4] })).toMatch(
+      /Tier from 1 to 4/,
+    );
+  });
+
+  it.each([
+    [
+      'claim-a-new-base' as const,
+      {
+        kind: 'claim-a-new-base-resolved' as const,
+        team: 1,
+        endCondition: 1,
+        strangers: [],
+        vehiclesOnArea: 2,
+      },
+      { vehiclesOnArea: -1 },
+    ],
+    [
+      'gather-materials' as const,
+      { kind: 'gather-materials-resolved' as const, team: 1, materialsCarriedOut: 5 },
+      { materialsCarriedOut: 1.5 },
+    ],
+    [
+      'retrieve-new-vehicles' as const,
+      { kind: 'retrieve-new-vehicles-resolved' as const, team: 1, vehiclesDrivenOff: 0 },
+      { vehiclesDrivenOff: Number.NaN },
+    ],
+    [
+      'rare-goods-trader' as const,
+      { kind: 'rare-goods-trader-resolved' as const, team: 1, survivorsExited: 1 },
+      { survivorsExited: -2 },
+    ],
+  ])('takes a %s outcome and refuses a count that is not whole', (mission, outcome, bad) => {
+    const campaign = playing({
+      step: 'tactical-mission',
+      log: [
+        at(4, {
+          kind: 'mission-selected',
+          team: 1,
+          mission,
+          names: [],
+          ...(mission === 'gather-materials' ? { material: 'fuel' as const } : {}),
+        }),
+      ],
+    });
+
+    expect(missionOutcomeProblem(campaign, outcome)).toBeNull();
+    expect(missionOutcomeProblem(campaign, { ...outcome, ...bad })).toMatch(/whole number/);
+  });
+
+  it('takes a story, origin or Road Trip mission as played, and only the one chosen', () => {
+    const campaign = playing({
+      step: 'tactical-mission',
+      log: [at(4, { kind: 'mission-selected', team: 1, mission: 'left-behind-1', names: [] })],
+    });
+
+    expect(
+      missionOutcomeProblem(campaign, {
+        kind: 'mission-played',
+        team: 1,
+        mission: 'left-behind-1',
+      }),
+    ).toBeNull();
+    expect(
+      missionOutcomeProblem(campaign, { kind: 'mission-played', team: 1, mission: 'chased' }),
+    ).toMatch(/not the mission/);
+  });
+
+  it('reopens a failed First Mission on turn 1, and nothing else (R21)', () => {
+    const failed = firstTurn([at(1, first(null))]);
+    const won = firstTurn([at(1, first(1))]);
+
+    expect(retryOwed(failed, 1)).toBe(true);
+    expect(firstMissionFailed(failed)).toBe(true);
+    expect(
+      selectionProblem(
+        { ...failed, step: 'select-mission' },
+        { team: 1, mission: 'first-mission' },
+      ),
+    ).toBeNull();
+
+    expect(retryOwed(won, 1)).toBe(false);
+    expect(firstMissionFailed(won)).toBe(false);
+    expect(
+      selectionProblem({ ...won, step: 'select-mission' }, { team: 1, mission: 'first-mission' }),
+    ).toMatch(/outcome recorded/);
+  });
+
+  it('lets the First Mission played again have its own outcome (R21)', () => {
+    const again = firstTurn([
+      at(1, first(null)),
+      at(1, { kind: 'mission-selected', team: 1, mission: 'first-mission', names: [] }),
+    ]);
+
+    expect(teamOutcomes(again).size).toBe(0);
+    expect(unresolvedTeams(again)).toEqual([1]);
+    expect(missionOutcomeProblem(again, first(2))).toBeNull();
+  });
+
+  it('refuses an opt-out once a mission has been played', () => {
+    const played = playing({
+      log: [chose(1, 'thin-the-herd'), at(4, { ...thinHerd(), team: 1 })],
+    });
+
+    expect(skipProblem(played)).toMatch(/already played/);
+  });
+
+  it('warns when a stranger outranks everybody on the team (pg. 31)', () => {
+    const rescuing = playing({
+      step: 'tactical-mission',
+      log: [chose(2, 'rescue-strangers')],
+    });
+    const rescue = (tier: 1 | 2 | 3 | 4) => ({
+      kind: 'rescue-strangers-resolved' as const,
+      team: 2,
+      strangers: [1, tier] as const,
+    });
+
+    // Ruby, team 2's only member, is Tier 3.
+    expect(strangerWarning(rescuing, rescue(3))).toBeNull();
+    expect(strangerWarning(rescuing, rescue(4))).toMatch(/Tier 4 or higher/);
+    expect(strangerWarning(rescuing, thinHerd())).toBeNull();
+  });
+});
+
+describe('outcomeOf', () => {
+  const counts = {
+    endCondition: 2,
+    strangers: [1, 2] as const,
+    vehiclesOnArea: 1,
+    materialsCarriedOut: 5,
+    startingZombies: 8,
+    zombiesLeft: 3,
+    survivorsExited: 1,
+    allIncapacitated: false,
+    vehiclesDrivenOff: 2,
+  };
+
+  it('writes each standard mission’s own kind, with only the counts it records', () => {
+    expect(outcomeOf({ team: 2, mission: 'claim-a-new-base' }, counts)).toStrictEqual({
+      kind: 'claim-a-new-base-resolved',
+      team: 2,
+      endCondition: 2,
+      strangers: [1, 2],
+      vehiclesOnArea: 1,
+    });
+    expect(outcomeOf({ team: 1, mission: 'siege-defense' }, counts)).toStrictEqual({
+      kind: 'siege-defense-resolved',
+      team: 1,
+      zombiesLeft: 3,
+      survivorsExited: 1,
+    });
+  });
+
+  it('gives every standard mission an outcome its own guard reads back as that mission', () => {
+    for (const mission of [
+      'first-mission',
+      'claim-a-new-base',
+      'gather-materials',
+      'thin-the-herd',
+      'retrieve-new-vehicles',
+      'rescue-strangers',
+      'rare-goods-trader',
+      'siege-defense',
+    ] as const) {
+      expect(outcomeMission(outcomeOf({ team: 1, mission }, counts))).toBe(mission);
+    }
+  });
+
+  it('records any other mission as played', () => {
+    expect(outcomeOf({ team: 3, mission: 'the-dark' }, counts)).toStrictEqual({
+      kind: 'mission-played',
+      team: 3,
+      mission: 'the-dark',
+    });
+  });
+});
+
+describe('teamOutcomes', () => {
+  it('reads only this turn’s outcomes, and only outcomes', () => {
+    const campaign = playing({
+      log: [
+        // Last turn's team 2, which nothing this turn chose again.
+        chose(2, 'thin-the-herd', 3),
+        at(3, { ...thinHerd(), team: 2 }),
+        chose(1, 'thin-the-herd'),
+        at(4, {
+          kind: 'xp-awarded',
+          survivor: 'earl',
+          name: 'Earl Rhodes',
+          amount: 1,
+          source: 'mission',
+        }),
+      ],
+    });
+
+    expect(teamOutcomes(campaign).size).toBe(0);
+  });
+
+  it('lets an opt-out clear every outcome before it', () => {
+    const campaign = playing({
+      log: [chose(1, 'thin-the-herd'), at(4, { ...thinHerd(), team: 1 }), skipped()],
+    });
+
+    expect(teamOutcomes(campaign).size).toBe(0);
+  });
+});
+
+describe('retryOwed (R21)', () => {
+  const failedFirst = {
+    kind: 'first-mission-resolved' as const,
+    team: 1,
+    endCondition: null,
+    strangers: [],
+  };
+
+  it('is owed only on turn 1', () => {
+    const later = playing({ log: [at(4, failedFirst)] });
+
+    expect(retryOwed(later, 1)).toBe(false);
+  });
+
+  it('is owed only for the First Mission, not another mission that met no end condition', () => {
+    const claim = playing({
+      turn: 1,
+      log: [
+        at(1, {
+          kind: 'claim-a-new-base-resolved',
+          team: 1,
+          endCondition: null,
+          strangers: [],
+          vehiclesOnArea: 0,
+        }),
+      ],
+    });
+
+    expect(retryOwed(claim, 1)).toBe(false);
+  });
+
+  it('is not owed for a team with no outcome', () => {
+    expect(retryOwed(playing({ turn: 1 }), 1)).toBe(false);
+  });
+});
+
+describe('strangerWarning, at its edges', () => {
+  it('names the highest Tier nobody on the team reaches', () => {
+    const rescuing = playing({ step: 'tactical-mission', log: [chose(1, 'rescue-strangers')] });
+
+    // Earl and Carla, team 1, are both Tier 2.
+    expect(
+      strangerWarning(rescuing, {
+        kind: 'rescue-strangers-resolved',
+        team: 1,
+        strangers: [4, 3],
+      }),
+    ).toMatch(/Tier 4 or higher/);
+  });
+
+  it('warns about any stranger for a team nobody is on', () => {
+    expect(
+      strangerWarning(playing(), { kind: 'rescue-strangers-resolved', team: 5, strangers: [1] }),
+    ).toMatch(/Tier 1 or higher/);
   });
 });

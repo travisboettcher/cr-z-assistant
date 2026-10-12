@@ -132,8 +132,8 @@ import { phaseOf } from './turn';
  * Whether this turn's Siege Defense has been played and its outcome recorded.
  *
  * Read off the log rather than through `siege.ts`, which imports the module
- * this one is built on — the same entry `missionResolved` looks for, narrowed
- * to the one mission that is fought at the base.
+ * this one is built on — the Siege Defense's own outcome entry, the one
+ * mission that is fought at the base.
  */
 export function siegeDefended(campaign: Campaign): boolean {
   return campaign.log.some(
