@@ -156,26 +156,17 @@ until Phase 7.
 
 ## Rulings the book leaves open
 
-These are **proposed**, not yet in [the registry](rulings.md). Each gets an R-number once
-confirmed.
+Four, confirmed 2026-10-12 and recorded in [the registry](rulings.md):
 
-1. **Missions in one turn are independent.** The book does not say in what order a turn's
-   missions are played, or whether one's result reaches the next — a vehicle driven off, a base
-   claimed mid-turn. Proposal: each outcome applies on its own and none is read by another in the
-   same turn. Mission XP is still a point for every survivor on every team, and the discretionary
-   point is still one per turn (pg. 18, literal); the material roll is still once per material
-   recovered, across all of them (pg. 19, derived).
-2. **One Claim a New Base per turn.** Nothing forbids two, and two successes would claim two bases
-   at once, which the book never describes. Proposal: a second Claim a New Base in a turn is
-   refused at selection. Any other mission may be chosen by more than one team.
-3. **A failed First Mission is played again in turn 1.** Pg. 77 allows a retry "with new or the
-   same survivors, or changed difficulty", and a community without a base has no turn 2 to play.
-   Proposal: a First Mission outcome that met no end condition leaves Select Mission open in turn
-   1, and the next selection is the First Mission again.
-4. **Rare Goods Trader's failure reads one way** (gap A, pg. 84): traded items and the materials
-   paid for them are lost, and materials set aside for items not yet traded go back to storage.
-   Not needed until Phase 5 builds the trade; recorded so the outcome's one field is not mistaken
-   for a decision.
+- [R19](rulings.md#r19--missions-in-one-turn-are-independent) — missions in one turn are
+  independent: each outcome applies on its own, mission XP is a point for every survivor on every
+  team, the discretionary point is one per turn, and materials are rolled across all of them.
+- [R20](rulings.md#r20--one-claim-a-new-base-per-turn) — a second Claim a New Base in one turn is
+  refused at selection.
+- [R21](rulings.md#r21--a-failed-first-mission-is-played-again-in-turn-1) — a First Mission that
+  met no end condition leaves Select Mission open in turn 1 for another attempt.
+- [R22](rulings.md#r22--what-a-failed-rare-goods-trader-loses) — a failed Rare Goods Trader loses
+  what was traded and returns what was set aside for items not yet traded. Phase 5's to build.
 
 ---
 
@@ -212,8 +203,9 @@ confirmed.
   (pg. 17).
 - `submitMissionSelection` in `missionForms.ts`, refusing: outside the Select Mission step; a
   survivor who is not in the pool or is already on a team this turn; anything but the First
-  Mission on turn 1, or anything but a Siege Defense with every survivor on a siege turn; a mission
-  whose catalogue entry says it cannot be chosen now; a second Claim a New Base (proposed ruling 2).
+  Mission on turn 1 (again, after a failed attempt — R21), or anything but a Siege Defense with
+  every survivor on a siege turn; a mission
+  whose catalogue entry says it cannot be chosen now; a second Claim a New Base (R20).
   A wounded survivor draws R12's warning, as at Planning.
 - The step is owed until every survivor in the pool is on a team, or the turn is skipped.
 - The Select Mission screen: choose a mission, tick its team from the pool, repeat while anybody
