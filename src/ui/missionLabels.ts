@@ -11,6 +11,7 @@ import type { Material } from '../data/materials';
 import { MISSIONS, type MissionId, type OutcomeCount } from '../data/missions';
 import type { Tier } from '../data/tiers';
 import { MATERIAL_LABELS } from './baseLabels';
+import type { MissionWound } from '../engine/log';
 import { outcomeMission, outcomeTeam, type MissionOutcome } from '../engine/missions';
 import {
   baseOverrun,
@@ -174,9 +175,27 @@ export function outcomeConsequences(outcome: MissionOutcome): readonly string[] 
 }
 
 /**
- * An outcome in a line: the mission, what was counted, and what it does. A
- * team other than team 1 is named, so two teams' outcomes in one turn can be
- * told apart in the history.
+ * The Health each member came home with, and their Infection where it was
+ * recorded (Z4-4) — or nothing, for an entry written before wounds were, or a
+ * team with nobody on it.
+ */
+function woundsOf(wounds: readonly MissionWound[] | undefined): readonly string[] {
+  if (wounds === undefined || wounds.length === 0) return [];
+
+  const each = wounds.map(
+    (wound) =>
+      `${wound.name} at ${String(wound.health)} Health${
+        wound.infection === undefined ? '' : ` and ${String(wound.infection)} Infection`
+      }`,
+  );
+
+  return [`At the end: ${each.join(', ')}.`];
+}
+
+/**
+ * An outcome in a line: the mission, what was counted, the Health the team
+ * came home with, and what it does. A team other than team 1 is named, so two
+ * teams' outcomes in one turn can be told apart in the history.
  */
 export function describeOutcome(outcome: MissionOutcome): string {
   const team = outcomeTeam(outcome);
@@ -184,6 +203,7 @@ export function describeOutcome(outcome: MissionOutcome): string {
 
   return [
     `${missionTitle(outcomeMission(outcome))}${who}: ${counted(outcome)}.`,
+    ...woundsOf(outcome.wounds),
     ...outcomeConsequences(outcome),
   ].join(' ');
 }

@@ -280,6 +280,23 @@ const EVENT_FIELD_CHECKS = {
   // The team an outcome ends; absent on a Siege Defense or Thin the Herd
   // recorded before Z4-3, which was the turn's only team.
   optionalTeam: (value: unknown) => value === undefined || isCountFromOne(value),
+  // Each team member's Health at the end, and Infection in a Viral campaign
+  // (Z4-4); absent on every outcome written before. Shape only: not held to
+  // the roster or to anybody's maximum, for the reason `optionalAssignments`
+  // is not — this is history, and the survivor it names may have left, or
+  // been promoted, since. Infection is any count, as on the survivor.
+  optionalWounds: (value: unknown) =>
+    value === undefined ||
+    (Array.isArray(value) &&
+      value.every(
+        (wound) =>
+          isRecord(wound) &&
+          typeof wound.survivor === 'string' &&
+          wound.survivor !== '' &&
+          typeof wound.name === 'string' &&
+          isCountFromZero(wound.health) &&
+          (wound.infection === undefined || isCountFromZero(wound.infection)),
+      )),
   // Which numbered end condition was met, or `null` for none (pp. 77, 79).
   // Which numbers a mission has is the engine's to check, not a file's.
   endCondition: (value: unknown) => value === null || isCountFromOne(value),
@@ -409,6 +426,7 @@ const EVENT_FIELDS: Record<
     ['zombiesLeft', 'count'],
     ['survivorsExited', 'count'],
     ['team', 'optionalTeam'],
+    ['wounds', 'optionalWounds'],
   ],
   'thin-the-herd-resolved': [
     ['startingZombies', 'count'],
@@ -416,37 +434,45 @@ const EVENT_FIELDS: Record<
     ['survivorsExited', 'count'],
     ['allIncapacitated', 'flag'],
     ['team', 'optionalTeam'],
+    ['wounds', 'optionalWounds'],
   ],
   'first-mission-resolved': [
     ['team', 'countFromOne'],
     ['endCondition', 'endCondition'],
     ['strangers', 'tiers'],
+    ['wounds', 'optionalWounds'],
   ],
   'claim-a-new-base-resolved': [
     ['team', 'countFromOne'],
     ['endCondition', 'endCondition'],
     ['strangers', 'tiers'],
     ['vehiclesOnArea', 'count'],
+    ['wounds', 'optionalWounds'],
   ],
   'gather-materials-resolved': [
     ['team', 'countFromOne'],
     ['materialsCarriedOut', 'count'],
+    ['wounds', 'optionalWounds'],
   ],
   'retrieve-new-vehicles-resolved': [
     ['team', 'countFromOne'],
     ['vehiclesDrivenOff', 'count'],
+    ['wounds', 'optionalWounds'],
   ],
   'rescue-strangers-resolved': [
     ['team', 'countFromOne'],
     ['strangers', 'tiers'],
+    ['wounds', 'optionalWounds'],
   ],
   'rare-goods-trader-resolved': [
     ['team', 'countFromOne'],
     ['survivorsExited', 'count'],
+    ['wounds', 'optionalWounds'],
   ],
   'mission-played': [
     ['team', 'countFromOne'],
     ['mission', 'mission'],
+    ['wounds', 'optionalWounds'],
   ],
   'health-restored': [
     ['survivor', 'id'],

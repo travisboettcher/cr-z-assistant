@@ -444,6 +444,39 @@ is about the base's work. The one-for-one reading of a substitute is the narrowe
 reads the FAQ as freeing the mission team to work anywhere gets less from it here, and the
 widening would be `whoWorked` adding stand-ins to a post rather than swapping them into one.
 
+### Amendment, October 2026 — the outcome records who went down
+
+[#178](https://github.com/travisboettcher/cr-z-assistant/issues/178)'s Z4-4 has every mission
+outcome carry its team's Health at the end, and Infection in a Viral campaign
+([`phase-4-stories.md`](phase-4-stories.md#z4-4--wounds-on-the-outcome)). A siege's team is the
+whole community (pg. 85), so a Siege Defense recorded since then says who it left at 0 Health, and
+the reading above changes with it: **"reduced to 0 Health during the siege" is at 0 Health in this
+turn's recorded Siege Defense outcome, for a survivor holding a work task.** A survivor it recorded
+at 0 stays a casualty when their Health is corrected back up on the roster afterwards — the
+correction repairs the roster, and the entry is what happened — and one it recorded with Health
+left is not a casualty whatever the roster says now. Recording the outcome sets the roster to the
+same values, so the two agree unless somebody corrects one of them.
+
+**The stand-ins read the same record.** "Not at 0 Health" for who may substitute is read off the
+same entry, because the FAQ's two halves are one question about one moment: who the siege left at
+0 Health stops working, and who on the displaced mission team it did not may stand in. Reading one
+half off the record and the other off the roster would let a survivor be a casualty and fit to
+substitute at once.
+
+**Entries written before this carry no Health, and keep the old reading**: at 0 Health on the
+roster now, once the outcome is recorded, so a roster correction still puts them back to work.
+The fallback is per survivor, so the one way a newer entry can leave somebody out — a hand-edited
+save — reads them the old way rather than not at all. The Siege Work panel says which of the two
+it is following.
+
+**What it still costs.** The entry records Health at the end, not Health lost, so a survivor who
+was *already* at 0 Health before the siege ends it at 0 and is still counted as a casualty; that
+part of the cost above is unchanged. What goes is the other one: on an entry with Health, a
+correction made after the outcome no longer changes who fell. Which question is asked of the
+value is unchanged too — `outOfHealth`, per
+[R18](#r18--what-infection-incapacitates), so a survivor recorded at 10 Infection with Health
+left is not a siege casualty.
+
 ---
 
 ## R18 — What Infection incapacitates
@@ -463,7 +496,7 @@ asks the one it means:
 |---|---|---|
 | Check for Rot (pg. 22) | `outOfHealth` | It names Health, and is about somebody bleeding out. A survivor kept down by Infection with Health left has not been brought to 0, and Heal Wounds can still take the Infection away. |
 | Departures (pg. 23) | `isDown` | The exclusion is about being in no state to walk anywhere, which pg. 123's incapacitation is exactly. Where that is everybody, nobody is leaving and the turn owes no Departures step ([#192](https://github.com/travisboettcher/cr-z-assistant/issues/192)). |
-| Siege casualties and stand-ins (FAQ, [R17](#r17--what-a-siege-defense-does-to-the-turns-work)) | `outOfHealth` | The FAQ names "reduced to 0 Health" for who stops working and "not at 0 Health" for who may substitute. |
+| Siege casualties and stand-ins (FAQ, [R17](#r17--what-a-siege-defense-does-to-the-turns-work)) | `outOfHealth` | The FAQ names "reduced to 0 Health" for who stops working and "not at 0 Health" for who may substitute. Asked of the Health the siege's outcome recorded where it has one (R17's October 2026 amendment), and of the roster's otherwise. |
 | Mission team | both, separately | 0 Health is a wound, and R12 already keeps every wounded survivor off a team; 10 Infection adds its own warning, because full Health does not make an incapacitated survivor fit. |
 
 **Infection below 10 is not a wound.** R12's "wounded" is Health below its maximum, so a survivor

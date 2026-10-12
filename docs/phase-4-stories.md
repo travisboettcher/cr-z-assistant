@@ -277,6 +277,24 @@ checks the condition against data rather than a 3 in code.
   corrected back up on the roster.
 - Health above the survivor's maximum, or Infection in a campaign that is not Viral, is refused.
 
+**What this story turned out to include.** The wounds are a list on the entry, one
+`{ survivor, name, health, infection? }` per team member (`MissionWound` in `log.ts`), with the
+name kept for the history as every entry about a person keeps one; `infection` is on every wound a
+Viral campaign records and on none anywhere else. **Every member is listed, once, and nobody
+else**: a member left out would leave the roster's Health standing as though it were the end value
+with nothing to say whether it was, and the form starts everybody at their current Health
+(`woundsAsTheyStand`) so listing them all costs nothing. So an outcome submitted with no wounds is
+refused; only entries written before Z4-4 lack them, and those are read, never submitted. Health is
+a whole number from 0 to `maxHp`; Infection a whole number from 0 with no ceiling, the range the
+survivor sheet and the save file already give it, because at 10 a survivor is down rather than
+gone (#176). The form writes the wounds in team order under the roster's names, whatever the screen
+sent. **The stand-ins read the same record as the casualties** — R17's amendment says why — so
+`standInCandidates` changed beside `fellInTheSiege`, and the Siege Work panel says whether it is
+following the outcome's Health or the roster's (`siegeHealthRecorded`). A Thin the Herd's "every
+survivor incapacitated" stays a count the table makes, not something read off the wounds: the book
+gives no rule that the two must agree, and the guard compares no other two counts either. No
+schema bump: the field is optional on every outcome kind, as the team was in Z4-3.
+
 ---
 
 ## Z4-5 — Strangers rescued join the community

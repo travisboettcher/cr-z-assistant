@@ -838,6 +838,50 @@ describe('a campaign whose log is damaged', () => {
   });
 
   /**
+   * A mission's wounds (Z4-4): absent on every outcome written before them,
+   * and checked for shape only when present — never against the roster or a
+   * survivor's maximum, because the survivor may have left or been promoted
+   * since.
+   */
+  describe('the wounds a mission outcome carries', () => {
+    const outcome = (wounds: unknown) => ({
+      ...good,
+      phase: 'mission',
+      event: {
+        kind: 'gather-materials-resolved',
+        team: 1,
+        materialsCarriedOut: 2,
+        ...(wounds === undefined ? {} : { wounds }),
+      },
+    });
+
+    it.each([
+      ['none, as an outcome written before them', undefined],
+      ['nobody', []],
+      ['Health and nothing else', [{ survivor: 'a', name: 'Earl', health: 0 }]],
+      ['Infection beside it', [{ survivor: 'a', name: 'Earl', health: 9, infection: 12 }]],
+    ])('accepts %s', (_label, wounds) => {
+      expect(parseCampaignFile(savedWith({ log: [outcome(wounds)] })).ok).toBe(true);
+    });
+
+    it.each([
+      ['not a list', { a: 1 }],
+      ['a wound that is not an object', [3]],
+      ['a wound naming nobody', [{ name: 'Earl', health: 1 }]],
+      ['a wound naming an empty id', [{ survivor: '', name: 'Earl', health: 1 }]],
+      ['a wound with no name', [{ survivor: 'a', health: 1 }]],
+      ['a wound with negative Health', [{ survivor: 'a', name: 'Earl', health: -1 }]],
+      ['a wound with no Health', [{ survivor: 'a', name: 'Earl' }]],
+      [
+        'a wound with fractional Infection',
+        [{ survivor: 'a', name: 'E', health: 1, infection: 0.5 }],
+      ],
+    ])('refuses %s', (_label, wounds) => {
+      expect(refusalFor([outcome(wounds)])).toMatch(/unreadable wounds/i);
+    });
+  });
+
+  /**
    * The position, counted from one.
    *
    * A reader with a damaged file needs to be told which entry, and "log entry 0

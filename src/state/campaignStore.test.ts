@@ -2675,6 +2675,8 @@ describe('what earns a line in the log', () => {
           zombiesLeft: 0,
           survivorsExited: 2,
           allIncapacitated: false,
+          // Every outcome since Z4-4 carries its team's Health at the end.
+          wounds: [{ survivor: LOGGED_SURVIVOR, name: 'Marcus Webb', health: 1 }],
         },
       },
       entry: entry(3, 'mission', {
@@ -2683,6 +2685,7 @@ describe('what earns a line in the log', () => {
         zombiesLeft: 0,
         survivorsExited: 2,
         allIncapacitated: false,
+        wounds: [{ survivor: LOGGED_SURVIVOR, name: 'Marcus Webb', health: 1 }],
       }),
     },
     'mission/stoodIn': {
@@ -3641,36 +3644,49 @@ describe('mission/resolved', () => {
     siege: true,
   });
 
-  /** Turn 4, standing on Play the Mission, with the siege turn 3 called. */
+  /**
+   * Turn 4, standing on Play the Mission, with the siege turn 3 called — so
+   * Earl, the whole community, is team 1 (pg. 85).
+   */
   const besieged = () =>
     openState({
       ...createNewCampaign('Cedar Hollow', FIXED),
       turn: 4,
       step: 'tactical-mission',
+      survivors: [createSurvivor('Earl Rhodes', 3, { id: 'earl' })],
       log: [
         called,
         entry(4, 'mission', {
           kind: 'mission-selected',
           team: 1,
           mission: 'siege-defense',
-          names: [],
+          names: ['Earl Rhodes'],
         }),
       ],
     });
 
+  const wounds = [{ survivor: 'earl', name: 'Earl Rhodes', health: 1 }];
+
   const resolve = (zombiesLeft: number): CampaignAction => ({
     type: 'mission/resolved',
     at: AT,
-    outcome: { kind: 'siege-defense-resolved', zombiesLeft, survivorsExited: 1 },
+    outcome: { kind: 'siege-defense-resolved', zombiesLeft, survivorsExited: 1, wounds },
   });
 
-  it('writes the outcome as it was counted, and nothing else', () => {
+  it('writes the outcome as it was counted, and sets the Health it recorded (Z4-4)', () => {
+    const before = expectOpen(besieged());
     const after = expectOpen(campaignReducer(besieged(), resolve(0)));
 
     expect(after.log.at(-1)).toEqual(
-      entry(4, 'mission', { kind: 'siege-defense-resolved', zombiesLeft: 0, survivorsExited: 1 }),
+      entry(4, 'mission', {
+        kind: 'siege-defense-resolved',
+        zombiesLeft: 0,
+        survivorsExited: 1,
+        wounds,
+      }),
     );
-    expect({ ...after, log: [] }).toEqual({ ...expectOpen(besieged()), log: [] });
+    expect(after.survivors.map((survivor) => survivor.currentHp)).toEqual([1]);
+    expect({ ...after, log: [], survivors: [] }).toEqual({ ...before, log: [], survivors: [] });
   });
 
   it('refuses what the engine says cannot be recorded — here, a second outcome', () => {

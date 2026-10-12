@@ -194,3 +194,77 @@ describe('an outcome for every mission a team chose (Z4-3)', () => {
     expect(walk().textContent).toContain('Sentimental Value: played.');
   });
 });
+
+describe('the Health a team came home with (Z4-4)', () => {
+  /** Earl (Tier 2, at 1 of 2) and Ruby (Tier 3, unhurt) on team 1, playing Gather Materials. */
+  const gathering = (overrides: Partial<Campaign> = {}) =>
+    playing({
+      survivors: [
+        { ...createSurvivor('Earl Rhodes', 2, { id: 'earl' }), currentHp: 1 },
+        createSurvivor('Ruby Vance', 3, { id: 'ruby' }),
+      ],
+      assignments: {
+        earl: { task: 'mission', team: 1 },
+        ruby: { task: 'mission', team: 1 },
+      },
+      log: [teamChose(1, 'gather-materials')],
+      ...overrides,
+    });
+
+  it('starts each member at their Health now, and records it with the outcome', async () => {
+    const user = open(gathering());
+    const form = group(/how gather materials ended/i);
+
+    expect(form.getByLabelText('Earl Rhodes’s Health')).toHaveValue(1);
+    expect(form.getByLabelText('Ruby Vance’s Health')).toHaveValue(3);
+    expect(form.queryByLabelText(/Infection/)).toBeNull();
+
+    await user.type(form.getByLabelText(/materials carried off the map/i), '2');
+    await user.clear(form.getByLabelText('Ruby Vance’s Health'));
+    await user.type(form.getByLabelText('Ruby Vance’s Health'), '0');
+    await user.click(form.getByRole('button', { name: 'Record Gather Materials' }));
+
+    expect(walk().textContent).toContain(
+      'Gather Materials: 2 materials carried off the map. At the end: Earl Rhodes at 1 Health, Ruby Vance at 0 Health.',
+    );
+  });
+
+  it('refuses Health above a survivor’s maximum, or none at all', async () => {
+    const user = open(gathering());
+    const form = group(/how gather materials ended/i);
+    const record = form.getByRole('button', { name: 'Record Gather Materials' });
+
+    await user.type(form.getByLabelText(/materials carried off the map/i), '2');
+    expect(record).toBeEnabled();
+
+    await user.type(form.getByLabelText('Earl Rhodes’s Health'), '5');
+    expect(record).toBeDisabled();
+    expect(form.getByText('Earl Rhodes’s Health is a whole number from 0 to 2.')).toBeTruthy();
+
+    await user.clear(form.getByLabelText('Earl Rhodes’s Health'));
+    expect(record).toBeDisabled();
+  });
+
+  it('asks for Infection as well in a Viral campaign (pg. 123)', async () => {
+    const user = open(
+      gathering({
+        origin: 'viral',
+        survivors: [
+          createSurvivor('Earl Rhodes', 2, { id: 'earl' }),
+          { ...createSurvivor('Ruby Vance', 3, { id: 'ruby' }), infection: 2 },
+        ],
+      }),
+    );
+    const form = group(/how gather materials ended/i);
+
+    expect(form.getByLabelText('Ruby Vance’s Infection')).toHaveValue(2);
+
+    await user.type(form.getByLabelText(/materials carried off the map/i), '1');
+    await user.type(form.getByLabelText('Earl Rhodes’s Infection'), '3');
+    await user.click(form.getByRole('button', { name: 'Record Gather Materials' }));
+
+    expect(walk().textContent).toContain(
+      'At the end: Earl Rhodes at 2 Health and 3 Infection, Ruby Vance at 3 Health and 2 Infection.',
+    );
+  });
+});
