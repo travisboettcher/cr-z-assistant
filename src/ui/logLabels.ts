@@ -344,6 +344,19 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
         pages: 15,
       };
 
+    case 'stranger-joined': {
+      // Which team brought them out, because a turn of two rescues reads as
+      // two arrivals with nothing to tell them apart otherwise (Z4-5).
+      const joined = `${event.name} joined as ${withArticle(TIER_LABELS[event.tier])}, rescued by mission team ${String(event.team)}`;
+
+      return event.roll === undefined
+        ? { text: `${joined}.`, pages: 19 }
+        : {
+            text: `${joined}, rolling ${articleForNumber(event.roll)} ${String(event.roll)}.`,
+            pages: '15, 19',
+          };
+    }
+
     case 'survivor-left':
       return {
         text: `${event.name}, ${withArticle(TIER_LABELS[event.tier])}, left the community.`,

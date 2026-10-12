@@ -578,3 +578,21 @@ rule to mean.
 which is what it has always counted, and the survivor taken off may come from any team. The
 alternatives are to compare Exhaustion with each team separately, or with the largest. Recorded so
 that the current reading is not mistaken for a decision.
+
+---
+
+## R24 — What a rescued Hero joins as — OPEN
+
+**pp. 7, 15, 31, 77, 79, 83; [#178](https://github.com/travisboettcher/cr-z-assistant/issues/178),
+Z4-5.** A stranger rescued on a mission joins at Advancement Step 2 (pg. 19), and the app builds
+them as a field recruit: their Tier's stat array and, at Tier 2 or 3, one skill off the d10 table
+(pg. 15). Heroes are never field recruits (pg. 7). But the outcomes Z4-3 records accept a stranger
+of any Tier from 1 to 4, checked only against a rescuer of at least that Tier (pg. 31), so the
+record can hold a Tier 4 stranger that the field-recruit rule has no answer for.
+
+**Open.** Whether a rescue can bring out a Tier 4 stranger at all, and if it can, whether they
+roll for a skill. Until it is ruled, the outcome still accepts one, and **a Tier 4 stranger joins
+the way the roster adds a Hero**: the Tier's stat array, no roll, and every skill slot to fill on
+their sheet (`strangerSurvivor`). The alternatives are to refuse a Tier 4 stranger when the
+outcome is recorded, or to have one roll as a Citizen or Leader does. Recorded so that the current
+reading is not mistaken for a decision.

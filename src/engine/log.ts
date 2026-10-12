@@ -587,6 +587,35 @@ export type CampaignEvent =
        */
       readonly roll?: D10Result;
     }
+  /**
+   * A stranger rescued on this turn's missions joined the community, at
+   * Advancement Step 2 (pg. 19; Z4-5).
+   *
+   * **`team` and `stranger` name which rescue this fulfils**: the mission team
+   * whose outcome counted the stranger, and the stranger's position in that
+   * outcome's `strangers`, from 0. That pair is what `strangersWaiting` reads
+   * back, so a walk that goes back over the step offers nobody twice — and it
+   * is the log rather than a flag on the campaign, because whether a rescue
+   * has been answered is a fact about what happened, like every other step's.
+   *
+   * Its own kind rather than a field on `survivor-recruited`, for two reasons.
+   * A stranger's Tier is the outcome's, and an outcome may count a Hero, whom
+   * the recruit form never takes (pg. 7; R24). And "has this stranger joined"
+   * is then a question about one kind of entry, not about which recruits
+   * happened to carry the field.
+   *
+   * The Tier and the roll as `survivor-recruited` carries them: the Tier as it
+   * was on joining, and the d10 only where one chose a skill (pp. 7, 15).
+   */
+  | {
+      readonly kind: 'stranger-joined';
+      readonly survivor: string;
+      readonly name: string;
+      readonly tier: Tier;
+      readonly team: number;
+      readonly stranger: number;
+      readonly roll?: D10Result;
+    }
   | {
       readonly kind: 'survivor-left';
       readonly survivor: string;

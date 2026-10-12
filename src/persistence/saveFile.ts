@@ -475,6 +475,17 @@ const EVENT_FIELDS: Record<
     ['tier', 'tier'],
     ['roll', 'optionalRoll'],
   ],
+  'stranger-joined': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['tier', 'tier'],
+    // Which rescue this answers: the team whose outcome counted the stranger,
+    // and their place in its list from 0 (Z4-5). Whether that outcome exists
+    // is the engine's to ask, as an outcome's team is.
+    ['team', 'countFromOne'],
+    ['stranger', 'count'],
+    ['roll', 'optionalRoll'],
+  ],
   'survivor-left': [
     ['survivor', 'id'],
     ['name', 'name'],

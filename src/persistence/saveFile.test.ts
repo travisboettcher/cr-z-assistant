@@ -833,6 +833,28 @@ describe('a campaign whose log is damaged', () => {
       ],
       /unreadable skill/i,
     ],
+    // Which rescue a stranger who joined answers (Z4-5): a team from one and
+    // a place in its list from zero.
+    [
+      'a stranger who joined from before the first in the list',
+      [
+        {
+          ...good,
+          event: { ...good.event, kind: 'stranger-joined', team: 1, stranger: -1 },
+        },
+      ],
+      /unreadable stranger/i,
+    ],
+    [
+      'a stranger who joined from mission team 0',
+      [
+        {
+          ...good,
+          event: { ...good.event, kind: 'stranger-joined', team: 0, stranger: 0 },
+        },
+      ],
+      /unreadable team/i,
+    ],
   ])('refuses %s', (_label, log, expected) => {
     expect(refusalFor(log)).toMatch(expected);
   });

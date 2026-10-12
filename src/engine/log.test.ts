@@ -126,6 +126,7 @@ describe('the event samples', () => {
     'mission-skipped': true,
     'survivor-added': true,
     'survivor-recruited': true,
+    'stranger-joined': true,
     'survivor-left': true,
     'survivor-departed': true,
     'mission-team-reduced': true,

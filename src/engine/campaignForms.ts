@@ -1,7 +1,8 @@
 /**
  * The forms that belong to no single phase, each guard, change and entry in
  * one place (#179): walking the turn, claiming the first base, and the roster's
- * comings and goings.
+ * comings and goings — among them a rescued stranger joining, which is
+ * Advancement Step 2's but shares everything else with a field recruit (Z4-5).
  *
  * Moved out of `campaignStore.ts` without changing what any of them accepts or
  * refuses, or what any of them writes. The shape of what they return is
@@ -23,6 +24,13 @@ import { logged } from './log';
 import { FIRST_PLANNING_STEP, planningHasBegun, withPlanningReset } from './planning';
 import { deployed } from './missions';
 import { siegeDue } from './siege';
+import {
+  rescuedStrangers,
+  strangerProblem,
+  strangerSurvivor,
+  type RescuedStranger,
+  type StrangerForm,
+} from './strangers';
 import { createSurvivor, recruitSurvivor } from './survivor';
 import { advance, type AdvanceBy } from './turn';
 import { suppliedOccupants } from './utilities';
@@ -249,13 +257,84 @@ export function submitRecruit(campaign: Campaign, form: RecruitForm, at: string)
     },
   );
 
+  return accepted(settled(recruited, at));
+}
+
+/**
+ * The starting community marked finished, with the entry that says so, unless
+ * it already was — for an arrival that proves play has begun (pg. 13): a field
+ * recruit, and a rescued stranger.
+ */
+function settled(campaign: Campaign, at: string): Campaign {
+  return campaign.startingCommunityBuilt
+    ? campaign
+    : logged({ ...campaign, startingCommunityBuilt: true }, at, {
+        kind: 'starting-community-settled',
+        built: true,
+      });
+}
+
+/** A rescued stranger joining, with the fresh id the caller made for them. */
+export interface StrangerJoinForm extends StrangerForm {
+  readonly id: string;
+}
+
+/**
+ * A stranger this turn's missions rescued joins the community, at Advancement
+ * Step 2 (pg. 19; Z4-5).
+ *
+ * Refused for anything `strangerProblem` refuses: outside the Advancement
+ * Phase, a stranger no outcome this turn counted or one who has joined
+ * already, a blank name, and a roll at a Tier that does not roll. The Tier is
+ * the outcome's, never the form's — the table counted it when the mission
+ * ended, and the screen has no say in it.
+ *
+ * Built as `strangerSurvivor` builds them, which is the field recruit
+ * `submitRecruit` makes, and settles the starting community for the same
+ * reason a recruit does: Rescue Strangers is how a community grows past the
+ * ten Tier levels it was built from (pp. 13, 15). The `stranger-joined` entry
+ * names the rescue it answers, which is what keeps the step from offering the
+ * same stranger twice.
+ */
+export function submitStrangerJoined(
+  campaign: Campaign,
+  form: StrangerJoinForm,
+  at: string,
+): FormResult {
+  const problem = strangerProblem(campaign, form);
+  if (problem !== null) return refused(problem);
+
+  // `strangerProblem` has just found them, so this is never undefined; the
+  // type cannot know that.
+  const rescued = rescuedStrangers(campaign).find(
+    (candidate) => candidate.team === form.team && candidate.stranger === form.stranger,
+  ) as RescuedStranger;
+
   return accepted(
-    recruited.startingCommunityBuilt
-      ? recruited
-      : logged({ ...recruited, startingCommunityBuilt: true }, at, {
-          kind: 'starting-community-settled',
-          built: true,
-        }),
+    settled(
+      logged(
+        {
+          ...campaign,
+          survivors: [
+            ...campaign.survivors,
+            strangerSurvivor(form.name, rescued.tier, form.roll, { id: form.id }),
+          ],
+        },
+        at,
+        {
+          kind: 'stranger-joined',
+          survivor: form.id,
+          name: form.name,
+          tier: rescued.tier,
+          team: rescued.team,
+          stranger: rescued.stranger,
+          // Spread, as `submitRecruit` does: only an absent roll is true of a
+          // stranger nobody rolled for.
+          ...(form.roll === undefined ? {} : { roll: form.roll }),
+        },
+      ),
+      at,
+    ),
   );
 }
 

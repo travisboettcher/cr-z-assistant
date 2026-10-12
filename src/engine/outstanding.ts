@@ -42,6 +42,7 @@ import { mustCheck, rotCheckResolved } from './rot';
 import { hordeChecked } from './siege';
 import { anythingOverCap, storageChecked } from './storage';
 import { someoneDeparted, someoneIsLeaving } from './departures';
+import { strangersWaiting } from './strangers';
 
 /** Why a step is outstanding, in the words the walk shows the player. */
 export interface Outstanding {
@@ -95,6 +96,20 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
   // A First Mission that met no end condition is played again in turn 1 (R21).
   if (firstMissionFailed(campaign)) {
     owed.push({ step: 'select-mission', says: 'The First Mission failed, and is played again.' });
+  }
+
+  // Every stranger this turn's outcomes counted joins at Advancement Step 2
+  // (pg. 19; Z4-5), and one nobody has added is gone with the turn: the step
+  // offers this turn's rescues only.
+  const waiting = strangersWaiting(campaign).length;
+  if (waiting > 0) {
+    owed.push({
+      step: 'create-new-survivors',
+      says:
+        waiting === 1
+          ? 'A rescued stranger has not joined the community.'
+          : `${String(waiting)} rescued strangers have not joined the community.`,
+    });
   }
 
   if (projectsOutstanding(campaign)) {

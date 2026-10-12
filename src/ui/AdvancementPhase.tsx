@@ -16,6 +16,7 @@
 import { useId, useRef, useState } from 'react';
 import { MATERIALS, type Material, type Materials } from '../data/materials';
 import { D10_RESULTS, type D10Result } from '../data/dice';
+import { rollsForSkill } from '../data/recruitTable';
 import {
   SUBSTITUTION_SKILLS,
   type HealthSource,
@@ -40,6 +41,12 @@ import {
   type MaterialRoll,
 } from '../engine/materials';
 import { deployed } from '../engine/missions';
+import {
+  rescuedStrangers,
+  strangerProblem,
+  strangersWaiting,
+  type RescuedStranger,
+} from '../engine/strangers';
 import {
   checkConversion,
   conversions,
@@ -78,6 +85,8 @@ import { useCampaign } from '../state/useCampaign';
 import { MATERIAL_LABELS, builtThingLabel, slotLabel } from './baseLabels';
 import { PageRef } from './PageRef';
 import { SKILL_LABELS } from './skillLabels';
+import { TIER_LABELS } from './tierLabels';
+import { withArticle } from './articles';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
 export interface AdvancementPhaseProps {
@@ -103,12 +112,7 @@ export function AdvancementPhase({ campaign, step }: AdvancementPhaseProps) {
 
       {step === 'character-advancement' && <CharacterAdvancement campaign={campaign} />}
 
-      {step === 'create-new-survivors' && (
-        <p className={HINT}>
-          Strangers rescued on the mission join here, and a field recruit rolls for the skill they
-          arrive with. Add them on the roster below <PageRef pages="18–19" />
-        </p>
-      )}
+      {step === 'create-new-survivors' && <CreateNewSurvivors campaign={campaign} />}
 
       {step === 'add-materials-to-storage' && (
         /*
@@ -132,6 +136,154 @@ export function AdvancementPhase({ campaign, step }: AdvancementPhaseProps) {
 
       {step === 'add-facilities-and-upgrades' && <FinishProjects campaign={campaign} />}
     </div>
+  );
+}
+
+/**
+ * Step 2: the strangers this turn's missions rescued, each offered once
+ * (pg. 19; Z4-5).
+ *
+ * The step itself rather than a pointer to the roster's forms, because what it
+ * offers is read off the record: who was rescued, by which team and at what
+ * Tier is the outcome's, so the only things left for the table are a name
+ * and, where the Tier rolls for one, the die (pp. 7, 15). The roster's own
+ * Add and Recruit stay where they are, for everybody who did not arrive this
+ * way.
+ */
+function CreateNewSurvivors({ campaign }: { readonly campaign: Campaign }) {
+  const rescued = rescuedStrangers(campaign);
+  const waiting = strangersWaiting(campaign);
+
+  return (
+    <>
+      <p className={HINT}>
+        Strangers rescued on the missions join here, each at the Tier the mission counted. A Citizen
+        or a Leader arrives with one skill rolled <PageRef pages="15, 18–19" />
+      </p>
+
+      {rescued.length === 0 ? (
+        <p className={`mt-3 ${HINT}`}>Nobody was rescued on this turn’s missions.</p>
+      ) : waiting.length === 0 ? (
+        <p className="mt-3 text-sm font-medium">
+          Every stranger rescued this turn has joined the community. Stepping back through the walk
+          will not add them twice.
+        </p>
+      ) : (
+        <ul className="mt-3 flex flex-col gap-3">
+          {waiting.map((stranger) => (
+            <StrangerJoining
+              key={`${String(stranger.team)}:${String(stranger.stranger)}`}
+              campaign={campaign}
+              stranger={stranger}
+            />
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+/**
+ * One stranger's name, and their die where their Tier rolls one.
+ *
+ * The button asks `strangerProblem` with exactly what it will send, so it is
+ * enabled when the form would accept the press and not otherwise.
+ */
+function StrangerJoining({
+  campaign,
+  stranger,
+}: {
+  readonly campaign: Campaign;
+  readonly stranger: RescuedStranger;
+}) {
+  const { dispatch } = useCampaign();
+  const ids = useId();
+  const [name, setName] = useState('');
+  const [roll, setRoll] = useState<D10Result | undefined>(undefined);
+
+  const rolls = rollsForSkill(stranger.tier);
+  const form = {
+    team: stranger.team,
+    stranger: stranger.stranger,
+    name: name.trim(),
+    ...(rolls && roll !== undefined ? { roll } : {}),
+  };
+  const problem = strangerProblem(campaign, form);
+  // The position as well as the team, because two Citizens rescued by one
+  // team are two strangers and each needs a name of its own on screen.
+  const label = `Mission team ${String(stranger.team)}, stranger ${String(stranger.stranger + 1)}: ${withArticle(TIER_LABELS[stranger.tier])}`;
+
+  return (
+    <li
+      role="group"
+      aria-label={label}
+      className="rounded-lg border border-stone-200 p-3 dark:border-stone-700"
+    >
+      <p className="text-sm font-medium">
+        {label} <span className="font-normal tabular-nums">(Tier {stranger.tier})</span>
+      </p>
+
+      <div className="mt-2 flex flex-wrap items-end gap-2">
+        <div className="grow basis-40">
+          <label className="block text-sm" htmlFor={`${ids}-name`}>
+            Name
+          </label>
+          <input
+            id={`${ids}-name`}
+            value={name}
+            onChange={(changed) => {
+              setName(changed.target.value);
+            }}
+            className={`${FOCUS_RING} mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 dark:border-stone-600 dark:bg-stone-800`}
+          />
+        </div>
+
+        {rolls && (
+          <div>
+            <label className="block text-sm" htmlFor={`${ids}-roll`}>
+              Skill roll
+            </label>
+            <select
+              id={`${ids}-roll`}
+              value={roll ?? ''}
+              onChange={(changed) => {
+                setRoll(
+                  changed.target.value === ''
+                    ? undefined
+                    : (Number(changed.target.value) as D10Result),
+                );
+              }}
+              className={`${FOCUS_RING} ${TOUCH_TARGET} mt-1 rounded-lg border border-stone-300 px-3 tabular-nums dark:border-stone-600 dark:bg-stone-800`}
+            >
+              <option value="">—</option>
+              {D10_RESULTS.map((result) => (
+                <option key={result} value={result}>
+                  {result}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <button
+          type="button"
+          disabled={problem !== null}
+          className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+          onClick={() => {
+            dispatch({
+              type: 'advancement/strangerJoined',
+              ...form,
+              id: crypto.randomUUID(),
+              at: new Date().toISOString(),
+            });
+          }}
+        >
+          Join the community
+        </button>
+      </div>
+
+      {problem !== null && <p className={`mt-1 ${HINT}`}>{problem}</p>}
+    </li>
   );
 }
 

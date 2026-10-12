@@ -152,6 +152,70 @@ describe('outstanding', () => {
     expect(steps(failed)).toEqual(['select-mission']);
   });
 
+  /**
+   * Z4-5: every stranger the turn's outcomes counted joins at Advancement
+   * Step 2 (pg. 19), and the walk owes the step until each one has.
+   */
+  describe('rescued strangers', () => {
+    const earl = createSurvivor('Earl Rhodes', 2, { id: 'earl' });
+    const ruby = createSurvivor('Ruby Vance', 3, { id: 'ruby' });
+    const rescuing = settled({
+      survivors: [earl, ruby],
+      assignments: { earl: { task: 'mission', team: 1 }, ruby: { task: 'mission', team: 2 } },
+      log: [
+        ...settled().log,
+        entry({ kind: 'mission-selected', team: 1, mission: 'rescue-strangers', names: [] }),
+        entry({ kind: 'mission-selected', team: 2, mission: 'rescue-strangers', names: [] }),
+        entry({ kind: 'rescue-strangers-resolved', team: 1, strangers: [2] }),
+        entry({ kind: 'rescue-strangers-resolved', team: 2, strangers: [1] }),
+      ],
+    });
+    const joined = (stranger: number, team: number): LogEntry =>
+      entry({
+        kind: 'stranger-joined',
+        survivor: `new-${String(team)}`,
+        name: 'Somebody',
+        tier: 1,
+        team,
+        stranger,
+      });
+
+    it('owes the step for two strangers nobody has added, and says how many', () => {
+      expect(outstanding(rescuing)).toEqual([
+        {
+          step: 'create-new-survivors',
+          says: '2 rescued strangers have not joined the community.',
+        },
+      ]);
+    });
+
+    it('says so of the one stranger left', () => {
+      const one = settled({ ...rescuing, log: [...rescuing.log, joined(0, 2)] });
+
+      expect(outstanding(one)).toEqual([
+        { step: 'create-new-survivors', says: 'A rescued stranger has not joined the community.' },
+      ]);
+    });
+
+    it('owes nothing once every stranger has joined', () => {
+      const both = settled({ ...rescuing, log: [...rescuing.log, joined(0, 1), joined(0, 2)] });
+
+      expect(steps(both)).toEqual([]);
+    });
+
+    /** Last turn's rescues were last turn's step, and the turn that owed them is over. */
+    it('owes nothing for a stranger an earlier turn rescued', () => {
+      const earlier = settled({
+        log: [
+          ...settled().log,
+          entry({ kind: 'rescue-strangers-resolved', team: 1, strangers: [2] }, 2),
+        ],
+      });
+
+      expect(steps(earlier)).toEqual([]);
+    });
+  });
+
   it('names a survivor at 0 Health whose check has not run', () => {
     const dying = settled({
       survivors: [{ ...createSurvivor('Earl Rhodes', 4, { id: 'earl' }), currentHp: 0 }],

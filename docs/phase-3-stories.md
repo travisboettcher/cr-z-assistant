@@ -716,7 +716,9 @@ acquire a step to happen in.
   rules — see the note above the story list.
 - Building a facility outside this step is a warning, not a refusal — Phase 2 lets you build any
   time, and the fix is to say which step it belongs to, not to take the ability away.
-- Rescued strangers are a doorway: the step exists, and creating them is Phase 4.
+- Rescued strangers are a doorway: the step exists, and creating them is Phase 4. *(Phase 4's
+  Z4-5 opened it: the step now offers each stranger the turn's outcomes counted — see
+  [phase-4-stories.md](phase-4-stories.md#z4-5--strangers-rescued-join-the-community).)*
 
 **Acceptance**
 - The substitution replaces a roll's result and does not add a material; a test covers the

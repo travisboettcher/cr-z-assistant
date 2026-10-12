@@ -137,6 +137,9 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   },
   { kind: 'survivor-added', ...SURVIVOR, tier: 3 },
   { kind: 'survivor-recruited', ...SURVIVOR, tier: 2, roll: 6 },
+  { kind: 'stranger-joined', ...SURVIVOR, tier: 2, team: 2, stranger: 0, roll: 6 },
+  // A Rookie, who does not roll (pg. 7), and the second stranger on a team.
+  { kind: 'stranger-joined', ...SURVIVOR, tier: 1, team: 1, stranger: 1 },
   { kind: 'survivor-left', ...SURVIVOR, tier: 1 },
   { kind: 'survivor-departed', ...SURVIVOR, tier: 1 },
   { kind: 'mission-team-reduced', ...SURVIVOR },

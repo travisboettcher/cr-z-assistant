@@ -75,6 +75,7 @@ import {
   submitRecruit,
   submitRemoval,
   submitStartingCommunity,
+  submitStrangerJoined,
 } from '../engine/campaignForms';
 import { withoutAssignment } from '../engine/assignments';
 import type { FormResult } from '../engine/forms';
@@ -533,6 +534,25 @@ export type CampaignAction =
       readonly at: string;
     }
   /**
+   * A stranger this turn's missions rescued joins the community, at
+   * Advancement Step 2 (pg. 19; Z4-5).
+   *
+   * Names the rescue — the team whose outcome counted the stranger and their
+   * place in its list — rather than carrying a Tier: the Tier is the
+   * outcome's, and a screen that could send one could change it. The id and
+   * the roll arrive here for the reason `survivor/recruited`'s do.
+   */
+  | {
+      readonly type: 'advancement/strangerJoined';
+      readonly team: number;
+      readonly stranger: number;
+      readonly name: string;
+      /** Absent where the stranger's Tier does not roll for a skill (pg. 7). */
+      readonly roll?: D10Result;
+      readonly id: string;
+      readonly at: string;
+    }
+  /**
    * Give a survivor a task for this turn, replacing whatever they had.
    *
    * Replacing rather than adding, and there is no action that adds: one task
@@ -816,6 +836,21 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
     case 'advancement/xpAwarded':
       return submitted(state, (campaign) =>
         submitXpAward(campaign, { survivor: action.survivor, source: action.source }, action.at),
+      );
+
+    case 'advancement/strangerJoined':
+      return submitted(state, (campaign) =>
+        submitStrangerJoined(
+          campaign,
+          {
+            id: action.id,
+            team: action.team,
+            stranger: action.stranger,
+            name: action.name,
+            roll: action.roll,
+          },
+          action.at,
+        ),
       );
 
     /*

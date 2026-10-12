@@ -644,6 +644,51 @@ describe('campaign/startingCommunityBuiltSet', () => {
   });
 });
 
+/**
+ * Advancement Step 2 (pg. 19; Z4-5): a stranger the turn's missions rescued
+ * joins as the form builds them, and a refusal changes nothing.
+ */
+describe('advancement/strangerJoined', () => {
+  const rescued = (): CampaignState =>
+    openState({
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      turn: 3,
+      step: 'create-new-survivors',
+      log: [entry(3, 'mission', { kind: 'rescue-strangers-resolved', team: 2, strangers: [3] })],
+    });
+
+  const join = (name: string): CampaignAction => ({
+    type: 'advancement/strangerJoined',
+    at: AT,
+    team: 2,
+    stranger: 0,
+    name,
+    roll: 6,
+    id: SURVIVOR_ID,
+  });
+
+  it('adds the stranger at the Tier the mission counted', () => {
+    const campaign = expectOpen(campaignReducer(rescued(), join('Carla Proust')));
+
+    // A six is Archery (pg. 15).
+    expect(campaign.survivors).toEqual([
+      recruitSurvivor('Carla Proust', 3, 6, { id: SURVIVOR_ID }),
+    ]);
+  });
+
+  it('does nothing the second time, because the stranger has joined', () => {
+    const once = campaignReducer(rescued(), join('Carla Proust'));
+
+    expect(campaignReducer(once, join('Carla again'))).toEqual(once);
+  });
+
+  it('does nothing when no campaign is open', () => {
+    expect(campaignReducer(INITIAL_CAMPAIGN_STATE, join('Carla Proust'))).toEqual(
+      INITIAL_CAMPAIGN_STATE,
+    );
+  });
+});
+
 describe('survivor/recruited', () => {
   it('adds the recruit the rulebook’s own example produces', () => {
     const campaign = expectOpen(
@@ -2811,6 +2856,38 @@ describe('what earns a line in the log', () => {
         ...WEBB,
         amount: 1,
         source: 'discretionary',
+      }),
+    },
+    'advancement/strangerJoined': {
+      // Turn 3's Create New Survivors, after Marcus's team rescued a Citizen.
+      // Already settled, so the join is the one entry; the settling a stranger
+      // also does is the form's suite's to pin.
+      state: openState({
+        ...expectOpen(
+          marcusOnTeamOne([
+            entry(3, 'mission', { kind: 'rescue-strangers-resolved', team: 1, strangers: [2] }),
+          ]),
+        ),
+        step: 'create-new-survivors',
+        startingCommunityBuilt: true,
+      }),
+      action: {
+        type: 'advancement/strangerJoined',
+        at: AT,
+        team: 1,
+        stranger: 0,
+        name: 'Carla Proust',
+        roll: 6,
+        id: 'carla',
+      },
+      entry: entry(3, 'advancement', {
+        kind: 'stranger-joined',
+        survivor: 'carla',
+        name: 'Carla Proust',
+        tier: 2,
+        team: 1,
+        stranger: 0,
+        roll: 6,
       }),
     },
     // Assignments move around several times while a turn is being planned, for

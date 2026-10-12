@@ -167,6 +167,12 @@ Four, confirmed 2026-10-12 and recorded in [the registry](rulings.md):
 - [R22](rulings.md#r22--what-a-failed-rare-goods-trader-loses) — a failed Rare Goods Trader loses
   what was traded and returns what was set aside for items not yet traded. Phase 5's to build.
 
+One more found while building Z4-5, and left open:
+
+- [R24](rulings.md#r24--what-a-rescued-hero-joins-as--open) — a Tier 4 stranger, whom the
+  outcome accepts but the field-recruit rule does not cover (pg. 7), joins as the roster adds a
+  Hero until it is ruled.
+
 ---
 
 ## Z4-1 — The mission catalogue as rules data
@@ -293,6 +299,24 @@ and creating them is Phase 4."
 **Acceptance**
 - Two strangers rescued by two teams are two survivors, each offered once.
 - A stranger already added is not offered again after the walk goes back over the step.
+
+**What this story turned out to include.** A stranger is named by the team whose outcome counted
+them and their place in that outcome's list, from 0, and joining writes its own entry,
+`stranger-joined`, carrying that pair — so "who is still waiting" is read off the log
+(`strangersWaiting` in `src/engine/strangers.ts`) rather than stored, and a walk back over the step
+finds the entry and offers nobody twice. Its own kind rather than a field on `survivor-recruited`,
+because the Tier is the outcome's and an outcome may count a Hero, whom the recruit form never
+takes. A Rookie, Citizen or Leader joins as the roster's field recruit does — the Tier's stat
+array, and from Tier 2 one skill off the d10 (pp. 7, 15) — and settles the starting community the
+way a recruit does; a Hero joins as the roster adds one, which is
+[R24](rulings.md#r24--what-a-rescued-hero-joins-as--open) and open. The step accepts a stranger
+only in the Advancement Phase, and only one this turn's outcomes counted (`teamOutcomes`), so a
+team that played its First Mission again (R21) offers its latest list, and a join from the failed
+attempt answers nothing in it. A stranger nobody adds is not refused anything and not offered
+again: the walk owes the step, the End-turn dialog names it like any other step left undone, and
+the turn that rescued them takes them with it. There is no entry for turning a stranger away —
+whether the book allows one was not checked, and the app does not invent one. The roster's own Add
+and Recruit forms are unchanged, for everybody who arrives some other way.
 
 ---
 
