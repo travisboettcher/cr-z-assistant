@@ -1830,6 +1830,12 @@ test('a turn ends with the horde called and somebody walking out', async ({ page
    * outcome is the record the turns since the last siege are read from.
    */
   const turnTwo = page.getByRole('region', { name: 'Turn 2' });
+
+  // Select Mission (Z4-2): the whole community is one team, and the Siege
+  // Defense is the only mission on offer (pp. 23, 85).
+  await turnTwo.getByRole('button', { name: 'Choose for team 1' }).click();
+  await expect(turnTwo).toContainText('Mission team 1 chose the Siege Defense');
+
   await turnTwo.getByRole('button', { name: 'Next: Equip the Mission Team' }).click();
   await turnTwo.getByRole('button', { name: 'Next: Play the Mission' }).click();
 

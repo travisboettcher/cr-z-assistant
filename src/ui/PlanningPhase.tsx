@@ -36,6 +36,24 @@ export interface PlanningPhaseProps {
   readonly step: TurnStepId;
 }
 
+/**
+ * The mission teams this step offers: team 1 always, every team somebody is on
+ * already, and one more after the highest, for splitting the mission survivors
+ * further (pg. 21). An empty team is not a team — `missionTeams` ignores it —
+ * so offering the next one costs nothing until somebody is put on it.
+ */
+function missionTeamsToOffer(campaign: Campaign): readonly number[] {
+  const inUse = Object.values(campaign.assignments).flatMap((assignment) =>
+    assignment.task === 'mission' ? [assignment.team] : [],
+  );
+
+  if (inUse.length === 0) return [1];
+
+  const highest = Math.max(...inUse);
+
+  return Array.from({ length: highest + 1 }, (_, index) => index + 1);
+}
+
 export function PlanningPhase({ campaign, step }: PlanningPhaseProps) {
   const idle = unassigned(campaign);
 
@@ -94,12 +112,19 @@ export function PlanningPhase({ campaign, step }: PlanningPhaseProps) {
           <p className="text-sm text-stone-600 dark:text-stone-400">
             For next turn’s mission. Injured survivors cannot go <PageRef pages={21} />
           </p>
-          <AssignTask
-            campaign={campaign}
-            task={{ task: 'mission', team: 1 }}
-            legend="On the mission team"
-            pages={21}
-          />
+          {missionTeamsToOffer(campaign).map((team) => (
+            <AssignTask
+              key={team}
+              campaign={campaign}
+              task={{ task: 'mission', team }}
+              legend={team === 1 ? 'On the mission team' : `On mission team ${String(team)}`}
+              pages={21}
+            />
+          ))}
+          <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">
+            Split them between teams and each team plays its own mission next turn{' '}
+            <PageRef pages={21} />
+          </p>
           <AssignTask
             campaign={campaign}
             task={{ task: 'scavenging' }}

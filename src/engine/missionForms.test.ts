@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign } from './campaign';
 import { createSurvivor } from './survivor';
 import type { MissionOutcome } from './siege';
-import { submitMissionOutcome, submitStandIn } from './missionForms';
+import {
+  submitMissionOutcome,
+  submitMissionSelection,
+  submitMissionSkip,
+  submitStandIn,
+} from './missionForms';
 import { expectAccepted, expectRefused } from '../test/forms';
 
 /**
@@ -16,6 +21,91 @@ const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-
 const AT = '2026-10-11T09:00:00.000Z';
 const LATER = '2026-10-11T09:05:00.000Z';
 
+describe('submitMissionSelection', () => {
+  /** Turn 4 at Select Mission: Earl on team 1, Ruby and Carla on team 2 (pg. 21). */
+  const selecting = (): Campaign => ({
+    ...createNewCampaign('Cedar Hollow', FIXED),
+    turn: 4,
+    step: 'select-mission',
+    survivors: [
+      createSurvivor('Earl Rhodes', 2, { id: 'earl' }),
+      createSurvivor('Ruby Vance', 3, { id: 'ruby' }),
+      createSurvivor('Carla Proust', 2, { id: 'carla' }),
+    ],
+    assignments: {
+      earl: { task: 'mission', team: 1 },
+      ruby: { task: 'mission', team: 2 },
+      carla: { task: 'mission', team: 2 },
+    },
+  });
+
+  it('records the team’s mission with the names on that team, and nothing else', () => {
+    const before = selecting();
+    const after = expectAccepted(
+      submitMissionSelection(
+        before,
+        { team: 2, mission: 'gather-materials', material: 'fuel' },
+        LATER,
+      ),
+    );
+
+    expect(after.log.at(-1)).toStrictEqual({
+      turn: 4,
+      phase: 'mission',
+      at: LATER,
+      event: {
+        kind: 'mission-selected',
+        team: 2,
+        mission: 'gather-materials',
+        names: ['Ruby Vance', 'Carla Proust'],
+        material: 'fuel',
+      },
+    });
+    expect({ ...after, log: before.log }).toEqual(before);
+  });
+
+  it('writes no material for a mission that asks for none', () => {
+    const after = expectAccepted(
+      submitMissionSelection(selecting(), { team: 1, mission: 'thin-the-herd' }, LATER),
+    );
+
+    expect(after.log.at(-1)?.event).toStrictEqual({
+      kind: 'mission-selected',
+      team: 1,
+      mission: 'thin-the-herd',
+      names: ['Earl Rhodes'],
+    });
+  });
+
+  it('refuses with the engine’s own reason — here, a team nobody is on', () => {
+    expect(
+      expectRefused(
+        submitMissionSelection(selecting(), { team: 3, mission: 'thin-the-herd' }, LATER),
+      ),
+    ).toBe('Only a mission team with somebody on it chooses a mission.');
+  });
+});
+
+describe('submitMissionSkip', () => {
+  const ordinary = (turn: number): Campaign => ({
+    ...createNewCampaign('Cedar Hollow', FIXED),
+    turn,
+    step: 'select-mission',
+  });
+
+  it('records that the community opted out (pg. 17)', () => {
+    const after = expectAccepted(submitMissionSkip(ordinary(4), LATER));
+
+    expect(after.log.at(-1)?.event).toStrictEqual({ kind: 'mission-skipped' });
+  });
+
+  it('refuses with the engine’s own reason — here, turn 1', () => {
+    expect(expectRefused(submitMissionSkip(ordinary(1), LATER))).toBe(
+      'Turn 1’s First Mission cannot be skipped.',
+    );
+  });
+});
+
 describe('submitMissionOutcome', () => {
   /** Turn 4, standing on Play the Mission, with the siege turn 3 called. */
   const besieged = (): Campaign => ({
@@ -28,6 +118,13 @@ describe('submitMissionOutcome', () => {
         phase: 'management',
         at: AT,
         event: { kind: 'horde-checked', roll: 9, threat: 8, siege: true },
+      },
+      // The whole community chose the Siege Defense at Select Mission (Z4-2).
+      {
+        turn: 4,
+        phase: 'mission',
+        at: AT,
+        event: { kind: 'mission-selected', team: 1, mission: 'siege-defense', names: [] },
       },
     ],
   });

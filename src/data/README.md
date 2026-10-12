@@ -29,7 +29,13 @@ Phase 3 (the turn):
 | `turn.ts` | the four phases and their numbered steps, and every threshold the Management Phase checks against |
 | `dice.ts` | the d10, and the two results that ignore every modifier |
 
-Equipment arrives in Phase 5 and mission metadata in Phase 4.
+Phase 4 (missions):
+
+| | |
+|---|---|
+| `missions.ts` | every mission in the book by family and pages; for the eight standard ones, when each may be chosen, what Select Mission asks for it, and what its outcome counts |
+
+Equipment arrives in Phase 5.
 
 ## Three things have moved down here, for one reason
 

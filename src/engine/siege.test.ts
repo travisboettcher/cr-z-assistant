@@ -12,7 +12,6 @@ import {
   hordeCame,
   hordeChecked,
   hordeForced,
-  missionOutcomeProblem,
   missionResolved,
   siegeCounterChange,
   siegeDue,
@@ -239,64 +238,6 @@ describe('hordeForced', () => {
     };
 
     expect(hordeForced(community({ log: [stray] }))).toBe(false);
-  });
-});
-
-describe('missionOutcomeProblem', () => {
-  type Of<Kind> = Extract<MissionOutcome, { readonly kind: Kind }>;
-  const siege = outcomeOf(defended(4, 0, 1)) as Of<'siege-defense-resolved'>;
-  const herd = outcomeOf(thinned(4, 8, 0, 1)) as Of<'thin-the-herd-resolved'>;
-  const playing = (overrides: Partial<Campaign> = {}): Campaign =>
-    community({ step: 'tactical-mission', ...overrides });
-  /** Turn 4, with the siege turn 3's check called. */
-  const besieged = (overrides: Partial<Campaign> = {}): Campaign =>
-    playing({ turn: 4, log: [rolled(3, true)], ...overrides });
-
-  it('takes a Siege Defense on the turn the horde called one for', () => {
-    expect(missionOutcomeProblem(besieged(), siege)).toBeNull();
-  });
-
-  it('takes a Thin the Herd on a turn with no siege, from the first step of the phase', () => {
-    expect(missionOutcomeProblem(playing({ step: 'select-mission' }), herd)).toBeNull();
-  });
-
-  it('refuses outside the Mission Phase', () => {
-    expect(missionOutcomeProblem(besieged({ step: 'check-the-horde' }), siege)).toMatch(
-      /Mission Phase/,
-    );
-  });
-
-  it('refuses a second outcome in one turn', () => {
-    expect(
-      missionOutcomeProblem(besieged({ log: [rolled(3, true), defended(4, 2)] }), siege),
-    ).toMatch(/already/);
-  });
-
-  it('refuses on turn 1, which is the First Mission', () => {
-    expect(missionOutcomeProblem(playing({ turn: 1 }), herd)).toMatch(/First Mission/);
-  });
-
-  it('refuses a Siege Defense nobody called, and a Thin the Herd in place of one', () => {
-    expect(missionOutcomeProblem(playing(), siege)).toMatch(/not called/);
-    expect(missionOutcomeProblem(besieged(), herd)).toMatch(/is the Siege Defense/);
-  });
-
-  it('takes a count of zero', () => {
-    expect(missionOutcomeProblem(playing(), outcomeOf(thinned(3, 0, 0, 0)))).toBeNull();
-  });
-
-  it.each([
-    ['a negative', -1],
-    ['a fractional', 1.5],
-    ['an unreadable', Number.NaN],
-  ])('refuses %s count in any field', (_, bad) => {
-    const refused = /whole number/;
-
-    expect(missionOutcomeProblem(besieged(), { ...siege, zombiesLeft: bad })).toMatch(refused);
-    expect(missionOutcomeProblem(besieged(), { ...siege, survivorsExited: bad })).toMatch(refused);
-    expect(missionOutcomeProblem(playing(), { ...herd, startingZombies: bad })).toMatch(refused);
-    expect(missionOutcomeProblem(playing(), { ...herd, zombiesLeft: bad })).toMatch(refused);
-    expect(missionOutcomeProblem(playing(), { ...herd, survivorsExited: bad })).toMatch(refused);
   });
 });
 

@@ -21,6 +21,7 @@ import { PageRef } from './PageRef';
 import { AdvancementPhase } from './AdvancementPhase';
 import { FirstMission } from './FirstMission';
 import { MissionOutcome } from './MissionOutcome';
+import { SelectMission } from './SelectMission';
 import { SiegeWork } from './SiegeWork';
 import { ManagementPhase } from './ManagementPhase';
 import { PlanningPhase } from './PlanningPhase';
@@ -277,6 +278,13 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
             )}
 
             {/*
+             * Select Mission: the mission each team plays (pg. 17; Z4-2). After
+             * the First Mission's team on turn 1, because that is the team it
+             * chooses for.
+             */}
+            {campaign.step === 'select-mission' && <SelectMission campaign={campaign} />}
+
+            {/*
              * The third: how a Siege Defense or a Thin the Herd ended, which is
              * what moves the turns since the last siege (pp. 81, 86). At the
              * step the mission is played in, because that is when the table
@@ -292,10 +300,12 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
              */}
             {campaign.step === 'tactical-mission' && <SiegeWork campaign={campaign} />}
 
-            <p className="mt-4 text-sm text-stone-600 dark:text-stone-400">
-              This step is not built yet — work it on paper and move on when the table has.{' '}
-              <PageRef pages={step.pages} />
-            </p>
+            {campaign.step !== 'select-mission' && (
+              <p className="mt-4 text-sm text-stone-600 dark:text-stone-400">
+                This step is not built yet — work it on paper and move on when the table has.{' '}
+                <PageRef pages={step.pages} />
+              </p>
+            )}
           </>
         )
       )}

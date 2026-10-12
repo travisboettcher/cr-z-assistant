@@ -48,7 +48,7 @@ import {
 import type { D10Result } from '../data/dice';
 import { storageCaps } from './base';
 import { beforePlanning, staffOf, survivorsDoing } from './assignments';
-import { deployed } from './siege';
+import { deployed } from './missions';
 import { whoWorked } from './siegeWork';
 import type { Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';

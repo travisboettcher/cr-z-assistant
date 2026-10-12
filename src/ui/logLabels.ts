@@ -30,7 +30,8 @@ import {
   UPGRADE_LABELS,
   slotLabel,
 } from './baseLabels';
-import { describeOutcome, MISSION_PAGES } from './missionLabels';
+import { MISSIONS } from '../data/missions';
+import { describeOutcome, describeSelection, MISSION_PAGES } from './missionLabels';
 import { PHASE_LABELS } from './turnLabels';
 import { COMMON_SKILL_LABELS, SKILL_LABELS } from './skillLabels';
 import { TIER_LABELS } from './tierLabels';
@@ -275,6 +276,12 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
           : `The horde stayed away: ${articleForNumber(event.roll)} ${String(event.roll)} against a Siege Threat of ${String(event.threat)}.`,
         pages: 23,
       };
+
+    case 'mission-selected':
+      return { text: describeSelection(event), pages: MISSIONS[event.mission].pages };
+
+    case 'mission-skipped':
+      return { text: 'The community skipped this turn’s mission.', pages: 17 };
 
     case 'siege-defense-resolved':
     case 'thin-the-herd-resolved':

@@ -115,6 +115,8 @@ describe('the event samples', () => {
     'siege-defense-resolved': true,
     'thin-the-herd-resolved': true,
     'stood-in': true,
+    'mission-selected': true,
+    'mission-skipped': true,
     'survivor-added': true,
     'survivor-recruited': true,
     'survivor-left': true,

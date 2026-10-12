@@ -45,6 +45,7 @@ import {
   SIEGE_THREAT_TERMS,
   TURN_STEPS,
 } from './turn';
+import { MISSIONS, type MissionFamily } from './missions';
 
 describe('stats and skills', () => {
   it('has four stats and twenty governed skills', () => {
@@ -714,5 +715,110 @@ describe('base specials', () => {
     expect(BASE_SPECIAL_PHASE['blacksmithing-tools']).toBe(5);
     expect(BASE_SPECIAL_PHASE['turnout-gear']).toBe(5);
     expect(BASE_SPECIAL_PHASE['ring-the-bell']).toBe(4);
+  });
+});
+
+describe('the missions', () => {
+  // Each family's chapter (pp. 75, 87, 103, 158). A citation outside its
+  // chapter is a transcription slip; Road Trip's chapter opens at pg. 158,
+  // before its missions do.
+  const CHAPTERS: Record<MissionFamily, readonly [number, number]> = {
+    standard: [75, 86],
+    story: [87, 102],
+    origin: [103, 115],
+    'road-trip': [158, 167],
+  };
+
+  const entries = Object.entries(MISSIONS);
+
+  it('lists the eight standard missions of pg. 75 by name', () => {
+    expect(
+      entries.filter(([, mission]) => mission.family === 'standard').map(([id]) => id),
+    ).toEqual([
+      'first-mission',
+      'claim-a-new-base',
+      'gather-materials',
+      'thin-the-herd',
+      'retrieve-new-vehicles',
+      'rescue-strangers',
+      'rare-goods-trader',
+      'siege-defense',
+    ]);
+  });
+
+  it('counts nine story, nine origin and three Road Trip missions', () => {
+    const count = (family: MissionFamily) =>
+      entries.filter(([, mission]) => mission.family === family).length;
+
+    expect(count('story')).toBe(9);
+    expect(count('origin')).toBe(9);
+    expect(count('road-trip')).toBe(3);
+  });
+
+  it('cites every mission inside its own chapter', () => {
+    for (const [, mission] of entries) {
+      const [first, last] = CHAPTERS[mission.family];
+      const pages = String(mission.pages)
+        .split(/[^0-9]+/)
+        .filter((part) => part !== '')
+        .map(Number);
+
+      expect(pages.length).toBeGreaterThan(0);
+
+      for (const page of pages) {
+        expect(page).toBeGreaterThanOrEqual(first);
+        expect(page).toBeLessThanOrEqual(last);
+      }
+    }
+  });
+
+  it('makes the First Mission turn 1 only, forces the Siege Defense, and leaves the rest to choice', () => {
+    expect(MISSIONS['first-mission'].availability).toBe('first-turn');
+    expect(MISSIONS['siege-defense'].availability).toBe('forced-by-siege');
+
+    // Claim a New Base is not tied to an overrun base (pp. 75, 86), and Rare
+    // Goods Trader is forced only by a trade, which is Phase 5's (pg. 21).
+    expect(MISSIONS['claim-a-new-base'].availability).toBe('any-time');
+    expect(MISSIONS['rare-goods-trader'].availability).toBe('any-time');
+  });
+
+  it('asks only Gather Materials for anything at selection', () => {
+    for (const [id, mission] of entries) {
+      if (mission.family !== 'standard') continue;
+
+      expect(mission.asks).toEqual(id === 'gather-materials' ? ['material'] : []);
+    }
+  });
+
+  it('records the counts #175 already reads for the two siege-counter missions', () => {
+    expect(MISSIONS['siege-defense'].counts).toEqual(['zombies-left', 'survivors-exited']);
+    expect(MISSIONS['thin-the-herd'].counts).toEqual([
+      'starting-zombies',
+      'zombies-left',
+      'survivors-exited',
+      'all-incapacitated',
+    ]);
+  });
+
+  it('records strangers wherever a mission can rescue them (pp. 77, 79, 83)', () => {
+    const rescuing = entries
+      .filter(
+        ([, mission]) =>
+          mission.family === 'standard' &&
+          (mission.counts as readonly string[]).includes('strangers-rescued'),
+      )
+      .map(([id]) => id);
+
+    expect(rescuing).toEqual(['first-mission', 'claim-a-new-base', 'rescue-strangers']);
+  });
+
+  it('gives every origin mission an origin, three to each', () => {
+    const origins = entries.flatMap(([, mission]) =>
+      mission.family === 'origin' ? [mission.origin] : [],
+    );
+
+    expect(origins.filter((origin) => origin === 'viral')).toHaveLength(3);
+    expect(origins.filter((origin) => origin === 'cosmic-horror')).toHaveLength(3);
+    expect(origins.filter((origin) => origin === 'magic')).toHaveLength(3);
   });
 });

@@ -21,6 +21,7 @@ import { COMMON_SKILLS, SKILL_STATS, STATS } from '../data/skills';
 import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS } from '../data/materials';
+import { MISSIONS } from '../data/missions';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { CAMPAIGN_PHASES, HEALTH_SOURCES, XP_SOURCES } from '../data/turn';
 import type { Assignment, Campaign, Project } from '../engine/campaign';
@@ -275,6 +276,11 @@ const EVENT_FIELD_CHECKS = {
   commonSkill: (value: unknown) => COMMON_SKILLS.some((skill) => skill === value),
   base: (value: unknown) => typeof value === 'string' && isKeyOf(BASES, value),
   facility: (value: unknown) => typeof value === 'string' && isKeyOf(FACILITIES, value),
+  mission: (value: unknown) => typeof value === 'string' && isKeyOf(MISSIONS, value),
+  // Gather Materials' remainder type (pg. 80), and absent for every other
+  // mission. Which mission asks for one is the engine's to check, not a file's.
+  optionalMaterial: (value: unknown) =>
+    value === undefined || (MATERIALS as readonly unknown[]).includes(value),
   upgrade: (value: unknown) =>
     typeof value === 'string' && facilityOfUpgrade(value as UpgradeId) !== undefined,
 } as const;
@@ -383,6 +389,13 @@ const EVENT_FIELDS: Record<
     ['threat', 'amount'],
     ['siege', 'flag'],
   ],
+  'mission-selected': [
+    ['team', 'countFromOne'],
+    ['mission', 'mission'],
+    ['names', 'names'],
+    ['material', 'optionalMaterial'],
+  ],
+  'mission-skipped': [],
   'siege-defense-resolved': [
     ['zombiesLeft', 'count'],
     ['survivorsExited', 'count'],

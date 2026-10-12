@@ -2278,6 +2278,17 @@ describe('what earns a line in the log', () => {
     });
   }
 
+  /** `rich()` with Marcus on mission team 1, and these entries in its log. */
+  function marcusOnTeamOne(log: readonly LogEntry[] = []): CampaignState {
+    const campaign = expectOpen(rich());
+
+    return openState({
+      ...campaign,
+      assignments: { ...campaign.assignments, [LOGGED_SURVIVOR]: { task: 'mission', team: 1 } },
+      log: [...campaign.log, ...log],
+    });
+  }
+
   /** `rich()` with one Watchtower already in the queue, ordered on `turn`. */
   function queued(turn: number): CampaignState {
     return openState({
@@ -2628,9 +2639,33 @@ describe('what earns a line in the log', () => {
       action: { type: 'management/hordeChecked', at: AT, roll: 9 },
       entry: entry(3, 'mission', { kind: 'horde-checked', roll: 9, threat: 2, siege: false }),
     },
+    'mission/selected': {
+      // `rich()` stands in the Mission Phase of turn 3 with no siege called,
+      // and Marcus is the team Planning assigned (pg. 21).
+      state: marcusOnTeamOne(),
+      action: { type: 'mission/selected', at: AT, team: 1, mission: 'thin-the-herd' },
+      entry: entry(3, 'mission', {
+        kind: 'mission-selected',
+        team: 1,
+        mission: 'thin-the-herd',
+        names: ['Marcus Webb'],
+      }),
+    },
+    'mission/skipped': {
+      action: { type: 'mission/skipped', at: AT },
+      entry: entry(3, 'mission', { kind: 'mission-skipped' }),
+    },
     'mission/resolved': {
-      // `rich()` stands on Play the Mission of turn 3 with no siege called, so
-      // its mission may be a Thin the Herd.
+      // `rich()` stands on Play the Mission of turn 3 with no siege called, and
+      // its one team chose Thin the Herd at Select Mission (Z4-2).
+      state: marcusOnTeamOne([
+        entry(3, 'mission', {
+          kind: 'mission-selected',
+          team: 1,
+          mission: 'thin-the-herd',
+          names: ['Marcus Webb'],
+        }),
+      ]),
       action: {
         type: 'mission/resolved',
         at: AT,
@@ -3612,7 +3647,15 @@ describe('mission/resolved', () => {
       ...createNewCampaign('Cedar Hollow', FIXED),
       turn: 4,
       step: 'tactical-mission',
-      log: [called],
+      log: [
+        called,
+        entry(4, 'mission', {
+          kind: 'mission-selected',
+          team: 1,
+          mission: 'siege-defense',
+          names: [],
+        }),
+      ],
     });
 
   const resolve = (zombiesLeft: number): CampaignAction => ({

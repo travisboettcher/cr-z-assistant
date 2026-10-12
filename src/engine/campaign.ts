@@ -224,10 +224,10 @@ export type Assignment =
   /**
    * On a mission team, for the mission next turn (pg. 21).
    *
-   * Carries a team number from the day it lands, though Phase 3 only ever
-   * writes 1. The published edition makes multiple teams per turn explicit
-   * (pg. 21, 25) and the project note resolved to model N of them from the
-   * start; the field costs nothing today and is a migration later.
+   * Carries a team number from the day it lands. Phase 3 only ever wrote 1;
+   * since Z4-2 Planning splits the mission survivors between any number of
+   * teams (pg. 21), and Select Mission chooses each team's mission. The field
+   * cost nothing until then and saved a migration.
    */
   | { readonly task: 'mission'; readonly team: number }
   /**

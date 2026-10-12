@@ -36,6 +36,7 @@ import type { Campaign } from './campaign';
 import { survivorsFed } from './feeding';
 import { healthAwards, woundsHealed } from './healing';
 import { materialsAdded } from './materials';
+import { missionsChosen } from './missions';
 import { dueProjects, laborShortfall, siegeLaborShortfall } from './projects';
 import { mustCheck, rotCheckResolved } from './rot';
 import { hordeChecked, missionResolved, siegeDue } from './siege';
@@ -73,6 +74,12 @@ function rotOutstanding(campaign: Campaign): boolean {
  */
 export function outstanding(campaign: Campaign): readonly Outstanding[] {
   const owed: Outstanding[] = [];
+
+  // Every team the Planning Phase sent needs a mission, unless the community
+  // opted out (pg. 17; Z4-2). A turn with nobody on a team owes nothing.
+  if (!missionsChosen(campaign)) {
+    owed.push({ step: 'select-mission', says: 'A mission team has no mission chosen.' });
+  }
 
   // Only the siege, because it is the only mission the app knows was played:
   // the horde called it. A Thin the Herd is the player's choice and recorded

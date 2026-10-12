@@ -494,3 +494,87 @@ nothing builds yet — not the Rot check, whose wording is about Health.
 damage, which is what pg. 123 says adds it, but it lands at the base rather than on a mission,
 and the tracker has no mission to compare it with. Recorded so that it is not mistaken for a
 decision.
+
+---
+
+## R19 — Missions in one turn are independent
+
+**pp. 17–19, 21; [#178](https://github.com/travisboettcher/cr-z-assistant/issues/178).** The
+mission survivors may be split into any number of teams, each completing its own mission in the
+same turn (pg. 21). The book does not say in what order a turn's missions are
+played, or whether the result of one reaches another — a vehicle driven off, a base claimed
+mid-turn — and the Advancement Phase is written as though there were one mission.
+
+**The ruling is that each outcome applies on its own, and none is read by another in the same
+turn.** What the Advancement Phase gathers from them is gathered across all of them: mission XP is
+a point for every survivor on every team, the discretionary point is still one per turn (pg. 18,
+literal), and the material roll is once per material recovered, from every mission together
+(pg. 19, derived).
+
+**What it costs.** A table that plays its missions in sequence and lets the first change the
+second — a Claim a New Base whose new base the next team leaves from — gets no help from the
+tracker in doing so. The record does not forbid it; it just does not model it.
+
+---
+
+## R20 — One Claim a New Base per turn
+
+**pp. 75, 78–79, 21; [#178](https://github.com/travisboettcher/cr-z-assistant/issues/178).** Any
+standard mission may be attempted at any time but the Siege Defense (pg. 75), and nothing forbids
+two teams choosing the same one. Two successful Claims in one turn would claim two bases at once,
+which the book never describes: a community has one base, and Claim a New Base replaces it
+(pg. 79).
+
+**The ruling is that a second Claim a New Base in the same turn is refused when it is selected.**
+Every other mission may be chosen by more than one team.
+
+**What it costs.** A table that wants two teams scouting two candidate bases in one turn cannot
+record it. The narrower ruling was picked because the wider one needs an answer — which base
+wins — that the book does not give.
+
+---
+
+## R21 — A failed First Mission is played again in turn 1
+
+**pp. 76–77; [#178](https://github.com/travisboettcher/cr-z-assistant/issues/178).** The First
+Mission fails when no survivors are left in the mission area, and the community may then try it
+again (pg. 77). The book does not say whether the retry
+is the same campaign turn — but a community without a base has no turn 2 to play it in: every
+later phase reads the base.
+
+**The ruling is that a First Mission outcome that met no end condition leaves Select Mission open
+in turn 1, and the next selection is the First Mission again.** Each attempt is its own selection
+and outcome on the record, so the history shows the failure rather than hiding it.
+
+**What it costs.** Nothing the book says, as far as the extract goes; recorded because it is a
+decision about turn structure the text leaves implicit.
+
+---
+
+## R22 — What a failed Rare Goods Trader loses
+
+**pg. 84; recorded ahead of Phase 5.** Rare Goods Trader's rewards read two ways. When nobody exits,
+one bullet returns the materials of items not yet traded, and the next loses every traded item and
+its materials.
+
+**The ruling is that traded items and the materials paid for them are lost, and materials set
+aside for items not yet traded go back to storage.** It is the reading that lets both bullets be
+true at once: the second is about what was traded, the first about what was not.
+
+**What it costs.** A stricter table loses everything set aside. Nothing builds this until the trade
+itself arrives with equipment in Phase 5; it is recorded now because #178's outcome entry for the
+mission carries the one field it reads.
+
+---
+
+## R23 — Which mission team Exhaustion counts — OPEN
+
+**pp. 21, 23; [#178](https://github.com/travisboettcher/cr-z-assistant/issues/178).** Exhaustion
+above "the mission team" takes one survivor off it (pg. 23). Since Z4-2 the Planning Phase splits
+the mission survivors between several teams (pg. 21), so there may be more than one team for the
+rule to mean.
+
+**Open.** Until it is ruled, `overworked` counts **every survivor on any mission team together**,
+which is what it has always counted, and the survivor taken off may come from any team. The
+alternatives are to compare Exhaustion with each team separately, or with the largest. Recorded so
+that the current reading is not mistaken for a decision.

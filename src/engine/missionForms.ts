@@ -2,12 +2,13 @@
  * The Mission Phase's forms, each guard, change and entry in one place (#179).
  *
  * The mission itself is played on the table and the tracker does not run it.
- * What it records is how a Siege Defense or a Thin the Herd ended (pp. 81, 86),
- * and who stands in for somebody the siege took off their work (pg. 23, the
- * FAQ's "Siege Defense and Labor"; #183). Neither changes anything on the
- * campaign but its log: what they do to the turns since the last siege, and to
- * the Labor of the orders the siege interrupted, is read back from the entries
- * by `siege.ts` and `siegeWork.ts`.
+ * What it records is which mission each team chose (pg. 17; Z4-2), how a Siege
+ * Defense or a Thin the Herd ended (pp. 81, 86), and who stands in for
+ * somebody the siege took off their work (pg. 23, the FAQ's "Siege Defense and
+ * Labor"; #183). None of them changes anything on the campaign but its log:
+ * who went out, what they do to the turns since the last siege, and to the
+ * Labor of the orders the siege interrupted, is read back from the entries by
+ * `missions.ts`, `siege.ts` and `siegeWork.ts`.
  *
  * Moved out of `campaignStore.ts` without changing what either accepts or
  * refuses. The shape of what they return is `forms.ts`'s.
@@ -16,8 +17,56 @@
 import type { Campaign, Survivor } from './campaign';
 import { accepted, refused, type FormResult } from './forms';
 import { logged } from './log';
-import { missionOutcomeProblem, type MissionOutcome } from './siege';
+import {
+  missionOutcomeProblem,
+  missionTeams,
+  selectionProblem,
+  skipProblem,
+  type MissionChoice,
+  type MissionTeam,
+} from './missions';
+import type { MissionOutcome } from './siege';
 import { standInProblem } from './siegeWork';
+
+/**
+ * A team's mission, chosen at Select Mission (pg. 17; Z4-2).
+ *
+ * Refused for whatever `selectionProblem` says. The entry names the team's
+ * survivors as they are now, for the history; who the team *is* stays the
+ * Planning Phase's assignment, read back by `missionTeams`.
+ */
+export function submitMissionSelection(
+  campaign: Campaign,
+  choice: MissionChoice,
+  at: string,
+): FormResult {
+  const problem = selectionProblem(campaign, choice);
+  if (problem !== null) return refused(problem);
+
+  // Present by now: `selectionProblem` refuses a team nobody is on.
+  const team = missionTeams(campaign).find(
+    (candidate) => candidate.team === choice.team,
+  ) as MissionTeam;
+
+  return accepted(
+    logged(campaign, at, {
+      kind: 'mission-selected',
+      team: choice.team,
+      mission: choice.mission,
+      names: team.members.map((survivor) => survivor.name),
+      ...(choice.material === undefined ? {} : { material: choice.material }),
+    }),
+  );
+}
+
+/** The community opts out of this turn's mission (pg. 17). */
+export function submitMissionSkip(campaign: Campaign, at: string): FormResult {
+  const problem = skipProblem(campaign);
+
+  return problem === null
+    ? accepted(logged(campaign, at, { kind: 'mission-skipped' }))
+    : refused(problem);
+}
 
 /**
  * Record how this turn's Siege Defense or Thin the Herd ended (pp. 81, 86).

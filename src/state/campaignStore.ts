@@ -32,6 +32,7 @@
 import type { BaseId } from '../data/bases';
 import type { Utility } from '../data/facilities';
 import type { Material } from '../data/materials';
+import type { MissionId } from '../data/missions';
 import type { D10Result } from '../data/dice';
 import type { FieldRecruitTier } from '../data/recruitTable';
 import type { CommonSkill, Skill, Stat } from '../data/skills';
@@ -61,7 +62,12 @@ import {
   submitXpAward,
 } from '../engine/advancementForms';
 import type { MissionOutcome } from '../engine/siege';
-import { submitMissionOutcome, submitStandIn } from '../engine/missionForms';
+import {
+  submitMissionOutcome,
+  submitMissionSelection,
+  submitMissionSkip,
+  submitStandIn,
+} from '../engine/missionForms';
 import {
   submitAdvance,
   submitBaseClaim,
@@ -408,6 +414,23 @@ export type CampaignAction =
    */
   | { readonly type: 'management/hordeChecked'; readonly roll: D10Result; readonly at: string }
   /**
+   * A mission team's mission, chosen at Select Mission (pg. 17; Z4-2).
+   *
+   * The team is the Planning Phase's; this names its mission, and the material
+   * type a Gather Materials team takes its remainder in (pg. 80). Choosing
+   * again for the same team replaces the choice. Refused for whatever
+   * `selectionProblem` says.
+   */
+  | {
+      readonly type: 'mission/selected';
+      readonly team: number;
+      readonly mission: MissionId;
+      readonly material?: Material;
+      readonly at: string;
+    }
+  /** The community opts out of this turn's mission (pg. 17). */
+  | { readonly type: 'mission/skipped'; readonly at: string }
+  /**
    * Record how this turn's Siege Defense or Thin the Herd ended (pp. 81, 86).
    *
    * The counts the table made at the end of the mission, and nothing worked
@@ -741,6 +764,22 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
     case 'management/hordeChecked':
       return submitted(state, (campaign) => submitHordeCheck(campaign, action.roll, action.at));
+
+    case 'mission/selected':
+      return submitted(state, (campaign) =>
+        submitMissionSelection(
+          campaign,
+          {
+            team: action.team,
+            mission: action.mission,
+            ...(action.material === undefined ? {} : { material: action.material }),
+          },
+          action.at,
+        ),
+      );
+
+    case 'mission/skipped':
+      return submitted(state, (campaign) => submitMissionSkip(campaign, action.at));
 
     case 'mission/resolved':
       return submitted(state, (campaign) =>

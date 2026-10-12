@@ -58,6 +58,13 @@ export function sameTask(one: Assignment, other: Assignment): boolean {
   // without it — and it is the narrowing rather than the test that earns it.
   if (one.task === 'staff') return other.task === 'staff' && one.slot === other.slot;
 
+  // The same for a mission team: team 2 is not team 1's task (pg. 21). Every
+  // assignment was team 1 until Z4-2 let Planning split them, so this changed
+  // nothing that had already been written. Its `other.task` check survives
+  // mutation for the staffing line's reason: only a mission carries a team, and
+  // the narrowing is what lets `other.team` be read at all.
+  if (one.task === 'mission') return other.task === 'mission' && one.team === other.team;
+
   return one.task === other.task;
 }
 
@@ -197,9 +204,10 @@ export function beforePlanning(campaign: Campaign): Campaign {
  * through `beforePlanning` for that reason; callers in the Management Phase,
  * which runs *after* the clear and means the team going out next, do not.
  *
- * Every team, not one: the assignment carries a team number the app does not
- * yet write anything but 1 into, and "who went on the mission" is the question
- * every caller in Phase 3 is asking.
+ * Every team, not one: since Z4-2 the Planning Phase splits the mission
+ * survivors between teams (pg. 21), and this is all of them together.
+ * `missionTeams` in `missions.ts` keeps them apart, and `deployed` there is
+ * who actually went.
  */
 export function missionTeam(campaign: Campaign): readonly Survivor[] {
   return survivorsDoing(campaign, (assignment) => assignment.task === 'mission');
@@ -448,10 +456,12 @@ export function missionTeamReduced(campaign: Campaign): boolean {
  * both callers already hold that list for reasons of their own: the screen to
  * name the candidates, the reducer to check the one it was handed. Returning
  * the team would make "nothing owed" an empty list, and each caller would then
- * re-derive the answer as `length > 0`, which is the copy this replaced. The
- * app writes only team 1 for now (see `missionTeam`); when it writes more, the
- * book's "the mission team" will need a ruling, and that is the moment for a
- * richer return rather than this one.
+ * re-derive the answer as `length > 0`, which is the copy this replaced.
+ *
+ * **Every team together.** Since Z4-2 Planning can split the mission survivors
+ * between teams (pg. 21), and which of them pg. 23's "the mission team" means
+ * is open — R23. Until it is ruled this counts all of them, as it always has,
+ * and that is the moment for a richer return rather than this one.
  */
 export function overworked(campaign: Campaign): boolean {
   if (missionTeamReduced(campaign)) return false;

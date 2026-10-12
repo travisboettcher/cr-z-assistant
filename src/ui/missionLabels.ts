@@ -7,6 +7,9 @@
  * is said in this app's words, with the page beside it.
  */
 
+import type { Material } from '../data/materials';
+import { MISSIONS, type MissionId } from '../data/missions';
+import { MATERIAL_LABELS } from './baseLabels';
 import {
   baseOverrun,
   siegeCounterChange,
@@ -14,9 +17,62 @@ import {
   type SiegeCounterChange,
 } from '../engine/siege';
 
-export const MISSION_PAGES: Record<MissionOutcome['kind'], number> = {
-  'siege-defense-resolved': 86,
-  'thin-the-herd-resolved': 81,
+/**
+ * What each mission is called on a screen — the book's own titles, which the
+ * catalogue leaves to the UI as the base roster does (Z4-1).
+ */
+export const MISSION_LABELS: Record<MissionId, string> = {
+  'first-mission': 'the First Mission',
+  'claim-a-new-base': 'Claim a New Base',
+  'gather-materials': 'Gather Materials',
+  'thin-the-herd': 'Thin the Herd',
+  'retrieve-new-vehicles': 'Retrieve New Vehicles',
+  'rescue-strangers': 'Rescue Strangers',
+  'rare-goods-trader': 'Rare Goods Trader',
+  'siege-defense': 'the Siege Defense',
+  'left-behind-1': 'Left Behind (Part 1)',
+  'left-behind-2a': 'Left Behind (Part 2A)',
+  'left-behind-2b': 'Left Behind (Part 2B)',
+  'preppers-stash-1': 'Prepper’s Stash (Part 1)',
+  'preppers-stash-2': 'Prepper’s Stash (Part 2)',
+  'sentimental-value': 'Sentimental Value',
+  'neighbors-rifle': 'Neighbor’s Rifle',
+  'crashed-convoy': 'Crashed Convoy',
+  warehouse: 'Warehouse',
+  'experimental-data': 'Experimental Data',
+  'bring-it-on-home': 'Bring It On Home',
+  'medical-salvage': 'Medical Salvage',
+  'invisible-light': 'Invisible Light',
+  'from-the-deep': 'From the Deep',
+  'friend-or-foe': 'Friend or Foe',
+  'the-graveyard': 'The Graveyard',
+  'the-necromancer': 'The Necromancer',
+  'the-dark': 'The Dark',
+  'ford-the-river': 'Ford the River',
+  breakdown: 'Breakdown',
+  chased: 'Chased',
+};
+
+/** A team's choice in a sentence, for the history and the Select Mission step. */
+export function describeSelection(selection: {
+  readonly team: number;
+  readonly mission: MissionId;
+  readonly names: readonly string[];
+  readonly material?: Material;
+}): string {
+  const remainder =
+    selection.material === undefined
+      ? ''
+      : `, taking the rest in ${MATERIAL_LABELS[selection.material]}`;
+  const who = selection.names.length === 0 ? '' : `: ${selection.names.join(', ')}`;
+
+  return `Mission team ${String(selection.team)} chose ${MISSION_LABELS[selection.mission]}${remainder}${who}.`;
+}
+
+/** The whole mission's pages, from the catalogue (Z4-1). */
+export const MISSION_PAGES: Record<MissionOutcome['kind'], number | string> = {
+  'siege-defense-resolved': MISSIONS['siege-defense'].pages,
+  'thin-the-herd-resolved': MISSIONS['thin-the-herd'].pages,
 };
 
 const COUNTER_PHRASES: Record<SiegeCounterChange, string> = {
