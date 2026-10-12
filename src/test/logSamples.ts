@@ -112,10 +112,11 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
     strangers: [3],
     vehiclesOnArea: 1,
   },
-  { kind: 'gather-materials-resolved', team: 1, materialsCarriedOut: 5 },
-  { kind: 'retrieve-new-vehicles-resolved', team: 3, vehiclesDrivenOff: 0 },
+  // A Rookie its setup placed on the area (pg. 79).
+  { kind: 'gather-materials-resolved', team: 1, materialsCarriedOut: 5, strangers: [1] },
+  { kind: 'retrieve-new-vehicles-resolved', team: 3, vehiclesDrivenOff: 0, strangers: [] },
   { kind: 'rescue-strangers-resolved', team: 1, strangers: [2] },
-  { kind: 'rare-goods-trader-resolved', team: 2, survivorsExited: 1 },
+  { kind: 'rare-goods-trader-resolved', team: 2, survivorsExited: 1, strangers: [3] },
   { kind: 'mission-played', team: 1, mission: 'left-behind-1' },
   { kind: 'siege-defense-resolved', zombiesLeft: 3, survivorsExited: 1 },
   // The team's wounds, which every outcome written since Z4-4 carries: Health
@@ -137,7 +138,13 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
     wounds: [{ survivor: 'carla', name: 'Carla Proust', health: 2, infection: 4 }],
   },
   // A team with nobody left on it records nobody's Health.
-  { kind: 'gather-materials-resolved', team: 1, materialsCarriedOut: 0, wounds: [] },
+  {
+    kind: 'gather-materials-resolved',
+    team: 1,
+    materialsCarriedOut: 0,
+    strangers: [],
+    wounds: [],
+  },
   { kind: 'stood-in', ...SURVIVOR, by: 'ruby', byName: 'Ruby Vance' },
   // Nobody: the place left empty again, which is a choice the log keeps.
   { kind: 'stood-in', ...SURVIVOR },

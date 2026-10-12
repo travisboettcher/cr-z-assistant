@@ -22,6 +22,7 @@ import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS } from '../data/materials';
 import { MISSIONS } from '../data/missions';
+import { FIELD_RECRUITABLE_TIERS } from '../data/recruitTable';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { CAMPAIGN_PHASES, HEALTH_SOURCES, XP_SOURCES } from '../data/turn';
 import type { Assignment, Campaign, Project } from '../engine/campaign';
@@ -300,9 +301,11 @@ const EVENT_FIELD_CHECKS = {
   // Which numbered end condition was met, or `null` for none (pp. 77, 79).
   // Which numbers a mission has is the engine's to check, not a file's.
   endCondition: (value: unknown) => value === null || isCountFromOne(value),
-  // The Tier of each stranger brought out, in the order the table counted them.
+  // The Tier of each stranger brought out, in the order the table counted them:
+  // a Rookie, Citizen or Leader, since a Hero is never rescued (pg. 7; R24).
   tiers: (value: unknown) =>
-    Array.isArray(value) && value.every((one) => TIERS.some((tier) => tier === one)),
+    Array.isArray(value) &&
+    value.every((one) => FIELD_RECRUITABLE_TIERS.some((tier) => tier === one)),
   // Gather Materials' remainder type (pg. 80), and absent for every other
   // mission. Which mission asks for one is the engine's to check, not a file's.
   optionalMaterial: (value: unknown) =>
@@ -452,11 +455,13 @@ const EVENT_FIELDS: Record<
   'gather-materials-resolved': [
     ['team', 'countFromOne'],
     ['materialsCarriedOut', 'count'],
+    ['strangers', 'tiers'],
     ['wounds', 'optionalWounds'],
   ],
   'retrieve-new-vehicles-resolved': [
     ['team', 'countFromOne'],
     ['vehiclesDrivenOff', 'count'],
+    ['strangers', 'tiers'],
     ['wounds', 'optionalWounds'],
   ],
   'rescue-strangers-resolved': [
@@ -467,6 +472,7 @@ const EVENT_FIELDS: Record<
   'rare-goods-trader-resolved': [
     ['team', 'countFromOne'],
     ['survivorsExited', 'count'],
+    ['strangers', 'tiers'],
     ['wounds', 'optionalWounds'],
   ],
   'mission-played': [

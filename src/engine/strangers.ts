@@ -4,8 +4,8 @@
  *
  * ## Read off the outcomes, answered in the log
  *
- * Three outcome kinds count strangers, each with a Tier: the First Mission's,
- * Claim a New Base's and Rescue Strangers' (Z4-3). Advancement Step 2 (pg. 19)
+ * Six outcome kinds count strangers, each with a Tier: every standard
+ * mission's but the two fought over the siege counter (pp. 76–84; Z4-3). Advancement Step 2 (pg. 19)
  * is where they join, so what the step offers is every stranger the turn's
  * outcomes counted — `teamOutcomes`, so a team that chose again (R21) offers
  * only its latest outcome's — less every one a `stranger-joined` entry has
@@ -24,24 +24,24 @@
  * that rescued them — and nowhere else. A stranger nobody added by the end of
  * the turn is named in the End-turn dialog like any other step left undone
  * (`outstanding`), and is not offered again: the turn that rescued them is
- * over. Whether a table may turn a stranger away is not something this
- * tracker answers; there is no entry for it, only a step left undone.
+ * over. There is no entry for turning one away, because the book has none: a
+ * rescued stranger is added to the community (pg. 19), and a community without
+ * the beds for them pays in Exhaustion (pg. 23), not by refusing them.
  *
  * ## Built the way the roster builds one
  *
  * A Rookie, Citizen or Leader joins as a field recruit — the stat array of
  * their Tier and, from Tier 2, one skill off the d10 table (pp. 7, 15) — which
- * is exactly `survivor/recruited`'s survivor. A Hero is never a field recruit
- * (pg. 7), so a Tier 4 stranger joins the way the roster adds a Hero, with no
- * roll; that a rescue can count one at all is open, and recorded as R24.
+ * is exactly `survivor/recruited`'s survivor (pp. 13, 15, 19, 31). A Hero is
+ * never recruited in the field (pg. 7), and the outcome guard refuses a Tier 4
+ * stranger, so every stranger is one of those three (R24).
  */
 
 import type { D10Result } from '../data/dice';
-import { FIELD_RECRUITABLE_TIERS, rollsForSkill } from '../data/recruitTable';
-import type { Tier } from '../data/tiers';
+import { rollsForSkill, type FieldRecruitTier } from '../data/recruitTable';
 import type { Campaign, Survivor } from './campaign';
 import { isMissionOutcome, outcomeTeam, teamOutcomes } from './missions';
-import { createSurvivor, recruitSurvivor, type NewSurvivorOptions } from './survivor';
+import { recruitSurvivor, type NewSurvivorOptions } from './survivor';
 import { phaseOf } from './turn';
 
 /** One stranger an outcome this turn counted. */
@@ -52,7 +52,7 @@ export interface RescuedStranger {
   /** Their position in that outcome's `strangers`, from 0. */
   readonly stranger: number;
 
-  readonly tier: Tier;
+  readonly tier: FieldRecruitTier;
 }
 
 /** What Advancement Step 2 is told about a stranger joining. */
@@ -159,19 +159,12 @@ export function strangerProblem(campaign: Campaign, form: StrangerForm): string 
   return null;
 }
 
-/**
- * The survivor a stranger becomes: a field recruit at their Tier, or at Tier 4
- * a Hero as the roster adds one (pp. 7, 15; R24).
- */
+/** The survivor a stranger becomes: a field recruit at their Tier (pp. 15, 19). */
 export function strangerSurvivor(
   name: string,
-  tier: Tier,
+  tier: FieldRecruitTier,
   roll: D10Result | undefined,
   options: NewSurvivorOptions,
 ): Survivor {
-  const recruited = FIELD_RECRUITABLE_TIERS.find((fieldTier) => fieldTier === tier);
-
-  return recruited === undefined
-    ? createSurvivor(name, tier, options)
-    : recruitSurvivor(name, recruited, roll, options);
+  return recruitSurvivor(name, tier, roll, options);
 }

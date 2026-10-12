@@ -126,7 +126,7 @@ describe('an outcome for every mission a team chose (Z4-3)', () => {
       playing({
         survivors: [
           createSurvivor('Earl Rhodes', 2, { id: 'earl' }),
-          createSurvivor('Ruby Vance', 3, { id: 'ruby' }),
+          createSurvivor('Ruby Vance', 2, { id: 'ruby' }),
         ],
         assignments: {
           earl: { task: 'mission', team: 1 },
@@ -143,14 +143,20 @@ describe('an outcome for every mission a team chose (Z4-3)', () => {
     await user.click(gathering.getByRole('button', { name: 'Record Gather Materials' }));
     expect(walk().textContent).toContain('Gather Materials: 5 materials carried off the map.');
 
-    // Ruby is Tier 3: a Tier 4 stranger is past anybody on her team (pg. 31).
-    await user.selectOptions(rescuing.getByLabelText('Stranger’s Tier'), '4');
+    // Ruby is Tier 2: a Leader is past anybody on her team (pg. 31), and no
+    // stranger is a Hero (pg. 7; R24), so Tier 4 is not on offer.
+    expect(
+      within(rescuing.getByLabelText('Stranger’s Tier'))
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['1', '2', '3']);
+    await user.selectOptions(rescuing.getByLabelText('Stranger’s Tier'), '3');
     await user.click(rescuing.getByRole('button', { name: 'Add a stranger' }));
-    expect(rescuing.getByText(/Tier 4 or higher/)).toBeInTheDocument();
+    expect(rescuing.getByText(/Tier 3 or higher/)).toBeInTheDocument();
 
     await user.click(rescuing.getByRole('button', { name: 'Record Rescue Strangers' }));
     expect(walk().textContent).toContain(
-      'Rescue Strangers (mission team 2): 1 stranger rescued (Tier 4).',
+      'Rescue Strangers (mission team 2): 1 stranger rescued (Tier 3).',
     );
   });
 

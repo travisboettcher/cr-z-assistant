@@ -94,7 +94,12 @@ describe('submitHaul', () => {
               turn: 3,
               phase: 'mission',
               at: AT,
-              event: { kind: 'gather-materials-resolved', team: 1, materialsCarriedOut: 4 },
+              event: {
+                kind: 'gather-materials-resolved',
+                team: 1,
+                materialsCarriedOut: 4,
+                strangers: [],
+              },
             },
           ],
         },

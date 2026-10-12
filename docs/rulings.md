@@ -600,32 +600,46 @@ mission carries the one field it reads.
 
 ---
 
-## R23 — Which mission team Exhaustion counts — OPEN
+## R23 — Which mission team Exhaustion counts
 
 **pp. 21, 23; [#178](https://github.com/travisboettcher/cr-z-assistant/issues/178).** Exhaustion
 above "the mission team" takes one survivor off it (pg. 23). Since Z4-2 the Planning Phase splits
 the mission survivors between several teams (pg. 21), so there may be more than one team for the
-rule to mean.
+rule to mean. The FAQ and errata say nothing, and Exhaustion appears nowhere else in the book.
 
-**Open.** Until it is ruled, `overworked` counts **every survivor on any mission team together**,
-which is what it has always counted, and the survivor taken off may come from any team. The
-alternatives are to compare Exhaustion with each team separately, or with the largest. Recorded so
-that the current reading is not mistaken for a decision.
+**The ruling is that "the mission team" is every team together, and the survivor taken off may
+come from any of them, at the player's choice.** Pg. 21 defines "the mission team" as everybody
+going out to the next mission before it says they may be split into teams, and pg. 23 uses the
+singular throughout, so the whole group is the better-supported reading — derived, not stated.
+It is what `overworked` has always counted, so nothing in the code moved.
+
+**What it costs.** A table that reads pg. 23 per team gets a lighter penalty than it would here
+for a community that splits, since one large count is crossed sooner than several small ones are
+compared. Recorded with the literal oddity the extract flagged and the code already follows: the
+penalty applies only when Exhaustion is **higher than** the number on the team, not equal to it.
+
+*Settled 2026-10-12 from the batch-14 extract; open until then.*
 
 ---
 
-## R24 — What a rescued Hero joins as — OPEN
+## R24 — A rescued stranger is never a Hero
 
-**pp. 7, 15, 31, 77, 79, 83; [#178](https://github.com/travisboettcher/cr-z-assistant/issues/178),
-Z4-5.** A stranger rescued on a mission joins at Advancement Step 2 (pg. 19), and the app builds
-them as a field recruit: their Tier's stat array and, at Tier 2 or 3, one skill off the d10 table
-(pg. 15). Heroes are never field recruits (pg. 7). But the outcomes Z4-3 records accept a stranger
-of any Tier from 1 to 4, checked only against a rescuer of at least that Tier (pg. 31), so the
-record can hold a Tier 4 stranger that the field-recruit rule has no answer for.
+**pp. 7, 15, 31, 54, 76–84, 124; [#178](https://github.com/travisboettcher/cr-z-assistant/issues/178),
+Z4-5.** A stranger's Tier is set by the mission's own setup (pg. 15), and no standard mission's
+setup places a Tier 4 stranger — the highest is a Leader. Pg. 7 says a Hero is never recruited in
+the field, and a rescued stranger is the book's field recruit (pg. 15). Two rules bring an
+*existing* Hero back as a stranger — one who left over the Hero cap (pg. 54), and a Lost survivor
+under the Cosmic Horror origin (pp. 25, 124) — and read literally they sit uneasily with pg. 7.
 
-**Open.** Whether a rescue can bring out a Tier 4 stranger at all, and if it can, whether they
-roll for a skill. Until it is ruled, the outcome still accepts one, and **a Tier 4 stranger joins
-the way the roster adds a Hero**: the Tier's stat array, no roll, and every skill slot to fill on
-their sheet (`strangerSurvivor`). The alternatives are to refuse a Tier 4 stranger when the
-outcome is recorded, or to have one roll as a Citizen or Leader does. Recorded so that the current
-reading is not mistaken for a decision.
+**The ruling is that a mission outcome records strangers of Tier 1 to 3 only, and a rescued
+stranger is always built as a field recruit.** Pg. 7 forbids *creating* a Hero by rescue; the two
+exceptions return a character who already exists, which is not something a mission outcome's Tier
+can describe. They arrive with the base-move work of #182 and the origins of Phase 7, as the same
+character rather than a new one. The outcome guard refuses a Tier 4 stranger, and the Tactical
+Mission form offers Tiers 1 to 3.
+
+**What it costs.** A table that wants to bring back a departed Hero through a mission cannot record
+it until those stories are built.
+
+*Settled 2026-10-12 from the batch-14 extract. Until then a Tier 4 stranger was accepted and joined
+as the roster adds a Hero, which this replaces.*

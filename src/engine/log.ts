@@ -44,6 +44,7 @@ import type { FacilityId, UpgradeId } from '../data/facilities';
 import type { Material } from '../data/materials';
 import type { MissionId } from '../data/missions';
 import type { CommonSkill, Skill } from '../data/skills';
+import type { FieldRecruitTier } from '../data/recruitTable';
 import type { Tier } from '../data/tiers';
 import type { CampaignPhase, HealthSource, XpSource } from '../data/turn';
 import { phaseOf } from './turn';
@@ -482,7 +483,7 @@ export type CampaignEvent =
       readonly kind: 'first-mission-resolved';
       readonly team: number;
       readonly endCondition: number | null;
-      readonly strangers: readonly Tier[];
+      readonly strangers: readonly FieldRecruitTier[];
       /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
       readonly wounds?: readonly MissionWound[];
     }
@@ -495,7 +496,7 @@ export type CampaignEvent =
       readonly kind: 'claim-a-new-base-resolved';
       readonly team: number;
       readonly endCondition: number | null;
-      readonly strangers: readonly Tier[];
+      readonly strangers: readonly FieldRecruitTier[];
       readonly vehiclesOnArea: number;
       /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
       readonly wounds?: readonly MissionWound[];
@@ -505,6 +506,8 @@ export type CampaignEvent =
       readonly kind: 'gather-materials-resolved';
       readonly team: number;
       readonly materialsCarriedOut: number;
+      /** A stranger its setup may place on the area (pg. 79). */
+      readonly strangers: readonly FieldRecruitTier[];
       /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
       readonly wounds?: readonly MissionWound[];
     }
@@ -516,6 +519,8 @@ export type CampaignEvent =
       readonly kind: 'retrieve-new-vehicles-resolved';
       readonly team: number;
       readonly vehiclesDrivenOff: number;
+      /** A stranger its setup may place on the area (pg. 81). */
+      readonly strangers: readonly FieldRecruitTier[];
       /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
       readonly wounds?: readonly MissionWound[];
     }
@@ -523,7 +528,7 @@ export type CampaignEvent =
   | {
       readonly kind: 'rescue-strangers-resolved';
       readonly team: number;
-      readonly strangers: readonly Tier[];
+      readonly strangers: readonly FieldRecruitTier[];
       /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
       readonly wounds?: readonly MissionWound[];
     }
@@ -536,6 +541,8 @@ export type CampaignEvent =
       readonly kind: 'rare-goods-trader-resolved';
       readonly team: number;
       readonly survivorsExited: number;
+      /** A stranger its setup may place on the area (pg. 84). */
+      readonly strangers: readonly FieldRecruitTier[];
       /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
       readonly wounds?: readonly MissionWound[];
     }
@@ -645,10 +652,10 @@ export type CampaignEvent =
    * has been answered is a fact about what happened, like every other step's.
    *
    * Its own kind rather than a field on `survivor-recruited`, for two reasons.
-   * A stranger's Tier is the outcome's, and an outcome may count a Hero, whom
-   * the recruit form never takes (pg. 7; R24). And "has this stranger joined"
-   * is then a question about one kind of entry, not about which recruits
-   * happened to carry the field.
+   * A stranger's Tier is the outcome's rather than the form's — a Rookie,
+   * Citizen or Leader, never a Hero (pg. 7; R24). And "has this stranger
+   * joined" is then a question about one kind of entry, not about which
+   * recruits happened to carry the field.
    *
    * The Tier and the roll as `survivor-recruited` carries them: the Tier as it
    * was on joining, and the d10 only where one chose a skill (pp. 7, 15).

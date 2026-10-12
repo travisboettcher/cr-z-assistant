@@ -871,6 +871,7 @@ describe('a campaign whose log is damaged', () => {
       phase: 'mission',
       event: {
         kind: 'gather-materials-resolved',
+        strangers: [],
         team: 1,
         materialsCarriedOut: 2,
         ...(wounds === undefined ? {} : { wounds }),

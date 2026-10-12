@@ -70,7 +70,14 @@ describe('rescuedStrangers', () => {
   it('is empty when no outcome this turn counted anybody', () => {
     expect(
       rescuedStrangers(
-        after([entry({ kind: 'gather-materials-resolved', team: 1, materialsCarriedOut: 3 })]),
+        after([
+          entry({
+            kind: 'gather-materials-resolved',
+            team: 1,
+            materialsCarriedOut: 3,
+            strangers: [],
+          }),
+        ]),
       ),
     ).toEqual([]);
   });
@@ -87,10 +94,25 @@ describe('rescuedStrangers', () => {
     expect(
       rescuedStrangers(
         after([
-          entry({ kind: 'first-mission-resolved', team: 1, endCondition: 2, strangers: [4] }),
+          entry({ kind: 'first-mission-resolved', team: 1, endCondition: 2, strangers: [1] }),
         ]),
       ),
-    ).toEqual([{ team: 1, stranger: 0, tier: 4 }]);
+    ).toEqual([{ team: 1, stranger: 0, tier: 1 }]);
+  });
+
+  it('reads a stranger any mission’s setup placed, Gather Materials’ among them (pg. 79)', () => {
+    expect(
+      rescuedStrangers(
+        after([
+          entry({
+            kind: 'gather-materials-resolved',
+            team: 1,
+            materialsCarriedOut: 3,
+            strangers: [1],
+          }),
+        ]),
+      ),
+    ).toEqual([{ team: 1, stranger: 0, tier: 1 }]);
   });
 
   /** Turn 2's rescues were turn 2's Advancement Phase's to offer. */
@@ -215,17 +237,11 @@ describe('strangerProblem', () => {
     expect(strangerProblem(after(TWO_TEAMS), form({ name: '  ' }))).toMatch(/name/);
   });
 
-  /** pg. 7: a Rookie never rolls, and nor does a Hero, who is no field recruit. */
+  /** pg. 7: a Rookie's one skill is the player's choice, not a roll. */
   it('refuses a roll at a Tier that does not roll for a skill', () => {
     expect(strangerProblem(after(TWO_TEAMS), form({ team: 2, roll: 4 }))).toBe(
       'A Tier 1 stranger does not roll for a skill.',
     );
-    expect(
-      strangerProblem(
-        after([entry({ kind: 'rescue-strangers-resolved', team: 1, strangers: [4] })]),
-        form({ roll: 4 }),
-      ),
-    ).toBe('A Tier 4 stranger does not roll for a skill.');
   });
 
   it('takes a roll at a Tier that rolls, or none', () => {
@@ -247,13 +263,6 @@ describe('strangerSurvivor', () => {
   it('builds a Rookie with a slot to fill', () => {
     expect(strangerSurvivor('Pip', 1, undefined, { id: 'pip' })).toEqual(
       createSurvivor('Pip', 1, { id: 'pip' }),
-    );
-  });
-
-  /** R24: a Hero is not a field recruit (pg. 7), so is added as the roster adds one. */
-  it('builds a Hero the way the roster adds one', () => {
-    expect(strangerSurvivor('Earl Rhodes', 4, undefined, { id: 'earl' })).toEqual(
-      createSurvivor('Earl Rhodes', 4, { id: 'earl' }),
     );
   });
 });

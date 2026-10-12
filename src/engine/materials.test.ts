@@ -610,7 +610,7 @@ const gathering = (team: number, carried: number, material?: Material): LogEntry
     turn: 3,
     phase: 'mission',
     at: AT,
-    event: { kind: 'gather-materials-resolved', team, materialsCarriedOut: carried },
+    event: { kind: 'gather-materials-resolved', team, materialsCarriedOut: carried, strangers: [] },
   },
 ];
 

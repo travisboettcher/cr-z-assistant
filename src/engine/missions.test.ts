@@ -504,7 +504,7 @@ describe('the outcomes of the other standard missions (Z4-3)', () => {
         ...log,
       ],
     });
-  const first = (endCondition: number | null, strangers: readonly (1 | 2 | 3 | 4)[] = []) => ({
+  const first = (endCondition: number | null, strangers: readonly (1 | 2 | 3)[] = []) => ({
     kind: 'first-mission-resolved' as const,
     team: 1,
     endCondition,
@@ -521,10 +521,13 @@ describe('the outcomes of the other standard missions (Z4-3)', () => {
     expect(outcomeProblem(firstTurn(), first(Number.NaN))).toMatch(/1 to 3/);
   });
 
-  it('takes strangers with real Tiers', () => {
-    expect(outcomeProblem(firstTurn(), first(2, [1, 4]))).toBeNull();
-    expect(outcomeProblem(firstTurn(), { ...first(2), strangers: [5 as 4] })).toMatch(
-      /Tier from 1 to 4/,
+  it('takes strangers of Tiers 1 to 3, and refuses a Hero (pg. 7; R24)', () => {
+    expect(outcomeProblem(firstTurn(), first(2, [1, 3]))).toBeNull();
+    expect(outcomeProblem(firstTurn(), { ...first(2), strangers: [4 as 3] })).toMatch(
+      /Tier from 1 to 3/,
+    );
+    expect(outcomeProblem(firstTurn(), { ...first(2), strangers: [0 as 1] })).toMatch(
+      /Tier from 1 to 3/,
     );
   });
 
@@ -542,17 +545,32 @@ describe('the outcomes of the other standard missions (Z4-3)', () => {
     ],
     [
       'gather-materials' as const,
-      { kind: 'gather-materials-resolved' as const, team: 1, materialsCarriedOut: 5 },
+      {
+        kind: 'gather-materials-resolved' as const,
+        team: 1,
+        materialsCarriedOut: 5,
+        strangers: [1] as const,
+      },
       { materialsCarriedOut: 1.5 },
     ],
     [
       'retrieve-new-vehicles' as const,
-      { kind: 'retrieve-new-vehicles-resolved' as const, team: 1, vehiclesDrivenOff: 0 },
+      {
+        kind: 'retrieve-new-vehicles-resolved' as const,
+        team: 1,
+        vehiclesDrivenOff: 0,
+        strangers: [],
+      },
       { vehiclesDrivenOff: Number.NaN },
     ],
     [
       'rare-goods-trader' as const,
-      { kind: 'rare-goods-trader-resolved' as const, team: 1, survivorsExited: 1 },
+      {
+        kind: 'rare-goods-trader-resolved' as const,
+        team: 1,
+        survivorsExited: 1,
+        strangers: [3] as const,
+      },
       { survivorsExited: -2 },
     ],
   ])('takes a %s outcome and refuses a count that is not whole', (mission, outcome, bad) => {
@@ -633,17 +651,17 @@ describe('the outcomes of the other standard missions (Z4-3)', () => {
   it('warns when a stranger outranks everybody on the team (pg. 31)', () => {
     const rescuing = playing({
       step: 'tactical-mission',
-      log: [chose(2, 'rescue-strangers')],
+      log: [chose(1, 'rescue-strangers')],
     });
-    const rescue = (tier: 1 | 2 | 3 | 4) => ({
+    const rescue = (tier: 1 | 2 | 3) => ({
       kind: 'rescue-strangers-resolved' as const,
-      team: 2,
+      team: 1,
       strangers: [1, tier] as const,
     });
 
-    // Ruby, team 2's only member, is Tier 3.
-    expect(strangerWarning(rescuing, rescue(3))).toBeNull();
-    expect(strangerWarning(rescuing, rescue(4))).toMatch(/Tier 4 or higher/);
+    // Earl and Carla, team 1, are both Tier 2.
+    expect(strangerWarning(rescuing, rescue(2))).toBeNull();
+    expect(strangerWarning(rescuing, rescue(3))).toMatch(/Tier 3 or higher/);
     expect(strangerWarning(rescuing, thinHerd())).toBeNull();
   });
 });
@@ -952,14 +970,14 @@ describe('strangerWarning, at its edges', () => {
       strangerWarning(rescuing, {
         kind: 'rescue-strangers-resolved',
         team: 1,
-        strangers: [4, 3],
+        strangers: [3, 1],
       }),
-    ).toMatch(/Tier 4 or higher/);
+    ).toMatch(/Tier 3 or higher/);
   });
 
-  it('warns about any stranger for a team nobody is on', () => {
+  it('warns about any stranger for a team nobody is on, naming the highest Tier', () => {
     expect(
-      strangerWarning(playing(), { kind: 'rescue-strangers-resolved', team: 5, strangers: [1] }),
-    ).toMatch(/Tier 1 or higher/);
+      strangerWarning(playing(), { kind: 'rescue-strangers-resolved', team: 5, strangers: [2, 3] }),
+    ).toMatch(/Tier 3 or higher/);
   });
 });

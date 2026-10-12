@@ -39,7 +39,7 @@ import {
   type MissionId,
   type StandardMissionId,
 } from '../data/missions';
-import { TIERS, type Tier } from '../data/tiers';
+import { FIELD_RECRUITABLE_TIERS, type FieldRecruitTier } from '../data/recruitTable';
 import { beforePlanning } from './assignments';
 import type { Campaign, Survivor } from './campaign';
 import type { CampaignEvent, MissionWound } from './log';
@@ -422,7 +422,7 @@ export function retryOwed(campaign: Campaign, team: number): boolean {
 /** Everything a Tactical Mission form may count, whichever mission it is for. */
 export interface OutcomeCounts {
   readonly endCondition: number | null;
-  readonly strangers: readonly Tier[];
+  readonly strangers: readonly FieldRecruitTier[];
   readonly vehiclesOnArea: number;
   readonly materialsCarriedOut: number;
   readonly startingZombies: number;
@@ -473,6 +473,7 @@ export function outcomeOf(choice: MissionChoice, counts: OutcomeCounts): Mission
         kind: 'gather-materials-resolved',
         team,
         materialsCarriedOut: counts.materialsCarriedOut,
+        strangers: counts.strangers,
         wounds,
       };
     case 'thin-the-herd':
@@ -490,6 +491,7 @@ export function outcomeOf(choice: MissionChoice, counts: OutcomeCounts): Mission
         kind: 'retrieve-new-vehicles-resolved',
         team,
         vehiclesDrivenOff: counts.vehiclesDrivenOff,
+        strangers: counts.strangers,
         wounds,
       };
     case 'rescue-strangers':
@@ -499,6 +501,7 @@ export function outcomeOf(choice: MissionChoice, counts: OutcomeCounts): Mission
         kind: 'rare-goods-trader-resolved',
         team,
         survivorsExited: counts.survivorsExited,
+        strangers: counts.strangers,
         wounds,
       };
     case 'siege-defense':
@@ -587,8 +590,13 @@ export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcom
     }
   }
 
-  if ('strangers' in outcome && !outcome.strangers.every((tier) => TIERS.includes(tier))) {
-    return 'Every stranger has a Tier from 1 to 4.';
+  // A Hero is never recruited in the field, and no mission's setup places one
+  // (pg. 7; R24): a stranger is a Rookie, a Citizen or a Leader.
+  if (
+    'strangers' in outcome &&
+    !outcome.strangers.every((tier) => FIELD_RECRUITABLE_TIERS.includes(tier))
+  ) {
+    return 'Every stranger has a Tier from 1 to 3 — a Hero is never rescued (R24).';
   }
 
   return woundsProblem(campaign, outcome);
@@ -720,7 +728,7 @@ export function strangerWarning(campaign: Campaign, outcome: MissionOutcome): st
   const team = outcomeTeam(outcome);
   const members = membersOf(campaign, team);
   const highest = Math.max(0, ...members.map((survivor) => survivor.tier));
-  const beyond = outcome.strangers.filter((tier: Tier) => tier > highest);
+  const beyond = outcome.strangers.filter((tier: FieldRecruitTier) => tier > highest);
 
   return beyond.length === 0
     ? null

@@ -815,7 +815,7 @@ describe('the missions', () => {
     }
   });
 
-  it('records strangers wherever a mission can rescue them (pp. 77, 79, 83)', () => {
+  it('records strangers wherever a mission’s setup can place one (pp. 76–84)', () => {
     const rescuing = entries
       .filter(
         ([, mission]) =>
@@ -824,7 +824,15 @@ describe('the missions', () => {
       )
       .map(([id]) => id);
 
-    expect(rescuing).toEqual(['first-mission', 'claim-a-new-base', 'rescue-strangers']);
+    // Every standard mission but the two fought over the siege counter (pp. 80, 85).
+    expect(rescuing).toEqual([
+      'first-mission',
+      'claim-a-new-base',
+      'gather-materials',
+      'retrieve-new-vehicles',
+      'rescue-strangers',
+      'rare-goods-trader',
+    ]);
   });
 
   it('gives every origin mission an origin, three to each', () => {

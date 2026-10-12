@@ -204,7 +204,7 @@ describe('submitRecruit', () => {
 });
 
 describe('submitStrangerJoined', () => {
-  const rescued = (team: number, strangers: readonly (1 | 2 | 3 | 4)[]): LogEntry => ({
+  const rescued = (team: number, strangers: readonly (1 | 2 | 3)[]): LogEntry => ({
     turn: 3,
     phase: 'mission',
     at: AT,

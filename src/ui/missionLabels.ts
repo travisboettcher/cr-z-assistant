@@ -9,7 +9,7 @@
 
 import type { Material } from '../data/materials';
 import { MISSIONS, type MissionId, type OutcomeCount } from '../data/missions';
-import type { Tier } from '../data/tiers';
+import type { FieldRecruitTier } from '../data/recruitTable';
 import { MATERIAL_LABELS } from './baseLabels';
 import type { MissionWound } from '../engine/log';
 import { outcomeMission, outcomeTeam, type MissionOutcome } from '../engine/missions';
@@ -107,12 +107,20 @@ function plural(count: number, one: string, many: string): string {
   return `${String(count)} ${count === 1 ? one : many}`;
 }
 
-function strangersOf(strangers: readonly Tier[]): string {
+function strangersOf(strangers: readonly FieldRecruitTier[]): string {
   return strangers.length === 0
     ? 'no strangers rescued'
     : `${plural(strangers.length, 'stranger', 'strangers')} rescued (${strangers
         .map((tier) => `Tier ${String(tier)}`)
         .join(', ')})`;
+}
+
+/**
+ * A stranger, where a mission whose setup only sometimes places one did — said
+ * only then, so the line for the usual empty-handed run reads as it always has.
+ */
+function anyStrangers(strangers: readonly FieldRecruitTier[]): string {
+  return strangers.length === 0 ? '' : `, ${strangersOf(strangers)}`;
 }
 
 function endOf(endCondition: number | null): string {
@@ -133,13 +141,13 @@ function counted(outcome: MissionOutcome): string {
     case 'claim-a-new-base-resolved':
       return `${endOf(outcome.endCondition)}, ${strangersOf(outcome.strangers)}, ${plural(outcome.vehiclesOnArea, 'working vehicle', 'working vehicles')} on the mission area`;
     case 'gather-materials-resolved':
-      return `${plural(outcome.materialsCarriedOut, 'material', 'materials')} carried off the map`;
+      return `${plural(outcome.materialsCarriedOut, 'material', 'materials')} carried off the map${anyStrangers(outcome.strangers)}`;
     case 'retrieve-new-vehicles-resolved':
-      return `${plural(outcome.vehiclesDrivenOff, 'vehicle', 'vehicles')} repaired and driven off`;
+      return `${plural(outcome.vehiclesDrivenOff, 'vehicle', 'vehicles')} repaired and driven off${anyStrangers(outcome.strangers)}`;
     case 'rescue-strangers-resolved':
       return strangersOf(outcome.strangers);
     case 'rare-goods-trader-resolved':
-      return `${plural(outcome.survivorsExited, 'survivor', 'survivors')} out over the map edge`;
+      return `${plural(outcome.survivorsExited, 'survivor', 'survivors')} out over the map edge${anyStrangers(outcome.strangers)}`;
     case 'mission-played':
       return 'played';
   }

@@ -24,7 +24,7 @@
 
 import { useState } from 'react';
 import { MISSIONS, type MissionId, type OutcomeCount } from '../data/missions';
-import { TIERS, type Tier } from '../data/tiers';
+import { FIELD_RECRUITABLE_TIERS, type FieldRecruitTier } from '../data/recruitTable';
 import type { Campaign } from '../engine/campaign';
 import type { MissionWound } from '../engine/log';
 import {
@@ -239,8 +239,8 @@ function TeamOutcome({
   const { dispatch } = useCampaign();
   const [numbers, setNumbers] = useState<Partial<Record<OutcomeCount, string>>>({});
   const [endCondition, setEndCondition] = useState('');
-  const [strangers, setStrangers] = useState<readonly Tier[]>([]);
-  const [nextStranger, setNextStranger] = useState<Tier>(1);
+  const [strangers, setStrangers] = useState<readonly FieldRecruitTier[]>([]);
+  const [nextStranger, setNextStranger] = useState<FieldRecruitTier>(1);
   const [allDown, setAllDown] = useState(false);
   const [typed, setTyped] = useState<Typed>({});
 
@@ -326,10 +326,10 @@ function TeamOutcome({
                     className={SELECT}
                     value={nextStranger}
                     onChange={(changed) => {
-                      setNextStranger(Number(changed.target.value) as Tier);
+                      setNextStranger(Number(changed.target.value) as FieldRecruitTier);
                     }}
                   >
-                    {TIERS.map((tier) => (
+                    {FIELD_RECRUITABLE_TIERS.map((tier) => (
                       <option key={tier} value={tier}>
                         {tier}
                       </option>

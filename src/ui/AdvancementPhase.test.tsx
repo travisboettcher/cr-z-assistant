@@ -195,7 +195,12 @@ describe('Add Materials to Storage', () => {
       turn: 3,
       phase: 'mission',
       at: '2026-10-12T09:00:00.000Z',
-      event: { kind: 'gather-materials-resolved', team: 1, materialsCarriedOut: carried },
+      event: {
+        kind: 'gather-materials-resolved',
+        team: 1,
+        materialsCarriedOut: carried,
+        strangers: [],
+      },
     },
   ];
 
@@ -801,7 +806,7 @@ describe('Heal Wounds', () => {
  * every stranger the turn's outcomes counted, each offered once (pg. 19).
  */
 describe('Create New Survivors', () => {
-  const rescuedBy = (team: number, strangers: readonly (1 | 2 | 3 | 4)[]): LogEntry => ({
+  const rescuedBy = (team: number, strangers: readonly (1 | 2 | 3)[]): LogEntry => ({
     turn: 3,
     phase: 'mission',
     at: '2026-10-12T09:00:00.000Z',

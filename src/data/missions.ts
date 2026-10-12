@@ -76,8 +76,9 @@ export type SelectionChoice = 'material';
  *
  * - `end-condition` — which of the numbered end conditions was met, or none
  *   (pp. 77, 79).
- * - `strangers-rescued` — each stranger brought out, with their Tier (pp. 77,
- *   79, 83).
+ * - `strangers-rescued` — each stranger brought out, with their Tier, which the
+ *   mission's own setup decides (pp. 15, 76, 78, 79, 81, 82, 84). Only the
+ *   Thin the Herd and the Siege Defense never have one.
  * - `vehicles-on-area` — working vehicles left on the mission area of a base
  *   claimed (pg. 79).
  * - `materials-carried-out` — materials an exiting character carried off the
@@ -178,7 +179,7 @@ export const MISSIONS = {
     pages: '79–80',
     availability: 'any-time',
     asks: ['material'],
-    counts: ['materials-carried-out'],
+    counts: ['materials-carried-out', 'strangers-rescued'],
   },
   'thin-the-herd': {
     family: 'standard',
@@ -192,7 +193,7 @@ export const MISSIONS = {
     pages: '81–82',
     availability: 'any-time',
     asks: [],
-    counts: ['vehicles-driven-off'],
+    counts: ['vehicles-driven-off', 'strangers-rescued'],
   },
   'rescue-strangers': {
     family: 'standard',
@@ -206,7 +207,7 @@ export const MISSIONS = {
     pages: '83–84',
     availability: 'any-time',
     asks: [],
-    counts: ['survivors-exited'],
+    counts: ['survivors-exited', 'strangers-rescued'],
   },
   'siege-defense': {
     family: 'standard',
