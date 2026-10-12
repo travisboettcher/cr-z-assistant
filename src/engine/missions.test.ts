@@ -388,6 +388,10 @@ describe('selectionProblem', () => {
     expect(
       selectionProblem(playing(), { team: 1, mission: 'thin-the-herd', material: 'fuel' }),
     ).toMatch(/Only Gather Materials/);
+    // Rare is not one of the types it gathers (pg. 80; Z4-6).
+    expect(
+      selectionProblem(playing(), { team: 1, mission: 'gather-materials', material: 'rare' }),
+    ).toMatch(/Food, Fuel or Hardware/);
   });
 });
 

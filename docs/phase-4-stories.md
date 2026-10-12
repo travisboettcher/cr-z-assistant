@@ -81,7 +81,7 @@ Transcribed from the rulebook extract of 2026-10-12 ("batch 12"), printed page n
 |---|---|---|---|
 | First Mission: Start a New Community | 76–77 | Which end condition was met, if any; strangers rescued, with their Tiers | The first base (already recorded by `base-claimed`); strangers join at Advancement Step 2 (pg. 19) |
 | Claim a New Base | 78–79 | Which end condition was met, if any; strangers rescued; working vehicles on the area | #182's: a new base, its Inventory, Unrest locked at 0 for the turn |
-| Gather Materials | 79–80 | Materials carried off the map; the material type chosen at selection | One of each type, remainder in the chosen type, **instead of** rolling the Material Type table (pg. 19) |
+| Gather Materials | 79–80 | Materials carried off the map; the material type chosen at selection | One each of Food, Fuel and Hardware, remainder in the chosen type, **instead of** rolling the Material Type table (pg. 19); fewer than three are rolled |
 | Thin the Herd | 80–81 | Starting zombies, zombies left, survivors exited, whether all were incapacitated | As #175: the siege counter reset or halved, or the next siege automatic |
 | Retrieve New Vehicles | 81–82 | Vehicles repaired and driven off | Phase 5's: each into the base Inventory |
 | Rescue Strangers | 82–83 | Strangers rescued, with their Tiers | They join at Advancement Step 2 (pg. 19); a rescuer's Tier is at least the stranger's (pg. 31) |
@@ -351,6 +351,14 @@ and Recruit forms are unchanged, for everybody who arrives some other way.
 - Materials carried out arrive as one of each type and the rest in the chosen type, with the
   types and the split confirmed against pg. 80 when the story is built.
 - A turn with no Gather Materials team rolls exactly as before.
+
+**Confirmed against pg. 80 when it was built (2026-10-12).** "Each type" is the three stored
+materials — Food, Fuel and Hardware — so Rare is neither given nor offered as the chosen type
+(`GATHERED_MATERIALS` in `src/data/missions.ts`), and Select Mission refuses it. A team that carries
+off fewer than three gets no split: its materials are rolled on the Material Type table like any
+others, and the step says how many. Several Gather Materials teams in one turn are each split on
+their own (R19). What was gathered counts against the storage caps the haul is warned about, as
+rolled materials do.
 
 ---
 

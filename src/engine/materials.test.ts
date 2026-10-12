@@ -6,6 +6,9 @@ import {
   canForce,
   checkMaterials,
   combined,
+  gathered,
+  gatheredBy,
+  gatheredToRoll,
   materialsAdded,
   noMaterials,
   recovered,
@@ -583,5 +586,110 @@ describe('scavenging', () => {
       expect(scavenged(community(), 'food')).toEqual(noMaterials());
       expect(scavengeNeedsAChoice(community())).toBe(false);
     });
+  });
+});
+
+/**
+ * A Gather Materials team's outcome on turn 3, and its choice before it, as
+ * the Mission Phase records them (pg. 80; Z4-6).
+ */
+const gathering = (team: number, carried: number, material?: Material): LogEntry[] => [
+  {
+    turn: 3,
+    phase: 'mission',
+    at: AT,
+    event: {
+      kind: 'mission-selected',
+      team,
+      mission: 'gather-materials',
+      names: [],
+      ...(material === undefined ? {} : { material }),
+    },
+  },
+  {
+    turn: 3,
+    phase: 'mission',
+    at: AT,
+    event: { kind: 'gather-materials-resolved', team, materialsCarriedOut: carried },
+  },
+];
+
+describe('gatheredBy (pg. 80; Z4-6)', () => {
+  it('gives one of each stored type and the rest in the chosen one', () => {
+    expect(gatheredBy(5, 'fuel')).toEqual({ food: 1, fuel: 3, hardware: 1, rare: 0 });
+  });
+
+  it('gives exactly one of each when there is no rest', () => {
+    expect(gatheredBy(3, 'hardware')).toEqual({ food: 1, fuel: 1, hardware: 1, rare: 0 });
+  });
+
+  it('gives nothing for fewer than one of each, which is rolled instead', () => {
+    expect(gatheredBy(2, 'food')).toEqual(noMaterials());
+    expect(gatheredBy(0, 'food')).toEqual(noMaterials());
+  });
+
+  it('gives nothing for a choice that named no type', () => {
+    expect(gatheredBy(5, undefined)).toEqual(noMaterials());
+  });
+});
+
+describe('gathered and gatheredToRoll', () => {
+  const turn = (log: LogEntry[]) => ({ ...community(), log });
+
+  it('splits each Gather Materials team on its own, and adds them up (R19)', () => {
+    const two = turn([...gathering(1, 4, 'food'), ...gathering(2, 3, 'fuel')]);
+
+    expect(gathered(two)).toEqual({ food: 3, fuel: 2, hardware: 2, rare: 0 });
+    expect(gatheredToRoll(two)).toBe(0);
+  });
+
+  it('rolls a short haul instead, and says how many', () => {
+    const short = turn([...gathering(1, 2, 'food'), ...gathering(2, 5, 'fuel')]);
+
+    expect(gathered(short)).toEqual({ food: 1, fuel: 3, hardware: 1, rare: 0 });
+    expect(gatheredToRoll(short)).toBe(2);
+  });
+
+  it('reads only Gather Materials outcomes', () => {
+    const other = turn([
+      ...gathering(1, 4, 'food'),
+      {
+        turn: 3,
+        phase: 'mission',
+        at: AT,
+        event: {
+          kind: 'thin-the-herd-resolved',
+          team: 2,
+          startingZombies: 6,
+          zombiesLeft: 0,
+          survivorsExited: 1,
+          allIncapacitated: false,
+        },
+      },
+    ]);
+
+    expect(gathered(other)).toEqual({ food: 2, fuel: 1, hardware: 1, rare: 0 });
+    expect(gatheredToRoll(other)).toBe(0);
+  });
+
+  it('rolls a Gather Materials haul whose team named no type, as a hand-edited save can hold', () => {
+    const unchosen = turn([gathering(1, 4)[1] as LogEntry]);
+
+    expect(gathered(unchosen)).toEqual(noMaterials());
+    expect(gatheredToRoll(unchosen)).toBe(4);
+  });
+
+  it('reads nothing on a turn nobody gathered', () => {
+    expect(gathered(community())).toEqual(noMaterials());
+    expect(gatheredToRoll(community())).toBe(0);
+  });
+
+  it('counts what was gathered against the storage caps', () => {
+    const tight = {
+      ...community({}, { id: 'small-town-home', slots: {} }),
+      log: gathering(1, 10, 'food'),
+    };
+
+    expect(codes(checkMaterials(tight, []).warnings)).toContain('over-storage-cap');
   });
 });

@@ -177,6 +177,44 @@ describe('Add Materials to Storage', () => {
     expect(within(walk()).getByText(/\+0 Food/)).toBeTruthy();
   });
 
+  /** A Gather Materials team's choice and outcome on turn 3 (pg. 80; Z4-6). */
+  const gatheredLog = (carried: number): LogEntry[] => [
+    {
+      turn: 3,
+      phase: 'mission',
+      at: '2026-10-12T09:00:00.000Z',
+      event: {
+        kind: 'mission-selected',
+        team: 1,
+        mission: 'gather-materials',
+        names: ['Earl Rhodes'],
+        material: 'fuel',
+      },
+    },
+    {
+      turn: 3,
+      phase: 'mission',
+      at: '2026-10-12T09:00:00.000Z',
+      event: { kind: 'gather-materials-resolved', team: 1, materialsCarriedOut: carried },
+    },
+  ];
+
+  it('counts what Gather Materials brought back without a roll (pg. 80; Z4-6)', () => {
+    open(onTheStep({ log: gatheredLog(5) }));
+
+    expect(within(walk()).getByText(/5 carried off come without a roll/i)).toBeTruthy();
+    // One each, and the two over in Fuel.
+    expect(within(walk()).getByText(/\+3 Fuel/)).toBeTruthy();
+    expect(within(walk()).getByText(/\+1 Hardware/)).toBeTruthy();
+  });
+
+  it('says a short Gather Materials haul is rolled with the rest', () => {
+    open(onTheStep({ log: gatheredLog(2) }));
+
+    expect(within(walk()).getByText(/2 carried off are fewer than one of each/i)).toBeTruthy();
+    expect(within(walk()).queryByText(/without a roll/i)).toBeNull();
+  });
+
   /**
    * **#163, on the screen it went missing from.** Every visible part of
    * scavenging existed — the Planning control, the warnings, the label — and

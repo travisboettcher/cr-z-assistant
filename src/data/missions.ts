@@ -32,6 +32,7 @@
  * job.
  */
 
+import { STORED_MATERIALS } from './materials';
 import type { CampaignOrigin } from './origins';
 
 /** The four families of mission (pp. 75, 87, 103, 158). */
@@ -249,3 +250,13 @@ export type MissionId = keyof typeof MISSIONS;
 export type StandardMissionId = {
   [Id in MissionId]: (typeof MISSIONS)[Id]['family'] extends 'standard' ? Id : never;
 }[MissionId];
+
+/**
+ * The types a Gather Materials team takes one of each of, and may take its
+ * remainder in (pg. 80; Z4-6): the three stored materials. Rare is not one of
+ * them, so it is neither given nor offered as the chosen type. A team that
+ * carries off fewer materials than this list is long gets no split at all, and
+ * its materials are rolled on the Material Type table like any others.
+ * Confirmed against the book 2026-10-12.
+ */
+export const GATHERED_MATERIALS = STORED_MATERIALS;

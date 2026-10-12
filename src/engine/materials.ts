@@ -48,7 +48,8 @@ import {
 import type { D10Result } from '../data/dice';
 import { storageCaps } from './base';
 import { beforePlanning, staffOf, survivorsDoing } from './assignments';
-import { deployed } from './missions';
+import { GATHERED_MATERIALS } from '../data/missions';
+import { deployed, outcomeTeam, teamOutcomes, turnMissions } from './missions';
 import { whoWorked } from './siegeWork';
 import type { Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
@@ -270,6 +271,70 @@ export function combined(one: Materials, other: Materials): Materials {
 }
 
 /**
+ * What one Gather Materials team's haul comes to, without a roll (pg. 80; Z4-6).
+ *
+ * One of each gathered type and the rest in the type chosen at Select Mission.
+ * A team that carried off fewer than one of each gets nothing here: its
+ * materials are rolled like any others, and `gatheredToRoll` says how many.
+ * Nothing either for a choice that named no type, which only a save edited by
+ * hand can hold.
+ */
+export function gatheredBy(carried: number, chosen: Material | undefined): Materials {
+  if (!splits(carried, chosen)) return noMaterials();
+
+  const each = GATHERED_MATERIALS.reduce(
+    (total, material) => ({ ...total, [material]: total[material] + 1 }),
+    noMaterials(),
+  );
+
+  return { ...each, [chosen]: each[chosen] + carried - GATHERED_MATERIALS.length };
+}
+
+/** Whether a Gather Materials haul is split rather than rolled (pg. 80). */
+function splits(carried: number, chosen: Material | undefined): chosen is Material {
+  return chosen !== undefined && carried >= GATHERED_MATERIALS.length;
+}
+
+/** This turn's Gather Materials teams' outcomes, each with the type its team chose. */
+function gatherings(
+  campaign: Campaign,
+): readonly { carried: number; chosen: Material | undefined }[] {
+  const { choices } = turnMissions(campaign);
+
+  return [...teamOutcomes(campaign).values()].flatMap((outcome) => {
+    if (outcome.kind !== 'gather-materials-resolved') return [];
+
+    const chosen = choices.find((choice) => choice.team === outcomeTeam(outcome))?.material;
+
+    return [{ carried: outcome.materialsCarriedOut, chosen }];
+  });
+}
+
+/**
+ * What every Gather Materials team this turn brought back without a roll
+ * (pg. 80; Z4-6), added to the haul beside the rolled materials and the base's
+ * production. Several teams may have gathered (R19), and each is split on its
+ * own.
+ */
+export function gathered(campaign: Campaign): Materials {
+  return gatherings(campaign).reduce(
+    (total, gathering) => combined(total, gatheredBy(gathering.carried, gathering.chosen)),
+    noMaterials(),
+  );
+}
+
+/**
+ * How many of the materials Gather Materials teams carried off are rolled after
+ * all, because a team brought back fewer than one of each type (pg. 80; Z4-6).
+ * The table rolls them with the rest; this is what the step says out loud.
+ */
+export function gatheredToRoll(campaign: Campaign): number {
+  return gatherings(campaign)
+    .filter((gathering) => !splits(gathering.carried, gathering.chosen))
+    .reduce((total, gathering) => total + gathering.carried, 0);
+}
+
+/**
  * Everything wrong with adding this haul, none of it a blocker.
  *
  * Both codes are rules a table may be playing past or about to correct: a
@@ -295,7 +360,10 @@ export function checkMaterials(campaign: Campaign, rolls: readonly MaterialRoll[
   const base = campaign.base;
 
   if (base !== null) {
-    const adding = combined(recovered(rolls), baseProduction(campaign));
+    const adding = combined(
+      combined(recovered(rolls), gathered(campaign)),
+      baseProduction(campaign),
+    );
     const caps = storageCaps(base, suppliedOccupants(campaign));
 
     // Rare has no cap in the book (pg. 54), so `STORED_MATERIALS` is the list

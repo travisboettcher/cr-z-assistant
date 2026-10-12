@@ -30,6 +30,8 @@ import {
   canForce,
   checkMaterials,
   combined,
+  gathered,
+  gatheredToRoll,
   materialsAdded,
   recovered,
   scavengeNeedsAChoice,
@@ -468,9 +470,14 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
   const team = deployed(campaign);
   const fromMission = recovered(rolls);
   const fromBase = baseProduction(campaign);
+  // What a Gather Materials team brought back without a roll, and how many of
+  // a short haul's materials are rolled after all (pg. 80; Z4-6).
+  const fromGathering = gathered(campaign);
+  const gatheredCount = MATERIALS.reduce((sum, material) => sum + fromGathering[material], 0);
+  const toRoll = gatheredToRoll(campaign);
   const scavenging = scavenger(campaign);
   const fromScavenging = scavenged(campaign, found);
-  const total = combined(combined(fromMission, fromBase), fromScavenging);
+  const total = combined(combined(combined(fromMission, fromGathering), fromBase), fromScavenging);
   const unchosen = scavengeNeedsAChoice(campaign, found);
   const { warnings } = checkMaterials(campaign, rolls);
   const spent = substitutionsSpent(rolls);
@@ -556,6 +563,27 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
             </ul>
           )}
 
+          {(gatheredCount > 0 || toRoll > 0) && (
+            <div className="mt-4">
+              <p className="text-sm font-medium">
+                Gather Materials <PageRef pages={80} />
+              </p>
+              {gatheredCount > 0 && (
+                <p className={`${HINT} mt-1`}>
+                  {gatheredCount} carried off come without a roll: one each of Food, Fuel and
+                  Hardware, and the rest in the type chosen at Select Mission. They are in the total
+                  below.
+                </p>
+              )}
+              {toRoll > 0 && (
+                <p className={`${HINT} mt-1`}>
+                  {toRoll} carried off {toRoll === 1 ? 'is' : 'are'} fewer than one of each, so roll{' '}
+                  {toRoll === 1 ? 'it' : 'them'} above with the rest.
+                </p>
+              )}
+            </div>
+          )}
+
           {scavenging !== undefined && (
             <div className="mt-4">
               <p className="text-sm font-medium">
@@ -618,7 +646,9 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
                 {total[material]} {MATERIAL_LABELS[material]}
                 <span className="text-xs">
                   {' '}
-                  ({fromMission[material]} recovered, {fromBase[material]} produced
+                  ({fromMission[material]} recovered
+                  {gatheredCount === 0 ? '' : `, ${String(fromGathering[material])} gathered`},{' '}
+                  {fromBase[material]} produced
                   {scavenging === undefined
                     ? ''
                     : `, ${String(fromScavenging[material])} scavenged`}

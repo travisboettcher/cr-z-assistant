@@ -13,8 +13,8 @@
  */
 
 import { useState } from 'react';
-import { MATERIALS, type Material } from '../data/materials';
-import { MISSIONS, type MissionFamily, type MissionId } from '../data/missions';
+import type { Material } from '../data/materials';
+import { GATHERED_MATERIALS, MISSIONS, type MissionFamily, type MissionId } from '../data/missions';
 import type { Campaign } from '../engine/campaign';
 import {
   asksForMaterial,
@@ -136,7 +136,7 @@ function TeamChoice({
               setMaterial(changed.target.value as Material);
             }}
           >
-            {MATERIALS.map((type) => (
+            {GATHERED_MATERIALS.map((type) => (
               <option key={type} value={type}>
                 {MATERIAL_LABELS[type]}
               </option>

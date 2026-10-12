@@ -33,7 +33,12 @@
  */
 
 import { MATERIALS, type Material } from '../data/materials';
-import { MISSIONS, type MissionId, type StandardMissionId } from '../data/missions';
+import {
+  GATHERED_MATERIALS,
+  MISSIONS,
+  type MissionId,
+  type StandardMissionId,
+} from '../data/missions';
 import { TIERS, type Tier } from '../data/tiers';
 import { beforePlanning } from './assignments';
 import type { Campaign, Survivor } from './campaign';
@@ -267,6 +272,9 @@ export function selectionProblem(campaign: Campaign, choice: MissionChoice): str
       return 'Gather Materials needs the type it takes the rest in.';
     }
     if (!MATERIALS.includes(choice.material)) return 'There is no such material.';
+    if (!(GATHERED_MATERIALS as readonly string[]).includes(choice.material)) {
+      return 'Gather Materials takes the rest in Food, Fuel or Hardware.';
+    }
   } else if (choice.material !== undefined) {
     return 'Only Gather Materials takes a material type.';
   }

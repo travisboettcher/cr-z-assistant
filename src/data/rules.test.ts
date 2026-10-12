@@ -45,7 +45,7 @@ import {
   SIEGE_THREAT_TERMS,
   TURN_STEPS,
 } from './turn';
-import { MISSIONS, type MissionFamily } from './missions';
+import { GATHERED_MATERIALS, MISSIONS, type MissionFamily } from './missions';
 
 describe('stats and skills', () => {
   it('has four stats and twenty governed skills', () => {
@@ -780,6 +780,10 @@ describe('the missions', () => {
     // Goods Trader is forced only by a trade, which is Phase 5's (pg. 21).
     expect(MISSIONS['claim-a-new-base'].availability).toBe('any-time');
     expect(MISSIONS['rare-goods-trader'].availability).toBe('any-time');
+  });
+
+  it('gathers one each of the three stored materials, and not Rare (pg. 80)', () => {
+    expect([...GATHERED_MATERIALS].sort()).toEqual(['food', 'fuel', 'hardware']);
   });
 
   it('asks only Gather Materials for anything at selection', () => {
