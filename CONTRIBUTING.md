@@ -35,8 +35,10 @@ preference; it is the condition on which the project exists at all. See [`NOTICE
 
 ## How the code is arranged
 
-Each directory under `src/` has a README saying what belongs there and what must not. Read the one
-for every directory you touch. The short version:
+[`docs/architecture.md`](docs/architecture.md) is the map: how the layers fit, what the engine's
+functions are called and return, and one rule traced from data to screen. Each directory under
+`src/` has a README saying what belongs there and what must not. Read the one for every directory
+you touch. The short version:
 
 | | |
 |---|---|
@@ -66,8 +68,9 @@ engine functions, the screen that explains the step, the outstanding-work check,
 describe it. A guard added at one call site leaves the screen saying one thing and the turn walk
 another, and the next bug is the disagreement between them.
 
-Before you open a pull request, search for every caller of what you changed, and say in the
-description which ones you checked and why each is right.
+["A rule, end to end"](docs/architecture.md#a-rule-end-to-end) traces one rule through every file
+that reads it. Before you open a pull request, search for every caller of what you changed, and say
+in the description which ones you checked and why each is right.
 
 ## When the book does not decide
 
@@ -91,6 +94,9 @@ If the `Campaign` shape changes: bump `CURRENT_SCHEMA_VERSION`, add a migration 
 exported must still open.
 
 ## Tests
+
+[`src/test/README.md`](src/test/README.md) covers which kind of test a change needs, the shared
+helpers and the conventions. In short:
 
 - **A bug fix comes with a test that fails without it.** Say in the pull request that you saw it
   fail.
