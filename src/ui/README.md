@@ -10,9 +10,9 @@ not code the screen holds. This is the failure that stalled the July 2025 attemp
 `src/engine` can be tested without a DOM. A screen that re-derives something the engine already
 answers will, sooner or later, answer it differently.
 
-**Ask the engine the same question the reducer asks.** A button is enabled from the same check the
-reducer runs when it is pressed. A screen that offers something the reducer will refuse, or hides
-something it would accept, is a bug in the screen.
+**Ask the engine the same question the form asks.** A button is enabled from the same check its
+form (`src/engine/*Forms.ts`) runs when it is pressed. A screen that offers something the form will
+refuse, or hides something it would accept, is a bug in the screen.
 
 **Impure inputs are captured here.** The time (`new Date().toISOString()`) and a fresh id
 (`crypto.randomUUID()`) are taken at the moment of dispatch and carried on the action, so the

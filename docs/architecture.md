@@ -17,8 +17,8 @@ starts, who reads it, and what else has to change when it does.
             │ src/state            │            │
             │ one reducer          │── Campaign ┤
             └───────┬──────────────┘            │
-     asks, changes, │                           │
-     logs           │                           │
+     submits the    │                           │
+     action's form  │                           │
             ┌───────▼───────────────────────────┴──────────┐
             │ src/engine     pure functions over Campaign   │
             └───────┬──────────────────────────────────────┘
@@ -59,6 +59,7 @@ Most engine functions are one of a few kinds, and the names say which:
 | A problem | `missionOutcomeProblem`, `standInProblem` | a sentence, or `null` if it is fine |
 | A change | `withDeparture`, `withSurvivorsFed`, `withProjectOrdered` | a new `Campaign` |
 | A record | `logged(campaign, at, event)` | the campaign with an entry appended |
+| A form | `submitDeparture`, `submitFeeding`, `submitAdvance` | a `FormResult` — see below |
 
 **Blockers and warnings are different things** (`src/engine/checks.ts`). A blocker stops the
 action: the slot is taken, the Hardware is not there. A warning is a rule a table may break on
@@ -68,19 +69,27 @@ action once, and the campaign keeps reporting the violation for as long as it st
 Every message a check or problem returns is a sentence for a person at the table, never the rule
 restated. A check's violations also carry the page, for `PageRef`.
 
-## The reducer composes; it does not decide
+## A form is the press; the reducer only forwards it
 
-`src/state/campaignStore.ts` has one case per action. A case that matters does three things,
-all of them engine calls: **asks** whether the action is allowed, against the campaign it is
-holding rather than anything the screen claimed; **changes** the campaign through a `with*`
-function; **records** it with `logged`. A refused action returns the campaign unchanged.
+Pressing a button in the turn walk is a **form**: one engine function that **asks** whether the
+action is allowed, against the campaign it is given rather than anything the screen claimed;
+**changes** the campaign through a `with*` function; and **records** it with `logged`. It returns a
+`FormResult` (`src/engine/forms.ts`): `{ ok: true, campaign }` with the change and its log entries
+together, or `{ ok: false, problem }` with a sentence for the table.
+
+The forms are grouped by phase — `missionForms.ts`, `advancementForms.ts`, `managementForms.ts` —
+with `campaignForms.ts` for the turn walk, the first base and the roster. They sit apart from the
+rule modules on purpose: a rule module answers the questions a screen asks before anything is
+pressed, and a form is the press. Nothing else in the engine imports a form.
+
+`src/state/campaignStore.ts` has one case per action, and a case with a form is a single call to it
+through `submitted`, which keeps the campaign unchanged on a refusal. What is still written out in
+the reducer is the project queue's five cases and the plain corrections — rename, set HP, toggle a
+utility, step back — which have no guard and no entry to compose.
 
 Anything impure — the time, a fresh id — is captured by the screen when it dispatches and arrives
-on the action, so the reducer stays a function. See `src/state/README.md`.
-
-> [#196](https://github.com/travisboettcher/cr-z-assistant/pull/196) moves each of those
-> compositions into an engine function in `src/engine/*Forms.ts`, leaving the reducer one call per
-> case. Whichever of the two lands second updates this paragraph.
+on the action as the form's last arguments, so the engine has no clock and the reducer stays a
+function. See `src/state/README.md`.
 
 ## The turn
 
@@ -104,13 +113,14 @@ Departures (pg. 23) touches every layer, which makes it the example to follow:
 | engine | `src/engine/departures.ts` | `departurePressure`; `departureCalled` (the threshold alone); `someoneIsLeaving` (the threshold *and* somebody able to go); `departureCandidates`; `withDeparture`; `someoneDeparted` (read from the log) |
 | engine | `src/engine/outstanding.ts` | owes the step while `someoneIsLeaving` and not `someoneDeparted` |
 | engine | `src/engine/log.ts` | the `survivor-departed` entry |
-| state | `src/state/campaignStore.ts` | `management/departed`: re-asks `departureCandidates`, applies `withDeparture`, logs |
+| engine | `src/engine/managementForms.ts` | `submitDeparture`: refuses a second departure or a name `departureCandidates` does not offer, applies `withDeparture`, logs |
+| state | `src/state/campaignStore.ts` | `management/departed`: one call to `submitDeparture` |
 | ui | `src/ui/ManagementPhase.tsx` | the Departures step: shows the pressure, offers the candidates, says "would have left" from `departureCalled` |
 | ui | `src/ui/logLabels.ts` | the log line |
 | docs | `docs/phase-3-stories.md` (Z3-10), `docs/rulings.md` (R3, R18) | why each of those answers is the one it is |
 
 [#192](https://github.com/travisboettcher/cr-z-assistant/issues/192) is what happens when two of
-those rows disagree: `outstanding` owed the step on the threshold alone while the reducer only
+those rows disagree: `outstanding` owed the step on the threshold alone while the form only
 accepted a standing survivor, so a community whose survivors were all down owed a step nobody could
 take. The fix was to make `someoneIsLeaving` mean what its name says, keep the threshold under its
 own name for the screen, and update every row above. That is the general pattern — when a

@@ -11,7 +11,8 @@ property and mutation testing is in the top-level README, under "Checking the te
 |---|---|---|---|
 | Engine | `src/engine/*.test.ts` | `npm test`, mutation | every rule: derived values, questions, checks, changes |
 | Data | `src/data/rules.test.ts` | `npm test` | the transcription — re-deriving a printed table and asserting it matches the book |
-| Reducer | `src/state/campaignStore.test.ts` | `npm test`, mutation | each action: accepted, refused, what it logs |
+| Form | `src/engine/*Forms.test.ts` | `npm test`, mutation | each form: at least one accepted and one refused case, and the entries it writes |
+| Reducer | `src/state/campaignStore.test.ts` | `npm test`, mutation | each action through the store: accepted, refused, what it logs |
 | Persistence | `src/persistence/*.test.ts`, `__fixtures__/` | `npm test`, mutation | parsing, validation, migrations, every old save still opening |
 | Property | `*.property.test.ts` | `npm test` | invariants over generated input — round trips, never overdrawing, never throwing |
 | Screen | `src/ui/*.test.tsx` | `npm test` (jsdom) | what a person sees and can press, rendered through the real `App` |
