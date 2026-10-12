@@ -7,6 +7,7 @@
  * is said in this app's words, with the page beside it.
  */
 
+import { MISSIONS } from '../data/missions';
 import {
   baseOverrun,
   siegeCounterChange,
@@ -14,9 +15,10 @@ import {
   type SiegeCounterChange,
 } from '../engine/siege';
 
-export const MISSION_PAGES: Record<MissionOutcome['kind'], number> = {
-  'siege-defense-resolved': 86,
-  'thin-the-herd-resolved': 81,
+/** The whole mission's pages, from the catalogue (Z4-1). */
+export const MISSION_PAGES: Record<MissionOutcome['kind'], number | string> = {
+  'siege-defense-resolved': MISSIONS['siege-defense'].pages,
+  'thin-the-herd-resolved': MISSIONS['thin-the-herd'].pages,
 };
 
 const COUNTER_PHRASES: Record<SiegeCounterChange, string> = {
