@@ -217,6 +217,9 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   },
   { kind: 'rescue-strangers-resolved', team: 1, strangers: [2], returned: ['earl'] },
   { kind: 'survivor-returned', survivor: 'earl', name: 'Earl Rhodes' },
+  // An item put in and taken out of the base's Inventory by hand (Z5-2).
+  { kind: 'item-added', id: 'item-1', item: 'pistol', grade: 'standard' },
+  { kind: 'item-removed', id: 'item-1', item: 'pistol', grade: 'standard' },
   // The claim an overrun went on with, on the overrun base's own map (R29).
   {
     kind: 'claim-a-new-base-resolved',

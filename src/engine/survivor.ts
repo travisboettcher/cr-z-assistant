@@ -27,6 +27,7 @@ import {
 } from '../data/recruitTable';
 import { TIER_RULES, type Tier } from '../data/tiers';
 import type { Stats, Survivor } from './campaign';
+import { itemInventorySlots } from './equipment';
 
 /**
  * A skill's level added to its governing stat (pg. 8), or **null when the
@@ -134,14 +135,17 @@ export function labor(survivor: Survivor): number {
  * The Score, not the level — so a survivor who has Carry at level 0 still adds
  * their whole Strength, and a survivor without the skill adds nothing at all.
  * The rulebook's own example is exactly this case: a Tier 4 with Strength 3 and
- * Carry freshly taken at level 0 carries seven items, not four.
+ * Carry freshly taken at level 0 carries seven items, not four. Plus whatever
+ * the items they carry add to their slots (pg. 51).
  */
 export function inventorySlots(survivor: Survivor, penalty: number): number {
   // Takes the penalty because the Carry *Score* is a stat plus a level, so a
   // starving community carries less as well as rolling worse (pg. 14, 22).
   const carry = skillScore(survivor, 'carry', penalty);
 
-  return TIER_RULES[survivor.tier].baseInventorySlots + (carry ?? 0);
+  // And what their carried items add outright, the ultralight backpack's and
+  // tactical armor's (pg. 51; Z5-2).
+  return TIER_RULES[survivor.tier].baseInventorySlots + (carry ?? 0) + itemInventorySlots(survivor);
 }
 
 /**
@@ -250,5 +254,8 @@ export function createSurvivor(
     // a mission (pg. 123), and nobody joins a community having taken any.
     infection: 0,
     xp: 0,
+    // Nothing carried: a new survivor's shoddy gear is chosen when they are
+    // first equipped for a mission (pp. 13–14, 18; R35).
+    items: [],
   };
 }

@@ -112,6 +112,7 @@ export function utilityWorker(score: number): Survivor {
     currentHp: 4,
     infection: 0,
     xp: 0,
+    items: [],
   };
 }
 

@@ -27,6 +27,7 @@ import { GettingStarted } from './GettingStarted';
 import { MaterialsEditor } from './MaterialsEditor';
 import { Modal } from './Modal';
 import { PanelOpener } from './panelOpener';
+import { InventoryPanel } from './InventoryPanel';
 import { SurvivorRoster } from './SurvivorRoster';
 import { SurvivorSheet } from './SurvivorSheet';
 import { TurnWalk } from './TurnWalk';
@@ -39,6 +40,7 @@ const TITLES: Record<Panel, string> = {
   survivors: 'Survivors',
   base: 'Base',
   materials: 'Materials',
+  inventory: 'Inventory',
   log: 'Campaign log',
   file: 'Campaign file',
 };
@@ -164,6 +166,7 @@ export function App() {
           {panel === 'base' &&
             (campaign.base === null ? <ClaimBase /> : <BaseSlotMap campaign={campaign} />)}
           {panel === 'materials' && <MaterialsEditor campaign={campaign} />}
+          {panel === 'inventory' && <InventoryPanel campaign={campaign} />}
           {panel === 'log' &&
             (campaign.log.length === 0 ? (
               <p className="text-stone-600 dark:text-stone-400">Nothing has happened yet.</p>

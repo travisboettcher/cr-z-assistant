@@ -15,6 +15,7 @@
  */
 
 import type { BaseId } from '../data/bases';
+import type { Grade, ItemId } from '../data/equipment';
 import type { Cost, FacilityId, UpgradeId } from '../data/facilities';
 import type { Materials } from '../data/materials';
 import type { CampaignOrigin } from '../data/origins';
@@ -32,7 +33,7 @@ import type { LogEntry } from './log';
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 15;
+export const CURRENT_SCHEMA_VERSION = 16;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -98,6 +99,33 @@ export interface Survivor {
   infection: number;
 
   xp: number;
+
+  /**
+   * What the survivor carries, each item in an Inventory Slot (pp. 14, 18;
+   * Z5-2).
+   *
+   * **Kept between missions and turns**: the book has a survivor at the base
+   * leave with "all the items in their Inventory" and come back with them
+   * (pp. 23, 124), so a survivor's items are theirs until moved. Shoddy items
+   * are here too when carried (R35), though the base never holds one.
+   * Empty for every survivor in a save from before v16.
+   */
+  items: readonly Item[];
+}
+
+/**
+ * One item the community owns: an entry in the equipment catalogue, at a
+ * grade (pp. 37–53; Z5-2).
+ *
+ * **An instance, with an id**, because two standard pistols are two things —
+ * one in the base Inventory and one on a survivor — and the history follows
+ * each. No state beyond what it is: nothing on an item lasts past a mission
+ * (R37), so an item either exists or it does not.
+ */
+export interface Item {
+  readonly id: string;
+  readonly item: ItemId;
+  readonly grade: Grade;
 }
 
 /**
@@ -367,6 +395,16 @@ export interface Campaign {
   setAside: readonly Survivor[];
 
   /**
+   * The base's Inventory: the items the community owns that nobody is carrying
+   * (pp. 18, 54; Z5-2).
+   *
+   * No cap: Check Storage counts materials only (pg. 23). Never a shoddy item,
+   * which is free and unlimited and so is not owned (R35). Empty for every
+   * save from before v16.
+   */
+  inventory: readonly Item[];
+
+  /**
    * Whether the player has finished assembling their starting community.
    *
    * A starting community is built from ten Tier levels (pg. 13), and that rule
@@ -449,6 +487,7 @@ export function createNewCampaign(name: string, options: NewCampaignOptions = {}
     projects: [],
     survivors: [],
     setAside: [],
+    inventory: [],
     // False, so a new campaign gets the ten-tier-level check while it is being
     // built. The v2 → v3 migration deliberately answers `true` instead — see
     // the step in `src/persistence/migrations.ts` for why the two differ.

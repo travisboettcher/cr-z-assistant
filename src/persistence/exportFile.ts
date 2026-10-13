@@ -18,7 +18,7 @@
 import { BASES } from '../data/bases';
 import { SKILLS, STATS } from '../data/skills';
 import { MATERIALS } from '../data/materials';
-import type { Base, Campaign, Project, SlotState, Survivor } from '../engine/campaign';
+import type { Base, Campaign, Item, Project, SlotState, Survivor } from '../engine/campaign';
 import type { CampaignEvent, LogEntry, MissionWound } from '../engine/log';
 import { isMissionOutcome } from '../engine/missions';
 
@@ -77,7 +77,13 @@ function orderedSurvivor(survivor: Survivor): Record<keyof Survivor, unknown> {
     currentHp: survivor.currentHp,
     infection: survivor.infection,
     xp: survivor.xp,
+    items: survivor.items.map(orderedItem),
   };
+}
+
+/** One item with its keys in a fixed order, for the reason a survivor's are. */
+function orderedItem(item: Item): Record<keyof Item, unknown> {
+  return { id: item.id, item: item.item, grade: item.grade };
 }
 
 /**
@@ -305,6 +311,7 @@ function inFileOrder(campaign: Campaign): Record<keyof Campaign, unknown> {
     materials: orderedMaterials(campaign),
     survivors: campaign.survivors.map(orderedSurvivor),
     setAside: campaign.setAside.map(orderedSurvivor),
+    inventory: campaign.inventory.map(orderedItem),
     startingCommunityBuilt: campaign.startingCommunityBuilt,
     base: campaign.base === null ? null : orderedBase(campaign.base),
     assignments: orderedAssignments(campaign),

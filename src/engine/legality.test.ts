@@ -28,6 +28,7 @@ const EARL = {
   currentHp: 4,
   infection: 0,
   xp: 0,
+  items: [],
 } satisfies Survivor;
 
 const codes = (survivor: Survivor) => survivorViolations(survivor).map((v) => v.code);

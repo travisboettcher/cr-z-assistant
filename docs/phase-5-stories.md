@@ -200,6 +200,28 @@ Scout, and the like) add on top (R40).
 - A save round-trips its items, the base's and each survivor's.
 - A survivor set aside keeps their items, and brings them back.
 
+**What this story turned out to include.**
+
+- **Schema v16** gives the campaign `inventory` and every survivor `items`, both lists of
+  `{ id, item, grade }`, and the v15 → v16 step fills both in empty, the set-aside list included.
+  The save reader checks each item against the catalogue and its grades, refuses a shoddy item in
+  the base (R35), and refuses one id held in two places. The v16 fixture carries items on a survivor
+  and in the base, so the byte-for-byte round trip covers their key order.
+- **Slots in use** count one per weapon, two for the breaching tool and nothing for worn gear,
+  traps and attachments, with a tactical holster carrying one pistol or revolver free (pg. 51).
+  `inventorySlots` adds what carried items give outright (the ultralight backpack's two, tactical
+  armor's one); a backpack's +1 Carry reaches the slots through the Score, which is Z5-3's.
+- **An item with no slot count** in the catalogue counts as none for now. Nothing can put one on a
+  survivor yet, and Z5-4's guard will keep it that way until each is settled.
+- **Adding by hand writes `item-added`, taking out writes `item-removed`**, so even a correction
+  says where an item came from; the base's Inventory offers only this campaign's origin items, and
+  never shoddy.
+- **The Inventory card is quiet when empty**, not a call to act: a community needs no items to play
+  a turn. The summary is now four cards — four across on a portrait tablet, two by two on a phone —
+  and `docs/ux-principles.md` says so.
+- **The survivor sheet and roster** show slots as "in use / total", and the sheet lists what the
+  survivor carries.
+
 ### Z5-3 — The Skill Score's item term
 
 **Why:** The third term of the book's Score (pp. 8, 14).

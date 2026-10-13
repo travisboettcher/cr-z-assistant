@@ -36,6 +36,7 @@ const EARL = {
   currentHp: 4,
   infection: 0,
   xp: 0,
+  items: [],
 } satisfies Survivor;
 
 /** pg. 15. Tier 3, stats 3/2/1/0, three skills — and no Carry. */
@@ -50,6 +51,7 @@ const CARLA = {
   currentHp: 3,
   infection: 0,
   xp: 0,
+  items: [],
 } satisfies Survivor;
 
 /**

@@ -62,7 +62,9 @@ describe('SurvivorSheet', () => {
     expect(within(sheet).getByText(/tier 4 · hero/i)).toBeInTheDocument();
     expect(within(sheet).getByText('4 / 4')).toBeInTheDocument();
     // No Carry skill yet, so Inventory Slots are the bare tier.
-    expect(within(sheet).getByText('4', { selector: 'p.text-2xl' })).toBeInTheDocument();
+    // Slots in use of the slots there are: nothing carried yet (Z5-2).
+    expect(within(sheet).getByText('0 / 4', { selector: 'p.text-2xl' })).toBeInTheDocument();
+    expect(within(sheet).getByText('Carrying nothing')).toBeInTheDocument();
   });
 
   /**

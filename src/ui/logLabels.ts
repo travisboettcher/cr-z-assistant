@@ -31,6 +31,7 @@ import {
   slotLabel,
 } from './baseLabels';
 import { MISSIONS } from '../data/missions';
+import { describeItem } from './equipmentLabels';
 import { describeOutcome, describeSelection, OVERRUN_LABELS, outcomePages } from './missionLabels';
 import { PHASE_LABELS } from './turnLabels';
 import { COMMON_SKILL_LABELS, SKILL_LABELS } from './skillLabels';
@@ -415,6 +416,12 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
         }`,
         pages: event.setAside.length === 0 ? 79 : '54, 79',
       };
+
+    case 'item-added':
+      return { text: `Added to the base’s Inventory: ${describeItem(event)}.`, pages: 18 };
+
+    case 'item-removed':
+      return { text: `Taken out of the base’s Inventory: ${describeItem(event)}.`, pages: 18 };
 
     case 'community-abandoned':
       return {

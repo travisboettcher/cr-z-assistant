@@ -32,6 +32,7 @@
 import type { BaseId } from '../data/bases';
 import type { Utility } from '../data/facilities';
 import type { Material } from '../data/materials';
+import type { Grade, ItemId } from '../data/equipment';
 import type { MissionId, OverrunOption } from '../data/missions';
 import type { D10Result } from '../data/dice';
 import type { FieldRecruitTier } from '../data/recruitTable';
@@ -73,6 +74,8 @@ import {
 import {
   submitAdvance,
   submitBaseClaim,
+  submitItemAdded,
+  submitItemRemoved,
   submitNewSurvivor,
   submitRecruit,
   submitRemoval,
@@ -440,6 +443,16 @@ export type CampaignAction =
    * (R25, R31, R32; Z4-8).
    */
   | { readonly type: 'advancement/moved'; readonly leaving: readonly string[]; readonly at: string }
+  /** An item put into the base's Inventory by hand, with its fresh id (Z5-2). */
+  | {
+      readonly type: 'inventory/itemAdded';
+      readonly id: string;
+      readonly item: ItemId;
+      readonly grade: Grade;
+      readonly at: string;
+    }
+  /** An item taken out of the base's Inventory by hand (Z5-2). */
+  | { readonly type: 'inventory/itemRemoved'; readonly id: string; readonly at: string }
   /** A survivor set aside, brought back this turn, rejoins (R31; Z4-11). */
   | {
       readonly type: 'advancement/survivorReturned';
@@ -992,6 +1005,18 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return submitted(state, (campaign) =>
         submitOverrunContinuation(campaign, action.option, action.base, action.at),
       );
+
+    case 'inventory/itemAdded':
+      return submitted(state, (campaign) =>
+        submitItemAdded(
+          campaign,
+          { id: action.id, item: action.item, grade: action.grade },
+          action.at,
+        ),
+      );
+
+    case 'inventory/itemRemoved':
+      return submitted(state, (campaign) => submitItemRemoved(campaign, action.id, action.at));
 
     case 'advancement/survivorReturned':
       return submitted(state, (campaign) => submitReturn(campaign, action.survivor, action.at));

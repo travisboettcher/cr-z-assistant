@@ -1,6 +1,7 @@
 /**
  * The community at a glance, beside the turn: who is in it, where they live,
- * and what is in storage. Each card opens the modal that edits it.
+ * what is in storage, and what it owns. Each card opens the modal that edits
+ * it.
  *
  * A summary, never a second editor (see `docs/ux-principles.md`). Every number
  * here is read from the engine or straight off the campaign, the same answer
@@ -12,6 +13,7 @@
  * zero.
  */
 
+import { EQUIPMENT } from '../data/equipment';
 import { MATERIALS } from '../data/materials';
 import { BASES } from '../data/bases';
 import type { Campaign } from '../engine/campaign';
@@ -19,10 +21,11 @@ import { firstBaseOwed, layoutOf } from '../engine/base';
 import { communityTierLevels, maxHp } from '../engine/survivor';
 import { emptySlotCount } from '../engine/utilities';
 import { BASE_LABELS, MATERIAL_LABELS } from './baseLabels';
+import { ITEM_KIND_LABELS } from './equipmentLabels';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
 /** What a card opens. */
-export type CommunityPanel = 'survivors' | 'base' | 'materials';
+export type CommunityPanel = 'survivors' | 'base' | 'materials' | 'inventory';
 
 export interface CommunitySummaryProps {
   readonly campaign: Campaign;
@@ -41,10 +44,14 @@ const PRIMARY = `${TOUCH_TARGET} ${FOCUS_RING} w-full rounded-lg bg-amber-600 px
 
 export function CommunitySummary({ campaign, onOpen }: CommunitySummaryProps) {
   return (
-    <aside aria-label="Community summary" className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+    <aside
+      aria-label="Community summary"
+      className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-1"
+    >
       <Survivors campaign={campaign} onOpen={() => onOpen('survivors')} />
       <BaseCard campaign={campaign} onOpen={() => onOpen('base')} />
       <Materials campaign={campaign} onOpen={() => onOpen('materials')} />
+      <InventoryCard campaign={campaign} onOpen={() => onOpen('inventory')} />
     </aside>
   );
 }
@@ -86,7 +93,7 @@ function Survivors({
         </div>
       ) : (
         /*
-         * Names only from a landscape tablet up. In portrait the three cards
+         * Names only from a landscape tablet up. In portrait the four cards
          * sit in a row above the turn, and a list in each would push the turn
          * — the thing the screen is for — off the bottom.
          */
@@ -192,6 +199,57 @@ function Materials({
           </div>
         ))}
       </dl>
+    </section>
+  );
+}
+
+/**
+ * The base's Inventory at a glance: how many items, and of which kinds
+ * (Z5-2). Empty is quiet rather than a call to act — a community needs no
+ * items to play a turn, and its shoddy gear is free (pg. 37).
+ */
+function InventoryCard({
+  campaign,
+  onOpen,
+}: {
+  readonly campaign: Campaign;
+  readonly onOpen: () => void;
+}) {
+  const { inventory } = campaign;
+  const kinds = [...new Set(inventory.map((item) => EQUIPMENT[item.item].kind))];
+
+  return (
+    <section aria-labelledby="summary-inventory" className={`${CARD} ${QUIET}`}>
+      <div className="flex items-center gap-2">
+        <h2 id="summary-inventory" className="grow text-base font-semibold">
+          Inventory
+        </h2>
+        <button type="button" onClick={onOpen} className={OPEN}>
+          Open
+        </button>
+      </div>
+      <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+        {inventory.length === 0 ? (
+          'Nothing stored yet.'
+        ) : (
+          <>
+            <span className="tabular-nums">{inventory.length}</span> item
+            {inventory.length === 1 ? '' : 's'}
+          </>
+        )}
+      </p>
+      {kinds.length > 0 && (
+        <ul className="mt-1 hidden text-sm lg:block">
+          {kinds.map((kind) => (
+            <li key={kind} className="flex gap-2">
+              <span className="grow">{ITEM_KIND_LABELS[kind]}</span>
+              <span className="tabular-nums text-stone-600 dark:text-stone-400">
+                {inventory.filter((item) => EQUIPMENT[item.item].kind === kind).length}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

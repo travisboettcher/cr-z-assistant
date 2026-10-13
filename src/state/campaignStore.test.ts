@@ -2587,6 +2587,34 @@ describe('what earns a line in the log', () => {
         }),
       ],
     },
+    'inventory/itemAdded': {
+      action: {
+        type: 'inventory/itemAdded',
+        id: 'item-1',
+        item: 'pistol',
+        grade: 'standard',
+        at: AT,
+      },
+      entry: entry(3, 'mission', {
+        kind: 'item-added',
+        id: 'item-1',
+        item: 'pistol',
+        grade: 'standard',
+      }),
+    },
+    'inventory/itemRemoved': {
+      state: openState({
+        ...expectOpen(rich()),
+        inventory: [{ id: 'item-1', item: 'pistol', grade: 'standard' }],
+      }),
+      action: { type: 'inventory/itemRemoved', id: 'item-1', at: AT },
+      entry: entry(3, 'mission', {
+        kind: 'item-removed',
+        id: 'item-1',
+        item: 'pistol',
+        grade: 'standard',
+      }),
+    },
     'advancement/survivorReturned': {
       // Hera, sent away over a Hero cap, brought back by a Rescue Strangers
       // team this turn, rejoins at Advancement Step 2 (R31; Z4-11).

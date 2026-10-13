@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import currentFixture from './__fixtures__/campaign-v15.json';
+import currentFixture from './__fixtures__/campaign-v16.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -19,6 +19,7 @@ const VALID_SURVIVOR = {
   currentHp: 3,
   infection: 0,
   xp: 5,
+  items: [],
 };
 
 /**
@@ -564,6 +565,7 @@ describe('a survivor whose fields are the wrong type', () => {
       currentHp: 0,
       infection: 0,
       xp: 0,
+      items: [],
     });
 
     expect(result.ok).toBe(true);
@@ -600,6 +602,66 @@ describe('a campaign whose survivor list is not a list', () => {
 
     expect(result?.ok).toBe(false);
     if (result?.ok === false) expect(result.error.reason).toBe('damaged-campaign');
+  });
+});
+
+/** The base's Inventory and what survivors carry (Z5-2). */
+describe('a campaign whose items are damaged', () => {
+  const pistol = { id: 'item-1', item: 'pistol', grade: 'standard' };
+
+  function refusalFor(overrides: Record<string, unknown>) {
+    const result = parseCampaignFile(savedWith(overrides));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected a refusal');
+
+    expect(result.error.reason).toBe('damaged-campaign');
+    return result.error.message;
+  }
+
+  it('reads items back as they were written, the base’s and a survivor’s', () => {
+    const carried = { id: 'item-2', item: 'heavy', grade: 'shoddy' };
+    const result = parseCampaignFile(
+      savedWith({ inventory: [pistol], survivors: [{ ...VALID_SURVIVOR, items: [carried] }] }),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.inventory).toEqual([pistol]);
+    expect(result.campaign.survivors[0]?.items).toEqual([carried]);
+  });
+
+  it.each([
+    ['an Inventory that is not a list', { inventory: 'everything' }, /Inventory is not a list/],
+    [
+      'an item this version does not know',
+      { inventory: [{ ...pistol, item: 'chainsaw' }] },
+      /does not know: chainsaw/,
+    ],
+    [
+      'an item in a grade it does not come in',
+      { inventory: [{ ...pistol, item: 'backpack', grade: 'standard' }] },
+      /backpack in a grade it does not come in/,
+    ],
+    ['an item with no id', { inventory: [{ ...pistol, id: '' }] }, /item 1 of 1 has no id/],
+    [
+      'a shoddy item in the base, which nobody owns (R35)',
+      { inventory: [{ ...pistol, grade: 'shoddy' }] },
+      /shoddy item/,
+    ],
+    [
+      'one id held in two places',
+      { inventory: [pistol], survivors: [{ ...VALID_SURVIVOR, items: [pistol] }] },
+      /two items with one id: item-1/,
+    ],
+    [
+      'a survivor with no list of items',
+      { survivors: [{ ...VALID_SURVIVOR, items: undefined }] },
+      /carries a list that is not a list/,
+    ],
+  ])('refuses %s', (_label, overrides, expected) => {
+    expect(refusalFor(overrides)).toMatch(expected);
   });
 });
 
@@ -1169,6 +1231,7 @@ describe('a campaign whose assignments are damaged', () => {
       currentHp: 4,
       infection: 0,
       xp: 0,
+      items: [],
     },
   ];
 

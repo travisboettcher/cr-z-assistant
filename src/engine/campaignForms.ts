@@ -18,7 +18,8 @@ import type { FieldRecruitTier } from '../data/recruitTable';
 import type { Tier } from '../data/tiers';
 import { withoutAssignment } from './assignments';
 import { storageCaps } from './base';
-import type { Campaign, Survivor } from './campaign';
+import type { Campaign, Item, Survivor } from './campaign';
+import { newItemProblem, removalProblem, type NewItem } from './equipment';
 import { accepted, refused, type Accepted, type FormResult } from './forms';
 import { logged } from './log';
 import { FIRST_PLANNING_STEP, planningHasBegun, withPlanningReset } from './planning';
@@ -383,5 +384,44 @@ export function submitReturn(campaign: Campaign, survivor: string, at: string): 
       logged(withReturned(campaign, survivor), at, { kind: 'survivor-returned', survivor, name }),
       at,
     ),
+  );
+}
+
+/**
+ * Put an item into the base's Inventory by hand (Z5-2). Refused for whatever
+ * `newItemProblem` says.
+ */
+export function submitItemAdded(campaign: Campaign, item: NewItem, at: string): FormResult {
+  const problem = newItemProblem(campaign, item);
+  if (problem !== null) return refused(problem);
+
+  const added = { id: item.id, item: item.item, grade: item.grade };
+
+  return accepted(
+    logged({ ...campaign, inventory: [...campaign.inventory, added] }, at, {
+      kind: 'item-added',
+      ...added,
+    }),
+  );
+}
+
+/**
+ * Take an item out of the base's Inventory by hand (Z5-2), for a correction.
+ * Items a survivor carries move at Equip Mission Team instead (Z5-4).
+ */
+export function submitItemRemoved(campaign: Campaign, id: string, at: string): FormResult {
+  const problem = removalProblem(campaign, id);
+  if (problem !== null) return refused(problem);
+
+  // Present: `removalProblem` found it.
+  const removed = campaign.inventory.find((item) => item.id === id) as Item;
+
+  return accepted(
+    logged({ ...campaign, inventory: campaign.inventory.filter((item) => item.id !== id) }, at, {
+      kind: 'item-removed',
+      id,
+      item: removed.item,
+      grade: removed.grade,
+    }),
   );
 }

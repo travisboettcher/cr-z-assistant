@@ -33,9 +33,11 @@ import {
   statValue,
 } from '../engine/survivor';
 import { useCampaign } from '../state/useCampaign';
+import { GRADE_LABELS, ITEM_LABELS } from './equipmentLabels';
 import { PageRef } from './PageRef';
 import { promotionViolations } from '../engine/legality';
 import { maxHeroes } from '../engine/base';
+import { slotsInUse } from '../engine/equipment';
 import { COMMON_SKILL_LABELS, SKILL_LABELS, STAT_LABELS } from './skillLabels';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 import { TIER_LABELS } from './tierLabels';
@@ -195,10 +197,19 @@ function Vitals({ survivor, penalty }: { readonly survivor: Survivor; readonly p
         <p className={VITAL_HEADING}>
           Inventory Slots <PageRef pages={14} />
         </p>
-        {/* Tier plus the Carry Score, so this moves when Strength does. What
-            goes in the slots is Phase 5. */}
+        {/* Tier plus the Carry Score, so this moves when Strength does, and
+            what the carried items fill and add (Z5-2). */}
         <p className="mt-1 text-2xl font-semibold tabular-nums">
-          {inventorySlots(survivor, penalty)}
+          {slotsInUse(survivor)} / {inventorySlots(survivor, penalty)}
+        </p>
+        <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+          {survivor.items.length === 0
+            ? 'Carrying nothing'
+            : `Carrying ${survivor.items
+                .map(
+                  (item) => `${ITEM_LABELS[item.item]} (${GRADE_LABELS[item.grade].toLowerCase()})`,
+                )
+                .join(', ')}`}
         </p>
       </div>
 

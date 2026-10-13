@@ -138,6 +138,8 @@ describe('the event samples', () => {
     'overrun-continued': true,
     'community-abandoned': true,
     'survivor-returned': true,
+    'item-added': true,
+    'item-removed': true,
     'base-stocked': true,
     'facility-built': true,
     'upgrade-built': true,
