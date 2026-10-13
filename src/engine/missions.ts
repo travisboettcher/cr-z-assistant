@@ -505,6 +505,17 @@ export interface OutcomeCounts {
 }
 
 /**
+ * An end condition as the outcome records it: the printed failure's number is
+ * no condition met (pp. 77, 79; #205), so a table copying it off the page
+ * records the failure it is.
+ */
+function recordedEnd(mission: MissionId, endCondition: number | null): number | null {
+  const entry: (typeof MISSIONS)[MissionId] = MISSIONS[mission];
+
+  return 'failedOn' in entry && endCondition === entry.failedOn ? null : endCondition;
+}
+
+/**
  * The outcome entry for a team's choice, from the counts its form gathered —
  * only the counts that mission records (`MISSIONS[…].counts`), under its own
  * kind, and `mission-played` for a mission that is not one of the standard
@@ -514,13 +525,14 @@ export interface OutcomeCounts {
 export function outcomeOf(choice: MissionChoice, counts: OutcomeCounts): MissionOutcome {
   const { team } = choice;
   const { wounds } = counts;
+  const endCondition = recordedEnd(choice.mission, counts.endCondition);
 
   switch (choice.mission) {
     case 'first-mission':
       return {
         kind: 'first-mission-resolved',
         team,
-        endCondition: counts.endCondition,
+        endCondition,
         strangers: counts.strangers,
         wounds,
       };
@@ -528,7 +540,7 @@ export function outcomeOf(choice: MissionChoice, counts: OutcomeCounts): Mission
       return {
         kind: 'claim-a-new-base-resolved',
         team,
-        endCondition: counts.endCondition,
+        endCondition,
         strangers: counts.strangers,
         vehiclesOnArea: counts.vehiclesOnArea,
         ...(counts.sameMap === undefined ? {} : { sameMap: counts.sameMap }),

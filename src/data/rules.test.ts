@@ -815,8 +815,11 @@ describe('the missions', () => {
 
       const records = (mission.counts as readonly string[]).includes('end-condition');
       const conditions = 'endConditions' in mission ? mission.endConditions : undefined;
+      const failed = 'failedOn' in mission ? mission.failedOn : undefined;
 
       expect([id, conditions]).toEqual([id, records ? 3 : undefined]);
+      // The fourth printed condition is the failure (pp. 77, 79; #205).
+      expect([id, failed]).toEqual([id, records ? 4 : undefined]);
     }
   });
 

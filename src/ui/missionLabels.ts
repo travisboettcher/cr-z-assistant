@@ -152,9 +152,10 @@ function sameMapOf(sameMap: boolean | undefined): string {
   return sameMap ? ', on the overrun base’s own map' : ', on a different map';
 }
 
-function endOf(endCondition: number | null): string {
+/** Which end condition was met; a failure under the number the page gives it (#205). */
+function endOf(mission: 'first-mission' | 'claim-a-new-base', endCondition: number | null): string {
   return endCondition === null
-    ? 'no end condition met'
+    ? `end condition ${String(MISSIONS[mission].failedOn)}, failed`
     : `end condition ${String(endCondition)} met`;
 }
 
@@ -166,9 +167,9 @@ function counted(outcome: MissionOutcome): string {
     case 'thin-the-herd-resolved':
       return `${String(outcome.zombiesLeft)} of ${plural(outcome.startingZombies, 'zombie', 'zombies')} left, ${plural(outcome.survivorsExited, 'survivor', 'survivors')} out over the map edge`;
     case 'first-mission-resolved':
-      return `${endOf(outcome.endCondition)}, ${strangersOf(outcome.strangers)}`;
+      return `${endOf('first-mission', outcome.endCondition)}, ${strangersOf(outcome.strangers)}`;
     case 'claim-a-new-base-resolved':
-      return `${endOf(outcome.endCondition)}, ${strangersOf(outcome.strangers)}, ${plural(outcome.vehiclesOnArea, 'working vehicle', 'working vehicles')} on the mission area${sameMapOf(outcome.sameMap)}`;
+      return `${endOf('claim-a-new-base', outcome.endCondition)}, ${strangersOf(outcome.strangers)}, ${plural(outcome.vehiclesOnArea, 'working vehicle', 'working vehicles')} on the mission area${sameMapOf(outcome.sameMap)}`;
     case 'gather-materials-resolved':
       return `${plural(outcome.materialsCarriedOut, 'material', 'materials')} carried off the map${anyStrangers(outcome.strangers)}`;
     case 'retrieve-new-vehicles-resolved':
@@ -197,8 +198,8 @@ export function outcomeConsequences(outcome: MissionOutcome, turn: number): read
   if (outcome.kind === 'first-mission-resolved' && outcome.endCondition === null) {
     return [
       turn === FIRST_TURN
-        ? 'No end condition was met, so turn 1 plays the First Mission again (R21).'
-        : 'No end condition was met, so the community chooses again how it goes on (R28).',
+        ? 'The First Mission failed, so turn 1 plays it again (R21).'
+        : 'The First Mission failed, so the community chooses again how it goes on (R28).',
     ];
   }
 

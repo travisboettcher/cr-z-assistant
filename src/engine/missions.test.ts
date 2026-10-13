@@ -755,6 +755,21 @@ describe('outcomeOf', () => {
     });
   });
 
+  /** The page numbers a total loss as condition 4 (pp. 77, 79; #205). */
+  it('records the printed failure’s number as no condition met', () => {
+    for (const mission of ['first-mission', 'claim-a-new-base'] as const) {
+      expect(outcomeOf({ team: 1, mission }, { ...counts, endCondition: 4 })).toMatchObject({
+        endCondition: null,
+      });
+      expect(outcomeOf({ team: 1, mission }, { ...counts, endCondition: 3 })).toMatchObject({
+        endCondition: 3,
+      });
+      expect(outcomeOf({ team: 1, mission }, { ...counts, endCondition: null })).toMatchObject({
+        endCondition: null,
+      });
+    }
+  });
+
   it('gives every standard mission an outcome its own guard reads back as that mission, with the team’s wounds (Z4-4)', () => {
     for (const mission of [
       'first-mission',

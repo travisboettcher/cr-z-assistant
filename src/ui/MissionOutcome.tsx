@@ -92,6 +92,13 @@ function countsFor(mission: MissionId): readonly OutcomeCount[] {
 }
 
 /** How many numbered end conditions a mission has (pp. 77, 79). */
+/** The printed number of a mission's failing end condition, if it numbers one. */
+function failedOn(mission: MissionId): number | undefined {
+  const entry: (typeof MISSIONS)[MissionId] = MISSIONS[mission];
+
+  return 'failedOn' in entry ? entry.failedOn : undefined;
+}
+
 function endConditionsOf(mission: MissionId): number {
   const entry: (typeof MISSIONS)[MissionId] = MISSIONS[mission];
 
@@ -341,7 +348,17 @@ function TeamOutcome({
                       {index + 1}
                     </option>
                   ))}
-                  <option value="none">None</option>
+                  {/*
+                   * The failure as the page numbers it (#205), so a table
+                   * copying the number finds it; recorded as none met.
+                   */}
+                  {failedOn(choice.mission) === undefined ? (
+                    <option value="none">None</option>
+                  ) : (
+                    <option value={String(failedOn(choice.mission))}>
+                      {failedOn(choice.mission)} (failed)
+                    </option>
+                  )}
                 </select>
               </div>
             );
