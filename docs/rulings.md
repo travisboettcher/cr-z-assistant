@@ -647,6 +647,15 @@ it until those stories are built.
 *Settled 2026-10-12 from the batch-14 extract. Until then a Tier 4 stranger was accepted and joined
 as the roster adds a Hero, which this replaces.*
 
+### Amendment, October 2026 — a Hero set aside comes back as themselves
+
+With [R31](#r31--abandoned-survivors-and-a-hero-sent-away-are-set-aside) and Z4-11, a Rescue
+Strangers outcome may name survivors set aside — a Hero sent away over the cap among them — whom it
+brought back. They are not strangers of a Tier: they are the same characters, and rejoin with the
+sheet they left with. So the outcome's strangers stay Tier 1 to 3, as this ruling says, and a
+returning Hero is the one Tier 4 a mission records, by name. A rescuer below their Tier is warned
+about, as for any stranger (pg. 31).
+
 ---
 
 ## R25 — When the community moves in

@@ -18,7 +18,7 @@ import type { FieldRecruitTier } from '../data/recruitTable';
 import type { Tier } from '../data/tiers';
 import { withoutAssignment } from './assignments';
 import { storageCaps } from './base';
-import type { Campaign } from './campaign';
+import type { Campaign, Survivor } from './campaign';
 import { accepted, refused, type Accepted, type FormResult } from './forms';
 import { logged } from './log';
 import { FIRST_PLANNING_STEP, planningHasBegun, withPlanningReset } from './planning';
@@ -26,8 +26,10 @@ import { deployed } from './missions';
 import { siegeDue } from './siege';
 import {
   rescuedStrangers,
+  returnProblem,
   strangerProblem,
   strangerSurvivor,
+  withReturned,
   type RescuedStranger,
   type StrangerForm,
 } from './strangers';
@@ -360,6 +362,26 @@ export function submitRemoval(campaign: Campaign, survivor: string, at: string):
       },
       at,
       { kind: 'survivor-left', survivor: leaving.id, name: leaving.name, tier: leaving.tier },
+    ),
+  );
+}
+
+/**
+ * A survivor set aside rejoins the community at Advancement Step 2, after a
+ * Rescue Strangers outcome this turn brought them back (pp. 19, 86; R31;
+ * Z4-11). Refused for whatever `returnProblem` says.
+ */
+export function submitReturn(campaign: Campaign, survivor: string, at: string): FormResult {
+  const problem = returnProblem(campaign, survivor);
+  if (problem !== null) return refused(problem);
+
+  // Found by `returnProblem`, so present; the type cannot know that.
+  const name = (campaign.setAside.find((gone) => gone.id === survivor) as Survivor).name;
+
+  return accepted(
+    settled(
+      logged(withReturned(campaign, survivor), at, { kind: 'survivor-returned', survivor, name }),
+      at,
     ),
   );
 }

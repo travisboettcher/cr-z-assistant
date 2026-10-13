@@ -1227,3 +1227,41 @@ describe('Moving in after an overrun', () => {
     ).toBeTruthy();
   });
 });
+
+/** A survivor set aside, brought back this turn, rejoins at Step 2 (R31; Z4-11). */
+describe('Welcoming back a survivor set aside', () => {
+  it('rejoins them as themselves, and lists nobody once they have', async () => {
+    const hera = { ...createSurvivor('Hera Okafor', 4, { id: 'hera' }), xp: 12 };
+    const user = open(
+      advancement({
+        step: 'create-new-survivors',
+        startingCommunityBuilt: true,
+        setAside: [hera],
+        log: [
+          {
+            turn: 3,
+            phase: 'mission',
+            at: '2026-10-13T09:00:00.000Z',
+            event: { kind: 'mission-selected', team: 1, mission: 'rescue-strangers', names: [] },
+          },
+          {
+            turn: 3,
+            phase: 'mission',
+            at: '2026-10-13T09:00:00.000Z',
+            event: {
+              kind: 'rescue-strangers-resolved',
+              team: 1,
+              strangers: [],
+              returned: ['hera'],
+            },
+          },
+        ],
+      }),
+    );
+
+    await user.click(within(walk()).getByRole('button', { name: 'Welcome Hera Okafor back' }));
+
+    expect(within(walk()).queryByRole('button', { name: /Welcome .* back/ })).toBeNull();
+    expect(screen.getByText(/Hera Okafor returned to the community/)).toBeTruthy();
+  });
+});

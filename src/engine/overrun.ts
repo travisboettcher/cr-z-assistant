@@ -155,3 +155,25 @@ export function overrunChoiceProblem(campaign: Campaign, option: OverrunOption):
       return 'The way on is chosen; play it, and choose again only if it fails.';
   }
 }
+
+/**
+ * The campaign with every survivor left behind, for a community that begins
+ * again with new characters (pg. 86; R31; Z4-11). Unguarded: the form that
+ * writes the choice guards it.
+ *
+ * Each survivor is set aside whole, with their Tier, experience and gear, for
+ * a later Rescue Strangers mission to bring back. Their tasks go with them,
+ * and the starting community is open again, because the new one is built
+ * from ten Tier levels like any other (pg. 13). The base, the stores, the log,
+ * the origin and the counters stay where they are: the community changes, the
+ * campaign does not.
+ */
+export function withCommunityAbandoned(campaign: Campaign): Campaign {
+  return {
+    ...campaign,
+    survivors: [],
+    setAside: [...campaign.setAside, ...campaign.survivors],
+    assignments: {},
+    startingCommunityBuilt: false,
+  };
+}

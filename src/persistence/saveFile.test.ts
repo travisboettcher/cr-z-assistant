@@ -846,6 +846,16 @@ describe('a campaign whose log is damaged', () => {
     // The field loop: a kind this version knows, carrying a field it cannot
     // read. Nothing above reaches past the discriminant.
     [
+      'a rescue bringing back somebody with no id',
+      [
+        {
+          ...good,
+          event: { kind: 'rescue-strangers-resolved', team: 1, strangers: [], returned: [''] },
+        },
+      ],
+      /unreadable returned/i,
+    ],
+    [
       'a way on from an overrun the book does not give',
       [{ ...good, event: { kind: 'overrun-continued', option: 'surrender' } }],
       /unreadable option/i,

@@ -76,6 +76,7 @@ import {
   submitNewSurvivor,
   submitRecruit,
   submitRemoval,
+  submitReturn,
   submitStartingCommunity,
   submitStrangerJoined,
 } from '../engine/campaignForms';
@@ -439,6 +440,12 @@ export type CampaignAction =
    * (R25, R31, R32; Z4-8).
    */
   | { readonly type: 'advancement/moved'; readonly leaving: readonly string[]; readonly at: string }
+  /** A survivor set aside, brought back this turn, rejoins (R31; Z4-11). */
+  | {
+      readonly type: 'advancement/survivorReturned';
+      readonly survivor: string;
+      readonly at: string;
+    }
   /**
    * How the community goes on from a base its Siege Defense overran, and the
    * base that way claims (pg. 86; R27; Z4-9).
@@ -446,7 +453,8 @@ export type CampaignAction =
   | {
       readonly type: 'mission/overrunContinued';
       readonly option: OverrunOption;
-      readonly base: BaseId;
+      /** Absent for leaving the survivors behind, whose base is chosen later (R31). */
+      readonly base?: BaseId;
       readonly at: string;
     }
   /** The community opts out of this turn's mission (pg. 17). */
@@ -984,6 +992,9 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return submitted(state, (campaign) =>
         submitOverrunContinuation(campaign, action.option, action.base, action.at),
       );
+
+    case 'advancement/survivorReturned':
+      return submitted(state, (campaign) => submitReturn(campaign, action.survivor, action.at));
 
     case 'advancement/moved':
       return submitted(state, (campaign) => submitBaseMove(campaign, action.leaving, action.at));

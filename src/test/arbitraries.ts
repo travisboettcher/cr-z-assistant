@@ -517,6 +517,11 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       option: fc.constantFrom(...OVERRUN_OPTIONS),
     }),
     fc.record({
+      kind: fc.constant('community-abandoned' as const),
+      setAside: fc.array(fc.record({ survivor: anyId, name: anyName }), { maxLength: 2 }),
+    }),
+    fc.record({ kind: fc.constant('survivor-returned' as const), survivor: anyId, name: anyName }),
+    fc.record({
       kind: fc.constant('facility-built' as const),
       slot: anyId,
       facility: fc.constantFrom(...FACILITY_IDS),

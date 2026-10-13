@@ -270,14 +270,15 @@ export const GATHERED_MATERIALS = STORED_MATERIALS;
  * plays (pg. 86; #182, Z4-9).
  *
  * Claiming a base again plays Claim a New Base, and starting over plays the
- * First Mission's setup. Each is played as a further mission in the same
- * Mission Phase as the Siege Defense (R27). The book's third way — leaving the
- * survivors behind for a new community — also plays the First Mission, and
- * arrives with the set-aside survivors it needs (Z4-11).
+ * First Mission's setup. Leaving the survivors behind for a new community of
+ * new characters plays the First Mission too, once that community is built
+ * (R31; Z4-11). Each is played as a further mission in the same Mission Phase
+ * as the Siege Defense (R27).
  */
 export const OVERRUN_CONTINUATIONS = {
   claim: 'claim-a-new-base',
   'start-over': 'first-mission',
+  abandon: 'first-mission',
 } as const satisfies Record<string, StandardMissionId>;
 
 export type OverrunOption = keyof typeof OVERRUN_CONTINUATIONS;

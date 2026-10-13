@@ -548,6 +548,12 @@ export type CampaignEvent =
       readonly kind: 'rescue-strangers-resolved';
       readonly team: number;
       readonly strangers: readonly FieldRecruitTier[];
+      /**
+       * Set-aside survivors this mission brought back, by id, who rejoin as
+       * themselves rather than as new strangers (R31; Z4-11). Absent when
+       * nobody set aside was placed, which is most missions.
+       */
+      readonly returned?: readonly string[];
       /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
       readonly wounds?: readonly MissionWound[];
     }
@@ -734,6 +740,21 @@ export type CampaignEvent =
    * failed (R28) is a second entry.
    */
   | { readonly kind: 'overrun-continued'; readonly option: OverrunOption }
+  /**
+   * The community left its survivors behind after an overrun, to begin again
+   * with new characters (pg. 86; R31; Z4-11). Every survivor named was set
+   * aside, whole, and may return through a later Rescue Strangers mission.
+   */
+  | {
+      readonly kind: 'community-abandoned';
+      readonly setAside: readonly { readonly survivor: string; readonly name: string }[];
+    }
+  /**
+   * A set-aside survivor rejoined the community at Advancement Step 2, as
+   * themselves, after a Rescue Strangers outcome named them (pp. 19, 54, 86;
+   * R31; Z4-11).
+   */
+  | { readonly kind: 'survivor-returned'; readonly survivor: string; readonly name: string }
   /**
    * The community moved into the base a Claim a New Base won (pp. 19, 54, 79;
    * Z4-8), at the end of that turn's Advancement Phase (R25).

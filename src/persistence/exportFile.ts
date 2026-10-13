@@ -211,7 +211,7 @@ function orderedLogEntry(entry: LogEntry): Record<keyof LogEntry, unknown> {
 
 /**
  * An event tag-first, with the objects nested inside it written in a fixed
- * order too: the survivors a move set aside and the stores and free rebuilds it left after an overrun, and the wounds a mission outcome carries.
+ * order too: the survivors a move or an abandoned community set aside, the stores and free rebuilds a move left after an overrun, and the wounds a mission outcome carries.
  *
  * `taggedFirst` sorts the top level only, so the objects inside `setAside` and
  * `wounds` would keep whatever key order the file they were read from used —
@@ -223,10 +223,13 @@ function orderedLogEntry(entry: LogEntry): Record<keyof LogEntry, unknown> {
  * as `undefined`, which the file drops.
  */
 function orderedEvent(event: CampaignEvent): Record<string, unknown> {
+  if (event.kind === 'community-abandoned') {
+    return { ...taggedFirst(event, 'kind'), setAside: orderedRefs(event.setAside) };
+  }
   if (event.kind === 'base-moved') {
     return {
       ...taggedFirst(event, 'kind'),
-      setAside: event.setAside.map(({ survivor, name }) => ({ survivor, name })),
+      setAside: orderedRefs(event.setAside),
       ...(event.stores === undefined
         ? {}
         : {
@@ -265,6 +268,13 @@ function orderedWound(wound: MissionWound): Record<keyof MissionWound, unknown> 
     health: wound.health,
     infection: wound.infection,
   };
+}
+
+/** Survivors named by id and name, each written id first. */
+function orderedRefs(
+  refs: readonly { readonly survivor: string; readonly name: string }[],
+): readonly Record<string, string>[] {
+  return refs.map(({ survivor, name }) => ({ survivor, name }));
 }
 
 /**

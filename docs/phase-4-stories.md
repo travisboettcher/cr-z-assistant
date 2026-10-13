@@ -646,6 +646,27 @@ reducer's `mission/selected` action gained the field beside the material's.
 - After abandoning, the roster holds only the new community, the turn cannot move on until its
   First Mission is won, and the abandoned survivors are on offer to its Rescue Strangers.
 
+**What this story turned out to include.**
+
+- **Leaving the survivors behind is the one way on that chooses no mission with it**, because the
+  community that plays it does not exist yet. The overrun form writes `overrun-continued` and a
+  `community-abandoned` entry naming everybody set aside, and opens the starting community again;
+  the Tactical Mission step then waits for the new community to be on the roster and offers its
+  First Mission, with the base it will claim, and the walk owes that choice. From there it is
+  starting over: the base arrives stocked (R30) and the move is Z4-8's.
+- **Brought back alongside new strangers, not instead of them.** A Rescue Strangers outcome records
+  its strangers as before and, beside them, which survivors set aside it brought back (`returned`).
+  Only Rescue Strangers asks (R31). A rescuer below a returning survivor's Tier is a warning, as it
+  is for any stranger (pg. 31), so a set-aside Hero is the one Tier 4 a mission records (R24's
+  amendment).
+- **They rejoin at Advancement Step 2**, beside the strangers, as themselves: `survivor-returned`
+  moves them from the set-aside list back to the roster with the sheet they left with, and the walk
+  owes it. Like a stranger joining, a return settles a starting community still being built.
+- **The roster lists who is set aside**, with their Tiers, apart from the community.
+- **A failed First Mission for the new community reopens the choice** (R28), and choosing to leave
+  the survivors behind again would set the new community aside too. Nothing in the book says
+  otherwise, and the choice is the player's.
+
 ---
 
 ## Phase 4, part 1b is done when

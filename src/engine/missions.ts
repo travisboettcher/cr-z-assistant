@@ -491,6 +491,12 @@ export interface OutcomeCounts {
   readonly sameMap?: boolean;
 
   /**
+   * Set-aside survivors a Rescue Strangers team brought back, by id (R31;
+   * Z4-11). Asked of that mission only.
+   */
+  readonly returned?: readonly string[];
+
+  /**
    * Each team member's Health at the end, and their Infection in a Viral
    * campaign (Z4-4). Every mission records them, so unlike the counts above
    * they go on every kind; `woundsAsTheyStand` is where a form starts them.
@@ -555,7 +561,15 @@ export function outcomeOf(choice: MissionChoice, counts: OutcomeCounts): Mission
         wounds,
       };
     case 'rescue-strangers':
-      return { kind: 'rescue-strangers-resolved', team, strangers: counts.strangers, wounds };
+      return {
+        kind: 'rescue-strangers-resolved',
+        team,
+        strangers: counts.strangers,
+        ...(counts.returned === undefined || counts.returned.length === 0
+          ? {}
+          : { returned: counts.returned }),
+        wounds,
+      };
     case 'rare-goods-trader':
       return {
         kind: 'rare-goods-trader-resolved',
@@ -674,6 +688,18 @@ export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcom
       return asksSameMap(campaign, choice)
         ? 'Say whether the claim was played on the overrun base’s own map.'
         : 'Only a claim of the overrun base’s own type asks about its map.';
+    }
+  }
+
+  // Survivors set aside — a Hero sent away over the cap, or a community left
+  // behind — come back through Rescue Strangers as themselves (R31). Only that
+  // outcome carries `returned`; the kind is checked for the typechecker.
+  if (outcome.kind === 'rescue-strangers-resolved' && outcome.returned !== undefined) {
+    if (new Set(outcome.returned).size !== outcome.returned.length) {
+      return 'Each survivor set aside comes back once.';
+    }
+    if (!outcome.returned.every((id) => campaign.setAside.some((gone) => gone.id === id))) {
+      return 'Only a survivor set aside can be brought back.';
     }
   }
 
@@ -820,7 +846,13 @@ export function strangerWarning(campaign: Campaign, outcome: MissionOutcome): st
   const team = outcomeTeam(outcome);
   const members = membersOf(campaign, team);
   const highest = Math.max(0, ...members.map((survivor) => survivor.tier));
-  const beyond = outcome.strangers.filter((tier: FieldRecruitTier) => tier > highest);
+  // A set-aside survivor brought back is rescued like any stranger, at their
+  // own Tier — a Hero only by a Hero (pg. 31; R31). The kind and the defaults
+  // are for the typechecker, as in `returnedWaiting`.
+  const returning = (outcome.kind === 'rescue-strangers-resolved' ? (outcome.returned ?? []) : [])
+    .flatMap((id) => campaign.setAside.filter((gone) => gone.id === id))
+    .map((gone) => gone.tier);
+  const beyond = [...outcome.strangers, ...returning].filter((tier) => tier > highest);
 
   return beyond.length === 0
     ? null

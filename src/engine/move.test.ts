@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { continued, overrun, wentOn } from '../test/overrun';
+import { continued, inMission, overrun, wentOn } from '../test/overrun';
 import { queued } from '../test/queued';
 import { submitBaseMove } from './advancementForms';
 import { createNewCampaign, type Campaign } from './campaign';
@@ -359,5 +359,26 @@ describe('rebuildAfterMove, and the slots the move leaves', () => {
         { slot: 'back-yard', facility: 'garden', upgrades: [] },
       ],
     });
+  });
+});
+
+describe('storesAfterMove for a community begun again (R30, R31; Z4-11)', () => {
+  it('stocks the new community’s base like a first base, and loses the old stores', () => {
+    const campaign = overrun(
+      [
+        inMission({ kind: 'overrun-continued', option: 'abandon' }),
+        inMission({
+          kind: 'mission-selected',
+          team: 1,
+          mission: 'first-mission',
+          names: [],
+          base: 'summer-camp',
+        }),
+        continued('abandon', true),
+      ],
+      { step: 'add-facilities-and-upgrades' },
+    );
+
+    expect(storesAfterMove(campaign)).toEqual({ food: 4, fuel: 4, hardware: 4, rare: 0 });
   });
 });

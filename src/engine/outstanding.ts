@@ -39,12 +39,12 @@ import { healthAwards, woundsHealed } from './healing';
 import { materialsAdded } from './materials';
 import { firstMissionFailed, missionsChosen, unresolvedTeams } from './missions';
 import { dueProjects, laborShortfall, siegeLaborShortfall } from './projects';
-import { overrunChoiceOwed } from './overrun';
+import { continuationOpen, overrunChoiceOwed } from './overrun';
 import { mustCheck, rotCheckResolved } from './rot';
 import { hordeChecked } from './siege';
 import { anythingOverCap, storageChecked } from './storage';
 import { someoneDeparted, someoneIsLeaving } from './departures';
-import { strangersWaiting } from './strangers';
+import { returnedWaiting, strangersWaiting } from './strangers';
 
 /** Why a step is outstanding, in the words the walk shows the player. */
 export interface Outstanding {
@@ -104,6 +104,16 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
     });
   }
 
+  // A community that left its survivors behind owes its new community's First
+  // Mission once it is built (R31; Z4-11). The other ways on choose their
+  // mission with the way on, so are never left here.
+  if (continuationOpen(campaign)) {
+    owed.push({
+      step: 'tactical-mission',
+      says: 'The new community’s First Mission is not chosen.',
+    });
+  }
+
   // A First Mission that met no end condition is played again in turn 1 (R21).
   if (firstMissionFailed(campaign)) {
     owed.push({ step: 'select-mission', says: 'The First Mission failed, and is played again.' });
@@ -120,6 +130,19 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
         waiting === 1
           ? 'A rescued stranger has not joined the community.'
           : `${String(waiting)} rescued strangers have not joined the community.`,
+    });
+  }
+
+  // Somebody set aside whom a Rescue Strangers mission brought back rejoins at
+  // the same step (R31; Z4-11).
+  const returning = returnedWaiting(campaign).length;
+  if (returning > 0) {
+    owed.push({
+      step: 'create-new-survivors',
+      says:
+        returning === 1
+          ? 'A survivor brought back has not rejoined the community.'
+          : `${String(returning)} survivors brought back have not rejoined the community.`,
     });
   }
 

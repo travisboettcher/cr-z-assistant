@@ -206,6 +206,17 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   // How the community went on from an overrun base (pg. 86; Z4-9).
   { kind: 'overrun-continued', option: 'claim' },
   { kind: 'overrun-continued', option: 'start-over' },
+  { kind: 'overrun-continued', option: 'abandon' },
+  // Leaving the survivors behind, and one of them brought back (R31; Z4-11).
+  {
+    kind: 'community-abandoned',
+    setAside: [
+      { survivor: 'earl', name: 'Earl Rhodes' },
+      { survivor: 'ruby', name: 'Ruby Vance' },
+    ],
+  },
+  { kind: 'rescue-strangers-resolved', team: 1, strangers: [2], returned: ['earl'] },
+  { kind: 'survivor-returned', survivor: 'earl', name: 'Earl Rhodes' },
   // The claim an overrun went on with, on the overrun base's own map (R29).
   {
     kind: 'claim-a-new-base-resolved',

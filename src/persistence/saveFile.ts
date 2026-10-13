@@ -347,6 +347,10 @@ const EVENT_FIELD_CHECKS = {
               typeof upgrade === 'string' && facilityOfUpgrade(upgrade as UpgradeId) !== undefined,
           ),
       )),
+  // Survivors named by id alone: who a Rescue Strangers mission brought back.
+  optionalIds: (value: unknown) =>
+    value === undefined ||
+    (Array.isArray(value) && value.every((one) => typeof one === 'string' && one !== '')),
   optionalFlag: (value: unknown) => value === undefined || typeof value === 'boolean',
   overrunOption: (value: unknown) => OVERRUN_OPTIONS.some((option) => option === value),
   optionalBase: (value: unknown) =>
@@ -510,6 +514,7 @@ const EVENT_FIELDS: Record<
   'rescue-strangers-resolved': [
     ['team', 'countFromOne'],
     ['strangers', 'tiers'],
+    ['returned', 'optionalIds'],
     ['wounds', 'optionalWounds'],
   ],
   'rare-goods-trader-resolved': [
@@ -601,6 +606,11 @@ const EVENT_FIELDS: Record<
     ['rebuild', 'optionalRebuild'],
   ],
   'overrun-continued': [['option', 'overrunOption']],
+  'community-abandoned': [['setAside', 'survivorRefs']],
+  'survivor-returned': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+  ],
   'base-stocked': [
     ['food', 'count'],
     ['fuel', 'count'],

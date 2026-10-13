@@ -401,3 +401,45 @@ describe('submitOverrunContinuation', () => {
     ).toMatch(/no such base/);
   });
 });
+
+describe('submitOverrunContinuation, leaving the survivors behind (R31; Z4-11)', () => {
+  it('records the way on and who was left behind, and chooses no mission yet', () => {
+    const after = expectAccepted(submitOverrunContinuation(overrun(), 'abandon', undefined, LATER));
+
+    expect(after.log.slice(-2).map((entry) => entry.event)).toStrictEqual([
+      { kind: 'overrun-continued', option: 'abandon' },
+      {
+        kind: 'community-abandoned',
+        setAside: [
+          { survivor: 'earl', name: 'Earl Rhodes' },
+          { survivor: 'ruby', name: 'Ruby Vance' },
+        ],
+      },
+    ]);
+    expect(after.survivors).toEqual([]);
+    expect(after.setAside.map((survivor) => survivor.name)).toEqual(['Earl Rhodes', 'Ruby Vance']);
+  });
+
+  it('lets the new community choose its First Mission and base once it is built', () => {
+    const abandoned = expectAccepted(
+      submitOverrunContinuation(overrun(), 'abandon', undefined, LATER),
+    );
+    const built = { ...abandoned, survivors: [createSurvivor('Nell Haig', 2, { id: 'nell' })] };
+
+    expect(
+      expectAccepted(
+        submitMissionSelection(
+          built,
+          { team: 1, mission: 'first-mission', base: 'summer-camp' },
+          LATER,
+        ),
+      ).log.at(-1)?.event,
+    ).toStrictEqual({
+      kind: 'mission-selected',
+      team: 1,
+      mission: 'first-mission',
+      names: ['Nell Haig'],
+      base: 'summer-camp',
+    });
+  });
+});

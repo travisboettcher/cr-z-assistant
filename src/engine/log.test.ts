@@ -136,6 +136,8 @@ describe('the event samples', () => {
     'base-claimed': true,
     'base-moved': true,
     'overrun-continued': true,
+    'community-abandoned': true,
+    'survivor-returned': true,
     'base-stocked': true,
     'facility-built': true,
     'upgrade-built': true,

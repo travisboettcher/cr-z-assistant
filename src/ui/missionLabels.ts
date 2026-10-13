@@ -63,6 +63,7 @@ export const MISSION_LABELS: Record<MissionId, string> = {
 export const OVERRUN_LABELS: Record<OverrunOption, string> = {
   claim: 'claim a new base',
   'start-over': 'start a new community',
+  abandon: 'leave the survivors behind and begin a new community',
 };
 
 /** A team's choice in a sentence, for the history and the Select Mission step. */
@@ -135,6 +136,15 @@ function anyStrangers(strangers: readonly FieldRecruitTier[]): string {
   return strangers.length === 0 ? '' : `, ${strangersOf(strangers)}`;
 }
 
+/** Said only when somebody set aside came back (R31). */
+function broughtBack(returned: readonly string[] | undefined): string {
+  const count = returned?.length ?? 0;
+
+  return count === 0
+    ? ''
+    : `, and ${plural(count, 'survivor', 'survivors')} set aside brought back`;
+}
+
 /** Said only of the claim that asks it (R29). */
 function sameMapOf(sameMap: boolean | undefined): string {
   if (sameMap === undefined) return '';
@@ -164,7 +174,7 @@ function counted(outcome: MissionOutcome): string {
     case 'retrieve-new-vehicles-resolved':
       return `${plural(outcome.vehiclesDrivenOff, 'vehicle', 'vehicles')} repaired and driven off${anyStrangers(outcome.strangers)}`;
     case 'rescue-strangers-resolved':
-      return strangersOf(outcome.strangers);
+      return `${strangersOf(outcome.strangers)}${broughtBack(outcome.returned)}`;
     case 'rare-goods-trader-resolved':
       return `${plural(outcome.survivorsExited, 'survivor', 'survivors')} out over the map edge${anyStrangers(outcome.strangers)}`;
     case 'mission-played':
@@ -198,7 +208,7 @@ export function outcomeConsequences(outcome: MissionOutcome, turn: number): read
 
   if (baseOverrun(outcome)) {
     consequences.push(
-      'The base is overrun: the community goes on by claiming a new base or starting a new community, played as a further mission this turn (R27).',
+      'The base is overrun: the community goes on by claiming a new base, starting a new community, or leaving the survivors behind for new ones — played as a further mission this turn (R27).',
     );
   }
 

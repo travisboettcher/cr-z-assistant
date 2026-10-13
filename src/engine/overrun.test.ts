@@ -9,7 +9,9 @@ import {
   overrunChoiceProblem,
   overrunClaim,
   reclaimedOnSameMap,
+  withCommunityAbandoned,
 } from './overrun';
+import { createSurvivor } from './survivor';
 
 describe('the overrun base, step by step (pg. 86; R27, R28)', () => {
   it('owes the choice straight after the siege overran the base', () => {
@@ -171,5 +173,32 @@ describe('overrunClaim and reclaimedOnSameMap', () => {
         overrun([...wentOn('claim', 'hobby-farm'), { ...continued('claim', true, true), turn: 3 }]),
       ),
     ).toBe(false);
+  });
+});
+
+/** Leaving the survivors behind for a new community (pg. 86; R31; Z4-11). */
+describe('leaving the survivors behind', () => {
+  it('is a way on, played as the First Mission', () => {
+    expect(overrunChoiceProblem(overrun(), 'abandon')).toBeNull();
+    expect(continuationMission('abandon')).toBe('first-mission');
+  });
+
+  it('sets every survivor aside whole, with their tasks gone, and opens the starting community', () => {
+    const campaign = overrun([], {
+      startingCommunityBuilt: true,
+      setAside: [createSurvivor('Hera Okafor', 4, { id: 'hera' })],
+      assignments: { earl: { task: 'rest' } },
+    });
+    const after = withCommunityAbandoned(campaign);
+
+    expect(after.survivors).toEqual([]);
+    expect(after.setAside.map((survivor) => survivor.id)).toEqual(['hera', 'earl', 'ruby']);
+    expect(after.setAside[1]).toBe(campaign.survivors[0]);
+    expect(after.assignments).toEqual({});
+    expect(after.startingCommunityBuilt).toBe(false);
+    // The campaign is the same one: base, stores and log stay.
+    expect(after.base).toBe(campaign.base);
+    expect(after.materials).toBe(campaign.materials);
+    expect(after.log).toBe(campaign.log);
   });
 });

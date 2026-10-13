@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { continued, overrun, wentOn } from '../test/overrun';
+import { continued, inMission, overrun, wentOn } from '../test/overrun';
 import { createNewCampaign, type Campaign } from './campaign';
 import { createSurvivor } from './survivor';
 import type { LogEntry } from './log';
@@ -215,6 +215,16 @@ describe('outstanding', () => {
       ).toContainEqual(owed);
     });
 
+    it('owes the new community’s First Mission after the survivors are left behind (R31)', () => {
+      const left = overrun([inMission({ kind: 'overrun-continued', option: 'abandon' })]);
+
+      expect(outstanding(left)).toContainEqual({
+        step: 'tactical-mission',
+        says: 'The new community’s First Mission is not chosen.',
+      });
+      expect(outstanding(left)).not.toContainEqual(owed);
+    });
+
     it('owes the continuation’s outcome instead once a way on is chosen', () => {
       const going = outstanding(overrun([...wentOn('claim', 'distillery')]));
 
@@ -222,6 +232,33 @@ describe('outstanding', () => {
       expect(going).toContainEqual({
         step: 'tactical-mission',
         says: 'Mission team 1’s outcome is not recorded.',
+      });
+    });
+  });
+
+  /** Z4-11: somebody set aside, brought back, rejoins at Advancement Step 2 (R31). */
+  describe('survivors brought back', () => {
+    const backThisTurn = (returned: readonly string[]) =>
+      settled({
+        setAside: [
+          createSurvivor('Hera Okafor', 4, { id: 'hera' }),
+          createSurvivor('June Park', 2, { id: 'june' }),
+        ],
+        log: [
+          ...settled().log,
+          entry({ kind: 'mission-selected', team: 1, mission: 'rescue-strangers', names: [] }),
+          entry({ kind: 'rescue-strangers-resolved', team: 1, strangers: [], returned }),
+        ],
+      });
+
+    it('owes the step until each has rejoined, and says how many', () => {
+      expect(outstanding(backThisTurn(['hera']))).toContainEqual({
+        step: 'create-new-survivors',
+        says: 'A survivor brought back has not rejoined the community.',
+      });
+      expect(outstanding(backThisTurn(['hera', 'june']))).toContainEqual({
+        step: 'create-new-survivors',
+        says: '2 survivors brought back have not rejoined the community.',
       });
     });
   });

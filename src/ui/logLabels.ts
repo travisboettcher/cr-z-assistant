@@ -416,6 +416,15 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
         pages: event.setAside.length === 0 ? 79 : '54, 79',
       };
 
+    case 'community-abandoned':
+      return {
+        text: `The community left ${event.setAside.map((one) => one.name).join(', ') || 'nobody'} behind, to begin again with new characters.`,
+        pages: 86,
+      };
+
+    case 'survivor-returned':
+      return { text: `${event.name} returned to the community.`, pages: '19, 86' };
+
     case 'overrun-continued':
       return {
         text: `With the base overrun, the community chose to ${OVERRUN_LABELS[event.option]}.`,

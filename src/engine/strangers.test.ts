@@ -4,9 +4,12 @@ import { createNewCampaign, type Campaign } from './campaign';
 import type { CampaignEvent, LogEntry } from './log';
 import {
   rescuedStrangers,
+  returnedWaiting,
+  returnProblem,
   strangerProblem,
   strangerSurvivor,
   strangersWaiting,
+  withReturned,
   type StrangerForm,
 } from './strangers';
 import { createSurvivor, recruitSurvivor } from './survivor';
@@ -264,5 +267,68 @@ describe('strangerSurvivor', () => {
     expect(strangerSurvivor('Pip', 1, undefined, { id: 'pip' })).toEqual(
       createSurvivor('Pip', 1, { id: 'pip' }),
     );
+  });
+});
+
+/** Survivors set aside, brought back by a Rescue Strangers mission (R31; Z4-11). */
+describe('survivors brought back', () => {
+  const hera = createSurvivor('Hera Okafor', 4, { id: 'hera' });
+  const june = createSurvivor('June Park', 2, { id: 'june' });
+
+  /** Turn 3, at Create New Survivors, with Hera and June set aside. */
+  function back(log: readonly LogEntry[], step: TurnStepId = 'create-new-survivors'): Campaign {
+    return {
+      ...createNewCampaign('Cedar Hollow', FIXED),
+      turn: 3,
+      step,
+      startingCommunityBuilt: true,
+      survivors: [createSurvivor('Earl Rhodes', 4, { id: 'earl' })],
+      setAside: [hera, june],
+      log: [
+        entry({ kind: 'mission-selected', team: 1, mission: 'rescue-strangers', names: [] }),
+        ...log,
+      ],
+    };
+  }
+
+  const rescued = (returned: readonly string[], turn = 3) =>
+    entry({ kind: 'rescue-strangers-resolved', team: 1, strangers: [], returned }, turn);
+
+  it('waits for the survivors this turn’s outcome brought back, in its order', () => {
+    expect(returnedWaiting(back([rescued(['june', 'hera'])]))).toEqual([june, hera]);
+    expect(returnedWaiting(back([]))).toEqual([]);
+    expect(returnedWaiting(back([rescued(['june'], 2)]))).toEqual([]);
+  });
+
+  it('reads the teams in team order, whichever was recorded first', () => {
+    const campaign = back([
+      entry({ kind: 'mission-selected', team: 2, mission: 'rescue-strangers', names: [] }),
+      entry({ kind: 'rescue-strangers-resolved', team: 2, strangers: [], returned: ['hera'] }),
+      rescued(['june']),
+    ]);
+
+    expect(returnedWaiting(campaign)).toEqual([june, hera]);
+  });
+
+  it('stops waiting for somebody once they have rejoined', () => {
+    const campaign = back([rescued(['june', 'hera'])]);
+
+    expect(returnedWaiting(withReturned(campaign, 'june'))).toEqual([hera]);
+  });
+
+  it('puts them back on the roster whole, and off the list set aside', () => {
+    const after = withReturned(back([rescued(['hera'])]), 'hera');
+
+    expect(after.survivors.at(-1)).toBe(hera);
+    expect(after.setAside).toEqual([june]);
+  });
+
+  it('lets them rejoin in the Advancement Phase only, and only when brought back', () => {
+    expect(returnProblem(back([rescued(['hera'])]), 'hera')).toBeNull();
+    expect(returnProblem(back([rescued(['june', 'hera'])]), 'hera')).toBeNull();
+    expect(returnProblem(back([rescued(['hera'])], 'tactical-mission'), 'hera')).toMatch(
+      /Advancement Phase/,
+    );
+    expect(returnProblem(back([rescued(['hera'])]), 'june')).toMatch(/brought back this turn/);
   });
 });

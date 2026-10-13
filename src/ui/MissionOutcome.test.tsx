@@ -130,6 +130,23 @@ describe('the overrun base', () => {
     ).toBeNull();
   });
 
+  it('leaves the survivors behind, then plays the new community’s First Mission (R31)', async () => {
+    const user = open(besieged());
+
+    await user.click(
+      choice().getByRole('radio', { name: 'Leave the survivors behind and begin a new community' }),
+    );
+    expect(choice().queryByLabelText(/^Base/)).toBeNull();
+    await user.click(choice().getByRole('button', { name: 'Go on this way' }));
+
+    const next = group(/the new community’s first mission/i);
+    expect(
+      next.getByText('Add the new community’s survivors on the roster first.'),
+    ).toBeInTheDocument();
+    expect(next.getByRole('button', { name: 'Play the First Mission' })).toBeDisabled();
+    expect(walk().textContent).not.toContain('how does the community go on');
+  });
+
   it('asks again when the way on fails (R28)', async () => {
     const user = open(besieged());
 
@@ -363,5 +380,39 @@ describe('the Health a team came home with (Z4-4)', () => {
     expect(walk().textContent).toContain(
       'At the end: Earl Rhodes at 2 Health and 3 Infection, Ruby Vance at 3 Health and 2 Infection.',
     );
+  });
+});
+
+/** Survivors set aside, brought back by Rescue Strangers (R31; Z4-11). */
+describe('bringing back a survivor set aside', () => {
+  it('offers everybody set aside, and records who came back', async () => {
+    const user = open(
+      playing({
+        survivors: [createSurvivor('Earl Rhodes', 4, { id: 'earl' })],
+        setAside: [createSurvivor('Hera Okafor', 4, { id: 'hera' })],
+        assignments: { earl: { task: 'mission', team: 1 } },
+        log: [teamChose(1, 'rescue-strangers')],
+      }),
+    );
+
+    const rescue = group(/how rescue strangers ended/i);
+    await user.click(rescue.getByRole('checkbox', { name: 'Hera Okafor (Tier 4)' }));
+    await user.click(rescue.getByRole('button', { name: 'Record Rescue Strangers' }));
+
+    expect(walk().textContent).toContain(
+      'Rescue Strangers: no strangers rescued, and 1 survivor set aside brought back.',
+    );
+  });
+
+  it('asks nothing of a community with nobody set aside', () => {
+    open(
+      playing({
+        survivors: [createSurvivor('Earl Rhodes', 2, { id: 'earl' })],
+        assignments: { earl: { task: 'mission', team: 1 } },
+        log: [teamChose(1, 'rescue-strangers')],
+      }),
+    );
+
+    expect(within(walk()).queryByText(/Brought back from those set aside/)).toBeNull();
   });
 });

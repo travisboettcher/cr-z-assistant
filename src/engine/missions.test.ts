@@ -1179,3 +1179,60 @@ describe('the overrun’s continuation', () => {
     ).toBe(false);
   });
 });
+
+/** Set-aside survivors a Rescue Strangers team brings back (R31; Z4-11). */
+describe('survivors brought back by Rescue Strangers', () => {
+  const hera = createSurvivor('Hera Okafor', 4, { id: 'hera' });
+  const june = createSurvivor('June Park', 2, { id: 'june' });
+  const rescuing = playing({
+    setAside: [hera, june],
+    log: [at(4, { kind: 'mission-selected', team: 2, mission: 'rescue-strangers', names: [] })],
+  });
+  const outcome = (returned?: readonly string[]) => ({
+    kind: 'rescue-strangers-resolved' as const,
+    team: 2,
+    strangers: [],
+    ...(returned === undefined ? {} : { returned }),
+  });
+
+  it('takes somebody set aside, once', () => {
+    expect(outcomeProblem(rescuing, outcome(['hera']))).toBeNull();
+    expect(outcomeProblem(rescuing, outcome(['hera', 'hera']))).toMatch(/comes back once/);
+    expect(outcomeProblem(rescuing, outcome(['earl']))).toMatch(/Only a survivor set aside/);
+    // Every one named, not just some of them.
+    expect(outcomeProblem(rescuing, outcome(['hera', 'earl']))).toMatch(
+      /Only a survivor set aside/,
+    );
+    expect(outcomeProblem(rescuing, outcome(['june', 'hera']))).toBeNull();
+  });
+
+  it('warns when nobody on the team is their Tier — a Hero only by a Hero (pg. 31)', () => {
+    // Team 2 is Ruby alone, a Leader.
+    expect(strangerWarning(rescuing, outcome(['hera']))).toMatch(/Tier 4 or higher/);
+    expect(strangerWarning(rescuing, outcome())).toBeNull();
+    // Only the ones brought back count, not everybody set aside.
+    expect(strangerWarning(rescuing, outcome(['june']))).toBeNull();
+  });
+
+  it('writes who came back only when somebody did', () => {
+    const counts = {
+      endCondition: null,
+      strangers: [],
+      vehiclesOnArea: 0,
+      materialsCarriedOut: 0,
+      startingZombies: 0,
+      zombiesLeft: 0,
+      survivorsExited: 0,
+      allIncapacitated: false,
+      vehiclesDrivenOff: 0,
+      wounds: [],
+    };
+    const choice = { team: 2, mission: 'rescue-strangers' } as const;
+
+    expect(outcomeOf(choice, { ...counts, returned: ['hera'] })).toMatchObject({
+      returned: ['hera'],
+    });
+    expect(outcomeOf(choice, { ...counts, returned: [] })).not.toHaveProperty('returned');
+    expect(outcomeOf(choice, counts)).not.toHaveProperty('returned');
+  });
+});
