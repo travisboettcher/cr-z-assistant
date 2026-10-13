@@ -35,7 +35,11 @@ Phase 4 (missions):
 |---|---|
 | `missions.ts` | every mission in the book by family and pages; for the eight standard ones, when each may be chosen, what Select Mission asks for it, and what its outcome counts |
 
-Equipment arrives in Phase 5.
+Phase 5 (equipment):
+
+| | |
+|---|---|
+| `equipment.ts` | every item in the equipment chapter — kind, grades, slots, the skill it is used with or needs, build and trade costs, what it adds between missions, and how long it lasts — with the Rare Item Table and vehicle Tiers |
 
 ## Three things have moved down here, for one reason
 

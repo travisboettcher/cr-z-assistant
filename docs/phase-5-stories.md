@@ -95,26 +95,26 @@ From the batch-16 extract; printed page numbers.
   is a roll on it **instead of** that material (derived, pg. 19).
 - **Moving base** takes every vehicle, weapon and piece of equipment along (FAQ).
 
-## Rulings the book leaves open — proposed
+## Rulings the book leaves open
 
-Recorded in [the registry](rulings.md) as **PROPOSED** until confirmed. Part 1's:
+Part 1's seven, confirmed 2026-10-13 and recorded in [the registry](rulings.md):
 
-- [R34](rulings.md#r34--quality-gear-is-built-from-the-tables--proposed) — quality weapons and gear
+- [R34](rulings.md#r34--quality-gear-is-built-from-the-tables) — quality weapons and gear
   are built at the costs the tables print (pp. 41–42), despite pg. 37's sentence that quality
   weapons are only traded.
-- [R35](rulings.md#r35--a-carried-shoddy-item-takes-its-slot--proposed) — a shoddy item a survivor
+- [R35](rulings.md#r35--a-carried-shoddy-item-takes-its-slot) — a shoddy item a survivor
   carries takes its slot like any other; it is chosen at Equip Mission Team, costs nothing, and
   never enters or leaves the base Inventory.
-- [R36](rulings.md#r36--a-backpack-takes-no-slot--proposed) — a backpack takes no slot.
-- [R37](rulings.md#r37--nothing-on-an-item-lasts-past-its-mission--proposed) — a jam, and every
+- [R36](rulings.md#r36--a-backpack-takes-no-slot) — a backpack takes no slot.
+- [R37](rulings.md#r37--nothing-on-an-item-lasts-past-its-mission) — a jam, and every
   other per-mission state, ends with the mission; the tracker keeps no item state, only whether an
   item still exists.
-- [R38](rulings.md#r38--who-moves-what-at-equip-mission-team--proposed) — at Equip Mission Team,
+- [R38](rulings.md#r38--who-moves-what-at-equip-mission-team) — at Equip Mission Team,
   items move between the base Inventory and the mission team's survivors, and between those
   survivors, within their slots; anybody not on a team keeps what they hold.
-- [R39](rulings.md#r39--one-1-from-a-quality-only-item--proposed) — an item that exists only as
+- [R39](rulings.md#r39--one-1-from-a-quality-only-item) — an item that exists only as
   quality adds one +1, not its grade's and its own.
-- [R40](rulings.md#r40--bonuses-stack-protective-gear-one-of-each--proposed) — item bonuses to one
+- [R40](rulings.md#r40--bonuses-stack-protective-gear-one-of-each) — item bonuses to one
   Score stack; a survivor wears at most one of each kind of protective gear.
 
 Parts 2 and 3 will need, at least: Blacksmithing Tools' rounding; which facility must hold a
@@ -160,6 +160,26 @@ Scout, and the like) add on top (R40).
 **Acceptance**
 - The nine core weapons and every table row on pp. 41–43 are present, asserted by name.
 - Nothing about a mission's own play is recorded but its page.
+
+**What this story turned out to include.**
+
+- **Seventy-two items, one shape.** Each records its kind, grades, slots, the skill it is used with
+  (`uses`) or must have to be equipped (`needs`), its build cost per grade with one Labor (R34), its
+  trade price per grade, its origin, what it adds between missions per grade, and how long it lasts
+  (`kept`, `used-up`, `one-mission`; R37). A weapon's grade is read from `GRADE_MODIFIER`; anything
+  else carries its grade's effect in `adds`, because its grades differ in more than ±1 (pg. 45).
+- **Build requirements name facilities, Workshop upgrades and Utilities separately**, since the
+  Metal Shop and Gunsmith are Workshop upgrades (pp. 71–72) and several rows need a Utility too.
+- **Fifteen items have no slot count.** Five because the book gives none: the three origin
+  ammunitions, warding stones and the quick quiver. The other ten are the rare and vehicle upgrades,
+  which are installed rather than carried. All are `null` until the story that first carries them
+  has to decide.
+- **Rare items are standard grade.** They have one price and no grade on the table (pg. 43); the
+  two the book describes as "a standard" weapon (pg. 50) set the reading for the rest.
+- **The Rare Item Table and vehicle Tiers are here too**, as the data parts 2 and 3 read. The
+  Quality Item subtable keeps its own prices, which differ from the equipment table's for the heavy
+  weapon and the tool belt; which price a trade uses is part 3's to rule on.
+- **Nothing here is read yet**: Z5-2 adds the Inventory and the carried items that refer to it.
 
 ### Z5-2 — The base Inventory, and what a survivor carries
 
