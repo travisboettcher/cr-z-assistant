@@ -143,9 +143,7 @@ const COUNTER_AFTER: Record<SiegeCounterChange, (count: number) => number> = {
  * At least one zombie still on the mission area and at least one survivor
  * gone over the map edge. The book then gives the player three ways to go on —
  * rebuilding through Claim a New Base, restarting through Start a New
- * Community, or abandoning the survivors. None of the three is built yet (they
- * are missions and a campaign ending, Phase 4's), so the screen names the
- * choice and leaves it to the table.
+ * Community, or abandoning the survivors — which `overrun.ts` follows (Z4-9).
  */
 export function baseOverrun(outcome: CounterOutcome): boolean {
   return (

@@ -44,10 +44,11 @@ import {
 } from '../engine/materials';
 import { baseMoved, claimedBase, heroesOverCap } from '../engine/claim';
 import { deployed } from '../engine/missions';
-import { moveProblem } from '../engine/move';
+import { moveProblem, storesAfterMove } from '../engine/move';
 import {
   rescuedStrangers,
   strangerProblem,
+  returnedWaiting,
   strangersWaiting,
   type RescuedStranger,
 } from '../engine/strangers';
@@ -187,7 +188,46 @@ function CreateNewSurvivors({ campaign }: { readonly campaign: Campaign }) {
           ))}
         </ul>
       )}
+
+      <ReturnedRejoining campaign={campaign} />
     </>
+  );
+}
+
+/**
+ * Survivors set aside whom a Rescue Strangers mission brought back this turn,
+ * each rejoining as themselves (pp. 19, 86; R31; Z4-11). Nothing to name and
+ * no die: they kept their sheet while they were away.
+ */
+function ReturnedRejoining({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+  const waiting = returnedWaiting(campaign);
+
+  if (waiting.length === 0) return null;
+
+  return (
+    <ul aria-label="Brought back" className="mt-3 flex flex-col gap-3">
+      {waiting.map((survivor) => (
+        <li key={survivor.id} className="flex flex-wrap items-center gap-2">
+          <span className="text-sm">
+            {survivor.name}, {TIER_LABELS[survivor.tier]}, was brought back <PageRef pages={86} />
+          </span>
+          <button
+            type="button"
+            className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+            onClick={() => {
+              dispatch({
+                type: 'advancement/survivorReturned',
+                survivor: survivor.id,
+                at: new Date().toISOString(),
+              });
+            }}
+          >
+            Welcome {survivor.name} back
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -1205,6 +1245,7 @@ function MoveIn({ campaign }: { readonly campaign: Campaign }) {
   const heroes = campaign.survivors.filter((survivor) => survivor.tier === 4);
   const problem = moveProblem(campaign, leaving);
   const from = campaign.base === null ? null : BASE_LABELS[campaign.base.id];
+  const stores = storesAfterMove(campaign);
 
   return (
     <section
@@ -1215,8 +1256,21 @@ function MoveIn({ campaign }: { readonly campaign: Campaign }) {
         Move into the {label} <PageRef pages="19, 79" />
       </p>
       <p className={`mt-1 ${HINT}`}>
-        {from === null ? '' : `What was built in the ${from} stays there. `}The stores come along,
-        and anything over the new caps spoils at Check Storage <PageRef pages="23, 54" />
+        {from === null ? '' : `What was built in the ${from} stays there. `}
+        {stores === null ? (
+          <>
+            The stores come along, and anything over the new caps spoils at Check Storage{' '}
+            <PageRef pages="23, 54" />
+          </>
+        ) : (
+          <>
+            After the overrun, the stores will hold{' '}
+            {MATERIALS.map(
+              (material) => `${String(stores[material])} ${MATERIAL_LABELS[material]}`,
+            ).join(', ')}{' '}
+            <PageRef pages={86} />
+          </>
+        )}
       </p>
 
       {over > 0 && (

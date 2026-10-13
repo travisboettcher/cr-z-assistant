@@ -7,9 +7,11 @@
  */
 
 import { useId, useState } from 'react';
-import { FACILITIES, type FacilityId } from '../data/facilities';
+import type { FacilityId } from '../data/facilities';
 import type { Campaign } from '../engine/campaign';
 import { buildableFacilities, checkBuild } from '../engine/build';
+import { projectCost } from '../engine/projects';
+import { freeRebuild } from '../engine/rebuild';
 import { useCampaign } from '../state/useCampaign';
 import { FACILITY_LABELS } from './baseLabels';
 import { SlotAction } from './SlotAction';
@@ -29,7 +31,7 @@ export function BuildFacility({ campaign, slot, onBuilt }: BuildFacilityProps) {
   const offered = buildableFacilities(campaign);
   const [choice, setChoice] = useState<FacilityId>(offered[0]?.id ?? 'bunk-room');
 
-  const facility = FACILITIES[choice];
+  const order = { kind: 'facility', slot, facility: choice } as const;
   const check = checkBuild(campaign, { slot, facility: choice });
 
   /**
@@ -42,7 +44,8 @@ export function BuildFacility({ campaign, slot, onBuilt }: BuildFacilityProps) {
   return (
     <SlotAction
       campaign={campaign}
-      cost={facility.cost}
+      cost={projectCost(campaign, order)}
+      freeRebuild={freeRebuild(campaign, order)}
       check={check}
       overridden={overriddenFor === choice}
       onOverride={(overridden) => {

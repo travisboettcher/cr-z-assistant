@@ -41,10 +41,11 @@ import { FACILITIES, type Cost, type Facility, type UpgradeId } from '../data/fa
 import { laborOf, laborPool } from './assignments';
 import type { Occupant } from './base';
 import { clearingProject, occupantAt, replacedBy, upgradeCost } from './base';
-import type { Campaign, PlacedOrder, Project } from './campaign';
+import type { Campaign, PlacedOrder, Project, ProjectOrder } from './campaign';
 import type { Violation } from './checks';
 import { planningHasBegun } from './planning';
 import { projectTeamThatWorked, siegeDefended } from './siegeWork';
+import { freeRebuild } from './rebuild';
 import { phaseOf } from './turn';
 
 /**
@@ -137,8 +138,12 @@ export function occupantAwaiting(campaign: Campaign, slot: string): Occupant | u
  * `queuedCost`, which reads the number back rather than asking again — see
  * `Project.charged`.
  */
-export function projectCost(campaign: Campaign, project: PlacedOrder): Cost {
-  return costOf(campaign, project);
+export function projectCost(campaign: Campaign, project: ProjectOrder): Cost {
+  const cost = costOf(campaign, project);
+
+  // Putting back what an overrun destroyed spends no resources; the Labor and
+  // the turn it takes are unchanged (pg. 86; R29; Z4-10).
+  return freeRebuild(campaign, project) ? { hardware: 0, labor: cost.labor } : cost;
 }
 
 /**
@@ -165,7 +170,7 @@ export function queuedCost(campaign: Campaign, at: number): Cost {
  * quote. The refund stopped being a second, differently-priced call when the
  * charge became a recorded fact.
  */
-function costOf(campaign: Campaign, project: PlacedOrder): Cost {
+function costOf(campaign: Campaign, project: ProjectOrder): Cost {
   if (project.kind === 'facility') {
     return (FACILITIES[project.facility] as Facility).cost;
   }

@@ -647,6 +647,15 @@ it until those stories are built.
 *Settled 2026-10-12 from the batch-14 extract. Until then a Tier 4 stranger was accepted and joined
 as the roster adds a Hero, which this replaces.*
 
+### Amendment, October 2026 — a Hero set aside comes back as themselves
+
+With [R31](#r31--abandoned-survivors-and-a-hero-sent-away-are-set-aside) and Z4-11, a Rescue
+Strangers outcome may name survivors set aside — a Hero sent away over the cap among them — whom it
+brought back. They are not strangers of a Tier: they are the same characters, and rejoin with the
+sheet they left with. So the outcome's strangers stay Tier 1 to 3, as this ruling says, and a
+returning Hero is the one Tier 4 a mission records, by name. A rescuer below their Tier is warned
+about, as for any stranger (pg. 31).
+
 ---
 
 ## R25 — When the community moves in
@@ -745,6 +754,21 @@ only, and lasts until it is used.** Built-ins were never destroyed (pg. 54).
 keep everything on a different type.
 
 *Confirmed 2026-10-13 from the batch-15 extract.*
+
+### Note, October 2026 — Rare is in the stores
+
+Built with Z4-9. The app keeps Rare as a count in the same stores as Food, Fuel and Hardware, so
+the half recovered, and the nothing recovered, apply to it as to the other three — and so does R30's
+loss of the old stores. The book's Rare Items are items rather than materials, and items arrive with
+the Inventory in Phase 5; until then, this is what the stores hold.
+
+### Note, October 2026 — the reclaimed building keeps its cleared rubble
+
+Built with Z4-10. A claim on the overrun base's own map is the same building, and the book destroys
+its upgrades — what the player added — not the work that cleared a blocked slot. So a slot cleared
+before the overrun stays cleared, and everything else starts as the layout has it. The other
+reading, a slot full of rubble again, would also hand back the materials clearing yields a second
+time. Every other move is a new building, with every slot as its layout has it (R26).
 
 ---
 

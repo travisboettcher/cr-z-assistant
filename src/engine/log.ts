@@ -41,8 +41,8 @@
 import type { BaseId } from '../data/bases';
 import type { D10Result } from '../data/dice';
 import type { FacilityId, UpgradeId } from '../data/facilities';
-import type { Material } from '../data/materials';
-import type { MissionId } from '../data/missions';
+import type { Material, Materials } from '../data/materials';
+import type { MissionId, OverrunOption } from '../data/missions';
 import type { CommonSkill, Skill } from '../data/skills';
 import type { FieldRecruitTier } from '../data/recruitTable';
 import type { Tier } from '../data/tiers';
@@ -79,6 +79,15 @@ export interface MissionWound {
   readonly name: string;
   readonly health: number;
   readonly infection?: number;
+}
+
+/** What the player had added to one slot of a base an overrun destroyed (Z4-10). */
+export interface RebuildSlot {
+  readonly slot: string;
+  /** A facility the player built there; absent for an empty slot or a built-in. */
+  readonly facility?: FacilityId;
+  /** The upgrades on whatever stood there, a built-in facility's included. */
+  readonly upgrades: readonly UpgradeId[];
 }
 
 /**
@@ -492,8 +501,8 @@ export type CampaignEvent =
     }
   /**
    * How a Claim a New Base ended (pg. 79; Z4-3). As the First Mission's, and
-   * the working vehicles left on the mission area. What a claim does to the
-   * base is #182's, read back from this entry.
+   * the working vehicles left on the mission area. What a won claim does to the
+   * base is `claim.ts`'s and `move.ts`'s, read back from this entry (Z4-8).
    */
   | {
       readonly kind: 'claim-a-new-base-resolved';
@@ -501,6 +510,13 @@ export type CampaignEvent =
       readonly endCondition: number | null;
       readonly strangers: readonly FieldRecruitTier[];
       readonly vehiclesOnArea: number;
+      /**
+       * Whether a claim after an overrun, of the overrun base's own type, was
+       * played on the same map — the condition for recovering half the stores
+       * and the free rebuild (pg. 86; R29). A fact the table states, since the
+       * app keeps no map. Present for that claim only.
+       */
+      readonly sameMap?: boolean;
       /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
       readonly wounds?: readonly MissionWound[];
     }
@@ -532,6 +548,12 @@ export type CampaignEvent =
       readonly kind: 'rescue-strangers-resolved';
       readonly team: number;
       readonly strangers: readonly FieldRecruitTier[];
+      /**
+       * Set-aside survivors this mission brought back, by id, who rejoin as
+       * themselves rather than as new strangers (R31; Z4-11). Absent when
+       * nobody set aside was placed, which is most missions.
+       */
+      readonly returned?: readonly string[];
       /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
       readonly wounds?: readonly MissionWound[];
     }
@@ -709,6 +731,31 @@ export type CampaignEvent =
     }
   | { readonly kind: 'base-claimed'; readonly base: BaseId }
   /**
+   * How the community goes on from a base its Siege Defense overran (pg. 86;
+   * Z4-9): the player's decision, written beside the outcome rather than on it,
+   * because an outcome is what the table counted.
+   *
+   * **Load-bearing**: `overrun.ts` reads it for which mission the turn plays
+   * next (R27). The latest one wins, so trying again after a continuation
+   * failed (R28) is a second entry.
+   */
+  | { readonly kind: 'overrun-continued'; readonly option: OverrunOption }
+  /**
+   * The community left its survivors behind after an overrun, to begin again
+   * with new characters (pg. 86; R31; Z4-11). Every survivor named was set
+   * aside, whole, and may return through a later Rescue Strangers mission.
+   */
+  | {
+      readonly kind: 'community-abandoned';
+      readonly setAside: readonly { readonly survivor: string; readonly name: string }[];
+    }
+  /**
+   * A set-aside survivor rejoined the community at Advancement Step 2, as
+   * themselves, after a Rescue Strangers outcome named them (pp. 19, 54, 86;
+   * R31; Z4-11).
+   */
+  | { readonly kind: 'survivor-returned'; readonly survivor: string; readonly name: string }
+  /**
    * The community moved into the base a Claim a New Base won (pp. 19, 54, 79;
    * Z4-8), at the end of that turn's Advancement Phase (R25).
    *
@@ -723,6 +770,20 @@ export type CampaignEvent =
       readonly from: BaseId;
       readonly to: BaseId;
       readonly setAside: readonly { readonly survivor: string; readonly name: string }[];
+      /**
+       * What was in storage once the community moved, for a move after an
+       * overrun, which keeps half the stores, none, or a first base's stock
+       * (R29, R30; Z4-9). Absent for a normal claim, whose stores move as they
+       * are.
+       */
+      readonly stores?: Materials;
+      /**
+       * What the player had added to each slot of the base an overrun
+       * destroyed, for a move into the same type on the same map, which may
+       * build each of them again without Hardware (pg. 86; R29; Z4-10).
+       * Absent for every other move.
+       */
+      readonly rebuild?: readonly RebuildSlot[];
     }
   /**
    * A community's first base arrived stocked to its caps (pg. 19, 54).

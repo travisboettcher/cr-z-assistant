@@ -9,7 +9,7 @@
 
 import type { BaseId } from '../data/bases';
 import type { Material } from '../data/materials';
-import { MISSIONS, type MissionId, type OutcomeCount } from '../data/missions';
+import { MISSIONS, type MissionId, type OutcomeCount, type OverrunOption } from '../data/missions';
 import type { FieldRecruitTier } from '../data/recruitTable';
 import { withArticle } from './articles';
 import { BASE_LABELS, MATERIAL_LABELS } from './baseLabels';
@@ -17,6 +17,7 @@ import type { MissionWound } from '../engine/log';
 import { outcomeMission, outcomeTeam, type MissionOutcome } from '../engine/missions';
 import {
   baseOverrun,
+  FIRST_TURN,
   siegeCounterChange,
   type CounterOutcome,
   type SiegeCounterChange,
@@ -56,6 +57,13 @@ export const MISSION_LABELS: Record<MissionId, string> = {
   'ford-the-river': 'Ford the River',
   breakdown: 'Breakdown',
   chased: 'Chased',
+};
+
+/** Each way on from an overrun base, as the end of a sentence (pg. 86). */
+export const OVERRUN_LABELS: Record<OverrunOption, string> = {
+  claim: 'claim a new base',
+  'start-over': 'start a new community',
+  abandon: 'leave the survivors behind and begin a new community',
 };
 
 /** A team's choice in a sentence, for the history and the Select Mission step. */
@@ -128,6 +136,22 @@ function anyStrangers(strangers: readonly FieldRecruitTier[]): string {
   return strangers.length === 0 ? '' : `, ${strangersOf(strangers)}`;
 }
 
+/** Said only when somebody set aside came back (R31). */
+function broughtBack(returned: readonly string[] | undefined): string {
+  const count = returned?.length ?? 0;
+
+  return count === 0
+    ? ''
+    : `, and ${plural(count, 'survivor', 'survivors')} set aside brought back`;
+}
+
+/** Said only of the claim that asks it (R29). */
+function sameMapOf(sameMap: boolean | undefined): string {
+  if (sameMap === undefined) return '';
+
+  return sameMap ? ', on the overrun base’s own map' : ', on a different map';
+}
+
 function endOf(endCondition: number | null): string {
   return endCondition === null
     ? 'no end condition met'
@@ -144,13 +168,13 @@ function counted(outcome: MissionOutcome): string {
     case 'first-mission-resolved':
       return `${endOf(outcome.endCondition)}, ${strangersOf(outcome.strangers)}`;
     case 'claim-a-new-base-resolved':
-      return `${endOf(outcome.endCondition)}, ${strangersOf(outcome.strangers)}, ${plural(outcome.vehiclesOnArea, 'working vehicle', 'working vehicles')} on the mission area`;
+      return `${endOf(outcome.endCondition)}, ${strangersOf(outcome.strangers)}, ${plural(outcome.vehiclesOnArea, 'working vehicle', 'working vehicles')} on the mission area${sameMapOf(outcome.sameMap)}`;
     case 'gather-materials-resolved':
       return `${plural(outcome.materialsCarriedOut, 'material', 'materials')} carried off the map${anyStrangers(outcome.strangers)}`;
     case 'retrieve-new-vehicles-resolved':
       return `${plural(outcome.vehiclesDrivenOff, 'vehicle', 'vehicles')} repaired and driven off${anyStrangers(outcome.strangers)}`;
     case 'rescue-strangers-resolved':
-      return strangersOf(outcome.strangers);
+      return `${strangersOf(outcome.strangers)}${broughtBack(outcome.returned)}`;
     case 'rare-goods-trader-resolved':
       return `${plural(outcome.survivorsExited, 'survivor', 'survivors')} out over the map edge${anyStrangers(outcome.strangers)}`;
     case 'mission-played':
@@ -162,10 +186,20 @@ function isCounterOutcome(outcome: MissionOutcome): outcome is CounterOutcome {
   return outcome.kind === 'siege-defense-resolved' || outcome.kind === 'thin-the-herd-resolved';
 }
 
-/** What the outcome does to the campaign, in this app's words. */
-export function outcomeConsequences(outcome: MissionOutcome): readonly string[] {
+/**
+ * What the outcome does to the campaign, in this app's words.
+ *
+ * The turn, because a failed First Mission means two things: on turn 1 it is
+ * played again (R21), and on any later turn it can only have been a community
+ * starting over after an overrun, which chooses its way on again (R28).
+ */
+export function outcomeConsequences(outcome: MissionOutcome, turn: number): readonly string[] {
   if (outcome.kind === 'first-mission-resolved' && outcome.endCondition === null) {
-    return ['No end condition was met, so turn 1 plays the First Mission again (R21).'];
+    return [
+      turn === FIRST_TURN
+        ? 'No end condition was met, so turn 1 plays the First Mission again (R21).'
+        : 'No end condition was met, so the community chooses again how it goes on (R28).',
+    ];
   }
 
   if (!isCounterOutcome(outcome)) return [];
@@ -174,7 +208,7 @@ export function outcomeConsequences(outcome: MissionOutcome): readonly string[] 
 
   if (baseOverrun(outcome)) {
     consequences.push(
-      'The base is overrun: rebuild through Claim a New Base, restart through Start a New Community, or abandon the survivors — this app does not run any of the three yet.',
+      'The base is overrun: the community goes on by claiming a new base, starting a new community, or leaving the survivors behind for new ones — played as a further mission this turn (R27).',
     );
   }
 
@@ -210,13 +244,13 @@ function woundsOf(wounds: readonly MissionWound[] | undefined): readonly string[
  * came home with, and what it does. A team other than team 1 is named, so two
  * teams' outcomes in one turn can be told apart in the history.
  */
-export function describeOutcome(outcome: MissionOutcome): string {
+export function describeOutcome(outcome: MissionOutcome, turn: number): string {
   const team = outcomeTeam(outcome);
   const who = team === 1 ? '' : ` (mission team ${String(team)})`;
 
   return [
     `${missionTitle(outcomeMission(outcome))}${who}: ${counted(outcome)}.`,
     ...woundsOf(outcome.wounds),
-    ...outcomeConsequences(outcome),
+    ...outcomeConsequences(outcome, turn),
   ].join(' ');
 }

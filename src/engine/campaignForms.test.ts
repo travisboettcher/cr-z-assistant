@@ -8,6 +8,7 @@ import {
   submitNewSurvivor,
   submitRecruit,
   submitRemoval,
+  submitReturn,
   submitStartingCommunity,
   submitStrangerJoined,
 } from './campaignForms';
@@ -354,5 +355,54 @@ describe('submitRemoval', () => {
 
   it('refuses somebody who is not on the roster', () => {
     expect(expectRefused(submitRemoval(community(), 'nobody', AT))).toMatch(/community/);
+  });
+});
+
+/** A survivor set aside rejoins as themselves (pp. 19, 86; R31; Z4-11). */
+describe('submitReturn', () => {
+  const hera = createSurvivor('Hera Okafor', 4, { id: 'hera' });
+  const broughtBack = (built: boolean): Campaign => ({
+    ...opened('create-new-survivors', 3),
+    startingCommunityBuilt: built,
+    setAside: [hera],
+    log: [
+      {
+        turn: 3,
+        phase: 'mission',
+        at: AT,
+        event: { kind: 'mission-selected', team: 1, mission: 'rescue-strangers', names: [] },
+      },
+      {
+        turn: 3,
+        phase: 'mission',
+        at: AT,
+        event: { kind: 'rescue-strangers-resolved', team: 1, strangers: [], returned: ['hera'] },
+      },
+    ],
+  });
+
+  it('puts them back on the roster, and says who', () => {
+    const after = expectAccepted(submitReturn(broughtBack(true), 'hera', AT));
+
+    expect(after.survivors).toEqual([hera]);
+    expect(after.setAside).toEqual([]);
+    expect(after.log.at(-1)?.event).toStrictEqual({
+      kind: 'survivor-returned',
+      survivor: 'hera',
+      name: 'Hera Okafor',
+    });
+  });
+
+  it('settles a starting community still being built, as a stranger joining does', () => {
+    expect(kinds(expectAccepted(submitReturn(broughtBack(false), 'hera', AT))).slice(-2)).toEqual([
+      'survivor-returned',
+      'starting-community-settled',
+    ]);
+  });
+
+  it('refuses with the engine’s reason', () => {
+    expect(expectRefused(submitReturn(broughtBack(true), 'june', AT))).toMatch(
+      /brought back this turn/,
+    );
   });
 });

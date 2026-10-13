@@ -2554,6 +2554,69 @@ describe('what earns a line in the log', () => {
         facility: 'watchtower',
       }),
     },
+    'mission/overrunContinued': {
+      // The siege turn 2 called overran the base, so the whole community, as
+      // team 1, goes on by claiming a Distillery (pg. 86; R27; Z4-9).
+      state: openState({
+        ...expectOpen(rich()),
+        log: [
+          entry(2, 'management', { kind: 'horde-checked', roll: 9, threat: 8, siege: true }),
+          entry(3, 'mission', {
+            kind: 'mission-selected',
+            team: 1,
+            mission: 'siege-defense',
+            names: [],
+          }),
+          entry(3, 'mission', {
+            kind: 'siege-defense-resolved',
+            zombiesLeft: 2,
+            survivorsExited: 1,
+            team: 1,
+          }),
+        ],
+      }),
+      action: { type: 'mission/overrunContinued', option: 'claim', base: 'distillery', at: AT },
+      entry: [
+        entry(3, 'mission', { kind: 'overrun-continued', option: 'claim' }),
+        entry(3, 'mission', {
+          kind: 'mission-selected',
+          team: 1,
+          mission: 'claim-a-new-base',
+          names: expectOpen(rich()).survivors.map((survivor) => survivor.name),
+          base: 'distillery',
+        }),
+      ],
+    },
+    'advancement/survivorReturned': {
+      // Hera, sent away over a Hero cap, brought back by a Rescue Strangers
+      // team this turn, rejoins at Advancement Step 2 (R31; Z4-11).
+      state: openState({
+        ...expectOpen(rich()),
+        step: 'create-new-survivors',
+        startingCommunityBuilt: true,
+        setAside: [createSurvivor('Hera Okafor', 4, { id: 'hera' })],
+        log: [
+          entry(3, 'mission', {
+            kind: 'mission-selected',
+            team: 1,
+            mission: 'rescue-strangers',
+            names: [],
+          }),
+          entry(3, 'mission', {
+            kind: 'rescue-strangers-resolved',
+            team: 1,
+            strangers: [],
+            returned: ['hera'],
+          }),
+        ],
+      }),
+      action: { type: 'advancement/survivorReturned', survivor: 'hera', at: AT },
+      entry: entry(3, 'advancement', {
+        kind: 'survivor-returned',
+        survivor: 'hera',
+        name: 'Hera Okafor',
+      }),
+    },
     'advancement/moved': {
       // A claim on a Distillery won this turn, standing at the last
       // Advancement step with nothing left to finish (R25; Z4-8).

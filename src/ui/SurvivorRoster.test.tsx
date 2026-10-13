@@ -1,6 +1,8 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import { createNewCampaign } from '../engine/campaign';
+import { createSurvivor } from '../engine/survivor';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
 
@@ -328,5 +330,36 @@ describe('recruiting from the field', () => {
       expect(Number((field as HTMLSelectElement).value)).toBeGreaterThanOrEqual(1);
       expect(Number((field as HTMLSelectElement).value)).toBeLessThanOrEqual(10);
     }
+  });
+});
+
+/** Survivors set aside are listed, not counted (R31; Z4-11). */
+describe('survivors set aside', () => {
+  it('lists them apart from the roster, with their Tier', () => {
+    render(
+      <CampaignProvider
+        initialState={{
+          status: 'open',
+          campaign: {
+            ...createNewCampaign('Cedar Hollow'),
+            setAside: [createSurvivor('Hera Okafor', 4, { id: 'hera' })],
+          },
+        }}
+      >
+        <App />
+      </CampaignProvider>,
+    );
+
+    const list = within(roster()).getByRole('list', { name: 'Set aside' });
+    expect(within(list).getByText(/Hera Okafor/)).toBeInTheDocument();
+    expect(
+      within(roster()).getByText(/A Rescue Strangers mission can bring them back/),
+    ).toBeInTheDocument();
+  });
+
+  it('shows nothing for a community with nobody set aside', async () => {
+    await openCampaign();
+
+    expect(within(roster()).queryByRole('list', { name: 'Set aside' })).toBeNull();
   });
 });

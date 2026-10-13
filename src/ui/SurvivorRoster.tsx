@@ -185,6 +185,30 @@ export function SurvivorRoster({ campaign, onOpenSheet }: SurvivorRosterProps) {
        * browser warning. Removing someone is not undoable yet, so it is
        * confirmed.
        */}
+      {/*
+       * Not the roster: nobody here counts for anything until a Rescue
+       * Strangers mission brings them back as themselves (R31). Listed so a
+       * table can see who is waiting, and at what Tier a rescuer must be.
+       */}
+      {campaign.setAside.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold">
+            Set aside <PageRef pages="54, 86" />
+          </h3>
+          <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+            Gone from the community, not the campaign. A Rescue Strangers mission can bring them
+            back.
+          </p>
+          <ul aria-label="Set aside" className="mt-2 flex flex-col gap-1">
+            {campaign.setAside.map((gone) => (
+              <li key={gone.id} className="text-sm">
+                {gone.name}, {TIER_LABELS[gone.tier]}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <dialog
         ref={dialogRef}
         aria-labelledby={`${headingId}-remove`}

@@ -44,8 +44,8 @@ export type MissionFamily = (typeof MISSION_FAMILIES)[number];
  * When a standard mission may be chosen at Select Mission.
  *
  * - `first-turn` — every community's first mission, on turn 1 (pg. 76). It is
- *   played again only as the overrun base's second continuation (pg. 86),
- *   which is #182's, and as a retry after a failed attempt (R21).
+ *   played again only as the overrun base's second continuation (pg. 86;
+ *   `OVERRUN_CONTINUATIONS`), and as a retry after a failed attempt (R21).
  * - `forced-by-siege` — only when the horde called a siege at Management Step
  *   6, and then it is the next Select Mission's only choice (pg. 23). Never
  *   chosen freely (pg. 75).
@@ -264,3 +264,23 @@ export type StandardMissionId = {
  * Confirmed against the book 2026-10-12.
  */
 export const GATHERED_MATERIALS = STORED_MATERIALS;
+
+/**
+ * The ways a community goes on from an overrun base, and the mission each one
+ * plays (pg. 86; #182, Z4-9).
+ *
+ * Claiming a base again plays Claim a New Base, and starting over plays the
+ * First Mission's setup. Leaving the survivors behind for a new community of
+ * new characters plays the First Mission too, once that community is built
+ * (R31; Z4-11). Each is played as a further mission in the same Mission Phase
+ * as the Siege Defense (R27).
+ */
+export const OVERRUN_CONTINUATIONS = {
+  claim: 'claim-a-new-base',
+  'start-over': 'first-mission',
+  abandon: 'first-mission',
+} as const satisfies Record<string, StandardMissionId>;
+
+export type OverrunOption = keyof typeof OVERRUN_CONTINUATIONS;
+
+export const OVERRUN_OPTIONS = Object.keys(OVERRUN_CONTINUATIONS) as readonly OverrunOption[];

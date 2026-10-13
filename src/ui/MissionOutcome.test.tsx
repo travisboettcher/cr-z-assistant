@@ -73,7 +73,7 @@ describe('the outcome of a Siege Defense (pg. 86)', () => {
     expect(walk().textContent).toContain('Siege Defense: 0 zombies left, 2 survivors out');
   });
 
-  it('names an overrun base, and the choice the app leaves to the table', async () => {
+  it('names an overrun base before it is recorded', async () => {
     const user = open(playing({ log: [called, chose('siege-defense')] }));
 
     await user.type(field(/zombies left/i), '3');
@@ -81,6 +81,89 @@ describe('the outcome of a Siege Defense (pg. 86)', () => {
 
     expect(walk().textContent).toContain('keep counting');
     expect(walk().textContent).toContain('The base is overrun');
+  });
+});
+
+/** How the community goes on from an overrun base (pg. 86; R27, R28; Z4-9). */
+describe('the overrun base', () => {
+  const overran: LogEntry = {
+    turn: 4,
+    phase: 'mission',
+    at: AT,
+    event: { kind: 'siege-defense-resolved', zombiesLeft: 2, survivorsExited: 1, team: 1 },
+  };
+
+  const besieged = () =>
+    playing({
+      base: { id: 'hobby-farm', slots: {} },
+      survivors: [createSurvivor('Earl Rhodes', 2, { id: 'earl' })],
+      log: [called, chose('siege-defense'), overran],
+    });
+
+  const choice = () =>
+    within(within(walk()).getByRole('group', { name: /how does the community go on/i }));
+
+  it('asks how the community goes on once the siege is recorded', () => {
+    open(besieged());
+
+    expect(choice().getByRole('radio', { name: 'Claim a new base' })).toBeChecked();
+    expect(choice().getByRole('radio', { name: 'Start a new community' })).toBeInTheDocument();
+  });
+
+  it('plays the claim it chooses at once, with no strangers and a question about the map', async () => {
+    const user = open(besieged());
+
+    // The overrun base's own type is the default, which is the one that asks.
+    await user.click(choice().getByRole('button', { name: 'Go on this way' }));
+
+    const claim = group(/how claim a new base ended/i);
+    expect(claim.getByText('Claiming a Hobby Farm.')).toBeInTheDocument();
+    expect(claim.queryByLabelText('Stranger’s Tier')).toBeNull();
+
+    await user.selectOptions(claim.getByLabelText(/end condition met/i), '1');
+    await user.click(claim.getByLabelText(/overrun base’s own map/i));
+    await user.click(claim.getByRole('button', { name: 'Record Claim a New Base' }));
+
+    expect(walk().textContent).toContain('on the overrun base’s own map');
+    expect(
+      within(walk()).queryByRole('group', { name: /how does the community go on/i }),
+    ).toBeNull();
+  });
+
+  it('leaves the survivors behind, then plays the new community’s First Mission (R31)', async () => {
+    const user = open(besieged());
+
+    await user.click(
+      choice().getByRole('radio', { name: 'Leave the survivors behind and begin a new community' }),
+    );
+    expect(choice().queryByLabelText(/^Base/)).toBeNull();
+    await user.click(choice().getByRole('button', { name: 'Go on this way' }));
+
+    const next = group(/the new community’s first mission/i);
+    expect(
+      next.getByText('Add the new community’s survivors on the roster first.'),
+    ).toBeInTheDocument();
+    expect(next.getByRole('button', { name: 'Play the First Mission' })).toBeDisabled();
+    expect(walk().textContent).not.toContain('how does the community go on');
+  });
+
+  it('asks again when the way on fails (R28)', async () => {
+    const user = open(besieged());
+
+    await user.click(choice().getByRole('radio', { name: 'Start a new community' }));
+    await user.selectOptions(
+      choice().getByLabelText('Base the new community claims'),
+      'summer-camp',
+    );
+    await user.click(choice().getByRole('button', { name: 'Go on this way' }));
+
+    const first = group(/how the first mission ended/i);
+    await user.selectOptions(first.getByLabelText(/end condition met/i), 'none');
+    await user.click(first.getByRole('button', { name: 'Record the First Mission' }));
+
+    // Not R21's replay, which is turn 1's.
+    expect(walk().textContent).toContain('the community chooses again how it goes on (R28)');
+    expect(choice().getByRole('button', { name: 'Go on this way' })).toBeEnabled();
   });
 });
 
@@ -297,5 +380,39 @@ describe('the Health a team came home with (Z4-4)', () => {
     expect(walk().textContent).toContain(
       'At the end: Earl Rhodes at 2 Health and 3 Infection, Ruby Vance at 3 Health and 2 Infection.',
     );
+  });
+});
+
+/** Survivors set aside, brought back by Rescue Strangers (R31; Z4-11). */
+describe('bringing back a survivor set aside', () => {
+  it('offers everybody set aside, and records who came back', async () => {
+    const user = open(
+      playing({
+        survivors: [createSurvivor('Earl Rhodes', 4, { id: 'earl' })],
+        setAside: [createSurvivor('Hera Okafor', 4, { id: 'hera' })],
+        assignments: { earl: { task: 'mission', team: 1 } },
+        log: [teamChose(1, 'rescue-strangers')],
+      }),
+    );
+
+    const rescue = group(/how rescue strangers ended/i);
+    await user.click(rescue.getByRole('checkbox', { name: 'Hera Okafor (Tier 4)' }));
+    await user.click(rescue.getByRole('button', { name: 'Record Rescue Strangers' }));
+
+    expect(walk().textContent).toContain(
+      'Rescue Strangers: no strangers rescued, and 1 survivor set aside brought back.',
+    );
+  });
+
+  it('asks nothing of a community with nobody set aside', () => {
+    open(
+      playing({
+        survivors: [createSurvivor('Earl Rhodes', 2, { id: 'earl' })],
+        assignments: { earl: { task: 'mission', team: 1 } },
+        log: [teamChose(1, 'rescue-strangers')],
+      }),
+    );
+
+    expect(within(walk()).queryByText(/Brought back from those set aside/)).toBeNull();
   });
 });

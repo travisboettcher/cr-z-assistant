@@ -21,7 +21,7 @@ import { COMMON_SKILLS, SKILL_STATS, STATS } from '../data/skills';
 import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS } from '../data/materials';
-import { MISSIONS } from '../data/missions';
+import { MISSIONS, OVERRUN_OPTIONS } from '../data/missions';
 import { FIELD_RECRUITABLE_TIERS } from '../data/recruitTable';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { CAMPAIGN_PHASES, HEALTH_SOURCES, XP_SOURCES } from '../data/turn';
@@ -323,6 +323,36 @@ const EVENT_FIELD_CHECKS = {
         one.survivor !== '' &&
         typeof one.name === 'string',
     ),
+  // What was in storage after a move that followed an overrun (R29, R30): all
+  // four materials, each a whole count from zero, or absent for any other move.
+  optionalStores: (value: unknown) =>
+    value === undefined ||
+    (isRecord(value) && MATERIALS.every((material) => isCountFromZero(value[material]))),
+  // What a reclaimed base may build again for free (Z4-10): a slot each, with a
+  // facility from the catalogue or none, and upgrades from it. Whether the
+  // slot is the base's is the engine's to read, as a project's slot is.
+  optionalRebuild: (value: unknown) =>
+    value === undefined ||
+    (Array.isArray(value) &&
+      value.every(
+        (one) =>
+          isRecord(one) &&
+          typeof one.slot === 'string' &&
+          one.slot !== '' &&
+          (one.facility === undefined ||
+            (typeof one.facility === 'string' && isKeyOf(FACILITIES, one.facility))) &&
+          Array.isArray(one.upgrades) &&
+          one.upgrades.every(
+            (upgrade) =>
+              typeof upgrade === 'string' && facilityOfUpgrade(upgrade as UpgradeId) !== undefined,
+          ),
+      )),
+  // Survivors named by id alone: who a Rescue Strangers mission brought back.
+  optionalIds: (value: unknown) =>
+    value === undefined ||
+    (Array.isArray(value) && value.every((one) => typeof one === 'string' && one !== '')),
+  optionalFlag: (value: unknown) => value === undefined || typeof value === 'boolean',
+  overrunOption: (value: unknown) => OVERRUN_OPTIONS.some((option) => option === value),
   optionalBase: (value: unknown) =>
     value === undefined || (typeof value === 'string' && isKeyOf(BASES, value)),
   upgrade: (value: unknown) =>
@@ -466,6 +496,7 @@ const EVENT_FIELDS: Record<
     ['endCondition', 'endCondition'],
     ['strangers', 'tiers'],
     ['vehiclesOnArea', 'count'],
+    ['sameMap', 'optionalFlag'],
     ['wounds', 'optionalWounds'],
   ],
   'gather-materials-resolved': [
@@ -483,6 +514,7 @@ const EVENT_FIELDS: Record<
   'rescue-strangers-resolved': [
     ['team', 'countFromOne'],
     ['strangers', 'tiers'],
+    ['returned', 'optionalIds'],
     ['wounds', 'optionalWounds'],
   ],
   'rare-goods-trader-resolved': [
@@ -570,6 +602,14 @@ const EVENT_FIELDS: Record<
     ['from', 'base'],
     ['to', 'base'],
     ['setAside', 'survivorRefs'],
+    ['stores', 'optionalStores'],
+    ['rebuild', 'optionalRebuild'],
+  ],
+  'overrun-continued': [['option', 'overrunOption']],
+  'community-abandoned': [['setAside', 'survivorRefs']],
+  'survivor-returned': [
+    ['survivor', 'id'],
+    ['name', 'name'],
   ],
   'base-stocked': [
     ['food', 'count'],

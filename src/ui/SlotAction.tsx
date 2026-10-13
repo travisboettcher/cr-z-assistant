@@ -28,6 +28,8 @@ export interface SlotActionProps<Code extends string> {
   /** For the note about which step projects are ordered in (pg. 20). */
   readonly campaign: Campaign;
   readonly cost: { readonly hardware: number; readonly labor: number };
+  /** Whether the order puts back what an overrun destroyed, so spends no Hardware (R29). */
+  readonly freeRebuild?: boolean;
   readonly check: Check<Code>;
   /** Whether the player has waved the warnings through. */
   readonly overridden: boolean;
@@ -42,6 +44,7 @@ export function SlotAction<Code extends string>({
   children,
   campaign,
   cost,
+  freeRebuild = false,
   check,
   overridden,
   onOverride,
@@ -69,6 +72,12 @@ export function SlotAction<Code extends string>({
       <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">
         {cost.hardware} Hardware · {cost.labor} Labor <PageRef pages="72–73" />
       </p>
+      {freeRebuild && (
+        <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+          A free rebuild: the overrun destroyed it here, so it spends no Hardware{' '}
+          <PageRef pages={86} />
+        </p>
+      )}
 
       {violations.length > 0 && (
         <ul className="mt-2 flex flex-col gap-1">

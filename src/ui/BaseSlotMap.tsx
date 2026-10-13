@@ -31,6 +31,7 @@ import { BaseSheet } from './BaseSheet';
 import { FacilityWork } from './FacilityWork';
 import { cancellable, laborAvailable, laborShortfall, queuedFor } from '../engine/projects';
 import { planningHasBegun } from '../engine/planning';
+import { rebuildsOpen } from '../engine/rebuild';
 import { baseLaborBonus, siegeLaborBonus } from '../engine/assignments';
 import { describeProject } from './projectLabels';
 import { useCampaign } from '../state/useCampaign';
@@ -177,6 +178,26 @@ interface SlotCardProps {
   readonly onCommitted: () => void;
 }
 
+/**
+ * What an overrun destroyed in this slot that may be built again without
+ * Hardware (pg. 86; R29; Z4-10), until it is.
+ */
+function FreeRebuilds({ campaign, slot }: { readonly campaign: Campaign; readonly slot: string }) {
+  const open = rebuildsOpen(campaign).find((one) => one.slot === slot);
+  if (open === undefined) return null;
+
+  const names = [
+    ...(open.facility === undefined ? [] : [FACILITY_LABELS[open.facility]]),
+    ...open.upgrades.map((upgrade) => UPGRADE_LABELS[upgrade]),
+  ];
+
+  return (
+    <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+      Free to rebuild after the overrun: {names.join(', ')} <PageRef pages={86} />
+    </p>
+  );
+}
+
 function SlotCard({
   campaign,
   slot,
@@ -209,6 +230,8 @@ function SlotCard({
       </div>
 
       <QueuedProjects campaign={campaign} slot={slot.id} />
+
+      <FreeRebuilds campaign={campaign} slot={slot.id} />
 
       {occupant !== undefined && (
         <>

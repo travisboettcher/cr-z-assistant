@@ -32,7 +32,7 @@
 import type { BaseId } from '../data/bases';
 import type { Utility } from '../data/facilities';
 import type { Material } from '../data/materials';
-import type { MissionId } from '../data/missions';
+import type { MissionId, OverrunOption } from '../data/missions';
 import type { D10Result } from '../data/dice';
 import type { FieldRecruitTier } from '../data/recruitTable';
 import type { CommonSkill, Skill, Stat } from '../data/skills';
@@ -66,6 +66,7 @@ import type { MissionOutcome } from '../engine/missions';
 import {
   submitMissionOutcome,
   submitMissionSelection,
+  submitOverrunContinuation,
   submitMissionSkip,
   submitStandIn,
 } from '../engine/missionForms';
@@ -75,6 +76,7 @@ import {
   submitNewSurvivor,
   submitRecruit,
   submitRemoval,
+  submitReturn,
   submitStartingCommunity,
   submitStrangerJoined,
 } from '../engine/campaignForms';
@@ -438,6 +440,23 @@ export type CampaignAction =
    * (R25, R31, R32; Z4-8).
    */
   | { readonly type: 'advancement/moved'; readonly leaving: readonly string[]; readonly at: string }
+  /** A survivor set aside, brought back this turn, rejoins (R31; Z4-11). */
+  | {
+      readonly type: 'advancement/survivorReturned';
+      readonly survivor: string;
+      readonly at: string;
+    }
+  /**
+   * How the community goes on from a base its Siege Defense overran, and the
+   * base that way claims (pg. 86; R27; Z4-9).
+   */
+  | {
+      readonly type: 'mission/overrunContinued';
+      readonly option: OverrunOption;
+      /** Absent for leaving the survivors behind, whose base is chosen later (R31). */
+      readonly base?: BaseId;
+      readonly at: string;
+    }
   /** The community opts out of this turn's mission (pg. 17). */
   | { readonly type: 'mission/skipped'; readonly at: string }
   /**
@@ -968,6 +987,14 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
           ...builtOf(project),
         });
       });
+
+    case 'mission/overrunContinued':
+      return submitted(state, (campaign) =>
+        submitOverrunContinuation(campaign, action.option, action.base, action.at),
+      );
+
+    case 'advancement/survivorReturned':
+      return submitted(state, (campaign) => submitReturn(campaign, action.survivor, action.at));
 
     case 'advancement/moved':
       return submitted(state, (campaign) => submitBaseMove(campaign, action.leaving, action.at));

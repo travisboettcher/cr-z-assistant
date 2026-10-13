@@ -31,7 +31,7 @@ import {
   slotLabel,
 } from './baseLabels';
 import { MISSIONS } from '../data/missions';
-import { describeOutcome, describeSelection, outcomePages } from './missionLabels';
+import { describeOutcome, describeSelection, OVERRUN_LABELS, outcomePages } from './missionLabels';
 import { PHASE_LABELS } from './turnLabels';
 import { COMMON_SKILL_LABELS, SKILL_LABELS } from './skillLabels';
 import { TIER_LABELS } from './tierLabels';
@@ -292,7 +292,7 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
     case 'rescue-strangers-resolved':
     case 'rare-goods-trader-resolved':
     case 'mission-played':
-      return { text: describeOutcome(event), pages: outcomePages(event) };
+      return { text: describeOutcome(event, turn), pages: outcomePages(event) };
 
     case 'stood-in':
       return {
@@ -404,8 +404,31 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
           event.setAside.length === 0
             ? ''
             : ` ${event.setAside.map((hero) => hero.name).join(' and ')} left to start ${event.setAside.length === 1 ? 'a community of their own' : 'communities of their own'}.`
+        }${
+          event.stores === undefined
+            ? ''
+            : ` After the overrun, the stores held ${MATERIALS.map((material) => `${String(event.stores?.[material])} ${MATERIAL_LABELS[material]}`).join(', ')}.`
+        }${
+          event.rebuild === undefined || event.rebuild.length === 0
+            ? ''
+            : ' What the community had added can be built again without Hardware.'
         }`,
         pages: event.setAside.length === 0 ? 79 : '54, 79',
+      };
+
+    case 'community-abandoned':
+      return {
+        text: `The community left ${event.setAside.map((one) => one.name).join(', ') || 'nobody'} behind, to begin again with new characters.`,
+        pages: 86,
+      };
+
+    case 'survivor-returned':
+      return { text: `${event.name} returned to the community.`, pages: '19, 86' };
+
+    case 'overrun-continued':
+      return {
+        text: `With the base overrun, the community chose to ${OVERRUN_LABELS[event.option]}.`,
+        pages: 86,
       };
 
     case 'facility-built':

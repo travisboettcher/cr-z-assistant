@@ -168,3 +168,48 @@ export function strangerSurvivor(
 ): Survivor {
   return recruitSurvivor(name, tier, roll, options);
 }
+
+/**
+ * The survivors set aside whom this turn's Rescue Strangers outcomes brought
+ * back, and who have not rejoined yet — in the order the outcomes named them
+ * (R31; Z4-11). They rejoin at Advancement Step 2, as a stranger joins
+ * (pg. 19), as themselves.
+ */
+export function returnedWaiting(campaign: Campaign): readonly Survivor[] {
+  // The kind and the `?? []` are for the typechecker: no other outcome
+  // carries `returned`, and an id nobody set aside has matches nothing.
+  return [...teamOutcomes(campaign).values()]
+    .sort((one, other) => outcomeTeam(one) - outcomeTeam(other))
+    .flatMap((outcome) =>
+      outcome.kind === 'rescue-strangers-resolved' ? (outcome.returned ?? []) : [],
+    )
+    .flatMap((id) => campaign.setAside.filter((gone) => gone.id === id));
+}
+
+/**
+ * Why this set-aside survivor cannot rejoin now, or `null` if they can: in the
+ * Advancement Phase, and brought back by an outcome this turn.
+ */
+export function returnProblem(campaign: Campaign, survivor: string): string | null {
+  if (phaseOf(campaign.step) !== 'advancement') {
+    return 'A survivor brought back rejoins in the Advancement Phase.';
+  }
+  if (!returnedWaiting(campaign).some((waiting) => waiting.id === survivor)) {
+    return 'Nobody set aside by that name was brought back this turn.';
+  }
+
+  return null;
+}
+
+/**
+ * The campaign with a set-aside survivor back on the roster, whole — their
+ * Tier, experience and gear as they left (R31). Unguarded: `returnProblem` is
+ * the guard.
+ */
+export function withReturned(campaign: Campaign, survivor: string): Campaign {
+  return {
+    ...campaign,
+    survivors: [...campaign.survivors, ...campaign.setAside.filter((gone) => gone.id === survivor)],
+    setAside: campaign.setAside.filter((gone) => gone.id !== survivor),
+  };
+}

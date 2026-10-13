@@ -9,6 +9,7 @@ import { serializeCampaign } from '../persistence/exportFile';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
 import { generatingUtilities } from '../test/campaigns';
+import { continued, overrun, wentOn } from '../test/overrun';
 import { queued as onOrder } from '../test/queued';
 
 const EARL = 'earl';
@@ -1206,5 +1207,61 @@ describe('Moving into the new base', () => {
     await user.click(move);
 
     expect(screen.getByText(/Carla Proust left to start a community of their own/)).toBeTruthy();
+  });
+});
+
+/** A move after an overrun keeps half the stores, none, or a first base's stock (R29, R30). */
+describe('Moving in after an overrun', () => {
+  it('says what the stores will hold before the move is made', () => {
+    open(
+      overrun([...wentOn('claim', 'hobby-farm'), continued('claim', true, true)], {
+        step: 'add-facilities-and-upgrades',
+      }),
+    );
+
+    // From 7 Food, 3 Fuel, 5 Hardware and 1 Rare, halved and rounded down.
+    expect(
+      within(screen.getByRole('region', { name: 'Move into the new base' })).getByText(
+        /the stores will hold 3 Food, 1 Fuel, 2 Hardware, 0 Rare/,
+      ),
+    ).toBeTruthy();
+  });
+});
+
+/** A survivor set aside, brought back this turn, rejoins at Step 2 (R31; Z4-11). */
+describe('Welcoming back a survivor set aside', () => {
+  it('rejoins them as themselves, and lists nobody once they have', async () => {
+    const hera = { ...createSurvivor('Hera Okafor', 4, { id: 'hera' }), xp: 12 };
+    const user = open(
+      advancement({
+        step: 'create-new-survivors',
+        startingCommunityBuilt: true,
+        setAside: [hera],
+        log: [
+          {
+            turn: 3,
+            phase: 'mission',
+            at: '2026-10-13T09:00:00.000Z',
+            event: { kind: 'mission-selected', team: 1, mission: 'rescue-strangers', names: [] },
+          },
+          {
+            turn: 3,
+            phase: 'mission',
+            at: '2026-10-13T09:00:00.000Z',
+            event: {
+              kind: 'rescue-strangers-resolved',
+              team: 1,
+              strangers: [],
+              returned: ['hera'],
+            },
+          },
+        ],
+      }),
+    );
+
+    await user.click(within(walk()).getByRole('button', { name: 'Welcome Hera Okafor back' }));
+
+    expect(within(walk()).queryByRole('button', { name: /Welcome .* back/ })).toBeNull();
+    expect(screen.getByText(/Hera Okafor returned to the community/)).toBeTruthy();
   });
 });
