@@ -65,6 +65,24 @@ describe('submitMissionSelection', () => {
     expect({ ...after, log: before.log }).toEqual(before);
   });
 
+  it('writes the base a Claim a New Base team is claiming (pg. 78; Z4-7)', () => {
+    const after = expectAccepted(
+      submitMissionSelection(
+        selecting(),
+        { team: 1, mission: 'claim-a-new-base', base: 'distillery' },
+        LATER,
+      ),
+    );
+
+    expect(after.log.at(-1)?.event).toStrictEqual({
+      kind: 'mission-selected',
+      team: 1,
+      mission: 'claim-a-new-base',
+      names: ['Earl Rhodes'],
+      base: 'distillery',
+    });
+  });
+
   it('writes no material for a mission that asks for none', () => {
     const after = expectAccepted(
       submitMissionSelection(selecting(), { team: 1, mission: 'thin-the-herd' }, LATER),

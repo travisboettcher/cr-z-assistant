@@ -33,6 +33,7 @@
 
 import type { TurnStepId } from '../data/turn';
 import type { Campaign } from './campaign';
+import { moveOwed } from './claim';
 import { survivorsFed } from './feeding';
 import { healthAwards, woundsHealed } from './healing';
 import { materialsAdded } from './materials';
@@ -126,6 +127,14 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
     owed.push({
       step: 'add-facilities-and-upgrades',
       says: `Last turn’s orders are ${String(siegeLaborShortfall(campaign))} Labor short after the siege, and a project has to go unfinished.`,
+    });
+  }
+
+  // After the projects, which are built into the old base first (R25; Z4-8).
+  if (moveOwed(campaign)) {
+    owed.push({
+      step: 'add-facilities-and-upgrades',
+      says: 'The community has not moved into the base its claim won.',
     });
   }
 

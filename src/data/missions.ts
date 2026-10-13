@@ -63,8 +63,11 @@ export type MissionAvailability = 'first-turn' | 'forced-by-siege' | 'any-time';
  *
  * - `material` — the material type a Gather Materials team takes the
  *   remainder in (pg. 80).
+ * - `base` — the base a Claim a New Base team is claiming. Its setup is built
+ *   from that base (pg. 78), so it is known before the mission is played
+ *   (Z4-7; derived, where Gather Materials' choice is literal).
  */
-export type SelectionChoice = 'material';
+export type SelectionChoice = 'material' | 'base';
 
 /**
  * What the table counts at the end of a standard mission — the facts its
@@ -170,7 +173,7 @@ export const MISSIONS = {
     family: 'standard',
     pages: '78–79',
     availability: 'any-time',
-    asks: [],
+    asks: ['base'],
     counts: ['end-condition', 'strangers-rescued', 'vehicles-on-area'],
     endConditions: 3,
   },

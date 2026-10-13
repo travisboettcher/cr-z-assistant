@@ -60,7 +60,8 @@ Part 1 explicitly does **not** include:
 - **Losing or changing the base**: Claim a New Base's new base, its Inventory transfer and its
   Unrest lock (pg. 79), and the overrun base's three continuations (pg. 86) — that is
   [#182](https://github.com/travisboettcher/cr-z-assistant/issues/182), which builds on Z4-1 and
-  Z4-3 here. Claim a New Base is *recorded* in part 1; what it does to the campaign is #182's.
+  Z4-3 here. Claim a New Base is *recorded* in part 1; what it does to the campaign is #182's,
+  scoped below as part 1b.
 - **Equipment and the base Inventory** — vehicles driven off (pg. 82), Rare Goods Trader's items
   and the materials set aside for a trade (pp. 21, 84) are Phase 5 and
   [#177](https://github.com/travisboettcher/cr-z-assistant/issues/177). Part 1 records the counts;
@@ -374,3 +375,244 @@ Every turn's missions are on the record — each team's choice, who was on it, h
 facts the table counted, and the Health it came home with — and strangers and gathered materials
 are read off that record instead of typed in. Round-tripped through a save file, with CI green
 including the end-to-end walk, the mutation score holding, and no rule prose in the repo.
+
+---
+
+# Phase 4, part 1b — Changing base, and the overrun base
+
+Scoped from [#182](https://github.com/travisboettcher/cr-z-assistant/issues/182) against the
+batch-15 rulings extract (2026-10-12). Part 1 *records* a Claim a New Base and an overrun Siege
+Defense; part 1b makes them do something. Today `submitBaseClaim` claims a first base only, and an
+overrun base leaves the campaign with no legal next step: the screen says so and stops.
+
+## What the book settles
+
+Printed page numbers; *derived* means it follows from the text without being said.
+
+- **The base type is chosen before the mission is played** (pp. 78, 86; derived). Its setup is
+  built from the base being claimed, so the type has to be known at Select Mission.
+- **A claim is won on end conditions 1 to 3** (pg. 79). On no end condition the community stays
+  where it is.
+- **Stored materials come along in full** (pp. 19, 54, FAQ), with vehicles, weapons and equipment.
+  Nothing is capped at the claim: spoilage is Check Storage's, at Management Step 5 (pg. 23;
+  derived).
+- **Facilities and upgrades stay with the old building** (derived: the book moves materials and
+  equipment only, and facilities belong to a base's slots, pg. 54). A new base has its own
+  built-ins and empty slots.
+- **Staff, utilities and projects last one turn** (pp. 19–20). Nothing is queued past the next
+  Advancement Phase, so there is nothing else to carry or cancel.
+- **Unrest is locked at 0 for the rest of the turn of a claim** (pg. 79). It does not stop
+  Departures, which then depends on Siege Threat alone (pg. 23; derived).
+- **A move into a lower-Tier base with too many Heroes sends one away**, of the player's choice
+  (pg. 54). It is not a Departure (pg. 23), which picks the lowest Tier.
+- **An overrun base offers three ways on** (pg. 86): claim a base again; start over through the
+  First Mission's setup; or leave the survivors behind and begin a new community. All three
+  continue the campaign.
+- **Claim a New Base after an overrun** places no strangers, vehicles or resource tokens (pg. 86).
+  Claiming the same base type on the same map recovers half the stored materials and lets the
+  player-added facilities and upgrades be rebuilt without spending resources; Labor and time are
+  still needed, and nothing sets a deadline (pg. 86; derived for "Labor and time").
+- **Abandoned survivors can come back** in a later Rescue Strangers mission as themselves, with
+  their experience and Inventory (pg. 86), and a rescuer's Tier must be at least theirs (pg. 31).
+  A Hero sent away over the cap may come back the same way (pg. 54).
+
+## Rulings the book leaves open
+
+Eight, confirmed 2026-10-13 and recorded in [the registry](rulings.md) — the last of them while
+building Z4-8:
+
+- [R25](rulings.md#r25--when-the-community-moves-in) — the community moves in at the end
+  of the Advancement Phase of the turn it claimed. Everything the last Planning Phase assigned —
+  staff production, the Training Room, the Clinic, and the projects — settles against the old
+  base, and the projects are left behind in it, with no refund.
+- [R26](rulings.md#r26--a-claim-is-always-a-new-building) — a normal claim of the base
+  type already held is a new building: empty slots, the old base's facilities left behind.
+- [R27](rulings.md#r27--the-overrun-continuation-is-played-in-the-same-mission-phase) —
+  the overrun choice is made when the Siege Defense outcome is recorded, and the mission each
+  option leads to is played as a further mission in the same Mission Phase. A community never spends a turn without a
+  base.
+- [R28](rulings.md#r28--a-failed-continuation-leaves-the-choice-open) — a continuation
+  that meets no end condition leaves the choice open again in the same turn, as R21 does for the
+  First Mission.
+- [R29](rulings.md#r29--what-a-claim-after-an-overrun-recovers) — after an overrun, a
+  different base type recovers no stored materials and no free rebuild; the same type on the same
+  map recovers half, and its free rebuild lasts until used.
+- [R30](rulings.md#r30--start-a-new-community-after-an-overrun) — Start a New Community
+  after an overrun loses the old storage, arrives stocked like a first base, and keeps the turn and
+  siege counters.
+- [R31](rulings.md#r31--abandoned-survivors-and-a-hero-sent-away-are-set-aside) —
+  abandoned survivors, and a Hero sent away over the cap, are *set aside*: off the roster, kept on
+  the record, and able to return as a stranger. Abandoning builds a new starting community in the
+  same campaign, which plays the First Mission as the continuation, as option 2 does.
+- [R32](rulings.md#r32--one-hero-leaves-for-each-hero-over-the-cap) — one Hero of the
+  player's choice leaves for each Hero over the new base's Tier.
+
+## Decisions recorded, rather than left to the implementation
+
+**The move is an entry, not a side effect of the outcome.** A successful claim's outcome is a fact
+about the mission; the base changing is a second thing that happens later in the turn (R25). A
+`base-moved {from, to, setAside}` entry records it, written by a form at Advancement Step 5 that
+`outstanding` owes. Until it is written every reader — production, beds, caps, Siege Threat —
+reads the old base, as it should.
+
+**"Same map" is a fact the table states**, not a layout the app stores. A Claim a New Base outcome
+played after an overrun, for the same base type, asks whether it was played on the same map. The
+book assumes the table remembers its Claim map (pg. 85); the app asks rather than modelling one.
+
+**The overrun choice is its own entry**, `overrun-continued {option}`, written beside the Siege
+Defense outcome rather than as a field on it: an outcome is what the table counted, and the choice
+is what the player decided afterwards. The latest one wins, so R28's second try is a second entry.
+
+**The whole community is the continuation's team.** A Siege Defense deploys everybody (pg. 85), and
+the continuation is played by "the remaining survivors"; it is a second selection for team 1 in
+the same turn, which is the shape R21's retry already has.
+
+**A free rebuild is a property of the slot**, not a credit. Same base type means the same slot ids,
+so the overrun records what stood in each slot, and ordering that facility or upgrade into that
+slot of the reclaimed base costs no Hardware until it has been built once.
+
+## Z4-7 — Claim a New Base names its base
+
+**Why:** Everything after it reads which base was claimed.
+
+**Scope**
+- `asks: ['base']` on `claim-a-new-base`; `mission-selected` carries `base?`. Select Mission offers
+  the roster, warns (not refuses) when the base's Tier is lower than the Heroes it would hold, and
+  R20 still refuses a second Claim.
+- The `claim-a-new-base-resolved` outcome reads its base from the selection; `describeOutcome`
+  names it.
+- `EVENT_FIELDS` validation for the field; a save without it is a selection from before this story.
+
+**Acceptance**
+- A Claim selection without a base is refused, and a base is refused on every other mission.
+- An older save's Claim selection loads, and asks for nothing it cannot have.
+
+**What this story turned out to include.** The outcome entry does not copy the base: the selection
+is where it is recorded, and the history's selection line names it ("claiming a Distillery"), as
+the Tactical Mission form does above the counts. A copy on the outcome would be a second record of
+one fact that could disagree with the first. `claimWarning` counts Heroes against the base's Tier
+and says how many of the player's choice leave (R32, settled with Z4-8). Any base on the roster is on offer, the one already held included (R26). The
+reducer's `mission/selected` action gained the field beside the material's.
+
+---
+
+## Z4-8 — Moving into the new base
+
+**Why:** The normal claim, which is most of #182's value and all of option 1's machinery.
+
+**Scope**
+- `claimedBase(campaign)`: the base this turn's claim won, if one did (end condition 1–3).
+- `submitBaseMove`: written at Advancement Step 5 after the projects finish (R25). The base becomes
+  the new one with empty slots (R26); the projects completed into the old base go with it.
+  Materials are untouched, and no `base-stocked` is written: a later base starts with what was
+  carried (pg. 54).
+- **The Hero cap:** when the new base holds fewer Heroes than the community has, the form asks
+  which Heroes leave, one for each over (pg. 54; R32), and refuses until exactly that many are
+  named. They are set aside (R31).
+- **The Unrest lock:** Calculate Unrest reads 0 for the rest of a turn whose claim succeeded
+  (pg. 79). Departures reads it as it reads any Unrest.
+- `outstanding` owes the move; `ClaimBase.tsx` stops sending a player with a base away.
+- `submitBaseClaim` keeps its first-base meaning; the two share the stocking rule by name.
+
+**Acceptance**
+- After a won claim, Steps 1–5 read the old base, and the next Planning Phase reads the new one.
+- A claim with no end condition met moves nothing and owes nothing.
+- Materials over the new caps survive the move and spoil at Check Storage.
+- Moving a three-Hero community into a Tier 2 base asks for one Hero, and into a Tier 1 base for
+  two (R32).
+- Unrest reads 0 at Management Step 4 of the move turn and is counted again the turn after.
+
+**What this story turned out to include.**
+
+- **Schema v15.** A Hero sent away is set aside whole (R31), so the campaign gained a `setAside`
+  list of survivors, checked by the save reader as the roster is, and refused when one id is in
+  both. The v14 → v15 step adds it empty, which is the truth: a v14 build could not move.
+- **Two modules, not one.** What the turn's claim won (`claimWon`, `claimedBase`, `moveOwed`,
+  `heroesOverCap`, and Z4-7's `claimWarning`, moved here) is `claim.ts`, read straight off the
+  log; the move's guard and change are `move.ts`. The split is for the Unrest lock: `feeding.ts`
+  asks `claimWon`, and anything that imported the mission or project readers would close a loop
+  back through `siege.ts`.
+- **The lock is in `unrest` itself**, so Calculate Unrest, Departures and anything else that reads
+  Unrest agree. Hunger and Exhaustion are untouched, and so are the rules that read them directly.
+- **A community with no base cannot move**, because the entry names the base left. Every
+  campaign past turn 1 has one; the refusal is for a damaged or hand-built save.
+- **What was not built here:** sharing the first base's stocking rule with the move. A move stocks
+  nothing, so there was nothing to share; Z4-9's Start a New Community is the first to need it.
+- **The export writes `setAside`'s entries in a fixed key order**, as it does a project's charge,
+  because the property suite found a reordered file re-exporting differently. Mission wounds have
+  the same gap, which nothing generates yet; it is queued separately.
+
+---
+
+## Z4-9 — The overrun base, and its continuation
+
+**Why:** The step #182 is named for: an overrun campaign has no legal way on.
+
+**Scope**
+- `overrun-continued {option: 'claim' | 'start-over' | 'abandon'}`, refused unless this turn's
+  Siege Defense left the base overrun. `outstanding` owes it.
+- Each option makes this turn's Select Mission owe a second mission for team 1 — Claim a New
+  Base, or the First Mission for options 2 and 3 — after the siege outcome (R27). It may be selected only then, and
+  `missionsOnOffer` offers nothing else.
+- A continuation that meets no end condition re-owes the choice (R28).
+- Option 1's claim places no strangers (pg. 86): the outcome form does not offer them.
+- Option 1 on a different base type, or not on the same map, empties storage on the move (R29);
+  the same type on the same map halves it. Option 2's First Mission stocks the new base to its caps
+  and drops the old storage (R30). Both move through Z4-8's `submitBaseMove`.
+- `baseOverrun`'s screen line becomes the choice.
+
+**Acceptance**
+- An overrun turn cannot end without a choice, and a continuation is never offered on a turn that
+  was not overrun.
+- A failed continuation can be retried, or swapped for another option, in the same turn.
+- The turn and siege counters read the same after option 2 as before it.
+
+---
+
+## Z4-10 — Rebuilding the overrun base
+
+**Why:** The one reward option 1 has, and the only one that outlives the turn.
+
+**Scope**
+- The overrun records the player-added facilities and upgrades on each slot. Built-ins are not
+  recorded: nothing destroys them (pg. 54).
+- After a same-type, same-map reclaim, ordering one of those into its old slot costs no Hardware
+  (pg. 86). Labor and the turn it takes are unchanged, and the offer lasts until it is used (R29).
+- The order form says when an order is a free rebuild, and the cost line shows the Hardware waived.
+
+**Acceptance**
+- A Workshop that stood in the garage is free to rebuild in the garage, once; a second Workshop is
+  not.
+- A different-type reclaim offers no free rebuild.
+
+---
+
+## Z4-11 — Abandoning the survivors, and who comes back
+
+**Why:** The third option, and the set-aside survivors two rules return as strangers.
+
+**Scope**
+- A *set-aside* survivor: off the roster and out of every count, kept on the record with their Tier,
+  XP and Inventory. Written by Z4-8's Hero cap and by option 3 (R31).
+- Option 3 sets every survivor aside, then reopens the starting community builder; the new
+  community plays the First Mission as the continuation (R27), and its base arrives stocked as
+  option 2's does (R30). Same campaign: the origin, the log and the turn and siege counters carry
+  on.
+- A Rescue Strangers outcome may name set-aside survivors instead of a new stranger's Tier; they
+  rejoin as themselves, and the rescuer's Tier must be at least theirs (pg. 31). A set-aside Hero
+  is the one way a Tier 4 stranger is recorded (amends R24).
+- The history says who was set aside and who came back.
+
+**Acceptance**
+- A Hero sent away over the cap can be rescued back in a later Rescue Strangers mission, at their
+  own Tier and XP, by a Hero rescuer only.
+- After abandoning, the roster holds only the new community, the turn cannot move on until its
+  First Mission is won, and the abandoned survivors are on offer to its Rescue Strangers.
+
+---
+
+## Phase 4, part 1b is done when
+
+A community can move house, lose its base and go on, in every way the book gives — and what
+moves, what is left behind and who leaves is on the record. Round-tripped through a save file,
+with CI green, the mutation score holding, and no rule prose in the repo.

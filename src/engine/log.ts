@@ -408,7 +408,9 @@ export type CampaignEvent =
    * the history: the roster it names can have changed by the time anybody
    * looks, which is why `siege-fought` carries names too. `material` is the
    * type a Gather Materials team takes its remainder in (pg. 80), and is
-   * present for that mission only.
+   * present for that mission only; `base` is the base a Claim a New Base team
+   * is claiming (pg. 78; Z4-7), present for that mission only, and absent on
+   * a Claim chosen before Z4-7.
    *
    * **Load-bearing**: `missions.ts` reads it back for who went out, which
    * mission XP and the haul's substitutions are counted from.
@@ -419,6 +421,7 @@ export type CampaignEvent =
       readonly mission: MissionId;
       readonly names: readonly string[];
       readonly material?: Material;
+      readonly base?: BaseId;
     }
   /**
    * The community opted out of this turn's mission (pg. 17).
@@ -706,13 +709,29 @@ export type CampaignEvent =
     }
   | { readonly kind: 'base-claimed'; readonly base: BaseId }
   /**
+   * The community moved into the base a Claim a New Base won (pp. 19, 54, 79;
+   * Z4-8), at the end of that turn's Advancement Phase (R25).
+   *
+   * **Load-bearing**: `baseMoved` reads it so the move happens once. `from` is
+   * the base left behind, with everything built in it, for a reader of the
+   * history; `setAside` is every Hero the new base could not hold, one for each
+   * over its Tier (pg. 54; R32), each named as the roster had them — empty when
+   * the Heroes fit, which is most moves.
+   */
+  | {
+      readonly kind: 'base-moved';
+      readonly from: BaseId;
+      readonly to: BaseId;
+      readonly setAside: readonly { readonly survivor: string; readonly name: string }[];
+    }
+  /**
    * A community's first base arrived stocked to its caps (pg. 19, 54).
    *
    * Its own entry rather than a clause on `base-claimed`, because it is a
    * second thing that happened and a player who finds four Food they did not
    * enter deserves to see where they came from. Only ever written for the
-   * first base: a later one starts with what was carried over, which is Phase
-   * 4's Claim a New Base.
+   * first base: a later one starts with what was carried over (pg. 54), which
+   * is why `base-moved` writes none.
    */
   | {
       readonly kind: 'base-stocked';

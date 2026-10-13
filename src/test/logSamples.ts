@@ -98,6 +98,14 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
     names: ['Carla Proust', 'Ruby Vance'],
     material: 'fuel',
   },
+  // The base a claim is aiming at (pg. 78; Z4-7).
+  {
+    kind: 'mission-selected',
+    team: 1,
+    mission: 'claim-a-new-base',
+    names: ['Earl Rhodes'],
+    base: 'distillery',
+  },
   { kind: 'mission-skipped' },
   { kind: 'siege-defense-resolved', zombiesLeft: 0, survivorsExited: 2 },
   // A team, which every outcome written since Z4-3 carries.
@@ -174,6 +182,14 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'skill-level-bought', ...SURVIVOR, skill: 'archery', level: 2 },
   { kind: 'common-skill-bought', ...SURVIVOR, skill: 'move', score: 7 },
   { kind: 'base-claimed', base: 'hobby-farm' },
+  // A move that fits every Hero, and one into a smaller base (pg. 54; R32).
+  { kind: 'base-moved', from: 'hobby-farm', to: 'distillery', setAside: [] },
+  {
+    kind: 'base-moved',
+    from: 'hydroelectric-dam',
+    to: 'summer-camp',
+    setAside: [{ survivor: 'earl', name: 'Earl Rhodes' }],
+  },
   { kind: 'base-stocked', food: 4, fuel: 4, hardware: 4 },
   { kind: 'facility-built', slot: 'front-yard', facility: 'watchtower' },
   { kind: 'upgrade-built', slot: 'kitchen', upgrade: 'gas-range' },

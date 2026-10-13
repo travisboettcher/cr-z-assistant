@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import currentFixture from './__fixtures__/campaign-v14.json';
+import currentFixture from './__fixtures__/campaign-v15.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -603,6 +603,44 @@ describe('a campaign whose survivor list is not a list', () => {
   });
 });
 
+/** The survivors a move sent away (R31; Z4-8), checked as the roster is. */
+describe('a campaign whose set-aside list is damaged', () => {
+  function refusalFor(overrides: Record<string, unknown>) {
+    const result = parseCampaignFile(savedWith(overrides));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected a refusal');
+
+    expect(result.error.reason).toBe('damaged-campaign');
+    return result.error.message;
+  }
+
+  it('reads a set-aside survivor back as they were written', () => {
+    const result = parseCampaignFile(savedWith({ setAside: [VALID_SURVIVOR] }));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.setAside).toEqual([VALID_SURVIVOR]);
+  });
+
+  it('refuses a list that is not a list', () => {
+    expect(refusalFor({ setAside: 'everybody' })).toMatch(/set aside is missing/);
+  });
+
+  it('refuses a set-aside survivor with a damaged field, and says which one', () => {
+    expect(refusalFor({ setAside: [{ ...VALID_SURVIVOR, xp: -1 }] })).toMatch(
+      /set-aside survivor 1 of 1 has unreadable experience/,
+    );
+  });
+
+  it('refuses somebody both in the community and set aside', () => {
+    expect(refusalFor({ survivors: [VALID_SURVIVOR], setAside: [VALID_SURVIVOR] })).toMatch(
+      /both in the community and set aside/,
+    );
+  });
+});
+
 /**
  * Names that every object already has.
  *
@@ -730,6 +768,22 @@ describe('a campaign whose log is damaged', () => {
     expect(result.ok).toBe(true);
   });
 
+  /** A Claim chosen since Z4-7 names its base, and one chosen before it does not. */
+  it.each([
+    ['naming its base', { base: 'distillery' }],
+    ['naming none, as one chosen before Z4-7 does', {}],
+  ])('accepts a Claim a New Base selection %s', (_name, base) => {
+    const event = {
+      kind: 'mission-selected',
+      team: 1,
+      mission: 'claim-a-new-base',
+      names: ['Earl Rhodes'],
+      ...base,
+    };
+
+    expect(parseCampaignFile(savedWith({ log: [{ ...good, event }] })).ok).toBe(true);
+  });
+
   it.each([
     ['not a list at all', 5, /campaign log is missing/i],
     ['an entry that is not an object', [7], /is not a log entry/i],
@@ -791,6 +845,22 @@ describe('a campaign whose log is damaged', () => {
     ],
     // The field loop: a kind this version knows, carrying a field it cannot
     // read. Nothing above reaches past the discriminant.
+    [
+      'a claim aimed at a base that is not on the roster',
+      [
+        {
+          ...good,
+          event: {
+            kind: 'mission-selected',
+            team: 1,
+            mission: 'claim-a-new-base',
+            names: [],
+            base: 'castle',
+          },
+        },
+      ],
+      /unreadable base/i,
+    ],
     [
       'an entry about a survivor of no known tier',
       [{ ...good, event: { ...good.event, tier: 99 } }],

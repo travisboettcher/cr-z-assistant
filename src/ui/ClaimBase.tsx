@@ -88,9 +88,9 @@ export function ClaimBase() {
               Max Heroes
             </dt>
             {/*
-             * The cap Z1-7 deferred for want of a base. It is guidance here
-             * rather than a rule with teeth: a community over it loses a Hero
-             * of the player's choice, and making someone leave is Phase 3's.
+             * The cap Z1-7 deferred for want of a base. Guidance here: a first
+             * base has nobody to send away, and a later move asks for the
+             * Heroes over the cap when the community moves in (R32; Z4-8).
              */}
             <dd className="text-lg tabular-nums">{maxHeroes(rules.tier)}</dd>
           </div>
@@ -120,14 +120,13 @@ export function ClaimBase() {
             Claim this base
           </button>
           {/*
-           * Said before the click, not after. Moving house is the Claim a New
-           * Base mission and it is Phase 4; until then a claim is the one base
-           * decision a campaign gets, and someone should know that before
-           * making it rather than discover it when they want to change.
+           * Said before the click, not after: this is the first base only, and
+           * someone should know where a later move happens before making it
+           * rather than discover it when they want to change.
            */}
           <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">
-            Moving to a different base is the Claim a New Base mission, which this version does not
-            build yet.
+            Moving later is the Claim a New Base mission, chosen at Select Mission{' '}
+            <PageRef pages="78–79" />
           </p>
         </div>
       </div>

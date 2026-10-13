@@ -398,6 +398,16 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
     case 'base-claimed':
       return { text: `Claimed the ${BASE_LABELS[event.base]} as a base.` };
 
+    case 'base-moved':
+      return {
+        text: `The community moved from the ${BASE_LABELS[event.from]} into the ${BASE_LABELS[event.to]}, leaving what was built behind.${
+          event.setAside.length === 0
+            ? ''
+            : ` ${event.setAside.map((hero) => hero.name).join(' and ')} left to start ${event.setAside.length === 1 ? 'a community of their own' : 'communities of their own'}.`
+        }`,
+        pages: event.setAside.length === 0 ? 79 : '54, 79',
+      };
+
     case 'facility-built':
       return {
         text: `Built ${withArticle(FACILITY_LABELS[event.facility])} in the ${slotLabel(event.slot)}.`,

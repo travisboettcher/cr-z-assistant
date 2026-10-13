@@ -118,14 +118,14 @@ export function submitAdvance(campaign: Campaign, by: AdvanceBy, at: string): Ac
  * Claim a base for a community that has none, and stock it (pp. 19, 54).
  *
  * **Refused for a community that already has one.** Moving house is the Claim
- * a New Base mission, and it carries questions this has no answer for — what
- * Inventory comes along, and which Hero leaves when the new base's Tier caps
- * them lower (pg. 54). Those are Phase 4's. Replacing the base here would drop
- * every slot the player has built into, silently.
+ * a New Base mission, and the move at the end of its Advancement Phase is
+ * `submitBaseMove`'s (Z4-8), which knows what comes along and who leaves over
+ * the Hero cap (pg. 54). Replacing the base here would drop every slot the
+ * player has built into, silently.
  *
  * **The first base arrives full.** A community that reaches one stocks every
  * capped material to its maximum; a *later* base starts with only what was
- * carried over, and that is Phase 4's too. It matters more than it sounds: a
+ * carried over, which is why the move stocks nothing. It matters more than it sounds: a
  * starting community of ten Tier points eats six Food a turn against a Tier 1
  * cap of four, so beginning at zero rather than four changes the whole opening.
  *

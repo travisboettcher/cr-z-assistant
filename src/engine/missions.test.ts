@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { BaseId } from '../data/bases';
 import { createNewCampaign, type Assignment, type Campaign, type Survivor } from './campaign';
 import type { CampaignEvent, LogEntry, MissionWound } from './log';
 import {
@@ -185,6 +186,25 @@ describe('turnMissions', () => {
       { team: 1, mission: 'gather-materials', material: 'fuel' },
     ]);
   });
+
+  it('carries the base a Claim a New Base team is claiming, and nothing for a Claim without one', () => {
+    const claim = (base?: BaseId): LogEntry =>
+      at(4, {
+        kind: 'mission-selected',
+        team: 1,
+        mission: 'claim-a-new-base',
+        names: [],
+        ...(base === undefined ? {} : { base }),
+      });
+
+    expect(turnMissions(playing({ log: [claim('distillery')] })).choices).toStrictEqual([
+      { team: 1, mission: 'claim-a-new-base', base: 'distillery' },
+    ]);
+    // A Claim chosen before Z4-7 named no base, and reads as one that did not.
+    expect(turnMissions(playing({ log: [claim()] })).choices).toStrictEqual([
+      { team: 1, mission: 'claim-a-new-base' },
+    ]);
+  });
 });
 
 describe('deployed', () => {
@@ -350,7 +370,9 @@ describe('selectionProblem', () => {
       /Another team/,
     );
     // The same team choosing it again is a correction, not a second claim.
-    expect(selectionProblem(claiming, { team: 1, mission: 'claim-a-new-base' })).toBeNull();
+    expect(
+      selectionProblem(claiming, { team: 1, mission: 'claim-a-new-base', base: 'summer-camp' }),
+    ).toBeNull();
     // And it limits only Claim a New Base: another team may choose anything else.
     expect(selectionProblem(claiming, { team: 2, mission: 'thin-the-herd' })).toBeNull();
   });
@@ -374,7 +396,38 @@ describe('selectionProblem', () => {
       selectionProblem(playing({ log: [chose(1, 'thin-the-herd')] }), {
         team: 2,
         mission: 'claim-a-new-base',
+        base: 'summer-camp',
       }),
+    ).toBeNull();
+  });
+
+  it('asks Claim a New Base for the base it claims, and no other mission (pg. 78; Z4-7)', () => {
+    expect(selectionProblem(playing(), { team: 1, mission: 'claim-a-new-base' })).toMatch(
+      /needs the base it claims/,
+    );
+    expect(
+      selectionProblem(playing(), { team: 1, mission: 'claim-a-new-base', base: 'distillery' }),
+    ).toBeNull();
+    expect(
+      selectionProblem(playing(), { team: 1, mission: 'thin-the-herd', base: 'distillery' }),
+    ).toMatch(/Only Claim a New Base/);
+    expect(
+      selectionProblem(playing(), {
+        team: 1,
+        mission: 'claim-a-new-base',
+        base: 'toString' as 'distillery',
+      }),
+    ).toMatch(/no such base/);
+  });
+
+  it('lets a claim aim at the base already held, or a lower Tier (pg. 78; R26)', () => {
+    const housed = playing({ base: { id: 'hydroelectric-dam', slots: {} } });
+
+    expect(
+      selectionProblem(housed, { team: 1, mission: 'claim-a-new-base', base: 'hydroelectric-dam' }),
+    ).toBeNull();
+    expect(
+      selectionProblem(housed, { team: 1, mission: 'claim-a-new-base', base: 'small-town-home' }),
     ).toBeNull();
   });
 

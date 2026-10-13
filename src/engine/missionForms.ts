@@ -59,6 +59,7 @@ export function submitMissionSelection(
       mission: choice.mission,
       names: team.members.map((survivor) => survivor.name),
       ...(choice.material === undefined ? {} : { material: choice.material }),
+      ...(choice.base === undefined ? {} : { base: choice.base }),
     }),
   );
 }

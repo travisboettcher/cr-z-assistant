@@ -32,7 +32,7 @@ import type { LogEntry } from './log';
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 14;
+export const CURRENT_SCHEMA_VERSION = 15;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -353,6 +353,20 @@ export interface Campaign {
   survivors: readonly Survivor[];
 
   /**
+   * Survivors who have left the community without leaving the campaign
+   * (R31): a Hero sent away when a move lowers the Hero cap (pg. 54).
+   *
+   * **Kept whole**, with Tier, experience and everything else on their sheet,
+   * because the book lets them come back as themselves rather than as somebody
+   * new (pp. 54, 86). Off the roster, so nothing counts them — not beds, Food,
+   * Labor nor the Hero cap — and nobody here holds a task.
+   *
+   * Empty for every campaign until a move sends somebody away, and for every
+   * save written before v15, which had nowhere to put them.
+   */
+  setAside: readonly Survivor[];
+
+  /**
    * Whether the player has finished assembling their starting community.
    *
    * A starting community is built from ten Tier levels (pg. 13), and that rule
@@ -434,6 +448,7 @@ export function createNewCampaign(name: string, options: NewCampaignOptions = {}
     // starts.
     projects: [],
     survivors: [],
+    setAside: [],
     // False, so a new campaign gets the ten-tier-level check while it is being
     // built. The v2 → v3 migration deliberately answers `true` instead — see
     // the step in `src/persistence/migrations.ts` for why the two differ.

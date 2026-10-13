@@ -32,11 +32,13 @@
  * team's mission read another's.
  */
 
+import { BASES, type BaseId } from '../data/bases';
 import { MATERIALS, type Material } from '../data/materials';
 import {
   GATHERED_MATERIALS,
   MISSIONS,
   type MissionId,
+  type SelectionChoice,
   type StandardMissionId,
 } from '../data/missions';
 import { FIELD_RECRUITABLE_TIERS, type FieldRecruitTier } from '../data/recruitTable';
@@ -60,6 +62,9 @@ export interface MissionChoice {
 
   /** The type a Gather Materials team takes its remainder in (pg. 80). */
   readonly material?: Material;
+
+  /** The base a Claim a New Base team is claiming (pg. 78; Z4-7). */
+  readonly base?: BaseId;
 }
 
 /** What Select Mission has recorded this turn. */
@@ -133,6 +138,7 @@ export function turnMissions(campaign: Campaign): TurnMissions {
         team: event.team,
         mission: event.mission,
         ...(event.material === undefined ? {} : { material: event.material }),
+        ...(event.base === undefined ? {} : { base: event.base }),
       });
       skipped = false;
       recorded = true;
@@ -218,11 +224,21 @@ export function missionsOnOffer(campaign: Campaign): readonly MissionId[] {
   });
 }
 
-/** Whether a mission asks Select Mission for a material type (pg. 80). */
-export function asksForMaterial(mission: MissionId): boolean {
+/** Whether a mission asks Select Mission for this (`SelectionChoice`). */
+function asksFor(mission: MissionId, choice: SelectionChoice): boolean {
   const entry: (typeof MISSIONS)[MissionId] = MISSIONS[mission];
 
-  return entry.family === 'standard' && (entry.asks as readonly string[]).includes('material');
+  return entry.family === 'standard' && (entry.asks as readonly string[]).includes(choice);
+}
+
+/** Whether a mission asks Select Mission for a material type (pg. 80). */
+export function asksForMaterial(mission: MissionId): boolean {
+  return asksFor(mission, 'material');
+}
+
+/** Whether a mission asks Select Mission for the base it claims (pg. 78; Z4-7). */
+export function asksForBase(mission: MissionId): boolean {
+  return asksFor(mission, 'base');
 }
 
 /**
@@ -230,7 +246,10 @@ export function asksForMaterial(mission: MissionId): boolean {
  *
  * In the Mission Phase; for a team that exists this turn; for a mission on
  * offer (`missionsOnOffer`); not a second Claim a New Base beside another
- * team's (R20); and with a material type exactly when the mission asks for one.
+ * team's (R20); and with a material type, or a base, exactly when the mission
+ * asks for one. Any base on the roster may be claimed, the one already held and
+ * a lower Tier among them (pg. 78; R26): what a lower Tier costs is a warning
+ * (`claimWarning` in `claim.ts`), not this.
  * Choosing again for a team that already chose is allowed — it is how a choice
  * is corrected — until the team's outcome is recorded: a mission that has been
  * played is not chosen again, except a failed First Mission (R21).
@@ -277,6 +296,13 @@ export function selectionProblem(campaign: Campaign, choice: MissionChoice): str
     }
   } else if (choice.material !== undefined) {
     return 'Only Gather Materials takes a material type.';
+  }
+
+  if (asksForBase(choice.mission)) {
+    if (choice.base === undefined) return 'Claim a New Base needs the base it claims.';
+    if (!Object.hasOwn(BASES, choice.base)) return 'There is no such base.';
+  } else if (choice.base !== undefined) {
+    return 'Only Claim a New Base claims a base.';
   }
 
   return null;

@@ -28,6 +28,9 @@ Rulings that are still open are marked **OPEN**. They are recorded rather than s
 which is the point of the registry — a question nobody has answered looks exactly like a question
 nobody noticed, unless it is written down.
 
+Rulings marked **PROPOSED** are written ahead of the work that needs them and await confirmation;
+nothing in the code cites one until it is confirmed.
+
 ---
 
 ## R1 — The hunger penalty is a starvation threshold, not a hunger tax
@@ -643,3 +646,160 @@ it until those stories are built.
 
 *Settled 2026-10-12 from the batch-14 extract. Until then a Tier 4 stranger was accepted and joined
 as the roster adds a Hero, which this replaces.*
+
+---
+
+## R25 — When the community moves in
+
+**pp. 17, 19–20, 26, 79; [#182](https://github.com/travisboettcher/cr-z-assistant/issues/182),
+Z4-8.** A won claim makes that turn's Advancement Phase the community's first turn in the new base
+(pg. 19; derived from the turn order, pg. 17). The book never says which base the work settled in
+that phase belongs to — the Training Room's XP, staff production, the Clinic's healing, and the
+projects ordered in the last Planning Phase — and its one hint, carrying the old Inventory after
+production at Step 3, says what the old base produced is kept rather than lost.
+
+**The ruling is that the community moves in at the end of the Advancement Phase.** Everything the
+last Planning Phase assigned was assigned in the old base and settles there, including the
+projects, which are built into the old building and left behind with it. The Hardware they cost is
+not refunded: it was spent when they were ordered (pg. 20, FAQ). The first Planning Phase is the
+new base's.
+
+**What it costs.** The extract's own suggestion landed a due project in the new base when an empty
+slot fits it. That needs the player to re-aim each order at a slot of a different layout, and
+reads less consistently with facilities staying behind; a table that wants it loses a turn's
+building on the move.
+
+*Confirmed 2026-10-13 from the batch-15 extract.*
+
+---
+
+## R26 — A claim is always a new building
+
+**pp. 78, 86; #182, Z4-8.** Claim a New Base may claim any base type, including the one already
+held (pg. 78); the book speaks of "the same base type" only for the overrun (pg. 86).
+
+**The ruling is that a normal claim of the type already held is a new building**: its own
+built-ins, empty slots, and the old base's facilities and upgrades left behind, exactly as for any
+other type. Only the overrun's same-type reclaim (R29) recovers anything of the old one.
+
+**What it costs.** Nothing the book says; a table that reads the same type as "the same building"
+would have nothing to claim.
+
+*Confirmed 2026-10-13 from the batch-15 extract.*
+
+---
+
+## R27 — The overrun continuation is played in the same Mission Phase
+
+**pp. 23, 26, 86; #182, Z4-9.** The book gives three ways to go on from an overrun base but no time
+to take them, and says nothing about a community with no base through an Advancement, Planning or
+Management Phase: no production, beds, caps or Siege Threat. Missions that chain say so (pp. 90,
+113), and this one does not, which weakly suggests it is not chained. Pg. 26 returns to the
+Advancement Phase after a mission unless the community has a further mission planned for the
+turn.
+
+**The ruling is that the choice is made when the Siege Defense outcome is recorded, and the
+mission it leads to is that further mission, played in the same Mission Phase** — Claim a New
+Base, or the First Mission for starting over and for a new community. The turn then goes on from
+the Advancement Phase in the base the continuation won.
+
+**What it costs.** It reads against the weak hint, and a table that plays the continuation next
+turn will record it a turn early. The extract's alternative — next turn's forced mission, with the
+overrun base kept as a shell meanwhile — needs the app to invent what a shell produces, sleeps,
+stores and draws from the horde, which this ruling never has to answer.
+
+*Confirmed 2026-10-13 from the batch-15 extract.*
+
+---
+
+## R28 — A failed continuation leaves the choice open
+
+**pp. 77, 79, 86; #182, Z4-9.** A failed claim leaves the community in the base it has (pg. 79),
+which after an overrun is the overrun base. The book does not say what then; the First Mission's
+failure lets the community try again (pg. 77).
+
+**The ruling is that a continuation that meets no end condition leaves the overrun choice open
+again in the same turn**: the player may try the same option again or take another, as R21 does
+for the First Mission.
+
+**What it costs.** Nothing caps the retries, as nothing caps R21's.
+
+*Confirmed 2026-10-13 from the batch-15 extract.*
+
+---
+
+## R29 — What a claim after an overrun recovers
+
+**pp. 19, 54, 86, FAQ; #182, Z4-9, Z4-10.** Half the stored materials, and a free rebuild of what
+was destroyed, are given for the same base type on the same map (pg. 86). For any other claim the
+book is silent, and its normal transfer (pg. 19, FAQ) would give everything, which makes the half
+rule mean nothing unless an overrun replaces the transfer.
+
+**The ruling is that after an overrun a different base type, or a different map, recovers no
+stored materials and no free rebuild; the same type on the same map recovers half, rounded down,
+and its free rebuild covers every facility and upgrade the player had added, waives the Hardware
+only, and lasts until it is used.** Built-ins were never destroyed (pg. 54).
+
+**What it costs.** Rounding down is the app's, chosen to match how the siege counter is halved
+(R16); the book does not say. A table reading the silence as "the normal transfer applies" would
+keep everything on a different type.
+
+*Confirmed 2026-10-13 from the batch-15 extract.*
+
+---
+
+## R30 — Start a New Community after an overrun
+
+**pp. 19, 76–77, 86, FAQ; #182, Z4-9.** Starting over uses the remaining survivors and their gear
+(pg. 86) and says nothing of storage. A campaign's first base arrives full (pg. 19, FAQ), but this
+is a way to continue the campaign rather than a new one.
+
+**The ruling is that the old storage is lost, the new base arrives stocked to its caps as a first
+base does, and the turn and siege counters carry on as they stand.** The First Mission is every
+community's first (pg. 76), and the survivors are starting one from nothing. The counter's reset
+and halving are written for victories only (pp. 81, 86), so an overrun leaves it alone.
+
+**What it costs.** A table that reads "continue this campaign" strictly starts the new base empty,
+which is a much harder opening.
+
+*Confirmed 2026-10-13 from the batch-15 extract.*
+
+---
+
+## R31 — Abandoned survivors, and a Hero sent away, are set aside
+
+**pp. 7, 31, 54, 82–83, 86; #182, Z4-8, Z4-11.** Two rules take a survivor out of the community
+without killing them: the Hero sent away when a move lowers the cap (pg. 54), and the survivors
+abandoned after an overrun (pg. 86). Both may come back as a stranger — the abandoned ones in the
+next Rescue Strangers mission, with their experience and Inventory — and the book keeps no record
+of either.
+
+**The ruling is that both are *set aside*: off the roster and out of every count, kept on the
+record as they were, and able to be named on a later Rescue Strangers outcome, where they rejoin
+as themselves and the rescuer's Tier must be at least theirs (pg. 31).** Abandoning builds a new
+starting community in the same campaign, which plays the First Mission as R27's continuation; the
+origin, the log and the turn and siege counters carry on, and the new base is stocked as R30's.
+A set-aside Hero is the one Tier 4 stranger a mission records, which amends R24.
+
+**What it costs.** Pg. 54 also lets a Hero who left start the player's next campaign; that is a
+new campaign's business, and nothing here stops it.
+
+*Confirmed 2026-10-13 from the batch-15 extract.*
+
+---
+
+## R32 — One Hero leaves for each Hero over the cap
+
+**pg. 54; [#182](https://github.com/travisboettcher/cr-z-assistant/issues/182), Z4-8.** A
+community that moves into a lower-Tier base with more Heroes than it can support loses a Hero of
+the player's choice (pg. 54). The book speaks of one Hero, and never of a community more than one
+over — three Heroes moving into a Tier 1 base.
+
+**The ruling is that one Hero of the player's choice leaves for every Hero over the new base's
+Tier**, all at the move, so the community is never over the cap afterwards. Each is set aside
+(R31).
+
+**What it costs.** A table that reads the singular literally sends one Hero away and keeps the rest
+over the cap, which the app would then report as a violation every turn.
+
+*Confirmed 2026-10-13.*

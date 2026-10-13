@@ -390,6 +390,20 @@ const infectionRecorded: MigrationStep = {
   },
 };
 
+/**
+ * v14 → v15: somewhere to keep the survivors set aside (R31; #182, Z4-8).
+ *
+ * **Empty, for every save, and that is the truth rather than a guess.** A
+ * survivor is set aside only by moving into a base that holds fewer Heroes,
+ * and a v14 build could not move house at all — so no v14 campaign has
+ * anybody it could have lost. A field already present is left alone.
+ */
+const setAsideRecorded: MigrationStep = {
+  from: 14,
+  to: 15,
+  up: (previous) => ('setAside' in previous ? previous : { ...previous, setAside: [] }),
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -405,6 +419,7 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   siegeOutcomesRecorded,
   projectsRecordTheirCharge,
   infectionRecorded,
+  setAsideRecorded,
 ];
 
 /** Why a save could not be brought forward. */

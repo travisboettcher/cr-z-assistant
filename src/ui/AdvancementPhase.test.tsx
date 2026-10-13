@@ -1122,3 +1122,89 @@ describe('walking through the phase', () => {
     expect(within(walk()).getByText(/strangers rescued on the missions/i)).toBeTruthy();
   });
 });
+
+/**
+ * The end of the phase after a claim was won (pp. 19, 54, 79; R25; Z4-8): the
+ * community moves in, once the projects have landed in the old base.
+ */
+describe('Moving into the new base', () => {
+  const claimOn = (base: 'distillery' | 'summer-camp'): LogEntry[] => [
+    {
+      turn: 3,
+      phase: 'mission',
+      at: '2026-10-13T09:00:00.000Z',
+      event: { kind: 'mission-selected', team: 1, mission: 'claim-a-new-base', names: [], base },
+    },
+    {
+      turn: 3,
+      phase: 'mission',
+      at: '2026-10-13T09:00:00.000Z',
+      event: {
+        kind: 'claim-a-new-base-resolved',
+        team: 1,
+        endCondition: 1,
+        strangers: [],
+        vehiclesOnArea: 0,
+      },
+    },
+  ];
+
+  const moving = (overrides: Partial<Campaign> = {}): Campaign =>
+    advancement({
+      step: 'add-facilities-and-upgrades',
+      log: claimOn('distillery'),
+      ...overrides,
+    });
+
+  const panel = () => within(screen.getByRole('region', { name: 'Move into the new base' }));
+
+  it('is not offered on a turn without a claim won', () => {
+    open(advancement({ step: 'add-facilities-and-upgrades' }));
+
+    expect(screen.queryByRole('region', { name: 'Move into the new base' })).toBeNull();
+  });
+
+  it('moves the community, and the base sheet shows the new base', async () => {
+    const user = open(moving());
+
+    expect(panel().getByText(/What was built in the Small Town Home stays there/)).toBeTruthy();
+    await user.click(panel().getByRole('button', { name: 'Move into the Distillery' }));
+
+    expect(within(walk()).getByText(/The community has moved into the Distillery/)).toBeTruthy();
+    expect(screen.getByRole('region', { name: /distillery/i })).toBeTruthy();
+  });
+
+  it('waits for last turn’s projects, which land in the old base (R25)', () => {
+    open(
+      moving({
+        projects: [
+          onOrder({ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 2 }),
+        ],
+      }),
+    );
+
+    expect(panel().getByText(/Finish last turn’s projects first/)).toBeTruthy();
+    expect(panel().getByRole('button', { name: 'Move into the Distillery' })).toBeDisabled();
+  });
+
+  it('asks which Hero leaves when the new base holds fewer (pg. 54; R32)', async () => {
+    const user = open(
+      moving({
+        log: claimOn('summer-camp'),
+        survivors: [
+          createSurvivor('Earl Rhodes', 4, { id: EARL }),
+          createSurvivor('Carla Proust', 4, { id: CARLA }),
+        ],
+      }),
+    );
+
+    const move = panel().getByRole('button', { name: 'Move into the Summer Camp' });
+    expect(move).toBeDisabled();
+
+    await user.click(panel().getByRole('checkbox', { name: 'Carla Proust' }));
+    expect(move).toBeEnabled();
+    await user.click(move);
+
+    expect(screen.getByText(/Carla Proust left to start a community of their own/)).toBeTruthy();
+  });
+});

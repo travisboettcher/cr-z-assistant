@@ -183,6 +183,31 @@ describe('an outcome for every mission a team chose (Z4-3)', () => {
     );
   });
 
+  it('names the base a claim is aiming at (pg. 78; Z4-7)', () => {
+    open(
+      playing({
+        survivors: [createSurvivor('Earl Rhodes', 2, { id: 'earl' })],
+        assignments: { earl: { task: 'mission', team: 1 } },
+        log: [
+          {
+            ...teamChose(1, 'claim-a-new-base'),
+            event: {
+              kind: 'mission-selected',
+              team: 1,
+              mission: 'claim-a-new-base',
+              names: [],
+              base: 'outdoor-sports-shop',
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(
+      group(/how claim a new base ended/i).getByText('Claiming an Outdoor Sports Shop.'),
+    ).toBeInTheDocument();
+  });
+
   it('records a story mission as played, with nothing to count', async () => {
     const user = open(
       playing({

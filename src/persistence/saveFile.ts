@@ -310,6 +310,21 @@ const EVENT_FIELD_CHECKS = {
   // mission. Which mission asks for one is the engine's to check, not a file's.
   optionalMaterial: (value: unknown) =>
     value === undefined || (MATERIALS as readonly unknown[]).includes(value),
+  // The base a Claim a New Base team is claiming (pg. 78; Z4-7), and absent
+  // for every other mission and for a Claim chosen before Z4-7.
+  // Survivors named by id and by the name they had, as the wounds are: a list,
+  // each with both, and the name may be anything a player typed.
+  survivorRefs: (value: unknown) =>
+    Array.isArray(value) &&
+    value.every(
+      (one) =>
+        isRecord(one) &&
+        typeof one.survivor === 'string' &&
+        one.survivor !== '' &&
+        typeof one.name === 'string',
+    ),
+  optionalBase: (value: unknown) =>
+    value === undefined || (typeof value === 'string' && isKeyOf(BASES, value)),
   upgrade: (value: unknown) =>
     typeof value === 'string' && facilityOfUpgrade(value as UpgradeId) !== undefined,
 } as const;
@@ -423,6 +438,7 @@ const EVENT_FIELDS: Record<
     ['mission', 'mission'],
     ['names', 'names'],
     ['material', 'optionalMaterial'],
+    ['base', 'optionalBase'],
   ],
   'mission-skipped': [],
   'siege-defense-resolved': [
@@ -550,6 +566,11 @@ const EVENT_FIELDS: Record<
     ['score', 'count'],
   ],
   'base-claimed': [['base', 'base']],
+  'base-moved': [
+    ['from', 'base'],
+    ['to', 'base'],
+    ['setAside', 'survivorRefs'],
+  ],
   'base-stocked': [
     ['food', 'count'],
     ['fuel', 'count'],
@@ -778,6 +799,21 @@ function describeCampaignProblem(value: unknown): string | null {
     // Positional rather than by name, because a survivor whose name is the
     // damaged field cannot be pointed at by it.
     if (problem !== null) return `survivor ${index + 1} of ${value.survivors.length} ${problem}`;
+  }
+
+  // Checked as the roster is, because they are survivors and come back as
+  // themselves (R31). Nobody may be in both: one id would then name two people.
+  if (!Array.isArray(value.setAside)) return 'its list of survivors set aside is missing';
+  for (const [index, survivor] of value.setAside.entries()) {
+    const problem = describeSurvivorProblem(survivor);
+    if (problem !== null) {
+      return `set-aside survivor ${index + 1} of ${value.setAside.length} ${problem}`;
+    }
+    // A record with a string id by now: `describeSurvivorProblem` checked both.
+    const { id } = survivor as { readonly id: string };
+    if (value.survivors.some((one) => isRecord(one) && one.id === id)) {
+      return `it has somebody both in the community and set aside: ${id}`;
+    }
   }
 
   if (typeof value.startingCommunityBuilt !== 'boolean') {

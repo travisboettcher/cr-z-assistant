@@ -52,6 +52,7 @@ import { logged } from '../engine/log';
 import { reverse, type AdvanceBy } from '../engine/turn';
 import type { MaterialRoll } from '../engine/materials';
 import {
+  submitBaseMove,
   submitCommonSkill,
   submitConversion,
   submitHaul,
@@ -429,8 +430,14 @@ export type CampaignAction =
       readonly team: number;
       readonly mission: MissionId;
       readonly material?: Material;
+      readonly base?: BaseId;
       readonly at: string;
     }
+  /**
+   * Move into the base this turn's claim won, sending these Heroes away
+   * (R25, R31, R32; Z4-8).
+   */
+  | { readonly type: 'advancement/moved'; readonly leaving: readonly string[]; readonly at: string }
   /** The community opts out of this turn's mission (pg. 17). */
   | { readonly type: 'mission/skipped'; readonly at: string }
   /**
@@ -795,6 +802,7 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
             team: action.team,
             mission: action.mission,
             ...(action.material === undefined ? {} : { material: action.material }),
+            ...(action.base === undefined ? {} : { base: action.base }),
           },
           action.at,
         ),
@@ -960,6 +968,9 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
           ...builtOf(project),
         });
       });
+
+    case 'advancement/moved':
+      return submitted(state, (campaign) => submitBaseMove(campaign, action.leaving, action.at));
 
     case 'advancement/projectsCompleted':
       return withCampaign(state, (campaign) => {

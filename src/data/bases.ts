@@ -40,7 +40,8 @@ export type BaseTier = (typeof BASE_TIERS)[number];
  * identity outright — the cap *is* the Tier — where the survivor Tier table's
  * five coinciding columns are five separate rules that happen to agree. Moving
  * into a lower-Tier base over the cap sends a Hero of the player's choice off
- * to start their own community, which is a roster consequence and Phase 3's.
+ * to start their own community, one for each over (R32), which the engine's
+ * `move.ts` asks for.
  */
 export function maxHeroes(tier: BaseTier): number {
   return tier;
@@ -198,9 +199,9 @@ export interface BaseRules {
  * A community's first base starts with maximum storage of every capped
  * material; a later one starts with only what was carried over (pg. 54).
  *
- * Recorded here because it is a base rule; nothing reads it until a campaign
- * can claim a base with materials already in hand, which is Phase 4's Claim a
- * New Base.
+ * Recorded here because it is a base rule. Nothing reads the flag itself: the
+ * first base is stocked by `submitBaseClaim`, and a later one, moved into after
+ * a Claim a New Base, is not (Z4-8).
  */
 export const FIRST_BASE_STARTS_AT_MAX_STORAGE = true;
 

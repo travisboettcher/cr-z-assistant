@@ -3,7 +3,8 @@
  *
  * The teams are the Planning Phase's — pg. 21 splits the mission survivors
  * between any number of them — so this step asks only what each team plays,
- * and, for Gather Materials, the type it takes the rest in (pg. 80). On a siege
+ * and, for Gather Materials, the type it takes the rest in (pg. 80), and for
+ * Claim a New Base, the base it claims (pg. 78; Z4-7). On a siege
  * turn the whole community is one team and its mission is the Siege Defense;
  * on turn 1 it is the First Mission. What is on offer, and why a choice is
  * refused, are `missions.ts`'s answers: this screen renders them.
@@ -13,10 +14,12 @@
  */
 
 import { useState } from 'react';
+import { BASE_IDS, BASES, type BaseId } from '../data/bases';
 import type { Material } from '../data/materials';
 import { GATHERED_MATERIALS, MISSIONS, type MissionFamily, type MissionId } from '../data/missions';
 import type { Campaign } from '../engine/campaign';
 import {
+  asksForBase,
   asksForMaterial,
   missionsOnOffer,
   missionTeams,
@@ -25,13 +28,16 @@ import {
   turnMissions,
   type MissionTeam,
 } from '../engine/missions';
+import { claimWarning } from '../engine/claim';
 import { useCampaign } from '../state/useCampaign';
-import { MATERIAL_LABELS } from './baseLabels';
+import { BASE_LABELS, MATERIAL_LABELS } from './baseLabels';
 import { describeSelection, MISSION_LABELS } from './missionLabels';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
 const HINT = 'text-sm text-stone-600 dark:text-stone-400';
+
+const WARNING = 'text-sm font-medium text-amber-800 dark:text-amber-300';
 
 const SELECT = `${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 px-2 py-1 text-sm dark:border-stone-600 dark:bg-stone-800`;
 
@@ -69,16 +75,20 @@ function TeamChoice({
     current?.mission ?? offered[0] ?? 'thin-the-herd',
   );
   const [material, setMaterial] = useState<Material>(current?.material ?? 'food');
+  const [base, setBase] = useState<BaseId>(current?.base ?? 'small-town-home');
 
   const choice = {
     team: team.team,
     mission,
     ...(asksForMaterial(mission) ? { material } : {}),
+    ...(asksForBase(mission) ? { base } : {}),
   };
   const problem = selectionProblem(campaign, choice);
+  const warning = problem === null && asksForBase(mission) ? claimWarning(campaign, base) : null;
   const families = [...new Set(offered.map((id) => MISSIONS[id].family))];
   const missionId = `mission-team-${String(team.team)}`;
   const materialId = `mission-material-${String(team.team)}`;
+  const baseId = `mission-base-${String(team.team)}`;
 
   return (
     <fieldset className="mt-3 flex flex-col gap-2 rounded-lg border border-stone-200 p-3 dark:border-stone-700">
@@ -146,7 +156,36 @@ function TeamChoice({
         </div>
       )}
 
+      {asksForBase(mission) && (
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="text-sm" htmlFor={baseId}>
+            Base to claim
+          </label>
+          <select
+            id={baseId}
+            className={SELECT}
+            value={base}
+            onChange={(changed) => {
+              setBase(changed.target.value as BaseId);
+            }}
+          >
+            {BASE_IDS.map((id) => (
+              <option key={id} value={id}>
+                {BASE_LABELS[id]} (Tier {BASES[id].tier})
+              </option>
+            ))}
+          </select>
+          <PageRef pages={78} />
+        </div>
+      )}
+
       {problem !== null && <p className={HINT}>{problem}</p>}
+
+      {warning !== null && (
+        <p className={WARNING}>
+          {warning} <PageRef pages={54} />
+        </p>
+      )}
 
       <div>
         <button

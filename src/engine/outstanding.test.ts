@@ -156,6 +156,50 @@ describe('outstanding', () => {
    * Z4-5: every stranger the turn's outcomes counted joins at Advancement
    * Step 2 (pg. 19), and the walk owes the step until each one has.
    */
+  /** Z4-8: a claim won this turn owes the move at the last Advancement step (R25). */
+  describe('a base claimed', () => {
+    const earl = createSurvivor('Earl Rhodes', 2, { id: 'earl' });
+    const claiming = settled({
+      survivors: [earl],
+      assignments: { earl: { task: 'mission', team: 1 } },
+      log: [
+        ...settled().log,
+        entry({
+          kind: 'mission-selected',
+          team: 1,
+          mission: 'claim-a-new-base',
+          names: [],
+          base: 'distillery',
+        }),
+        entry({
+          kind: 'claim-a-new-base-resolved',
+          team: 1,
+          endCondition: 1,
+          strangers: [],
+          vehiclesOnArea: 0,
+        }),
+      ],
+    });
+
+    it('owes the move until it is made', () => {
+      expect(outstanding(claiming)).toEqual([
+        {
+          step: 'add-facilities-and-upgrades',
+          says: 'The community has not moved into the base its claim won.',
+        },
+      ]);
+
+      const moved = settled({
+        ...claiming,
+        log: [
+          ...claiming.log,
+          entry({ kind: 'base-moved', from: 'hobby-farm', to: 'distillery', setAside: [] }),
+        ],
+      });
+      expect(steps(moved)).toEqual([]);
+    });
+  });
+
   describe('rescued strangers', () => {
     const earl = createSurvivor('Earl Rhodes', 2, { id: 'earl' });
     const ruby = createSurvivor('Ruby Vance', 3, { id: 'ruby' });

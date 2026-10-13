@@ -403,6 +403,34 @@ describe('Calculate Unrest', () => {
 
     expect(walk().textContent).not.toContain('Exhaustion is above');
   });
+
+  it('holds Unrest at 0 for the rest of a turn whose claim was won, and says why (pg. 79)', () => {
+    open(
+      management({
+        step: 'calculate-unrest',
+        survivors: Array.from({ length: 6 }, (_, at) =>
+          createSurvivor(`Survivor ${String(at)}`, 1, { id: `survivor-${String(at)}` }),
+        ),
+        log: [
+          {
+            turn: 3,
+            phase: 'mission',
+            at: '2026-10-13T09:00:00.000Z',
+            event: {
+              kind: 'claim-a-new-base-resolved',
+              team: 1,
+              endCondition: 2,
+              strangers: [],
+              vehiclesOnArea: 0,
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(walk().textContent).toContain('0 Hunger + 2 Exhaustion = 0 Unrest');
+    expect(walk().textContent).toContain('Locked at 0 for the rest of this turn');
+  });
 });
 
 /**
