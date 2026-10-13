@@ -5,6 +5,7 @@ import { createNewCampaign, type Campaign } from '../engine/campaign';
 import { createSurvivor } from '../engine/survivor';
 import { withPlanningBegun } from '../test/campaigns';
 import { CampaignProvider } from '../state/CampaignProvider';
+import { openPanel } from '../test/screens';
 import { App } from './App';
 
 const EARL = 'earl';
@@ -288,6 +289,7 @@ describe('ordering outside the step it belongs to', () => {
   it('says which step orders belong to, and orders anyway', async () => {
     const user = open(ready('assign-mission-team'));
 
+    openPanel('base');
     await user.click(screen.getByRole('button', { name: /build in garage/i }));
 
     expect(screen.getByText(/ordered in assign project team/i)).toBeTruthy();
@@ -297,6 +299,7 @@ describe('ordering outside the step it belongs to', () => {
   it('says nothing on the step orders actually belong to', async () => {
     const user = open(ready('assign-project-team'));
 
+    openPanel('base');
     await user.click(screen.getByRole('button', { name: /build in garage/i }));
 
     expect(screen.queryByText(/are ordered in/i)).toBeNull();

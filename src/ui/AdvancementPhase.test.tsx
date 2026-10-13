@@ -7,6 +7,7 @@ import { createSurvivor } from '../engine/survivor';
 import { PENDING_ROLLS_KEY } from '../persistence/pendingRolls';
 import { serializeCampaign } from '../persistence/exportFile';
 import { CampaignProvider } from '../state/CampaignProvider';
+import { campaignLog, communityRoster, openMenu, openPanel, stored } from '../test/screens';
 import { App } from './App';
 import { generatingUtilities } from '../test/campaigns';
 import { continued, overrun, wentOn } from '../test/overrun';
@@ -259,9 +260,11 @@ describe('Add Materials to Storage', () => {
 
       await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
 
-      expect(screen.getByLabelText(/^rare$/i)).toHaveValue(1);
+      expect(stored(/^rare$/i)).toBe(1);
       expect(
-        screen.getByText(/earl rhodes scavenged 1 food, 1 fuel, 1 hardware, 1 rare/i),
+        within(campaignLog()).getByText(
+          /earl rhodes scavenged 1 food, 1 fuel, 1 hardware, 1 rare/i,
+        ),
       ).toBeTruthy();
     });
 
@@ -364,7 +367,7 @@ describe('Add Materials to Storage', () => {
     expect(within(walk()).queryByRole('button', { name: /add to storage/i })).toBeNull();
 
     // And it landed: the overview's Rare count moved.
-    expect(screen.getByLabelText(/^rare$/i)).toHaveValue(1);
+    expect(stored(/^rare$/i)).toBe(1);
   });
 
   it('takes a roll back off the list', async () => {
@@ -421,6 +424,7 @@ describe('Add Materials to Storage', () => {
     const incoming = serializeCampaign(
       advancement({ name: 'Millbrook', step: 'add-materials-to-storage' }),
     );
+    openMenu('file');
     const input = document.querySelector<HTMLInputElement>('input[type="file"]');
 
     await user.upload(
@@ -514,7 +518,7 @@ describe('Add Materials to Storage', () => {
     await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '10');
     await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
 
-    expect(screen.getByLabelText(/^rare$/i)).toHaveValue(1);
+    expect(stored(/^rare$/i)).toBe(1);
   });
 
   it('stores the base’s production alone when the question is accepted', async () => {
@@ -553,7 +557,7 @@ describe('Add Materials to Storage', () => {
 
     await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
 
-    expect(screen.getByLabelText(/^food$/i)).toHaveValue(5);
+    expect(stored(/^food$/i)).toBe(5);
   });
 });
 
@@ -601,8 +605,8 @@ describe('conversions', () => {
 
     // The Gas Range produces a Food of its own as well (pg. 72), so Add to
     // storage left one there before the trade added the second.
-    expect(screen.getByLabelText(/^food$/i)).toHaveValue(2);
-    expect(screen.getByLabelText(/^fuel$/i)).toHaveValue(2);
+    expect(stored(/^food$/i)).toBe(2);
+    expect(stored(/^fuel$/i)).toBe(2);
     expect(within(walk()).getByText(/gas range in the kitchen/i)).toBeTruthy();
   });
 
@@ -613,8 +617,8 @@ describe('conversions', () => {
     await user.click(trade());
     await user.click(trade());
 
-    expect(screen.getByLabelText(/^food$/i)).toHaveValue(3);
-    expect(screen.getByLabelText(/^fuel$/i)).toHaveValue(0);
+    expect(stored(/^food$/i)).toBe(3);
+    expect(stored(/^fuel$/i)).toBe(0);
 
     // A store cannot go negative, so this is a refusal rather than a warning.
     expect(trade()).toBeDisabled();
@@ -633,9 +637,7 @@ describe('conversions', () => {
     await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
     await user.click(trade());
 
-    expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
-      'The Gas Range on the Kitchen traded',
-    );
+    expect(campaignLog().textContent).toContain('The Gas Range on the Kitchen traded');
   });
 
   it('says nothing at all when the base has no conversion to offer', async () => {
@@ -705,7 +707,7 @@ describe('Heal Wounds', () => {
 
     // And it landed on the roster: Earl was at 1 of 4.
     expect(
-      within(screen.getByRole('region', { name: /community/i }))
+      within(communityRoster())
         .getAllByRole('listitem')
         .find((row) => /Earl Rhodes/.test(row.textContent ?? ''))?.textContent,
     ).toContain('3');
@@ -791,7 +793,7 @@ describe('Heal Wounds', () => {
 
       await user.click(within(walk()).getByRole('button', { name: /heal wounds/i }));
 
-      const history = screen.getByRole('region', { name: /history/i }).textContent;
+      const history = campaignLog().textContent;
       expect(history).toContain(
         'Earl Rhodes took 2 Health from the community’s Health: 1 of it against Infection, 1 on wounds.',
       );
@@ -874,7 +876,7 @@ describe('Create New Survivors', () => {
 
     expect(within(walk()).getByText(/every stranger rescued this turn has joined/i)).toBeTruthy();
 
-    const roster = within(screen.getByRole('region', { name: /^community$/i }));
+    const roster = within(communityRoster());
     expect(roster.getByText('Ruby Vance')).toBeTruthy();
     expect(roster.getByText('Pip')).toBeTruthy();
   });
@@ -933,6 +935,7 @@ describe('Add Facilities and Upgrades', () => {
 
     await user.click(within(walk()).getByRole('button', { name: /finish 2 projects/i }));
 
+    openPanel('base');
     const map = screen.getByRole('region', { name: /small town home/i });
     expect(within(map).getByText(/^workshop$/i)).toBeTruthy();
     expect(within(map).getByText(/gas range — 1 of 3/i)).toBeTruthy();
@@ -1172,6 +1175,7 @@ describe('Moving into the new base', () => {
     await user.click(panel().getByRole('button', { name: 'Move into the Distillery' }));
 
     expect(within(walk()).getByText(/The community has moved into the Distillery/)).toBeTruthy();
+    openPanel('base');
     expect(screen.getByRole('region', { name: /distillery/i })).toBeTruthy();
   });
 
@@ -1206,7 +1210,9 @@ describe('Moving into the new base', () => {
     expect(move).toBeEnabled();
     await user.click(move);
 
-    expect(screen.getByText(/Carla Proust left to start a community of their own/)).toBeTruthy();
+    expect(
+      within(campaignLog()).getByText(/Carla Proust left to start a community of their own/),
+    ).toBeTruthy();
   });
 });
 
@@ -1262,6 +1268,6 @@ describe('Welcoming back a survivor set aside', () => {
     await user.click(within(walk()).getByRole('button', { name: 'Welcome Hera Okafor back' }));
 
     expect(within(walk()).queryByRole('button', { name: /Welcome .* back/ })).toBeNull();
-    expect(screen.getByText(/Hera Okafor returned to the community/)).toBeTruthy();
+    expect(within(campaignLog()).getByText(/Hera Okafor returned to the community/)).toBeTruthy();
   });
 });

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { createNewCampaign } from '../engine/campaign';
 import { serializeCampaign } from '../persistence/exportFile';
 import { CampaignProvider } from '../state/CampaignProvider';
+import { openMenu } from '../test/screens';
 import { App } from './App';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
@@ -32,6 +33,8 @@ async function startCampaign(user: ReturnType<typeof userEvent.setup>, name: str
 
 /** The file input is hidden behind a button, so tests drive it directly. */
 function fileInput(): HTMLInputElement {
+  // With a campaign open, import is in the campaign-file modal off the menu.
+  if (document.querySelector('input[type="file"]') === null) openMenu('file');
   const input = document.querySelector<HTMLInputElement>('input[type="file"]');
   if (input === null) throw new Error('no file input rendered');
   return input;
@@ -74,7 +77,7 @@ describe('importing over an open campaign', () => {
 
     await user.upload(fileInput(), saveFile(exportedCampaign('Millbrook')));
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('dialog', { name: /replace the open campaign/i });
     expect(dialog).toHaveTextContent(/millbrook/i);
 
     await user.click(screen.getByRole('button', { name: /keep the open campaign/i }));
@@ -125,6 +128,6 @@ describe('when the file is not a usable campaign', () => {
 
     expect(await screen.findByRole('alert')).toBeVisible();
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Cedar Hollow');
-    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('dialog', { name: /replace the open campaign/i })).toBeNull();
   });
 });

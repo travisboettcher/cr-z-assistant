@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { createNewCampaign } from '../engine/campaign';
 import { createSurvivor } from '../engine/survivor';
 import { CampaignProvider } from '../state/CampaignProvider';
+import { campaignLog, openPanel } from '../test/screens';
 import { App } from './App';
 
 /**
@@ -23,6 +24,7 @@ async function openCampaign(name = 'Cedar Hollow') {
 
   await user.type(screen.getByLabelText(/^campaign name$/i), name);
   await user.click(screen.getByRole('button', { name: 'New campaign' }));
+  openPanel('survivors');
 
   return user;
 }
@@ -30,7 +32,7 @@ async function openCampaign(name = 'Cedar Hollow') {
 async function addSurvivor(user: ReturnType<typeof userEvent.setup>, name: string, tier: string) {
   await user.type(screen.getByLabelText(/survivor name/i), name);
   await user.selectOptions(screen.getByLabelText(/^tier$/i), tier);
-  await user.click(screen.getByRole('button', { name: /add survivor/i }));
+  await user.click(screen.getByRole('button', { name: /^add survivor$/i }));
 }
 
 function roster() {
@@ -82,7 +84,7 @@ describe('SurvivorRoster', () => {
     const user = await openCampaign();
 
     await user.type(screen.getByLabelText(/survivor name/i), '   ');
-    await user.click(screen.getByRole('button', { name: /add survivor/i }));
+    await user.click(screen.getByRole('button', { name: /^add survivor$/i }));
 
     expect(within(roster()).queryByRole('listitem')).not.toBeInTheDocument();
   });
@@ -255,7 +257,7 @@ describe('recruiting from the field', () => {
     await user.type(screen.getByLabelText(/recruit name/i), 'Ruby Vance');
     await user.click(screen.getByRole('button', { name: /^recruit$/i }));
 
-    const history = screen.getByRole('region', { name: 'History' });
+    const history = campaignLog();
     expect(within(history).getByText(/ruby vance was recruited as a rookie\.$/i)).toBeTruthy();
     expect(within(history).queryByText(/rolling a/i)).toBeNull();
   });
@@ -349,6 +351,7 @@ describe('survivors set aside', () => {
         <App />
       </CampaignProvider>,
     );
+    openPanel('survivors');
 
     const list = within(roster()).getByRole('list', { name: 'Set aside' });
     expect(within(list).getByText(/Hera Okafor/)).toBeInTheDocument();

@@ -46,6 +46,7 @@ Reach for these before building a campaign by hand.
 | `queued.ts` | a project in the queue at a price nothing in the test looks at |
 | `arbitraries.ts` | `fast-check` generators typed as `Campaign` and `Survivor`, so a schema change breaks them at compile time |
 | `logSamples.ts` | one of every log event, asserted complete — a new event without a sample fails the typecheck |
+| `screens.ts` | opening the modals a screen test needs the way a player does, from a summary card or the header menu, and reading the materials and the log |
 | `setup.ts` | Testing Library cleanup, a cleared `localStorage` between tests, and a `<dialog>` stub for jsdom |
 
 **Shared scaffolding goes here, not in `src/engine`.** Stryker mutates `src/engine`, and a helper

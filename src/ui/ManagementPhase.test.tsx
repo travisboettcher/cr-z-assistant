@@ -5,6 +5,7 @@ import { createNewCampaign, type Campaign, type Survivor } from '../engine/campa
 import { createSurvivor } from '../engine/survivor';
 import { generatingFlatUtility, withPlanningBegun } from '../test/campaigns';
 import { CampaignProvider } from '../state/CampaignProvider';
+import { campaignLog, communityRoster, openPanel, stored } from '../test/screens';
 import { App } from './App';
 import { queued } from '../test/queued';
 
@@ -57,7 +58,7 @@ describe('Feed your Survivors', () => {
 
     await user.click(within(walk()).getByRole('button', { name: /feed the community/i }));
 
-    expect(screen.getByLabelText(/^food$/i)).toHaveValue(0);
+    expect(stored(/^food$/i)).toBe(0);
     expect(walk().textContent).toContain('Food is eaten');
     expect(within(walk()).queryByRole('button', { name: /feed the community/i })).toBeNull();
   });
@@ -115,9 +116,10 @@ describe('the penalty the Feed step reports', () => {
 
     // A survivor arrives afterwards. The penalty in force was priced at Feed
     // and does not move (R1) — so this line must not move either.
+    openPanel('survivors');
     await user.type(screen.getByLabelText(/survivor name/i), 'Gil Moss');
     await user.selectOptions(screen.getByLabelText(/^tier$/i), '4');
-    await user.click(screen.getByRole('button', { name: /add survivor/i }));
+    await user.click(screen.getByRole('button', { name: /^add survivor$/i }));
 
     expect(walk().textContent).toContain('every survivor’s stats drop by 3');
     expect(walk().textContent).toContain('head count of 3');
@@ -198,9 +200,7 @@ describe('Check for Rot', () => {
     await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '10');
     await user.click(within(walk()).getByRole('button', { name: /resolve earl/i }));
 
-    expect(
-      within(screen.getByRole('region', { name: /community/i })).getAllByRole('listitem'),
-    ).toHaveLength(2);
+    expect(within(communityRoster()).getAllByRole('listitem')).toHaveLength(2);
 
     // The form goes, and the step says why. Earl is still at 0 Health — which
     // is what kept him in `mustCheck` and kept the form on screen through
@@ -208,9 +208,7 @@ describe('Check for Rot', () => {
     // removed", and a button the reducer's guard silently swallowed (#143).
     expect(within(walk()).queryByRole('button', { name: /resolve earl/i })).toBeNull();
     expect(walk().textContent).toContain('Earl Rhodes held on this turn');
-    expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
-      'Earl Rhodes held on',
-    );
+    expect(campaignLog().textContent).toContain('Earl Rhodes held on');
   });
 
   /**
@@ -248,9 +246,7 @@ describe('Check for Rot', () => {
 
     await user.click(within(walk()).getByRole('button', { name: /resolve earl/i }));
 
-    expect(
-      within(screen.getByRole('region', { name: /community/i })).queryAllByRole('listitem'),
-    ).toHaveLength(0);
+    expect(within(communityRoster()).queryAllByRole('listitem')).toHaveLength(0);
   });
 
   /**
@@ -268,9 +264,7 @@ describe('Check for Rot', () => {
 
     await user.click(within(walk()).getByRole('button', { name: /resolve earl/i }));
 
-    expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
-      'Carla Proust was bitten',
-    );
+    expect(campaignLog().textContent).toContain('Carla Proust was bitten');
   });
 
   /**
@@ -310,12 +304,8 @@ describe('Check for Rot', () => {
       await user.click(within(walk()).getByRole('button', { name: /resolve earl/i }));
 
       // Earl is gone all the same; Carla is untouched.
-      expect(
-        within(screen.getByRole('region', { name: /community/i })).getAllByRole('listitem'),
-      ).toHaveLength(1);
-      expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
-        'The Restraints held Earl Rhodes',
-      );
+      expect(within(communityRoster()).getAllByRole('listitem')).toHaveLength(1);
+      expect(campaignLog().textContent).toContain('The Restraints held Earl Rhodes');
     });
 
     /** One set holds one survivor: the second turning of the turn bites. */
@@ -369,9 +359,7 @@ describe('Check for Rot', () => {
     await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '1');
     await user.click(within(walk()).getByRole('button', { name: /resolve earl/i }));
 
-    expect(
-      within(screen.getByRole('region', { name: /community/i })).queryAllByRole('listitem'),
-    ).toHaveLength(0);
+    expect(within(communityRoster()).queryAllByRole('listitem')).toHaveLength(0);
   });
 });
 
@@ -517,7 +505,7 @@ describe('Check Storage', () => {
 
     await user.click(within(walk()).getByRole('button', { name: /lose the surplus/i }));
 
-    expect(screen.getByLabelText(/^food$/i)).toHaveValue(6);
+    expect(stored(/^food$/i)).toBe(6);
     expect(walk().textContent).toContain('Storage is checked for this turn');
     expect(within(walk()).queryByRole('button', { name: /lose the surplus/i })).toBeNull();
   });
@@ -731,9 +719,7 @@ describe('Departures', () => {
       within(walk()).getAllByRole('button', { name: /send away/i })[0] as HTMLElement,
     );
 
-    expect(
-      within(screen.getByRole('region', { name: /community/i })).getAllByRole('listitem'),
-    ).toHaveLength(7);
+    expect(within(communityRoster()).getAllByRole('listitem')).toHaveLength(7);
 
     // And it stops there, saying what it did rather than re-deriving. It used
     // to read "Nobody is leaving. The community holds together." one line under
@@ -755,9 +741,7 @@ describe('Departures', () => {
       within(walk()).getAllByRole('button', { name: /send away/i })[0] as HTMLElement,
     );
 
-    expect(
-      within(screen.getByRole('region', { name: /community/i })).getAllByRole('listitem'),
-    ).toHaveLength(7);
+    expect(within(communityRoster()).getAllByRole('listitem')).toHaveLength(7);
     expect(within(walk()).queryByRole('button', { name: /send away/i })).toBeNull();
   });
 
@@ -831,12 +815,10 @@ describe('Departures', () => {
     expect(walk().textContent).not.toContain('Labor short');
     // The Hardware comes back, as it does on a cancellation: the work was
     // never done.
-    expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(12);
+    expect(stored(/^hardware$/i)).toBe(12);
     // Named, not just placed: the entry says which project left the queue, the
     // way the order and built entries always have (#151).
-    expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
-      'The Workshop in the Garage went unfinished',
-    );
+    expect(campaignLog().textContent).toContain('The Workshop in the Garage went unfinished');
   });
 
   /**
@@ -932,6 +914,7 @@ describe('a shortfall reaches every screen at once', () => {
 
   it('lowers what the base produces, from one press and no survivor edit', async () => {
     const user = open(starving());
+    openPanel('base');
 
     await user.click(screen.getByRole('button', { name: /upgrade garage/i }));
 
@@ -949,7 +932,7 @@ describe('a shortfall reaches every screen at once', () => {
     await user.click(within(walk()).getByRole('button', { name: /feed the community/i }));
 
     await user.click(
-      within(screen.getByRole('region', { name: /community/i }))
+      within(communityRoster())
         .getAllByRole('listitem')
         .filter((row) => /Nell Haig/.test(row.textContent ?? ''))[0]
         ?.querySelector('button[aria-label], button') as HTMLElement,

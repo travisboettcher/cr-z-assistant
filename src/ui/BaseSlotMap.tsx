@@ -15,7 +15,7 @@ import { useState } from 'react';
 import { BASES, type BaseSlot } from '../data/bases';
 import type { Campaign } from '../engine/campaign';
 import { layoutOf, upgradesRemaining, upgradesUsed } from '../engine/base';
-import { suppliedOccupants } from '../engine/utilities';
+import { emptySlotCount, suppliedOccupants } from '../engine/utilities';
 import type { Occupant } from '../engine/base';
 import { MATERIALS } from '../data/materials';
 import {
@@ -346,16 +346,9 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
   const found = suppliedOccupants(campaign);
   const slots = layoutOf(base);
 
-  // The base as it stands, not as it shipped. This counted `state === 'empty'`
-  // off the layout, which never moves: at turn 17 of a twenty-turn campaign
-  // every slot was full and the line still read "6 empty" (#173). A slot with
-  // rubble in it is not empty either — it is a clearing project — and one that
-  // has been cleared is.
-  const empty = slots.filter(
-    (slot) =>
-      found.every((occupant) => occupant.slotId !== slot.id) &&
-      (slot.state === 'empty' || base.slots[slot.id]?.cleared === true),
-  ).length;
+  // The base as it stands, not as it shipped (#173) — asked of the engine,
+  // because the community summary beside the turn shows the same count.
+  const empty = emptySlotCount(campaign);
 
   return (
     <section
@@ -437,7 +430,7 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
               lost <PageRef pages={20} />
             </p>
             <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-              Who is on it is Planning Step 2, above.
+              Who is on it is Planning Step 2, on the turn walk.
             </p>
           </>
         ) : (
@@ -497,7 +490,7 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
        */}
       <p className="mt-5 text-sm text-stone-600 dark:text-stone-400">
         Staffing a facility is Planning Step 1, and is the same assignment whether it is made here
-        or on the turn walk above <PageRef pages={20} />
+        or on the turn walk <PageRef pages={20} />
       </p>
     </section>
   );

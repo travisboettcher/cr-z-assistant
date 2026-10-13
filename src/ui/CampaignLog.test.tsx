@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { CAMPAIGN_EVENT_SAMPLES } from '../test/logSamples';
 import { describeEvent } from './logLabels';
 import { CampaignProvider } from '../state/CampaignProvider';
+import { campaignLog, openMenu, openPanel } from '../test/screens';
 import { App } from './App';
 
 /**
@@ -27,7 +28,7 @@ async function openCampaign() {
   return user;
 }
 
-const history = () => screen.getByRole('region', { name: /^history$/i });
+const history = () => campaignLog();
 
 describe('the campaign log on screen', () => {
   it('shows nothing at all before anything has happened', () => {
@@ -50,6 +51,7 @@ describe('the campaign log on screen', () => {
 
   it('adds what happens next, and keeps what it already said', async () => {
     const user = await openCampaign();
+    openPanel('base');
 
     await user.selectOptions(screen.getByLabelText(/choose a base/i), ['Hobby Farm — Tier 2']);
     await user.click(screen.getByRole('button', { name: /claim this base/i }));
@@ -72,6 +74,7 @@ describe('the campaign log on screen', () => {
 
     const before = within(history()).getAllByRole('listitem').length;
 
+    openMenu('file');
     const name = screen.getByLabelText(/campaign name/i);
     await user.clear(name);
     await user.type(name, 'Millbrook');

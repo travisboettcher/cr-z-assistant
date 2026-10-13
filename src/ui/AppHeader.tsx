@@ -4,6 +4,7 @@
  * they stay pinned at the top and never scroll away.
  */
 
+import type { ReactNode } from 'react';
 import type { Campaign } from '../engine/campaign';
 import { phaseOf } from '../engine/turn';
 import { PHASE_LABELS, STEP_LABELS } from './turnLabels';
@@ -11,12 +12,14 @@ import { PHASE_LABELS, STEP_LABELS } from './turnLabels';
 export interface AppHeaderProps {
   /** Omitted while the store reports `status: 'empty'`. */
   readonly campaign?: Campaign;
+  /** The campaign menu, at the end of the bar. Absent with nothing open. */
+  readonly menu?: ReactNode;
 }
 
-export function AppHeader({ campaign }: AppHeaderProps) {
+export function AppHeader({ campaign, menu }: AppHeaderProps) {
   return (
     <header className="border-b border-stone-200 bg-white px-5 py-4 dark:border-stone-800 dark:bg-stone-900">
-      <div className="mx-auto flex w-full max-w-4xl flex-wrap items-baseline gap-x-4 gap-y-2">
+      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-4 gap-y-2">
         <div className="grow">
           <p className="text-xs font-semibold tracking-[0.2em] text-stone-500 uppercase dark:text-stone-400">
             County Road Z
@@ -47,6 +50,8 @@ export function AppHeader({ campaign }: AppHeaderProps) {
             <Fact label="Step" value={STEP_LABELS[campaign.step]} />
           </dl>
         ) : null}
+
+        {menu}
       </div>
     </header>
   );

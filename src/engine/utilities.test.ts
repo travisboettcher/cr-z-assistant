@@ -17,6 +17,7 @@ import {
   staffedSpent,
   utilityCapacity,
   withUtilityToggled,
+  emptySlotCount,
 } from './utilities';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
@@ -557,5 +558,38 @@ describe('a hunger penalty landing after the points were assigned', () => {
     };
 
     expect(utilitiesScore(next)).toBe(3);
+  });
+});
+
+/** #173: the base as it stands, not as it shipped. */
+describe('emptySlotCount', () => {
+  const at = (base: Base | null): Campaign => ({ ...createNewCampaign('Cedar Hollow'), base });
+
+  it('is zero with no base', () => {
+    expect(emptySlotCount(at(null))).toBe(0);
+  });
+
+  it('counts the empty slots a base ships with', () => {
+    expect(emptySlotCount(at({ id: 'small-town-home', slots: {} }))).toBe(2);
+  });
+
+  it('stops counting a slot once something is built in it', () => {
+    expect(
+      emptySlotCount(
+        at({
+          id: 'small-town-home',
+          slots: { garage: { built: { facility: 'workshop', builtOnTurn: 1 } } },
+        }),
+      ),
+    ).toBe(1);
+  });
+
+  it('counts a slot full of rubble only once it is cleared', () => {
+    const rubble = emptySlotCount(at({ id: 'hobby-farm', slots: {} }));
+    const cleared = emptySlotCount(
+      at({ id: 'hobby-farm', slots: { 'ruined-chicken-coop': { cleared: true } } }),
+    );
+
+    expect(cleared).toBe(rubble + 1);
   });
 });
