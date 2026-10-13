@@ -844,3 +844,104 @@ reasons the app cannot see.
 build, staff or sleep, and every base-dependent number reads as zero until a base is claimed.
 
 *Decided 2026-10-13.*
+
+---
+
+## R34 — Quality gear is built from the tables — **PROPOSED**
+
+**pp. 37, 41–43; [#177](https://github.com/travisboettcher/cr-z-assistant/issues/177).** Pg. 37
+says quality weapons come only through the Rare Goods Trader, but the cost tables on pp. 41–42 print
+a quality build cost for every weapon and for most equipment and protective gear, and the Rare Item
+Table's Quality Item subtable sells quality weapons too (pg. 43).
+
+**The proposal is that quality gear can be built at the costs the tables print**, at the same Labor
+as standard, as well as found or traded. A printed cost is a number the table gives; a reading that
+made every quality column unusable would be throwing data away.
+
+**What it costs.** A table that follows pg. 37 literally never builds a quality weapon; under this
+ruling a community with the Hardware has them sooner.
+
+---
+
+## R35 — A carried shoddy item takes its slot — **PROPOSED**
+
+**pp. 9–11, 14, 37–38; #177, Z5-2, Z5-4.** Shoddy gear is free and always available to a survivor
+with the skill that uses it, and every weapon takes one Inventory Slot (pg. 38). The book does not
+say whether the shoddy one does too; Earl's worked sheet lists his shoddy axe among his items
+(pg. 14).
+
+**The proposal is that a shoddy item a survivor carries takes its slot like any other.** It is
+chosen at Equip Mission Team, costs nothing, and never enters or leaves the base Inventory: there
+is always another.
+
+**What it costs.** A survivor with several weapon skills chooses which shoddy weapons to carry,
+rather than carrying them all for free.
+
+---
+
+## R36 — A backpack takes no slot — **PROPOSED**
+
+**pp. 10, 44, 51; #177, Z5-2.** The backpack adds one to its wearer's Carry Score, and Carry adds to
+Inventory Slots (pg. 10); but most equipment takes a slot (pg. 44), which would make a backpack worth
+nothing. The rare ultralight backpack adds two slots and takes none (pg. 51).
+
+**The proposal is that a backpack takes no slot**, as the ultralight one does, so it is worth the
+slot its Carry bonus gives.
+
+**What it costs.** Nothing a table would notice, unless it reads pg. 44 strictly.
+
+---
+
+## R37 — Nothing on an item lasts past its mission — **PROPOSED**
+
+**pp. 38, 45, 50–51; #177, Z5-5.** A jammed pistol is cleared by an action (pg. 38); the book never
+says whether a jam outlasts the mission, though the repeating crossbow's jam lasts exactly until the
+mission ends (pg. 50), the suppressor and scent masker refresh every mission (pp. 50–51), and
+improvised armor's Health is restored at the end of one (pg. 45).
+
+**The proposal is that every per-mission state of an item ends with the mission**, so the tracker
+keeps no item state at all — only whether the item still exists. What a mission uses up or destroys
+(disposables, one-mission items, armor worn through) is recorded with its outcome.
+
+**What it costs.** A table that carries a jam from one mission into the next keeps it on paper.
+
+---
+
+## R38 — Who moves what at Equip Mission Team — **PROPOSED**
+
+**pp. 18, 23, 31–34, 124; #177, Z5-4.** Equip Mission Team gives a mission team items from the base
+Inventory (pg. 18). Survivors keep what they carry between missions (pp. 23, 124). The book has no
+rule for handing items between survivors outside a mission, or for returning them to the base.
+
+**The proposal is that at Equip Mission Team, items move between the base Inventory and the mission
+team's survivors in either direction, and between those survivors, within their slots.** Anybody
+not on a team keeps what they hold, and takes nothing new.
+
+**What it costs.** A survivor at home all game keeps whatever they last carried until they next go
+out; the table moves it then.
+
+---
+
+## R39 — One +1 from a quality-only item — **PROPOSED**
+
+**pp. 37, 41, 44, 51; #177, Z5-3.** The backpack, breaching tool, burglar tools, binoculars and
+walkie talkie exist only as quality (pg. 41), and each also adds one to a Score by its own text
+(pg. 44). Read as two bonuses, they would add two.
+
+**The proposal is that each adds one in all**: the quality grade and the item's own bonus are the
+same +1, since nothing standard or shoddy exists to compare it with.
+
+**What it costs.** A table reading both bonuses gets a stronger item.
+
+---
+
+## R40 — Bonuses stack; protective gear one of each — **PROPOSED**
+
+**pp. 44–45, 50–51; #177, Z5-3.** Two items can add to the same Score (binoculars and night vision
+goggles, both Scout), and a survivor could wear armor, a shield, reinforced clothing and knee pads at
+once. The book addresses neither.
+
+**The proposal is that bonuses to one Score from different items stack, and a survivor wears at most
+one of each kind of protective gear**: a second set of reinforced clothing adds nothing.
+
+**What it costs.** Nothing the book forbids is refused; only a duplicate is.
