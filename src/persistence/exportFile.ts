@@ -19,7 +19,8 @@ import { BASES } from '../data/bases';
 import { SKILLS, STATS } from '../data/skills';
 import { MATERIALS } from '../data/materials';
 import type { Base, Campaign, Project, SlotState, Survivor } from '../engine/campaign';
-import type { CampaignEvent, LogEntry } from '../engine/log';
+import type { CampaignEvent, LogEntry, MissionWound } from '../engine/log';
+import { isMissionOutcome } from '../engine/missions';
 
 /** Material counts in the fixed order from the engine, not insertion order. */
 function orderedMaterials(campaign: Campaign): Record<string, number> {
@@ -209,21 +210,44 @@ function orderedLogEntry(entry: LogEntry): Record<keyof LogEntry, unknown> {
 }
 
 /**
- * An event tag-first, with the survivors a move set aside written in a fixed
- * order too.
+ * An event tag-first, with the objects nested inside it written in a fixed
+ * order too: the survivors a move set aside, and the wounds a mission outcome
+ * carries.
  *
- * `taggedFirst` sorts the top level only, so the objects inside `setAside`
- * would keep whatever key order the file they were read from used — the same
- * gap `orderedProject` closes for `charged`, closed the same way. Assigning a
- * key the object already has leaves its position alone, so this cannot move
- * `setAside` itself.
+ * `taggedFirst` sorts the top level only, so the objects inside `setAside` and
+ * `wounds` would keep whatever key order the file they were read from used —
+ * the same gap `orderedProject` closes for `charged`, closed the same way.
+ * Assigning a key the object already has leaves its position alone, so this
+ * cannot move `setAside` or `wounds` themselves. Which kinds carry wounds is
+ * `isMissionOutcome`'s answer, not a list here that could fall out of step
+ * with it.
  */
 function orderedEvent(event: CampaignEvent): Record<string, unknown> {
-  if (event.kind !== 'base-moved') return taggedFirst(event, 'kind');
+  if (event.kind === 'base-moved') {
+    return {
+      ...taggedFirst(event, 'kind'),
+      setAside: event.setAside.map(({ survivor, name }) => ({ survivor, name })),
+    };
+  }
 
+  if (!isMissionOutcome(event) || event.wounds === undefined) return taggedFirst(event, 'kind');
+
+  return { ...taggedFirst(event, 'kind'), wounds: event.wounds.map(orderedWound) };
+}
+
+/**
+ * One wound with its keys in a fixed order.
+ *
+ * `infection` is `undefined` outside a Viral campaign, which `JSON.stringify`
+ * drops — so it is written only where it was recorded, as `origin` is on the
+ * campaign. An absent Infection is a real state, not a zero.
+ */
+function orderedWound(wound: MissionWound): Record<keyof MissionWound, unknown> {
   return {
-    ...taggedFirst(event, 'kind'),
-    setAside: event.setAside.map(({ survivor, name }) => ({ survivor, name })),
+    survivor: wound.survivor,
+    name: wound.name,
+    health: wound.health,
+    infection: wound.infection,
   };
 }
 
