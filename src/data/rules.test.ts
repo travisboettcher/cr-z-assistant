@@ -46,6 +46,21 @@ import {
   TURN_STEPS,
 } from './turn';
 import { GATHERED_MATERIALS, MISSIONS, type MissionFamily } from './missions';
+import {
+  CORE_WEAPONS,
+  EQUIPMENT,
+  GRADE_MODIFIER,
+  GRADES,
+  ITEM_IDS,
+  RARE_ITEM_CATEGORIES,
+  RARE_ITEM_TABLE,
+  VEHICLE_SLOTS,
+  type ItemId,
+  type ItemRules,
+  type PricedBuild,
+  type RareItemEntry,
+  type RareSubtable,
+} from './equipment';
 
 describe('stats and skills', () => {
   it('has four stats and twenty governed skills', () => {
@@ -851,5 +866,230 @@ describe('the missions', () => {
     expect(origins.filter((origin) => origin === 'viral')).toHaveLength(3);
     expect(origins.filter((origin) => origin === 'cosmic-horror')).toHaveLength(3);
     expect(origins.filter((origin) => origin === 'magic')).toHaveLength(3);
+  });
+});
+
+describe('the equipment catalogue (pp. 37–53)', () => {
+  const entries = Object.entries(EQUIPMENT) as [ItemId, ItemRules][];
+
+  it('gives the three grades their modifiers (pg. 37)', () => {
+    expect(GRADES).toEqual(['shoddy', 'standard', 'quality']);
+    expect(GRADE_MODIFIER).toEqual({ shoddy: -1, standard: 0, quality: 1 });
+  });
+
+  it('prices the nine core weapons as the table does (pg. 41)', () => {
+    const rows = CORE_WEAPONS.map((id) => {
+      const weapon: ItemRules = EQUIPMENT[id];
+      const build = weapon.build as PricedBuild;
+
+      return [
+        id,
+        weapon.uses,
+        build.hardware.standard,
+        build.hardware.quality,
+        build.labor,
+        build.requires,
+        weapon.trade?.standard,
+      ];
+    });
+
+    expect(rows).toEqual([
+      ['pistol', ['handguns'], 3, 6, 2, { upgrades: ['gunsmith'] }, 6],
+      ['revolver', ['handguns'], 3, 6, 2, { upgrades: ['gunsmith'] }, 6],
+      ['rifle', ['long-guns'], 4, 7, 3, { upgrades: ['gunsmith'] }, 7],
+      ['shotgun', ['long-guns'], 4, 7, 3, { upgrades: ['gunsmith'] }, 7],
+      ['bow', ['archery'], 2, 5, 2, { facilities: ['workshop'] }, 5],
+      ['crossbow', ['archery'], 3, 6, 3, { facilities: ['workshop'] }, 6],
+      ['blunt', ['blunt-weapon'], 1, 4, 1, { facilities: ['workshop'] }, 4],
+      ['bladed', ['blade-weapon'], 2, 5, 2, { upgrades: ['metal-shop'] }, 5],
+      ['heavy', ['heavy-weapon'], 2, 5, 2, { upgrades: ['metal-shop'] }, 5],
+    ]);
+  });
+
+  it('gives every core weapon all three grades and one slot (pp. 9–10, 38)', () => {
+    for (const id of CORE_WEAPONS) {
+      const weapon: ItemRules = EQUIPMENT[id];
+
+      expect(weapon.grades, id).toEqual(['shoddy', 'standard', 'quality']);
+      expect(weapon.slots, id).toBe(1);
+    }
+  });
+
+  it('hands out shoddy only where a skill gives it free: weapons, the tool belt, traps (pp. 9–11, 37)', () => {
+    expect(entries.filter(([, item]) => item.grades.includes('shoddy')).map(([id]) => id)).toEqual([
+      ...CORE_WEAPONS,
+      'tool-belt',
+      'trap',
+    ]);
+  });
+
+  it('keeps origin items to the standard grade (pg. 37)', () => {
+    for (const [id, item] of entries) {
+      if (item.origin !== undefined) expect(item.grades, id).toEqual(['standard']);
+    }
+  });
+
+  it('prices only the grades an item exists in', () => {
+    for (const [id, item] of entries) {
+      const grades: readonly string[] = item.grades;
+      const build = item.build?.kind === 'priced' ? Object.keys(item.build.hardware) : [];
+
+      for (const grade of [...build, ...Object.keys(item.trade ?? {})]) {
+        expect(grades, `${id} ${grade}`).toContain(grade);
+      }
+    }
+  });
+
+  it('gives each quality-only item one +1, to the skill it needs (pg. 44; R39)', () => {
+    for (const id of [
+      'backpack',
+      'breaching-tool',
+      'burglar-tools',
+      'walkie-talkie',
+      'binoculars',
+    ] as const) {
+      const item: ItemRules = EQUIPMENT[id];
+
+      expect(item.grades, id).toEqual(['quality']);
+      expect(item.adds, id).toEqual({ quality: { scores: { [item.needs as string]: 1 } } });
+    }
+  });
+
+  it('takes no slot for worn gear, the tool belt, traps, attachments or a backpack (pp. 44–46, 50; R36)', () => {
+    const none = entries.filter(([, item]) => item.slots === 0).map(([id]) => id);
+
+    expect(none).toEqual(
+      expect.arrayContaining([
+        'tool-belt',
+        'backpack',
+        'resistance-charm',
+        'improvised-armor',
+        'improvised-shield',
+        'reinforced-clothing',
+        'knee-pads',
+        'trap',
+        'persistent-trap',
+        'lure-trap',
+        'persistent-lure-trap',
+        'pistol-suppressor',
+        'bayonet',
+      ]),
+    );
+    expect(EQUIPMENT['breaching-tool'].slots).toBe(2);
+  });
+
+  it('names only real items as what an attachment fits or a holster holds', () => {
+    for (const [id, item] of entries) {
+      for (const other of [...(item.attachesTo ?? []), ...(item.holdsWithoutSlot?.items ?? [])]) {
+        expect(ITEM_IDS, `${id} → ${other}`).toContain(other);
+      }
+    }
+  });
+
+  /** `shoddyOffers` reads one or the other, which holds while this does. */
+  it('names the skills an item is used with, or the one it needs, never both', () => {
+    for (const [id, item] of entries) {
+      expect(item.uses !== undefined && item.needs !== undefined, id).toBe(false);
+    }
+  });
+
+  /** `itemCap` takes the first cap it finds, which holds while this does. */
+  it('caps a Score only with the tool belt, alike at every grade (pg. 44)', () => {
+    expect(entries.filter(([, item]) => item.caps !== undefined).map(([id]) => id)).toEqual([
+      'tool-belt',
+    ]);
+    expect(EQUIPMENT['tool-belt'].caps).toEqual({ stealth: 3 });
+  });
+
+  it('installs each rare upgrade as an upgrade its facility really has (pg. 49)', () => {
+    for (const [id, item] of entries) {
+      const installs = item.installs;
+      if (installs?.countsAs === undefined) continue;
+
+      const upgrades: Facility['upgrades'] = FACILITIES[installs.facility].upgrades;
+      expect(
+        upgrades.map((upgrade) => upgrade.id),
+        id,
+      ).toContain(installs.countsAs);
+    }
+  });
+
+  it('cites every item inside the skills or the equipment chapter', () => {
+    for (const [id, item] of entries) {
+      const pages = String(item.pages)
+        .split(/[^0-9]+/)
+        .filter((part) => part !== '')
+        .map(Number);
+
+      expect(pages.length, id).toBeGreaterThan(0);
+      for (const page of pages) {
+        expect(
+          (page >= 9 && page <= 11) || (page >= 37 && page <= 53),
+          `${id} pg. ${String(page)}`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  describe('the Rare Item Table (pg. 43)', () => {
+    it('sends every d10 to exactly one subtable', () => {
+      const rolls = RARE_ITEM_CATEGORIES.flatMap((category) => [...category.rolls]).sort(
+        (one, other) => one - other,
+      );
+
+      expect(rolls).toEqual([...D10_RESULTS]);
+    });
+
+    it('has ten entries on each subtable, each an item of the subtable’s kind', () => {
+      const kinds: Record<RareSubtable, readonly string[]> = {
+        'rare-upgrade': ['rare-upgrade', 'vehicle-upgrade'],
+        'rare-equipment': ['rare-equipment'],
+        'rare-weapon': ['rare-weapon'],
+        'quality-item': ['weapon', 'equipment'],
+      };
+
+      for (const [subtable, rows] of Object.entries(RARE_ITEM_TABLE) as [
+        RareSubtable,
+        readonly RareItemEntry[],
+      ][]) {
+        expect(rows, subtable).toHaveLength(10);
+        for (const row of rows) {
+          expect(kinds[subtable], `${subtable} ${row.item}`).toContain(EQUIPMENT[row.item].kind);
+        }
+      }
+    });
+
+    it('sells each rare item at its own price, and each Quality Item at quality', () => {
+      for (const row of [
+        ...RARE_ITEM_TABLE['rare-upgrade'],
+        ...RARE_ITEM_TABLE['rare-equipment'],
+        ...RARE_ITEM_TABLE['rare-weapon'],
+      ]) {
+        const item: ItemRules = EQUIPMENT[row.item];
+        expect(item.trade?.standard, row.item).toBe(row.price);
+      }
+
+      for (const row of RARE_ITEM_TABLE['quality-item']) {
+        const grades: readonly string[] = EQUIPMENT[row.item].grades;
+
+        expect(row.grade).toBe('quality');
+        expect(grades, row.item).toContain('quality');
+      }
+    });
+
+    it('prints the Quality Item prices as the subtable does, not the equipment table', () => {
+      expect(RARE_ITEM_TABLE['quality-item'].map((row) => row.price)).toEqual([
+        7, 6, 8, 8, 8, 9, 9, 7, 8, 6,
+      ]);
+    });
+  });
+
+  it('gives each vehicle Tier its slots (pg. 53)', () => {
+    expect(VEHICLE_SLOTS).toEqual({
+      1: { inventory: 2, passengers: 2 },
+      2: { inventory: 6, passengers: 4 },
+      3: { inventory: 10, passengers: 6 },
+      4: { total: 20 },
+    });
   });
 });

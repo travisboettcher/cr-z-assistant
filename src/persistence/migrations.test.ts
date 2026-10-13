@@ -25,6 +25,7 @@ const SAMPLE_SURVIVOR = {
   currentHp: 3,
   infection: 0,
   xp: 5,
+  items: [],
 } satisfies Survivor;
 
 /**
@@ -573,5 +574,68 @@ describe('the v14 to v15 set-aside list', () => {
     if (!result.ok) return;
 
     expect(result.campaign.setAside).toEqual([SAMPLE_SURVIVOR]);
+  });
+});
+
+/** The base's Inventory and what each survivor carries (Z5-2). */
+describe('the v15 to v16 items', () => {
+  it('brings every earlier save forward with nothing owned, by the base or anybody', () => {
+    for (const fixture of fixtures.filter((f) => f.version < 16)) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok) continue;
+
+      // Empty rather than anything inferred: a v15 build had no items at all.
+      expect(result.campaign.inventory, fixture.path).toEqual([]);
+      for (const survivor of [...result.campaign.survivors, ...result.campaign.setAside]) {
+        expect(survivor.items, `${fixture.path} ${survivor.name}`).toEqual([]);
+      }
+    }
+  });
+
+  it('keeps a v16 save’s own items', () => {
+    const v16 = fixtures.find((fixture) => fixture.version === 16);
+    const result = migrate(v16?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.inventory.map((item) => item.item)).toEqual(['pistol', 'binoculars']);
+    expect(result.campaign.survivors[0]?.items.map((item) => item.grade)).toEqual([
+      'shoddy',
+      'standard',
+    ]);
+  });
+
+  it('hands an unreadable roster or set-aside list on untouched', () => {
+    const v15 = fixtures.find((fixture) => fixture.version === 15);
+    const result = migrate({
+      ...(v15?.contents as object),
+      survivors: 'everybody',
+      setAside: [7],
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.survivors).toBe('everybody');
+    expect(result.campaign.setAside).toEqual([7]);
+  });
+
+  it('leaves an Inventory, or a survivor’s items, that are already there alone', () => {
+    const v15 = fixtures.find((fixture) => fixture.version === 15);
+    const pistol = { id: 'p', item: 'pistol', grade: 'standard' };
+    const result = migrate({
+      ...(v15?.contents as object),
+      inventory: [pistol],
+      survivors: [{ ...SAMPLE_SURVIVOR, items: [pistol] }],
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.inventory).toEqual([pistol]);
+    expect(result.campaign.survivors[0]?.items).toEqual([pistol]);
   });
 });

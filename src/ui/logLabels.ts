@@ -31,6 +31,7 @@ import {
   slotLabel,
 } from './baseLabels';
 import { MISSIONS } from '../data/missions';
+import { describeItem, holderLabel } from './equipmentLabels';
 import { describeOutcome, describeSelection, OVERRUN_LABELS, outcomePages } from './missionLabels';
 import { PHASE_LABELS } from './turnLabels';
 import { COMMON_SKILL_LABELS, SKILL_LABELS } from './skillLabels';
@@ -414,6 +415,24 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
             : ' What the community had added can be built again without Hardware.'
         }`,
         pages: event.setAside.length === 0 ? 79 : '54, 79',
+      };
+
+    case 'item-added':
+      return { text: `Added to the base’s Inventory: ${describeItem(event)}.`, pages: 18 };
+
+    case 'item-removed':
+      return { text: `Taken out of the base’s Inventory: ${describeItem(event)}.`, pages: 18 };
+
+    case 'items-spent':
+      return {
+        text: `Mission team ${String(event.team)} used up or lost: ${event.items.map((one) => `${one.name}’s ${describeItem(one)}`).join(', ')}.`,
+        pages: '40, 45–48',
+      };
+
+    case 'item-moved':
+      return {
+        text: `Equipped: ${describeItem(event)}, from ${holderLabel(event.from)} to ${holderLabel(event.to)}.`,
+        pages: event.from === 'free' || event.to === 'free' ? '18, 37' : 18,
       };
 
     case 'community-abandoned':

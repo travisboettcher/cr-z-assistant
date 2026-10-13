@@ -40,6 +40,7 @@
 
 import type { BaseId } from '../data/bases';
 import type { D10Result } from '../data/dice';
+import type { Grade, ItemId } from '../data/equipment';
 import type { FacilityId, UpgradeId } from '../data/facilities';
 import type { Material, Materials } from '../data/materials';
 import type { MissionId, OverrunOption } from '../data/missions';
@@ -89,6 +90,21 @@ export interface RebuildSlot {
   /** The upgrades on whatever stood there, a built-in facility's included. */
   readonly upgrades: readonly UpgradeId[];
 }
+
+/** One item a mission used up or lost, and who had it (Z5-5). */
+export interface SpentItem {
+  readonly id: string;
+  readonly item: ItemId;
+  readonly grade: Grade;
+  readonly survivor: string;
+  readonly name: string;
+}
+
+/**
+ * One end of an item's move (Z5-4): the base's Inventory, the free supply of
+ * shoddy gear (R35), or a survivor, named as they were.
+ */
+export type ItemHolder = 'base' | 'free' | { readonly survivor: string; readonly name: string };
 
 /**
  * One thing that happened.
@@ -730,6 +746,45 @@ export type CampaignEvent =
       readonly score: number;
     }
   | { readonly kind: 'base-claimed'; readonly base: BaseId }
+  /**
+   * An item put into the base's Inventory by hand (Z5-2), for a table bringing
+   * a campaign in part-way through or correcting it. Items that arrive by the
+   * rules — built, found, traded — have entries of their own (Phase 5, parts 2
+   * and 3).
+   */
+  | {
+      readonly kind: 'item-added';
+      readonly id: string;
+      readonly item: ItemId;
+      readonly grade: Grade;
+    }
+  /** An item taken out of the base's Inventory by hand (Z5-2). */
+  | {
+      readonly kind: 'item-removed';
+      readonly id: string;
+      readonly item: ItemId;
+      readonly grade: Grade;
+    }
+  /**
+   * An item moved at Equip Mission Team (pg. 18; R38; Z5-4): from the base's
+   * Inventory, a survivor, or — for shoddy gear — the free supply every
+   * survivor with the skill has (R35), to another of those. Each end names the
+   * survivor as they were, for a history that outlives them.
+   */
+  /**
+   * What a team's mission used up or lost (pp. 40, 45–48; R37; Z5-5): the
+   * disposables thrown, the one-mission gear that goes whatever happens, and
+   * anything the table says was lost. Each is gone from its survivor.
+   */
+  | { readonly kind: 'items-spent'; readonly team: number; readonly items: readonly SpentItem[] }
+  | {
+      readonly kind: 'item-moved';
+      readonly id: string;
+      readonly item: ItemId;
+      readonly grade: Grade;
+      readonly from: ItemHolder;
+      readonly to: ItemHolder;
+    }
   /**
    * How the community goes on from a base its Siege Defense overran (pg. 86;
    * Z4-9): the player's decision, written beside the outcome rather than on it,

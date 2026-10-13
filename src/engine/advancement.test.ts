@@ -25,6 +25,7 @@ const CARLA = {
   currentHp: 3,
   infection: 0,
   xp: 20,
+  items: [],
 } satisfies Survivor;
 
 /** A Tier 2 Citizen with the 2 deliberately not in the first stat. */
@@ -39,6 +40,7 @@ const MARCUS = {
   currentHp: 2,
   infection: 0,
   xp: 20,
+  items: [],
 } satisfies Survivor;
 
 /** A Rookie's 1/0/0/0, with the point on Intelligence: three zeros to choose from. */

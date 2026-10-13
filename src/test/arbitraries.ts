@@ -25,6 +25,7 @@ import { COMMON_SKILLS, SKILLS, STATS, type Skill } from '../data/skills';
 import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS, type Materials } from '../data/materials';
+import { EQUIPMENT, GRADES, ITEM_IDS } from '../data/equipment';
 import { OVERRUN_OPTIONS } from '../data/missions';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { MISSIONS, type MissionId } from '../data/missions';
@@ -36,6 +37,7 @@ import type {
   Assignment,
   Base,
   Campaign,
+  Item,
   Project,
   SkillLevels,
   SlotState,
@@ -73,6 +75,12 @@ const anyName = fc.string({ unit: anyCodeUnit, maxLength: 40 });
 
 /** An id, which the parser requires to be a non-empty string and nothing more. */
 const anyId = fc.string({ unit: anyCodeUnit, minLength: 1, maxLength: 40 });
+
+/** One end of an item's move at Equip Mission Team (Z5-4). */
+const anyHolder = fc.oneof(
+  fc.constantFrom('base' as const, 'free' as const),
+  fc.record({ survivor: anyId, name: anyName }),
+);
 
 /**
  * A count the save-file parser accepts: a whole number, zero or more.
@@ -169,7 +177,29 @@ export function survivorArbitrary(): fc.Arbitrary<Survivor> {
     currentHp: anyCount,
     infection: anyCount,
     xp: anyCount,
+    items: fc.array(itemArbitrary(), { maxLength: 2 }),
   });
+}
+
+/** An item in a grade it comes in (Z5-2). */
+export function itemArbitrary(): fc.Arbitrary<Item> {
+  return fc.constantFrom(...ITEM_IDS).chain((item) =>
+    fc.record({
+      id: anyId,
+      item: fc.constant(item),
+      grade: fc.constantFrom(...EQUIPMENT[item].grades),
+    }),
+  );
+}
+
+/** Whether no item id is held in two places, which the save reader refuses (Z5-2). */
+function itemIdsDistinct(campaign: Omit<Campaign, 'assignments'>): boolean {
+  const ids = [
+    ...campaign.inventory,
+    ...[...campaign.survivors, ...campaign.setAside].flatMap((survivor) => survivor.items),
+  ].map((item) => item.id);
+
+  return new Set(ids).size === ids.length;
 }
 
 function materialsArbitrary(): fc.Arbitrary<Materials> {
@@ -521,6 +551,36 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       setAside: fc.array(fc.record({ survivor: anyId, name: anyName }), { maxLength: 2 }),
     }),
     fc.record({ kind: fc.constant('survivor-returned' as const), survivor: anyId, name: anyName }),
+    ...(['item-added', 'item-removed'] as const).map((kind) =>
+      fc.record({
+        kind: fc.constant(kind),
+        id: anyId,
+        item: fc.constantFrom(...ITEM_IDS),
+        grade: fc.constantFrom(...GRADES),
+      }),
+    ),
+    fc.record({
+      kind: fc.constant('items-spent' as const),
+      team: fc.integer({ min: 1, max: 4 }),
+      items: fc.array(
+        fc.record({
+          id: anyId,
+          item: fc.constantFrom(...ITEM_IDS),
+          grade: fc.constantFrom(...GRADES),
+          survivor: anyId,
+          name: anyName,
+        }),
+        { maxLength: 2 },
+      ),
+    }),
+    fc.record({
+      kind: fc.constant('item-moved' as const),
+      id: anyId,
+      item: fc.constantFrom(...ITEM_IDS),
+      grade: fc.constantFrom(...GRADES),
+      from: anyHolder,
+      to: anyHolder,
+    }),
     fc.record({
       kind: fc.constant('facility-built' as const),
       slot: anyId,
@@ -662,6 +722,11 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
           materials: materialsArbitrary(),
           survivors: fc.array(survivorArbitrary(), { maxLength: 6 }),
           setAside: fc.array(survivorArbitrary(), { maxLength: 2 }),
+          // Never shoddy: the base owns no shoddy item (R35).
+          inventory: fc.array(
+            itemArbitrary().filter((item) => item.grade !== 'shoddy'),
+            { maxLength: 3 },
+          ),
           startingCommunityBuilt: fc.boolean(),
           // Half the campaigns have claimed a base and half have not; null is a
           // real state and a round trip can get it wrong by writing `{}`.
@@ -686,6 +751,7 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
             'materials',
             'survivors',
             'setAside',
+            'inventory',
             'startingCommunityBuilt',
             'base',
             'log',
@@ -693,9 +759,12 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
         },
       )
       // Nobody both in the community and set aside, which the save reader
-      // refuses: one id would name two people (R31).
-      .filter((campaign) =>
-        campaign.setAside.every((gone) => !campaign.survivors.some((one) => one.id === gone.id)),
+      // refuses: one id would name two people (R31). Likewise an item (Z5-2).
+      .filter(
+        (campaign) =>
+          campaign.setAside.every(
+            (gone) => !campaign.survivors.some((one) => one.id === gone.id),
+          ) && itemIdsDistinct(campaign),
       )
   );
 }

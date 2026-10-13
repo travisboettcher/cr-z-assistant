@@ -27,6 +27,7 @@ where a new screen goes, how empty states and turn 1 guide a player, and what am
 
 - `App.tsx`: the shell, and which modal is open (UI state, never campaign state).
 - `CommunitySummary.tsx`: the cards beside the turn. `CampaignMenu.tsx`: the header menu.
+- `InventoryPanel.tsx`: the base's Inventory, opened from its card (Phase 5).
 - `Modal.tsx`: the one modal every editor opens in. `OpenPanel.tsx`: how a step opens one.
 - `GettingStarted.tsx`: turn 1's checklist.
 

@@ -54,6 +54,7 @@ function playableSurvivorArbitrary(): fc.Arbitrary<Survivor> {
     // Nothing in advancement reads it; any value a Viral campaign can hold.
     infection: fc.integer({ min: 0, max: 10 }),
     xp: fc.integer({ min: 0, max: 40 }),
+    items: fc.constant([]),
   });
 }
 

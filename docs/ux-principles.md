@@ -30,9 +30,9 @@ from that.
 │ Getting started (turn 1 only)          │ Survivors   [Manage]│
 │                                        │ Base          [Open]│  summary: who and where
 │ The turn walk                          │ Materials     [Edit]│
-│   phases · steps · this step           │                     │
+│   phases · steps · this step           │ Inventory     [Open]│
 └────────────────────────────────────────┴─────────────────────┘
-        opens over it ─▶  [ modal: roster / base / materials / log / file ]
+   opens over it ─▶  [ modal: roster / base / materials / inventory / log / file ]
 ```
 
 1. **The header says where the table is**: the campaign, the turn, the phase and the step. It is
@@ -41,8 +41,9 @@ from that.
    campaign has been exported, and which build is running.
 2. **The turn walk is the screen.** It takes the main column, because "what do we do now" is the
    question the app exists to answer.
-3. **The community summary sits beside it.** It has three cards: survivors, base and materials. On
-   a portrait tablet they become a row of three above the turn. They hold the numbers a player
+3. **The community summary sits beside it.** It has four cards: survivors, base, materials and the
+   base's Inventory. On a portrait tablet they become a row of four above the turn, and two by two
+   on anything narrower. They hold the numbers a player
    looks up mid-turn without wanting to go anywhere.
 4. **Anything that edits opens in a modal** over that screen, and closes back to it.
 

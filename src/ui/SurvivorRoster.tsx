@@ -22,6 +22,7 @@ import {
 import { TIERS, type Tier } from '../data/tiers';
 import type { Campaign, Survivor } from '../engine/campaign';
 import { communityViolations } from '../engine/legality';
+import { slotsInUse } from '../engine/equipment';
 import { communityTierLevels, inventorySlots, maxHp } from '../engine/survivor';
 import { hungerPenalty } from '../engine/feeding';
 import { useCampaign } from '../state/useCampaign';
@@ -508,7 +509,9 @@ function RosterRow({ survivor, penalty, onRename, onRemove, onOpenSheet }: Roste
         </div>
         <div>
           <dt className="text-stone-500 dark:text-stone-400">Slots</dt>
-          <dd className="font-semibold tabular-nums">{inventorySlots(survivor, penalty)}</dd>
+          <dd className="font-semibold tabular-nums">
+            {slotsInUse(survivor)} / {inventorySlots(survivor, penalty)}
+          </dd>
         </div>
       </dl>
 

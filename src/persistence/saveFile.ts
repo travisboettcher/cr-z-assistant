@@ -21,6 +21,7 @@ import { COMMON_SKILLS, SKILL_STATS, STATS } from '../data/skills';
 import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS } from '../data/materials';
+import { EQUIPMENT, GRADES, type ItemId } from '../data/equipment';
 import { MISSIONS, OVERRUN_OPTIONS } from '../data/missions';
 import { FIELD_RECRUITABLE_TIERS } from '../data/recruitTable';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
@@ -94,6 +95,36 @@ function isCountFromZero(value: unknown): boolean {
  * So: is `tier` one of the four Tiers, are the stats present and countable, are
  * the skill keys skills that exist. Not: is any of it a legal survivor.
  */
+/**
+ * What is wrong with one item, or `null` (Z5-2): an id, an entry in the
+ * catalogue, and a grade that entry exists in (pg. 37).
+ */
+function describeItemProblem(value: unknown): string | null {
+  if (!isRecord(value)) return 'is not an item';
+  if (typeof value.id !== 'string' || value.id === '') return 'has no id';
+  if (typeof value.item !== 'string' || !isKeyOf(EQUIPMENT, value.item)) {
+    return `is an item this version does not know: ${String(value.item)}`;
+  }
+
+  const grades: readonly unknown[] = EQUIPMENT[value.item as ItemId].grades;
+  if (!grades.includes(value.grade))
+    return `is ${String(value.item)} in a grade it does not come in`;
+
+  return null;
+}
+
+/** The first problem with a list of items, naming which, or `null`. */
+function describeItemsProblem(value: unknown): string | null {
+  if (!Array.isArray(value)) return 'is not a list';
+
+  for (const [index, item] of value.entries()) {
+    const problem = describeItemProblem(item);
+    if (problem !== null) return `item ${String(index + 1)} of ${String(value.length)} ${problem}`;
+  }
+
+  return null;
+}
+
 function describeSurvivorProblem(value: unknown): string | null {
   if (!isRecord(value)) return 'is not a survivor';
 
@@ -123,6 +154,11 @@ function describeSurvivorProblem(value: unknown): string | null {
   // (pg. 123), and what is above it is a table's typing, not a damaged file.
   if (!isCountFromZero(value.infection)) return 'has unreadable infection';
   if (!isCountFromZero(value.xp)) return 'has unreadable experience';
+
+  // What they carry (Z5-2). A current-version survivor with no list is damaged
+  // rather than old: the v15 → v16 step is what fills it in.
+  const items = describeItemsProblem(value.items);
+  if (items !== null) return `carries a list that ${items}`;
 
   return null;
 }
@@ -351,6 +387,35 @@ const EVENT_FIELD_CHECKS = {
   optionalIds: (value: unknown) =>
     value === undefined ||
     (Array.isArray(value) && value.every((one) => typeof one === 'string' && one !== '')),
+  // An item in the catalogue, and one of the three grades (Z5-2). Whether the
+  // item comes in that grade is the item's own check, on the Inventory.
+  itemId: (value: unknown) => typeof value === 'string' && isKeyOf(EQUIPMENT, value),
+  grade: (value: unknown) => GRADES.some((grade) => grade === value),
+  // What a mission used up (Z5-5): each item by id, catalogue entry and grade,
+  // and who had it. History, so not held to the roster.
+  spentItems: (value: unknown) =>
+    Array.isArray(value) &&
+    value.every(
+      (one) =>
+        isRecord(one) &&
+        typeof one.id === 'string' &&
+        one.id !== '' &&
+        typeof one.item === 'string' &&
+        isKeyOf(EQUIPMENT, one.item) &&
+        GRADES.some((grade) => grade === one.grade) &&
+        typeof one.survivor === 'string' &&
+        one.survivor !== '' &&
+        typeof one.name === 'string',
+    ),
+  // One end of an item's move (Z5-4): the base, the free shoddy supply, or a
+  // survivor by id and name. Not held to the roster, since this is history.
+  holder: (value: unknown) =>
+    value === 'base' ||
+    value === 'free' ||
+    (isRecord(value) &&
+      typeof value.survivor === 'string' &&
+      value.survivor !== '' &&
+      typeof value.name === 'string'),
   optionalFlag: (value: unknown) => value === undefined || typeof value === 'boolean',
   overrunOption: (value: unknown) => OVERRUN_OPTIONS.some((option) => option === value),
   optionalBase: (value: unknown) =>
@@ -606,6 +671,27 @@ const EVENT_FIELDS: Record<
     ['rebuild', 'optionalRebuild'],
   ],
   'overrun-continued': [['option', 'overrunOption']],
+  'item-added': [
+    ['id', 'id'],
+    ['item', 'itemId'],
+    ['grade', 'grade'],
+  ],
+  'item-removed': [
+    ['id', 'id'],
+    ['item', 'itemId'],
+    ['grade', 'grade'],
+  ],
+  'items-spent': [
+    ['team', 'countFromOne'],
+    ['items', 'spentItems'],
+  ],
+  'item-moved': [
+    ['id', 'id'],
+    ['item', 'itemId'],
+    ['grade', 'grade'],
+    ['from', 'holder'],
+    ['to', 'holder'],
+  ],
   'community-abandoned': [['setAside', 'survivorRefs']],
   'survivor-returned': [
     ['survivor', 'id'],
@@ -855,6 +941,30 @@ function describeCampaignProblem(value: unknown): string | null {
       return `it has somebody both in the community and set aside: ${id}`;
     }
   }
+
+  // The base's Inventory (Z5-2), which never holds a shoddy item: shoddy gear
+  // is free and unlimited, so nobody owns one (R35).
+  const inventory = describeItemsProblem(value.inventory);
+  if (inventory !== null) return `its Inventory ${inventory}`;
+  if (
+    (value.inventory as readonly { readonly grade: unknown }[]).some(
+      (item) => item.grade === 'shoddy',
+    )
+  ) {
+    return 'its Inventory holds a shoddy item, which nobody owns';
+  }
+
+  // One id names one thing, wherever it is held.
+  const held = [value.inventory, value.survivors, value.setAside].flatMap((list, at) =>
+    at === 0
+      ? (list as readonly { readonly id: string }[])
+      : (list as readonly { readonly items: readonly { readonly id: string }[] }[]).flatMap(
+          (survivor) => survivor.items,
+        ),
+  );
+  const ids = held.map((item) => item.id);
+  const repeated = ids.find((id, at) => ids.indexOf(id) !== at);
+  if (repeated !== undefined) return `it holds two items with one id: ${repeated}`;
 
   if (typeof value.startingCommunityBuilt !== 'boolean') {
     return 'it does not say whether its starting community is finished';

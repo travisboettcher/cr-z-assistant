@@ -5,6 +5,8 @@ import { createSurvivor, recruitSurvivor } from './survivor';
 import {
   submitAdvance,
   submitBaseClaim,
+  submitItemAdded,
+  submitItemRemoved,
   submitNewSurvivor,
   submitRecruit,
   submitRemoval,
@@ -459,6 +461,57 @@ describe('submitReturn', () => {
   it('refuses with the engine’s reason', () => {
     expect(expectRefused(submitReturn(broughtBack(true), 'june', AT))).toMatch(
       /brought back this turn/,
+    );
+  });
+});
+
+/** Items put into and taken out of the base's Inventory by hand (Z5-2). */
+describe('submitItemAdded and submitItemRemoved', () => {
+  it('adds the item, and says so', () => {
+    const after = expectAccepted(
+      submitItemAdded(
+        opened('assign-project-team', 3),
+        { id: 'item-1', item: 'pistol', grade: 'standard' },
+        AT,
+      ),
+    );
+
+    expect(after.inventory).toEqual([{ id: 'item-1', item: 'pistol', grade: 'standard' }]);
+    expect(after.log.at(-1)?.event).toStrictEqual({
+      kind: 'item-added',
+      id: 'item-1',
+      item: 'pistol',
+      grade: 'standard',
+    });
+  });
+
+  it('takes the item out, and says what it was', () => {
+    const stocked = {
+      ...opened('assign-project-team', 3),
+      inventory: [
+        { id: 'item-1', item: 'pistol', grade: 'standard' },
+        { id: 'item-2', item: 'binoculars', grade: 'quality' },
+      ],
+    } satisfies Campaign;
+    const after = expectAccepted(submitItemRemoved(stocked, 'item-2', AT));
+
+    expect(after.inventory).toEqual([{ id: 'item-1', item: 'pistol', grade: 'standard' }]);
+    expect(after.log.at(-1)?.event).toStrictEqual({
+      kind: 'item-removed',
+      id: 'item-2',
+      item: 'binoculars',
+      grade: 'quality',
+    });
+  });
+
+  it('refuses with the engine’s reasons', () => {
+    expect(
+      expectRefused(
+        submitItemAdded(opened('select-mission'), { id: 'x', item: 'pistol', grade: 'shoddy' }, AT),
+      ),
+    ).toMatch(/R35/);
+    expect(expectRefused(submitItemRemoved(opened('select-mission'), 'nothing', AT))).toMatch(
+      /Only an item in the base/,
     );
   });
 });
