@@ -16,6 +16,7 @@ import {
   scavengeNeedsAChoice,
   scavenged,
   scavenger,
+  scavengerStoodDown,
   substitutionUses,
   substitutionsSpent,
   withMaterialsAdded,
@@ -585,6 +586,38 @@ describe('scavenging', () => {
     it('is nothing at all when nobody scavenged', () => {
       expect(scavenged(community(), 'food')).toEqual(noMaterials());
       expect(scavengeNeedsAChoice(community())).toBe(false);
+    });
+  });
+
+  /**
+   * Planning assigns before Check the Horde can call a siege (pg. 21), and a
+   * siege is the turn's mission, which the whole community deploys to
+   * (pp. 23, 85): R42, #199.
+   */
+  describe('on a siege turn', () => {
+    const called: LogEntry = {
+      turn: 2,
+      phase: 'management',
+      at: AT,
+      event: { kind: 'horde-checked', roll: 10, threat: 6, siege: true },
+    };
+    const besieged = (survivor: ReturnType<typeof createSurvivor>): Campaign => ({
+      ...scavenging(survivor),
+      log: [called],
+    });
+
+    it('has no scavenger, and names who was stood down', () => {
+      expect(scavenger(besieged(withScavenge(EARL)))).toBeUndefined();
+      expect(scavengerStoodDown(besieged(withScavenge(EARL)))?.id).toBe(EARL);
+      expect(scavengerStoodDown(scavenging(withScavenge(EARL)))).toBeUndefined();
+    });
+
+    it('brings back nothing, and asks for no choice', () => {
+      const plain = besieged(createSurvivor('Carla Proust', 1, { id: EARL }));
+
+      expect(scavenged(besieged(withScavenge(EARL)))).toEqual(noMaterials());
+      expect(scavenged(plain, 'food')).toEqual(noMaterials());
+      expect(scavengeNeedsAChoice(plain)).toBe(false);
     });
   });
 });

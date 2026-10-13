@@ -844,3 +844,19 @@ reasons the app cannot see.
 build, staff or sleep, and every base-dependent number reads as zero until a base is claimed.
 
 *Decided 2026-10-13.*
+
+## R42 — Nobody scavenges on a siege turn
+
+**pp. 17, 21, 23, 85; the FAQ; [#199](https://github.com/travisboettcher/cr-z-assistant/issues/199).**
+Scavenging pays when the community skips its mission (pg. 17). The Planning Phase assigns a
+scavenger before Check the Horde can call a siege (pg. 21), so one can stand assigned on the turn a
+siege is fought — and a siege skips nothing: it is the turn's mission, and the whole community
+deploys to it (pp. 23, 85). The FAQ entry "Siege Defense and Labor", read as keeping the rest of
+the community's work going during a siege, could be taken to keep the scavenger's find too.
+
+**The ruling is that a scavenger finds nothing on a siege turn.** They deploy with everybody else,
+and the haul says so.
+
+**What it costs.** A table reading the FAQ the other way loses the scavenger's find that turn.
+
+*Decided 2026-10-13.*

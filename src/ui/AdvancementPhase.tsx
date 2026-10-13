@@ -35,6 +35,7 @@ import {
   materialsAdded,
   recovered,
   scavengeNeedsAChoice,
+  scavengerStoodDown,
   scavenged,
   scavenger,
   scavengesEverything,
@@ -522,6 +523,7 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
   const gatheredCount = MATERIALS.reduce((sum, material) => sum + fromGathering[material], 0);
   const toRoll = gatheredToRoll(campaign);
   const scavenging = scavenger(campaign);
+  const stoodDown = scavengerStoodDown(campaign);
   const fromScavenging = scavenged(campaign, found);
   const total = combined(combined(combined(fromMission, fromGathering), fromBase), fromScavenging);
   const unchosen = scavengeNeedsAChoice(campaign, found);
@@ -628,6 +630,17 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
                 </p>
               )}
             </div>
+          )}
+
+          {/*
+           * Assigned to scavenge, but the siege deployed everybody (R42): said
+           * here, because a find that silently comes to nothing reads as a bug.
+           */}
+          {stoodDown !== undefined && (
+            <p className={`${HINT} mt-4`}>
+              {stoodDown.name} was assigned to scavenge, but the siege deployed the whole community,
+              so they bring back nothing <PageRef pages="17, 85" />
+            </p>
           )}
 
           {scavenging !== undefined && (

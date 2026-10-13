@@ -140,6 +140,33 @@ describe('submitHaul', () => {
     ]);
   });
 
+  /** A siege deployed the scavenger with everybody else (R42, #199). */
+  it('records no find for a scavenger on a siege turn', () => {
+    const after = expectAccepted(
+      submitHaul(
+        community({
+          survivors: [createSurvivor('Earl Rhodes', 3, { id: EARL })],
+          assignments: { [EARL]: { task: 'scavenging' } },
+          log: [
+            {
+              turn: 2,
+              phase: 'management',
+              at: AT,
+              event: { kind: 'horde-checked', roll: 10, threat: 6, siege: true },
+            },
+          ],
+        }),
+        { rolls: [], scavenged: 'rare' },
+        AT,
+      ),
+    );
+
+    expect(after.materials).toEqual({ food: 0, fuel: 0, hardware: 0, rare: 0 });
+    expect(events(after).slice(1)).toEqual([
+      { kind: 'materials-added', food: 0, fuel: 0, hardware: 0, rare: 0 },
+    ]);
+  });
+
   it('refuses a second haul in the same turn', () => {
     const once = expectAccepted(submitHaul(afterAMission(), { rolls: [{ roll: 4 }] }, AT));
 

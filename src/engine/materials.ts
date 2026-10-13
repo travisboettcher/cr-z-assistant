@@ -50,6 +50,7 @@ import { storageCaps } from './base';
 import { beforePlanning, staffOf, survivorsDoing } from './assignments';
 import { GATHERED_MATERIALS } from '../data/missions';
 import { deployed, outcomeTeam, teamOutcomes, turnMissions } from './missions';
+import { siegeDue } from './siege';
 import { whoWorked } from './siegeWork';
 import type { Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
@@ -154,9 +155,29 @@ export function baseProduction(campaign: Campaign): Materials {
  * One at most. Two would be a rule the Planning Phase warns about
  * (`someone-else-scavenging`) rather than refuses, so roster order picks — the
  * same answer `staffOf` gives an over-staffed facility, and stable.
+ *
+ * **Nobody on a siege turn** ([R42](../../docs/rulings.md)). Scavenging is what
+ * a community does instead of a mission (pg. 17), and a siege skips nothing:
+ * the whole community deploys to it (pp. 23, 85). Planning assigns before the
+ * horde is checked (pg. 21), so a scavenger can stand assigned on that turn;
+ * `scavengerStoodDown` names them for the screen. Every reader of who
+ * scavenged — the find, its choice, the haul's entry — asks this.
  */
 export function scavenger(campaign: Campaign): Survivor | undefined {
+  return siegeDue(campaign) ? undefined : assignedScavenger(campaign);
+}
+
+/** Whoever the Planning Phase assigned to scavenge, siege or not. */
+function assignedScavenger(campaign: Campaign): Survivor | undefined {
   return survivorsDoing(beforePlanning(campaign), (task) => task.task === 'scavenging')[0];
+}
+
+/**
+ * The survivor assigned to scavenge on a turn a siege deployed them instead,
+ * or `undefined` (R42) — so the haul can say why they found nothing.
+ */
+export function scavengerStoodDown(campaign: Campaign): Survivor | undefined {
+  return siegeDue(campaign) ? assignedScavenger(campaign) : undefined;
 }
 
 /**
@@ -182,12 +203,12 @@ export function scavengesEverything(survivor: Survivor): boolean {
  * Flat either way. The Scavenge Score scales nothing here, which is why the two
  * constants are counts rather than multipliers.
  *
- * Not conditioned on the mission actually being skipped. Mission setup is Phase
- * 4's and this app cannot see whether the community went out, so the Planning
- * Phase says the rule at the point of assignment — while a mission team is
- * assigned beside the scavenger (`scavenging-needs-the-mission-skipped`, #191)
- * — and this pays whoever was assigned: Z3-6's posture, where the walk guides
- * and does not refuse.
+ * Not conditioned on the mission actually being skipped, but for a siege:
+ * the Planning Phase says the rule at the point of assignment — while a mission
+ * team is assigned beside the scavenger (`scavenging-needs-the-mission-skipped`,
+ * #191) — and this pays whoever was assigned, Z3-6's posture, where the walk
+ * guides and does not refuse. A siege turn is the one the app can see, and
+ * `scavenger` has nobody on it (R42).
  */
 export function scavenged(campaign: Campaign, chosen?: Material): Materials {
   const survivor = scavenger(campaign);
