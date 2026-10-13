@@ -18,6 +18,18 @@ refuse, or hides something it would accept, is a bug in the screen.
 (`crypto.randomUUID()`) are taken at the moment of dispatch and carried on the action, so the
 reducer stays deterministic.
 
+## The layout
+
+One screen: the turn walk, a summary of the community beside it, and a modal for anything that
+edits. **The main screen summarises; a modal edits.** Read
+[`docs/ux-principles.md`](../../docs/ux-principles.md) before adding or moving a screen. It covers
+where a new screen goes, how empty states and turn 1 guide a player, and what amber means.
+
+- `App.tsx`: the shell, and which modal is open (UI state, never campaign state).
+- `CommunitySummary.tsx`: the cards beside the turn. `CampaignMenu.tsx`: the header menu.
+- `Modal.tsx`: the one modal every editor opens in. `OpenPanel.tsx`: how a step opens one.
+- `GettingStarted.tsx`: turn 1's checklist.
+
 ## Blockers, warnings and overrides
 
 A check returns blockers and warnings (`src/engine/checks.ts`), and the screen treats them
