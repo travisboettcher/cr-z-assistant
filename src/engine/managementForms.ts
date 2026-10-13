@@ -24,6 +24,7 @@ import { departureCandidates, someoneDeparted, withDeparture } from './departure
 import { foodRequired, hungerIfFedNow, survivorsFed, withSurvivorsFed } from './feeding';
 import { accepted, blockedBy, refused, type FormResult } from './forms';
 import { logged } from './log';
+import { withItemsLeftBehind } from './spent';
 import { checkBite, rotCheckResolved, rotOutcome, rotTarget, withRotApplied } from './rot';
 import { hordeChecked, hordeForced, siegeThreat, siegeTriggered } from './siege';
 import { overCap, storageChecked, withStorageChecked } from './storage';
@@ -84,6 +85,14 @@ export function submitRotCheck(campaign: Campaign, form: RotCheckForm, at: strin
 
   if (outcome.turned === null) return accepted(checked);
 
+  // What a survivor gone this way carried stays at the base (Z5-5), written
+  // after the entries that took them off the roster.
+  const gone = [
+    outcome.turned,
+    ...(outcome.bitten?.dies === true ? [outcome.bitten.survivor] : []),
+  ];
+  const behind = (result: Campaign) => accepted(withItemsLeftBehind(result, gone, at));
+
   const turned = logged(checked, at, {
     kind: 'survivor-left',
     survivor: outcome.turned.id,
@@ -98,7 +107,7 @@ export function submitRotCheck(campaign: Campaign, form: RotCheckForm, at: strin
    * first one was held.
    */
   if (outcome.restrained) {
-    return accepted(
+    return behind(
       logged(turned, at, {
         kind: 'bite-restrained',
         survivor: outcome.turned.id,
@@ -107,7 +116,7 @@ export function submitRotCheck(campaign: Campaign, form: RotCheckForm, at: strin
     );
   }
 
-  if (outcome.bitten === null) return accepted(turned);
+  if (outcome.bitten === null) return behind(turned);
 
   const bitten = logged(turned, at, {
     kind: 'survivor-bitten',
@@ -116,9 +125,9 @@ export function submitRotCheck(campaign: Campaign, form: RotCheckForm, at: strin
     damage: ROT_BITE_DAMAGE,
   });
 
-  if (!outcome.bitten.dies) return accepted(bitten);
+  if (!outcome.bitten.dies) return behind(bitten);
 
-  return accepted(
+  return behind(
     logged(bitten, at, {
       kind: 'survivor-left',
       survivor: outcome.bitten.survivor.id,
@@ -237,12 +246,17 @@ export function submitDeparture(campaign: Campaign, survivor: string, at: string
   const leaving = departureCandidates(campaign).find((candidate) => candidate.id === survivor);
   if (leaving === undefined) return refused('Only somebody the rule sends away can leave.');
 
+  // What they carried stays at the base until part 3 rules otherwise (Z5-5).
   return accepted(
-    logged(withDeparture(campaign, survivor), at, {
-      kind: 'survivor-departed',
-      survivor: leaving.id,
-      name: leaving.name,
-      tier: leaving.tier,
-    }),
+    withItemsLeftBehind(
+      logged(withDeparture(campaign, survivor), at, {
+        kind: 'survivor-departed',
+        survivor: leaving.id,
+        name: leaving.name,
+        tier: leaving.tier,
+      }),
+      [leaving],
+      at,
+    ),
   );
 }

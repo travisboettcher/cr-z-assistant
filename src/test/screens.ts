@@ -14,6 +14,7 @@ const CARDS = {
   survivors: /^survivors$/i,
   base: /^base$/i,
   materials: /^materials$/i,
+  inventory: /^inventory$/i,
 } as const;
 
 /**

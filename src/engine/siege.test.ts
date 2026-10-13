@@ -470,7 +470,10 @@ describe('a staffed Watchtower', () => {
       },
     });
 
-  /** A Tier 4's Dexterity is 3; Long Guns at level 3 is a Score of 6. */
+  /**
+   * A Tier 4's Dexterity is 3; Long Guns at level 3 is 6, and the shoddy gun she
+   * holds when she carries no better takes 1 off: a Score of 5 (pg. 14).
+   */
   const lookout = () => ({
     ...createSurvivor('Nell Haig', 4, { id: 'lookout' }),
     skills: { 'long-guns': 3 },
@@ -480,10 +483,11 @@ describe('a staffed Watchtower', () => {
     const empty = tower();
     const watched = staffedWith(empty, 'front-yard', [lookout()]);
 
-    expect(siegeThreatTerms(watched)['watched-from-above']).toBe(-6);
+    // Dexterity 3 plus Long Guns 3, less 1 for the shoddy gun she holds free (pg. 14).
+    expect(siegeThreatTerms(watched)['watched-from-above']).toBe(-5);
     // The tower is staffed now, so the facility count adds one — and the
     // reduction is what the facility is for.
-    expect(siegeThreat(watched)).toBe(siegeThreat(empty) + 1 - 6);
+    expect(siegeThreat(watched)).toBe(siegeThreat(empty) + 1 - 5);
   });
 
   it('takes nothing off while nobody is watching', () => {
@@ -492,7 +496,13 @@ describe('a staffed Watchtower', () => {
 
   /** It can take the whole threat below zero, which the sum does not clamp. */
   it('can make a community safer than an empty one', () => {
-    expect(siegeThreat(staffedWith(tower(), 'front-yard', [lookout()]))).toBeLessThan(0);
+    // With a quality rifle the Score is 7 (pg. 8; Z5-3).
+    const armed = {
+      ...lookout(),
+      items: [{ id: 'rifle', item: 'rifle', grade: 'quality' } as const],
+    };
+
+    expect(siegeThreat(staffedWith(tower(), 'front-yard', [armed]))).toBeLessThan(0);
   });
 
   /**

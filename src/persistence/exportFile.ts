@@ -18,8 +18,8 @@
 import { BASES } from '../data/bases';
 import { SKILLS, STATS } from '../data/skills';
 import { MATERIALS } from '../data/materials';
-import type { Base, Campaign, Project, SlotState, Survivor } from '../engine/campaign';
-import type { CampaignEvent, LogEntry, MissionWound } from '../engine/log';
+import type { Base, Campaign, Item, Project, SlotState, Survivor } from '../engine/campaign';
+import type { CampaignEvent, ItemHolder, LogEntry, MissionWound } from '../engine/log';
 import { isMissionOutcome } from '../engine/missions';
 
 /** Material counts in the fixed order from the engine, not insertion order. */
@@ -77,7 +77,13 @@ function orderedSurvivor(survivor: Survivor): Record<keyof Survivor, unknown> {
     currentHp: survivor.currentHp,
     infection: survivor.infection,
     xp: survivor.xp,
+    items: survivor.items.map(orderedItem),
   };
+}
+
+/** One item with its keys in a fixed order, for the reason a survivor's are. */
+function orderedItem(item: Item): Record<keyof Item, unknown> {
+  return { id: item.id, item: item.item, grade: item.grade };
 }
 
 /**
@@ -249,6 +255,26 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
     };
   }
 
+  if (event.kind === 'items-spent') {
+    return {
+      ...taggedFirst(event, 'kind'),
+      items: event.items.map(({ id, item, grade, survivor, name }) => ({
+        id,
+        item,
+        grade,
+        survivor,
+        name,
+      })),
+    };
+  }
+  if (event.kind === 'item-moved') {
+    return {
+      ...taggedFirst(event, 'kind'),
+      from: orderedHolder(event.from),
+      to: orderedHolder(event.to),
+    };
+  }
+
   if (!isMissionOutcome(event) || event.wounds === undefined) return taggedFirst(event, 'kind');
 
   return { ...taggedFirst(event, 'kind'), wounds: event.wounds.map(orderedWound) };
@@ -268,6 +294,11 @@ function orderedWound(wound: MissionWound): Record<keyof MissionWound, unknown> 
     health: wound.health,
     infection: wound.infection,
   };
+}
+
+/** One end of an item's move: a survivor written id first, like every reference. */
+function orderedHolder(holder: ItemHolder): ItemHolder {
+  return typeof holder === 'string' ? holder : { survivor: holder.survivor, name: holder.name };
 }
 
 /** Survivors named by id and name, each written id first. */
@@ -305,6 +336,7 @@ function inFileOrder(campaign: Campaign): Record<keyof Campaign, unknown> {
     materials: orderedMaterials(campaign),
     survivors: campaign.survivors.map(orderedSurvivor),
     setAside: campaign.setAside.map(orderedSurvivor),
+    inventory: campaign.inventory.map(orderedItem),
     startingCommunityBuilt: campaign.startingCommunityBuilt,
     base: campaign.base === null ? null : orderedBase(campaign.base),
     assignments: orderedAssignments(campaign),

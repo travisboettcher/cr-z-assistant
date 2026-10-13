@@ -404,6 +404,42 @@ const setAsideRecorded: MigrationStep = {
   up: (previous) => ('setAside' in previous ? previous : { ...previous, setAside: [] }),
 };
 
+/**
+ * v15 → v16: the base's Inventory, and the items each survivor carries
+ * (#177, Z5-2).
+ *
+ * **Empty, everywhere, and that is the truth rather than a guess.** A v15 build
+ * had no items at all — no catalogue, no Inventory, no Equip Mission Team — so
+ * no v15 save holds an item it could have lost. A table that kept its gear on
+ * paper adds it on the Inventory card once.
+ *
+ * Reaches inside both survivor lists, the roster and the set-aside, as v13 →
+ * v14 reached inside the roster: defensive about what it reads, so a list that
+ * is not a list, or a survivor that is not an object, is handed on for
+ * `saveFile.ts` to refuse with a message about the actual damage.
+ */
+const itemsRecorded: MigrationStep = {
+  from: 15,
+  to: 16,
+  up: (previous) => {
+    const withItems = (list: unknown): unknown =>
+      Array.isArray(list)
+        ? (list as unknown[]).map((survivor) =>
+            typeof survivor === 'object' && survivor !== null && !('items' in survivor)
+              ? { ...survivor, items: [] }
+              : survivor,
+          )
+        : list;
+
+    return {
+      ...previous,
+      inventory: 'inventory' in previous ? previous.inventory : [],
+      survivors: withItems(previous.survivors),
+      setAside: withItems(previous.setAside),
+    };
+  },
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -420,6 +456,7 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   projectsRecordTheirCharge,
   infectionRecorded,
   setAsideRecorded,
+  itemsRecorded,
 ];
 
 /** Why a save could not be brought forward. */

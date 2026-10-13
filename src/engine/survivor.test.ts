@@ -36,6 +36,7 @@ const EARL = {
   currentHp: 4,
   infection: 0,
   xp: 0,
+  items: [],
 } satisfies Survivor;
 
 /** pg. 15. Tier 3, stats 3/2/1/0, three skills — and no Carry. */
@@ -50,6 +51,7 @@ const CARLA = {
   currentHp: 3,
   infection: 0,
   xp: 0,
+  items: [],
 } satisfies Survivor;
 
 /**
@@ -61,7 +63,7 @@ const CARLA = {
  */
 describe('the hunger penalty', () => {
   it('takes the penalty off the governing stat, not off the level', () => {
-    // Tactics is Intelligence 4 plus a level of 0.
+    // Tactics is Intelligence 4 plus a level of 0, with no item term.
     expect(skillScore(EARL, 'tactics', 0)).toBe(4);
     expect(skillScore(EARL, 'tactics', 1)).toBe(3);
     expect(skillScore(EARL, 'tactics', 3)).toBe(1);
@@ -98,12 +100,48 @@ describe('the hunger penalty', () => {
 
 describe('skillScore', () => {
   it('adds the skill level to its governing stat', () => {
-    // Heavy Weapon is governed by Strength: 3 + 0.
-    expect(skillScore(EARL, 'heavy-weapon', NO_PENALTY)).toBe(3);
-    // Tactics by Intelligence: 4 + 0.
+    // Tactics is governed by Intelligence: 4 + 0, and no item is used with it.
     expect(skillScore(EARL, 'tactics', NO_PENALTY)).toBe(4);
-    // Archery by Dexterity: 3 + 0.
-    expect(skillScore(CARLA, 'archery', NO_PENALTY)).toBe(3);
+    // Scavenge by Intelligence too.
+    expect(skillScore(EARL, 'scavenge', NO_PENALTY)).toBe(4);
+  });
+
+  /**
+   * The book's third term (pg. 8). pg. 14 works Earl's Heavy Weapon Score as
+   * Strength 3, level 0 and −1 for the shoddy axe on his sheet: 2.
+   */
+  it('takes the shoddy −1 for a weapon skill, which is Earl’s printed Heavy Weapon Score', () => {
+    const axe = { id: 'axe', item: 'heavy', grade: 'shoddy' } as const;
+
+    expect(skillScore(EARL, 'heavy-weapon', NO_PENALTY)).toBe(2);
+    expect(skillScore({ ...EARL, items: [axe] }, 'heavy-weapon', NO_PENALTY)).toBe(2);
+    // Archery is Dexterity 3, level 0 and the shoddy bow Carla holds free.
+    expect(skillScore(CARLA, 'archery', NO_PENALTY)).toBe(2);
+  });
+
+  it('counts the best item for the skill once, not every one carried', () => {
+    const axe = (id: string, grade: 'standard' | 'quality') =>
+      ({ id, item: 'heavy', grade }) as const;
+
+    expect(skillScore({ ...EARL, items: [axe('a', 'standard')] }, 'heavy-weapon', 0)).toBe(3);
+    expect(skillScore({ ...EARL, items: [axe('a', 'quality')] }, 'heavy-weapon', 0)).toBe(4);
+    // A second weapon of the same skill does not add again; the best counts.
+    expect(
+      skillScore(
+        { ...EARL, items: [axe('a', 'standard'), axe('b', 'quality')] },
+        'heavy-weapon',
+        0,
+      ),
+    ).toBe(4);
+  });
+
+  /** A tool belt caps Stealth (pg. 44), however high the Score would be. */
+  it('caps Stealth at the tool belt’s limit while one is carried', () => {
+    const sneak = { ...CARLA, skills: { ...CARLA.skills, stealth: 2 } } satisfies Survivor;
+    const belt = { id: 'belt', item: 'tool-belt', grade: 'standard' } as const;
+
+    expect(skillScore(sneak, 'stealth', NO_PENALTY)).toBe(5);
+    expect(skillScore({ ...sneak, items: [belt] }, 'stealth', NO_PENALTY)).toBe(3);
   });
 
   it('counts the level as well as the stat', () => {
@@ -177,6 +215,14 @@ describe('inventorySlots', () => {
 
   it('is the bare tier for a survivor without the carry skill', () => {
     expect(inventorySlots(CARLA, NO_PENALTY)).toBe(3);
+  });
+
+  /** A backpack's +1 reaches the slots through the Carry Score (pg. 10; R36, R39). */
+  it('grows with a backpack, and only for a survivor with Carry', () => {
+    const backpack = { id: 'pack', item: 'backpack', grade: 'quality' } as const;
+
+    expect(inventorySlots({ ...EARL, items: [backpack] }, NO_PENALTY)).toBe(8);
+    expect(inventorySlots({ ...CARLA, items: [backpack] }, NO_PENALTY)).toBe(3);
   });
 
   it('grows with the carry level and with strength', () => {

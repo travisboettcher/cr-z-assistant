@@ -68,6 +68,7 @@ describe('createNewCampaign', () => {
       'base',
       'createdAt',
       'id',
+      'inventory',
       'log',
       'materials',
       'name',
@@ -105,6 +106,7 @@ describe('Survivor', () => {
       currentHp: 3,
       infection: 0,
       xp: 5,
+      items: [],
     } satisfies Survivor;
 
     expect(Object.keys(survivor).sort()).toEqual([
@@ -112,6 +114,7 @@ describe('Survivor', () => {
       'defense',
       'id',
       'infection',
+      'items',
       'move',
       'name',
       'skills',
@@ -138,6 +141,7 @@ describe('Survivor', () => {
       currentHp: 1,
       infection: 0,
       xp: 0,
+      items: [],
     } satisfies Survivor;
 
     expect(Object.keys(rookie.skills)).toEqual(['handguns']);

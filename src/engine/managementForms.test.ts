@@ -72,6 +72,31 @@ describe('submitRotCheck', () => {
     ]);
   });
 
+  it('leaves what the turned and the bitten carried, after they are written off (Z5-5)', () => {
+    const base = dying(1);
+    const armed = {
+      ...base,
+      survivors: base.survivors.map((survivor) => ({
+        ...survivor,
+        items: [{ id: `${survivor.id}-bow`, item: 'bow' as const, grade: 'standard' as const }],
+      })),
+    };
+    const after = expectAccepted(
+      submitRotCheck(armed, { survivor: 'marcus', roll: 1, bitten: 'ruby' }, AT),
+    );
+
+    expect(after.survivors).toEqual([]);
+    expect(after.inventory.map((item) => item.id)).toEqual(['marcus-bow', 'ruby-bow']);
+    expect(kinds(after)).toEqual([
+      'rot-checked',
+      'survivor-left',
+      'survivor-bitten',
+      'survivor-left',
+      'item-moved',
+      'item-moved',
+    ]);
+  });
+
   it('writes the turning and the bite, in that order', () => {
     const after = expectAccepted(
       submitRotCheck(dying(4), { survivor: 'marcus', roll: 1, bitten: 'ruby' }, AT),
@@ -299,6 +324,22 @@ describe('submitDeparture', () => {
     expect(after.log.map((entry) => entry.event)).toEqual([
       { kind: 'survivor-departed', survivor: 'survivor-0', name: 'Survivor 0', tier: 1 },
     ]);
+  });
+
+  /** Until part 3 rules where it goes, nothing a leaver carried goes unrecorded (Z5-5). */
+  it('leaves what they carried in the base’s Inventory', () => {
+    const crowded = crowd();
+    const bow = { id: 'bow-1', item: 'bow', grade: 'standard' } as const;
+    const carrying = {
+      ...crowded,
+      survivors: crowded.survivors.map((survivor, index) =>
+        index === 0 ? { ...survivor, items: [bow] } : survivor,
+      ),
+    };
+    const after = expectAccepted(submitDeparture(carrying, 'survivor-0', AT));
+
+    expect(after.inventory).toEqual([bow]);
+    expect(kinds(after)).toEqual(['survivor-departed', 'item-moved']);
   });
 
   it('refuses a second departure in the same turn, however high the pressure', () => {

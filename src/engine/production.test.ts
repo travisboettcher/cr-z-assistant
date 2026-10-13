@@ -296,10 +296,17 @@ describe('Siege Threat as production', () => {
       'front-yard',
     );
 
+    // Each carries a standard bow, so an Archery Score is Dexterity plus level
+    // and nothing else (pg. 8; Z5-3).
     const archer = (id: string, dexterity: number, level: number) => {
       const made = createSurvivor(id, 4, { id });
 
-      return { ...made, stats: { ...made.stats, dexterity }, skills: { archery: level } };
+      return {
+        ...made,
+        stats: { ...made.stats, dexterity },
+        skills: { archery: level },
+        items: [{ id: `${id}-bow`, item: 'bow' as const, grade: 'standard' as const }],
+      };
     };
 
     // Archery 4 and Archery 3. The best is 4; summing across the two says 7.
@@ -398,7 +405,8 @@ describe('Siege Threat as production', () => {
       NO_PENALTY,
     ).find((candidate) => candidate.staffed);
 
-    expect(line).toMatchObject({ amount: -4, missingSkill: false });
+    // Dexterity 3 plus level 1, less 1 for the shoddy bow she holds free (pg. 14).
+    expect(line).toMatchObject({ amount: -3, missingSkill: false });
   });
 
   it('counts a watch who has one of the four but not the others', () => {
@@ -416,7 +424,8 @@ describe('Siege Threat as production', () => {
       NO_PENALTY,
     ).find((candidate) => candidate.staffed);
 
-    expect(line).toMatchObject({ amount: -4, missingSkill: false });
+    // Dexterity 3 plus level 1, less 1 for the shoddy bow.
+    expect(line).toMatchObject({ amount: -3, missingSkill: false });
   });
 });
 

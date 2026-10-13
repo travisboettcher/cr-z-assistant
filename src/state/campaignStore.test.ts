@@ -2587,6 +2587,81 @@ describe('what earns a line in the log', () => {
         }),
       ],
     },
+    'inventory/itemAdded': {
+      action: {
+        type: 'inventory/itemAdded',
+        id: 'item-1',
+        item: 'pistol',
+        grade: 'standard',
+        at: AT,
+      },
+      entry: entry(3, 'mission', {
+        kind: 'item-added',
+        id: 'item-1',
+        item: 'pistol',
+        grade: 'standard',
+      }),
+    },
+    'inventory/itemRemoved': {
+      state: openState({
+        ...expectOpen(rich()),
+        inventory: [{ id: 'item-1', item: 'pistol', grade: 'standard' }],
+      }),
+      action: { type: 'inventory/itemRemoved', id: 'item-1', at: AT },
+      entry: entry(3, 'mission', {
+        kind: 'item-removed',
+        id: 'item-1',
+        item: 'pistol',
+        grade: 'standard',
+      }),
+    },
+    'mission/itemMoved': {
+      // Marcus is going out on team 1, so a pistol from the base's Inventory
+      // goes to him at Equip Mission Team (R38; Z5-4).
+      state: openState({
+        ...expectOpen(marcusOnTeamOne()),
+        inventory: [{ id: 'item-1', item: 'pistol', grade: 'standard' }],
+      }),
+      action: {
+        type: 'mission/itemMoved',
+        move: { kind: 'move', id: 'item-1', to: { survivor: LOGGED_SURVIVOR } },
+        at: AT,
+      },
+      entry: entry(3, 'mission', {
+        kind: 'item-moved',
+        id: 'item-1',
+        item: 'pistol',
+        grade: 'standard',
+        from: 'base',
+        to: { survivor: LOGGED_SURVIVOR, name: 'Marcus Webb' },
+      }),
+    },
+    'mission/itemsSpent': {
+      // Marcus threw his grenade on team 1's mission (pp. 46–48; Z5-5).
+      state: openState({
+        ...expectOpen(marcusOnTeamOne()),
+        step: 'tactical-mission',
+        survivors: expectOpen(marcusOnTeamOne()).survivors.map((survivor) =>
+          survivor.id === LOGGED_SURVIVOR
+            ? { ...survivor, items: [{ id: 'item-1', item: 'grenade', grade: 'standard' }] }
+            : survivor,
+        ),
+      }),
+      action: { type: 'mission/itemsSpent', team: 1, items: ['item-1'], at: AT },
+      entry: entry(3, 'mission', {
+        kind: 'items-spent',
+        team: 1,
+        items: [
+          {
+            id: 'item-1',
+            item: 'grenade',
+            grade: 'standard',
+            survivor: LOGGED_SURVIVOR,
+            name: 'Marcus Webb',
+          },
+        ],
+      }),
+    },
     'advancement/survivorReturned': {
       // Hera, sent away over a Hero cap, brought back by a Rescue Strangers
       // team this turn, rejoins at Advancement Step 2 (R31; Z4-11).

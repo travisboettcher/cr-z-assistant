@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BASES, BASE_IDS, type BaseId } from '../data/bases';
 import { FACILITIES, type Facility, type Upgrade, type UpgradeId } from '../data/facilities';
+import type { Grade } from '../data/equipment';
 import type { Base, SlotState } from './campaign';
 import {
   beds,
@@ -417,15 +418,27 @@ describe('siegeThreatReduction', () => {
   });
 
   it('is the staff’s Score in the skill the facility names', () => {
-    // A Tier 4's Dexterity is 3, plus level 3.
-    expect(siegeThreatReduction(occupantOf(tower()), [lookout(3)], 0)).toBe(6);
+    // A Tier 4's Dexterity is 3, plus level 3, less 1 for the shoddy long gun
+    // every lookout with the skill holds when they carry nothing better (pg. 14).
+    expect(siegeThreatReduction(occupantOf(tower()), [lookout(3)], 0)).toBe(5);
+  });
+
+  /** The Score is the whole Score, item and all (pg. 8; Z5-3). */
+  it('counts the long gun the lookout carries', () => {
+    const armed = (grade: Grade): Survivor => ({
+      ...lookout(3),
+      items: [{ id: 'rifle-1', item: 'rifle', grade }],
+    });
+
+    expect(siegeThreatReduction(occupantOf(tower()), [armed('standard')], 0)).toBe(6);
+    expect(siegeThreatReduction(occupantOf(tower()), [armed('quality')], 0)).toBe(7);
   });
 
   /** The best of the four, not the sum — which is what `reducedByBestOf` says. */
   it('takes the best of two lookouts rather than adding them', () => {
     const both = [lookout(3), { ...lookout(1, 'other'), name: 'Ada Poole' }];
 
-    expect(siegeThreatReduction(occupantOf(tower()), both, 0)).toBe(6);
+    expect(siegeThreatReduction(occupantOf(tower()), both, 0)).toBe(5);
   });
 
   it('is nothing for a facility with no such effect', () => {
@@ -440,8 +453,8 @@ describe('siegeThreatReduction', () => {
 
   /** A starving lookout watches worse, like every other Score in the community. */
   it('drops with the hunger penalty', () => {
-    // Dexterity 3 less the penalty of 2, plus level 3.
-    expect(siegeThreatReduction(occupantOf(tower()), [lookout(3)], 2)).toBe(4);
+    // Dexterity 3 less the penalty of 2, plus level 3, less 1 for the shoddy gun.
+    expect(siegeThreatReduction(occupantOf(tower()), [lookout(3)], 2)).toBe(3);
   });
 });
 

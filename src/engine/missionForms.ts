@@ -18,7 +18,8 @@
 import type { BaseId } from '../data/bases';
 import type { OverrunOption } from '../data/missions';
 import type { Campaign, Survivor } from './campaign';
-import { accepted, refused, type FormResult } from './forms';
+import { equipCheck, withEquipMove, type EquipMove } from './equip';
+import { accepted, blockedBy, refused, type FormResult } from './forms';
 import { logged, type MissionWound } from './log';
 import {
   missionOutcomeProblem,
@@ -39,6 +40,7 @@ import {
   withCommunityAbandoned,
 } from './overrun';
 import { standInProblem } from './siegeWork';
+import { spentItems, spentProblem, withItemsSpent } from './spent';
 
 /**
  * A team's mission, chosen at Select Mission (pg. 17; Z4-2).
@@ -212,5 +214,51 @@ export function submitStandIn(campaign: Campaign, form: StandInForm, at: string)
       name: named(form.survivor),
       ...standIn,
     }),
+  );
+}
+
+/**
+ * Move an item at Equip Mission Team, or take up or set down shoddy gear
+ * (pg. 18; R35, R38; Z5-4).
+ *
+ * Refused for `equipCheck`'s blockers. Its warnings were on the screen, and
+ * the press is the override. The item moves on its holders, and the entry
+ * names both ends as they were.
+ */
+export function submitEquipMove(campaign: Campaign, move: EquipMove, at: string): FormResult {
+  const problem = blockedBy(equipCheck(campaign, move));
+  if (problem !== null) return refused(problem);
+
+  const moved = withEquipMove(campaign, move);
+
+  return accepted(
+    logged(moved.campaign, at, {
+      kind: 'item-moved',
+      id: moved.item.id,
+      item: moved.item.item,
+      grade: moved.item.grade,
+      from: moved.from,
+      to: moved.to,
+    }),
+  );
+}
+
+/**
+ * What a team's mission used up or lost (pp. 40, 45–48; R37; Z5-5): the items
+ * ticked, and one-mission gear whether ticked or not. Each leaves its survivor.
+ */
+export function submitItemsSpent(
+  campaign: Campaign,
+  team: number,
+  ticked: readonly string[],
+  at: string,
+): FormResult {
+  const problem = spentProblem(campaign, team, ticked);
+  if (problem !== null) return refused(problem);
+
+  const items = spentItems(campaign, team, ticked);
+
+  return accepted(
+    logged(withItemsSpent(campaign, items), at, { kind: 'items-spent', team, items }),
   );
 }
