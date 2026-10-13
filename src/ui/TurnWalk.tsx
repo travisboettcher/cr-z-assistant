@@ -25,7 +25,7 @@ import { SelectMission } from './SelectMission';
 import { SiegeWork } from './SiegeWork';
 import { ManagementPhase } from './ManagementPhase';
 import { PlanningPhase } from './PlanningPhase';
-import { FIRST_TURN, siegeDue } from '../engine/siege';
+import { FIRST_TURN, siegeCalledOn, siegeDue } from '../engine/siege';
 import { outstanding } from '../engine/outstanding';
 import { laborShortfall } from '../engine/projects';
 import { materialsAdded } from '../engine/materials';
@@ -262,7 +262,8 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
              */}
             {phase === 'mission' && siegeDue(campaign) && (
               <p className="mt-4 text-sm font-medium text-amber-800 dark:text-amber-300">
-                The horde came. This turn’s mission is a Siege Defense <PageRef pages={23} />
+                The horde came, called at Siege Threat {siegeCalledOn(campaign)}. This turn’s
+                mission is a Siege Defense <PageRef pages="23, 85" />
               </p>
             )}
 
