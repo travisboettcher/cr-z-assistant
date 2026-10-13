@@ -159,7 +159,8 @@ export function communityViolations(
  * this module reads survivors and rules, and a base belongs to its own.
  *
  * The book's other half — moving into a lower-Tier base forces a Hero out — is
- * a base-change concern and belongs with Claim a New Base in Phase 4.
+ * a base-change concern, and `move.ts` asks for it when the community moves in
+ * (R32; Z4-8).
  */
 export function promotionViolations(
   survivor: Survivor,

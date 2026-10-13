@@ -33,6 +33,7 @@ import {
   penaltyFor,
   survivorsFed,
   unrest,
+  unrestLocked,
 } from '../engine/feeding';
 import { beds } from '../engine/base';
 import { missionTeam, missionTeamReduced, overworked } from '../engine/assignments';
@@ -500,6 +501,13 @@ function CalculateUnrest({ campaign }: { readonly campaign: Campaign }) {
       <p className="mt-3 text-sm font-medium tabular-nums">
         {short} Hunger + {tired} Exhaustion = {unrest(campaign)} Unrest
       </p>
+
+      {unrestLocked(campaign) && (
+        <p className={`mt-2 ${HINT}`}>
+          Locked at 0 for the rest of this turn: the community claimed a new base{' '}
+          <PageRef pages={79} />
+        </p>
+      )}
     </>
   );
 }

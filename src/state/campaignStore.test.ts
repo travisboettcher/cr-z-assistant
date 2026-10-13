@@ -2554,6 +2554,38 @@ describe('what earns a line in the log', () => {
         facility: 'watchtower',
       }),
     },
+    'advancement/moved': {
+      // A claim on a Distillery won this turn, standing at the last
+      // Advancement step with nothing left to finish (R25; Z4-8).
+      state: openState({
+        ...expectOpen(rich()),
+        step: 'add-facilities-and-upgrades',
+        log: [
+          ...expectOpen(rich()).log,
+          entry(3, 'mission', {
+            kind: 'mission-selected',
+            team: 1,
+            mission: 'claim-a-new-base',
+            names: [],
+            base: 'distillery',
+          }),
+          entry(3, 'mission', {
+            kind: 'claim-a-new-base-resolved',
+            team: 1,
+            endCondition: 1,
+            strangers: [],
+            vehiclesOnArea: 0,
+          }),
+        ],
+      }),
+      action: { type: 'advancement/moved', leaving: [], at: AT },
+      entry: entry(3, 'advancement', {
+        kind: 'base-moved',
+        from: 'hobby-farm',
+        to: 'distillery',
+        setAside: [],
+      }),
+    },
 
     // Below: everything the log deliberately ignores.
 

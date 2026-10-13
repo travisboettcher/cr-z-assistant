@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import currentFixture from './__fixtures__/campaign-v14.json';
+import currentFixture from './__fixtures__/campaign-v15.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -600,6 +600,44 @@ describe('a campaign whose survivor list is not a list', () => {
 
     expect(result?.ok).toBe(false);
     if (result?.ok === false) expect(result.error.reason).toBe('damaged-campaign');
+  });
+});
+
+/** The survivors a move sent away (R31; Z4-8), checked as the roster is. */
+describe('a campaign whose set-aside list is damaged', () => {
+  function refusalFor(overrides: Record<string, unknown>) {
+    const result = parseCampaignFile(savedWith(overrides));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected a refusal');
+
+    expect(result.error.reason).toBe('damaged-campaign');
+    return result.error.message;
+  }
+
+  it('reads a set-aside survivor back as they were written', () => {
+    const result = parseCampaignFile(savedWith({ setAside: [VALID_SURVIVOR] }));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.setAside).toEqual([VALID_SURVIVOR]);
+  });
+
+  it('refuses a list that is not a list', () => {
+    expect(refusalFor({ setAside: 'everybody' })).toMatch(/set aside is missing/);
+  });
+
+  it('refuses a set-aside survivor with a damaged field, and says which one', () => {
+    expect(refusalFor({ setAside: [{ ...VALID_SURVIVOR, xp: -1 }] })).toMatch(
+      /set-aside survivor 1 of 1 has unreadable experience/,
+    );
+  });
+
+  it('refuses somebody both in the community and set aside', () => {
+    expect(refusalFor({ survivors: [VALID_SURVIVOR], setAside: [VALID_SURVIVOR] })).toMatch(
+      /both in the community and set aside/,
+    );
   });
 });
 

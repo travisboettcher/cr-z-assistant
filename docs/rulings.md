@@ -785,3 +785,21 @@ A set-aside Hero is the one Tier 4 stranger a mission records, which amends R24.
 new campaign's business, and nothing here stops it.
 
 *Confirmed 2026-10-13 from the batch-15 extract.*
+
+---
+
+## R32 — One Hero leaves for each Hero over the cap
+
+**pg. 54; [#182](https://github.com/travisboettcher/cr-z-assistant/issues/182), Z4-8.** A
+community that moves into a lower-Tier base with more Heroes than it can support loses a Hero of
+the player's choice (pg. 54). The book speaks of one Hero, and never of a community more than one
+over — three Heroes moving into a Tier 1 base.
+
+**The ruling is that one Hero of the player's choice leaves for every Hero over the new base's
+Tier**, all at the move, so the community is never over the cap afterwards. Each is set aside
+(R31).
+
+**What it costs.** A table that reads the singular literally sends one Hero away and keeps the rest
+over the cap, which the app would then report as a violation every turn.
+
+*Confirmed 2026-10-13.*

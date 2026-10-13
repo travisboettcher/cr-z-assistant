@@ -549,3 +549,29 @@ describe('the v13 to v14 infection', () => {
     expect(result.campaign.survivors).toBe('everybody');
   });
 });
+
+/** Somewhere to keep the survivors a move sends away (R31; Z4-8). */
+describe('the v14 to v15 set-aside list', () => {
+  it('brings every earlier save forward with nobody set aside', () => {
+    for (const fixture of fixtures.filter((f) => f.version < 15)) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok) continue;
+
+      // Empty rather than anything inferred: a v14 build could not move house,
+      // so no earlier save sent anybody away.
+      expect(result.campaign.setAside, fixture.path).toEqual([]);
+    }
+  });
+
+  it('leaves a list that is already there alone', () => {
+    const v14 = fixtures.find((fixture) => fixture.version === 14);
+    const result = migrate({ ...(v14?.contents as object), setAside: [SAMPLE_SURVIVOR] });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.setAside).toEqual([SAMPLE_SURVIVOR]);
+  });
+});

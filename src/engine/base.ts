@@ -504,8 +504,8 @@ export function upgradeCost(occupant: Occupant, upgrade: Upgrade): Cost {
 /**
  * How many Hero-Tier survivors this base allows (pg. 54).
  *
- * A community over the cap after moving into a smaller base loses a Hero of the
- * player's choice, which is a roster consequence and Phase 3's; this is the
+ * A community moving into a smaller base sends a Hero of the player's choice
+ * away for each one over it (R32), which `move.ts` asks for; this is also the
  * number Z2-5 reports a violation against.
  */
 export function maxHeroes(base: Base): number {

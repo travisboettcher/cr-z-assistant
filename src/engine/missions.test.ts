@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { BASE_IDS, BASES, type BaseId } from '../data/bases';
+import type { BaseId } from '../data/bases';
 import { createNewCampaign, type Assignment, type Campaign, type Survivor } from './campaign';
 import type { CampaignEvent, LogEntry, MissionWound } from './log';
 import {
-  claimWarning,
   deployed,
   firstMissionFailed,
   missionOutcomeProblem,
@@ -446,34 +445,6 @@ describe('selectionProblem', () => {
     expect(
       selectionProblem(playing(), { team: 1, mission: 'gather-materials', material: 'rare' }),
     ).toMatch(/Food, Fuel or Hardware/);
-  });
-});
-
-describe('claimWarning', () => {
-  const heroes = (count: number) =>
-    Array.from({ length: count }, (_, index) =>
-      createSurvivor(`Hero ${String(index)}`, 4, { id: `hero-${String(index)}` }),
-    );
-
-  it('warns when the base holds fewer Heroes than the community has (pg. 54)', () => {
-    // A Tier 1 base holds one Hero.
-    expect(claimWarning(playing({ survivors: [earl, ...heroes(2)] }), 'summer-camp')).toBe(
-      'This base holds 1 Hero and the community has 2: moving in sends a Hero of your choice away.',
-    );
-  });
-
-  it('says Heroes when the base holds more than one', () => {
-    const tierTwo = BASE_IDS.find((id) => BASES[id].tier === 2) as BaseId;
-
-    expect(claimWarning(playing({ survivors: heroes(3) }), tierTwo)).toBe(
-      'This base holds 2 Heroes and the community has 3: moving in sends a Hero of your choice away.',
-    );
-  });
-
-  it('says nothing when the Heroes fit, to the last one', () => {
-    expect(claimWarning(playing({ survivors: heroes(1) }), 'summer-camp')).toBeNull();
-    // Survivors below Hero are not counted at all.
-    expect(claimWarning(playing({ survivors: [earl, ruby, nell] }), 'summer-camp')).toBeNull();
   });
 });
 

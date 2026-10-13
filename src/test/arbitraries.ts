@@ -374,6 +374,12 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
     }),
     fc.record({ kind: fc.constant('base-claimed' as const), base: fc.constantFrom(...BASE_IDS) }),
     fc.record({
+      kind: fc.constant('base-moved' as const),
+      from: fc.constantFrom(...BASE_IDS),
+      to: fc.constantFrom(...BASE_IDS),
+      setAside: fc.array(fc.record({ survivor: anyId, name: anyName }), { maxLength: 2 }),
+    }),
+    fc.record({
       kind: fc.constant('facility-built' as const),
       slot: anyId,
       facility: fc.constantFrom(...FACILITY_IDS),
@@ -498,47 +504,57 @@ function projectArbitrary(): fc.Arbitrary<Project> {
 
 /** The campaign shape, before the assignments that have to know its roster. */
 function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments'>> {
-  return fc.record(
-    {
-      schemaVersion: fc.constant(CURRENT_SCHEMA_VERSION),
-      id: anyId,
-      name: anyName,
-      createdAt: anyCreatedAt,
-      turn: fc.integer({ min: 1, max: 9999 }),
-      step: fc.constantFrom(...TURN_SEQUENCE),
-      // Null as often as a number, because "never besieged" is the state most
-      // campaigns are in and the one a round trip most easily loses.
-      origin: fc.constantFrom(...CAMPAIGN_ORIGINS),
-      materials: materialsArbitrary(),
-      survivors: fc.array(survivorArbitrary(), { maxLength: 6 }),
-      startingCommunityBuilt: fc.boolean(),
-      // Half the campaigns have claimed a base and half have not; null is a
-      // real state and a round trip can get it wrong by writing `{}`.
-      base: fc.option(baseArbitrary(), { nil: null }),
-      // No longer pinned empty: from v6 a log is real, and an entry is the one
-      // place in the file where objects of different shapes share an array.
-      log: fc.array(logEntryArbitrary(), { maxLength: 8 }),
-      projects: fc.array(projectArbitrary(), { maxLength: 4 }),
-    },
-    // Every key but `origin`, which is optional on `Campaign` — so half the
-    // generated campaigns leave it out entirely. Both are real files, and the
-    // absent one is the one a round trip can get wrong by writing `null`.
-    {
-      requiredKeys: [
-        'schemaVersion',
-        'id',
-        'name',
-        'createdAt',
-        'turn',
-        'step',
-        'projects',
-        'materials',
-        'survivors',
-        'startingCommunityBuilt',
-        'base',
-        'log',
-      ],
-    },
+  return (
+    fc
+      .record(
+        {
+          schemaVersion: fc.constant(CURRENT_SCHEMA_VERSION),
+          id: anyId,
+          name: anyName,
+          createdAt: anyCreatedAt,
+          turn: fc.integer({ min: 1, max: 9999 }),
+          step: fc.constantFrom(...TURN_SEQUENCE),
+          // Null as often as a number, because "never besieged" is the state most
+          // campaigns are in and the one a round trip most easily loses.
+          origin: fc.constantFrom(...CAMPAIGN_ORIGINS),
+          materials: materialsArbitrary(),
+          survivors: fc.array(survivorArbitrary(), { maxLength: 6 }),
+          setAside: fc.array(survivorArbitrary(), { maxLength: 2 }),
+          startingCommunityBuilt: fc.boolean(),
+          // Half the campaigns have claimed a base and half have not; null is a
+          // real state and a round trip can get it wrong by writing `{}`.
+          base: fc.option(baseArbitrary(), { nil: null }),
+          // No longer pinned empty: from v6 a log is real, and an entry is the one
+          // place in the file where objects of different shapes share an array.
+          log: fc.array(logEntryArbitrary(), { maxLength: 8 }),
+          projects: fc.array(projectArbitrary(), { maxLength: 4 }),
+        },
+        // Every key but `origin`, which is optional on `Campaign` — so half the
+        // generated campaigns leave it out entirely. Both are real files, and the
+        // absent one is the one a round trip can get wrong by writing `null`.
+        {
+          requiredKeys: [
+            'schemaVersion',
+            'id',
+            'name',
+            'createdAt',
+            'turn',
+            'step',
+            'projects',
+            'materials',
+            'survivors',
+            'setAside',
+            'startingCommunityBuilt',
+            'base',
+            'log',
+          ],
+        },
+      )
+      // Nobody both in the community and set aside, which the save reader
+      // refuses: one id would name two people (R31).
+      .filter((campaign) =>
+        campaign.setAside.every((gone) => !campaign.survivors.some((one) => one.id === gone.id)),
+      )
   );
 }
 

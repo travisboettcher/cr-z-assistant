@@ -28,6 +28,7 @@ import {
   type PurchaseBlock,
 } from './advancement';
 import type { Campaign, Survivor } from './campaign';
+import { claimedBase } from './claim';
 import { checkConversion, conversions, withConversion } from './conversions';
 import { checkXpAward, withXpAwarded } from './experience';
 import { accepted, blockedBy, refused, type FormResult, type Refused } from './forms';
@@ -44,6 +45,7 @@ import {
   gathered,
   type MaterialRoll,
 } from './materials';
+import { moveProblem, withBaseMoved } from './move';
 
 /** This turn's haul, as the table rolled it (pp. 17–19). */
 export interface HaulForm {
@@ -391,5 +393,37 @@ function withSurvivorEdited(
       at,
       done.event,
     ),
+  );
+}
+
+/**
+ * Move into the base this turn's Claim a New Base won, sending these Heroes
+ * away (pp. 19, 54, 79; R25, R31, R32; Z4-8).
+ *
+ * Refused for whatever `moveProblem` says. One entry, naming the base left and
+ * the base moved into, and every Hero set aside as the roster had them.
+ */
+export function submitBaseMove(
+  campaign: Campaign,
+  leaving: readonly string[],
+  at: string,
+): FormResult {
+  const problem = moveProblem(campaign, leaving);
+  if (problem !== null) return refused(problem);
+
+  // Both present by now: `moveProblem` refuses a turn with no claim won and a
+  // community with no base to leave.
+  const from = (campaign.base as NonNullable<Campaign['base']>).id;
+  const to = claimedBase(campaign) as NonNullable<ReturnType<typeof claimedBase>>;
+
+  return accepted(
+    logged(withBaseMoved(campaign, leaving), at, {
+      kind: 'base-moved',
+      from,
+      to,
+      setAside: campaign.survivors
+        .filter((survivor) => leaving.includes(survivor.id))
+        .map((survivor) => ({ survivor: survivor.id, name: survivor.name })),
+    }),
   );
 }

@@ -21,7 +21,6 @@ import type { Campaign } from '../engine/campaign';
 import {
   asksForBase,
   asksForMaterial,
-  claimWarning,
   missionsOnOffer,
   missionTeams,
   selectionProblem,
@@ -29,6 +28,7 @@ import {
   turnMissions,
   type MissionTeam,
 } from '../engine/missions';
+import { claimWarning } from '../engine/claim';
 import { useCampaign } from '../state/useCampaign';
 import { BASE_LABELS, MATERIAL_LABELS } from './baseLabels';
 import { describeSelection, MISSION_LABELS } from './missionLabels';

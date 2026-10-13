@@ -9,7 +9,7 @@ import {
   someoneIsLeaving,
   withDeparture,
 } from './departures';
-import { hunger, unrest } from './feeding';
+import { hunger, unrest, unrestLocked } from './feeding';
 import { siegeThreat } from './siege';
 import type { LogEntry } from './log';
 
@@ -38,6 +38,63 @@ describe('departurePressure', () => {
     expect(unrest(campaign)).toBe(8);
     expect(siegeThreat(campaign)).toBe(2);
     expect(departurePressure(campaign)).toBe(10);
+  });
+});
+
+/** A claim on a Distillery, won this turn (pg. 79; Z4-8). */
+const claimWonThisTurn = (turn = 3): readonly LogEntry[] => [
+  {
+    turn,
+    phase: 'mission',
+    at: AT,
+    event: {
+      kind: 'mission-selected',
+      team: 1,
+      mission: 'claim-a-new-base',
+      names: [],
+      base: 'distillery',
+    },
+  },
+  {
+    turn,
+    phase: 'mission',
+    at: AT,
+    event: {
+      kind: 'claim-a-new-base-resolved',
+      team: 1,
+      endCondition: 2,
+      strangers: [],
+      vehiclesOnArea: 0,
+    },
+  },
+];
+
+describe('the Unrest lock after a claim is won (pg. 79; Z4-8)', () => {
+  it('holds Unrest at 0 for the rest of the turn', () => {
+    const campaign = community(crowd(8), {
+      step: 'calculate-unrest',
+      log: [...claimWonThisTurn()],
+    });
+
+    expect(unrest(campaign)).toBe(0);
+    expect(unrestLocked(campaign)).toBe(true);
+  });
+
+  it('leaves Departures to Siege Threat alone, not switched off', () => {
+    const campaign = community(crowd(8), { log: [...claimWonThisTurn()] });
+
+    expect(departurePressure(campaign)).toBe(siegeThreat(campaign));
+  });
+
+  it('counts Unrest again the turn after, and after a claim that was lost', () => {
+    expect(unrest(community(crowd(8), { log: [...claimWonThisTurn(2)] }))).toBe(8);
+
+    const lost = claimWonThisTurn().map((entry) =>
+      entry.event.kind === 'claim-a-new-base-resolved'
+        ? { ...entry, event: { ...entry.event, endCondition: null } }
+        : entry,
+    );
+    expect(unrest(community(crowd(8), { log: lost }))).toBe(8);
   });
 });
 

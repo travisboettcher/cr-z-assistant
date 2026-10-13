@@ -73,6 +73,7 @@ describe('createNewCampaign', () => {
       'name',
       'projects',
       'schemaVersion',
+      'setAside',
       'startingCommunityBuilt',
       'step',
       'survivors',

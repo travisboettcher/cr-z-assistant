@@ -418,7 +418,8 @@ Printed page numbers; *derived* means it follows from the text without being sai
 
 ## Rulings the book leaves open
 
-Seven, confirmed 2026-10-13 and recorded in [the registry](rulings.md):
+Eight, confirmed 2026-10-13 and recorded in [the registry](rulings.md) — the last of them while
+building Z4-8:
 
 - [R25](rulings.md#r25--when-the-community-moves-in) — the community moves in at the end
   of the Advancement Phase of the turn it claimed. Everything the last Planning Phase assigned —
@@ -443,12 +444,14 @@ Seven, confirmed 2026-10-13 and recorded in [the registry](rulings.md):
   abandoned survivors, and a Hero sent away over the cap, are *set aside*: off the roster, kept on
   the record, and able to return as a stranger. Abandoning builds a new starting community in the
   same campaign, which plays the First Mission as the continuation, as option 2 does.
+- [R32](rulings.md#r32--one-hero-leaves-for-each-hero-over-the-cap) — one Hero of the
+  player's choice leaves for each Hero over the new base's Tier.
 
 ## Decisions recorded, rather than left to the implementation
 
 **The move is an entry, not a side effect of the outcome.** A successful claim's outcome is a fact
 about the mission; the base changing is a second thing that happens later in the turn (R25). A
-`base-moved {from, to, heroLeaves?}` entry records it, written by a form at Advancement Step 5 that
+`base-moved {from, to, setAside}` entry records it, written by a form at Advancement Step 5 that
 `outstanding` owes. Until it is written every reader — production, beds, caps, Siege Threat —
 reads the old base, as it should.
 
@@ -488,8 +491,7 @@ slot of the reclaimed base costs no Hardware until it has been built once.
 is where it is recorded, and the history's selection line names it ("claiming a Distillery"), as
 the Tactical Mission form does above the counts. A copy on the outcome would be a second record of
 one fact that could disagree with the first. `claimWarning` counts Heroes against the base's Tier
-and says that one of the player's choice leaves, without saying how many: that is Z4-8's to settle
-when it asks. Any base on the roster is on offer, the one already held included (R26). The
+and says how many of the player's choice leave (R32, settled with Z4-8). Any base on the roster is on offer, the one already held included (R26). The
 reducer's `mission/selected` action gained the field beside the material's.
 
 ---
@@ -505,7 +507,8 @@ reducer's `mission/selected` action gained the field beside the material's.
   Materials are untouched, and no `base-stocked` is written: a later base starts with what was
   carried (pg. 54).
 - **The Hero cap:** when the new base holds fewer Heroes than the community has, the form asks
-  which Hero leaves (pg. 54), and refuses until one is named. The Hero is set aside (R31).
+  which Heroes leave, one for each over (pg. 54; R32), and refuses until exactly that many are
+  named. They are set aside (R31).
 - **The Unrest lock:** Calculate Unrest reads 0 for the rest of a turn whose claim succeeded
   (pg. 79). Departures reads it as it reads any Unrest.
 - `outstanding` owes the move; `ClaimBase.tsx` stops sending a player with a base away.
@@ -515,8 +518,29 @@ reducer's `mission/selected` action gained the field beside the material's.
 - After a won claim, Steps 1–5 read the old base, and the next Planning Phase reads the new one.
 - A claim with no end condition met moves nothing and owes nothing.
 - Materials over the new caps survive the move and spoil at Check Storage.
-- Moving a three-Hero community into a Tier 2 base asks for one Hero, and only one.
+- Moving a three-Hero community into a Tier 2 base asks for one Hero, and into a Tier 1 base for
+  two (R32).
 - Unrest reads 0 at Management Step 4 of the move turn and is counted again the turn after.
+
+**What this story turned out to include.**
+
+- **Schema v15.** A Hero sent away is set aside whole (R31), so the campaign gained a `setAside`
+  list of survivors, checked by the save reader as the roster is, and refused when one id is in
+  both. The v14 → v15 step adds it empty, which is the truth: a v14 build could not move.
+- **Two modules, not one.** What the turn's claim won (`claimWon`, `claimedBase`, `moveOwed`,
+  `heroesOverCap`, and Z4-7's `claimWarning`, moved here) is `claim.ts`, read straight off the
+  log; the move's guard and change are `move.ts`. The split is for the Unrest lock: `feeding.ts`
+  asks `claimWon`, and anything that imported the mission or project readers would close a loop
+  back through `siege.ts`.
+- **The lock is in `unrest` itself**, so Calculate Unrest, Departures and anything else that reads
+  Unrest agree. Hunger and Exhaustion are untouched, and so are the rules that read them directly.
+- **A community with no base cannot move**, because the entry names the base left. Every
+  campaign past turn 1 has one; the refusal is for a damaged or hand-built save.
+- **What was not built here:** sharing the first base's stocking rule with the move. A move stocks
+  nothing, so there was nothing to share; Z4-9's Start a New Community is the first to need it.
+- **The export writes `setAside`'s entries in a fixed key order**, as it does a project's charge,
+  because the property suite found a reordered file re-exporting differently. Mission wounds have
+  the same gap, which nothing generates yet; it is queued separately.
 
 ---
 

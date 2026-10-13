@@ -32,7 +32,7 @@
  * team's mission read another's.
  */
 
-import { BASES, maxHeroes, type BaseId } from '../data/bases';
+import { BASES, type BaseId } from '../data/bases';
 import { MATERIALS, type Material } from '../data/materials';
 import {
   GATHERED_MATERIALS,
@@ -249,7 +249,7 @@ export function asksForBase(mission: MissionId): boolean {
  * team's (R20); and with a material type, or a base, exactly when the mission
  * asks for one. Any base on the roster may be claimed, the one already held and
  * a lower Tier among them (pg. 78; R26): what a lower Tier costs is a warning
- * (`claimWarning`), not this.
+ * (`claimWarning` in `claim.ts`), not this.
  * Choosing again for a team that already chose is allowed — it is how a choice
  * is corrected — until the team's outcome is recorded: a mission that has been
  * played is not chosen again, except a failed First Mission (R21).
@@ -306,27 +306,6 @@ export function selectionProblem(campaign: Campaign, choice: MissionChoice): str
   }
 
   return null;
-}
-
-/**
- * A warning when the base a claim is aiming at holds fewer Heroes than the
- * community has, or `null` (pg. 54).
- *
- * A base's Tier is how many Heroes it holds, and moving into one with too few
- * sends a Hero of the player's choice away when the community moves in (R25,
- * R31; Z4-8). A warning rather than a refusal, because the book lets a
- * community claim any base (pg. 78) and does not warn either: the table may
- * want the smaller base and pay for it.
- */
-export function claimWarning(campaign: Campaign, base: BaseId): string | null {
-  const heroes = campaign.survivors.filter((survivor) => survivor.tier === 4).length;
-  const cap = maxHeroes(BASES[base].tier);
-
-  if (heroes <= cap) return null;
-
-  const holds = cap === 1 ? '1 Hero' : `${String(cap)} Heroes`;
-
-  return `This base holds ${holds} and the community has ${String(heroes)}: moving in sends a Hero of your choice away.`;
 }
 
 /**

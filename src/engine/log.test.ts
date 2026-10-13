@@ -134,6 +134,7 @@ describe('the event samples', () => {
     'skill-level-bought': true,
     'common-skill-bought': true,
     'base-claimed': true,
+    'base-moved': true,
     'base-stocked': true,
     'facility-built': true,
     'upgrade-built': true,

@@ -19,7 +19,7 @@ import { BASES } from '../data/bases';
 import { SKILLS, STATS } from '../data/skills';
 import { MATERIALS } from '../data/materials';
 import type { Base, Campaign, Project, SlotState, Survivor } from '../engine/campaign';
-import type { LogEntry } from '../engine/log';
+import type { CampaignEvent, LogEntry } from '../engine/log';
 
 /** Material counts in the fixed order from the engine, not insertion order. */
 function orderedMaterials(campaign: Campaign): Record<string, number> {
@@ -204,7 +204,26 @@ function orderedLogEntry(entry: LogEntry): Record<keyof LogEntry, unknown> {
     turn: entry.turn,
     phase: entry.phase,
     at: entry.at,
-    event: taggedFirst(entry.event, 'kind'),
+    event: orderedEvent(entry.event),
+  };
+}
+
+/**
+ * An event tag-first, with the survivors a move set aside written in a fixed
+ * order too.
+ *
+ * `taggedFirst` sorts the top level only, so the objects inside `setAside`
+ * would keep whatever key order the file they were read from used — the same
+ * gap `orderedProject` closes for `charged`, closed the same way. Assigning a
+ * key the object already has leaves its position alone, so this cannot move
+ * `setAside` itself.
+ */
+function orderedEvent(event: CampaignEvent): Record<string, unknown> {
+  if (event.kind !== 'base-moved') return taggedFirst(event, 'kind');
+
+  return {
+    ...taggedFirst(event, 'kind'),
+    setAside: event.setAside.map(({ survivor, name }) => ({ survivor, name })),
   };
 }
 
@@ -235,6 +254,7 @@ function inFileOrder(campaign: Campaign): Record<keyof Campaign, unknown> {
     step: campaign.step,
     materials: orderedMaterials(campaign),
     survivors: campaign.survivors.map(orderedSurvivor),
+    setAside: campaign.setAside.map(orderedSurvivor),
     startingCommunityBuilt: campaign.startingCommunityBuilt,
     base: campaign.base === null ? null : orderedBase(campaign.base),
     assignments: orderedAssignments(campaign),

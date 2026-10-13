@@ -69,6 +69,7 @@ import { FOOD_EATEN_PER_TURN } from '../data/turn';
 import { phaseOf } from './turn';
 import { suppliedOccupants } from './utilities';
 import { beds } from './base';
+import { claimWon } from './claim';
 import type { Campaign } from './campaign';
 
 /** How much Food this community eats in a Management Phase (pg. 22). */
@@ -301,7 +302,21 @@ export function exhaustion(campaign: Campaign): number {
  * — the book says so twice — and so is this.
  */
 export function unrest(campaign: Campaign): number {
-  return hunger(campaign) + exhaustion(campaign);
+  return unrestLocked(campaign) ? 0 : hunger(campaign) + exhaustion(campaign);
+}
+
+/**
+ * Whether Unrest is held at 0 for the rest of the turn, because a Claim a New
+ * Base was won in it (pg. 79; Z4-8).
+ *
+ * The lock is on the sum, not its terms: Hunger still costs the stats it costs
+ * (R1) and Exhaustion still takes a survivor off the mission team (pg. 23).
+ * Departures reads Unrest as it reads any, so with the lock it is left to
+ * Siege Threat alone — the lock changes the number, not the rule. The next
+ * turn counts Unrest afresh, as every turn does.
+ */
+export function unrestLocked(campaign: Campaign): boolean {
+  return claimWon(campaign);
 }
 
 /** Whether this turn's Feed step has already run. */

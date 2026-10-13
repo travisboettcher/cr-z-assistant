@@ -42,7 +42,9 @@ import {
   substitutionsSpent,
   type MaterialRoll,
 } from '../engine/materials';
+import { baseMoved, claimedBase, heroesOverCap } from '../engine/claim';
 import { deployed } from '../engine/missions';
+import { moveProblem } from '../engine/move';
 import {
   rescuedStrangers,
   strangerProblem,
@@ -84,7 +86,7 @@ import {
   writePendingRolls,
 } from '../persistence/pendingRolls';
 import { useCampaign } from '../state/useCampaign';
-import { MATERIAL_LABELS, builtThingLabel, slotLabel } from './baseLabels';
+import { BASE_LABELS, MATERIAL_LABELS, builtThingLabel, slotLabel } from './baseLabels';
 import { PageRef } from './PageRef';
 import { SKILL_LABELS } from './skillLabels';
 import { TIER_LABELS } from './tierLabels';
@@ -137,6 +139,10 @@ export function AdvancementPhase({ campaign, step }: AdvancementPhaseProps) {
       {step === 'heal-wounds' && <HealWounds campaign={campaign} />}
 
       {step === 'add-facilities-and-upgrades' && <FinishProjects campaign={campaign} />}
+
+      {step === 'add-facilities-and-upgrades' && claimedBase(campaign) !== null && (
+        <MoveIn campaign={campaign} />
+      )}
     </div>
   );
 }
@@ -1166,5 +1172,94 @@ function SiegeUnpaid({ campaign, short }: { readonly campaign: Campaign; readonl
         ))}
       </ul>
     </div>
+  );
+}
+
+/**
+ * The end of the phase after a claim was won: the community moves in (pp. 19,
+ * 54, 79; R25; Z4-8).
+ *
+ * After the projects, which land in the old base and stay there; so until they
+ * are finished this says why it waits rather than offering a button that would
+ * be refused. When the new base holds fewer Heroes than the community has, the
+ * player picks one for each over (R32) — the book leaves the choice to them —
+ * and the button waits for exactly that many.
+ */
+function MoveIn({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+  const [leaving, setLeaving] = useState<readonly string[]>([]);
+
+  // Present: the step renders this only for a claim won this turn.
+  const to = claimedBase(campaign) as NonNullable<ReturnType<typeof claimedBase>>;
+  const label = BASE_LABELS[to];
+
+  if (baseMoved(campaign)) {
+    return (
+      <p className="mt-4 text-sm font-medium">
+        The community has moved into the {label} <PageRef pages={79} />
+      </p>
+    );
+  }
+
+  const over = heroesOverCap(campaign, to);
+  const heroes = campaign.survivors.filter((survivor) => survivor.tier === 4);
+  const problem = moveProblem(campaign, leaving);
+  const from = campaign.base === null ? null : BASE_LABELS[campaign.base.id];
+
+  return (
+    <section
+      aria-label="Move into the new base"
+      className="mt-4 rounded-lg border border-stone-200 p-4 dark:border-stone-700"
+    >
+      <p className="text-sm font-medium">
+        Move into the {label} <PageRef pages="19, 79" />
+      </p>
+      <p className={`mt-1 ${HINT}`}>
+        {from === null ? '' : `What was built in the ${from} stays there. `}The stores come along,
+        and anything over the new caps spoils at Check Storage <PageRef pages="23, 54" />
+      </p>
+
+      {over > 0 && (
+        <fieldset className="mt-3">
+          <legend className="text-sm">
+            The {label} holds fewer Heroes than the community has. Choose{' '}
+            {over === 1 ? 'the Hero' : `the ${String(over)} Heroes`} who leave to start their own
+            community <PageRef pages={54} />
+          </legend>
+          <div className="mt-1 flex flex-col gap-1">
+            {heroes.map((hero) => (
+              <label key={hero.id} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className={FOCUS_RING}
+                  checked={leaving.includes(hero.id)}
+                  onChange={(changed) => {
+                    setLeaving(
+                      changed.target.checked
+                        ? [...leaving, hero.id]
+                        : leaving.filter((id) => id !== hero.id),
+                    );
+                  }}
+                />
+                {hero.name}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      )}
+
+      {problem !== null && <p className={`mt-2 ${HINT}`}>{problem}</p>}
+
+      <button
+        type="button"
+        disabled={problem !== null}
+        className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+        onClick={() => {
+          dispatch({ type: 'advancement/moved', leaving, at: new Date().toISOString() });
+        }}
+      >
+        Move into the {label}
+      </button>
+    </section>
   );
 }

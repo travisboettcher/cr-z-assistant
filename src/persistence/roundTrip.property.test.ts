@@ -191,6 +191,7 @@ it('does not survive a negative zero material count, which is why the generator 
     materials: { food: -0, fuel: 0, hardware: 0, rare: 0 },
     projects: [],
     survivors: [],
+    setAside: [],
     startingCommunityBuilt: false,
     base: null,
     assignments: {},
