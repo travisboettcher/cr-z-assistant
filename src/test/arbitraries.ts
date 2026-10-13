@@ -26,6 +26,8 @@ import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS, type Materials } from '../data/materials';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
+import { MISSIONS, type MissionId } from '../data/missions';
+import { FIELD_RECRUITABLE_TIERS } from '../data/recruitTable';
 import { CAMPAIGN_PHASES, HEALTH_SOURCES, XP_SOURCES } from '../data/turn';
 import { TURN_SEQUENCE } from '../engine/turn';
 import { CURRENT_SCHEMA_VERSION } from '../engine/campaign';
@@ -231,6 +233,43 @@ export function baseArbitrary(): fc.Arbitrary<Base> {
 }
 
 /**
+ * A mission's wounds (Z4-4): each team member's Health at the end, and
+ * Infection on some and not others.
+ *
+ * Infection is left out about half the time because an absent Infection is a
+ * real state — every wound outside a Viral campaign — and the one a round trip
+ * can get wrong by writing it as zero. Health and Infection start at 0, which
+ * is a survivor who went down, not a damaged file.
+ */
+const anyWounds = fc.array(
+  fc.record(
+    {
+      survivor: anyId,
+      name: anyName,
+      health: fc.integer({ min: 0, max: 20 }),
+      infection: fc.integer({ min: 0, max: 20 }),
+    },
+    { requiredKeys: ['survivor', 'name', 'health'] },
+  ),
+  { maxLength: 3 },
+);
+
+/**
+ * A mission outcome with `wounds` about half the time, and absent the rest,
+ * which is every outcome written before Z4-4.
+ */
+function withWounds<T extends object>(outcome: fc.Arbitrary<T>) {
+  return fc
+    .tuple(outcome, fc.option(anyWounds, { nil: undefined }))
+    .map(([fields, wounds]) => (wounds === undefined ? fields : { ...fields, wounds }));
+}
+
+const anyTeam = fc.integer({ min: 1, max: 4 });
+const anyEndCondition = fc.option(fc.integer({ min: 1, max: 4 }), { nil: null });
+const anyStrangers = fc.array(fc.constantFrom(...FIELD_RECRUITABLE_TIERS), { maxLength: 3 });
+const MISSION_IDS = Object.keys(MISSIONS) as MissionId[];
+
+/**
  * Any one of the fourteen things that can happen.
  *
  * Written out per kind rather than generated from a shared shape, and that is
@@ -306,18 +345,95 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       threat: anyAmount,
       siege: fc.boolean(),
     }),
-    fc.record({
-      kind: fc.constant('siege-defense-resolved' as const),
-      zombiesLeft: anyCount,
-      survivorsExited: anyCount,
-    }),
-    fc.record({
-      kind: fc.constant('thin-the-herd-resolved' as const),
-      startingZombies: anyCount,
-      zombiesLeft: anyCount,
-      survivorsExited: anyCount,
-      allIncapacitated: fc.boolean(),
-    }),
+    // The team is optional on these two: absent on every one written before
+    // Z4-3, when the turn had only the one team.
+    withWounds(
+      fc.record(
+        {
+          kind: fc.constant('siege-defense-resolved' as const),
+          zombiesLeft: anyCount,
+          survivorsExited: anyCount,
+          team: anyTeam,
+        },
+        { requiredKeys: ['kind', 'zombiesLeft', 'survivorsExited'] },
+      ),
+    ),
+    withWounds(
+      fc.record(
+        {
+          kind: fc.constant('thin-the-herd-resolved' as const),
+          startingZombies: anyCount,
+          zombiesLeft: anyCount,
+          survivorsExited: anyCount,
+          allIncapacitated: fc.boolean(),
+          team: anyTeam,
+        },
+        {
+          requiredKeys: [
+            'kind',
+            'startingZombies',
+            'zombiesLeft',
+            'survivorsExited',
+            'allIncapacitated',
+          ],
+        },
+      ),
+    ),
+    withWounds(
+      fc.record({
+        kind: fc.constant('first-mission-resolved' as const),
+        team: anyTeam,
+        endCondition: anyEndCondition,
+        strangers: anyStrangers,
+      }),
+    ),
+    withWounds(
+      fc.record({
+        kind: fc.constant('claim-a-new-base-resolved' as const),
+        team: anyTeam,
+        endCondition: anyEndCondition,
+        strangers: anyStrangers,
+        vehiclesOnArea: anyCount,
+      }),
+    ),
+    withWounds(
+      fc.record({
+        kind: fc.constant('gather-materials-resolved' as const),
+        team: anyTeam,
+        materialsCarriedOut: anyCount,
+        strangers: anyStrangers,
+      }),
+    ),
+    withWounds(
+      fc.record({
+        kind: fc.constant('retrieve-new-vehicles-resolved' as const),
+        team: anyTeam,
+        vehiclesDrivenOff: anyCount,
+        strangers: anyStrangers,
+      }),
+    ),
+    withWounds(
+      fc.record({
+        kind: fc.constant('rescue-strangers-resolved' as const),
+        team: anyTeam,
+        strangers: anyStrangers,
+      }),
+    ),
+    withWounds(
+      fc.record({
+        kind: fc.constant('rare-goods-trader-resolved' as const),
+        team: anyTeam,
+        survivorsExited: anyCount,
+        strangers: anyStrangers,
+      }),
+    ),
+    withWounds(
+      fc.record({
+        kind: fc.constant('mission-played' as const),
+        team: anyTeam,
+        mission: fc.constantFrom(...MISSION_IDS),
+      }),
+    ),
     // The Infection count is optional, and a round trip has to keep it absent
     // where it was absent as well as keep it where it was written (#176).
     fc.record(
