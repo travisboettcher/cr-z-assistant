@@ -846,6 +846,27 @@ describe('a campaign whose log is damaged', () => {
     // The field loop: a kind this version knows, carrying a field it cannot
     // read. Nothing above reaches past the discriminant.
     [
+      'a way on from an overrun the book does not give',
+      [{ ...good, event: { kind: 'overrun-continued', option: 'surrender' } }],
+      /unreadable option/i,
+    ],
+    [
+      'a move whose stores are not counts',
+      [
+        {
+          ...good,
+          event: {
+            kind: 'base-moved',
+            from: 'hobby-farm',
+            to: 'hobby-farm',
+            setAside: [],
+            stores: { food: -1, fuel: 0, hardware: 0, rare: 0 },
+          },
+        },
+      ],
+      /unreadable stores/i,
+    ],
+    [
       'a claim aimed at a base that is not on the roster',
       [
         {

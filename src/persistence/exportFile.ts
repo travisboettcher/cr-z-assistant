@@ -211,8 +211,7 @@ function orderedLogEntry(entry: LogEntry): Record<keyof LogEntry, unknown> {
 
 /**
  * An event tag-first, with the objects nested inside it written in a fixed
- * order too: the survivors a move set aside, and the wounds a mission outcome
- * carries.
+ * order too: the survivors a move set aside and the stores it left after an overrun, and the wounds a mission outcome carries.
  *
  * `taggedFirst` sorts the top level only, so the objects inside `setAside` and
  * `wounds` would keep whatever key order the file they were read from used —
@@ -220,13 +219,21 @@ function orderedLogEntry(entry: LogEntry): Record<keyof LogEntry, unknown> {
  * Assigning a key the object already has leaves its position alone, so this
  * cannot move `setAside` or `wounds` themselves. Which kinds carry wounds is
  * `isMissionOutcome`'s answer, not a list here that could fall out of step
- * with it.
+ * with it. `stores` and `rebuild` are written only where present, rather than
+ * as `undefined`, which the file drops.
  */
 function orderedEvent(event: CampaignEvent): Record<string, unknown> {
   if (event.kind === 'base-moved') {
     return {
       ...taggedFirst(event, 'kind'),
       setAside: event.setAside.map(({ survivor, name }) => ({ survivor, name })),
+      ...(event.stores === undefined
+        ? {}
+        : {
+            stores: Object.fromEntries(
+              MATERIALS.map((material) => [material, event.stores?.[material]]),
+            ),
+          }),
     };
   }
 

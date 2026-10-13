@@ -73,7 +73,7 @@ describe('the outcome of a Siege Defense (pg. 86)', () => {
     expect(walk().textContent).toContain('Siege Defense: 0 zombies left, 2 survivors out');
   });
 
-  it('names an overrun base, and the choice the app leaves to the table', async () => {
+  it('names an overrun base before it is recorded', async () => {
     const user = open(playing({ log: [called, chose('siege-defense')] }));
 
     await user.type(field(/zombies left/i), '3');
@@ -81,6 +81,72 @@ describe('the outcome of a Siege Defense (pg. 86)', () => {
 
     expect(walk().textContent).toContain('keep counting');
     expect(walk().textContent).toContain('The base is overrun');
+  });
+});
+
+/** How the community goes on from an overrun base (pg. 86; R27, R28; Z4-9). */
+describe('the overrun base', () => {
+  const overran: LogEntry = {
+    turn: 4,
+    phase: 'mission',
+    at: AT,
+    event: { kind: 'siege-defense-resolved', zombiesLeft: 2, survivorsExited: 1, team: 1 },
+  };
+
+  const besieged = () =>
+    playing({
+      base: { id: 'hobby-farm', slots: {} },
+      survivors: [createSurvivor('Earl Rhodes', 2, { id: 'earl' })],
+      log: [called, chose('siege-defense'), overran],
+    });
+
+  const choice = () =>
+    within(within(walk()).getByRole('group', { name: /how does the community go on/i }));
+
+  it('asks how the community goes on once the siege is recorded', () => {
+    open(besieged());
+
+    expect(choice().getByRole('radio', { name: 'Claim a new base' })).toBeChecked();
+    expect(choice().getByRole('radio', { name: 'Start a new community' })).toBeInTheDocument();
+  });
+
+  it('plays the claim it chooses at once, with no strangers and a question about the map', async () => {
+    const user = open(besieged());
+
+    // The overrun base's own type is the default, which is the one that asks.
+    await user.click(choice().getByRole('button', { name: 'Go on this way' }));
+
+    const claim = group(/how claim a new base ended/i);
+    expect(claim.getByText('Claiming a Hobby Farm.')).toBeInTheDocument();
+    expect(claim.queryByLabelText('Stranger’s Tier')).toBeNull();
+
+    await user.selectOptions(claim.getByLabelText(/end condition met/i), '1');
+    await user.click(claim.getByLabelText(/overrun base’s own map/i));
+    await user.click(claim.getByRole('button', { name: 'Record Claim a New Base' }));
+
+    expect(walk().textContent).toContain('on the overrun base’s own map');
+    expect(
+      within(walk()).queryByRole('group', { name: /how does the community go on/i }),
+    ).toBeNull();
+  });
+
+  it('asks again when the way on fails (R28)', async () => {
+    const user = open(besieged());
+
+    await user.click(choice().getByRole('radio', { name: 'Start a new community' }));
+    await user.selectOptions(
+      choice().getByLabelText('Base the new community claims'),
+      'summer-camp',
+    );
+    await user.click(choice().getByRole('button', { name: 'Go on this way' }));
+
+    const first = group(/how the first mission ended/i);
+    await user.selectOptions(first.getByLabelText(/end condition met/i), 'none');
+    await user.click(first.getByRole('button', { name: 'Record the First Mission' }));
+
+    // Not R21's replay, which is turn 1's.
+    expect(walk().textContent).toContain('the community chooses again how it goes on (R28)');
+    expect(choice().getByRole('button', { name: 'Go on this way' })).toBeEnabled();
   });
 });
 

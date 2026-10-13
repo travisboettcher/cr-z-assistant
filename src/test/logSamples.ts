@@ -190,6 +190,26 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
     to: 'summer-camp',
     setAside: [{ survivor: 'earl', name: 'Earl Rhodes' }],
   },
+  // A move after an overrun, which writes what the stores held (R29, R30).
+  {
+    kind: 'base-moved',
+    from: 'hobby-farm',
+    to: 'hobby-farm',
+    setAside: [],
+    stores: { food: 2, fuel: 1, hardware: 3, rare: 0 },
+  },
+  // How the community went on from an overrun base (pg. 86; Z4-9).
+  { kind: 'overrun-continued', option: 'claim' },
+  { kind: 'overrun-continued', option: 'start-over' },
+  // The claim an overrun went on with, on the overrun base's own map (R29).
+  {
+    kind: 'claim-a-new-base-resolved',
+    team: 1,
+    endCondition: 1,
+    strangers: [],
+    vehiclesOnArea: 0,
+    sameMap: true,
+  },
   { kind: 'base-stocked', food: 4, fuel: 4, hardware: 4 },
   { kind: 'facility-built', slot: 'front-yard', facility: 'watchtower' },
   { kind: 'upgrade-built', slot: 'kitchen', upgrade: 'gas-range' },

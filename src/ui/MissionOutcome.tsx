@@ -23,11 +23,20 @@
  */
 
 import { useState } from 'react';
-import { MISSIONS, type MissionId, type OutcomeCount } from '../data/missions';
+import { BASE_IDS, BASES, type BaseId } from '../data/bases';
+import {
+  MISSIONS,
+  OVERRUN_OPTIONS,
+  type MissionId,
+  type OutcomeCount,
+  type OverrunOption,
+} from '../data/missions';
 import { FIELD_RECRUITABLE_TIERS, type FieldRecruitTier } from '../data/recruitTable';
 import type { Campaign } from '../engine/campaign';
 import type { MissionWound } from '../engine/log';
+import { claimWarning } from '../engine/claim';
 import {
+  asksSameMap,
   missionOutcomeProblem,
   outcomeOf,
   strangerWarning,
@@ -36,6 +45,7 @@ import {
   woundsAsTheyStand,
   type MissionChoice,
 } from '../engine/missions';
+import { overrunChoiceOwed, overrunChoiceProblem, overrunClaim } from '../engine/overrun';
 import { maxHp } from '../engine/survivor';
 import { useCampaign } from '../state/useCampaign';
 import { withArticle } from './articles';
@@ -44,6 +54,7 @@ import {
   COUNT_LABELS,
   describeOutcome,
   MISSION_LABELS,
+  OVERRUN_LABELS,
   outcomeConsequences,
   outcomePages,
 } from './missionLabels';
@@ -244,9 +255,20 @@ function TeamOutcome({
   const [strangers, setStrangers] = useState<readonly FieldRecruitTier[]>([]);
   const [nextStranger, setNextStranger] = useState<FieldRecruitTier>(1);
   const [allDown, setAllDown] = useState(false);
+  const [sameMap, setSameMap] = useState(false);
   const [typed, setTyped] = useState<Typed>({});
 
-  const asked = countsFor(choice.mission);
+  // The claim an overrun goes on with places no strangers (pg. 86), and asks
+  // whether it was the overrun base's own map when it is that base's type (R29).
+  const asked = countsFor(choice.mission).filter(
+    (of) =>
+      !(
+        of === 'strangers-rescued' &&
+        choice.mission === 'claim-a-new-base' &&
+        overrunClaim(campaign)
+      ),
+  );
+  const mapAsked = asksSameMap(campaign, choice);
   const number = (of: OutcomeCount) => count(numbers[of] ?? '');
   const wounds = woundsTyped(woundsAsTheyStand(campaign, choice.team), typed);
   const outcome = outcomeOf(choice, {
@@ -259,6 +281,7 @@ function TeamOutcome({
     survivorsExited: number('survivors-exited'),
     allIncapacitated: allDown,
     vehiclesDrivenOff: number('vehicles-driven-off'),
+    ...(mapAsked ? { sameMap } : {}),
     wounds,
   });
   const problem = missionOutcomeProblem(campaign, outcome);
@@ -405,8 +428,22 @@ function TeamOutcome({
         }}
       />
 
+      {mapAsked && (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            className={FOCUS_RING}
+            checked={sameMap}
+            onChange={(changed) => {
+              setSameMap(changed.target.checked);
+            }}
+          />
+          Played on the overrun base’s own map <PageRef pages={86} />
+        </label>
+      )}
+
       {warning !== null && <p className={WARNING}>{warning}</p>}
-      <p className={HINT}>{problem ?? outcomeConsequences(outcome).join(' ')}</p>
+      <p className={HINT}>{problem ?? outcomeConsequences(outcome, campaign.turn).join(' ')}</p>
 
       <button
         type="button"
@@ -432,6 +469,96 @@ function timesChosen(campaign: Campaign, team: number): number {
   ).length;
 }
 
+/**
+ * How the community goes on from a base its Siege Defense overran (pg. 86;
+ * R27, R28; Z4-9).
+ *
+ * Offered once the siege's outcome is in, and again after a way on that met no
+ * end condition. The way on and the base it claims are chosen together, and
+ * recording them chooses team 1's next mission — the whole community's, as the
+ * siege was — so the form for it appears below without walking back.
+ */
+function OverrunChoice({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+  const [option, setOption] = useState<OverrunOption>('claim');
+  const [base, setBase] = useState<BaseId>(campaign.base?.id ?? 'small-town-home');
+
+  const problem = overrunChoiceProblem(campaign, option);
+  const warning = claimWarning(campaign, base);
+  const baseId = 'overrun-base';
+
+  return (
+    <fieldset className="mt-4 flex flex-col gap-2 rounded-lg border border-amber-300 p-3 dark:border-amber-700">
+      <legend className="px-1 text-sm font-semibold">
+        The base is overrun: how does the community go on? <PageRef pages={86} />
+      </legend>
+
+      <p className={HINT}>
+        The way on is played as a further mission this turn, by everybody who fought the siege
+        (R27). If it fails, choose again (R28).
+      </p>
+
+      {OVERRUN_OPTIONS.map((way) => (
+        <label key={way} className="flex items-center gap-2 text-sm">
+          <input
+            type="radio"
+            name="overrun-option"
+            className={FOCUS_RING}
+            checked={option === way}
+            onChange={() => {
+              setOption(way);
+            }}
+          />
+          {OVERRUN_LABELS[way].charAt(0).toUpperCase() + OVERRUN_LABELS[way].slice(1)}
+        </label>
+      ))}
+
+      <p className={HINT}>Leaving the survivors to begin a new community is not built yet.</p>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="text-sm" htmlFor={baseId}>
+          {option === 'claim' ? 'Base to claim' : 'Base the new community claims'}
+        </label>
+        <select
+          id={baseId}
+          className={SELECT}
+          value={base}
+          onChange={(changed) => {
+            setBase(changed.target.value as BaseId);
+          }}
+        >
+          {BASE_IDS.map((id) => (
+            <option key={id} value={id}>
+              {BASE_LABELS[id]} (Tier {BASES[id].tier})
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {problem !== null && <p className={HINT}>{problem}</p>}
+      {warning !== null && <p className={WARNING}>{warning}</p>}
+
+      <div>
+        <button
+          type="button"
+          className={PRIMARY}
+          disabled={problem !== null}
+          onClick={() => {
+            dispatch({
+              type: 'mission/overrunContinued',
+              option,
+              base,
+              at: new Date().toISOString(),
+            });
+          }}
+        >
+          Go on this way
+        </button>
+      </div>
+    </fieldset>
+  );
+}
+
 export function MissionOutcome({ campaign }: { readonly campaign: Campaign }) {
   const { choices } = turnMissions(campaign);
   const outcomes = teamOutcomes(campaign);
@@ -454,10 +581,12 @@ export function MissionOutcome({ campaign }: { readonly campaign: Campaign }) {
           />
         ) : (
           <p key={choice.team} className="mt-4 text-sm font-medium">
-            {describeOutcome(recorded)} <PageRef pages={outcomePages(recorded)} />
+            {describeOutcome(recorded, campaign.turn)} <PageRef pages={outcomePages(recorded)} />
           </p>
         );
       })}
+
+      {overrunChoiceOwed(campaign) && <OverrunChoice campaign={campaign} />}
     </>
   );
 }

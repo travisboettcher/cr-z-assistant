@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { continued, overrun, wentOn } from '../test/overrun';
 import { BASE_IDS, BASES, type BaseId } from '../data/bases';
 import { createNewCampaign, type Assignment, type Campaign } from './campaign';
 import { baseMoved, claimedBase, claimWarning, claimWon, heroesOverCap, moveOwed } from './claim';
@@ -184,5 +185,41 @@ describe('claimWarning', () => {
     expect(claimWarning(playing({ survivors: heroes(1) }), 'summer-camp')).toBeNull();
     // Survivors below Hero are not counted at all.
     expect(claimWarning(playing({ survivors: [earl, ruby] }), 'summer-camp')).toBeNull();
+  });
+});
+
+describe('claimedBase after an overrun (pg. 86; Z4-9)', () => {
+  it('is the base a community starting over named, once its First Mission is won', () => {
+    expect(claimedBase(overrun([...wentOn('start-over', 'summer-camp')]))).toBeNull();
+    expect(
+      claimedBase(overrun([...wentOn('start-over', 'summer-camp'), continued('start-over', true)])),
+    ).toBe('summer-camp');
+  });
+
+  it('is the base the overrun’s claim won', () => {
+    expect(claimedBase(overrun([...wentOn('claim', 'distillery'), continued('claim', true)]))).toBe(
+      'distillery',
+    );
+  });
+
+  it('is nothing for a campaign’s own turn-1 First Mission, which names no base', () => {
+    const first = playing({
+      turn: 1,
+      log: [
+        at({ kind: 'mission-selected', team: 1, mission: 'first-mission', names: [] }, 1),
+        at({ kind: 'first-mission-resolved', team: 1, endCondition: 1, strangers: [] }, 1),
+      ],
+    });
+
+    expect(claimedBase(first)).toBeNull();
+  });
+
+  it('does not lock Unrest for starting over, which is not a claim (pg. 79)', () => {
+    expect(
+      claimWon(overrun([...wentOn('start-over', 'summer-camp'), continued('start-over', true)])),
+    ).toBe(false);
+    expect(claimWon(overrun([...wentOn('claim', 'distillery'), continued('claim', true)]))).toBe(
+      true,
+    );
   });
 });

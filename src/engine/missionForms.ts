@@ -15,6 +15,8 @@
  * refuses. The shape of what they return is `forms.ts`'s.
  */
 
+import type { BaseId } from '../data/bases';
+import type { OverrunOption } from '../data/missions';
 import type { Campaign, Survivor } from './campaign';
 import { accepted, refused, type FormResult } from './forms';
 import { logged, type MissionWound } from './log';
@@ -30,6 +32,7 @@ import {
   type MissionOutcome,
   type MissionTeam,
 } from './missions';
+import { continuationMission, OVERRUN_TEAM, overrunChoiceProblem } from './overrun';
 import { standInProblem } from './siegeWork';
 
 /**
@@ -61,6 +64,32 @@ export function submitMissionSelection(
       ...(choice.material === undefined ? {} : { material: choice.material }),
       ...(choice.base === undefined ? {} : { base: choice.base }),
     }),
+  );
+}
+
+/**
+ * How the community goes on from a base this turn's Siege Defense overran, and
+ * the base that way on will claim (pg. 86; R27, R28; Z4-9).
+ *
+ * Two entries, because two things are decided: the way on, and team 1's next
+ * mission — the whole community's, as the siege was. Refused for whatever
+ * `overrunChoiceProblem` says, and then for whatever `selectionProblem` says of
+ * the mission, against the campaign the choice leaves, so nothing is written
+ * unless both stand.
+ */
+export function submitOverrunContinuation(
+  campaign: Campaign,
+  option: OverrunOption,
+  base: BaseId,
+  at: string,
+): FormResult {
+  const problem = overrunChoiceProblem(campaign, option);
+  if (problem !== null) return refused(problem);
+
+  return submitMissionSelection(
+    logged(campaign, at, { kind: 'overrun-continued', option }),
+    { team: OVERRUN_TEAM, mission: continuationMission(option), base },
+    at,
   );
 }
 

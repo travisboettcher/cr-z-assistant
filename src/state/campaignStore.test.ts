@@ -2554,6 +2554,39 @@ describe('what earns a line in the log', () => {
         facility: 'watchtower',
       }),
     },
+    'mission/overrunContinued': {
+      // The siege turn 2 called overran the base, so the whole community, as
+      // team 1, goes on by claiming a Distillery (pg. 86; R27; Z4-9).
+      state: openState({
+        ...expectOpen(rich()),
+        log: [
+          entry(2, 'management', { kind: 'horde-checked', roll: 9, threat: 8, siege: true }),
+          entry(3, 'mission', {
+            kind: 'mission-selected',
+            team: 1,
+            mission: 'siege-defense',
+            names: [],
+          }),
+          entry(3, 'mission', {
+            kind: 'siege-defense-resolved',
+            zombiesLeft: 2,
+            survivorsExited: 1,
+            team: 1,
+          }),
+        ],
+      }),
+      action: { type: 'mission/overrunContinued', option: 'claim', base: 'distillery', at: AT },
+      entry: [
+        entry(3, 'mission', { kind: 'overrun-continued', option: 'claim' }),
+        entry(3, 'mission', {
+          kind: 'mission-selected',
+          team: 1,
+          mission: 'claim-a-new-base',
+          names: expectOpen(rich()).survivors.map((survivor) => survivor.name),
+          base: 'distillery',
+        }),
+      ],
+    },
     'advancement/moved': {
       // A claim on a Distillery won this turn, standing at the last
       // Advancement step with nothing left to finish (R25; Z4-8).

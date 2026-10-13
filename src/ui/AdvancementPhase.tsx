@@ -44,7 +44,7 @@ import {
 } from '../engine/materials';
 import { baseMoved, claimedBase, heroesOverCap } from '../engine/claim';
 import { deployed } from '../engine/missions';
-import { moveProblem } from '../engine/move';
+import { moveProblem, storesAfterMove } from '../engine/move';
 import {
   rescuedStrangers,
   strangerProblem,
@@ -1205,6 +1205,7 @@ function MoveIn({ campaign }: { readonly campaign: Campaign }) {
   const heroes = campaign.survivors.filter((survivor) => survivor.tier === 4);
   const problem = moveProblem(campaign, leaving);
   const from = campaign.base === null ? null : BASE_LABELS[campaign.base.id];
+  const stores = storesAfterMove(campaign);
 
   return (
     <section
@@ -1215,8 +1216,21 @@ function MoveIn({ campaign }: { readonly campaign: Campaign }) {
         Move into the {label} <PageRef pages="19, 79" />
       </p>
       <p className={`mt-1 ${HINT}`}>
-        {from === null ? '' : `What was built in the ${from} stays there. `}The stores come along,
-        and anything over the new caps spoils at Check Storage <PageRef pages="23, 54" />
+        {from === null ? '' : `What was built in the ${from} stays there. `}
+        {stores === null ? (
+          <>
+            The stores come along, and anything over the new caps spoils at Check Storage{' '}
+            <PageRef pages="23, 54" />
+          </>
+        ) : (
+          <>
+            After the overrun, the stores will hold{' '}
+            {MATERIALS.map(
+              (material) => `${String(stores[material])} ${MATERIAL_LABELS[material]}`,
+            ).join(', ')}{' '}
+            <PageRef pages={86} />
+          </>
+        )}
       </p>
 
       {over > 0 && (

@@ -43,6 +43,7 @@ import {
 } from '../data/missions';
 import { FIELD_RECRUITABLE_TIERS, type FieldRecruitTier } from '../data/recruitTable';
 import { beforePlanning } from './assignments';
+import { continuationMission, continuationOpen, overrunChoice, overrunClaim } from './overrun';
 import type { Campaign, Survivor } from './campaign';
 import type { CampaignEvent, MissionWound } from './log';
 import { FIRST_TURN, siegeDue } from './siege';
@@ -208,7 +209,12 @@ export function missionsChosen(campaign: Campaign): boolean {
  */
 export function missionsOnOffer(campaign: Campaign): readonly MissionId[] {
   if (campaign.turn === FIRST_TURN) return ['first-mission'];
-  if (siegeDue(campaign)) return ['siege-defense'];
+  if (siegeDue(campaign)) {
+    // After an overrun, the way on the player chose (R27).
+    const option = overrunChoice(campaign);
+
+    return [option === null ? 'siege-defense' : continuationMission(option)];
+  }
 
   return (Object.keys(MISSIONS) as MissionId[]).filter((id) => {
     const mission: (typeof MISSIONS)[MissionId] = MISSIONS[id];
@@ -236,9 +242,19 @@ export function asksForMaterial(mission: MissionId): boolean {
   return asksFor(mission, 'material');
 }
 
-/** Whether a mission asks Select Mission for the base it claims (pg. 78; Z4-7). */
-export function asksForBase(mission: MissionId): boolean {
-  return asksFor(mission, 'base');
+/**
+ * Whether Select Mission asks for the base this mission claims: Claim a New
+ * Base always (pg. 78; Z4-7), and the First Mission when it is a community
+ * starting over after an overrun, which will claim a base of its own (pg. 86;
+ * R30, Z4-9). Not the campaign's own turn-1 First Mission, whose base is
+ * claimed on the base sheet.
+ */
+export function asksForBase(campaign: Campaign, mission: MissionId): boolean {
+  return (
+    asksFor(mission, 'base') ||
+    // A way on is only ever chosen on a siege turn, after the siege overran.
+    (mission === 'first-mission' && overrunChoice(campaign) !== null)
+  );
 }
 
 /**
@@ -263,12 +279,23 @@ export function selectionProblem(campaign: Campaign, choice: MissionChoice): str
     return 'Only a mission team with somebody on it chooses a mission.';
   }
 
-  if (teamOutcomes(campaign).has(choice.team) && !retryOwed(campaign, choice.team)) {
+  // A team's outcome closes its choice, but for a failed First Mission (R21)
+  // and an overrun's continuation (R27, R28). The continuation is team 1's
+  // without asking which team: a siege turn has no other (pg. 85), and the
+  // check above has already refused one.
+  if (
+    teamOutcomes(campaign).has(choice.team) &&
+    !retryOwed(campaign, choice.team) &&
+    !continuationOpen(campaign)
+  ) {
     return `Mission team ${String(choice.team)}’s mission is played and its outcome recorded.`;
   }
 
   if (!missionsOnOffer(campaign).includes(choice.mission)) {
     if (campaign.turn === FIRST_TURN) return 'Turn 1’s mission is the First Mission.';
+    if (siegeDue(campaign) && overrunChoice(campaign) !== null) {
+      return 'After the overrun, the community plays the mission it chose to go on with.';
+    }
     if (siegeDue(campaign)) return 'This turn’s mission is the Siege Defense the horde called.';
     if (choice.mission === 'siege-defense')
       return 'A Siege Defense is played when the horde calls one.';
@@ -298,11 +325,11 @@ export function selectionProblem(campaign: Campaign, choice: MissionChoice): str
     return 'Only Gather Materials takes a material type.';
   }
 
-  if (asksForBase(choice.mission)) {
-    if (choice.base === undefined) return 'Claim a New Base needs the base it claims.';
+  if (asksForBase(campaign, choice.mission)) {
+    if (choice.base === undefined) return 'Choose the base this mission claims.';
     if (!Object.hasOwn(BASES, choice.base)) return 'There is no such base.';
   } else if (choice.base !== undefined) {
-    return 'Only Claim a New Base claims a base.';
+    return 'Only Claim a New Base, or starting over after an overrun, claims a base.';
   }
 
   return null;
@@ -432,8 +459,8 @@ export function unresolvedTeams(campaign: Campaign): readonly number[] {
  * Whether this team's First Mission failed, so turn 1 plays it again (R21).
  *
  * Failed is no end condition met (pg. 77). Only on turn 1: the First Mission
- * played again later is the overrun base's second continuation (pg. 86), which
- * is #182's.
+ * played again later is the overrun base's second continuation (pg. 86), whose
+ * failure reopens the choice of how to go on instead (R28; `overrun.ts`).
  */
 export function retryOwed(campaign: Campaign, team: number): boolean {
   const outcome = teamOutcomes(campaign).get(team);
@@ -456,6 +483,12 @@ export interface OutcomeCounts {
   readonly survivorsExited: number;
   readonly allIncapacitated: boolean;
   readonly vehiclesDrivenOff: number;
+
+  /**
+   * Whether a claim after an overrun, of the overrun base's own type, was
+   * played on the same map (pg. 86; R29). Asked of that claim only.
+   */
+  readonly sameMap?: boolean;
 
   /**
    * Each team member's Health at the end, and their Infection in a Viral
@@ -492,6 +525,7 @@ export function outcomeOf(choice: MissionChoice, counts: OutcomeCounts): Mission
         endCondition: counts.endCondition,
         strangers: counts.strangers,
         vehiclesOnArea: counts.vehiclesOnArea,
+        ...(counts.sameMap === undefined ? {} : { sameMap: counts.sameMap }),
         wounds,
       };
     case 'gather-materials':
@@ -625,7 +659,39 @@ export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcom
     return 'Every stranger has a Tier from 1 to 3 — a Hero is never rescued (R24).';
   }
 
+  // The kind is checked for the typechecker's sake: while an overrun's claim is
+  // being played, team 1 chose that claim, and the check above refused any
+  // other outcome for it — so treating every outcome this way changes nothing.
+  if (outcome.kind === 'claim-a-new-base-resolved') {
+    const continuing = overrunClaim(campaign);
+
+    // The claim an overrun goes on with places none (pg. 86).
+    if (continuing && outcome.strangers.length > 0) {
+      return 'A claim after an overrun has no strangers to rescue.';
+    }
+
+    if (asksSameMap(campaign, choice) !== (outcome.sameMap !== undefined)) {
+      return asksSameMap(campaign, choice)
+        ? 'Say whether the claim was played on the overrun base’s own map.'
+        : 'Only a claim of the overrun base’s own type asks about its map.';
+    }
+  }
+
   return woundsProblem(campaign, outcome);
+}
+
+/**
+ * Whether a Claim a New Base outcome asks if it was played on the same map:
+ * the claim an overrun goes on with, of the overrun base's own type (pg. 86;
+ * R29). Any other claim is a new building on a new map.
+ */
+export function asksSameMap(campaign: Campaign, choice: MissionChoice): boolean {
+  return (
+    choice.mission === 'claim-a-new-base' &&
+    overrunClaim(campaign) &&
+    choice.base !== undefined &&
+    choice.base === campaign.base?.id
+  );
 }
 
 /** Who is on a team this turn, or nobody for a team that does not exist. */

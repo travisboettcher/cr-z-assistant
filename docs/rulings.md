@@ -746,6 +746,13 @@ keep everything on a different type.
 
 *Confirmed 2026-10-13 from the batch-15 extract.*
 
+### Note, October 2026 — Rare is in the stores
+
+Built with Z4-9. The app keeps Rare as a count in the same stores as Food, Fuel and Hardware, so
+the half recovered, and the nothing recovered, apply to it as to the other three — and so does R30's
+loss of the old stores. The book's Rare Items are items rather than materials, and items arrive with
+the Inventory in Phase 5; until then, this is what the stores hold.
+
 ---
 
 ## R30 — Start a New Community after an overrun

@@ -567,6 +567,28 @@ reducer's `mission/selected` action gained the field beside the material's.
 - A failed continuation can be retried, or swapped for another option, in the same turn.
 - The turn and siege counters read the same after option 2 as before it.
 
+**What this story turned out to include.**
+
+- **One form writes the way on and the next mission**, from the Tactical Mission step where the
+  siege was just recorded: `overrun-continued`, then team 1's `mission-selected`, each checked
+  against the campaign the other leaves. So nobody walks back to Select Mission, and the
+  continuation's own outcome form appears below. Select Mission still agrees: once a way on is
+  chosen it offers only that mission, and refuses the Siege Defense again.
+- **Starting over asks for its base at selection**, as Claim a New Base does (`asksForBase` now takes
+  the campaign). A campaign's turn-1 First Mission still claims its base on the base sheet; a later
+  one can only be a community starting over. `claimedBase` reads a won First Mission's base the
+  same way as a claim's, so both move through Z4-8's form, Hero cap included.
+- **"Same map" is on the claim's outcome**, asked only of the overrun's claim of the overrun base's
+  own type. The claim's outcome form leaves strangers out, and the guard refuses them.
+- **The move writes what the stores held** (`stores` on `base-moved`) when it follows an overrun,
+  because the stores change without any other entry saying so. The four materials alike, Rare
+  included — see the note under R29.
+- **The Unrest lock is the claim's**, so option 1 locks Unrest and option 2 does not (pg. 79).
+- **A failed First Mission's line says which rule follows**: R21's replay on turn 1, R28's new
+  choice on any later turn, where it can only be a community starting over.
+- **What was not built here:** leaving the survivors behind (option 3), which needs the set-aside
+  survivors returning, and is Z4-11's. The choice offers the other two and says so.
+
 ---
 
 ## Z4-10 — Rebuilding the overrun base

@@ -39,6 +39,7 @@ import { healthAwards, woundsHealed } from './healing';
 import { materialsAdded } from './materials';
 import { firstMissionFailed, missionsChosen, unresolvedTeams } from './missions';
 import { dueProjects, laborShortfall, siegeLaborShortfall } from './projects';
+import { overrunChoiceOwed } from './overrun';
 import { mustCheck, rotCheckResolved } from './rot';
 import { hordeChecked } from './siege';
 import { anythingOverCap, storageChecked } from './storage';
@@ -91,6 +92,15 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
     owed.push({
       step: 'tactical-mission',
       says: `Mission team ${String(team)}’s outcome is not recorded.`,
+    });
+  }
+
+  // An overrun base owes how the community goes on, straight after the siege
+  // and again after a way on that failed (pg. 86; R27, R28; Z4-9).
+  if (overrunChoiceOwed(campaign)) {
+    owed.push({
+      step: 'tactical-mission',
+      says: 'The base is overrun, and how the community goes on is not chosen.',
     });
   }
 

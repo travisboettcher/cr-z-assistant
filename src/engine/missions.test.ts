@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { overrun, wentOn } from '../test/overrun';
 import type { BaseId } from '../data/bases';
 import { createNewCampaign, type Assignment, type Campaign, type Survivor } from './campaign';
 import type { CampaignEvent, LogEntry, MissionWound } from './log';
 import {
+  asksForBase,
+  asksSameMap,
   deployed,
   firstMissionFailed,
   missionOutcomeProblem,
@@ -403,7 +406,7 @@ describe('selectionProblem', () => {
 
   it('asks Claim a New Base for the base it claims, and no other mission (pg. 78; Z4-7)', () => {
     expect(selectionProblem(playing(), { team: 1, mission: 'claim-a-new-base' })).toMatch(
-      /needs the base it claims/,
+      /Choose the base this mission claims/,
     );
     expect(
       selectionProblem(playing(), { team: 1, mission: 'claim-a-new-base', base: 'distillery' }),
@@ -1032,5 +1035,147 @@ describe('strangerWarning, at its edges', () => {
     expect(
       strangerWarning(playing(), { kind: 'rescue-strangers-resolved', team: 5, strangers: [2, 3] }),
     ).toMatch(/Tier 3 or higher/);
+  });
+});
+
+/** The further mission an overrun base goes on with (pg. 86; R27, R28; Z4-9). */
+describe('the overrun’s continuation', () => {
+  it('offers only the mission the way on plays, once one is chosen', () => {
+    expect(missionsOnOffer(overrun())).toEqual(['siege-defense']);
+    expect(
+      missionsOnOffer(overrun([at(4, { kind: 'overrun-continued', option: 'claim' })])),
+    ).toEqual(['claim-a-new-base']);
+    expect(
+      missionsOnOffer(overrun([at(4, { kind: 'overrun-continued', option: 'start-over' })])),
+    ).toEqual(['first-mission']);
+  });
+
+  it('lets team 1 choose it although the siege is its outcome, and only then', () => {
+    const chosen = overrun([at(4, { kind: 'overrun-continued', option: 'claim' })]);
+    const claim = { team: 1, mission: 'claim-a-new-base', base: 'distillery' } as const;
+
+    expect(selectionProblem(overrun(), claim)).toMatch(/outcome recorded/);
+    expect(selectionProblem(chosen, claim)).toBeNull();
+    expect(selectionProblem(chosen, { team: 1, mission: 'siege-defense' })).toMatch(
+      /mission it chose to go on with/,
+    );
+  });
+
+  it('lets the continuation be corrected before it is played, and not the siege', () => {
+    const playing = overrun([...wentOn('claim', 'distillery')]);
+
+    expect(
+      selectionProblem(playing, { team: 1, mission: 'claim-a-new-base', base: 'summer-camp' }),
+    ).toBeNull();
+    expect(selectionProblem(playing, { team: 1, mission: 'siege-defense' })).toMatch(
+      /mission it chose to go on with/,
+    );
+  });
+
+  it('asks a community starting over for the base it will claim (R30)', () => {
+    const starting = overrun([at(4, { kind: 'overrun-continued', option: 'start-over' })]);
+
+    expect(asksForBase(starting, 'first-mission')).toBe(true);
+    expect(selectionProblem(starting, { team: 1, mission: 'first-mission' })).toMatch(
+      /Choose the base/,
+    );
+    expect(
+      selectionProblem(starting, { team: 1, mission: 'first-mission', base: 'summer-camp' }),
+    ).toBeNull();
+    // Turn 1's own First Mission claims its base on the base sheet instead.
+    expect(asksForBase(playing({ turn: 1 }), 'first-mission')).toBe(false);
+    expect(asksForBase(overrun(), 'first-mission')).toBe(false);
+  });
+
+  it('records no strangers for the claim an overrun goes on with (pg. 86)', () => {
+    const claiming = overrun([...wentOn('claim', 'distillery')]);
+    const outcome = {
+      kind: 'claim-a-new-base-resolved' as const,
+      team: 1,
+      endCondition: 1,
+      vehiclesOnArea: 0,
+    };
+
+    expect(outcomeProblem(claiming, { ...outcome, strangers: [2] })).toMatch(/no strangers/);
+    expect(outcomeProblem(claiming, { ...outcome, strangers: [] })).toBeNull();
+  });
+
+  it('asks about the map for a claim of the overrun base’s own type, and only it (R29)', () => {
+    const outcome = {
+      kind: 'claim-a-new-base-resolved' as const,
+      team: 1,
+      endCondition: 1,
+      strangers: [],
+      vehiclesOnArea: 0,
+    };
+    const home = overrun([...wentOn('claim', 'hobby-farm')]);
+    const away = overrun([...wentOn('claim', 'distillery')]);
+
+    expect(asksSameMap(home, { team: 1, mission: 'claim-a-new-base', base: 'hobby-farm' })).toBe(
+      true,
+    );
+    expect(outcomeProblem(home, outcome)).toMatch(/own map/);
+    expect(outcomeProblem(home, { ...outcome, sameMap: false })).toBeNull();
+    expect(outcomeProblem(away, { ...outcome, sameMap: true })).toMatch(/Only a claim of/);
+    expect(outcomeProblem(away, outcome)).toBeNull();
+  });
+
+  it('asks about the map of a claim only, and only with a base on each side', () => {
+    const home = overrun([...wentOn('claim', 'hobby-farm')]);
+
+    expect(asksSameMap(home, { team: 1, mission: 'first-mission', base: 'hobby-farm' })).toBe(
+      false,
+    );
+    // No base named, and no base held: nothing to be the same as.
+    const homeless = overrun([...wentOn('claim', 'hobby-farm')], { base: null });
+    expect(asksSameMap(homeless, { team: 1, mission: 'claim-a-new-base' })).toBe(false);
+    expect(
+      asksSameMap(homeless, { team: 1, mission: 'claim-a-new-base', base: 'hobby-farm' }),
+    ).toBe(false);
+  });
+
+  it('asks for a base only of the First Mission a community starts over with', () => {
+    const claiming = overrun([at(4, { kind: 'overrun-continued', option: 'claim' })]);
+
+    expect(asksForBase(claiming, 'siege-defense')).toBe(false);
+    expect(asksForBase(playing(), 'first-mission')).toBe(false);
+  });
+
+  it('writes whether the claim was on the same map when the form says', () => {
+    const counts = {
+      endCondition: 1,
+      strangers: [],
+      vehiclesOnArea: 0,
+      materialsCarriedOut: 0,
+      startingZombies: 0,
+      zombiesLeft: 0,
+      survivorsExited: 0,
+      allIncapacitated: false,
+      vehiclesDrivenOff: 0,
+      wounds: [],
+    };
+    const claim = { team: 1, mission: 'claim-a-new-base', base: 'hobby-farm' } as const;
+
+    expect(outcomeOf(claim, { ...counts, sameMap: false })).toMatchObject({ sameMap: false });
+    expect(outcomeOf(claim, counts)).not.toHaveProperty('sameMap');
+  });
+
+  it('asks nothing about the map of an ordinary claim, even of the base held', () => {
+    const ordinary = playing({
+      base: { id: 'hobby-farm', slots: {} },
+      log: [
+        at(4, {
+          kind: 'mission-selected',
+          team: 1,
+          mission: 'claim-a-new-base',
+          names: [],
+          base: 'hobby-farm',
+        }),
+      ],
+    });
+
+    expect(
+      asksSameMap(ordinary, { team: 1, mission: 'claim-a-new-base', base: 'hobby-farm' }),
+    ).toBe(false);
   });
 });

@@ -7,8 +7,10 @@ import {
   submitMissionOutcome,
   submitMissionSelection,
   submitMissionSkip,
+  submitOverrunContinuation,
   submitStandIn,
 } from './missionForms';
+import { continued, overrun, wentOn } from '../test/overrun';
 import { expectAccepted, expectRefused } from '../test/forms';
 
 /**
@@ -347,5 +349,55 @@ describe('submitStandIn', () => {
     expect(expectRefused(submitStandIn(besieged(), { survivor: 'earl', by: null }, AT))).toBe(
       'Nobody is standing in already.',
     );
+  });
+});
+
+/** How a community goes on from an overrun base (pg. 86; R27, R28; Z4-9). */
+describe('submitOverrunContinuation', () => {
+  it('records the way on, and team 1’s mission with the base it claims', () => {
+    const after = expectAccepted(
+      submitOverrunContinuation(overrun(), 'claim', 'distillery', LATER),
+    );
+
+    expect(after.log.slice(-2).map((entry) => entry.event)).toStrictEqual([
+      { kind: 'overrun-continued', option: 'claim' },
+      {
+        kind: 'mission-selected',
+        team: 1,
+        mission: 'claim-a-new-base',
+        names: ['Earl Rhodes', 'Ruby Vance'],
+        base: 'distillery',
+      },
+    ]);
+  });
+
+  it('plays the First Mission to start over', () => {
+    const after = expectAccepted(
+      submitOverrunContinuation(overrun(), 'start-over', 'summer-camp', LATER),
+    );
+
+    expect(after.log.at(-1)?.event).toMatchObject({
+      mission: 'first-mission',
+      base: 'summer-camp',
+    });
+  });
+
+  it('may be chosen again after a way on fails, the other way or the same (R28)', () => {
+    const failed = overrun([...wentOn('claim', 'distillery'), continued('claim', false)]);
+
+    expect(submitOverrunContinuation(failed, 'start-over', 'summer-camp', LATER).ok).toBe(true);
+    expect(submitOverrunContinuation(failed, 'claim', 'rural-church', LATER).ok).toBe(true);
+  });
+
+  it('refuses with the engine’s reason, and writes nothing', () => {
+    expect(
+      expectRefused(
+        submitOverrunContinuation(overrun([], { log: [] }), 'claim', 'distillery', LATER),
+      ),
+    ).toMatch(/overran this turn/);
+    // The selection's own refusal, after the way on would have been accepted.
+    expect(
+      expectRefused(submitOverrunContinuation(overrun(), 'claim', 'castle' as 'distillery', LATER)),
+    ).toMatch(/no such base/);
   });
 });

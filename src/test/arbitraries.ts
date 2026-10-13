@@ -25,6 +25,7 @@ import { COMMON_SKILLS, SKILLS, STATS, type Skill } from '../data/skills';
 import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS, type Materials } from '../data/materials';
+import { OVERRUN_OPTIONS } from '../data/missions';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { MISSIONS, type MissionId } from '../data/missions';
 import { FIELD_RECRUITABLE_TIERS } from '../data/recruitTable';
@@ -489,11 +490,20 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       score: fc.integer({ min: 0, max: 8 }),
     }),
     fc.record({ kind: fc.constant('base-claimed' as const), base: fc.constantFrom(...BASE_IDS) }),
+    // `stores` is present only after an overrun, so half the moves leave it out.
+    fc.record(
+      {
+        kind: fc.constant('base-moved' as const),
+        from: fc.constantFrom(...BASE_IDS),
+        to: fc.constantFrom(...BASE_IDS),
+        setAside: fc.array(fc.record({ survivor: anyId, name: anyName }), { maxLength: 2 }),
+        stores: fc.record({ food: anyCount, fuel: anyCount, hardware: anyCount, rare: anyCount }),
+      },
+      { requiredKeys: ['kind', 'from', 'to', 'setAside'] },
+    ),
     fc.record({
-      kind: fc.constant('base-moved' as const),
-      from: fc.constantFrom(...BASE_IDS),
-      to: fc.constantFrom(...BASE_IDS),
-      setAside: fc.array(fc.record({ survivor: anyId, name: anyName }), { maxLength: 2 }),
+      kind: fc.constant('overrun-continued' as const),
+      option: fc.constantFrom(...OVERRUN_OPTIONS),
     }),
     fc.record({
       kind: fc.constant('facility-built' as const),

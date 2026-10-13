@@ -81,10 +81,11 @@ function TeamChoice({
     team: team.team,
     mission,
     ...(asksForMaterial(mission) ? { material } : {}),
-    ...(asksForBase(mission) ? { base } : {}),
+    ...(asksForBase(campaign, mission) ? { base } : {}),
   };
   const problem = selectionProblem(campaign, choice);
-  const warning = problem === null && asksForBase(mission) ? claimWarning(campaign, base) : null;
+  const warning =
+    problem === null && asksForBase(campaign, mission) ? claimWarning(campaign, base) : null;
   const families = [...new Set(offered.map((id) => MISSIONS[id].family))];
   const missionId = `mission-team-${String(team.team)}`;
   const materialId = `mission-material-${String(team.team)}`;
@@ -156,7 +157,7 @@ function TeamChoice({
         </div>
       )}
 
-      {asksForBase(mission) && (
+      {asksForBase(campaign, mission) && (
         <div className="flex flex-wrap items-center gap-2">
           <label className="text-sm" htmlFor={baseId}>
             Base to claim

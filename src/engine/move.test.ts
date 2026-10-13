@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { continued, overrun, wentOn } from '../test/overrun';
 import { queued } from '../test/queued';
 import { submitBaseMove } from './advancementForms';
 import { createNewCampaign, type Campaign } from './campaign';
 import type { LogEntry } from './log';
-import { moveProblem, withBaseMoved } from './move';
+import { moveProblem, storesAfterMove, withBaseMoved } from './move';
 import { createSurvivor } from './survivor';
 import { expectAccepted, expectRefused } from '../test/forms';
 
@@ -205,5 +206,73 @@ describe('submitBaseMove', () => {
     expect(expectRefused(submitBaseMove(moving({ log: [] }), [], LATER))).toMatch(
       /Claim a New Base won this turn/,
     );
+  });
+});
+
+/** The stores a move after an overrun keeps (pp. 54, 86; R29, R30; Z4-9). */
+describe('storesAfterMove', () => {
+  // Turn 4, standing at the last Advancement step after the overrun.
+  const advanced = (after: readonly LogEntry[]) =>
+    overrun(after, { step: 'add-facilities-and-upgrades' });
+
+  it('is nothing for an ordinary move, whose stores come along as they are', () => {
+    expect(storesAfterMove(moving())).toBeNull();
+  });
+
+  it('keeps half of every material, rounded down, for the same type on the same map (R29)', () => {
+    const campaign = advanced([...wentOn('claim', 'hobby-farm'), continued('claim', true, true)]);
+
+    // From 7 Food, 3 Fuel, 5 Hardware and 1 Rare.
+    expect(storesAfterMove(campaign)).toEqual({ food: 3, fuel: 1, hardware: 2, rare: 0 });
+  });
+
+  it('keeps nothing for the same type on another map, or another type (R29)', () => {
+    const none = { food: 0, fuel: 0, hardware: 0, rare: 0 };
+
+    expect(
+      storesAfterMove(
+        advanced([...wentOn('claim', 'hobby-farm'), continued('claim', true, false)]),
+      ),
+    ).toEqual(none);
+    expect(
+      storesAfterMove(advanced([...wentOn('claim', 'distillery'), continued('claim', true)])),
+    ).toEqual(none);
+  });
+
+  it('stocks a community starting over to its new base’s caps, and loses the rest (R30)', () => {
+    const campaign = advanced([
+      ...wentOn('start-over', 'summer-camp'),
+      continued('start-over', true),
+    ]);
+
+    // A Tier 1 base caps each stored material at 4 (pg. 54); Rare has no cap.
+    expect(storesAfterMove(campaign)).toEqual({ food: 4, fuel: 4, hardware: 4, rare: 0 });
+  });
+
+  it('is nothing until a way on has won', () => {
+    expect(storesAfterMove(advanced([...wentOn('claim', 'hobby-farm')]))).toBeNull();
+    expect(
+      storesAfterMove(advanced([...wentOn('claim', 'hobby-farm'), continued('claim', false)])),
+    ).toBeNull();
+  });
+
+  it('is applied by the move, and recorded on its entry', () => {
+    const after = expectAccepted(
+      submitBaseMove(
+        advanced([...wentOn('claim', 'hobby-farm'), continued('claim', true, true)]),
+        [],
+        LATER,
+      ),
+    );
+
+    expect(after.materials).toEqual({ food: 3, fuel: 1, hardware: 2, rare: 0 });
+    expect(after.base).toEqual({ id: 'hobby-farm', slots: {} });
+    expect(after.log.at(-1)?.event).toStrictEqual({
+      kind: 'base-moved',
+      from: 'hobby-farm',
+      to: 'hobby-farm',
+      setAside: [],
+      stores: { food: 3, fuel: 1, hardware: 2, rare: 0 },
+    });
   });
 });

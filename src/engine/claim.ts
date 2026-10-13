@@ -32,12 +32,15 @@ export function claimWon(campaign: Campaign): boolean {
 }
 
 /**
- * The base this turn's Claim a New Base won, or `null` (pg. 79; Z4-8).
+ * The base this turn's Claim a New Base won, or `null` (pg. 79; Z4-8) — or the
+ * base a community starting over after an overrun won through the First
+ * Mission (pg. 86; R30, Z4-9).
  *
- * The base the claiming team named at Select Mission (Z4-7), read from its
- * latest selection before the outcome. `null` when nothing was claimed, when
- * the claim met no end condition, and when it was chosen before Z4-7 and named
- * no base — there is then nothing the app could move the community into.
+ * The base the team named at Select Mission (Z4-7), read from its latest
+ * selection before the outcome. `null` when nothing was claimed, when the
+ * mission met no end condition, and when it named no base: a Claim chosen
+ * before Z4-7, and a campaign's own turn-1 First Mission, whose base is
+ * claimed on the base sheet instead — there is then nothing to move into.
  */
 export function claimedBase(campaign: Campaign): BaseId | null {
   let named = new Map<number, BaseId | undefined>();
@@ -52,7 +55,10 @@ export function claimedBase(campaign: Campaign): BaseId | null {
       named.set(event.team, event.base);
     } else if (event.kind === 'mission-skipped') {
       named = new Map();
-    } else if (event.kind === 'claim-a-new-base-resolved' && event.endCondition !== null) {
+    } else if (
+      (event.kind === 'claim-a-new-base-resolved' || event.kind === 'first-mission-resolved') &&
+      event.endCondition !== null
+    ) {
       won = named.get(event.team);
     }
   }
