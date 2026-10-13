@@ -3,7 +3,13 @@ import type { Grade, ItemId } from '../data/equipment';
 import { createNewCampaign, type Campaign, type Item, type Survivor } from './campaign';
 import {
   allItems,
+  bestItemFor,
+  commonSkillScore,
+  holdsShoddyFree,
+  itemCap,
   itemInventorySlots,
+  itemTerm,
+  itemsAddingTo,
   newItemProblem,
   removalProblem,
   slotsInUse,
@@ -56,6 +62,125 @@ describe('slotsInUse (pp. 14, 38, 44)', () => {
 
   it('counts an item the book gives no slots as none, until one can be carried', () => {
     expect(slotsInUse(carrying(item('quick-quiver')))).toBe(0);
+  });
+});
+
+/**
+ * The third term of a Skill Score (pp. 8, 14; R39, R40; Z5-3). `survivor.test`
+ * checks Earl's printed number; these check the term on its own.
+ */
+describe('the Item term', () => {
+  it('is the shoddy −1 for a weapon skill or Tinker when nothing better is carried', () => {
+    for (const skill of [
+      'handguns',
+      'long-guns',
+      'archery',
+      'blunt-weapon',
+      'blade-weapon',
+      'heavy-weapon',
+      'tinker',
+    ] as const) {
+      expect(holdsShoddyFree(skill), skill).toBe(true);
+      expect(itemTerm(carrying(), skill), skill).toBe(-1);
+    }
+  });
+
+  it('is nothing for a skill no free item is used with', () => {
+    expect(holdsShoddyFree('scavenge')).toBe(false);
+    expect(holdsShoddyFree('traps')).toBe(false);
+    expect(itemTerm(carrying(), 'scavenge')).toBe(0);
+    expect(itemTerm(carrying(), 'stealth')).toBe(0);
+  });
+
+  it('is the grade of the best item carried for the skill, once', () => {
+    const shoddy = item('pistol', 'shoddy');
+    const standard = item('revolver');
+    const quality = item('pistol', 'quality');
+
+    expect(itemTerm(carrying(shoddy), 'handguns')).toBe(-1);
+    expect(itemTerm(carrying(standard), 'handguns')).toBe(0);
+    expect(itemTerm(carrying(quality), 'handguns')).toBe(1);
+    expect(itemTerm(carrying(shoddy, quality, standard), 'handguns')).toBe(1);
+    expect(bestItemFor(carrying(shoddy, quality, standard), 'handguns')).toBe(quality);
+    expect(bestItemFor(carrying(standard, shoddy), 'handguns')).toBe(standard);
+    // Of two equally good, the first carried, so the sheet's name holds still.
+    expect(bestItemFor(carrying(standard, item('pistol')), 'handguns')).toBe(standard);
+    expect(bestItemFor(carrying(quality), 'long-guns')).toBeUndefined();
+  });
+
+  it('adds a quality-only item’s one +1 to the Score it names (R39)', () => {
+    expect(itemTerm(carrying(item('binoculars', 'quality')), 'scout')).toBe(1);
+    expect(itemTerm(carrying(item('backpack', 'quality')), 'carry')).toBe(1);
+  });
+
+  it('stacks bonuses from different items, but not from two of one (R40)', () => {
+    const binoculars = item('binoculars', 'quality');
+    const goggles = item('night-vision-goggles');
+
+    expect(itemTerm(carrying(binoculars, goggles), 'scout')).toBe(2);
+    expect(itemTerm(carrying(binoculars, item('binoculars', 'quality')), 'scout')).toBe(1);
+    expect(itemsAddingTo(carrying(binoculars, goggles), 'scout')).toEqual([binoculars, goggles]);
+    expect(itemsAddingTo(carrying(binoculars), 'tactics')).toEqual([]);
+    // The first of two alike is the one named.
+    const [named] = itemsAddingTo(carrying(binoculars, item('binoculars', 'quality')), 'scout');
+    expect(named).toBe(binoculars);
+  });
+
+  it('takes the best item for the skill across kinds, a tool belt beside a flamethrower', () => {
+    const belt = item('tool-belt', 'quality');
+
+    expect(itemTerm(carrying(belt, item('flamethrower')), 'tinker')).toBe(1);
+    expect(bestItemFor(carrying(item('flamethrower'), belt), 'tinker')).toBe(belt);
+  });
+});
+
+describe('itemCap (pg. 44)', () => {
+  it('caps Stealth while a tool belt is carried, whatever its grade', () => {
+    expect(itemCap(carrying(), 'stealth')).toBeUndefined();
+    expect(itemCap(carrying(item('tool-belt')), 'stealth')).toBe(3);
+    expect(itemCap(carrying(item('tool-belt', 'quality')), 'stealth')).toBe(3);
+    expect(itemCap(carrying(item('tool-belt')), 'tinker')).toBeUndefined();
+    expect(itemCap(carrying(item('pistol'), item('tool-belt')), 'stealth')).toBe(3);
+  });
+});
+
+describe('Move and Defense as worn (pp. 9, 45, 51)', () => {
+  it('are the Scores bought when nothing is worn', () => {
+    expect(commonSkillScore(carrying(), 'move')).toBe(6);
+    expect(commonSkillScore(carrying(), 'defense')).toBe(6);
+  });
+
+  it('take reinforced clothing’s Defense, and its Move cost only at standard', () => {
+    const standard = carrying(item('reinforced-clothing'));
+    const quality = carrying(item('reinforced-clothing', 'quality'));
+
+    expect(commonSkillScore(standard, 'defense')).toBe(7);
+    expect(commonSkillScore(standard, 'move')).toBe(5);
+    expect(commonSkillScore(quality, 'defense')).toBe(7);
+    expect(commonSkillScore(quality, 'move')).toBe(6);
+  });
+
+  it('count one set of each protective item, the best one worn (R40)', () => {
+    const standard = item('reinforced-clothing');
+    const quality = item('reinforced-clothing', 'quality');
+
+    // In either order: the quality set, which costs no Move.
+    for (const worn of [carrying(standard, quality), carrying(quality, standard)]) {
+      expect(commonSkillScore(worn, 'defense')).toBe(7);
+      expect(commonSkillScore(worn, 'move')).toBe(6);
+    }
+  });
+
+  it('stack different protective items', () => {
+    const worn = carrying(item('reinforced-clothing'), item('tactical-armor'));
+
+    expect(commonSkillScore(worn, 'defense')).toBe(8);
+  });
+
+  it('never go below zero', () => {
+    const slow = { ...carrying(item('reinforced-clothing')), move: 0 };
+
+    expect(commonSkillScore(slow, 'move')).toBe(0);
   });
 });
 

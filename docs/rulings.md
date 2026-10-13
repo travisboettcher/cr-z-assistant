@@ -959,3 +959,21 @@ one of each kind of protective gear**: a second set of reinforced clothing adds 
 **What it costs.** Nothing the book forbids is refused; only a duplicate is.
 
 *Confirmed 2026-10-13 from the batch-16 extract.*
+
+---
+
+## R41 — A Watchtower reads its lookout's whole Score — **PROPOSED**
+
+**pp. 8, 14, 73; #177, Z5-3.** A staffed Watchtower takes its staff's best Long Guns, Handguns,
+Archery or Traps Score off Siege Threat (pg. 73). A Skill Score has an item term (pg. 8), and a
+survivor with a weapon skill and nothing better holds a shoddy weapon at −1 (pg. 14). Survivors keep
+what they carry between missions (R38), so a lookout at home has a weapon to hand. The book does not
+say whether the Watchtower means the Score with that term or the stat and level alone.
+
+**The proposed ruling is that it means the whole Score**, item term included: a lookout with only
+the free shoddy weapon takes one less off than before Z5-3, and one with a quality rifle one more.
+Traps has no free item, so a trapper's Score is unchanged.
+
+**What it costs.** A tower staffed by an unarmed lookout is a point weaker than it was before
+equipment arrived. Read the other way, the weapon a lookout carries would make no difference to the
+one facility that watches with a weapon skill.

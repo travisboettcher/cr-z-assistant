@@ -983,6 +983,14 @@ describe('the equipment catalogue (pp. 37–53)', () => {
     }
   });
 
+  /** `itemCap` takes the first cap it finds, which holds while this does. */
+  it('caps a Score only with the tool belt, alike at every grade (pg. 44)', () => {
+    expect(entries.filter(([, item]) => item.caps !== undefined).map(([id]) => id)).toEqual([
+      'tool-belt',
+    ]);
+    expect(EQUIPMENT['tool-belt'].caps).toEqual({ stealth: 3 });
+  });
+
   it('installs each rare upgrade as an upgrade its facility really has (pg. 49)', () => {
     for (const [id, item] of entries) {
       const installs = item.installs;

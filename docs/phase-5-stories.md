@@ -239,6 +239,28 @@ Scout, and the like) add on top (R40).
 - A quality weapon raises its skill's Score by one; a second carried weapon of the same skill does
   not add again.
 
+**What this story turned out to include.**
+
+- **The shoddy −1 is in every weapon and Tinker Score** for a survivor who carries nothing better,
+  because the book's own worked Score has it (Earl's Heavy Weapon is 2, pg. 14). The skills are
+  read off the catalogue: those an item that comes in shoddy is used with. Traps gives free traps
+  but none is used with a Score, so Traps has no −1.
+- **That reaches the Watchtower**, the one base reader of a weapon skill: an unarmed lookout takes
+  one less off Siege Threat than before, and one with a quality rifle one more. Proposed as R41;
+  the code has no special case either way, since the Score is the Score.
+- **Bonuses count one of each item**, the best grade of it: R40's "different items stack" read as
+  different catalogue entries, so two pairs of binoculars add one, as two sets of reinforced
+  clothing do.
+- **The tool belt caps Stealth when one is carried** — the book's word is *equipping* (pg. 44) —
+  so a Tinker's free shoddy belt caps it once it is recorded on them, not before.
+- **Move and Defense show what is worn** on the sheet, with the Score bought beside them when the
+  two differ, since experience is priced on the bought Score (pg. 9).
+- **The sheet's Skills table gains the book's Item column** (pg. 8), naming what the term comes
+  from: the item, "shoddy, held free", or the items whose bonuses it adds.
+- **Other readers** — production's staffed Scores, Teaching, Utilities, Medicine for Rot, the
+  Scavenge pool, Carry for slots — take the item term with the Score and need no change; a
+  backpack's +1 now reaches Inventory Slots through Carry, and only for a survivor with Carry.
+
 ### Z5-4 — Equip Mission Team
 
 **Why:** The step #177 is named for.

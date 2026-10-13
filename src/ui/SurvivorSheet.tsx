@@ -33,11 +33,19 @@ import {
   statValue,
 } from '../engine/survivor';
 import { useCampaign } from '../state/useCampaign';
-import { GRADE_LABELS, ITEM_LABELS } from './equipmentLabels';
+import { GRADE_LABELS, ITEM_LABELS, describeItem } from './equipmentLabels';
 import { PageRef } from './PageRef';
 import { promotionViolations } from '../engine/legality';
 import { maxHeroes } from '../engine/base';
-import { slotsInUse } from '../engine/equipment';
+import {
+  bestItemFor,
+  commonSkillScore,
+  holdsShoddyFree,
+  itemCap,
+  itemTerm,
+  itemsAddingTo,
+  slotsInUse,
+} from '../engine/equipment';
 import { COMMON_SKILL_LABELS, SKILL_LABELS, STAT_LABELS } from './skillLabels';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 import { TIER_LABELS } from './tierLabels';
@@ -646,7 +654,19 @@ function CommonSkills({ survivor }: { readonly survivor: Survivor }) {
               {COMMON_SKILL_LABELS[skill]}
             </dt>
             <dd className="flex items-baseline justify-between gap-2">
-              <span className="text-2xl font-semibold tabular-nums">{survivor[skill]}</span>
+              <span className="text-2xl font-semibold tabular-nums">
+                {commonSkillScore(survivor, skill)}
+                {/*
+                 * What is worn moves the Score but not what the next point
+                 * costs, which is priced on the Score bought (pg. 9), so the
+                 * bought number stays in sight whenever the two differ.
+                 */}
+                {commonSkillScore(survivor, skill) === survivor[skill] ? null : (
+                  <span className="ml-2 text-sm font-normal text-stone-600 dark:text-stone-400">
+                    {survivor[skill]} bought
+                  </span>
+                )}
+              </span>
               <BuyButton
                 purchase={commonSkillPurchase(survivor, skill)}
                 label="+1"
@@ -802,6 +822,9 @@ function SkillGroup({ stat, survivor, penalty, onTake, onBuy, onDrop }: SkillGro
             <th scope="col" className="px-2 py-1 text-right font-medium">
               Level
             </th>
+            <th scope="col" className="px-2 py-1 text-right font-medium">
+              Item
+            </th>
             <th scope="col" className="px-4 py-1 text-right font-medium">
               Score
             </th>
@@ -833,8 +856,25 @@ function SkillGroup({ stat, survivor, penalty, onTake, onBuy, onDrop }: SkillGro
                 <td className="px-2 py-1.5 text-right tabular-nums">
                   {level === undefined ? <Absent /> : level}
                 </td>
+                {/*
+                 * The book's Item term (pg. 8), named, because "−1" alone does
+                 * not say whether that is a shoddy weapon picked up or the one
+                 * every survivor holds free.
+                 */}
+                <td className="px-2 py-1.5 text-right tabular-nums">
+                  {level === undefined ? (
+                    <Absent />
+                  ) : (
+                    <ItemTerm survivor={survivor} skill={skill} />
+                  )}
+                </td>
                 <td className="px-4 py-1.5 text-right font-semibold tabular-nums">
                   {score === null ? <Absent /> : score}
+                  {score === null || itemCap(survivor, skill) === undefined ? null : (
+                    <span className="ml-1 text-xs font-normal text-stone-600 dark:text-stone-400">
+                      max {itemCap(survivor, skill)}
+                    </span>
+                  )}
                 </td>
                 {/*
                  * Nothing at all for a skill the survivor has not taken. There
@@ -870,6 +910,41 @@ function SkillGroup({ stat, survivor, penalty, onTake, onBuy, onDrop }: SkillGro
       </table>
     </div>
   );
+}
+
+/**
+ * The Item column: the term, and what it comes from where anything does — a
+ * carried item, or the shoddy one held free (pp. 8, 14). A bare 0 for a skill
+ * nothing is used with, rather than "no item" read out on twenty rows.
+ */
+function ItemTerm({ survivor, skill }: { readonly survivor: Survivor; readonly skill: Skill }) {
+  const best = bestItemFor(survivor, skill);
+  const sources = [
+    ...(best !== undefined
+      ? [describeItem(best)]
+      : holdsShoddyFree(skill)
+        ? ['shoddy, held free']
+        : []),
+    ...itemsAddingTo(survivor, skill).map(describeItem),
+  ];
+  const term = signed(itemTerm(survivor, skill));
+
+  if (sources.length === 0) return <>{term}</>;
+
+  const note = sources.join(', ');
+
+  return (
+    <span title={note}>
+      {term}
+      <span className="sr-only"> ({note})</span>
+    </span>
+  );
+}
+
+/** A modifier as the book prints one: +1, −1, 0. */
+function signed(value: number): string {
+  if (value > 0) return `+${value}`;
+  return value < 0 ? `−${-value}` : '0';
 }
 
 /** A dash a screen reader announces as words rather than as punctuation. */

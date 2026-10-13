@@ -1,9 +1,10 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { NO_PENALTY } from './production';
-import { SKILLS } from '../data/skills';
+import { SKILLS, SKILL_STATS } from '../data/skills';
+import { itemCap, itemTerm } from './equipment';
 import { survivorArbitrary } from '../test/arbitraries';
-import { inventorySlots, labor, maxHp, skillScore } from './survivor';
+import { inventorySlots, labor, maxHp, skillScore, statValue } from './survivor';
 
 /** See `roundTrip.property.test.ts` for why the seed is fixed rather than random. */
 const RUNS = { seed: 20260903, numRuns: 300 } as const;
@@ -46,12 +47,42 @@ describe('derived survivor values', () => {
           const score = skillScore(survivor, skill, NO_PENALTY);
           const level = survivor.skills[skill];
 
-          if (score === null || level === undefined) continue;
+          if (score === null || level === undefined || itemCap(survivor, skill) !== undefined) {
+            continue;
+          }
 
-          // Both stats and levels are counts, so a score is at least each of
-          // them — which fails immediately if the two are subtracted.
-          expect(score).toBeGreaterThanOrEqual(level);
+          // Both stats and levels are counts, so a score less its item term is
+          // at least each of them — which fails immediately if the two are
+          // subtracted. The item term is its own (Z5-3), and may be −1.
+          const bare = score - itemTerm(survivor, skill);
+          expect(bare).toBeGreaterThanOrEqual(level);
+          expect(bare).toBeGreaterThanOrEqual(statValue(survivor, SKILL_STATS[skill], NO_PENALTY));
           expect(Number.isInteger(score)).toBe(true);
+        }
+      }),
+      RUNS,
+    );
+  });
+
+  /**
+   * What a survivor carries only ever helps a Skill Score, apart from the tool
+   * belt's cap: the worst item term is the shoddy −1 they hold anyway, so
+   * picking something up can never make them worse at a skill (pp. 8, 14).
+   */
+  it('never fall for carrying more, short of a cap', () => {
+    fc.assert(
+      fc.property(survivorArbitrary(), (survivor) => {
+        const unarmed = { ...survivor, items: [] };
+
+        for (const skill of SKILLS) {
+          const carrying = skillScore(survivor, skill, NO_PENALTY);
+          const without = skillScore(unarmed, skill, NO_PENALTY);
+
+          if (carrying === null || without === null || itemCap(survivor, skill) !== undefined) {
+            continue;
+          }
+
+          expect(carrying).toBeGreaterThanOrEqual(without);
         }
       }),
       RUNS,

@@ -27,18 +27,17 @@ import {
 } from '../data/recruitTable';
 import { TIER_RULES, type Tier } from '../data/tiers';
 import type { Stats, Survivor } from './campaign';
-import { itemInventorySlots } from './equipment';
+import { itemCap, itemInventorySlots, itemTerm } from './equipment';
 
 /**
  * A skill's level added to its governing stat (pg. 8), or **null when the
  * survivor does not have the skill at all**.
  *
- * **Two of the book's three terms, deliberately.** pg. 8 prints the worked
- * column headers as `Skill / Lvl / Stat / Item / Total`: a Skill Score is level
- * plus stat plus the modifier from whatever the survivor is holding. Equipment
- * is Phase 5 and there is nothing to add yet, so this returns the first two
- * terms and says so rather than letting the formula quietly disagree with the
- * book. The item term lands here when equipment does.
+ * **All three of the book's terms.** pg. 8 prints the worked column headers as
+ * `Skill / Lvl / Stat / Item / Total`: a Skill Score is level plus stat plus
+ * the modifier from what the survivor carries — the best item for the skill,
+ * or the shoddy −1 every weapon skill and Tinker hands out free, plus fixed
+ * bonuses (`itemTerm`, Z5-3). A tool belt then caps Stealth (pg. 44).
  *
  * Null rather than zero, because *"Characters can only use the Skills that they
  * possess"* (pg. 8) and zero is a number a player could act on. A survivor
@@ -51,7 +50,11 @@ export function skillScore(survivor: Survivor, skill: Skill, penalty: number): n
 
   if (level === undefined) return null;
 
-  return statValue(survivor, SKILL_STATS[skill], penalty) + level;
+  const score =
+    statValue(survivor, SKILL_STATS[skill], penalty) + level + itemTerm(survivor, skill);
+  const cap = itemCap(survivor, skill);
+
+  return cap === undefined ? score : Math.min(score, cap);
 }
 
 /**

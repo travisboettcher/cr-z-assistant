@@ -11,7 +11,16 @@
  * Pure, like the rest of `src/engine`.
  */
 
-import { EQUIPMENT, GRADES, type Grade, type ItemId, type ItemRules } from '../data/equipment';
+import {
+  EQUIPMENT,
+  GRADE_MODIFIER,
+  GRADES,
+  ITEM_IDS,
+  type Grade,
+  type ItemId,
+  type ItemRules,
+} from '../data/equipment';
+import type { CommonSkill, Skill } from '../data/skills';
 import type { Campaign, Item, Survivor } from './campaign';
 
 /** An item's catalogue entry. */
@@ -113,4 +122,110 @@ export function removalProblem(campaign: Campaign, id: string): string | null {
   return campaign.inventory.some((item) => item.id === id)
     ? null
     : 'Only an item in the base’s Inventory can be taken out of it here.';
+}
+
+/**
+ * The skills a survivor always holds a shoddy item for, free: every skill an
+ * item that comes in shoddy is used with — the six weapon skills, and Tinker
+ * for its tool belt (pp. 9–11, 37). Traps gives free shoddy traps too, but a
+ * trap is set rather than used with a Score, so Traps is not among them.
+ */
+const SHODDY_SKILLS: ReadonlySet<Skill> = new Set(
+  ITEM_IDS.flatMap((id) => {
+    const rules: ItemRules = EQUIPMENT[id];
+    return rules.grades.includes('shoddy') ? (rules.uses ?? []) : [];
+  }),
+);
+
+/** Whether every survivor with the skill holds a shoddy item for it free (pp. 9–11, 37). */
+export function holdsShoddyFree(skill: Skill): boolean {
+  return SHODDY_SKILLS.has(skill);
+}
+
+/**
+ * The carried items whose fixed bonuses count: one of each catalogue entry, the
+ * best grade of it (R40). Different items stack; a second set of reinforced
+ * clothing, or a second pair of binoculars, is not a different item.
+ */
+function bonusItems(survivor: Survivor): readonly Item[] {
+  const best = new Map<ItemId, Item>();
+
+  for (const item of survivor.items) {
+    const held = best.get(item.item);
+    if (held === undefined || GRADE_MODIFIER[item.grade] > GRADE_MODIFIER[held.grade]) {
+      best.set(item.item, item);
+    }
+  }
+
+  return [...best.values()];
+}
+
+/** What one item adds outright to a Score. */
+function addedBy(item: Item, skill: Skill | CommonSkill): number {
+  return rulesOf(item).adds?.[item.grade]?.scores?.[skill] ?? 0;
+}
+
+/** The carried items whose fixed bonuses move a Score, for the screen that names them. */
+export function itemsAddingTo(survivor: Survivor, skill: Skill | CommonSkill): readonly Item[] {
+  return bonusItems(survivor).filter((item) => addedBy(item, skill) !== 0);
+}
+
+/** What carried items add outright to one Score: their fixed bonuses, stacked (R39, R40). */
+function bonusTo(survivor: Survivor, skill: Skill | CommonSkill): number {
+  return bonusItems(survivor).reduce((total, item) => total + addedBy(item, skill), 0);
+}
+
+/**
+ * The best item a survivor carries for a skill, by grade, or `undefined` —
+ * for the screen that names it. The first carried, of two equally good, so
+ * the name does not change while nothing else does.
+ */
+export function bestItemFor(survivor: Survivor, skill: Skill): Item | undefined {
+  return survivor.items
+    .filter((item) => rulesOf(item).uses?.includes(skill) === true)
+    .reduce<Item | undefined>(
+      (best, item) =>
+        best === undefined || GRADE_MODIFIER[item.grade] > GRADE_MODIFIER[best.grade] ? item : best,
+      undefined,
+    );
+}
+
+/**
+ * The Item term of a Skill Score (pp. 8, 14; Z5-3): the grade of the best item
+ * the survivor carries that is used with the skill, or the shoddy −1 for a
+ * skill whose item every survivor holds free and none better is carried; plus
+ * every fixed bonus their carried items give it (R39, R40).
+ *
+ * The best rather than the one used, because the book's term is the item in
+ * hand and the sheet cannot know which that will be: it shows what the
+ * survivor could do with the best they carry.
+ */
+export function itemTerm(survivor: Survivor, skill: Skill): number {
+  const best = bestItemFor(survivor, skill);
+  const grade =
+    best !== undefined
+      ? GRADE_MODIFIER[best.grade]
+      : holdsShoddyFree(skill)
+        ? GRADE_MODIFIER.shoddy
+        : 0;
+
+  return grade + bonusTo(survivor, skill);
+}
+
+/**
+ * The cap a carried item puts on a Score, or `undefined`: the tool belt's on
+ * Stealth (pg. 44). The first found, since the tool belt is the only item that
+ * caps anything and every grade of it caps alike (`rules.test` holds both).
+ */
+export function itemCap(survivor: Survivor, skill: Skill): number | undefined {
+  return survivor.items.map((item) => rulesOf(item).caps?.[skill]).find((cap) => cap !== undefined);
+}
+
+/**
+ * Move or Defense with what is worn (pp. 9, 45, 51; Z5-3): the Score bought
+ * with experience, plus reinforced clothing's and tactical armor's Defense and
+ * less a standard shield's or clothing's Move. Never below zero.
+ */
+export function commonSkillScore(survivor: Survivor, skill: CommonSkill): number {
+  return Math.max(0, survivor[skill] + bonusTo(survivor, skill));
 }

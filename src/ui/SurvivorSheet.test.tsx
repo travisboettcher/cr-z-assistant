@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { openPanel } from '../test/screens';
 import { App } from './App';
-import { createNewCampaign, type Campaign } from '../engine/campaign';
+import { createNewCampaign, type Campaign, type Survivor } from '../engine/campaign';
 import { createSurvivor } from '../engine/survivor';
 
 /** Opens the app on a campaign that already exists, for the tests that need one. */
@@ -108,10 +108,51 @@ describe('SurvivorSheet', () => {
 
     const row = skillRow(sheet, 'Bladed Weapon');
 
-    expect(within(row).getAllByText('—')).toHaveLength(2);
-    expect(within(row).getAllByText('not learned')).toHaveLength(2);
+    // Level, Item and Score: no item term for a skill that is not there.
+    expect(within(row).getAllByText('—')).toHaveLength(3);
+    expect(within(row).getAllByText('not learned')).toHaveLength(3);
     // Asserted as the absence of any number, not merely the presence of a dash.
     expect(row.textContent).not.toMatch(/\d/);
+  });
+
+  /** The book's Item term, named (pp. 8, 14; Z5-3). */
+  describe('with something carried', () => {
+    async function armed(items: Survivor['items']) {
+      const earl = createSurvivor('Earl Rhodes', 4, { id: 'earl' });
+      const user = open({
+        ...createNewCampaign('Cedar Hollow'),
+        survivors: [{ ...earl, skills: { 'long-guns': 1, carry: 0 }, items }],
+      });
+      await user.click(screen.getByRole('button', { name: /^sheet$/i }));
+
+      return screen.getByRole('region', { name: 'Earl Rhodes' });
+    }
+
+    it('counts the best item for the skill and says which it is', async () => {
+      const sheet = await armed([{ id: 'r', item: 'rifle', grade: 'quality' }]);
+
+      // Dexterity 3, level 1, +1 for the quality rifle.
+      const [, item, score] = within(skillRow(sheet, 'Long Guns')).getAllByRole('cell');
+      expect(item).toHaveTextContent('+1 (quality rifle)');
+      expect(score).toHaveTextContent(/^5$/);
+    });
+
+    it('names an item that adds a bonus to a skill it is not used with', async () => {
+      const sheet = await armed([{ id: 'b', item: 'backpack', grade: 'quality' }]);
+
+      const [, item] = within(skillRow(sheet, 'Carry')).getAllByRole('cell');
+      expect(item).toHaveTextContent('+1 (quality backpack)');
+    });
+
+    it('shows Move and Defense as worn, beside the Score bought', async () => {
+      const sheet = await armed([{ id: 'c', item: 'reinforced-clothing', grade: 'standard' }]);
+
+      const common = within(sheet).getByText(/common skills/i).parentElement as HTMLElement;
+      // Reinforced clothing: +1 Defense, −1 Move; experience still prices the 6 bought.
+      expect(common.textContent).toContain('56 bought');
+      expect(common.textContent).toContain('76 bought');
+      expect(within(sheet).getByRole('button', { name: /raise move to 7/i })).toBeInTheDocument();
+    });
   });
 
   it('shows move and defense as scores, away from the twenty governed skills', async () => {
@@ -254,9 +295,13 @@ describe('SurvivorSheet editing', () => {
 
     await user.click(toggle(sheet, 'Archery'));
 
-    // Dexterity 1 at tier 2, skill at level 0, so the score is 1 — and the row
-    // now offers to drop it rather than take it.
-    expect(within(skillRow(sheet, 'Archery')).getByText('1')).toBeInTheDocument();
+    // Dexterity 1 at tier 2, skill at level 0, and −1 for the shoddy bow she
+    // holds free (pg. 14), so the score is 0 — and the row now offers to drop
+    // it rather than take it.
+    const [level, item, score] = within(skillRow(sheet, 'Archery')).getAllByRole('cell');
+    expect(level).toHaveTextContent('0');
+    expect(item).toHaveTextContent('−1 (shoddy, held free)');
+    expect(score).toHaveTextContent(/^0$/);
     expect(toggle(sheet, 'Archery')).toHaveTextContent(/drop/i);
   });
 
@@ -388,7 +433,9 @@ describe('SurvivorSheet advancement', () => {
     // level is the whole of his Scavenge Score.
     const cells = within(skillRow(sheet, 'Scavenge')).getAllByRole('cell');
     expect(cells[0]).toHaveTextContent('1');
-    expect(cells[1]).toHaveTextContent('1');
+    // No item is used with Scavenge, so the Item term is nothing (pg. 8).
+    expect(cells[1]).toHaveTextContent(/^0$/);
+    expect(cells[2]).toHaveTextContent(/^1$/);
     expect(await balance(user, sheet, 'Marcus Webb')).toBe(19);
 
     await user.click(within(sheet).getByRole('button', { name: /raise move to 7/i }));
