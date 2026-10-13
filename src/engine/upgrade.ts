@@ -35,8 +35,14 @@ import {
   type Upgrade,
   type UpgradeId,
 } from '../data/facilities';
-import { occupantAt, replacedBy, upgradeCost, upgradesRemaining, upgradesUsed } from './base';
-import { laborRefusal, occupantAwaiting, queuedUpgradesFor, type Pricing } from './projects';
+import { occupantAt, replacedBy, upgradesRemaining, upgradesUsed } from './base';
+import {
+  laborRefusal,
+  occupantAwaiting,
+  projectCost,
+  queuedUpgradesFor,
+  type Pricing,
+} from './projects';
 import type { Check, Violation } from './checks';
 import type { Campaign } from './campaign';
 
@@ -141,8 +147,9 @@ export function checkUpgrade(
   }
 
   // What it costs *here*, which is not always the catalogue price: an upgrade
-  // that replaces one already installed is discounted for it (pp. 72–73).
-  const cost = upgradeCost(occupant, upgrade);
+  // that replaces one already installed is discounted for it (pp. 72–73), and a
+  // free rebuild after an overrun costs no Hardware (pg. 86; R29).
+  const cost = projectCost(campaign, { kind: 'upgrade', ...request });
   const onOrder = queuedUpgradesFor(campaign, request.slot);
 
   if (campaign.materials.hardware < cost.hardware) {
@@ -248,7 +255,7 @@ export function upgradeOrder(
   if (upgrade === undefined) return NOTHING_ORDERED;
 
   return {
-    cost: upgradeCost(occupant, upgrade),
+    cost: projectCost(campaign, { kind: 'upgrade', ...request }),
     replaces: replacedBy(occupant, upgrade).map((installed) => installed.id),
   };
 }

@@ -45,7 +45,7 @@ import {
   gathered,
   type MaterialRoll,
 } from './materials';
-import { moveProblem, storesAfterMove, withBaseMoved } from './move';
+import { moveProblem, rebuildAfterMove, storesAfterMove, withBaseMoved } from './move';
 
 /** This turn's haul, as the table rolled it (pp. 17–19). */
 export interface HaulForm {
@@ -417,6 +417,7 @@ export function submitBaseMove(
   const to = claimedBase(campaign) as NonNullable<ReturnType<typeof claimedBase>>;
 
   const stores = storesAfterMove(campaign);
+  const rebuild = rebuildAfterMove(campaign);
 
   return accepted(
     logged(withBaseMoved(campaign, leaving), at, {
@@ -427,6 +428,7 @@ export function submitBaseMove(
         .filter((survivor) => leaving.includes(survivor.id))
         .map((survivor) => ({ survivor: survivor.id, name: survivor.name })),
       ...(stores === null ? {} : { stores }),
+      ...(rebuild === null ? {} : { rebuild }),
     }),
   );
 }

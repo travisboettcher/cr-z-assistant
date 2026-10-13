@@ -408,6 +408,10 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
           event.stores === undefined
             ? ''
             : ` After the overrun, the stores held ${MATERIALS.map((material) => `${String(event.stores?.[material])} ${MATERIAL_LABELS[material]}`).join(', ')}.`
+        }${
+          event.rebuild === undefined || event.rebuild.length === 0
+            ? ''
+            : ' What the community had added can be built again without Hardware.'
         }`,
         pages: event.setAside.length === 0 ? 79 : '54, 79',
       };

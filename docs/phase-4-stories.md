@@ -607,6 +607,21 @@ reducer's `mission/selected` action gained the field beside the material's.
   not.
 - A different-type reclaim offers no free rebuild.
 
+**What this story turned out to include.**
+
+- **The entitlement is on the move's entry** (`rebuild` on `base-moved`): what the player had added
+  to each slot, the upgrades on built-ins included, in the base's own slot order. Whether one is
+  still free is read off the log: not built again since that move, not on order now, and not left
+  behind by a later move.
+- **`projectCost` is the one price**, and it waives the Hardware, so the quote on the order form,
+  the build and upgrade checks, and the charge written on the order all agree. The build check
+  used to read the catalogue price directly and the upgrade check its own discount; both now ask
+  the quote, which was already the same number for everything else.
+- **The reclaimed building keeps the rubble already cleared** — see the note under R29. Only what
+  the player added was destroyed.
+- **The slot card names what is still free**, and the order form says when an order is a free
+  rebuild.
+
 ---
 
 ## Z4-11 — Abandoning the survivors, and who comes back

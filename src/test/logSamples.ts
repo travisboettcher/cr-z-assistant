@@ -197,6 +197,11 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
     to: 'hobby-farm',
     setAside: [],
     stores: { food: 2, fuel: 1, hardware: 3, rare: 0 },
+    // What the overrun destroyed, free to build again (pg. 86; Z4-10).
+    rebuild: [
+      { slot: 'garage', facility: 'workshop', upgrades: [] },
+      { slot: 'kitchen', upgrades: ['gas-range'] },
+    ],
   },
   // How the community went on from an overrun base (pg. 86; Z4-9).
   { kind: 'overrun-continued', option: 'claim' },

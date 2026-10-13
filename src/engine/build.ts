@@ -16,7 +16,7 @@
 import { FACILITIES, type Facility, type FacilityId } from '../data/facilities';
 import type { Campaign } from './campaign';
 import { layoutOf, occupants } from './base';
-import { laborRefusal, queuedKindFor, type Pricing } from './projects';
+import { laborRefusal, projectCost, queuedKindFor, type Pricing } from './projects';
 import type { Check, Violation } from './checks';
 
 /**
@@ -131,15 +131,19 @@ export function checkBuild(
     });
   }
 
-  if (campaign.materials.hardware < facility.cost.hardware) {
+  // The quote, not the catalogue price: a free rebuild after an overrun costs
+  // no Hardware (pg. 86; R29).
+  const cost = projectCost(campaign, { kind: 'facility', ...request });
+
+  if (campaign.materials.hardware < cost.hardware) {
     blockers.push({
       code: 'not-enough-hardware',
-      message: `Costs ${String(facility.cost.hardware)} Hardware and the community has ${String(campaign.materials.hardware)}.`,
+      message: `Costs ${String(cost.hardware)} Hardware and the community has ${String(campaign.materials.hardware)}.`,
       pages: '72–73',
     });
   }
 
-  const labor = laborRefusal(campaign, facility.cost.labor, '72–73', pricing);
+  const labor = laborRefusal(campaign, cost.labor, '72–73', pricing);
   if (labor !== undefined) blockers.push(labor);
 
   if (facility.requires?.slot !== undefined && facility.requires.slot !== slot.kind) {

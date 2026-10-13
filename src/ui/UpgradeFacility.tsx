@@ -9,6 +9,7 @@
 import { useId, useState } from 'react';
 import type { UpgradeId } from '../data/facilities';
 import type { Campaign } from '../engine/campaign';
+import { freeRebuild } from '../engine/rebuild';
 import { checkUpgrade, upgradeOrder, upgradesFor } from '../engine/upgrade';
 import { useCampaign } from '../state/useCampaign';
 import { UPGRADE_LABELS } from './baseLabels';
@@ -54,6 +55,7 @@ export function UpgradeFacility({ campaign, slot, onUpgraded }: UpgradeFacilityP
     <SlotAction
       campaign={campaign}
       cost={cost}
+      freeRebuild={freeRebuild(campaign, { kind: 'upgrade', slot, upgrade: chosen })}
       check={check}
       overridden={overriddenFor === chosen}
       onOverride={(overridden) => {

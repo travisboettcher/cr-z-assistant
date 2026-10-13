@@ -328,6 +328,25 @@ const EVENT_FIELD_CHECKS = {
   optionalStores: (value: unknown) =>
     value === undefined ||
     (isRecord(value) && MATERIALS.every((material) => isCountFromZero(value[material]))),
+  // What a reclaimed base may build again for free (Z4-10): a slot each, with a
+  // facility from the catalogue or none, and upgrades from it. Whether the
+  // slot is the base's is the engine's to read, as a project's slot is.
+  optionalRebuild: (value: unknown) =>
+    value === undefined ||
+    (Array.isArray(value) &&
+      value.every(
+        (one) =>
+          isRecord(one) &&
+          typeof one.slot === 'string' &&
+          one.slot !== '' &&
+          (one.facility === undefined ||
+            (typeof one.facility === 'string' && isKeyOf(FACILITIES, one.facility))) &&
+          Array.isArray(one.upgrades) &&
+          one.upgrades.every(
+            (upgrade) =>
+              typeof upgrade === 'string' && facilityOfUpgrade(upgrade as UpgradeId) !== undefined,
+          ),
+      )),
   optionalFlag: (value: unknown) => value === undefined || typeof value === 'boolean',
   overrunOption: (value: unknown) => OVERRUN_OPTIONS.some((option) => option === value),
   optionalBase: (value: unknown) =>
@@ -579,6 +598,7 @@ const EVENT_FIELDS: Record<
     ['to', 'base'],
     ['setAside', 'survivorRefs'],
     ['stores', 'optionalStores'],
+    ['rebuild', 'optionalRebuild'],
   ],
   'overrun-continued': [['option', 'overrunOption']],
   'base-stocked': [

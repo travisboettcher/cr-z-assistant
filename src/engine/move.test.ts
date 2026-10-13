@@ -4,7 +4,7 @@ import { queued } from '../test/queued';
 import { submitBaseMove } from './advancementForms';
 import { createNewCampaign, type Campaign } from './campaign';
 import type { LogEntry } from './log';
-import { moveProblem, storesAfterMove, withBaseMoved } from './move';
+import { moveProblem, rebuildAfterMove, storesAfterMove, withBaseMoved } from './move';
 import { createSurvivor } from './survivor';
 import { expectAccepted, expectRefused } from '../test/forms';
 
@@ -273,6 +273,91 @@ describe('storesAfterMove', () => {
       to: 'hobby-farm',
       setAside: [],
       stores: { food: 3, fuel: 1, hardware: 2, rare: 0 },
+      // Nothing had been added to the overrun base, so nothing to rebuild.
+      rebuild: [],
+    });
+  });
+});
+
+/** What a reclaim on the overrun base's own map may build again (pg. 86; R29; Z4-10). */
+describe('rebuildAfterMove, and the slots the move leaves', () => {
+  const built = {
+    'front-yard': {
+      built: { facility: 'watchtower' as const, builtOnTurn: 2 },
+      upgrades: ['spotlight' as const],
+    },
+    kitchen: { upgrades: ['gas-range' as const] },
+    'ruined-chicken-coop': { cleared: true as const },
+    'back-yard': { built: { facility: 'garden' as const, builtOnTurn: 3 } },
+  };
+  const advanced = (after: readonly LogEntry[]) =>
+    overrun(after, {
+      step: 'add-facilities-and-upgrades',
+      base: { id: 'hobby-farm', slots: built },
+    });
+
+  it('records every facility and upgrade the player added, in the base’s own order', () => {
+    const campaign = advanced([...wentOn('claim', 'hobby-farm'), continued('claim', true, true)]);
+
+    // The built-in Kitchen is not destroyed, but its upgrade is (pg. 54).
+    expect(rebuildAfterMove(campaign)).toStrictEqual([
+      { slot: 'kitchen', upgrades: ['gas-range'] },
+      { slot: 'front-yard', facility: 'watchtower', upgrades: ['spotlight'] },
+      { slot: 'back-yard', facility: 'garden', upgrades: [] },
+    ]);
+  });
+
+  it('keeps the rubble already cleared, and nothing else, in the same building (R29)', () => {
+    const after = withBaseMoved(
+      advanced([...wentOn('claim', 'hobby-farm'), continued('claim', true, true)]),
+      [],
+    );
+
+    expect(after.base).toEqual({
+      id: 'hobby-farm',
+      slots: { 'ruined-chicken-coop': { cleared: true } },
+    });
+  });
+
+  it('records nothing, and keeps nothing, for any other move', () => {
+    const elsewhere = advanced([...wentOn('claim', 'hobby-farm'), continued('claim', true, false)]);
+    const starting = advanced([
+      ...wentOn('start-over', 'hobby-farm'),
+      continued('start-over', true),
+    ]);
+
+    expect(rebuildAfterMove(elsewhere)).toBeNull();
+    expect(rebuildAfterMove(starting)).toBeNull();
+    expect(rebuildAfterMove(moving())).toBeNull();
+    expect(withBaseMoved(elsewhere, []).base?.slots).toEqual({});
+    expect(withBaseMoved(starting, []).base?.slots).toEqual({});
+  });
+
+  it('has nothing to read without a base to read it from', () => {
+    const homeless = overrun([...wentOn('claim', 'hobby-farm'), continued('claim', true, true)], {
+      step: 'add-facilities-and-upgrades',
+      base: null,
+    });
+
+    expect(rebuildAfterMove(homeless)).toBeNull();
+    expect(withBaseMoved(homeless, []).base).toEqual({ id: 'hobby-farm', slots: {} });
+  });
+
+  it('is written on the move’s entry', () => {
+    const after = expectAccepted(
+      submitBaseMove(
+        advanced([...wentOn('claim', 'hobby-farm'), continued('claim', true, true)]),
+        [],
+        LATER,
+      ),
+    );
+
+    expect(after.log.at(-1)?.event).toMatchObject({
+      rebuild: [
+        { slot: 'kitchen', upgrades: ['gas-range'] },
+        { slot: 'front-yard', facility: 'watchtower', upgrades: ['spotlight'] },
+        { slot: 'back-yard', facility: 'garden', upgrades: [] },
+      ],
     });
   });
 });

@@ -384,6 +384,54 @@ describe('building into a slot', () => {
   });
 });
 
+/** What an overrun destroyed, free to build again in a reclaimed base (pg. 86; R29; Z4-10). */
+describe('a free rebuild', () => {
+  function reclaimed() {
+    return openWith(
+      withPlanningBegun({
+        ...createNewCampaign('Cedar Hollow'),
+        turn: 5,
+        materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+        step: 'assign-project-team',
+        base: { id: 'small-town-home', slots: {} },
+        ...projectTeamWorth(5),
+        log: [
+          {
+            turn: 4,
+            phase: 'advancement',
+            at: '2026-10-13T09:00:00.000Z',
+            event: {
+              kind: 'base-moved',
+              from: 'small-town-home',
+              to: 'small-town-home',
+              setAside: [],
+              rebuild: [{ slot: 'garage', facility: 'workshop', upgrades: [] }],
+            },
+          },
+        ],
+      }),
+    );
+  }
+
+  it('names what the slot may rebuild for free', () => {
+    reclaimed();
+
+    expect(
+      within(slots()).getByText(/Free to rebuild after the overrun: Workshop/),
+    ).toBeInTheDocument();
+  });
+
+  it('orders it for no Hardware, which a community with none can afford', async () => {
+    const user = reclaimed();
+    await user.click(screen.getByRole('button', { name: /build in garage/i }));
+    await user.selectOptions(screen.getByLabelText(/^facility$/i), 'workshop');
+
+    expect(screen.getByText(/0 Hardware · 2 Labor/i)).toBeInTheDocument();
+    expect(screen.getByText(/A free rebuild/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /order the build/i })).toBeEnabled();
+  });
+});
+
 describe('upgrading a facility', () => {
   function readyToUpgrade(hardware = 9) {
     return openWith(

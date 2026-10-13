@@ -81,6 +81,15 @@ export interface MissionWound {
   readonly infection?: number;
 }
 
+/** What the player had added to one slot of a base an overrun destroyed (Z4-10). */
+export interface RebuildSlot {
+  readonly slot: string;
+  /** A facility the player built there; absent for an empty slot or a built-in. */
+  readonly facility?: FacilityId;
+  /** The upgrades on whatever stood there, a built-in facility's included. */
+  readonly upgrades: readonly UpgradeId[];
+}
+
 /**
  * One thing that happened.
  *
@@ -747,6 +756,13 @@ export type CampaignEvent =
        * are.
        */
       readonly stores?: Materials;
+      /**
+       * What the player had added to each slot of the base an overrun
+       * destroyed, for a move into the same type on the same map, which may
+       * build each of them again without Hardware (pg. 86; R29; Z4-10).
+       * Absent for every other move.
+       */
+      readonly rebuild?: readonly RebuildSlot[];
     }
   /**
    * A community's first base arrived stocked to its caps (pg. 19, 54).

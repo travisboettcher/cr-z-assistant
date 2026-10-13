@@ -753,6 +753,14 @@ the half recovered, and the nothing recovered, apply to it as to the other three
 loss of the old stores. The book's Rare Items are items rather than materials, and items arrive with
 the Inventory in Phase 5; until then, this is what the stores hold.
 
+### Note, October 2026 — the reclaimed building keeps its cleared rubble
+
+Built with Z4-10. A claim on the overrun base's own map is the same building, and the book destroys
+its upgrades — what the player added — not the work that cleared a blocked slot. So a slot cleared
+before the overrun stays cleared, and everything else starts as the layout has it. The other
+reading, a slot full of rubble again, would also hand back the materials clearing yields a second
+time. Every other move is a new building, with every slot as its layout has it (R26).
+
 ---
 
 ## R30 — Start a New Community after an overrun

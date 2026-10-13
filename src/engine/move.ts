@@ -18,11 +18,13 @@
  * Pure, like the rest of `src/engine`.
  */
 
+import { BASES } from '../data/bases';
 import { MATERIALS, type Materials } from '../data/materials';
 import { withoutAssignment } from './assignments';
 import { storageCaps } from './base';
-import type { Campaign } from './campaign';
+import type { Campaign, SlotState } from './campaign';
 import { baseMoved, claimedBase, heroesOverCap } from './claim';
+import type { RebuildSlot } from './log';
 import { overrunChoice, reclaimedOnSameMap } from './overrun';
 import { dueProjects } from './projects';
 import { phaseOf } from './turn';
@@ -87,7 +89,7 @@ export function withBaseMoved(campaign: Campaign, leaving: readonly string[]): C
 
   return {
     ...campaign,
-    base: { id: base, slots: {} },
+    base: { id: base, slots: slotsAfterMove(campaign) },
     survivors: campaign.survivors.filter((survivor) => !gone.has(survivor.id)),
     setAside: [
       ...campaign.setAside,
@@ -134,4 +136,44 @@ export function storesAfterMove(campaign: Campaign): Materials | null {
       recovered ? Math.floor(campaign.materials[material] / 2) : 0,
     ]),
   ) as Materials;
+}
+
+/**
+ * The slots of the base moved into: empty for every move (R26) but a reclaim
+ * on the overrun base's own map, which is the same building and keeps the
+ * rubble already cleared out of it (R29). Only what the player added was
+ * destroyed, and that is `rebuildAfterMove`'s.
+ */
+function slotsAfterMove(campaign: Campaign): Readonly<Record<string, SlotState>> {
+  // Only the overrun's claim of the overrun base's own type records a map at
+  // all (`missionOutcomeProblem`), so a same-map claim is that reclaim.
+  if (!reclaimedOnSameMap(campaign) || campaign.base === null) return {};
+
+  return Object.fromEntries(
+    Object.entries(campaign.base.slots)
+      .filter(([, state]) => state.cleared === true)
+      .map(([slot]) => [slot, { cleared: true }]),
+  );
+}
+
+/**
+ * What a reclaim on the overrun base's own map may build again without
+ * Hardware, slot by slot in the base's own order, or `null` for any other move
+ * (pg. 86; R29; Z4-10): every facility the player built and every upgrade on
+ * anything standing, a built-in's included. Built-ins themselves are not here,
+ * because nothing destroys them (pg. 54).
+ */
+export function rebuildAfterMove(campaign: Campaign): readonly RebuildSlot[] | null {
+  const base = campaign.base;
+  if (!reclaimedOnSameMap(campaign) || base === null) return null;
+
+  return BASES[base.id].slots.flatMap((slot) => {
+    const state = base.slots[slot.id];
+    const facility = state?.built?.facility;
+    const upgrades = state?.upgrades ?? [];
+
+    if (facility === undefined && upgrades.length === 0) return [];
+
+    return [{ slot: slot.id, ...(facility === undefined ? {} : { facility }), upgrades }];
+  });
 }

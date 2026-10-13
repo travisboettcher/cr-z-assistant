@@ -498,6 +498,17 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
         to: fc.constantFrom(...BASE_IDS),
         setAside: fc.array(fc.record({ survivor: anyId, name: anyName }), { maxLength: 2 }),
         stores: fc.record({ food: anyCount, fuel: anyCount, hardware: anyCount, rare: anyCount }),
+        rebuild: fc.array(
+          fc.record(
+            {
+              slot: anyId,
+              facility: fc.constantFrom(...FACILITY_IDS),
+              upgrades: fc.array(fc.constantFrom(...UPGRADE_IDS), { maxLength: 2 }),
+            },
+            { requiredKeys: ['slot', 'upgrades'] },
+          ),
+          { maxLength: 2 },
+        ),
       },
       { requiredKeys: ['kind', 'from', 'to', 'setAside'] },
     ),
