@@ -136,6 +136,7 @@ across all of `src/`.
 | `docs/phase-*-stories.md` | each phase's stories, the decisions taken in them, and why |
 | [`docs/rulings.md`](rulings.md) | every question the book leaves open, and the answer the app gives |
 | [`docs/rulebook-edition.md`](rulebook-edition.md) | which printing the page numbers are, and where each rule lives |
+| [`docs/ux-principles.md`](ux-principles.md) | the one-screen layout, and the rules a new screen follows to fit it |
 | [`docs/base-slot-interaction.md`](base-slot-interaction.md), [`docs/turn-walk-interaction.md`](turn-walk-interaction.md) | the two shared screens |
 | `src/*/README.md` | what each directory may and may not hold |
 | `eslint.config.js` | the boundaries that are enforced rather than remembered, and the issue behind each |

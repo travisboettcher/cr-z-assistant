@@ -97,6 +97,18 @@ export interface Occupant {
   readonly flatOutput: { readonly output: Utility; readonly amount: number } | undefined;
 }
 
+/**
+ * Whether the community still has its first base to claim (pg. 54, 76–77).
+ *
+ * `null` is the one state of a campaign that has never claimed: no move and no
+ * overrun puts a base back to `null` — they replace it — so the question needs
+ * no turn number. Owed at the end of a turn rather than refused, because the
+ * walk guides and never gates (R33).
+ */
+export function firstBaseOwed(campaign: Campaign): boolean {
+  return campaign.base === null;
+}
+
 /** The base's slots, in the order its layout lists them. */
 export function layoutOf(base: Base): readonly BaseSlot[] {
   return BASES[base.id].slots as readonly BaseSlot[];

@@ -1,32 +1,50 @@
 /**
- * The app shell: header, section navigation, one content region, one footer
- * line. Tablet-first — this gets used standing next to a table with miniatures
- * on it, so the status a player glances for stays pinned at the top and every
- * interactive target is thumb-sized.
+ * The app shell: a header, one screen, one footer line.
  *
- * The shell only renders and dispatches. It reads `status` off the store to
- * decide between the empty state and an open campaign; it holds no campaign
- * state of its own and changes nothing except through an action.
+ * **One screen, not a page of sections.** The turn walk is the screen; beside
+ * it (below it, on a portrait tablet) a summary of the community; above it, on
+ * turn 1 only, what a new campaign needs first. Anything with a form in it —
+ * the roster, the base, the materials, the log, the campaign file — opens in a
+ * modal over that screen and closes back to it. The rules behind that are in
+ * `docs/ux-principles.md`.
+ *
+ * The shell only renders and dispatches. Which modal is open is UI state, held
+ * here, and never reaches the campaign.
  */
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useCampaign } from '../state/useCampaign';
 import { AppHeader } from './AppHeader';
 import { AppVersion } from './AppVersion';
 import { BaseSlotMap } from './BaseSlotMap';
+import { CampaignFile } from './CampaignFile';
 import { CampaignLog } from './CampaignLog';
-import { TurnWalk } from './TurnWalk';
+import { CampaignMenu, type MenuPanel } from './CampaignMenu';
 import { ClaimBase } from './ClaimBase';
 import { CampaignEmptyState } from './CampaignEmptyState';
-import { CampaignOverview } from './CampaignOverview';
-import { ImportCampaign } from './ImportCampaign';
-import { SectionNav } from './SectionNav';
+import { CommunitySummary, type CommunityPanel } from './CommunitySummary';
+import { GettingStarted } from './GettingStarted';
+import { MaterialsEditor } from './MaterialsEditor';
+import { Modal } from './Modal';
+import { PanelOpener } from './panelOpener';
 import { SurvivorRoster } from './SurvivorRoster';
 import { SurvivorSheet } from './SurvivorSheet';
+import { TurnWalk } from './TurnWalk';
 import { hungerPenalty } from '../engine/feeding';
 
+/** Every modal the shell can open, one at a time. */
+type Panel = CommunityPanel | MenuPanel;
+
+const TITLES: Record<Panel, string> = {
+  survivors: 'Survivors',
+  base: 'Base',
+  materials: 'Materials',
+  log: 'Campaign log',
+  file: 'Campaign file',
+};
+
 export function App() {
-  const { state } = useCampaign();
+  const { state, autosaveError } = useCampaign();
 
   /**
    * Which sheet is open is **UI state, not campaign state**. It never goes
@@ -41,6 +59,16 @@ export function App() {
   const [openSheetId, setOpenSheetId] = useState<string | null>(null);
 
   /**
+   * Which modal is open, and for which campaign. Starting or importing a
+   * campaign from inside the file modal replaces the campaign under it, and
+   * the modal belongs to the one it was opened for — so it closes rather than
+   * staying open over a different campaign.
+   */
+  const [open, setOpen] = useState<{ readonly panel: Panel; readonly campaign: string } | null>(
+    null,
+  );
+
+  /**
    * Resolved every render, and deliberately allowed to come back undefined:
    * the open survivor can be removed, and importing a campaign replaces the
    * whole roster. Both leave the id dangling, and both should simply close the
@@ -51,63 +79,113 @@ export function App() {
       ? state.campaign.survivors.find((survivor) => survivor.id === openSheetId)
       : undefined;
 
+  if (state.status !== 'open') {
+    return (
+      <Shell header={<AppHeader />}>
+        <main className="mx-auto w-full max-w-4xl grow px-5 py-8">
+          <CampaignEmptyState />
+        </main>
+      </Shell>
+    );
+  }
+
+  const { campaign } = state;
+  const panel = open !== null && open.campaign === campaign.id ? open.panel : null;
+  const show = (next: Panel) => {
+    setOpen({ panel: next, campaign: campaign.id });
+  };
+  const close = () => {
+    setOpen(null);
+    setOpenSheetId(null);
+  };
+
   return (
-    <div className="flex min-h-full flex-col bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
-      {/* Two call sites rather than one with an optional prop: under
-          `exactOptionalPropertyTypes`, passing a possibly-undefined campaign is
-          not the same as omitting it, and the narrowing here is free. */}
-      {state.status === 'open' ? <AppHeader campaign={state.campaign} /> : <AppHeader />}
+    <PanelOpener value={show}>
+      <Shell header={<AppHeader campaign={campaign} menu={<CampaignMenu onOpen={show} />} />}>
+        <main className="mx-auto grid w-full max-w-7xl grow gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+          {/*
+           * The summary comes first in the source, so on a portrait tablet it is
+           * a row of three cards above the turn; from a landscape tablet up it
+           * moves to a column on the right and the turn takes the left.
+           */}
+          <div className="lg:col-start-2 lg:row-start-1">
+            <CommunitySummary campaign={campaign} onOpen={show} />
+          </div>
 
-      <SectionNav campaignOpen={state.status === 'open'} />
-
-      <main className="mx-auto w-full max-w-4xl grow px-5 py-8">
-        {state.status === 'open' ? (
-          <div className="flex flex-col gap-6">
+          <div className="flex min-w-0 flex-col gap-5 lg:col-start-1 lg:row-start-1">
             {/*
-             * First, above everything: the turn is the frame the rest of Phase
-             * 3 hangs inside, and where the table is in it is the question this
-             * screen exists to answer.
+             * Never only in the menu: a browser refusing to keep the campaign is
+             * the one failure that loses it, so it stays on the screen.
              */}
-            <TurnWalk campaign={state.campaign} />
-            <CampaignOverview campaign={state.campaign} />
-            <SurvivorRoster campaign={state.campaign} onOpenSheet={setOpenSheetId} />
-            {/*
-             * One or the other, never both: a campaign either has a base to
-             * show or has not claimed one. Null is the real state rather than
-             * an empty base, so there is nothing to render a slot map from.
-             */}
-            {state.campaign.base === null ? (
-              <ClaimBase />
-            ) : (
-              <BaseSlotMap campaign={state.campaign} />
+            {autosaveError !== null && (
+              <p
+                role="status"
+                className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+              >
+                {autosaveError}
+              </p>
             )}
-            {/*
-             * Below the base rather than above it: the history is what the
-             * campaign *did*, and the screens above are what it can do next.
-             * It renders nothing at all until there is something to show.
-             */}
-            <CampaignLog campaign={state.campaign} />
-            {openSurvivor !== undefined && (
+            <GettingStarted
+              campaign={campaign}
+              onAddSurvivors={() => {
+                show('survivors');
+              }}
+              onClaimBase={() => {
+                show('base');
+              }}
+            />
+            <TurnWalk campaign={campaign} />
+          </div>
+        </main>
+
+        <Modal open={panel !== null} title={panel === null ? '' : TITLES[panel]} onClose={close}>
+          {panel === 'survivors' &&
+            /*
+             * The sheet replaces the list rather than opening a second modal on
+             * top of it: one layer over the turn, and "Close sheet" goes back to
+             * the list it came from.
+             */
+            (openSurvivor !== undefined ? (
               <SurvivorSheet
                 survivor={openSurvivor}
-                penalty={hungerPenalty(state.campaign)}
+                penalty={hungerPenalty(campaign)}
                 onClose={() => {
                   setOpenSheetId(null);
                 }}
               />
-            )}
-            {/*
-             * Import stays reachable with a campaign open, not only from the
-             * empty state — otherwise the only way to open a saved file would
-             * be to reload the page first. Here it replaces what is loaded, so
-             * it confirms before overwriting.
-             */}
-            <ImportCampaign confirmOverwrite />
-          </div>
-        ) : (
-          <CampaignEmptyState />
-        )}
-      </main>
+            ) : (
+              <SurvivorRoster campaign={campaign} onOpenSheet={setOpenSheetId} />
+            ))}
+          {/*
+           * One or the other, never both: a campaign either has a base to show
+           * or has not claimed one. Null is the real state rather than an empty
+           * base, so there is nothing to render a slot map from.
+           */}
+          {panel === 'base' &&
+            (campaign.base === null ? <ClaimBase /> : <BaseSlotMap campaign={campaign} />)}
+          {panel === 'materials' && <MaterialsEditor campaign={campaign} />}
+          {panel === 'log' &&
+            (campaign.log.length === 0 ? (
+              <p className="text-stone-600 dark:text-stone-400">Nothing has happened yet.</p>
+            ) : (
+              <CampaignLog campaign={campaign} />
+            ))}
+          {panel === 'file' && <CampaignFile campaign={campaign} />}
+        </Modal>
+      </Shell>
+    </PanelOpener>
+  );
+}
+
+/**
+ * The frame both states share: the header, whatever the screen is, and the
+ * footer.
+ */
+function Shell({ header, children }: { readonly header: ReactNode; readonly children: ReactNode }) {
+  return (
+    <div className="flex min-h-full flex-col bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
+      {header}
+      {children}
 
       {/*
        * On every screen. The app tracks a campaign; it is not a substitute for
@@ -116,7 +194,7 @@ export function App() {
        * are and that it does not reproduce them.
        */}
       <footer className="border-t border-stone-200 px-5 py-4 dark:border-stone-800">
-        <div className="mx-auto flex w-full max-w-4xl flex-col gap-1 text-sm text-stone-600 dark:text-stone-400">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-1 text-sm text-stone-600 dark:text-stone-400">
           <p>A campaign tracker only — you need the County Road Z rulebook to play.</p>
           <p>
             It ships no rule text and cites page numbers instead. County Road Z is copyright Jordan

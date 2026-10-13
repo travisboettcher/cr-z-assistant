@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { CampaignProvider } from '../state/CampaignProvider';
+import { openPanel } from '../test/screens';
 import { App } from './App';
 import { createNewCampaign, type Campaign } from '../engine/campaign';
 import { createSurvivor } from '../engine/survivor';
@@ -15,6 +16,7 @@ function open(campaign: Campaign) {
       <App />
     </CampaignProvider>,
   );
+  openPanel('survivors');
 
   return user;
 }
@@ -38,10 +40,11 @@ async function openSheetFor(name: string, tier: string) {
 
   await user.type(screen.getByLabelText(/^campaign name$/i), 'Cedar Hollow');
   await user.click(screen.getByRole('button', { name: 'New campaign' }));
+  openPanel('survivors');
 
   await user.type(screen.getByLabelText(/survivor name/i), name);
   await user.selectOptions(screen.getByLabelText(/^tier$/i), tier);
-  await user.click(screen.getByRole('button', { name: /add survivor/i }));
+  await user.click(screen.getByRole('button', { name: /^add survivor$/i }));
   await user.click(screen.getByRole('button', { name: /^sheet$/i }));
 
   return { user, sheet: screen.getByRole('region', { name }) };
@@ -135,6 +138,7 @@ describe('SurvivorSheet', () => {
 
     expect(within(sheet).getByText('1 / 4')).toBeInTheDocument();
     // The roster reads the same fact, because both compute from one survivor.
+    await user.click(within(sheet).getByRole('button', { name: /^close sheet$/i }));
     expect(
       within(screen.getByRole('region', { name: /community/i })).getByText('1 / 4'),
     ).toBeInTheDocument();
@@ -188,8 +192,15 @@ describe('SurvivorSheet', () => {
    * leaves the held id pointing at nobody, and the sheet has to disappear
    * rather than render an empty shell.
    */
-  it('closes itself when the survivor whose sheet is open is removed', async () => {
-    const { user } = await openSheetFor('Earl Rhodes', '4');
+  /*
+   * The sheet replaces the roster in its modal, so a removal reaches an open
+   * sheet only from outside it — an import replacing the roster. Closing the
+   * sheet and removing them is the path a player has, and the sheet must not
+   * come back for an id that is gone.
+   */
+  it('stays closed once the survivor whose sheet it was is removed', async () => {
+    const { user, sheet } = await openSheetFor('Earl Rhodes', '4');
+    await user.click(within(sheet).getByRole('button', { name: /^close sheet$/i }));
 
     const roster = screen.getByRole('region', { name: /community/i });
     await user.click(within(roster).getByRole('button', { name: /^remove$/i }));
@@ -622,6 +633,7 @@ describe('promoting past what the base allows', () => {
 
     await user.click(within(sheet).getByLabelText(/promote anyway/i));
     await user.click(within(sheet).getByRole('button', { name: /raise their tier/i }));
+    openPanel('base');
 
     expect(screen.getByText(/over what this base allows/i)).toBeInTheDocument();
   });

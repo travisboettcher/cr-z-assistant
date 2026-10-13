@@ -348,3 +348,24 @@ export function withUtilityToggled(campaign: Campaign, request: UtilityRequest):
 
   return { ...campaign, base: withUtility(base, request.slot, request.utility, true) };
 }
+
+/**
+ * How many of the base's slots stand empty, as it stands now rather than as it
+ * shipped (#173): nothing built in it, and either empty in the layout or
+ * cleared since. A slot with rubble in it is a clearing project, not empty.
+ * `0` with no base.
+ *
+ * Here rather than in a screen because two screens ask it — the slot map's
+ * heading and the community summary beside the turn — and they must agree.
+ */
+export function emptySlotCount(campaign: Campaign): number {
+  const base = campaign.base;
+  if (base === null) return 0;
+
+  const found = suppliedOccupants(campaign);
+  return layoutOf(base).filter(
+    (slot) =>
+      found.every((occupant) => occupant.slotId !== slot.id) &&
+      (slot.state === 'empty' || base.slots[slot.id]?.cleared === true),
+  ).length;
+}

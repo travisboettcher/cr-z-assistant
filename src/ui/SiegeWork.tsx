@@ -43,6 +43,7 @@ import {
 } from '../engine/siegeWork';
 import { phaseOf } from '../engine/turn';
 import { useCampaign } from '../state/useCampaign';
+import { OpenPanel } from './OpenPanel';
 import { PageRef } from './PageRef';
 import { FOCUS_RING } from './styles';
 import { taskLabel } from './taskLabels';
@@ -75,9 +76,13 @@ export function SiegeWork({ campaign }: { readonly campaign: Campaign }) {
       <p className={`mt-1 ${HINT}`}>
         Projects and staffed facilities keep running through a siege, but anybody it left at 0
         Health works nothing this turn — no Labor and no skills.{' '}
-        {siegeHealthRecorded(campaign)
-          ? 'This follows the Health recorded with the siege’s outcome.'
-          : 'This follows the Health on the roster below.'}
+        {siegeHealthRecorded(campaign) ? (
+          'This follows the Health recorded with the siege’s outcome.'
+        ) : (
+          <>
+            This follows the Health on the <OpenPanel panel="survivors">roster</OpenPanel>.
+          </>
+        )}
       </p>
 
       {fallen.length === 0 ? (

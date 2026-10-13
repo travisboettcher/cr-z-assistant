@@ -5,6 +5,7 @@ import { createNewCampaign } from '../engine/campaign';
 import { AUTOSAVE_KEY } from '../persistence/autosave';
 import { serializeCampaign } from '../persistence/exportFile';
 import { App } from '../ui/App';
+import { openMenu } from '../test/screens';
 import { CampaignProvider } from './CampaignProvider';
 
 const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-30T00:00:00.000Z' };
@@ -14,12 +15,13 @@ afterEach(() => {
 });
 
 /**
- * The status line, scoped to the overview panel. The confirm dialog carries
- * similar wording, and jsdom does not apply the UA stylesheet that hides a
- * closed `<dialog>`, so an unscoped text query matches both.
+ * The status line, scoped to the campaign-file modal it lives in. The confirm
+ * dialog carries similar wording, and jsdom does not apply the UA stylesheet
+ * that hides a closed `<dialog>`, so an unscoped text query matches both.
  */
 function statusLine() {
-  return within(screen.getByRole('region', { name: /campaign open/i }));
+  if (screen.queryByRole('heading', { name: /^campaign file$/i }) === null) openMenu('file');
+  return within(screen.getByRole('dialog', { name: /^campaign file$/i }));
 }
 
 /** Mounting fresh is this suite's stand-in for a page reload. */
@@ -120,9 +122,10 @@ describe('starting a new campaign over an open one', () => {
     await user.type(screen.getByLabelText(/^campaign name$/i), 'Cedar Hollow');
     await user.click(screen.getByRole('button', { name: 'New campaign' }));
 
+    openMenu('file');
     await user.click(screen.getByRole('button', { name: /start a new campaign/i }));
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('dialog', { name: /start a new campaign\?/i });
     // Never exported, so the promise the dialog must not make is "nothing is
     // lost" — it would be offering to destroy the only copy.
     expect(dialog).toHaveTextContent(/never been exported/i);
@@ -143,6 +146,7 @@ describe('starting a new campaign over an open one', () => {
     await user.type(screen.getByLabelText(/^campaign name$/i), 'Cedar Hollow');
     await user.click(screen.getByRole('button', { name: 'New campaign' }));
 
+    openMenu('file');
     await user.click(screen.getByRole('button', { name: /start a new campaign/i }));
     await user.click(await screen.findByRole('button', { name: /cancel/i }));
 

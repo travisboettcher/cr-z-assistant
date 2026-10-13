@@ -29,6 +29,7 @@ import {
 import { unassigned } from '../engine/planning';
 import { AssignTask } from './AssignTask';
 import { FACILITY_LABELS, slotLabel } from './baseLabels';
+import { OpenPanel } from './OpenPanel';
 import { PageRef } from './PageRef';
 
 export interface PlanningPhaseProps {
@@ -242,7 +243,7 @@ function FacilityStaff({ campaign }: { readonly campaign: Campaign }) {
         Power and Water are generated and assigned at the end of this step, and last until the next
         turn’s Planning Phase. This base’s staff make{' '}
         <span className="tabular-nums">{utilitiesScore(campaign)}</span> to split between them —
-        assign it on the base below <PageRef pages={20} />
+        assign it on the <OpenPanel panel="base">base</OpenPanel> <PageRef pages={20} />
       </p>
 
       {built.length === 0 ? (

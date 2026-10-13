@@ -68,8 +68,8 @@ Three bands, in decreasing permanence:
 3. **This step**: its name, its page citation, and the three moves.
 
 The header keeps turn, phase and step pinned above all of it. That is deliberate duplication: the
-header is what stays put while the rest of the screen scrolls, and "where are we?" is the question
-a tablet on a table gets asked most.
+header is what a player glances at from across the table, and "where are we?" is the question a
+tablet on a table gets asked most.
 
 ## What goes *inside* a step, and what does not
 
@@ -83,13 +83,14 @@ Z3-3 ships the frame empty. Every later story fills in one or more steps:
 | Calculate Unrest → Departures | [Z3-10](phase-3-stories.md#z3-10--management-phase-steps-47-unrest-storage-the-horde-departures) |
 | The three Mission Phase steps | Phase 4 — here they are a doorway and the outcome is typed in |
 
-**The screens that already exist stay where they are.** The roster and the base sheet are not
-steps and do not move into the walk: a player looks up a survivor's Skill Score whenever they
-want, not only during Character Advancement. What the walk adds for those is a *note* on the step
-that owns them — "this is where facilities go up" on Add Facilities and Upgrades — rather than
-hiding the screen everywhere else. Phase 2 shipped building as always-available on purpose, and
-[Z3-7](phase-3-stories.md#z3-7--the-advancement-phase) turns building out of step into a warning
-rather than a refusal for exactly this reason.
+**The roster and the base are not steps, and do not move into the walk.** A player looks up a
+survivor's Skill Score whenever they want, not only during Character Advancement. Both sit in the
+community summary beside the walk and open in a modal over it
+([`ux-principles.md`](ux-principles.md)). A step that needs one names it with `OpenPanel`, an
+inline button that opens that modal, rather than embedding a second copy of the screen. Phase 2
+shipped building as always available on purpose, and
+[Z3-7](phase-3-stories.md#z3-7--the-advancement-phase) makes building out of step a warning rather
+than a refusal for exactly this reason.
 
 ## What the walk records
 

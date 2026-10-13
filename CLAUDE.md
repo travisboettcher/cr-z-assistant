@@ -12,4 +12,6 @@ The ones most often missed:
   every reader of it — engine, screens, `outstanding`, docs — not only the one an issue names.
 - **A question the book leaves open is a ruling** in `docs/rulings.md`, never a quiet choice in
   code.
+- **The main screen summarises; a modal edits.** A UI change follows
+  [`docs/ux-principles.md`](docs/ux-principles.md): no new sections down the page.
 - **Run the whole gate** before pushing: `format:check`, `lint`, `typecheck`, `test`.

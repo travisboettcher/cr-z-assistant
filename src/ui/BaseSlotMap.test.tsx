@@ -12,6 +12,7 @@ import {
   withPlanningBegun,
 } from '../test/campaigns';
 import { CampaignProvider } from '../state/CampaignProvider';
+import { campaignLog, openPanel, stored } from '../test/screens';
 import { App } from './App';
 import { BaseSlotMap } from './BaseSlotMap';
 import { BASE_LABELS, slotLabel } from './baseLabels';
@@ -38,6 +39,7 @@ async function openCampaign() {
 }
 
 async function claim(user: ReturnType<typeof userEvent.setup>, label: string) {
+  openPanel('base');
   await user.selectOptions(screen.getByLabelText(/choose a base/i), [label]);
   await user.click(screen.getByRole('button', { name: /claim this base/i }));
 }
@@ -63,6 +65,7 @@ function openWith(campaign: Campaign) {
       <App />
     </CampaignProvider>,
   );
+  openPanel('base');
 
   return user;
 }
@@ -76,8 +79,9 @@ const slots = () => screen.getByRole('list', { name: /facility slots/i });
 describe('claiming a base', () => {
   it('offers the roster of bases before one is claimed', async () => {
     await openCampaign();
+    openPanel('base');
 
-    const panel = screen.getByRole('region', { name: /^base$/i });
+    const panel = screen.getByRole('dialog', { name: /^base$/i });
 
     expect(within(panel).getByText(/no base claimed yet/i)).toBeInTheDocument();
     expect(within(panel).getByRole('option', { name: /small town home/i })).toBeInTheDocument();
@@ -86,6 +90,7 @@ describe('claiming a base', () => {
 
   it('says moving house is not built yet, before the claim rather than after', async () => {
     await openCampaign();
+    openPanel('base');
 
     expect(screen.getByText(/claim a new base mission/i)).toBeInTheDocument();
   });
@@ -287,7 +292,7 @@ describe('building into a slot', () => {
     await user.click(garage());
     await user.click(screen.getByRole('button', { name: /order the build/i }));
 
-    expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(6);
+    expect(stored(/^hardware$/i)).toBe(6);
 
     // The button says what comes back, because an order spends its Hardware
     // when it is placed and nothing on the screen said so (#148).
@@ -298,12 +303,12 @@ describe('building into a slot', () => {
     );
 
     expect(screen.queryByText(/on order:/i)).not.toBeInTheDocument();
-    expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(9);
+    expect(stored(/^hardware$/i)).toBe(9);
 
     // And the history says what it was and how much came back — the button
     // cannot know the second before the press, and "the Garage project" alone
     // is ambiguous the moment two are queued there (#151).
-    expect(screen.getByRole('region', { name: /history/i }).textContent).toContain(
+    expect(campaignLog().textContent).toContain(
       'Cancelled the Bunk Room in the Garage — 3 Hardware came back',
     );
   });
@@ -372,7 +377,7 @@ describe('building into a slot', () => {
     await user.click(screen.getByRole('button', { name: /order the build/i }));
 
     // A Bunk Room costs 3 of the 9.
-    expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(6);
+    expect(stored(/^hardware$/i)).toBe(6);
   });
 
   it('closes the card once the order lands', async () => {
@@ -473,7 +478,7 @@ describe('upgrading a facility', () => {
       within(card as HTMLElement).getByText(/room for 2 upgrades, 1 on order/i),
     ).toBeInTheDocument();
     // A Gas Range costs 2 Hardware, spent when the order is placed.
-    expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(7);
+    expect(stored(/^hardware$/i)).toBe(7);
   });
 
   /**
@@ -514,7 +519,7 @@ describe('upgrading a facility', () => {
 
     await user.click(screen.getByRole('button', { name: /order the upgrade/i }));
 
-    expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(6);
+    expect(stored(/^hardware$/i)).toBe(6);
   });
 
   it('says nothing about replacing where there is no Fence to replace', async () => {
@@ -651,7 +656,7 @@ describe('clearing a slot', () => {
     expect(
       within(map).getByRole('button', { name: /clear ruined chicken coop/i }),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText(/^hardware$/i)).toHaveValue(0);
+    expect(stored(/^hardware$/i)).toBe(0);
   });
 
   it('says what it cannot give back, rather than dropping it quietly', async () => {
@@ -822,8 +827,10 @@ describe('the base sheet', () => {
     // community's first base arrives holding its maximum of each (pg. 19).
     expect(screen.getByRole('definition', { name: /food stored/i })).toHaveTextContent('6 / 6');
 
+    openPanel('materials');
     await user.clear(screen.getByLabelText(/^food$/i));
     await user.type(screen.getByLabelText(/^food$/i), '9');
+    openPanel('base');
 
     expect(screen.getByText(/over the cap/i)).toBeInTheDocument();
   });
@@ -849,9 +856,11 @@ describe('the base sheet', () => {
 
     expect(screen.getByRole('definition', { name: /heroes/i })).toHaveTextContent('0 / 1');
 
+    openPanel('survivors');
     await user.type(screen.getByLabelText(/survivor name/i), 'Earl');
     await user.selectOptions(screen.getByLabelText(/^tier$/i), '4');
-    await user.click(screen.getByRole('button', { name: /add survivor/i }));
+    await user.click(screen.getByRole('button', { name: /^add survivor$/i }));
+    openPanel('base');
 
     expect(screen.getByRole('definition', { name: /heroes/i })).toHaveTextContent('1 / 1');
   });
@@ -860,10 +869,11 @@ describe('the base sheet', () => {
 describe('staffing a facility', () => {
   it('changes what it produces, and is written down rather than previewed', async () => {
     const user = await openCampaign();
+    openPanel('survivors');
 
     await user.type(screen.getByLabelText(/survivor name/i), 'Carla');
     await user.selectOptions(screen.getByLabelText(/^tier$/i), '2');
-    await user.click(screen.getByRole('button', { name: /add survivor/i }));
+    await user.click(screen.getByRole('button', { name: /^add survivor$/i }));
 
     await claim(user, 'Small Town Home — Tier 1');
     await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
