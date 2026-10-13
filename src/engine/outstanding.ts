@@ -32,6 +32,7 @@
  */
 
 import type { TurnStepId } from '../data/turn';
+import { firstBaseOwed } from './base';
 import type { Campaign } from './campaign';
 import { moveOwed } from './claim';
 import { survivorsFed } from './feeding';
@@ -112,6 +113,13 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
       step: 'tactical-mission',
       says: 'The new community’s First Mission is not chosen.',
     });
+  }
+
+  // A community's first base is what Start a New Community, turn 1's First
+  // Mission, claims (pp. 54, 76–77). A turn ending without one warns rather
+  // than refuses (R33).
+  if (firstBaseOwed(campaign)) {
+    owed.push({ step: 'tactical-mission', says: 'No base has been claimed.' });
   }
 
   // A First Mission that met no end condition is played again in turn 1 (R21).

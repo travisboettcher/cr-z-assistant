@@ -827,3 +827,20 @@ Tier**, all at the move, so the community is never over the cap afterwards. Each
 over the cap, which the app would then report as a violation every turn.
 
 *Confirmed 2026-10-13.*
+
+## R33 — A turn that ends with no base warns rather than refuses
+
+**pp. 54, 76–77.** A community's first base is what turn 1's First Mission, Start a New
+Community, claims. The book has no case of a turn ending without one, so it says nothing of what
+should happen if a table moves on without recording the claim — and the app lets a base be claimed
+at any point, so it is easy to walk the whole of turn 1 without one.
+
+**The ruling is that ending a turn with no base claimed is a warning in the End-turn dialog, and
+never a refusal.** It is owed at the Play the Mission step, where the First Mission is played. The
+walk guides rather than gates (Z3-3), and a table entering a campaign part-way through may have
+reasons the app cannot see.
+
+**What it costs.** A table can still press through the warning and play turn 2 with nowhere to
+build, staff or sleep, and every base-dependent number reads as zero until a base is claimed.
+
+*Decided 2026-10-13.*

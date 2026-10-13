@@ -46,6 +46,13 @@ describe('outstanding', () => {
     expect(outstanding(settled())).toEqual([]);
   });
 
+  it('names a community that has never claimed a base', () => {
+    const homeless = settled({ base: null });
+
+    expect(steps(homeless)).toEqual(['tactical-mission']);
+    expect(outstanding(homeless)[0]?.says).toBe('No base has been claimed.');
+  });
+
   it('names the haul that never went into storage', () => {
     const skipped = settled({
       log: settled().log.filter((held) => held.event.kind !== 'materials-added'),
