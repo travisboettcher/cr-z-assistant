@@ -317,6 +317,26 @@ Scout, and the like) add on top (R40).
 **Acceptance**
 - A grenade thrown is gone after the mission; a riot shield is not (pg. 51).
 
+**What this story turned out to include.**
+
+- **A record of its own beside the outcome**, not a field on every outcome event: each of the
+  nine outcome kinds would have needed it, and a team carrying nothing needs no record at all.
+  `items-spent` names the team and each item with who had it; recording takes them off their
+  survivors. It is refused outside the Mission Phase, for a team carrying nothing, for an item the
+  team does not carry, and when nothing at all is ticked.
+- **One-mission gear goes in every record**, ticked or not. In the core catalogue that is the
+  improvised shield; the incendiary shells and flaming arrows are one-mission too, but cannot be
+  carried until a later part settles their slots. Until a team carrying such gear records, the
+  turn owes it at Play the Mission, so the shield does not go out again next turn.
+- **"Offered as used" means disposables only.** Improvised armor is used up too, but only when worn
+  through (pg. 45), so it starts clear like the riot shield; ticking anything else says it was lost.
+- **A survivor leaving the roster** — turned, bitten to death, departed or taken off by hand —
+  leaves what they carried in the base's Inventory, an `item-moved` entry each after the entry
+  that took them off, and shoddy gear back to the free supply. Part 3 rules whether that is where
+  it belongs. A survivor set aside keeps theirs (R31).
+
+Part 1 is complete, and with it #177.
+
 ## Part 2 — Making and finding (outline)
 
 - **Z5-6 — Building equipment.** An equipment order at Planning Step 2, paid from this turn's

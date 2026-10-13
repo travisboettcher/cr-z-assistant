@@ -91,6 +91,15 @@ export interface RebuildSlot {
   readonly upgrades: readonly UpgradeId[];
 }
 
+/** One item a mission used up or lost, and who had it (Z5-5). */
+export interface SpentItem {
+  readonly id: string;
+  readonly item: ItemId;
+  readonly grade: Grade;
+  readonly survivor: string;
+  readonly name: string;
+}
+
 /**
  * One end of an item's move (Z5-4): the base's Inventory, the free supply of
  * shoddy gear (R35), or a survivor, named as they were.
@@ -762,6 +771,12 @@ export type CampaignEvent =
    * survivor with the skill has (R35), to another of those. Each end names the
    * survivor as they were, for a history that outlives them.
    */
+  /**
+   * What a team's mission used up or lost (pp. 40, 45–48; R37; Z5-5): the
+   * disposables thrown, the one-mission gear that goes whatever happens, and
+   * anything the table says was lost. Each is gone from its survivor.
+   */
+  | { readonly kind: 'items-spent'; readonly team: number; readonly items: readonly SpentItem[] }
   | {
       readonly kind: 'item-moved';
       readonly id: string;

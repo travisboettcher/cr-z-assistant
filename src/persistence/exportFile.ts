@@ -255,6 +255,18 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
     };
   }
 
+  if (event.kind === 'items-spent') {
+    return {
+      ...taggedFirst(event, 'kind'),
+      items: event.items.map(({ id, item, grade, survivor, name }) => ({
+        id,
+        item,
+        grade,
+        survivor,
+        name,
+      })),
+    };
+  }
   if (event.kind === 'item-moved') {
     return {
       ...taggedFirst(event, 'kind'),

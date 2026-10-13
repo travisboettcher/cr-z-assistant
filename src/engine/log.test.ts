@@ -141,6 +141,7 @@ describe('the event samples', () => {
     'item-added': true,
     'item-removed': true,
     'item-moved': true,
+    'items-spent': true,
     'base-stocked': true,
     'facility-built': true,
     'upgrade-built': true,

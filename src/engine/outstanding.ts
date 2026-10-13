@@ -45,6 +45,7 @@ import { mustCheck, rotCheckResolved } from './rot';
 import { hordeChecked } from './siege';
 import { anythingOverCap, storageChecked } from './storage';
 import { someoneDeparted, someoneIsLeaving } from './departures';
+import { spentOwed } from './spent';
 import { returnedWaiting, strangersWaiting } from './strangers';
 
 /** Why a step is outstanding, in the words the walk shows the player. */
@@ -93,6 +94,16 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
     owed.push({
       step: 'tactical-mission',
       says: `Mission team ${String(team)}’s outcome is not recorded.`,
+    });
+  }
+
+  // Gear that lasts one mission goes after it whatever happened (pp. 40, 45,
+  // 47; Z5-5). Owed until the team records what its mission used, so it does
+  // not go out again next turn.
+  for (const team of spentOwed(campaign)) {
+    owed.push({
+      step: 'tactical-mission',
+      says: `Mission team ${String(team)} carries gear that lasts one mission, and what it used is not recorded.`,
     });
   }
 

@@ -40,6 +40,7 @@ import {
   withCommunityAbandoned,
 } from './overrun';
 import { standInProblem } from './siegeWork';
+import { spentItems, spentProblem, withItemsSpent } from './spent';
 
 /**
  * A team's mission, chosen at Select Mission (pg. 17; Z4-2).
@@ -239,5 +240,25 @@ export function submitEquipMove(campaign: Campaign, move: EquipMove, at: string)
       from: moved.from,
       to: moved.to,
     }),
+  );
+}
+
+/**
+ * What a team's mission used up or lost (pp. 40, 45–48; R37; Z5-5): the items
+ * ticked, and one-mission gear whether ticked or not. Each leaves its survivor.
+ */
+export function submitItemsSpent(
+  campaign: Campaign,
+  team: number,
+  ticked: readonly string[],
+  at: string,
+): FormResult {
+  const problem = spentProblem(campaign, team, ticked);
+  if (problem !== null) return refused(problem);
+
+  const items = spentItems(campaign, team, ticked);
+
+  return accepted(
+    logged(withItemsSpent(campaign, items), at, { kind: 'items-spent', team, items }),
   );
 }

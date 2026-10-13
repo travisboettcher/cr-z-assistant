@@ -391,6 +391,22 @@ const EVENT_FIELD_CHECKS = {
   // item comes in that grade is the item's own check, on the Inventory.
   itemId: (value: unknown) => typeof value === 'string' && isKeyOf(EQUIPMENT, value),
   grade: (value: unknown) => GRADES.some((grade) => grade === value),
+  // What a mission used up (Z5-5): each item by id, catalogue entry and grade,
+  // and who had it. History, so not held to the roster.
+  spentItems: (value: unknown) =>
+    Array.isArray(value) &&
+    value.every(
+      (one) =>
+        isRecord(one) &&
+        typeof one.id === 'string' &&
+        one.id !== '' &&
+        typeof one.item === 'string' &&
+        isKeyOf(EQUIPMENT, one.item) &&
+        GRADES.some((grade) => grade === one.grade) &&
+        typeof one.survivor === 'string' &&
+        one.survivor !== '' &&
+        typeof one.name === 'string',
+    ),
   // One end of an item's move (Z5-4): the base, the free shoddy supply, or a
   // survivor by id and name. Not held to the roster, since this is history.
   holder: (value: unknown) =>
@@ -664,6 +680,10 @@ const EVENT_FIELDS: Record<
     ['id', 'id'],
     ['item', 'itemId'],
     ['grade', 'grade'],
+  ],
+  'items-spent': [
+    ['team', 'countFromOne'],
+    ['items', 'spentItems'],
   ],
   'item-moved': [
     ['id', 'id'],

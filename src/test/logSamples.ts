@@ -220,6 +220,14 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   // An item put in and taken out of the base's Inventory by hand (Z5-2).
   { kind: 'item-added', id: 'item-1', item: 'pistol', grade: 'standard' },
   { kind: 'item-removed', id: 'item-1', item: 'pistol', grade: 'standard' },
+  // What a mission used up (Z5-5).
+  {
+    kind: 'items-spent',
+    team: 1,
+    items: [
+      { id: 'item-4', item: 'grenade', grade: 'standard', survivor: 'earl', name: 'Earl Rhodes' },
+    ],
+  },
   // Items moved at Equip Mission Team, each end of each kind (Z5-4).
   {
     kind: 'item-moved',

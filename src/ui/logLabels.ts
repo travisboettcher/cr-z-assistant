@@ -423,6 +423,12 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
     case 'item-removed':
       return { text: `Taken out of the base’s Inventory: ${describeItem(event)}.`, pages: 18 };
 
+    case 'items-spent':
+      return {
+        text: `Mission team ${String(event.team)} used up or lost: ${event.items.map((one) => `${one.name}’s ${describeItem(one)}`).join(', ')}.`,
+        pages: '40, 45–48',
+      };
+
     case 'item-moved':
       return {
         text: `Equipped: ${describeItem(event)}, from ${holderLabel(event.from)} to ${holderLabel(event.to)}.`,

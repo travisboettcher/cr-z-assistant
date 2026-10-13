@@ -22,6 +22,7 @@ import { AdvancementPhase } from './AdvancementPhase';
 import { EquipMissionTeam } from './EquipMissionTeam';
 import { FirstMission } from './FirstMission';
 import { MissionOutcome } from './MissionOutcome';
+import { MissionSpent } from './MissionSpent';
 import { SelectMission } from './SelectMission';
 import { SiegeWork } from './SiegeWork';
 import { ManagementPhase } from './ManagementPhase';
@@ -298,6 +299,12 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
             {campaign.step === 'equip-mission-team' && <EquipMissionTeam campaign={campaign} />}
 
             {campaign.step === 'tactical-mission' && <MissionOutcome campaign={campaign} />}
+
+            {/*
+             * What each team's mission used up or lost (Z5-5), beside its
+             * outcome, because the table has the cards in front of it now.
+             */}
+            {campaign.step === 'tactical-mission' && <MissionSpent campaign={campaign} />}
 
             {/*
              * The fourth, once a Siege Defense is on the record: who it took
