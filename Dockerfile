@@ -20,6 +20,13 @@ COPY . .
 # vite.config.ts: the app's tsconfig deliberately excludes Node types so
 # `process` cannot leak into browser code.
 ARG BASE_PATH=/
+
+# Which commit this image was built from, shown in the footer so whoever is
+# looking at a deployment can tell what is on it. `.git` is not in the build
+# context, so it is passed in — the publish workflow sets it to the commit SHA.
+# Vite exposes any `VITE_`-prefixed variable to the app at build time.
+ARG APP_VERSION=
+ENV VITE_APP_VERSION=${APP_VERSION}
 RUN npm run build -- --base="${BASE_PATH}"
 
 FROM nginx:1.29-alpine AS runtime

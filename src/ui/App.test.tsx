@@ -36,6 +36,12 @@ function headerFact(label: string): HTMLElement | null {
 }
 
 describe('App shell', () => {
+  it('says in the footer which build is running', () => {
+    renderApp();
+
+    expect(within(screen.getByRole('contentinfo')).getByText(/^version/i)).toBeVisible();
+  });
+
   it('offers a new campaign and an import when nothing is open', () => {
     renderApp();
 

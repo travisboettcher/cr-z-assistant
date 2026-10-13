@@ -12,6 +12,7 @@
 import { useState } from 'react';
 import { useCampaign } from '../state/useCampaign';
 import { AppHeader } from './AppHeader';
+import { AppVersion } from './AppVersion';
 import { BaseSlotMap } from './BaseSlotMap';
 import { CampaignLog } from './CampaignLog';
 import { TurnWalk } from './TurnWalk';
@@ -121,6 +122,7 @@ export function App() {
             It ships no rule text and cites page numbers instead. County Road Z is copyright Jordan
             Heckman; this project is unaffiliated.
           </p>
+          <AppVersion version={import.meta.env.VITE_APP_VERSION} />
         </div>
       </footer>
     </div>
