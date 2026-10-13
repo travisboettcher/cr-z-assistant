@@ -140,6 +140,7 @@ describe('the event samples', () => {
     'survivor-returned': true,
     'item-added': true,
     'item-removed': true,
+    'item-moved': true,
     'base-stocked': true,
     'facility-built': true,
     'upgrade-built': true,

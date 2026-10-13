@@ -8,6 +8,7 @@
 
 import type { Grade, ItemId, ItemKind } from '../data/equipment';
 import type { Item } from '../engine/campaign';
+import type { ItemHolder } from '../engine/log';
 
 export const ITEM_LABELS: Record<ItemId, string> = {
   pistol: 'Pistol',
@@ -109,4 +110,12 @@ export const ITEM_KIND_LABELS: Record<ItemKind, string> = {
  */
 export function describeItem(item: Pick<Item, 'item' | 'grade'>): string {
   return `${item.grade} ${ITEM_LABELS[item.item].toLowerCase()}`;
+}
+
+/** One end of an item's move at Equip Mission Team, as a log line names it (Z5-4). */
+export function holderLabel(holder: ItemHolder): string {
+  if (holder === 'base') return 'the base’s Inventory';
+  if (holder === 'free') return 'the free shoddy supply';
+
+  return holder.name;
 }

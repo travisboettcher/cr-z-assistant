@@ -983,6 +983,13 @@ describe('the equipment catalogue (pp. 37–53)', () => {
     }
   });
 
+  /** `shoddyOffers` reads one or the other, which holds while this does. */
+  it('names the skills an item is used with, or the one it needs, never both', () => {
+    for (const [id, item] of entries) {
+      expect(item.uses !== undefined && item.needs !== undefined, id).toBe(false);
+    }
+  });
+
   /** `itemCap` takes the first cap it finds, which holds while this does. */
   it('caps a Score only with the tool belt, alike at every grade (pg. 44)', () => {
     expect(entries.filter(([, item]) => item.caps !== undefined).map(([id]) => id)).toEqual([

@@ -220,6 +220,23 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   // An item put in and taken out of the base's Inventory by hand (Z5-2).
   { kind: 'item-added', id: 'item-1', item: 'pistol', grade: 'standard' },
   { kind: 'item-removed', id: 'item-1', item: 'pistol', grade: 'standard' },
+  // Items moved at Equip Mission Team, each end of each kind (Z5-4).
+  {
+    kind: 'item-moved',
+    id: 'item-2',
+    item: 'rifle',
+    grade: 'quality',
+    from: 'base',
+    to: { survivor: 'earl', name: 'Earl Rhodes' },
+  },
+  {
+    kind: 'item-moved',
+    id: 'item-3',
+    item: 'bow',
+    grade: 'shoddy',
+    from: { survivor: 'earl', name: 'Earl Rhodes' },
+    to: 'free',
+  },
   // The claim an overrun went on with, on the overrun base's own map (R29).
   {
     kind: 'claim-a-new-base-resolved',

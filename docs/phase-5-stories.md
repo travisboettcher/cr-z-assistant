@@ -278,6 +278,30 @@ Scout, and the like) add on top (R40).
 - An item moved to a survivor leaves the base Inventory, and comes back when moved back.
 - A survivor not on a team cannot be equipped, and keeps what they hold.
 
+**What this story turned out to include.**
+
+- **Who is equipped is `deployed`**: the survivors whose team is going out. A team that chose no
+  mission while another did stays home, and an opt-out equips nobody. A siege turn equips the whole
+  community, which is the team the Siege Defense takes (pg. 85).
+- **One entry for every move**, `item-moved`, naming the item and both ends: the base's Inventory,
+  a survivor by id and name, or the free supply of shoddy gear (R35). Shoddy gear taken up comes
+  from that supply and goes back to it when set down; it never reaches the base.
+- **Refused**: outside the Mission Phase; an item nobody going out holds; past a survivor's slots,
+  counting the slots the item itself brings (an ultralight backpack) and the hunger penalty's effect
+  on Carry; equipment whose skill the survivor lacks (pg. 44); a second of one piece of protective
+  gear (R40); shoddy gear for a skill the survivor does not have; and an item the catalogue gives no
+  slot count yet (ammunition, the rare upgrades, the quick quiver), until parts 2 and 3 settle each.
+- **Warned, not refused**: a weapon or tool carried by somebody without the skill it is used with.
+  The book needs the skill to use one (pg. 8), not to carry it, so a table handing a spare rifle to
+  a porter can.
+- **A survivor already over their slots** — the hunger penalty lowered Carry after they were
+  equipped — is shown in amber on the step, not stripped of anything: what they put down is the
+  table's choice.
+- **The step's screen** is a block per team, a row per survivor: slots in use, each carried item
+  with where it can go, and one picker for what they can take, from the base or shoddy and free.
+  The Inventory and the roster open from it with `OpenPanel`. The "not built yet" note stays only
+  on Play the Mission, which is played on the table.
+
 ### Z5-5 — What a mission used up
 
 **Why:** Disposables, one-mission items and lost gear are the only item changes a mission makes

@@ -31,7 +31,7 @@ import {
   slotLabel,
 } from './baseLabels';
 import { MISSIONS } from '../data/missions';
-import { describeItem } from './equipmentLabels';
+import { describeItem, holderLabel } from './equipmentLabels';
 import { describeOutcome, describeSelection, OVERRUN_LABELS, outcomePages } from './missionLabels';
 import { PHASE_LABELS } from './turnLabels';
 import { COMMON_SKILL_LABELS, SKILL_LABELS } from './skillLabels';
@@ -422,6 +422,12 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
 
     case 'item-removed':
       return { text: `Taken out of the base’s Inventory: ${describeItem(event)}.`, pages: 18 };
+
+    case 'item-moved':
+      return {
+        text: `Equipped: ${describeItem(event)}, from ${holderLabel(event.from)} to ${holderLabel(event.to)}.`,
+        pages: event.from === 'free' || event.to === 'free' ? '18, 37' : 18,
+      };
 
     case 'community-abandoned':
       return {

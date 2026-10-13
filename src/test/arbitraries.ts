@@ -76,6 +76,12 @@ const anyName = fc.string({ unit: anyCodeUnit, maxLength: 40 });
 /** An id, which the parser requires to be a non-empty string and nothing more. */
 const anyId = fc.string({ unit: anyCodeUnit, minLength: 1, maxLength: 40 });
 
+/** One end of an item's move at Equip Mission Team (Z5-4). */
+const anyHolder = fc.oneof(
+  fc.constantFrom('base' as const, 'free' as const),
+  fc.record({ survivor: anyId, name: anyName }),
+);
+
 /**
  * A count the save-file parser accepts: a whole number, zero or more.
  *
@@ -553,6 +559,14 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
         grade: fc.constantFrom(...GRADES),
       }),
     ),
+    fc.record({
+      kind: fc.constant('item-moved' as const),
+      id: anyId,
+      item: fc.constantFrom(...ITEM_IDS),
+      grade: fc.constantFrom(...GRADES),
+      from: anyHolder,
+      to: anyHolder,
+    }),
     fc.record({
       kind: fc.constant('facility-built' as const),
       slot: anyId,

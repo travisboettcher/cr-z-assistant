@@ -92,6 +92,12 @@ export interface RebuildSlot {
 }
 
 /**
+ * One end of an item's move (Z5-4): the base's Inventory, the free supply of
+ * shoddy gear (R35), or a survivor, named as they were.
+ */
+export type ItemHolder = 'base' | 'free' | { readonly survivor: string; readonly name: string };
+
+/**
  * One thing that happened.
  *
  * Ids are past tense and hyphenated rather than mirroring the action names that
@@ -749,6 +755,20 @@ export type CampaignEvent =
       readonly id: string;
       readonly item: ItemId;
       readonly grade: Grade;
+    }
+  /**
+   * An item moved at Equip Mission Team (pg. 18; R38; Z5-4): from the base's
+   * Inventory, a survivor, or — for shoddy gear — the free supply every
+   * survivor with the skill has (R35), to another of those. Each end names the
+   * survivor as they were, for a history that outlives them.
+   */
+  | {
+      readonly kind: 'item-moved';
+      readonly id: string;
+      readonly item: ItemId;
+      readonly grade: Grade;
+      readonly from: ItemHolder;
+      readonly to: ItemHolder;
     }
   /**
    * How the community goes on from a base its Siege Defense overran (pg. 86;

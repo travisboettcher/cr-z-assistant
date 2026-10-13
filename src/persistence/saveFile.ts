@@ -391,6 +391,15 @@ const EVENT_FIELD_CHECKS = {
   // item comes in that grade is the item's own check, on the Inventory.
   itemId: (value: unknown) => typeof value === 'string' && isKeyOf(EQUIPMENT, value),
   grade: (value: unknown) => GRADES.some((grade) => grade === value),
+  // One end of an item's move (Z5-4): the base, the free shoddy supply, or a
+  // survivor by id and name. Not held to the roster, since this is history.
+  holder: (value: unknown) =>
+    value === 'base' ||
+    value === 'free' ||
+    (isRecord(value) &&
+      typeof value.survivor === 'string' &&
+      value.survivor !== '' &&
+      typeof value.name === 'string'),
   optionalFlag: (value: unknown) => value === undefined || typeof value === 'boolean',
   overrunOption: (value: unknown) => OVERRUN_OPTIONS.some((option) => option === value),
   optionalBase: (value: unknown) =>
@@ -655,6 +664,13 @@ const EVENT_FIELDS: Record<
     ['id', 'id'],
     ['item', 'itemId'],
     ['grade', 'grade'],
+  ],
+  'item-moved': [
+    ['id', 'id'],
+    ['item', 'itemId'],
+    ['grade', 'grade'],
+    ['from', 'holder'],
+    ['to', 'holder'],
   ],
   'community-abandoned': [['setAside', 'survivorRefs']],
   'survivor-returned': [

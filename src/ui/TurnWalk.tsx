@@ -19,6 +19,7 @@ import { advance, phaseOf, positionOf, reverse } from '../engine/turn';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
 import { AdvancementPhase } from './AdvancementPhase';
+import { EquipMissionTeam } from './EquipMissionTeam';
 import { FirstMission } from './FirstMission';
 import { MissionOutcome } from './MissionOutcome';
 import { SelectMission } from './SelectMission';
@@ -290,6 +291,12 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
              * step the mission is played in, because that is when the table
              * has the counts in front of it.
              */}
+            {/*
+             * Equip Mission Team: what each survivor going out carries
+             * (pg. 18; Z5-4), between choosing the mission and playing it.
+             */}
+            {campaign.step === 'equip-mission-team' && <EquipMissionTeam campaign={campaign} />}
+
             {campaign.step === 'tactical-mission' && <MissionOutcome campaign={campaign} />}
 
             {/*
@@ -300,7 +307,7 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
              */}
             {campaign.step === 'tactical-mission' && <SiegeWork campaign={campaign} />}
 
-            {campaign.step !== 'select-mission' && (
+            {campaign.step === 'tactical-mission' && (
               <p className="mt-4 text-sm text-stone-600 dark:text-stone-400">
                 This step is not built yet — work it on paper and move on when the table has.{' '}
                 <PageRef pages={step.pages} />

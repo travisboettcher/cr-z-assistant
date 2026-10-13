@@ -18,7 +18,8 @@
 import type { BaseId } from '../data/bases';
 import type { OverrunOption } from '../data/missions';
 import type { Campaign, Survivor } from './campaign';
-import { accepted, refused, type FormResult } from './forms';
+import { equipCheck, withEquipMove, type EquipMove } from './equip';
+import { accepted, blockedBy, refused, type FormResult } from './forms';
 import { logged, type MissionWound } from './log';
 import {
   missionOutcomeProblem,
@@ -211,6 +212,32 @@ export function submitStandIn(campaign: Campaign, form: StandInForm, at: string)
       survivor: form.survivor,
       name: named(form.survivor),
       ...standIn,
+    }),
+  );
+}
+
+/**
+ * Move an item at Equip Mission Team, or take up or set down shoddy gear
+ * (pg. 18; R35, R38; Z5-4).
+ *
+ * Refused for `equipCheck`'s blockers. Its warnings were on the screen, and
+ * the press is the override. The item moves on its holders, and the entry
+ * names both ends as they were.
+ */
+export function submitEquipMove(campaign: Campaign, move: EquipMove, at: string): FormResult {
+  const problem = blockedBy(equipCheck(campaign, move));
+  if (problem !== null) return refused(problem);
+
+  const moved = withEquipMove(campaign, move);
+
+  return accepted(
+    logged(moved.campaign, at, {
+      kind: 'item-moved',
+      id: moved.item.id,
+      item: moved.item.item,
+      grade: moved.item.grade,
+      from: moved.from,
+      to: moved.to,
     }),
   );
 }

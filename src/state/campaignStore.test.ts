@@ -2615,6 +2615,27 @@ describe('what earns a line in the log', () => {
         grade: 'standard',
       }),
     },
+    'mission/itemMoved': {
+      // Marcus is going out on team 1, so a pistol from the base's Inventory
+      // goes to him at Equip Mission Team (R38; Z5-4).
+      state: openState({
+        ...expectOpen(marcusOnTeamOne()),
+        inventory: [{ id: 'item-1', item: 'pistol', grade: 'standard' }],
+      }),
+      action: {
+        type: 'mission/itemMoved',
+        move: { kind: 'move', id: 'item-1', to: { survivor: LOGGED_SURVIVOR } },
+        at: AT,
+      },
+      entry: entry(3, 'mission', {
+        kind: 'item-moved',
+        id: 'item-1',
+        item: 'pistol',
+        grade: 'standard',
+        from: 'base',
+        to: { survivor: LOGGED_SURVIVOR, name: 'Marcus Webb' },
+      }),
+    },
     'advancement/survivorReturned': {
       // Hera, sent away over a Hero cap, brought back by a Rescue Strangers
       // team this turn, rejoins at Advancement Step 2 (R31; Z4-11).

@@ -64,12 +64,14 @@ import {
   submitXpAward,
 } from '../engine/advancementForms';
 import type { MissionOutcome } from '../engine/missions';
+import type { EquipMove } from '../engine/equip';
 import {
   submitMissionOutcome,
   submitMissionSelection,
   submitOverrunContinuation,
   submitMissionSkip,
   submitStandIn,
+  submitEquipMove,
 } from '../engine/missionForms';
 import {
   submitAdvance,
@@ -453,6 +455,8 @@ export type CampaignAction =
     }
   /** An item taken out of the base's Inventory by hand (Z5-2). */
   | { readonly type: 'inventory/itemRemoved'; readonly id: string; readonly at: string }
+  /** An item moved at Equip Mission Team, or shoddy gear taken up free (Z5-4). */
+  | { readonly type: 'mission/itemMoved'; readonly move: EquipMove; readonly at: string }
   /** A survivor set aside, brought back this turn, rejoins (R31; Z4-11). */
   | {
       readonly type: 'advancement/survivorReturned';
@@ -1014,6 +1018,9 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
           action.at,
         ),
       );
+
+    case 'mission/itemMoved':
+      return submitted(state, (campaign) => submitEquipMove(campaign, action.move, action.at));
 
     case 'inventory/itemRemoved':
       return submitted(state, (campaign) => submitItemRemoved(campaign, action.id, action.at));
