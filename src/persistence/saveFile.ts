@@ -310,6 +310,10 @@ const EVENT_FIELD_CHECKS = {
   // mission. Which mission asks for one is the engine's to check, not a file's.
   optionalMaterial: (value: unknown) =>
     value === undefined || (MATERIALS as readonly unknown[]).includes(value),
+  // The base a Claim a New Base team is claiming (pg. 78; Z4-7), and absent
+  // for every other mission and for a Claim chosen before Z4-7.
+  optionalBase: (value: unknown) =>
+    value === undefined || (typeof value === 'string' && isKeyOf(BASES, value)),
   upgrade: (value: unknown) =>
     typeof value === 'string' && facilityOfUpgrade(value as UpgradeId) !== undefined,
 } as const;
@@ -423,6 +427,7 @@ const EVENT_FIELDS: Record<
     ['mission', 'mission'],
     ['names', 'names'],
     ['material', 'optionalMaterial'],
+    ['base', 'optionalBase'],
   ],
   'mission-skipped': [],
   'siege-defense-resolved': [

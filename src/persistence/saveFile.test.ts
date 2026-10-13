@@ -730,6 +730,22 @@ describe('a campaign whose log is damaged', () => {
     expect(result.ok).toBe(true);
   });
 
+  /** A Claim chosen since Z4-7 names its base, and one chosen before it does not. */
+  it.each([
+    ['naming its base', { base: 'distillery' }],
+    ['naming none, as one chosen before Z4-7 does', {}],
+  ])('accepts a Claim a New Base selection %s', (_name, base) => {
+    const event = {
+      kind: 'mission-selected',
+      team: 1,
+      mission: 'claim-a-new-base',
+      names: ['Earl Rhodes'],
+      ...base,
+    };
+
+    expect(parseCampaignFile(savedWith({ log: [{ ...good, event }] })).ok).toBe(true);
+  });
+
   it.each([
     ['not a list at all', 5, /campaign log is missing/i],
     ['an entry that is not an object', [7], /is not a log entry/i],
@@ -791,6 +807,22 @@ describe('a campaign whose log is damaged', () => {
     ],
     // The field loop: a kind this version knows, carrying a field it cannot
     // read. Nothing above reaches past the discriminant.
+    [
+      'a claim aimed at a base that is not on the roster',
+      [
+        {
+          ...good,
+          event: {
+            kind: 'mission-selected',
+            team: 1,
+            mission: 'claim-a-new-base',
+            names: [],
+            base: 'castle',
+          },
+        },
+      ],
+      /unreadable base/i,
+    ],
     [
       'an entry about a survivor of no known tier',
       [{ ...good, event: { ...good.event, tier: 99 } }],

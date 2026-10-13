@@ -98,6 +98,14 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
     names: ['Carla Proust', 'Ruby Vance'],
     material: 'fuel',
   },
+  // The base a claim is aiming at (pg. 78; Z4-7).
+  {
+    kind: 'mission-selected',
+    team: 1,
+    mission: 'claim-a-new-base',
+    names: ['Earl Rhodes'],
+    base: 'distillery',
+  },
   { kind: 'mission-skipped' },
   { kind: 'siege-defense-resolved', zombiesLeft: 0, survivorsExited: 2 },
   // A team, which every outcome written since Z4-3 carries.

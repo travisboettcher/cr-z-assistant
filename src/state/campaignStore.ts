@@ -429,6 +429,7 @@ export type CampaignAction =
       readonly team: number;
       readonly mission: MissionId;
       readonly material?: Material;
+      readonly base?: BaseId;
       readonly at: string;
     }
   /** The community opts out of this turn's mission (pg. 17). */
@@ -795,6 +796,7 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
             team: action.team,
             mission: action.mission,
             ...(action.material === undefined ? {} : { material: action.material }),
+            ...(action.base === undefined ? {} : { base: action.base }),
           },
           action.at,
         ),

@@ -2688,12 +2688,20 @@ describe('what earns a line in the log', () => {
       // `rich()` stands in the Mission Phase of turn 3 with no siege called,
       // and Marcus is the team Planning assigned (pg. 21).
       state: marcusOnTeamOne(),
-      action: { type: 'mission/selected', at: AT, team: 1, mission: 'thin-the-herd' },
+      // A claim, so the base it aims at is shown reaching the entry (Z4-7).
+      action: {
+        type: 'mission/selected',
+        at: AT,
+        team: 1,
+        mission: 'claim-a-new-base',
+        base: 'distillery',
+      },
       entry: entry(3, 'mission', {
         kind: 'mission-selected',
         team: 1,
-        mission: 'thin-the-herd',
+        mission: 'claim-a-new-base',
         names: ['Marcus Webb'],
+        base: 'distillery',
       }),
     },
     'mission/skipped': {

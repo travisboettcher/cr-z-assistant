@@ -408,7 +408,9 @@ export type CampaignEvent =
    * the history: the roster it names can have changed by the time anybody
    * looks, which is why `siege-fought` carries names too. `material` is the
    * type a Gather Materials team takes its remainder in (pg. 80), and is
-   * present for that mission only.
+   * present for that mission only; `base` is the base a Claim a New Base team
+   * is claiming (pg. 78; Z4-7), present for that mission only, and absent on
+   * a Claim chosen before Z4-7.
    *
    * **Load-bearing**: `missions.ts` reads it back for who went out, which
    * mission XP and the haul's substitutions are counted from.
@@ -419,6 +421,7 @@ export type CampaignEvent =
       readonly mission: MissionId;
       readonly names: readonly string[];
       readonly material?: Material;
+      readonly base?: BaseId;
     }
   /**
    * The community opted out of this turn's mission (pg. 17).

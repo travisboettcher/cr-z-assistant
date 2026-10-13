@@ -7,10 +7,12 @@
  * is said in this app's words, with the page beside it.
  */
 
+import type { BaseId } from '../data/bases';
 import type { Material } from '../data/materials';
 import { MISSIONS, type MissionId, type OutcomeCount } from '../data/missions';
 import type { FieldRecruitTier } from '../data/recruitTable';
-import { MATERIAL_LABELS } from './baseLabels';
+import { withArticle } from './articles';
+import { BASE_LABELS, MATERIAL_LABELS } from './baseLabels';
 import type { MissionWound } from '../engine/log';
 import { outcomeMission, outcomeTeam, type MissionOutcome } from '../engine/missions';
 import {
@@ -62,14 +64,17 @@ export function describeSelection(selection: {
   readonly mission: MissionId;
   readonly names: readonly string[];
   readonly material?: Material;
+  readonly base?: BaseId;
 }): string {
   const remainder =
     selection.material === undefined
       ? ''
       : `, taking the rest in ${MATERIAL_LABELS[selection.material]}`;
+  const claiming =
+    selection.base === undefined ? '' : `, claiming ${withArticle(BASE_LABELS[selection.base])}`;
   const who = selection.names.length === 0 ? '' : `: ${selection.names.join(', ')}`;
 
-  return `Mission team ${String(selection.team)} chose ${MISSION_LABELS[selection.mission]}${remainder}${who}.`;
+  return `Mission team ${String(selection.team)} chose ${MISSION_LABELS[selection.mission]}${remainder}${claiming}${who}.`;
 }
 
 /** A mission's title at the start of a line: "Siege Defense", not "the Siege Defense". */

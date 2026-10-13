@@ -786,11 +786,16 @@ describe('the missions', () => {
     expect([...GATHERED_MATERIALS].sort()).toEqual(['food', 'fuel', 'hardware']);
   });
 
-  it('asks only Gather Materials for anything at selection', () => {
+  it('asks only Gather Materials and Claim a New Base for anything at selection', () => {
+    const asked: Record<string, readonly string[]> = {
+      'gather-materials': ['material'],
+      'claim-a-new-base': ['base'],
+    };
+
     for (const [id, mission] of entries) {
       if (mission.family !== 'standard') continue;
 
-      expect(mission.asks).toEqual(id === 'gather-materials' ? ['material'] : []);
+      expect(mission.asks).toEqual(asked[id] ?? []);
     }
   });
 

@@ -90,6 +90,50 @@ describe('Select Mission (pg. 17; Z4-2)', () => {
     ).toBeInTheDocument();
   });
 
+  it('asks Claim a New Base for the base it claims, and names it (pg. 78; Z4-7)', async () => {
+    const user = open(selecting());
+
+    await user.selectOptions(team(1).getByLabelText('Mission'), 'thin-the-herd');
+    expect(team(1).queryByLabelText('Base to claim')).toBeNull();
+
+    await user.selectOptions(team(1).getByLabelText('Mission'), 'claim-a-new-base');
+    expect(
+      within(team(1).getByLabelText('Base to claim')).getByRole('option', {
+        name: 'Distillery (Tier 2)',
+      }),
+    ).toBeInTheDocument();
+    await user.selectOptions(team(1).getByLabelText('Base to claim'), 'distillery');
+    await user.click(team(1).getByRole('button', { name: 'Choose for team 1' }));
+
+    expect(
+      team(1).getByText(
+        /Mission team 1 chose Claim a New Base, claiming a Distillery: Earl Rhodes, Carla Proust\./,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('warns when the base would hold fewer Heroes than the community has (pg. 54)', async () => {
+    const user = open(
+      selecting({
+        survivors: [
+          createSurvivor('Earl Rhodes', 4, { id: 'earl' }),
+          createSurvivor('Carla Proust', 4, { id: 'carla' }),
+          createSurvivor('Ruby Vance', 3, { id: 'ruby' }),
+        ],
+      }),
+    );
+
+    await user.selectOptions(team(1).getByLabelText('Mission'), 'claim-a-new-base');
+    await user.selectOptions(team(1).getByLabelText('Base to claim'), 'summer-camp');
+
+    expect(team(1).getByText(/This base holds 1 Hero and the community has 2/)).toBeInTheDocument();
+    // A warning, not a refusal: the book lets a community claim any base.
+    expect(team(1).getByRole('button', { name: 'Choose for team 1' })).toBeEnabled();
+
+    await user.selectOptions(team(1).getByLabelText('Base to claim'), 'distillery');
+    expect(team(1).queryByText(/This base holds/)).toBeNull();
+  });
+
   it('refuses a second Claim a New Base, and says why (R20)', async () => {
     const user = open(selecting());
 

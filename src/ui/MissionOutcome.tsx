@@ -38,6 +38,8 @@ import {
 } from '../engine/missions';
 import { maxHp } from '../engine/survivor';
 import { useCampaign } from '../state/useCampaign';
+import { withArticle } from './articles';
+import { BASE_LABELS } from './baseLabels';
 import {
   COUNT_LABELS,
   describeOutcome,
@@ -277,6 +279,10 @@ function TeamOutcome({
       </legend>
 
       <p className={HINT}>{hint}</p>
+
+      {choice.base !== undefined && (
+        <p className="text-sm">Claiming {withArticle(BASE_LABELS[choice.base])}.</p>
+      )}
 
       {asked.map((of) => {
         switch (of) {

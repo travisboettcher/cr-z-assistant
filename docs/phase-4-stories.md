@@ -416,30 +416,30 @@ Printed page numbers; *derived* means it follows from the text without being sai
   their experience and Inventory (pg. 86), and a rescuer's Tier must be at least theirs (pg. 31).
   A Hero sent away over the cap may come back the same way (pg. 54).
 
-## What the book leaves open — proposed rulings
+## Rulings the book leaves open
 
-Recorded in [the registry](rulings.md) as **PROPOSED** until confirmed:
+Seven, confirmed 2026-10-13 and recorded in [the registry](rulings.md):
 
-- [R25](rulings.md#r25--when-the-community-moves-in--proposed) — the community moves in at the end
+- [R25](rulings.md#r25--when-the-community-moves-in) — the community moves in at the end
   of the Advancement Phase of the turn it claimed. Everything the last Planning Phase assigned —
   staff production, the Training Room, the Clinic, and the projects — settles against the old
   base, and the projects are left behind in it, with no refund.
-- [R26](rulings.md#r26--a-claim-is-always-a-new-building--proposed) — a normal claim of the base
+- [R26](rulings.md#r26--a-claim-is-always-a-new-building) — a normal claim of the base
   type already held is a new building: empty slots, the old base's facilities left behind.
-- [R27](rulings.md#r27--the-overrun-continuation-is-played-in-the-same-mission-phase--proposed) —
+- [R27](rulings.md#r27--the-overrun-continuation-is-played-in-the-same-mission-phase) —
   the overrun choice is made when the Siege Defense outcome is recorded, and the mission each
   option leads to is played as a further mission in the same Mission Phase. A community never spends a turn without a
   base.
-- [R28](rulings.md#r28--a-failed-continuation-leaves-the-choice-open--proposed) — a continuation
+- [R28](rulings.md#r28--a-failed-continuation-leaves-the-choice-open) — a continuation
   that meets no end condition leaves the choice open again in the same turn, as R21 does for the
   First Mission.
-- [R29](rulings.md#r29--what-a-claim-after-an-overrun-recovers--proposed) — after an overrun, a
+- [R29](rulings.md#r29--what-a-claim-after-an-overrun-recovers) — after an overrun, a
   different base type recovers no stored materials and no free rebuild; the same type on the same
   map recovers half, and its free rebuild lasts until used.
-- [R30](rulings.md#r30--start-a-new-community-after-an-overrun--proposed) — Start a New Community
+- [R30](rulings.md#r30--start-a-new-community-after-an-overrun) — Start a New Community
   after an overrun loses the old storage, arrives stocked like a first base, and keeps the turn and
   siege counters.
-- [R31](rulings.md#r31--abandoned-survivors-and-a-hero-sent-away-are-set-aside--proposed) —
+- [R31](rulings.md#r31--abandoned-survivors-and-a-hero-sent-away-are-set-aside) —
   abandoned survivors, and a Hero sent away over the cap, are *set aside*: off the roster, kept on
   the record, and able to return as a stranger. Abandoning builds a new starting community in the
   same campaign, which plays the First Mission as the continuation, as option 2 does.
@@ -483,6 +483,14 @@ slot of the reclaimed base costs no Hardware until it has been built once.
 **Acceptance**
 - A Claim selection without a base is refused, and a base is refused on every other mission.
 - An older save's Claim selection loads, and asks for nothing it cannot have.
+
+**What this story turned out to include.** The outcome entry does not copy the base: the selection
+is where it is recorded, and the history's selection line names it ("claiming a Distillery"), as
+the Tactical Mission form does above the counts. A copy on the outcome would be a second record of
+one fact that could disagree with the first. `claimWarning` counts Heroes against the base's Tier
+and says that one of the player's choice leaves, without saying how many: that is Z4-8's to settle
+when it asks. Any base on the roster is on offer, the one already held included (R26). The
+reducer's `mission/selected` action gained the field beside the material's.
 
 ---
 
