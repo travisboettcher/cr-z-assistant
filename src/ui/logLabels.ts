@@ -21,7 +21,7 @@ import { articleForNumber, withArticle } from './articles';
 import { FIRST_TURN } from '../engine/siege';
 import { SIEGE_TRIGGER, XP_SOURCE_PAGES, type HealthSource, type XpSource } from '../data/turn';
 import type { Item } from '../engine/campaign';
-import type { CampaignEvent, HistoricMaterials, LogEntry } from '../engine/log';
+import type { CampaignEvent, HistoricMaterials, LeavingCause, LogEntry } from '../engine/log';
 import {
   BASE_LABELS,
   FACILITY_LABELS,
@@ -108,6 +108,14 @@ function counted(items: readonly Item[]): string {
     })
     .join(', ');
 }
+
+/** How a `survivor-left` entry's survivor left, by its cause (#201). */
+const LEFT_BY_CAUSE: Readonly<Record<LeavingCause, { readonly how: string; readonly pages?: 22 }>> =
+  {
+    turned: { how: 'turned and left the community', pages: 22 },
+    bitten: { how: 'died of the bite', pages: 22 },
+    removed: { how: 'was taken off the roster' },
+  };
 
 export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
   switch (event.kind) {
@@ -388,10 +396,15 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
           };
     }
 
-    case 'survivor-left':
-      return {
-        text: `${event.name}, ${withArticle(TIER_LABELS[event.tier])}, left the community.`,
-      };
+    case 'survivor-left': {
+      const who = `${event.name}, ${withArticle(TIER_LABELS[event.tier])}`;
+      // An entry from before the cause was recorded reads as it always did (#201).
+      if (event.cause === undefined) return { text: `${who}, left the community.` };
+
+      const { how, pages } = LEFT_BY_CAUSE[event.cause];
+
+      return { text: `${who}, ${how}.`, ...(pages === undefined ? {} : { pages }) };
+    }
 
     case 'survivor-departed':
       return {

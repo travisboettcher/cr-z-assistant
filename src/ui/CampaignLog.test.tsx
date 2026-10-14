@@ -141,6 +141,29 @@ describe('the sentences the log writes', () => {
     );
   });
 
+  /** #201: why somebody left, where the entry says, and as before where it does not. */
+  it('says why a survivor left the community', () => {
+    const left = (cause?: 'turned' | 'bitten' | 'removed') =>
+      describeEvent({
+        kind: 'survivor-left',
+        survivor: 'earl',
+        name: 'Earl Rhodes',
+        tier: 2,
+        ...(cause === undefined ? {} : { cause }),
+      });
+
+    expect(left('turned')).toEqual({
+      text: 'Earl Rhodes, a Citizen, turned and left the community.',
+      pages: 22,
+    });
+    expect(left('bitten')).toEqual({
+      text: 'Earl Rhodes, a Citizen, died of the bite.',
+      pages: 22,
+    });
+    expect(left('removed')).toEqual({ text: 'Earl Rhodes, a Citizen, was taken off the roster.' });
+    expect(left()).toEqual({ text: 'Earl Rhodes, a Citizen, left the community.' });
+  });
+
   /** Z5-8: a count after the name, so "2 standard bow" never needs a plural. */
   it('counts what a base handed over without making a name plural', () => {
     const item = (id: string, kind: 'bow' | 'rifle' | 'reinforced-clothing') =>
