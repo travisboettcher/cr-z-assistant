@@ -189,13 +189,13 @@ export interface ItemRules {
   readonly origin?: CampaignOrigin;
 
   /**
-   * A rare upgrade's facility, and the upgrade it counts as where it is one
+   * A rare upgrade's facility, and the upgrade it counts as
    * (pg. 49). Outside the facility's three-upgrade cap.
    */
   readonly installs?: {
     readonly facility: FacilityId;
     /** The upgrade it stands on the facility as (pg. 49; R47). */
-    readonly countsAs?: UpgradeId;
+    readonly countsAs: UpgradeId;
     /** Works without the Utility that upgrade needs: the battery spotlight. */
     readonly unpowered?: true;
   };

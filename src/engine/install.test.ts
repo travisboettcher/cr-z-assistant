@@ -67,16 +67,30 @@ describe('where a rare upgrade goes (pg. 49; R47)', () => {
       'It is installed in a standing facility of the kind it names.',
     );
     expect(installProblem(campaign, 'g', 'kitchen')).toBeNull();
+    expect(submitRareUpgradeInstalled(campaign, 'g', 'bunk-room-1', AT)).toEqual({
+      ok: false,
+      problem: 'It is installed in a standing facility of the kind it names.',
+    });
+  });
+
+  it('may go in any of the facilities of its kind', () => {
+    const campaign = installing([item('b', 'sleeping-bags')]);
+
+    expect(installProblem(campaign, 'b', 'bunk-room-2')).toBeNull();
   });
 });
 
 describe('a rare upgrade installed', () => {
   it('leaves the Inventory, stands on the facility, and is written down', () => {
-    const after = installed(installing([item('g', 'gas-grill')]), 'g', 'kitchen');
+    const after = installed(
+      installing([item('g', 'gas-grill'), item('p', 'pistol')]),
+      'g',
+      'kitchen',
+    );
 
-    expect(after.inventory).toEqual([]);
+    expect(after.inventory).toEqual([item('p', 'pistol')]);
     expect(after.base?.slots.kitchen?.installed).toEqual([item('g', 'gas-grill')]);
-    expect(allItems(after).map((one) => one.id)).toEqual(['g']);
+    expect(allItems(after).map((one) => one.id)).toEqual(['p', 'g']);
     expect(after.log.at(-1)?.event).toEqual({
       kind: 'rare-upgrade-installed',
       id: 'g',
@@ -106,19 +120,42 @@ describe('a rare upgrade installed', () => {
     const after = installed(installing([item('s', 'battery-spotlight')], tower), 's', 'front-yard');
     const base = after.base as Base;
 
-    // The Spotlight takes one off Siege Threat (pg. 73), unpowered.
-    const standing = (campaign: Campaign) => [occupantAt(campaign, 'front-yard') as Occupant];
+    // The Spotlight takes one off Siege Threat (pg. 73), with no Power there.
+    const standing = (campaign: Campaign): Occupant[] => [
+      { ...(occupantAt(campaign, 'front-yard') as Occupant), power: false, water: false },
+    ];
 
+    expect(standing(after)[0]?.upgrades.map((upgrade) => upgrade.rare)).toEqual([true]);
     expect(siegeThreatFromBase(base, standing(after))).toBe(
       siegeThreatFromBase(base, standing(installing([], tower))) - 1,
     );
   });
 
-  it('stands as nothing in a facility of another kind', () => {
-    // Only a hand-edited save could put it there: the form refuses it.
-    const misplaced = installing([], { kitchen: { installed: [item('b', 'sleeping-bags')] } });
+  it('keeps the Power its upgrade needs for anything else', () => {
+    const bunks: Base['slots'] = {
+      'bunk-room-1': { installed: [item('c', 'video-game-console')] },
+    };
+
+    expect(occupantAt(installing([], bunks), 'bunk-room-1')?.upgrades[0]?.requires).toEqual({
+      utilities: ['power'],
+    });
+  });
+
+  it('stands as nothing in a facility of another kind, or when it is no upgrade at all', () => {
+    // Only a hand-edited save could put them there: the form refuses both.
+    const misplaced = installing([], {
+      kitchen: { installed: [item('b', 'sleeping-bags'), item('p', 'pistol')] },
+    });
 
     expect(occupantAt(misplaced, 'kitchen')?.upgrades).toEqual([]);
+  });
+
+  it('is an item the campaign holds only where one is installed', () => {
+    const built: Base['slots'] = {
+      garage: { built: { facility: 'workshop', builtOnTurn: 1 } },
+    };
+
+    expect(allItems(installing([item('p', 'pistol')], built))).toEqual([item('p', 'pistol')]);
   });
 });
 

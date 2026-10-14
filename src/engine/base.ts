@@ -166,14 +166,17 @@ function resolveUpgrades(facility: Facility, ids: readonly string[]): readonly U
  * The upgrades the rare items installed in a facility stand as (pg. 49; R47):
  * the one each counts as, flagged rare so the cap of three does not count it,
  * and without its Utility where the item needs none — the battery spotlight.
- * An item that names another facility, or no upgrade, stands as nothing.
+ * An item that names another facility, or is no rare upgrade, stands as nothing.
  */
 function installedUpgrades(facility: Facility, installed: readonly Item[]): readonly Upgrade[] {
   return installed.flatMap((item) => {
-    const rules: ItemRules = EQUIPMENT[item.item];
-    const installs = rules.installs;
-    const upgrade = facility.upgrades.find((candidate) => candidate.id === installs?.countsAs);
-    if (upgrade === undefined || installs?.facility !== facility.id) return [];
+    const installs = (EQUIPMENT[item.item] as ItemRules).installs;
+    if (installs?.facility !== facility.id) return [];
+
+    // Present: every rare upgrade counts as one its facility has (rules.test).
+    const upgrade = facility.upgrades.find(
+      (candidate) => candidate.id === installs.countsAs,
+    ) as Upgrade;
 
     if (installs.unpowered !== true) return [{ ...upgrade, rare: true }];
 

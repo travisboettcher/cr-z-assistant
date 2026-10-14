@@ -19,9 +19,9 @@ import { suppliedOccupants } from './utilities';
 
 /** The standing facilities this item can be installed in, in layout order. */
 export function installTargets(campaign: Campaign, item: Item): readonly Occupant[] {
-  const rules: ItemRules = EQUIPMENT[item.item];
-  const installs = rules.installs;
-  if (rules.kind !== 'rare-upgrade' || installs === undefined) return [];
+  // Only a rare base upgrade names a facility to be installed in.
+  const installs = (EQUIPMENT[item.item] as ItemRules).installs;
+  if (installs === undefined) return [];
 
   return suppliedOccupants(campaign).filter(
     (occupant) => occupant.facility.id === installs.facility,

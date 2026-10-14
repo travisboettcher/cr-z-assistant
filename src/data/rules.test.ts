@@ -1004,10 +1004,17 @@ describe('the equipment catalogue (pp. 37–53)', () => {
     expect(EQUIPMENT['tool-belt'].caps).toEqual({ stealth: 3 });
   });
 
+  /** `installTargets` reads `installs` alone as "a rare base upgrade", which holds while this does. */
+  it('names a facility to install in for every rare base upgrade, and nothing else', () => {
+    for (const [id, item] of entries) {
+      expect(item.installs !== undefined, id).toBe(item.kind === 'rare-upgrade');
+    }
+  });
+
   it('installs each rare upgrade as an upgrade its facility really has (pg. 49)', () => {
     for (const [id, item] of entries) {
       const installs = item.installs;
-      if (installs?.countsAs === undefined) continue;
+      if (installs === undefined) continue;
 
       const upgrades: Facility['upgrades'] = FACILITIES[installs.facility].upgrades;
       expect(

@@ -4,7 +4,7 @@ import { queued } from '../test/queued';
 import { submitBaseMove } from './advancementForms';
 import { createNewCampaign, type Campaign } from './campaign';
 import { submitBaseClaim } from './campaignForms';
-import { chosenWeapons, turnoutGear, weaponsProblem } from './handover';
+import { chosenWeapons, turnoutGear, weaponsProblem, withEquipmentHandedOver } from './handover';
 import type { CampaignEvent, LogEntry } from './log';
 import { completeProjects, dueProjects, weaponsOwed } from './projects';
 
@@ -28,6 +28,8 @@ describe('Turnout Gear (pg. 66; R46)', () => {
       new Set(['standard reinforced-clothing']),
     );
     expect(new Set(gear.map((item) => item.id)).size).toBe(6);
+    // Derived from the campaign and the log's length, so a replay makes the same ones.
+    expect(gear[0]?.id).toBe(`${FIXED.id}-handover-0-1`);
     expect(turnoutGear(fresh(), 'hobby-farm')).toEqual([]);
   });
 
@@ -45,6 +47,7 @@ describe('Turnout Gear (pg. 66; R46)', () => {
       base: 'regional-firehouse',
       items: after.inventory,
     });
+    expect(after.log.at(-1)?.event).not.toHaveProperty('slot');
     expect(accepted(submitBaseClaim(fresh(), 'hobby-farm', AT)).inventory).toEqual([]);
   });
 
@@ -109,6 +112,37 @@ describe('the Outdoor Sports Shop’s weapons (pg. 62; R45)', () => {
     );
   });
 
+  it('asks nothing of a clearing that hands over no weapons, or of a later order there', () => {
+    const pews: Campaign = {
+      ...due(),
+      base: { id: 'rural-church' as BaseId, slots: {} },
+      projects: [queued({ kind: 'clearing', slot: 'pews-1', orderedOnTurn: 3 })],
+    };
+    const builtOver: Campaign = {
+      ...due(),
+      base: { id: 'outdoor-sports-shop' as BaseId, slots: { inventory: { cleared: true } } },
+      projects: [
+        queued({ kind: 'facility', slot: 'inventory', facility: 'workshop', orderedOnTurn: 3 }),
+      ],
+    };
+
+    expect(weaponsOwed(pews)).toBeNull();
+    expect(weaponsOwed(builtOver)).toBeNull();
+  });
+
+  it('writes down the slot that handed them over', () => {
+    const items = chosenWeapons(due(), ['bow']);
+    const after = withEquipmentHandedOver(due(), 'outdoor-sports-shop', items, AT, 'inventory');
+
+    expect(after.log.at(-1)?.event).toEqual({
+      kind: 'equipment-handed-over',
+      base: 'outdoor-sports-shop',
+      slot: 'inventory',
+      items,
+    });
+    expect(withEquipmentHandedOver(due(), 'outdoor-sports-shop', [], AT)).toEqual(due());
+  });
+
   it('waits, still due, until they are chosen', () => {
     const { campaign, completed, handedOver } = completeProjects(due());
 
@@ -123,7 +157,7 @@ describe('the Outdoor Sports Shop’s weapons (pg. 62; R45)', () => {
 
     expect(completed).toHaveLength(1);
     expect(campaign.base?.slots.inventory?.cleared).toBe(true);
-    expect(dueProjects(campaign)).toEqual([]);
+    expect(campaign.projects).toEqual([]);
     expect(handedOver).toEqual({ slot: 'inventory', items: chosenWeapons(due(), weapons) });
     expect(handedOver?.items.map((item) => [item.item, item.grade])).toEqual([
       ['bow', 'standard'],
