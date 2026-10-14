@@ -17,7 +17,7 @@ const farm = (): Campaign => ({
     createdAt: '2026-09-20T00:00:00.000Z',
   }),
   turn: 3,
-  materials: { food: 0, fuel: 0, hardware: 20, rare: 0 },
+  materials: { food: 0, fuel: 0, hardware: 20 },
   base: {
     id: 'hobby-farm',
     slots: { 'front-yard': { built: { facility: 'garden', builtOnTurn: 1 } } },

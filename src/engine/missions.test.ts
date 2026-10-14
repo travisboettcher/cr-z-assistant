@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { overrun, wentOn } from '../test/overrun';
 import type { BaseId } from '../data/bases';
+import type { Material } from '../data/materials';
 import { createNewCampaign, type Assignment, type Campaign, type Survivor } from './campaign';
 import type { CampaignEvent, LogEntry, MissionWound } from './log';
 import {
@@ -444,10 +445,14 @@ describe('selectionProblem', () => {
     expect(
       selectionProblem(playing(), { team: 1, mission: 'thin-the-herd', material: 'fuel' }),
     ).toMatch(/Only Gather Materials/);
-    // Rare is not one of the types it gathers (pg. 80; Z4-6).
+    // Nor anything that is not a material at all.
     expect(
-      selectionProblem(playing(), { team: 1, mission: 'gather-materials', material: 'rare' }),
-    ).toMatch(/Food, Fuel or Hardware/);
+      selectionProblem(playing(), {
+        team: 1,
+        mission: 'gather-materials',
+        material: 'rare' as Material,
+      }),
+    ).toMatch(/no such material/);
   });
 });
 

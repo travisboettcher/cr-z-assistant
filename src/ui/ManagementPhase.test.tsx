@@ -22,7 +22,7 @@ function management(overrides: Partial<Campaign> = {}): Campaign {
       createSurvivor('Earl Rhodes', 4, { id: EARL }),
       createSurvivor('Carla Proust', 4, { id: CARLA }),
     ],
-    materials: { food: 4, fuel: 0, hardware: 0, rare: 0 },
+    materials: { food: 4, fuel: 0, hardware: 0 },
     base: { id: 'small-town-home', slots: {} },
     ...overrides,
   };
@@ -64,7 +64,7 @@ describe('Feed your Survivors', () => {
   });
 
   it('reports a shortfall as Hunger, and says it feeds Unrest', () => {
-    open(management({ materials: { food: 1, fuel: 0, hardware: 0, rare: 0 } }));
+    open(management({ materials: { food: 1, fuel: 0, hardware: 0 } }));
 
     expect(walk().textContent).toContain('3 Hunger');
     expect(walk().textContent).toContain('one of the two terms of Unrest');
@@ -75,14 +75,14 @@ describe('Feed your Survivors', () => {
    * third point is the one that costs everybody a stat.
    */
   it('names the head count as the threshold the penalty starts at', () => {
-    open(management({ materials: { food: 2, fuel: 0, hardware: 0, rare: 0 } }));
+    open(management({ materials: { food: 2, fuel: 0, hardware: 0 } }));
 
     expect(walk().textContent).toContain('large enough to absorb it');
     expect(walk().textContent).not.toContain('stats drop');
   });
 
   it('warns in so many words once the shortfall passes it', () => {
-    open(management({ materials: { food: 0, fuel: 0, hardware: 0, rare: 0 } }));
+    open(management({ materials: { food: 0, fuel: 0, hardware: 0 } }));
 
     // Four required, nothing stored, two survivors: a penalty of two.
     expect(walk().textContent).toContain('stats drop by 2');
@@ -103,7 +103,7 @@ describe('the penalty the Feed step reports', () => {
         createSurvivor('Carla Proust', 4, { id: CARLA }),
         createSurvivor('Nell Haig', 4, { id: 'nell' }),
       ],
-      materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+      materials: { food: 0, fuel: 0, hardware: 0 },
     });
 
   it('keeps saying what it said when the step ran, after the roster changes', async () => {
@@ -499,7 +499,7 @@ describe('Check Storage', () => {
   });
 
   it('names what is about to be lost, and loses it once', async () => {
-    const user = open(onTheStep({ materials: { food: 9, fuel: 0, hardware: 0, rare: 0 } }));
+    const user = open(onTheStep({ materials: { food: 9, fuel: 0, hardware: 0 } }));
 
     expect(walk().textContent).toContain('−3 Food');
 
@@ -510,8 +510,8 @@ describe('Check Storage', () => {
     expect(within(walk()).queryByRole('button', { name: /lose the surplus/i })).toBeNull();
   });
 
-  it('leaves Rare alone, however much of it there is', () => {
-    open(onTheStep({ materials: { food: 0, fuel: 0, hardware: 0, rare: 99 } }));
+  it('says so when nothing is over the cap', () => {
+    open(onTheStep({ materials: { food: 0, fuel: 0, hardware: 0 } }));
 
     expect(walk().textContent).toContain('Nothing is over the cap');
   });
@@ -759,7 +759,7 @@ describe('Departures', () => {
     withPlanningBegun(
       crowded({
         base: { id: 'small-town-home', slots: {} },
-        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        materials: { food: 0, fuel: 0, hardware: 9 },
         // Two Rookies making two Labor, and two Labor already ordered — so
         // this turn has nothing unused, which is the case the rule is about.
         assignments: {
@@ -893,7 +893,7 @@ describe('a shortfall reaches every screen at once', () => {
           createSurvivor('Earl Rhodes', 4, { id: EARL }),
           createSurvivor('Carla Proust', 4, { id: CARLA }),
         ],
-        materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+        materials: { food: 0, fuel: 0, hardware: 0 },
         assignments: { medic: { task: 'staff', slot: 'garage' } },
         base: {
           id: 'small-town-home',

@@ -239,9 +239,11 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
       ...(event.stores === undefined
         ? {}
         : {
-            stores: Object.fromEntries(
-              MATERIALS.map((material) => [material, event.stores?.[material]]),
-            ),
+            // Rare after the three, on an entry from before v17 (R49).
+            stores: Object.fromEntries([
+              ...MATERIALS.map((material) => [material, event.stores?.[material]]),
+              ...(event.stores.rare === undefined ? [] : [['rare', event.stores.rare]]),
+            ]),
           }),
       ...(event.rebuild === undefined
         ? {}
@@ -337,6 +339,7 @@ function inFileOrder(campaign: Campaign): Record<keyof Campaign, unknown> {
     survivors: campaign.survivors.map(orderedSurvivor),
     setAside: campaign.setAside.map(orderedSurvivor),
     inventory: campaign.inventory.map(orderedItem),
+    rareRollsOwed: campaign.rareRollsOwed,
     startingCommunityBuilt: campaign.startingCommunityBuilt,
     base: campaign.base === null ? null : orderedBase(campaign.base),
     assignments: orderedAssignments(campaign),

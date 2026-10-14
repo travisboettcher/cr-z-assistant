@@ -66,6 +66,7 @@ import {
 import type { MissionOutcome } from '../engine/missions';
 import type { EquipMove } from '../engine/equip';
 import type { BuildOrder } from '../engine/making';
+import type { RareItemRoll } from '../engine/finding';
 import {
   submitMissionOutcome,
   submitMissionSelection,
@@ -81,6 +82,7 @@ import {
   submitItemAdded,
   submitItemRemoved,
   submitItemBuilt,
+  submitRareItemRolled,
   submitNewSurvivor,
   submitRecruit,
   submitRemoval,
@@ -382,6 +384,8 @@ export type CampaignAction =
       readonly type: 'advancement/materialsAdded';
       readonly rolls: readonly MaterialRoll[];
       readonly scavenged?: Material;
+      /** The Rare Item Table's dice, with fresh ids for what they find (Z5-7). */
+      readonly rareItems?: readonly RareItemRoll[];
       readonly at: string;
     }
   /**
@@ -458,6 +462,8 @@ export type CampaignAction =
     }
   /** An item taken out of the base's Inventory by hand (Z5-2). */
   | { readonly type: 'inventory/itemRemoved'; readonly id: string; readonly at: string }
+  /** A roll on the Rare Item Table by hand, with a fresh id for its item (Z5-7). */
+  | { readonly type: 'inventory/rareItemRolled'; readonly roll: RareItemRoll; readonly at: string }
   /** An item the project team builds, with its fresh id (Z5-6). */
   | { readonly type: 'planning/itemBuilt'; readonly order: BuildOrder; readonly at: string }
   /** An item moved at Equip Mission Team, or shoddy gear taken up free (Z5-4). */
@@ -825,7 +831,11 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
     case 'advancement/materialsAdded':
       return submitted(state, (campaign) =>
-        submitHaul(campaign, { rolls: action.rolls, scavenged: action.scavenged }, action.at),
+        submitHaul(
+          campaign,
+          { rolls: action.rolls, scavenged: action.scavenged, rareItems: action.rareItems ?? [] },
+          action.at,
+        ),
       );
 
     case 'advancement/materialsConverted':
@@ -1038,6 +1048,9 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return submitted(state, (campaign) =>
         submitItemsSpent(campaign, action.team, action.items, action.at),
       );
+
+    case 'inventory/rareItemRolled':
+      return submitted(state, (campaign) => submitRareItemRolled(campaign, action.roll, action.at));
 
     case 'planning/itemBuilt':
       return submitted(state, (campaign) => submitItemBuilt(campaign, action.order, action.at));

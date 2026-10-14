@@ -281,7 +281,7 @@ describe('ordering outside the step it belongs to', () => {
   const ready = (step: Campaign['step']): Campaign =>
     planning({
       step,
-      materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+      materials: { food: 0, fuel: 0, hardware: 9 },
       // Somebody to do the work, since Z3-5 made Labor the project team's.
       assignments: { [EARL]: { task: 'project' } },
     });

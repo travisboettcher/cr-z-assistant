@@ -90,11 +90,7 @@ async function claimBase(page: Page, label: string) {
 }
 
 /** Types a material count in, from the Materials card's modal. */
-async function setMaterial(
-  page: Page,
-  material: 'food' | 'fuel' | 'hardware' | 'rare',
-  count: string,
-) {
+async function setMaterial(page: Page, material: 'food' | 'fuel' | 'hardware', count: string) {
   await ensurePanel(page, 'materials');
   await page.getByLabel(new RegExp(`^${material}$`, 'i')).fill(count);
 }
@@ -106,7 +102,7 @@ async function roster(page: Page) {
 }
 
 /** What the Materials card says is in storage, by the material's label. */
-function stored(page: Page, label: 'Food' | 'Fuel' | 'Hardware' | 'Rare') {
+function stored(page: Page, label: 'Food' | 'Fuel' | 'Hardware') {
   return page
     .getByRole('complementary', { name: /community summary/i })
     .getByRole('region', { name: CARDS.materials })
@@ -424,7 +420,7 @@ test('a campaign survives export, a reload, and import', async ({ page }) => {
     name: 'Cedar Hollow',
     turn: 1,
     step: 'select-mission',
-    materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+    materials: { food: 0, fuel: 0, hardware: 0 },
   });
 
   // Autosave (Z0-10) means a reload keeps the campaign, so the file has to be
@@ -697,7 +693,7 @@ test.describe('a file that is not a usable save', () => {
         createdAt: '2026-08-30T00:00:00.000Z',
         turn: 1,
         step: 'select-mission',
-        materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+        materials: { food: 0, fuel: 0, hardware: 0 },
         survivors: [],
         base: null,
         log: [],
@@ -1336,23 +1332,26 @@ test('a turn’s XP and materials are taken in the steps that award them', async
   await page.getByRole('button', { name: 'Next: Create New Survivors' }).click();
   await page.getByRole('button', { name: 'Next: Add Materials to Storage' }).click();
 
-  // Two materials recovered: a 4 is Food and a 10 is Rare.
+  // Two materials recovered: a 4 is Food, and a 10 is a roll on the Rare Item
+  // Table instead (pp. 19, 43; Z5-7).
   const rolled = walk.getByLabel(/^rolled$/i);
   await rolled.selectOption('4');
   await rolled.selectOption('10');
   await expect(walk.getByText(/\+1 Food/)).toBeVisible();
-  await expect(walk.getByText(/\+1 Rare/)).toBeVisible();
+  await walk.getByLabel('Rare Item Table roll 1, first d10').selectOption('3');
+  await walk.getByLabel('Rare Item Table roll 1, second d10').selectOption('1');
+  await expect(walk.getByText('standard riot shield')).toBeVisible();
 
   await walk.getByRole('button', { name: /add to storage/i }).click();
   await expect(walk.getByText(/already in storage/i)).toBeVisible();
   // The Small Town Home arrived stocked to 4 Food (pg. 19), so the roll adds
-  // to that rather than to nothing. Rare has no cap and so no stocking.
+  // to that rather than to nothing.
   await expect(stored(page, 'Food')).toHaveText('5');
-  await expect(stored(page, 'Rare')).toHaveText('1');
 
   const exported = await exportCampaign(page);
   expect(JSON.parse(exported.text)).toMatchObject({
-    materials: { food: 5, rare: 1 },
+    materials: { food: 5 },
+    inventory: [{ item: 'riot-shield', grade: 'standard' }],
     survivors: [{ name: 'Earl Rhodes', xp: 1 }, { name: 'Ruby Vance' }],
   });
 
@@ -1521,11 +1520,12 @@ test('material rolls survive a reload, and storing nothing asks first', async ({
   await expect(asking).toBeHidden();
 
   // Declining left the step armed, which is the point of asking at all.
-  await rolled.selectOption('10');
+  await rolled.selectOption('9');
   await walk.getByRole('button', { name: /add to storage/i }).click();
 
   await expect(walk.getByText(/already in storage/i)).toBeVisible();
-  await expect(stored(page, 'Rare')).toHaveText('1');
+  // Stocked to 4 Hardware on the claim (pg. 19), and the 9 is one more.
+  await expect(stored(page, 'Hardware')).toHaveText('5');
 });
 
 /**

@@ -560,6 +560,14 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       }),
     ),
     fc.record({
+      kind: fc.constant('item-found' as const),
+      id: anyId,
+      item: fc.constantFrom(...ITEM_IDS),
+      grade: fc.constantFrom(...GRADES),
+      subtable: fc.constantFrom(...D10_RESULTS),
+      entry: fc.constantFrom(...D10_RESULTS),
+    }),
+    fc.record({
       kind: fc.constant('item-built' as const),
       id: anyId,
       item: fc.constantFrom(...ITEM_IDS),
@@ -735,6 +743,7 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
             itemArbitrary().filter((item) => item.grade !== 'shoddy'),
             { maxLength: 3 },
           ),
+          rareRollsOwed: anyCount,
           startingCommunityBuilt: fc.boolean(),
           // Half the campaigns have claimed a base and half have not; null is a
           // real state and a round trip can get it wrong by writing `{}`.
@@ -760,6 +769,7 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
             'survivors',
             'setAside',
             'inventory',
+            'rareRollsOwed',
             'startingCommunityBuilt',
             'base',
             'log',

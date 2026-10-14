@@ -149,7 +149,7 @@ describe('building an item from the Inventory', () => {
         id: 'small-town-home',
         slots: { garage: { built: { facility: 'workshop', builtOnTurn: 1 } } },
       },
-      materials: { food: 0, fuel: 0, hardware: 5, rare: 0 },
+      materials: { food: 0, fuel: 0, hardware: 5 },
       survivors: [createSurvivor('Earl Rhodes', 2, { id: 'earl' })],
       assignments: { earl: { task: 'project' } },
     });
@@ -189,5 +189,26 @@ describe('building an item from the Inventory', () => {
     await user.click(screen.getByRole('button', { name: 'Inventory' }));
 
     expect(screen.getByRole('dialog', { name: /inventory/i })).toBeInTheDocument();
+  });
+});
+
+/** A reward that rolls on the Rare Item Table, entered by hand (pg. 43; Z5-7). */
+describe('rolling on the Rare Item Table from the Inventory', () => {
+  it('names what the two dice find, and adds it', async () => {
+    const user = open(playing());
+    openPanel('inventory');
+
+    expect(screen.getByRole('button', { name: 'Add what it finds' })).toBeDisabled();
+
+    await user.selectOptions(screen.getByLabelText('First d10'), '6');
+    await user.selectOptions(screen.getByLabelText('Second d10'), '7');
+    expect(screen.getByText('standard bayonet')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Add what it finds' }));
+
+    expect(card().getByText(/item/).textContent).toBe('1 item');
+    expect(campaignLog().textContent).toContain(
+      'Found on the Rare Item Table, rolling 6 then 7: standard bayonet.',
+    );
   });
 });

@@ -80,6 +80,8 @@ import {
   siegeLaborShortfall,
 } from '../engine/projects';
 import { fellInTheSiege } from '../engine/siegeWork';
+import { rareItemFor, rareRollsDue } from '../engine/finding';
+import { describeItem } from './equipmentLabels';
 import { SiegeWork } from './SiegeWork';
 import { describeProject } from './projectLabels';
 import {
@@ -494,6 +496,16 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
    */
   const [found, setFound] = useState<Material | undefined>(undefined);
 
+  /*
+   * The Rare Item Table's two dice for each roll it owes (Z5-7), by position:
+   * the rolls that owe one can be removed or forced, so the list is cut to
+   * what is due rather than kept in step with them.
+   */
+  const [rareDice, setRareDice] = useState<readonly RareDice[]>([]);
+  const due = rareRollsDue(campaign, rolls);
+  const rare = Array.from({ length: due }, (_, at) => rareDice[at] ?? {});
+  const rareReady = rare.every((dice) => dice.subtable !== undefined && dice.entry !== undefined);
+
   function remember(next: readonly MaterialRoll[]) {
     setRolls(next);
     writePendingRolls(campaign.id, campaign.turn, next);
@@ -504,6 +516,12 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
       type: 'advancement/materialsAdded',
       rolls,
       ...(found === undefined ? {} : { scavenged: found }),
+      rareItems: rare.map((dice) => ({
+        id: crypto.randomUUID(),
+        // Present: the button waits for every pair (`rareReady`).
+        subtable: dice.subtable as D10Result,
+        entry: dice.entry as D10Result,
+      })),
       at: new Date().toISOString(),
     });
     // Cleared on commit rather than left to go stale on the turn stamp: the
@@ -609,6 +627,36 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
                 </li>
               ))}
             </ul>
+          )}
+
+          {due > 0 && (
+            <div className="mt-4">
+              <p className="text-sm font-medium">
+                Rare Item Table <PageRef pages="19, 43" />
+              </p>
+              <p className={`${HINT} mt-1`}>
+                A 10 is an item instead of a material: roll two more d10s for each, the first for
+                the subtable and the second for the entry.
+                {campaign.rareRollsOwed > 0 &&
+                  ` ${String(campaign.rareRollsOwed)} more ${campaign.rareRollsOwed === 1 ? 'is' : 'are'} owed for the Rare this campaign held in storage (R49).`}
+              </p>
+              <ul className="mt-2 flex flex-col gap-2">
+                {rare.map((dice, at) => (
+                  <RareRoll
+                    key={at}
+                    index={at}
+                    dice={dice}
+                    onChange={(next) => {
+                      setRareDice(
+                        Array.from({ length: due }, (_, other) =>
+                          other === at ? next : (rareDice[other] ?? {}),
+                        ),
+                      );
+                    }}
+                  />
+                ))}
+              </ul>
+            </div>
           )}
 
           {(gatheredCount > 0 || toRoll > 0) && (
@@ -726,9 +774,17 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
             </p>
           ))}
 
+          {!rareReady && (
+            <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+              Each Rare Item Table roll needs its two dice before the haul goes into storage{' '}
+              <PageRef pages={43} />
+            </p>
+          )}
+
           <button
             type="button"
-            className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+            disabled={!rareReady}
+            className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
             onClick={() => {
               // Zero rolls is legitimate — a turn with no mission still adds
               // the base's production — so the button is never disabled. It
@@ -1050,6 +1106,55 @@ function InfectionSpent({
  * Skill Score is the player's to correct, and a control that vanishes cannot
  * tell them what it was for.
  */
+/** The two Rare Item Table dice entered for one roll, as far as they go. */
+interface RareDice {
+  readonly subtable?: D10Result;
+  readonly entry?: D10Result;
+}
+
+/** One roll on the Rare Item Table: its two dice, and what they find (pg. 43). */
+function RareRoll({
+  index,
+  dice,
+  onChange,
+}: {
+  readonly index: number;
+  readonly dice: RareDice;
+  readonly onChange: (next: RareDice) => void;
+}) {
+  const name = `Rare Item Table roll ${String(index + 1)}`;
+  const select = (die: 'subtable' | 'entry', label: string) => (
+    <select
+      aria-label={`${name}, ${label}`}
+      className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 px-3 dark:border-stone-600 dark:bg-stone-800`}
+      value={dice[die] ?? ''}
+      onChange={(changed) => {
+        onChange({ ...dice, [die]: Number(changed.target.value) as D10Result });
+      }}
+    >
+      <option value="" disabled>
+        {label}
+      </option>
+      {D10_RESULTS.map((result) => (
+        <option key={result} value={result}>
+          {result}
+        </option>
+      ))}
+    </select>
+  );
+
+  return (
+    <li className="flex flex-wrap items-center gap-2 text-sm">
+      <span>{name}</span>
+      {select('subtable', 'first d10')}
+      {select('entry', 'second d10')}
+      {dice.subtable !== undefined && dice.entry !== undefined && (
+        <span className="font-medium">{describeItem(rareItemFor(dice.subtable, dice.entry))}</span>
+      )}
+    </li>
+  );
+}
+
 function ForceResult({
   campaign,
   entry,

@@ -20,12 +20,13 @@ import { MATERIALS, type Material } from '../data/materials';
 import { articleForNumber, withArticle } from './articles';
 import { FIRST_TURN } from '../engine/siege';
 import { SIEGE_TRIGGER, XP_SOURCE_PAGES, type HealthSource, type XpSource } from '../data/turn';
-import type { CampaignEvent, LogEntry } from '../engine/log';
+import type { CampaignEvent, HistoricMaterials, LogEntry } from '../engine/log';
 import {
   BASE_LABELS,
   FACILITY_LABELS,
   builtThingLabel,
   builtThingPreposition,
+  HISTORIC_RARE_LABEL,
   MATERIAL_LABELS,
   UPGRADE_LABELS,
   slotLabel,
@@ -72,6 +73,21 @@ const XP_SOURCE_PHRASES: Record<XpSource, string> = {
   'training-room': 'in the Training Room',
 };
 
+/**
+ * The amounts that moved, each named, with the Rare an entry written before
+ * schema v17 counted (R49): its history reads as it did.
+ */
+function amountsMoved(amounts: HistoricMaterials): readonly string[] {
+  return [
+    ...MATERIALS.filter((material) => amounts[material] !== 0).map(
+      (material) => `${String(amounts[material])} ${MATERIAL_LABELS[material]}`,
+    ),
+    ...(amounts.rare === undefined || amounts.rare === 0
+      ? []
+      : [`${String(amounts.rare)} ${HISTORIC_RARE_LABEL}`]),
+  ];
+}
+
 export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
   switch (event.kind) {
     case 'campaign-started':
@@ -110,9 +126,7 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
     case 'materials-added': {
       // Only what moved. A turn that recovered three Food and nothing else
       // should not read as "3 Food, 0 Fuel, 0 Hardware, 0 Rare".
-      const moved = MATERIALS.filter((material) => event[material] !== 0).map(
-        (material) => `${event[material]} ${MATERIAL_LABELS[material]}`,
-      );
+      const moved = amountsMoved(event);
 
       return {
         text:
@@ -135,9 +149,7 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
     case 'materials-scavenged': {
       // The same "only what moved" rule the haul above follows, for the same
       // reason — and an unskilled scavenger brings back exactly one thing.
-      const found = MATERIALS.filter((material) => event[material] !== 0).map(
-        (material) => `${String(event[material])} ${MATERIAL_LABELS[material]}`,
-      );
+      const found = amountsMoved(event);
 
       return {
         text:
@@ -247,11 +259,8 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
     }
 
     case 'storage-checked': {
-      const lost = MATERIALS.filter(
-        (material) => material !== 'rare' && event[material as 'food' | 'fuel' | 'hardware'] !== 0,
-      ).map(
-        (material) =>
-          `${String(event[material as 'food' | 'fuel' | 'hardware'])} ${MATERIAL_LABELS[material]}`,
+      const lost = MATERIALS.filter((material) => event[material] !== 0).map(
+        (material) => `${String(event[material])} ${MATERIAL_LABELS[material]}`,
       );
 
       return {
@@ -408,7 +417,14 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
         }${
           event.stores === undefined
             ? ''
-            : ` After the overrun, the stores held ${MATERIALS.map((material) => `${String(event.stores?.[material])} ${MATERIAL_LABELS[material]}`).join(', ')}.`
+            : ` After the overrun, the stores held ${[
+                ...MATERIALS.map(
+                  (material) => `${String(event.stores?.[material])} ${MATERIAL_LABELS[material]}`,
+                ),
+                ...(event.stores.rare === undefined
+                  ? []
+                  : [`${String(event.stores.rare)} ${HISTORIC_RARE_LABEL}`]),
+              ].join(', ')}.`
         }${
           event.rebuild === undefined || event.rebuild.length === 0
             ? ''
@@ -427,6 +443,12 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
       return {
         text: `Mission team ${String(event.team)} used up or lost: ${event.items.map((one) => `${one.name}’s ${describeItem(one)}`).join(', ')}.`,
         pages: '40, 45–48',
+      };
+
+    case 'item-found':
+      return {
+        text: `Found on the Rare Item Table, rolling ${String(event.subtable)} then ${String(event.entry)}: ${describeItem(event)}.`,
+        pages: '19, 43',
       };
 
     case 'item-built':

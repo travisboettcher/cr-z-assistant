@@ -33,7 +33,7 @@ function withGasRange(overrides: Partial<Campaign> = {}): Campaign {
   return {
     ...createNewCampaign('Cedar Hollow', FIXED),
     turn: 3,
-    materials: { food: 0, fuel: 4, hardware: 0, rare: 0 },
+    materials: { food: 0, fuel: 4, hardware: 0 },
     base: { id: 'hobby-farm', slots: { kitchen: { upgrades: ['gas-range'] } } },
     ...overrides,
   };
@@ -64,8 +64,8 @@ describe('conversions', () => {
     expect(rest).toEqual([]);
     expect(only?.slot).toBe('kitchen');
     expect(only?.source.id).toBe('gas-range');
-    expect(spentBy(only as Conversion)).toEqual({ food: 0, fuel: 2, hardware: 0, rare: 0 });
-    expect(gainedBy(only as Conversion)).toEqual({ food: 1, fuel: 0, hardware: 0, rare: 0 });
+    expect(spentBy(only as Conversion)).toEqual({ food: 0, fuel: 2, hardware: 0 });
+    expect(gainedBy(only as Conversion)).toEqual({ food: 1, fuel: 0, hardware: 0 });
   });
 
   /**
@@ -186,7 +186,7 @@ describe('checkConversion', () => {
    * to correct the count.
    */
   it('refuses a trade the storage cannot pay for', () => {
-    const campaign = withGasRange({ materials: { food: 0, fuel: 1, hardware: 0, rare: 0 } });
+    const campaign = withGasRange({ materials: { food: 0, fuel: 1, hardware: 0 } });
     const check = checkConversion(campaign, gasRange(campaign));
 
     expect(check.blockers.map(({ code }) => code)).toEqual(['not-enough-materials']);
@@ -303,7 +303,6 @@ describe('withConversion', () => {
       food: 1,
       fuel: 2,
       hardware: 0,
-      rare: 0,
     });
   });
 

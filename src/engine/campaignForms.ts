@@ -19,7 +19,8 @@ import type { Tier } from '../data/tiers';
 import { withoutAssignment } from './assignments';
 import { storageCaps } from './base';
 import type { Campaign, Item, Survivor } from './campaign';
-import { newItemProblem, removalProblem, type NewItem } from './equipment';
+import { allItems, newItemProblem, removalProblem, type NewItem } from './equipment';
+import { rareItemFor, type RareItemRoll } from './finding';
 import { accepted, blockedBy, refused, type Accepted, type FormResult } from './forms';
 import { logged } from './log';
 import { buildCheck, buildCost, withItemBuilt, type BuildCost, type BuildOrder } from './making';
@@ -480,6 +481,35 @@ export function submitItemBuilt(campaign: Campaign, order: BuildOrder, at: strin
       grade: order.grade,
       hardware: cost.hardware,
       labor: cost.labor,
+    }),
+  );
+}
+
+/**
+ * Roll on the Rare Item Table by hand, from the Inventory (pg. 43; Z5-7): for
+ * the story and origin rewards that roll on it, which are Phase 7's missions
+ * and have nowhere else to put their item yet. The item and both dice go on an
+ * `item-found` entry, as a haul's do.
+ */
+export function submitRareItemRolled(
+  campaign: Campaign,
+  roll: RareItemRoll,
+  at: string,
+): FormResult {
+  if (allItems(campaign).some((item) => item.id === roll.id)) {
+    return refused('An item already has that id.');
+  }
+
+  // Not `withItemsFound`, which also settles the rolls a haul owes (R49).
+  const found = rareItemFor(roll.subtable, roll.entry);
+  const item = { id: roll.id, item: found.item, grade: found.grade };
+
+  return accepted(
+    logged({ ...campaign, inventory: [...campaign.inventory, item] }, at, {
+      kind: 'item-found',
+      ...item,
+      subtable: roll.subtable,
+      entry: roll.entry,
     }),
   );
 }

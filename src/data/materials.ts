@@ -9,8 +9,15 @@
  * the place the rules live.
  */
 
-/** The four stored material types. */
-export const MATERIALS = ['food', 'fuel', 'hardware', 'rare'] as const;
+/**
+ * The three material types (pg. 54).
+ *
+ * Rare was a fourth until Phase 5: the app recorded a material roll of 10 as a
+ * Rare material because the Rare Item Table did not exist yet. The book's Rare
+ * Items are items, and a 10 is a roll on that table (pp. 19, 43; R49), so
+ * schema v17 turned the Rare in storage into rolls owed and dropped it here.
+ */
+export const MATERIALS = ['food', 'fuel', 'hardware'] as const;
 
 export type Material = (typeof MATERIALS)[number];
 
@@ -20,10 +27,9 @@ export type Materials = Record<Material, number>;
  * The materials a base has a storage cap for, in the order the rulebook's base
  * roster prints them (pg. 54).
  *
- * **Rare is deliberately absent.** The cap is stated for Food, Fuel and
- * Hardware, and Rare has none — so a cap for it would be this app inventing a
- * rule, not recording one. `STORED_MATERIALS` is therefore narrower than
- * `MATERIALS`, and the type keeps the two from being used interchangeably.
+ * The same three as `MATERIALS` since Rare stopped being one (R49), in the
+ * roster's order rather than the roll table's; kept as its own name because
+ * the readers that mean "what a base caps" say so.
  */
 export const STORED_MATERIALS = ['hardware', 'food', 'fuel'] as const;
 

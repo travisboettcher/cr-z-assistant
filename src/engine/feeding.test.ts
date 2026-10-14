@@ -33,7 +33,7 @@ function community(
     ...createNewCampaign('Cedar Hollow', FIXED),
     turn: 3,
     survivors,
-    materials: { food, fuel: 0, hardware: 0, rare: 0 },
+    materials: { food, fuel: 0, hardware: 0 },
     base,
   };
 }

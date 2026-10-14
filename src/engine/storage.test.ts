@@ -16,7 +16,7 @@ function community(
   return {
     ...createNewCampaign('Cedar Hollow', FIXED),
     turn: 3,
-    materials: { food: 0, fuel: 0, hardware: 0, rare: 0, ...materials },
+    materials: { food: 0, fuel: 0, hardware: 0, ...materials },
     base,
   };
 }
@@ -68,17 +68,11 @@ describe('withStorageChecked', () => {
       food: 6,
       fuel: 6,
       hardware: 2,
-      rare: 0,
     });
   });
 
-  /** Rare has no cap in the book (pg. 54), so it is never trimmed. */
-  it('leaves Rare alone however much of it there is', () => {
-    expect(withStorageChecked(community({ rare: 99 })).materials.rare).toBe(99);
-  });
-
   it('changes nothing when nothing is over', () => {
-    const before = community({ food: 6, fuel: 3, hardware: 0, rare: 4 });
+    const before = community({ food: 6, fuel: 3, hardware: 0 });
 
     expect(withStorageChecked(before)).toEqual(before);
   });

@@ -32,7 +32,7 @@ function planning(base: Base | null, labor = 4, hardware = 9): Campaign {
     turn: 3,
     step: 'assign-project-team',
     base,
-    materials: { food: 0, fuel: 0, hardware, rare: 0 },
+    materials: { food: 0, fuel: 0, hardware },
     survivors: team.survivors,
     assignments: team.assignments,
   });

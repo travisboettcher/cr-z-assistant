@@ -267,6 +267,10 @@ const EVENT_FIELD_CHECKS = {
   // answer here and a damaged one everywhere else, which is why it is its own
   // check rather than a flag on the loop below.
   optionalCount: (value: unknown) => value === undefined || isCountFromZero(value),
+  // The Rare an entry written before v17 counted (R49): any whole amount, or
+  // absent on every entry since.
+  optionalAmount: (value: unknown) =>
+    value === undefined || (typeof value === 'number' && Number.isSafeInteger(value)),
   // The same shape for an id: what a cancelled or unfinished project was, on
   // entries written since they started saying. Not checked against the
   // catalogue, for the reason `optionalAssignments` is not checked against the
@@ -293,7 +297,7 @@ const EVENT_FIELD_CHECKS = {
     (isRecord(value) &&
       Object.values(value).every((one) => describeAssignmentProblem(one) === null)),
   tier: (value: unknown) => TIERS.some((tier) => tier === value),
-  // A trade's two halves: some of the four materials, each a whole count of
+  // A trade's two halves: some of the three materials, each a whole count of
   // one or more. Partial because a trade names only what it moves, and every
   // amount positive because the entry records the spend as it was paid rather
   // than as a negative — "2 Fuel for 1 Food" is one trade, not two movements.
@@ -360,7 +364,8 @@ const EVENT_FIELD_CHECKS = {
         typeof one.name === 'string',
     ),
   // What was in storage after a move that followed an overrun (R29, R30): all
-  // four materials, each a whole count from zero, or absent for any other move.
+  // three materials, each a whole count from zero, or absent for any other move.
+  // An entry from before v17 also counts Rare (R49), which is history and kept.
   optionalStores: (value: unknown) =>
     value === undefined ||
     (isRecord(value) && MATERIALS.every((material) => isCountFromZero(value[material]))),
@@ -451,13 +456,13 @@ const EVENT_FIELDS: Record<
     ['food', 'count'],
     ['fuel', 'count'],
     ['hardware', 'count'],
-    ['rare', 'count'],
+    ['rare', 'optionalCount'],
   ],
   'materials-added': [
     ['food', 'amount'],
     ['fuel', 'amount'],
     ['hardware', 'amount'],
-    ['rare', 'amount'],
+    ['rare', 'optionalAmount'],
   ],
   'materials-converted': [
     ['slot', 'id'],
@@ -684,6 +689,13 @@ const EVENT_FIELDS: Record<
   'items-spent': [
     ['team', 'countFromOne'],
     ['items', 'spentItems'],
+  ],
+  'item-found': [
+    ['id', 'id'],
+    ['item', 'itemId'],
+    ['grade', 'grade'],
+    ['subtable', 'roll'],
+    ['entry', 'roll'],
   ],
   'item-built': [
     ['id', 'id'],
@@ -948,6 +960,9 @@ function describeCampaignProblem(value: unknown): string | null {
       return `it has somebody both in the community and set aside: ${id}`;
     }
   }
+
+  // The Rare Item Table rolls a v16 save's Rare became (R49; Z5-7).
+  if (!isCountFromZero(value.rareRollsOwed)) return 'it does not say how many Rare rolls it owes';
 
   // The base's Inventory (Z5-2), which never holds a shoddy item: shoddy gear
   // is free and unlimited, so nobody owns one (R35).

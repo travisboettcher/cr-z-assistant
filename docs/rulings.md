@@ -771,6 +771,9 @@ the half recovered, and the nothing recovered, apply to it as to the other three
 loss of the old stores. The book's Rare Items are items rather than materials, and items arrive with
 the Inventory in Phase 5; until then, this is what the stores hold.
 
+*Superseded by R49 (schema v17): Rare is no longer a material, and the stores hold Food, Fuel and
+Hardware only.*
+
 ### Note, October 2026 — the reclaimed building keeps its cleared rubble
 
 Built with Z4-10. A claim on the overrun base's own map is the same building, and the book destroys

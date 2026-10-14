@@ -32,7 +32,7 @@ function community(overrides: Partial<Campaign> = {}): Campaign {
   return withPlanningBegun({
     ...createNewCampaign('Cedar Hollow', FIXED),
     turn: 3,
-    materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+    materials: { food: 0, fuel: 0, hardware: 9 },
     base: { id: 'hobby-farm', slots: {} },
     ...projectTeamWorth(6),
     ...overrides,
@@ -703,7 +703,7 @@ describe('withProjectCancelled', () => {
         id: 'hobby-farm',
         slots: { 'front-yard': { built: { facility: 'garden', builtOnTurn: 1 } } },
       },
-      materials: { food: 0, fuel: 0, hardware: 8, rare: 0 },
+      materials: { food: 0, fuel: 0, hardware: 8 },
     });
 
     const fence: PlacedOrder = {
@@ -745,7 +745,7 @@ describe('withProjectCancelled', () => {
   it('gives back the full price of an order that paid it', () => {
     const farm = community({
       base: { id: 'hobby-farm', slots: {} },
-      materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+      materials: { food: 0, fuel: 0, hardware: 9 },
     });
     const greenhouse: PlacedOrder = {
       kind: 'upgrade',
@@ -907,7 +907,7 @@ describe('completeProjects', () => {
      */
     it('pays a slot’s rubble out once however many clearings are due for it', () => {
       const twice = community({
-        materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+        materials: { food: 0, fuel: 0, hardware: 0 },
         projects: [
           { ...COOP, orderedOnTurn: 2 },
           { ...COOP, orderedOnTurn: 2 },

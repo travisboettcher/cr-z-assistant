@@ -218,10 +218,9 @@ export const XP_SOURCE_PAGES = {
  * Which material a d10 generates, one roll per material recovered on the
  * mission (pg. 18–19).
  *
- * A 10 sends the player to the Rare Item Table (pg. 43), which is equipment and
- * therefore Phase 5. Until that table exists the result is recorded as a Rare
- * material, which is what the campaign already tracks; the mapping says `rare`
- * rather than naming a table this app cannot yet roll on.
+ * A 10 is a roll on the Rare Item Table (pg. 43) instead of a material
+ * (pg. 19; Z5-7): the table throws two more d10s and the item goes into the
+ * base's Inventory.
  */
 export const MATERIAL_ROLL_TABLE = {
   1: 'fuel',
@@ -233,8 +232,11 @@ export const MATERIAL_ROLL_TABLE = {
   7: 'hardware',
   8: 'hardware',
   9: 'hardware',
-  10: 'rare',
-} as const satisfies Record<D10Result, Material>;
+  10: 'rare-item',
+} as const satisfies Record<D10Result, MaterialRollResult>;
+
+/** What a material roll gives: a material, or a roll on the Rare Item Table (pg. 19). */
+export type MaterialRollResult = Material | 'rare-item';
 
 /**
  * The three skills that can force a material roll to a result, and what each
@@ -246,13 +248,10 @@ export const MATERIAL_ROLL_TABLE = {
  * the obvious wrong implementation, so the rule is written here as a mapping
  * from skill to *allowed results* rather than as an amount.
  *
- * Rationing is locked to Food and Mechanics to Hardware. **Utilities is written
- * as "a given material" and is transcribed as all four**, which is the literal
- * reading and includes forcing the Rare result a 10 would give. Whether that
- * asymmetry is deliberate is
- * [R9](../../docs/rulings.md#r9--how-broadly-the-utilities-substitution-applies--open); the
- * broad reading is recorded here so a table that rules the other way edits one
- * line.
+ * Rationing is locked to Food and Mechanics to Hardware. Utilities is written
+ * as "a given material", and forces any of the three — never a 10, which is a
+ * Rare Item Table roll rather than a material
+ * ([R9](../../docs/rulings.md#r9--how-broadly-the-utilities-substitution-applies)).
  */
 export const MATERIAL_SUBSTITUTIONS = {
   rationing: ['food'],

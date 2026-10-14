@@ -33,7 +33,7 @@ import type { LogEntry } from './log';
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 16;
+export const CURRENT_SCHEMA_VERSION = 17;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -405,6 +405,14 @@ export interface Campaign {
   inventory: readonly Item[];
 
   /**
+   * Rare Item Table rolls owed at the next Add Materials to Storage step
+   * (R49; Z5-7): the Rare a save from before v17 held in storage, one roll
+   * each. Zero for every campaign since, where a 10 is rolled on the table in
+   * the step that rolls it.
+   */
+  rareRollsOwed: number;
+
+  /**
    * Whether the player has finished assembling their starting community.
    *
    * A starting community is built from ten Tier levels (pg. 13), and that rule
@@ -480,7 +488,7 @@ export function createNewCampaign(name: string, options: NewCampaignOptions = {}
     turn: 1,
     step: FIRST_STEP_OF_TURN,
     // All zero. Starting material counts are a rule, and Phase 0 ships none.
-    materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+    materials: { food: 0, fuel: 0, hardware: 0 },
     // The horde has never come for a community that has not played a turn.
     // Nothing ordered: a community's first Planning Phase is where a queue
     // starts.
@@ -488,6 +496,7 @@ export function createNewCampaign(name: string, options: NewCampaignOptions = {}
     survivors: [],
     setAside: [],
     inventory: [],
+    rareRollsOwed: 0,
     // False, so a new campaign gets the ten-tier-level check while it is being
     // built. The v2 → v3 migration deliberately answers `true` instead — see
     // the step in `src/persistence/migrations.ts` for why the two differ.

@@ -103,8 +103,10 @@ export const MATERIAL_LABELS: Record<Material, string> = {
   food: 'Food',
   fuel: 'Fuel',
   hardware: 'Hardware',
-  rare: 'Rare',
 };
+
+/** Rare, as an entry written before schema v17 counted it (R49). */
+export const HISTORIC_RARE_LABEL = 'Rare';
 
 /**
  * Slot names that title-casing the id gets wrong.

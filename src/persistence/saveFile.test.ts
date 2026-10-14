@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import currentFixture from './__fixtures__/campaign-v16.json';
+import currentFixture from './__fixtures__/campaign-v17.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -49,7 +49,9 @@ describe('parseCampaignFile', () => {
     // The v6 → v7 step replaces the phase with the step that phase opens on:
     // an old save never recorded how far into a phase anyone was.
     expect(result.campaign.step).toBe('assign-facility-staff');
-    expect(result.campaign.materials).toEqual({ food: 4, fuel: 2, hardware: 7, rare: 1 });
+    // The Rare it held is a Rare Item Table roll owed since v17 (R49).
+    expect(result.campaign.materials).toEqual({ food: 4, fuel: 2, hardware: 7 });
+    expect(result.campaign.rareRollsOwed).toBe(1);
     expect(result.campaign.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
   });
 
@@ -160,11 +162,8 @@ describe('parseCampaignFile', () => {
   it.each([
     ['a step that is not a step', { step: 'harvest' }],
     ['a step of the wrong type', { step: 3 }],
-    ['materials missing a key', { materials: { food: 4, fuel: 2, hardware: 7 } }],
-    [
-      'a material that is not a number',
-      { materials: { food: '4', fuel: 2, hardware: 7, rare: 1 } },
-    ],
+    ['materials missing a key', { materials: { food: 4, fuel: 2 } }],
+    ['a material that is not a number', { materials: { food: '4', fuel: 2, hardware: 7 } }],
     ['no materials at all', { materials: undefined }],
     ['a turn of zero', { turn: 0 }],
     ['a fractional turn', { turn: 2.5 }],
@@ -485,7 +484,7 @@ describe('a file whose fields are the wrong type', () => {
   });
 
   it('refuses a material count that is not a number', () => {
-    expect(rejected({ materials: { food: '4', fuel: 0, hardware: 0, rare: 0 } })?.reason).toBe(
+    expect(rejected({ materials: { food: '4', fuel: 0, hardware: 0 } })?.reason).toBe(
       'damaged-campaign',
     );
   });
@@ -493,7 +492,7 @@ describe('a file whose fields are the wrong type', () => {
   it('refuses a material count that is not finite', () => {
     // `Infinity` does not survive JSON — it serialises to null — which is
     // itself the reason the check is for finiteness rather than just a number.
-    expect(rejected({ materials: { food: Infinity, fuel: 0, hardware: 0, rare: 0 } })?.reason).toBe(
+    expect(rejected({ materials: { food: Infinity, fuel: 0, hardware: 0 } })?.reason).toBe(
       'damaged-campaign',
     );
   });
@@ -932,7 +931,7 @@ describe('a campaign whose log is damaged', () => {
             from: 'hobby-farm',
             to: 'hobby-farm',
             setAside: [],
-            stores: { food: -1, fuel: 0, hardware: 0, rare: 0 },
+            stores: { food: -1, fuel: 0, hardware: 0 },
           },
         },
       ],

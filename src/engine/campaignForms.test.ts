@@ -126,7 +126,7 @@ describe('submitBaseClaim', () => {
     );
 
     expect(after.base).toEqual({ id: 'small-town-home', slots: {} });
-    expect(after.materials).toEqual({ food: 4, fuel: 4, hardware: 4, rare: 0 });
+    expect(after.materials).toEqual({ food: 4, fuel: 4, hardware: 4 });
     expect(after.log.map((entry) => entry.event)).toEqual([
       { kind: 'base-claimed', base: 'small-town-home' },
       { kind: 'base-stocked', food: 4, fuel: 4, hardware: 4 },

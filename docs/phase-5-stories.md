@@ -428,6 +428,25 @@ Confirmed 2026-10-14 ([the registry](rulings.md)):
 **Acceptance**
 - A haul with a 10 adds no material and one item: rolls of 3 then 1 are a riot shield (pg. 43).
 
+**What this story turned out to include.**
+
+- **Schema v17 takes Rare out of the materials.** `MATERIALS` is Food, Fuel and Hardware; the
+  v16 → v17 step turns a save's Rare into `rareRollsOwed` (R49). Old log entries keep the Rare
+  they counted, typed as optional history, and the log still names it; a base move's stores keep it
+  too, so an old file round-trips as it was written.
+- **A 10 is `rare-item` in the roll table**, never a material, and no skill forces one (R9).
+  `recovered` counts materials only; `rareItemRolls` counts the rest, and the two together are the
+  number of rolls.
+- **The haul asks for the dice.** Add Materials to Storage lists a Rare Item Table roll for each
+  10 and each roll owed, with two d10 pickers that name the item before it is added. The haul is
+  refused without every pair, so its button waits for them — the one place this step holds back,
+  because the dice are in the table's hand. Each item is an `item-found` entry naming both dice,
+  after the materials.
+- **A scavenger with the Scavenge skill brings back three, not four**: one of each material, of
+  which there are now three (pg. 17).
+- **A roll by hand** from the Inventory's modal writes the same `item-found` entry, for the story and
+  origin rewards that roll on the table; it settles nothing a haul owes.
+
 ### Z5-8 — What a base hands over, and rare upgrades installed
 
 **Why:** Two bases come with equipment, and a rare upgrade belongs in a facility (pp. 49, 62, 66).

@@ -91,6 +91,12 @@ export interface RebuildSlot {
   readonly upgrades: readonly UpgradeId[];
 }
 
+/**
+ * Materials as an entry written before schema v17 may hold them: with the Rare
+ * count the app kept until a 10 became an item (R49). History keeps it.
+ */
+export type HistoricMaterials = Materials & { readonly rare?: number };
+
 /** One item a mission used up or lost, and who had it (Z5-5). */
 export interface SpentItem {
   readonly id: string;
@@ -166,7 +172,8 @@ export type CampaignEvent =
       readonly food: number;
       readonly fuel: number;
       readonly hardware: number;
-      readonly rare: number;
+      /** Rare, on an entry written before v17 made a 10 an item (R49). */
+      readonly rare?: number;
     }
   /**
    * The horde arrived, and the community fought it (pg. 23, 85).
@@ -208,7 +215,8 @@ export type CampaignEvent =
       readonly food: number;
       readonly fuel: number;
       readonly hardware: number;
-      readonly rare: number;
+      /** Rare, on an entry written before v17 (R49). */
+      readonly rare?: number;
     }
   /**
    * A facility or upgrade traded materials for other materials (pg. 19, 72–73).
@@ -763,6 +771,19 @@ export type CampaignEvent =
    * Inventory at once, and what it cost: the Labor is read back by
    * `laborCommitted`, since nothing else records it.
    */
+  /**
+   * An item found on the Rare Item Table (pg. 43; Z5-7), into the base's
+   * Inventory, with the two dice that found it: for a material roll of 10, or
+   * a roll a save from before v17 owed (R49).
+   */
+  | {
+      readonly kind: 'item-found';
+      readonly id: string;
+      readonly item: ItemId;
+      readonly grade: Grade;
+      readonly subtable: D10Result;
+      readonly entry: D10Result;
+    }
   | {
       readonly kind: 'item-built';
       readonly id: string;
@@ -844,7 +865,7 @@ export type CampaignEvent =
        * (R29, R30; Z4-9). Absent for a normal claim, whose stores move as they
        * are.
        */
-      readonly stores?: Materials;
+      readonly stores?: HistoricMaterials;
       /**
        * What the player had added to each slot of the base an overrun
        * destroyed, for a move into the same type on the same map, which may

@@ -440,6 +440,34 @@ const itemsRecorded: MigrationStep = {
   },
 };
 
+/**
+ * v16 → v17: Rare stops being a material, and the Rare in storage becomes
+ * Rare Item Table rolls owed (pp. 19, 43; R49; Z5-7).
+ *
+ * The app recorded each material roll of 10 as a Rare material while the
+ * Rare Item Table did not exist. A 10 is a roll on that table, so each Rare
+ * held becomes one roll owed at the next Add Materials to Storage step, and
+ * `materials` keeps Food, Fuel and Hardware. The log is left as it was: an
+ * entry that counted Rare is history, and reads as it did.
+ *
+ * A `materials` that is not an object, or a Rare that is not a count, is handed
+ * on as it is for `saveFile.ts` to refuse with a message about the damage.
+ */
+const rareBecameRolls: MigrationStep = {
+  from: 16,
+  to: 17,
+  up: (previous) => {
+    const materials = previous.materials;
+    if (typeof materials !== 'object' || materials === null || Array.isArray(materials)) {
+      return { ...previous, rareRollsOwed: 0 };
+    }
+
+    const { rare, ...kept } = materials as Record<string, unknown>;
+
+    return { ...previous, materials: kept, rareRollsOwed: rare ?? 0 };
+  },
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -457,6 +485,7 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   infectionRecorded,
   setAsideRecorded,
   itemsRecorded,
+  rareBecameRolls,
 ];
 
 /** Why a save could not be brought forward. */

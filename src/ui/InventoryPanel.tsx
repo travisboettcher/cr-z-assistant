@@ -19,7 +19,9 @@ import {
   type ItemRules,
 } from '../data/equipment';
 import type { Campaign } from '../engine/campaign';
+import { D10_RESULTS, type D10Result } from '../data/dice';
 import { permitted } from '../engine/checks';
+import { rareItemFor } from '../engine/finding';
 import { newItemProblem } from '../engine/equipment';
 import {
   buildableItems,
@@ -31,7 +33,7 @@ import {
 } from '../engine/making';
 import { laborAvailable } from '../engine/projects';
 import { useCampaign } from '../state/useCampaign';
-import { GRADE_LABELS, ITEM_KIND_LABELS, ITEM_LABELS } from './equipmentLabels';
+import { describeItem, GRADE_LABELS, ITEM_KIND_LABELS, ITEM_LABELS } from './equipmentLabels';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
@@ -118,6 +120,7 @@ export function InventoryPanel({ campaign }: { readonly campaign: Campaign }) {
       </section>
 
       <BuildItem campaign={campaign} />
+      <RollRareItem />
       <AddItem campaign={campaign} />
     </div>
   );
@@ -257,6 +260,85 @@ function BuildItem({ campaign }: { readonly campaign: Campaign }) {
         }}
       >
         Build
+      </button>
+    </fieldset>
+  );
+}
+
+/**
+ * A roll on the Rare Item Table by hand (pg. 43; Z5-7), for the story and
+ * origin rewards that roll on it. A haul's 10s are rolled at Add Materials to
+ * Storage instead, where they are owed.
+ */
+function RollRareItem() {
+  const { dispatch } = useCampaign();
+  const firstId = useId();
+  const secondId = useId();
+  const [subtable, setSubtable] = useState<D10Result | undefined>(undefined);
+  const [entry, setEntry] = useState<D10Result | undefined>(undefined);
+
+  const die = (
+    id: string,
+    label: string,
+    value: D10Result | undefined,
+    set: (d: D10Result) => void,
+  ) => (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="text-sm">
+        {label}
+      </label>
+      <select
+        id={id}
+        className={SELECT}
+        value={value ?? ''}
+        onChange={(changed) => {
+          set(Number(changed.target.value) as D10Result);
+        }}
+      >
+        <option value="" disabled>
+          Rolled…
+        </option>
+        {D10_RESULTS.map((result) => (
+          <option key={result} value={result}>
+            {result}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
+  return (
+    <fieldset className="border-t border-stone-200 pt-4 dark:border-stone-800">
+      <legend className="font-medium">Roll on the Rare Item Table</legend>
+      <p className={`mt-1 ${HINT}`}>
+        For a reward that rolls on it. A material roll of 10 is rolled with the haul{' '}
+        <PageRef pages={43} />
+      </p>
+
+      <div className="mt-3 flex flex-wrap items-end gap-3">
+        {die(firstId, 'First d10', subtable, setSubtable)}
+        {die(secondId, 'Second d10', entry, setEntry)}
+        {subtable !== undefined && entry !== undefined && (
+          <p className="text-sm font-medium">{describeItem(rareItemFor(subtable, entry))}</p>
+        )}
+      </div>
+
+      <button
+        type="button"
+        className={`mt-3 ${SECONDARY}`}
+        disabled={subtable === undefined || entry === undefined}
+        onClick={() => {
+          if (subtable === undefined || entry === undefined) return;
+          dispatch({
+            type: 'inventory/rareItemRolled',
+            roll: { id: crypto.randomUUID(), subtable, entry },
+            at: new Date().toISOString(),
+          });
+          setSubtable(undefined);
+          setEntry(undefined);
+        }}
+      >
+        Add what it finds
       </button>
     </fieldset>
   );

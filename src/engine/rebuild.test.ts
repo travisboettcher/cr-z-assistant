@@ -23,7 +23,7 @@ const reclaimed = at({
   from: 'hobby-farm',
   to: 'hobby-farm',
   setAside: [],
-  stores: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+  stores: { food: 0, fuel: 0, hardware: 0 },
   rebuild: [{ slot: 'front-yard', facility: 'watchtower', upgrades: ['spotlight'] }],
 });
 
@@ -33,7 +33,7 @@ function rebuilding(after: readonly LogEntry[] = [], overrides: Partial<Campaign
     ...createNewCampaign('Cedar Hollow', FIXED),
     turn: 5,
     step: 'assign-project-team',
-    materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+    materials: { food: 0, fuel: 0, hardware: 0 },
     base: { id: 'hobby-farm', slots: {} },
     log: [reclaimed, ...after],
     ...overrides,
@@ -171,7 +171,7 @@ describe('a free rebuild’s price', () => {
 
   it('is charged at nothing, and the next one at the catalogue price', () => {
     const once = withProjectOrdered(
-      rebuilding([], { materials: { food: 0, fuel: 0, hardware: 9, rare: 0 } }),
+      rebuilding([], { materials: { food: 0, fuel: 0, hardware: 9 } }),
       { ...watchtower, orderedOnTurn: 5 },
     );
 

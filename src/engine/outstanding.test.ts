@@ -28,10 +28,10 @@ function settled(overrides: Partial<Campaign> = {}): Campaign {
     turn: 3,
     step: 'check-the-horde',
     survivors: [createSurvivor('Earl Rhodes', 4, { id: 'earl' })],
-    materials: { food: 2, fuel: 0, hardware: 0, rare: 0 },
+    materials: { food: 2, fuel: 0, hardware: 0 },
     base: { id: 'small-town-home', slots: {} },
     log: [
-      entry({ kind: 'materials-added', food: 0, fuel: 0, hardware: 0, rare: 0 }),
+      entry({ kind: 'materials-added', food: 0, fuel: 0, hardware: 0 }),
       entry({ kind: 'survivors-fed', required: 2, hunger: 0, population: 1 }),
       entry({ kind: 'horde-checked', roll: 2, threat: 0, siege: false }),
     ],
@@ -376,7 +376,7 @@ describe('outstanding', () => {
    * that matters.
    */
   it('names storage only when something is over its cap', () => {
-    const overflowing = settled({ materials: { food: 99, fuel: 0, hardware: 0, rare: 0 } });
+    const overflowing = settled({ materials: { food: 99, fuel: 0, hardware: 0 } });
 
     expect(steps(overflowing)).toContain('check-storage');
     expect(steps(settled())).not.toContain('check-storage');
@@ -519,7 +519,7 @@ describe('outstanding', () => {
   });
 
   it('reads in the order the walk runs the steps', () => {
-    const nothing = settled({ log: [], materials: { food: 0, fuel: 0, hardware: 0, rare: 0 } });
+    const nothing = settled({ log: [], materials: { food: 0, fuel: 0, hardware: 0 } });
 
     expect(steps(nothing)).toEqual([
       'add-materials-to-storage',

@@ -45,7 +45,7 @@ function moving(overrides: Partial<Campaign> = {}): Campaign {
     ...createNewCampaign('Cedar Hollow', FIXED),
     turn: 4,
     step: 'add-facilities-and-upgrades',
-    materials: { food: 9, fuel: 2, hardware: 7, rare: 1 },
+    materials: { food: 9, fuel: 2, hardware: 7 },
     base: {
       id: 'hobby-farm',
       slots: { garage: { built: { facility: 'workshop', builtOnTurn: 2 } } },
@@ -127,7 +127,6 @@ describe('withBaseMoved', () => {
       food: 9,
       fuel: 2,
       hardware: 7,
-      rare: 1,
     });
   });
 
@@ -223,11 +222,11 @@ describe('storesAfterMove', () => {
     const campaign = advanced([...wentOn('claim', 'hobby-farm'), continued('claim', true, true)]);
 
     // From 7 Food, 3 Fuel, 5 Hardware and 1 Rare.
-    expect(storesAfterMove(campaign)).toEqual({ food: 3, fuel: 1, hardware: 2, rare: 0 });
+    expect(storesAfterMove(campaign)).toEqual({ food: 3, fuel: 1, hardware: 2 });
   });
 
   it('keeps nothing for the same type on another map, or another type (R29)', () => {
-    const none = { food: 0, fuel: 0, hardware: 0, rare: 0 };
+    const none = { food: 0, fuel: 0, hardware: 0 };
 
     expect(
       storesAfterMove(
@@ -246,7 +245,7 @@ describe('storesAfterMove', () => {
     ]);
 
     // A Tier 1 base caps each stored material at 4 (pg. 54); Rare has no cap.
-    expect(storesAfterMove(campaign)).toEqual({ food: 4, fuel: 4, hardware: 4, rare: 0 });
+    expect(storesAfterMove(campaign)).toEqual({ food: 4, fuel: 4, hardware: 4 });
   });
 
   it('is nothing until a way on has won', () => {
@@ -265,14 +264,14 @@ describe('storesAfterMove', () => {
       ),
     );
 
-    expect(after.materials).toEqual({ food: 3, fuel: 1, hardware: 2, rare: 0 });
+    expect(after.materials).toEqual({ food: 3, fuel: 1, hardware: 2 });
     expect(after.base).toEqual({ id: 'hobby-farm', slots: {} });
     expect(after.log.at(-1)?.event).toStrictEqual({
       kind: 'base-moved',
       from: 'hobby-farm',
       to: 'hobby-farm',
       setAside: [],
-      stores: { food: 3, fuel: 1, hardware: 2, rare: 0 },
+      stores: { food: 3, fuel: 1, hardware: 2 },
       // Nothing had been added to the overrun base, so nothing to rebuild.
       rebuild: [],
     });
@@ -379,6 +378,6 @@ describe('storesAfterMove for a community begun again (R30, R31; Z4-11)', () => 
       { step: 'add-facilities-and-upgrades' },
     );
 
-    expect(storesAfterMove(campaign)).toEqual({ food: 4, fuel: 4, hardware: 4, rare: 0 });
+    expect(storesAfterMove(campaign)).toEqual({ food: 4, fuel: 4, hardware: 4 });
   });
 });

@@ -20,7 +20,7 @@ function community(overrides: Partial<Campaign> = {}): Campaign {
     // question below this one is about what else is wrong with an order, and a
     // campaign standing anywhere else answers only the phase (#171).
     step: 'assign-project-team',
-    materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+    materials: { food: 0, fuel: 0, hardware: 9 },
     base: { id: 'hobby-farm', slots: {} },
     ...projectTeamWorth(6),
     ...overrides,
@@ -56,7 +56,7 @@ describe('checkOrder', () => {
   });
 
   it('asks the module that owns the verb, and reports its codes', () => {
-    const poor = community({ materials: { food: 0, fuel: 0, hardware: 0, rare: 0 } });
+    const poor = community({ materials: { food: 0, fuel: 0, hardware: 0 } });
 
     expect(checkOrder(poor, WORKSHOP).blockers.map((blocker) => blocker.code)).toEqual([
       'not-enough-hardware',
@@ -297,7 +297,7 @@ function advancing(overrides: Partial<Campaign> = {}): Campaign {
     ...createNewCampaign('Cedar Hollow', FIXED),
     turn: 3,
     step: 'add-facilities-and-upgrades',
-    materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+    materials: { food: 0, fuel: 0, hardware: 9 },
     base: { id: 'hobby-farm', slots: {} },
     ...projectTeamWorth(6),
     ...overrides,
@@ -374,7 +374,7 @@ describe('orderOptions', () => {
   });
 
   it('puts every option to checkOrder, and lists the refused ones', () => {
-    const poor = community({ materials: { food: 0, fuel: 0, hardware: 0, rare: 0 } });
+    const poor = community({ materials: { food: 0, fuel: 0, hardware: 0 } });
     const options = orderOptions(poor);
 
     for (const { order, check } of options) {
@@ -489,7 +489,7 @@ describe('checkOrder, priced against a given Labor', () => {
   });
 
   it('asks everything else of the campaign as it stands', () => {
-    const poor = advancing({ materials: { food: 0, fuel: 0, hardware: 0, rare: 0 } });
+    const poor = advancing({ materials: { food: 0, fuel: 0, hardware: 0 } });
 
     expect(checkOrder(poor, WORKSHOP, { labor: 10 }).blockers.map((one) => one.code)).toEqual([
       'not-enough-hardware',

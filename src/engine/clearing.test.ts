@@ -10,7 +10,7 @@ const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-
 function campaignWith(base: Base | null, overrides: Partial<Campaign> = {}): Campaign {
   return withPlanningBegun({
     ...createNewCampaign('Cedar Hollow', FIXED),
-    materials: { food: 1, fuel: 2, hardware: 3, rare: 4 },
+    materials: { food: 1, fuel: 2, hardware: 3 },
     // A project team big enough that Labor is never the thing under test. The
     // pool is the summed Tier levels of whoever is on it (pg. 20), so the tests
     // that *are* about Labor override this with a smaller one.

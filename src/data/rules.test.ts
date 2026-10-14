@@ -35,7 +35,7 @@ import {
   type UpgradeId,
 } from './facilities';
 import { CAMPAIGN_ORIGINS } from './origins';
-import { MATERIALS, type Material } from './materials';
+import { MATERIALS } from './materials';
 import {
   CAMPAIGN_PHASES,
   FOOD_EATEN_PER_TURN,
@@ -574,7 +574,7 @@ describe('the campaign turn', () => {
     expect(TIERS.map((tier) => FOOD_EATEN_PER_TURN[tier])).toEqual([1, 1, 2, 2]);
   });
 
-  it('turns every d10 into a material, on the boundaries the book prints', () => {
+  it('turns every d10 into a material or a Rare Item Table roll, on the boundaries the book prints', () => {
     const rolled = D10_RESULTS.map((result) => MATERIAL_ROLL_TABLE[result]);
 
     expect(rolled).toEqual([
@@ -587,12 +587,12 @@ describe('the campaign turn', () => {
       'hardware',
       'hardware',
       'hardware',
-      'rare',
+      'rare-item',
     ]);
 
     // And every material is reachable, so a range that swallowed its
     // neighbour would fail here as well as above.
-    expect([...new Set<Material>(rolled)].sort()).toEqual([...MATERIALS].sort());
+    expect([...new Set(rolled)].sort()).toEqual([...MATERIALS, 'rare-item'].sort());
   });
 
   it('builds Siege Threat out of five distinct terms', () => {
