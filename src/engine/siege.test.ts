@@ -13,6 +13,7 @@ import {
   hordeChecked,
   hordeForced,
   siegeCounterChange,
+  siegeCalledOn,
   siegeDue,
   siegeThreat,
   siegeThreatTerms,
@@ -354,6 +355,33 @@ describe('siegeDue', () => {
 
   it('is never due for a community that has not been called on', () => {
     expect(siegeDue(community({ turn: 3, log: [rolled(2, false)] }))).toBe(false);
+  });
+});
+
+/** The Threat a siege is sized from (pg. 85; #198). */
+describe('siegeCalledOn', () => {
+  const at = (turn: number, threat: number, siege: boolean): LogEntry => ({
+    ...rolled(turn, siege),
+    event: { kind: 'horde-checked', roll: 5, threat, siege },
+  });
+
+  it('is the Threat on the check that called this turn’s siege', () => {
+    expect(siegeCalledOn(community({ turn: 4, log: [at(2, 9, true), at(3, 7, true)] }))).toBe(7);
+    // Past whatever else the turn wrote before its check.
+    const before: LogEntry = { ...rolled(3, false), event: { kind: 'phase-entered' } };
+    expect(siegeCalledOn(community({ turn: 4, log: [before, at(3, 7, true)] }))).toBe(7);
+  });
+
+  it('is nothing on the turn of the check, the turn after next, or when none was called', () => {
+    expect(siegeCalledOn(community({ turn: 3, log: [at(3, 7, true)] }))).toBeNull();
+    expect(siegeCalledOn(community({ turn: 5, log: [at(3, 7, true)] }))).toBeNull();
+    expect(siegeCalledOn(community({ turn: 4, log: [at(3, 7, false)] }))).toBeNull();
+  });
+
+  it('agrees with siegeDue', () => {
+    for (const campaign of [called(3), called(3, 4), called(3, 5)]) {
+      expect(siegeCalledOn(campaign) !== null).toBe(siegeDue(campaign));
+    }
   });
 });
 

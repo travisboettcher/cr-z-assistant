@@ -277,6 +277,22 @@ export function siegeDue(campaign: Campaign): boolean {
   return siegeTurns(campaign).includes(campaign.turn);
 }
 
+/**
+ * The Siege Threat the siege due this turn was called at, or `null` when none
+ * is due (pg. 85; #198).
+ *
+ * The book sizes a siege from it, and it is on the `horde-checked` entry that
+ * called the siege, a turn before the siege is fought — the arithmetic
+ * `siegeTurns` does, asked of the one call this turn answers.
+ */
+export function siegeCalledOn(campaign: Campaign): number | null {
+  const call = campaign.log.find(
+    (entry) => entry.turn + 1 === campaign.turn && entry.event.kind === 'horde-checked',
+  )?.event;
+
+  return call?.kind === 'horde-checked' && call.siege ? call.threat : null;
+}
+
 /** Whether this turn's Check the Horde has already been rolled. */
 export function hordeChecked(campaign: Campaign): boolean {
   return campaign.log.some(

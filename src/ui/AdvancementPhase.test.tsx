@@ -234,6 +234,25 @@ describe('Add Materials to Storage', () => {
         assignments: { [EARL]: { task: 'scavenging' } },
       });
 
+    it('says a scavenger on a siege turn deployed instead, and finds nothing (R42)', () => {
+      open({
+        ...scavenging({ scavenge: 0 }),
+        log: [
+          {
+            turn: 2,
+            phase: 'management',
+            at: '2026-10-13T09:00:00.000Z',
+            event: { kind: 'horde-checked', roll: 10, threat: 6, siege: true },
+          },
+        ],
+      });
+
+      expect(
+        within(walk()).getByText(/earl rhodes was assigned to scavenge, but the siege deployed/i),
+      ).toBeTruthy();
+      expect(within(walk()).queryByText(/scavenged instead/i)).toBeNull();
+    });
+
     it('names them and counts one of every material, with the skill', () => {
       open(scavenging({ scavenge: 0 }));
 

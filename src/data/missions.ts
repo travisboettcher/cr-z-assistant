@@ -128,6 +128,14 @@ export interface StandardMission {
    * rest.
    */
   readonly endConditions?: number;
+
+  /**
+   * The printed number of the end condition that is the mission's failure,
+   * for a mission that numbers one (pp. 77, 79; #205). Entered as printed and
+   * recorded as no condition met, which is what every reader of a failure
+   * asks for.
+   */
+  readonly failedOn?: number;
 }
 
 /** A story or Road Trip mission: named and cited, not modelled (Phase 7). */
@@ -168,6 +176,7 @@ export const MISSIONS = {
     asks: [],
     counts: ['end-condition', 'strangers-rescued'],
     endConditions: 3,
+    failedOn: 4,
   },
   'claim-a-new-base': {
     family: 'standard',
@@ -176,6 +185,7 @@ export const MISSIONS = {
     asks: ['base'],
     counts: ['end-condition', 'strangers-rescued', 'vehicles-on-area'],
     endConditions: 3,
+    failedOn: 4,
   },
   'gather-materials': {
     family: 'standard',

@@ -197,8 +197,31 @@ export interface NewSurvivorForm {
   readonly tier: Tier;
 }
 
-/** Add a survivor to the community. It cannot be refused. */
-export function submitNewSurvivor(campaign: Campaign, form: NewSurvivorForm, at: string): Accepted {
+/**
+ * Why a newcomer cannot take this id, or `null` (#204).
+ *
+ * The caller makes the id, and every reader that finds a survivor by one —
+ * assignments, Rot checks, removals, items — takes the first match. Two
+ * survivors under one id would make the second unreachable, so an id somebody
+ * already has, on the roster or set aside (R31), is refused rather than added.
+ */
+export function newSurvivorIdProblem(campaign: Campaign, id: string): string | null {
+  if (id === '') return 'A new survivor needs an id.';
+
+  return [...campaign.survivors, ...campaign.setAside].some((survivor) => survivor.id === id)
+    ? 'Somebody in the community already has that id.'
+    : null;
+}
+
+/** Add a survivor to the community, under an id nobody has (#204). */
+export function submitNewSurvivor(
+  campaign: Campaign,
+  form: NewSurvivorForm,
+  at: string,
+): FormResult {
+  const problem = newSurvivorIdProblem(campaign, form.id);
+  if (problem !== null) return refused(problem);
+
   return accepted(
     logged(
       {
@@ -228,7 +251,7 @@ export interface RecruitForm {
 }
 
 /**
- * Add a survivor brought back from a mission. It cannot be refused.
+ * Add a survivor brought back from a mission, under an id nobody has (#204).
  *
  * **A recruit also settles the starting community.** A survivor found in the
  * field is proof the campaign is past building it: the ten-tier-level budget
@@ -239,7 +262,10 @@ export interface RecruitForm {
  * player's to throw, and one thrown on their behalf should say so where they
  * can see it.
  */
-export function submitRecruit(campaign: Campaign, form: RecruitForm, at: string): Accepted {
+export function submitRecruit(campaign: Campaign, form: RecruitForm, at: string): FormResult {
+  const problem = newSurvivorIdProblem(campaign, form.id);
+  if (problem !== null) return refused(problem);
+
   const recruited = logged(
     {
       ...campaign,
@@ -289,7 +315,8 @@ export interface StrangerJoinForm extends StrangerForm {
  *
  * Refused for anything `strangerProblem` refuses: outside the Advancement
  * Phase, a stranger no outcome this turn counted or one who has joined
- * already, a blank name, and a roll at a Tier that does not roll. The Tier is
+ * already, a blank name, and a roll at a Tier that does not roll; and for an
+ * id somebody already has (#204). The Tier is
  * the outcome's, never the form's — the table counted it when the mission
  * ended, and the screen has no say in it.
  *
@@ -305,7 +332,7 @@ export function submitStrangerJoined(
   form: StrangerJoinForm,
   at: string,
 ): FormResult {
-  const problem = strangerProblem(campaign, form);
+  const problem = strangerProblem(campaign, form) ?? newSurvivorIdProblem(campaign, form.id);
   if (problem !== null) return refused(problem);
 
   // `strangerProblem` has just found them, so this is never undefined; the

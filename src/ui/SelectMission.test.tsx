@@ -54,6 +54,12 @@ const team = (number: number) =>
   within(walk().getByRole('group', { name: `Mission team ${String(number)}` }));
 
 describe('Select Mission (pg. 17; Z4-2)', () => {
+  it('says a siege is due, and the Threat it was called at (pp. 23, 85; #198)', () => {
+    open(selecting({ log: [called] }));
+
+    expect(walk().getByText(/The horde came, called at Siege Threat 8\./)).toBeInTheDocument();
+  });
+
   it('asks each team the Planning Phase assigned for its own mission (pg. 21)', async () => {
     const user = open(selecting());
 

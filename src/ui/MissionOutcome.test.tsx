@@ -158,7 +158,7 @@ describe('the overrun base', () => {
     await user.click(choice().getByRole('button', { name: 'Go on this way' }));
 
     const first = group(/how the first mission ended/i);
-    await user.selectOptions(first.getByLabelText(/end condition met/i), 'none');
+    await user.selectOptions(first.getByLabelText(/end condition met/i), '4');
     await user.click(first.getByRole('button', { name: 'Record the First Mission' }));
 
     // Not R21's replay, which is turn 1's.
@@ -257,12 +257,12 @@ describe('an outcome for every mission a team chose (Z4-3)', () => {
     const record = first.getByRole('button', { name: 'Record the First Mission' });
     expect(record).toBeDisabled();
 
-    await user.selectOptions(first.getByLabelText(/end condition met/i), 'none');
-    expect(walk().textContent).toContain('turn 1 plays the First Mission again');
+    await user.selectOptions(first.getByLabelText(/end condition met/i), '4');
+    expect(walk().textContent).toContain('The First Mission failed, so turn 1 plays it again');
 
     await user.click(record);
     expect(walk().textContent).toContain(
-      'First Mission: no end condition met, no strangers rescued.',
+      'First Mission: end condition 4, failed, no strangers rescued.',
     );
   });
 

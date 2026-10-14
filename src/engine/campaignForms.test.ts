@@ -163,11 +163,13 @@ describe('submitStartingCommunity', () => {
 
 describe('submitNewSurvivor', () => {
   it('adds them as built, under the id the caller made', () => {
-    const after = submitNewSurvivor(
-      createNewCampaign('Cedar Hollow', FIXED),
-      { id: 'earl', name: 'Earl Rhodes', tier: 4 },
-      AT,
-    ).campaign;
+    const after = expectAccepted(
+      submitNewSurvivor(
+        createNewCampaign('Cedar Hollow', FIXED),
+        { id: 'earl', name: 'Earl Rhodes', tier: 4 },
+        AT,
+      ),
+    );
 
     expect(after.survivors).toEqual([createSurvivor('Earl Rhodes', 4, { id: 'earl' })]);
     expect(after.log.map((entry) => entry.event)).toEqual([
@@ -178,11 +180,13 @@ describe('submitNewSurvivor', () => {
 
 describe('submitRecruit', () => {
   it('adds the recruit and settles the starting community, saying so', () => {
-    const after = submitRecruit(
-      createNewCampaign('Cedar Hollow', FIXED),
-      { id: 'carla', name: 'Carla Proust', tier: 3, roll: 6 },
-      AT,
-    ).campaign;
+    const after = expectAccepted(
+      submitRecruit(
+        createNewCampaign('Cedar Hollow', FIXED),
+        { id: 'carla', name: 'Carla Proust', tier: 3, roll: 6 },
+        AT,
+      ),
+    );
 
     expect(after.survivors).toEqual([recruitSurvivor('Carla Proust', 3, 6, { id: 'carla' })]);
     expect(after.startingCommunityBuilt).toBe(true);
@@ -194,15 +198,55 @@ describe('submitRecruit', () => {
 
   /** A Rookie throws no die, and the entry does not claim one. */
   it('records no roll that was not made, and settles nothing already settled', () => {
-    const after = submitRecruit(
-      { ...createNewCampaign('Cedar Hollow', FIXED), startingCommunityBuilt: true },
-      { id: 'pip', name: 'Pip', tier: 1 },
-      AT,
-    ).campaign;
+    const after = expectAccepted(
+      submitRecruit(
+        { ...createNewCampaign('Cedar Hollow', FIXED), startingCommunityBuilt: true },
+        { id: 'pip', name: 'Pip', tier: 1 },
+        AT,
+      ),
+    );
 
     expect(after.log.map((entry) => entry.event)).toEqual([
       { kind: 'survivor-recruited', survivor: 'pip', name: 'Pip', tier: 1 },
     ]);
+  });
+});
+
+/**
+ * Every reader that finds a survivor by id takes the first match, so a second
+ * survivor under one id would be unreachable (#204).
+ */
+describe('a new survivor’s id', () => {
+  const earl = createSurvivor('Earl Rhodes', 4, { id: 'earl' });
+  const away = createSurvivor('Hera Okafor', 4, { id: 'hera' });
+  const community = {
+    ...createNewCampaign('Cedar Hollow', FIXED),
+    survivors: [earl],
+    setAside: [away],
+  };
+
+  it('is refused when somebody on the roster or set aside has it', () => {
+    for (const id of ['earl', 'hera']) {
+      expect(
+        expectRefused(submitNewSurvivor(community, { id, name: 'Ruby Vance', tier: 1 }, AT)),
+      ).toBe('Somebody in the community already has that id.');
+      expect(expectRefused(submitRecruit(community, { id, name: 'Ruby Vance', tier: 1 }, AT))).toBe(
+        'Somebody in the community already has that id.',
+      );
+    }
+  });
+
+  it('is refused when empty', () => {
+    expect(
+      expectRefused(submitNewSurvivor(community, { id: '', name: 'Ruby Vance', tier: 1 }, AT)),
+    ).toBe('A new survivor needs an id.');
+  });
+
+  it('is taken when nobody has it', () => {
+    expect(
+      expectAccepted(submitNewSurvivor(community, { id: 'ruby', name: 'Ruby Vance', tier: 1 }, AT))
+        .survivors,
+    ).toHaveLength(2);
   });
 });
 
@@ -248,6 +292,18 @@ describe('submitStrangerJoined', () => {
         },
       },
     ]);
+  });
+
+  it('refuses an id somebody already has (#204)', () => {
+    const first = expectAccepted(
+      submitStrangerJoined(twoRescues(), { id: 'carla', team: 1, stranger: 0, name: 'Carla' }, AT),
+    );
+
+    expect(
+      expectRefused(
+        submitStrangerJoined(first, { id: 'carla', team: 2, stranger: 0, name: 'Pip' }, AT),
+      ),
+    ).toBe('Somebody in the community already has that id.');
   });
 
   /** The acceptance: two strangers rescued by two teams are two survivors, each once. */
