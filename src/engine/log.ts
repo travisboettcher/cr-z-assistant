@@ -53,7 +53,7 @@ import { phaseOf } from './turn';
 // `LogEntry` from here. Both directions are erased at compile time, so there is
 // no runtime cycle — and the alternative, a third module holding one of them,
 // would separate `Campaign` from the shape of its own field.
-import type { Assignment, Campaign } from './campaign';
+import type { Assignment, Campaign, Item } from './campaign';
 
 /**
  * One team member as a mission left them, carried on its outcome (#178, Z4-4).
@@ -90,6 +90,12 @@ export interface RebuildSlot {
   /** The upgrades on whatever stood there, a built-in facility's included. */
   readonly upgrades: readonly UpgradeId[];
 }
+
+/**
+ * Materials as an entry written before schema v17 may hold them: with the Rare
+ * count the app kept until a 10 became an item (R49). History keeps it.
+ */
+export type HistoricMaterials = Materials & { readonly rare?: number };
 
 /** One item a mission used up or lost, and who had it (Z5-5). */
 export interface SpentItem {
@@ -166,7 +172,8 @@ export type CampaignEvent =
       readonly food: number;
       readonly fuel: number;
       readonly hardware: number;
-      readonly rare: number;
+      /** Rare, on an entry written before v17 made a 10 an item (R49). */
+      readonly rare?: number;
     }
   /**
    * The horde arrived, and the community fought it (pg. 23, 85).
@@ -208,7 +215,8 @@ export type CampaignEvent =
       readonly food: number;
       readonly fuel: number;
       readonly hardware: number;
-      readonly rare: number;
+      /** Rare, on an entry written before v17 (R49). */
+      readonly rare?: number;
     }
   /**
    * A facility or upgrade traded materials for other materials (pg. 19, 72–73).
@@ -758,6 +766,54 @@ export type CampaignEvent =
       readonly item: ItemId;
       readonly grade: Grade;
     }
+  /**
+   * An item the project team built (pp. 20–21; Z5-6), into the base's
+   * Inventory at once, and what it cost: the Labor is read back by
+   * `laborCommitted`, since nothing else records it.
+   */
+  /**
+   * An item found on the Rare Item Table (pg. 43; Z5-7), into the base's
+   * Inventory, with the two dice that found it: for a material roll of 10, or
+   * a roll a save from before v17 owed (R49).
+   */
+  /**
+   * Items a base handed over (pp. 62, 66; R45, R46; Z5-8): the Regional
+   * Firehouse's Turnout Gear on moving in, or the Outdoor Sports Shop's four
+   * weapons when its Inventory slot is cleared, which names the slot.
+   */
+  | {
+      readonly kind: 'equipment-handed-over';
+      readonly base: BaseId;
+      readonly slot?: string;
+      readonly items: readonly Item[];
+    }
+  /**
+   * A rare upgrade taken out of the base's Inventory and installed in the
+   * facility in this slot (pg. 49; R47; Z5-8).
+   */
+  | {
+      readonly kind: 'rare-upgrade-installed';
+      readonly id: string;
+      readonly item: ItemId;
+      readonly grade: Grade;
+      readonly slot: string;
+    }
+  | {
+      readonly kind: 'item-found';
+      readonly id: string;
+      readonly item: ItemId;
+      readonly grade: Grade;
+      readonly subtable: D10Result;
+      readonly entry: D10Result;
+    }
+  | {
+      readonly kind: 'item-built';
+      readonly id: string;
+      readonly item: ItemId;
+      readonly grade: Grade;
+      readonly hardware: number;
+      readonly labor: number;
+    }
   /** An item taken out of the base's Inventory by hand (Z5-2). */
   | {
       readonly kind: 'item-removed';
@@ -831,7 +887,7 @@ export type CampaignEvent =
        * (R29, R30; Z4-9). Absent for a normal claim, whose stores move as they
        * are.
        */
-      readonly stores?: Materials;
+      readonly stores?: HistoricMaterials;
       /**
        * What the player had added to each slot of the base an overrun
        * destroyed, for a move into the same type on the same map, which may

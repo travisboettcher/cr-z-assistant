@@ -208,6 +208,19 @@ function describeSlotProblem(value: unknown): string | null {
     }
   }
 
+  // Rare upgrades installed here (R47; Z5-8): items, each one installed.
+  if (value.installed !== undefined) {
+    const installed = describeItemsProblem(value.installed);
+    if (installed !== null) return `has installed items where ${installed}`;
+    if (
+      (value.installed as readonly { readonly item: ItemId }[]).some(
+        (item) => EQUIPMENT[item.item].kind !== 'rare-upgrade',
+      )
+    ) {
+      return 'has an item installed that is not a rare upgrade';
+    }
+  }
+
   return null;
 }
 
@@ -267,6 +280,10 @@ const EVENT_FIELD_CHECKS = {
   // answer here and a damaged one everywhere else, which is why it is its own
   // check rather than a flag on the loop below.
   optionalCount: (value: unknown) => value === undefined || isCountFromZero(value),
+  // The Rare an entry written before v17 counted (R49): any whole amount, or
+  // absent on every entry since.
+  optionalAmount: (value: unknown) =>
+    value === undefined || (typeof value === 'number' && Number.isSafeInteger(value)),
   // The same shape for an id: what a cancelled or unfinished project was, on
   // entries written since they started saying. Not checked against the
   // catalogue, for the reason `optionalAssignments` is not checked against the
@@ -293,7 +310,7 @@ const EVENT_FIELD_CHECKS = {
     (isRecord(value) &&
       Object.values(value).every((one) => describeAssignmentProblem(one) === null)),
   tier: (value: unknown) => TIERS.some((tier) => tier === value),
-  // A trade's two halves: some of the four materials, each a whole count of
+  // A trade's two halves: some of the three materials, each a whole count of
   // one or more. Partial because a trade names only what it moves, and every
   // amount positive because the entry records the spend as it was paid rather
   // than as a negative — "2 Fuel for 1 Food" is one trade, not two movements.
@@ -360,7 +377,8 @@ const EVENT_FIELD_CHECKS = {
         typeof one.name === 'string',
     ),
   // What was in storage after a move that followed an overrun (R29, R30): all
-  // four materials, each a whole count from zero, or absent for any other move.
+  // three materials, each a whole count from zero, or absent for any other move.
+  // An entry from before v17 also counts Rare (R49), which is history and kept.
   optionalStores: (value: unknown) =>
     value === undefined ||
     (isRecord(value) && MATERIALS.every((material) => isCountFromZero(value[material]))),
@@ -407,6 +425,8 @@ const EVENT_FIELD_CHECKS = {
         one.survivor !== '' &&
         typeof one.name === 'string',
     ),
+  // Items a base handed over (Z5-8), each checked as an Inventory item is.
+  items: (value: unknown) => describeItemsProblem(value) === null,
   // One end of an item's move (Z5-4): the base, the free shoddy supply, or a
   // survivor by id and name. Not held to the roster, since this is history.
   holder: (value: unknown) =>
@@ -451,13 +471,13 @@ const EVENT_FIELDS: Record<
     ['food', 'count'],
     ['fuel', 'count'],
     ['hardware', 'count'],
-    ['rare', 'count'],
+    ['rare', 'optionalCount'],
   ],
   'materials-added': [
     ['food', 'amount'],
     ['fuel', 'amount'],
     ['hardware', 'amount'],
-    ['rare', 'amount'],
+    ['rare', 'optionalAmount'],
   ],
   'materials-converted': [
     ['slot', 'id'],
@@ -684,6 +704,31 @@ const EVENT_FIELDS: Record<
   'items-spent': [
     ['team', 'countFromOne'],
     ['items', 'spentItems'],
+  ],
+  'equipment-handed-over': [
+    ['base', 'base'],
+    ['slot', 'optionalId'],
+    ['items', 'items'],
+  ],
+  'rare-upgrade-installed': [
+    ['id', 'id'],
+    ['item', 'itemId'],
+    ['grade', 'grade'],
+    ['slot', 'id'],
+  ],
+  'item-found': [
+    ['id', 'id'],
+    ['item', 'itemId'],
+    ['grade', 'grade'],
+    ['subtable', 'roll'],
+    ['entry', 'roll'],
+  ],
+  'item-built': [
+    ['id', 'id'],
+    ['item', 'itemId'],
+    ['grade', 'grade'],
+    ['hardware', 'count'],
+    ['labor', 'count'],
   ],
   'item-moved': [
     ['id', 'id'],
@@ -942,6 +987,9 @@ function describeCampaignProblem(value: unknown): string | null {
     }
   }
 
+  // The Rare Item Table rolls a v16 save's Rare became (R49; Z5-7).
+  if (!isCountFromZero(value.rareRollsOwed)) return 'it does not say how many Rare rolls it owes';
+
   // The base's Inventory (Z5-2), which never holds a shoddy item: shoddy gear
   // is free and unlimited, so nobody owns one (R35).
   const inventory = describeItemsProblem(value.inventory);
@@ -954,18 +1002,6 @@ function describeCampaignProblem(value: unknown): string | null {
     return 'its Inventory holds a shoddy item, which nobody owns';
   }
 
-  // One id names one thing, wherever it is held.
-  const held = [value.inventory, value.survivors, value.setAside].flatMap((list, at) =>
-    at === 0
-      ? (list as readonly { readonly id: string }[])
-      : (list as readonly { readonly items: readonly { readonly id: string }[] }[]).flatMap(
-          (survivor) => survivor.items,
-        ),
-  );
-  const ids = held.map((item) => item.id);
-  const repeated = ids.find((id, at) => ids.indexOf(id) !== at);
-  if (repeated !== undefined) return `it holds two items with one id: ${repeated}`;
-
   if (typeof value.startingCommunityBuilt !== 'boolean') {
     return 'it does not say whether its starting community is finished';
   }
@@ -976,6 +1012,28 @@ function describeCampaignProblem(value: unknown): string | null {
     const problem = describeBaseProblem(value.base);
     if (problem !== null) return problem;
   }
+
+  // One id names one thing, wherever it is held: the base's Inventory, a
+  // survivor, or a facility it is installed in (Z5-8). Asked once the base is
+  // known to be readable.
+  const installed =
+    value.base === null
+      ? []
+      : Object.values(
+          (value.base as { readonly slots: Record<string, { readonly installed?: unknown }> })
+            .slots,
+        ).flatMap((slot) => (slot.installed ?? []) as readonly { readonly id: string }[]);
+  const held = [
+    ...(value.inventory as readonly { readonly id: string }[]),
+    ...[
+      ...(value.survivors as readonly { readonly items: readonly { readonly id: string }[] }[]),
+      ...(value.setAside as readonly { readonly items: readonly { readonly id: string }[] }[]),
+    ].flatMap((survivor) => survivor.items),
+    ...installed,
+  ];
+  const ids = held.map((item) => item.id);
+  const repeated = ids.find((id, at) => ids.indexOf(id) !== at);
+  if (repeated !== undefined) return `it holds two items with one id: ${repeated}`;
 
   const assignments: unknown = value.assignments;
   if (!isRecord(assignments)) return 'it does not say what its survivors are doing';

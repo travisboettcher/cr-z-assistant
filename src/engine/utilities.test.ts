@@ -25,7 +25,7 @@ const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-
 function campaignWith(base: Base | null, overrides: Partial<Campaign> = {}): Campaign {
   return {
     ...createNewCampaign('Cedar Hollow', FIXED),
-    materials: { food: 0, fuel: 0, hardware: 20, rare: 0 },
+    materials: { food: 0, fuel: 0, hardware: 20 },
     turn: 4,
     base,
     ...overrides,

@@ -171,7 +171,7 @@ describe('submitFeeding', () => {
     community({
       step: 'feed-your-survivors',
       survivors: [at('marcus', 'Marcus Webb', 4)],
-      materials: { food: 9, fuel: 0, hardware: 0, rare: 0 },
+      materials: { food: 9, fuel: 0, hardware: 0 },
     });
 
   it('eats, and records what was needed and what was short', () => {
@@ -233,7 +233,7 @@ describe('submitStorageCheck', () => {
   const overflowing = () =>
     community({
       step: 'check-storage',
-      materials: { food: 9, fuel: 0, hardware: 0, rare: 0 },
+      materials: { food: 9, fuel: 0, hardware: 0 },
       base: { id: 'greasy-spoon', slots: {} },
     });
 

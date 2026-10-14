@@ -41,7 +41,9 @@ import { FACILITIES, type Cost, type Facility, type UpgradeId } from '../data/fa
 import { laborOf, laborPool } from './assignments';
 import type { Occupant } from './base';
 import { clearingProject, occupantAt, replacedBy, upgradeCost } from './base';
-import type { Campaign, PlacedOrder, Project, ProjectOrder } from './campaign';
+import type { ItemId } from '../data/equipment';
+import type { Campaign, Item, PlacedOrder, Project, ProjectOrder } from './campaign';
+import { chosenWeapons, weaponsProblem } from './handover';
 import type { Violation } from './checks';
 import { planningHasBegun } from './planning';
 import { projectTeamThatWorked, siegeDefended } from './siegeWork';
@@ -238,9 +240,32 @@ export function queuedFor(campaign: Campaign, slot: string): readonly QueuedProj
  * them.
  */
 export function laborCommitted(campaign: Campaign): number {
+  return queuedLaborThisTurn(campaign) + equipmentLaborThisTurn(campaign);
+}
+
+/** What this turn's queue has committed of this turn's Labor. */
+function queuedLaborThisTurn(campaign: Campaign): number {
   return campaign.projects.reduce(
     (total, project) =>
       project.orderedOnTurn === campaign.turn ? total + project.charged.labor : total,
+    0,
+  );
+}
+
+/**
+ * What this turn's equipment has spent of this turn's Labor (pp. 20–21; Z5-6).
+ *
+ * Read off the `item-built` entries, because a built item is finished the
+ * moment it is paid for and leaves nothing in the queue to read: the entry is
+ * the only record of what it cost. One budget with the queue, so every reader
+ * of `laborCommitted` sees the same number.
+ */
+export function equipmentLaborThisTurn(campaign: Campaign): number {
+  return campaign.log.reduce(
+    (total, entry) =>
+      entry.turn === campaign.turn && entry.event.kind === 'item-built'
+        ? total + entry.event.labor
+        : total,
     0,
   );
 }
@@ -292,10 +317,13 @@ export function laborAvailable(campaign: Campaign): number {
  * ordering. The queue is not wrong —
  * every order in it was affordable when it was placed — so this is not a
  * validation failure but the rule's own consequence, waiting for the player to
- * say which project does not get finished.
+ * say which project does not get finished. Equipment built this turn counts
+ * against the pool but is never unbuilt (R48).
  */
 export function laborShortfall(campaign: Campaign): number {
-  return Math.max(0, -laborAvailable(campaign));
+  // Never more than the queue can give back: an item already built stays built
+  // (R48), so a shortfall only equipment accounts for is forgiven.
+  return Math.max(0, Math.min(queuedLaborThisTurn(campaign), -laborAvailable(campaign)));
 }
 
 /**
@@ -564,12 +592,37 @@ export function withProjectCancelled(campaign: Campaign, at: number): Campaign {
  * queue is empty of due projects either way — and re-deriving it would mean
  * running the same slot-by-slot walk twice.
  */
-export function completeProjects(campaign: Campaign): {
+/**
+ * The weapons a due clearing asks the player to choose before it finishes:
+ * the Outdoor Sports Shop's Inventory, and how many (pg. 62; R45; Z5-8).
+ */
+export function weaponsOwed(
+  campaign: Campaign,
+): { readonly slot: string; readonly count: number } | null {
+  for (const project of dueProjects(campaign)) {
+    if (project.kind !== 'clearing') continue;
+
+    const equipment = clearingProject(campaign, project.slot)?.yields?.equipment;
+    if (equipment !== undefined) return { slot: project.slot, count: equipment.count };
+  }
+
+  return null;
+}
+
+export function completeProjects(
+  campaign: Campaign,
+  weapons: readonly ItemId[] = [],
+): {
   readonly campaign: Campaign;
   readonly completed: readonly Project[];
+  /** What a cleared slot handed over: the Outdoor Sports Shop's weapons (R45; Z5-8). */
+  readonly handedOver: { readonly slot: string; readonly items: readonly Item[] } | null;
 } {
   const base = campaign.base;
-  if (base === null) return { campaign, completed: [] };
+  if (base === null) return { campaign, completed: [], handedOver: null };
+
+  let handedOver: { readonly slot: string; readonly items: readonly Item[] } | null = null;
+  const waiting: Project[] = [];
 
   let slots = base.slots;
   let materials = campaign.materials;
@@ -637,6 +690,18 @@ export function completeProjects(campaign: Campaign): {
       // twice, and the log said "Cleared the Pews 2." for both.
       if (state.cleared === true) continue;
 
+      // The Outdoor Sports Shop's Inventory hands over weapons the player
+      // chooses (R45), so it waits for the choice rather than finishing
+      // without one.
+      const equipment = clearing.yields?.equipment;
+      if (equipment !== undefined) {
+        if (weaponsProblem(weapons, equipment.count) !== null) {
+          waiting.push(project);
+          continue;
+        }
+        handedOver = { slot: project.slot, items: chosenWeapons(campaign, weapons) };
+      }
+
       materials = { ...materials };
       // `yields` is optional on the type and present on all three projects the
       // roster has, so the guard is unexercised by data rather than
@@ -658,8 +723,13 @@ export function completeProjects(campaign: Campaign): {
       ...campaign,
       materials,
       base: { ...base, slots },
-      projects: campaign.projects.filter((project) => !isDue(campaign, project)),
+      // A due project that did not land is dropped, as it always was, but for
+      // one waiting on its weapons, which stays due until they are chosen.
+      projects: campaign.projects.filter(
+        (project) => !isDue(campaign, project) || waiting.includes(project),
+      ),
     },
     completed,
+    handedOver,
   };
 }

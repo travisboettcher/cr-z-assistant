@@ -109,11 +109,15 @@ export function newItemProblem(campaign: Campaign, item: NewItem): string | null
   return null;
 }
 
-/** Every item the campaign holds: the base's, the roster's and the set-aside's. */
+/**
+ * Every item the campaign holds: the base's, the roster's, the set-aside's,
+ * and the rare upgrades installed in its facilities (Z5-8).
+ */
 export function allItems(campaign: Campaign): readonly Item[] {
   return [
     ...campaign.inventory,
     ...[...campaign.survivors, ...campaign.setAside].flatMap((survivor) => survivor.items),
+    ...Object.values(campaign.base?.slots ?? {}).flatMap((slot) => slot.installed ?? []),
   ];
 }
 

@@ -57,6 +57,7 @@ import {
   submitCommonSkill,
   submitConversion,
   submitHaul,
+  submitRareUpgradeInstalled,
   submitHealing,
   submitNewSkill,
   submitPromotion,
@@ -65,6 +66,9 @@ import {
 } from '../engine/advancementForms';
 import type { MissionOutcome } from '../engine/missions';
 import type { EquipMove } from '../engine/equip';
+import type { BuildOrder } from '../engine/making';
+import type { RareItemRoll } from '../engine/finding';
+import { withEquipmentHandedOver } from '../engine/handover';
 import {
   submitMissionOutcome,
   submitMissionSelection,
@@ -79,6 +83,8 @@ import {
   submitBaseClaim,
   submitItemAdded,
   submitItemRemoved,
+  submitItemBuilt,
+  submitRareItemRolled,
   submitNewSurvivor,
   submitRecruit,
   submitRemoval,
@@ -380,6 +386,8 @@ export type CampaignAction =
       readonly type: 'advancement/materialsAdded';
       readonly rolls: readonly MaterialRoll[];
       readonly scavenged?: Material;
+      /** The Rare Item Table's dice, with fresh ids for what they find (Z5-7). */
+      readonly rareItems?: readonly RareItemRoll[];
       readonly at: string;
     }
   /**
@@ -456,6 +464,17 @@ export type CampaignAction =
     }
   /** An item taken out of the base's Inventory by hand (Z5-2). */
   | { readonly type: 'inventory/itemRemoved'; readonly id: string; readonly at: string }
+  /** A rare upgrade installed from the Inventory in a slot's facility (Z5-8). */
+  | {
+      readonly type: 'advancement/rareUpgradeInstalled';
+      readonly id: string;
+      readonly slot: string;
+      readonly at: string;
+    }
+  /** A roll on the Rare Item Table by hand, with a fresh id for its item (Z5-7). */
+  | { readonly type: 'inventory/rareItemRolled'; readonly roll: RareItemRoll; readonly at: string }
+  /** An item the project team builds, with its fresh id (Z5-6). */
+  | { readonly type: 'planning/itemBuilt'; readonly order: BuildOrder; readonly at: string }
   /** An item moved at Equip Mission Team, or shoddy gear taken up free (Z5-4). */
   | { readonly type: 'mission/itemMoved'; readonly move: EquipMove; readonly at: string }
   /** What a team's mission used up or lost, by item id (Z5-5). */
@@ -676,7 +695,12 @@ export type CampaignAction =
    * Refused while this turn's siege has left those orders short: finishing
    * them all would be building with Labor the team no longer has.
    */
-  | { readonly type: 'advancement/projectsCompleted'; readonly at: string }
+  | {
+      readonly type: 'advancement/projectsCompleted';
+      /** The Outdoor Sports Shop's four weapons, when its clearing is due (R45; Z5-8). */
+      readonly weapons?: readonly ItemId[];
+      readonly at: string;
+    }
   /**
    * Puts a point of Power or Water on a slot, or takes it off.
    *
@@ -821,7 +845,11 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
     case 'advancement/materialsAdded':
       return submitted(state, (campaign) =>
-        submitHaul(campaign, { rolls: action.rolls, scavenged: action.scavenged }, action.at),
+        submitHaul(
+          campaign,
+          { rolls: action.rolls, scavenged: action.scavenged, rareItems: action.rareItems ?? [] },
+          action.at,
+        ),
       );
 
     case 'advancement/materialsConverted':
@@ -1035,6 +1063,17 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         submitItemsSpent(campaign, action.team, action.items, action.at),
       );
 
+    case 'advancement/rareUpgradeInstalled':
+      return submitted(state, (campaign) =>
+        submitRareUpgradeInstalled(campaign, action.id, action.slot, action.at),
+      );
+
+    case 'inventory/rareItemRolled':
+      return submitted(state, (campaign) => submitRareItemRolled(campaign, action.roll, action.at));
+
+    case 'planning/itemBuilt':
+      return submitted(state, (campaign) => submitItemBuilt(campaign, action.order, action.at));
+
     case 'inventory/itemRemoved':
       return submitted(state, (campaign) => submitItemRemoved(campaign, action.id, action.at));
 
@@ -1051,16 +1090,31 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         // dispatch that did not come from it.
         if (siegeLaborShortfall(campaign) > 0) return campaign;
 
-        const { campaign: finished, completed } = completeProjects(campaign);
+        const {
+          campaign: finished,
+          completed,
+          handedOver,
+        } = completeProjects(campaign, action.weapons ?? []);
 
         // One entry per project that actually landed — a project dropped for a
         // slot that filled under it says nothing, rather than claiming a
         // Workshop that is not there. Folded rather than pushed, because
         // `logged` stamps against the campaign it appends to.
-        return completed.reduce(
+        const built = completed.reduce(
           (so_far, project) => logged(so_far, action.at, builtEvent(project)),
           finished,
         );
+
+        // Then what the cleared slot handed over (R45).
+        return handedOver === null || finished.base === null
+          ? built
+          : withEquipmentHandedOver(
+              built,
+              finished.base.id,
+              handedOver.items,
+              action.at,
+              handedOver.slot,
+            );
       });
 
     case 'assignment/set':

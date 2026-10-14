@@ -59,7 +59,7 @@ describe('logged', () => {
   });
 
   it('changes nothing else about the campaign', () => {
-    const before = campaign({ turn: 2, materials: { food: 3, fuel: 1, hardware: 0, rare: 0 } });
+    const before = campaign({ turn: 2, materials: { food: 3, fuel: 1, hardware: 0 } });
 
     const after = logged(before, AT, { kind: 'phase-entered' });
 
@@ -141,6 +141,10 @@ describe('the event samples', () => {
     'item-added': true,
     'item-removed': true,
     'item-moved': true,
+    'item-built': true,
+    'item-found': true,
+    'rare-upgrade-installed': true,
+    'equipment-handed-over': true,
     'items-spent': true,
     'base-stocked': true,
     'facility-built': true,

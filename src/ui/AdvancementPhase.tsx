@@ -75,11 +75,15 @@ import {
 import {
   dueProjects,
   isDue,
+  weaponsOwed,
   orderedLastTurn,
   queuedCost,
   siegeLaborShortfall,
 } from '../engine/projects';
 import { fellInTheSiege } from '../engine/siegeWork';
+import { rareItemFor, rareRollsDue } from '../engine/finding';
+import { describeItem, ITEM_LABELS } from './equipmentLabels';
+import { CORE_WEAPONS, EQUIPMENT, type ItemId } from '../data/equipment';
 import { SiegeWork } from './SiegeWork';
 import { describeProject } from './projectLabels';
 import {
@@ -89,6 +93,7 @@ import {
 } from '../persistence/pendingRolls';
 import { useCampaign } from '../state/useCampaign';
 import { BASE_LABELS, MATERIAL_LABELS, builtThingLabel, slotLabel } from './baseLabels';
+import { OpenPanel } from './OpenPanel';
 import { PageRef } from './PageRef';
 import { SKILL_LABELS } from './skillLabels';
 import { TIER_LABELS } from './tierLabels';
@@ -494,6 +499,16 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
    */
   const [found, setFound] = useState<Material | undefined>(undefined);
 
+  /*
+   * The Rare Item Table's two dice for each roll it owes (Z5-7), by position:
+   * the rolls that owe one can be removed or forced, so the list is cut to
+   * what is due rather than kept in step with them.
+   */
+  const [rareDice, setRareDice] = useState<readonly RareDice[]>([]);
+  const due = rareRollsDue(campaign, rolls);
+  const rare = Array.from({ length: due }, (_, at) => rareDice[at] ?? {});
+  const rareReady = rare.every((dice) => dice.subtable !== undefined && dice.entry !== undefined);
+
   function remember(next: readonly MaterialRoll[]) {
     setRolls(next);
     writePendingRolls(campaign.id, campaign.turn, next);
@@ -504,6 +519,12 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
       type: 'advancement/materialsAdded',
       rolls,
       ...(found === undefined ? {} : { scavenged: found }),
+      rareItems: rare.map((dice) => ({
+        id: crypto.randomUUID(),
+        // Present: the button waits for every pair (`rareReady`).
+        subtable: dice.subtable as D10Result,
+        entry: dice.entry as D10Result,
+      })),
       at: new Date().toISOString(),
     });
     // Cleared on commit rather than left to go stale on the turn stamp: the
@@ -609,6 +630,36 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
                 </li>
               ))}
             </ul>
+          )}
+
+          {due > 0 && (
+            <div className="mt-4">
+              <p className="text-sm font-medium">
+                Rare Item Table <PageRef pages="19, 43" />
+              </p>
+              <p className={`${HINT} mt-1`}>
+                A 10 is an item instead of a material: roll two more d10s for each, the first for
+                the subtable and the second for the entry.
+                {campaign.rareRollsOwed > 0 &&
+                  ` ${String(campaign.rareRollsOwed)} more ${campaign.rareRollsOwed === 1 ? 'is' : 'are'} owed for the Rare this campaign held in storage (R49).`}
+              </p>
+              <ul className="mt-2 flex flex-col gap-2">
+                {rare.map((dice, at) => (
+                  <RareRoll
+                    key={at}
+                    index={at}
+                    dice={dice}
+                    onChange={(next) => {
+                      setRareDice(
+                        Array.from({ length: due }, (_, other) =>
+                          other === at ? next : (rareDice[other] ?? {}),
+                        ),
+                      );
+                    }}
+                  />
+                ))}
+              </ul>
+            </div>
           )}
 
           {(gatheredCount > 0 || toRoll > 0) && (
@@ -726,9 +777,17 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
             </p>
           ))}
 
+          {!rareReady && (
+            <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+              Each Rare Item Table roll needs its two dice before the haul goes into storage{' '}
+              <PageRef pages={43} />
+            </p>
+          )}
+
           <button
             type="button"
-            className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+            disabled={!rareReady}
+            className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
             onClick={() => {
               // Zero rolls is legitimate — a turn with no mission still adds
               // the base's production — so the button is never disabled. It
@@ -1050,6 +1109,55 @@ function InfectionSpent({
  * Skill Score is the player's to correct, and a control that vanishes cannot
  * tell them what it was for.
  */
+/** The two Rare Item Table dice entered for one roll, as far as they go. */
+interface RareDice {
+  readonly subtable?: D10Result;
+  readonly entry?: D10Result;
+}
+
+/** One roll on the Rare Item Table: its two dice, and what they find (pg. 43). */
+function RareRoll({
+  index,
+  dice,
+  onChange,
+}: {
+  readonly index: number;
+  readonly dice: RareDice;
+  readonly onChange: (next: RareDice) => void;
+}) {
+  const name = `Rare Item Table roll ${String(index + 1)}`;
+  const select = (die: 'subtable' | 'entry', label: string) => (
+    <select
+      aria-label={`${name}, ${label}`}
+      className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 px-3 dark:border-stone-600 dark:bg-stone-800`}
+      value={dice[die] ?? ''}
+      onChange={(changed) => {
+        onChange({ ...dice, [die]: Number(changed.target.value) as D10Result });
+      }}
+    >
+      <option value="" disabled>
+        {label}
+      </option>
+      {D10_RESULTS.map((result) => (
+        <option key={result} value={result}>
+          {result}
+        </option>
+      ))}
+    </select>
+  );
+
+  return (
+    <li className="flex flex-wrap items-center gap-2 text-sm">
+      <span>{name}</span>
+      {select('subtable', 'first d10')}
+      {select('entry', 'second d10')}
+      {dice.subtable !== undefined && dice.entry !== undefined && (
+        <span className="font-medium">{describeItem(rareItemFor(dice.subtable, dice.entry))}</span>
+      )}
+    </li>
+  );
+}
+
 function ForceResult({
   campaign,
   entry,
@@ -1133,12 +1241,26 @@ function FinishProjects({ campaign }: { readonly campaign: Campaign }) {
   const waiting = campaign.projects.filter((project) => !isDue(campaign, project));
   const short = siegeLaborShortfall(campaign);
 
+  // The Outdoor Sports Shop's weapons, the player's to choose (R45; Z5-8).
+  const owed = weaponsOwed(campaign);
+  const [weapons, setWeapons] = useState<readonly (ItemId | '')[]>([]);
+  const chosen = Array.from({ length: owed?.count ?? 0 }, (_, at) => weapons[at] ?? '');
+  const ready = chosen.every((weapon) => weapon !== '');
+
   return (
     <>
       <p className={HINT}>
         Projects ordered in a Planning Phase finish here, the turn after they were ordered{' '}
         <PageRef pages={19} />
       </p>
+
+      {/* Rare upgrades are installed now, from the Inventory (R47; Z5-8). */}
+      {campaign.inventory.some((item) => EQUIPMENT[item.item].kind === 'rare-upgrade') && (
+        <p className={`mt-2 ${HINT}`}>
+          The <OpenPanel panel="inventory">Inventory</OpenPanel> holds a rare upgrade, installed in
+          a facility of its kind at this step <PageRef pages={49} />
+        </p>
+      )}
 
       {due.length === 0 ? (
         <p className={`mt-3 ${HINT}`}>
@@ -1159,14 +1281,54 @@ function FinishProjects({ campaign }: { readonly campaign: Campaign }) {
             ))}
           </ul>
 
+          {owed !== null && (
+            <div className="mt-3">
+              <p className="text-sm font-medium">
+                Clearing the {slotLabel(owed.slot)} hands over {owed.count} standard weapons, yours
+                to choose <PageRef pages={62} />
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {chosen.map((weapon, at) => (
+                  <select
+                    key={at}
+                    aria-label={`Weapon ${String(at + 1)}`}
+                    className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 px-3 dark:border-stone-600 dark:bg-stone-800`}
+                    value={weapon}
+                    onChange={(changed) => {
+                      setWeapons(
+                        chosen.map((one, other) =>
+                          other === at ? (changed.target.value as ItemId) : one,
+                        ),
+                      );
+                    }}
+                  >
+                    <option value="" disabled>
+                      Weapon {at + 1}
+                    </option>
+                    {CORE_WEAPONS.map((id) => (
+                      <option key={id} value={id}>
+                        {ITEM_LABELS[id]}
+                      </option>
+                    ))}
+                  </select>
+                ))}
+              </div>
+            </div>
+          )}
+
           {short > 0 ? (
             <SiegeUnpaid campaign={campaign} short={short} />
           ) : (
             <button
               type="button"
-              className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+              disabled={!ready}
+              className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
               onClick={() => {
-                dispatch({ type: 'advancement/projectsCompleted', at: new Date().toISOString() });
+                dispatch({
+                  type: 'advancement/projectsCompleted',
+                  ...(owed === null ? {} : { weapons: chosen as readonly ItemId[] }),
+                  at: new Date().toISOString(),
+                });
               }}
             >
               Finish {due.length === 1 ? 'the project' : `${String(due.length)} projects`}

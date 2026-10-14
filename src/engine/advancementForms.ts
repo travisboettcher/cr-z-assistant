@@ -27,7 +27,7 @@ import {
   withTierBought,
   type PurchaseBlock,
 } from './advancement';
-import type { Campaign, Survivor } from './campaign';
+import type { Campaign, Item, Survivor } from './campaign';
 import { claimedBase } from './claim';
 import { checkConversion, conversions, withConversion } from './conversions';
 import { checkXpAward, withXpAwarded } from './experience';
@@ -45,6 +45,9 @@ import {
   gathered,
   type MaterialRoll,
 } from './materials';
+import { rareRollsProblem, withItemsFound, type RareItemRoll } from './finding';
+import { installProblem, withRareUpgradeInstalled } from './install';
+import { turnoutGear, withEquipmentHandedOver } from './handover';
 import { moveProblem, rebuildAfterMove, storesAfterMove, withBaseMoved } from './move';
 
 /** This turn's haul, as the table rolled it (pp. 17–19). */
@@ -62,6 +65,13 @@ export interface HaulForm {
    * picks (pg. 17). Ignored with the skill, and with nobody scavenging.
    */
   readonly scavenged?: Material | undefined;
+
+  /**
+   * The Rare Item Table's dice, two for each unforced 10 among the rolls and
+   * for each roll a save from before v17 owes (pp. 19, 43; R49; Z5-7), with
+   * the ids their items will have. Absent is none.
+   */
+  readonly rareItems?: readonly RareItemRoll[];
 }
 
 /**
@@ -72,10 +82,16 @@ export interface HaulForm {
  *
  * Two entries where somebody scavenged, the haul first, so the history reads in
  * the order the step happened: what went into storage, and then what one
- * survivor's turn away from the mission was worth.
+ * survivor's turn away from the mission was worth. Then an `item-found` for
+ * each Rare Item Table roll, which every 10 and every roll a save from before
+ * v17 owes must bring (Z5-7).
  */
 export function submitHaul(campaign: Campaign, form: HaulForm, at: string): FormResult {
   if (materialsAdded(campaign)) return refused('This turn’s haul is already in storage.');
+
+  const rareItems = form.rareItems ?? [];
+  const rare = rareRollsProblem(campaign, form.rolls, rareItems);
+  if (rare !== null) return refused(rare);
 
   const found = scavenged(campaign, form.scavenged);
   const adding = combined(
@@ -88,16 +104,18 @@ export function submitHaul(campaign: Campaign, form: HaulForm, at: string): Form
   });
 
   const survivor = scavenger(campaign);
-  if (survivor === undefined) return accepted(stored);
+  const withFind =
+    survivor === undefined
+      ? stored
+      : logged(stored, at, {
+          kind: 'materials-scavenged',
+          survivor: survivor.id,
+          name: survivor.name,
+          ...found,
+        });
 
-  return accepted(
-    logged(stored, at, {
-      kind: 'materials-scavenged',
-      survivor: survivor.id,
-      name: survivor.name,
-      ...found,
-    }),
-  );
+  // What the Rare Item Table found, after the materials, as the step reads.
+  return accepted(withItemsFound(withFind, rareItems, at));
 }
 
 /**
@@ -419,16 +437,45 @@ export function submitBaseMove(
   const stores = storesAfterMove(campaign);
   const rebuild = rebuildAfterMove(campaign);
 
+  const moved = logged(withBaseMoved(campaign, leaving), at, {
+    kind: 'base-moved',
+    from,
+    to,
+    setAside: campaign.survivors
+      .filter((survivor) => leaving.includes(survivor.id))
+      .map((survivor) => ({ survivor: survivor.id, name: survivor.name })),
+    ...(stores === null ? {} : { stores }),
+    ...(rebuild === null ? {} : { rebuild }),
+  });
+
+  // Moving into a Regional Firehouse hands over its Turnout Gear (R46; Z5-8).
+  return accepted(withEquipmentHandedOver(moved, to, turnoutGear(moved, to), at));
+}
+
+/**
+ * Install a rare upgrade from the base's Inventory in a standing facility of
+ * its kind, at Add Facilities and Upgrades (pg. 49; R47; Z5-8). Refused for
+ * whatever `installProblem` says.
+ */
+export function submitRareUpgradeInstalled(
+  campaign: Campaign,
+  id: string,
+  slot: string,
+  at: string,
+): FormResult {
+  const problem = installProblem(campaign, id, slot);
+  if (problem !== null) return refused(problem);
+
+  // Present: `installProblem` found it in the Inventory.
+  const item = campaign.inventory.find((held) => held.id === id) as Item;
+
   return accepted(
-    logged(withBaseMoved(campaign, leaving), at, {
-      kind: 'base-moved',
-      from,
-      to,
-      setAside: campaign.survivors
-        .filter((survivor) => leaving.includes(survivor.id))
-        .map((survivor) => ({ survivor: survivor.id, name: survivor.name })),
-      ...(stores === null ? {} : { stores }),
-      ...(rebuild === null ? {} : { rebuild }),
+    logged(withRareUpgradeInstalled(campaign, id, slot), at, {
+      kind: 'rare-upgrade-installed',
+      id,
+      item: item.item,
+      grade: item.grade,
+      slot,
     }),
   );
 }

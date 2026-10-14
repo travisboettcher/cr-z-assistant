@@ -559,6 +559,38 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
         grade: fc.constantFrom(...GRADES),
       }),
     ),
+    fc.record(
+      {
+        kind: fc.constant('equipment-handed-over' as const),
+        base: fc.constantFrom(...BASE_IDS),
+        slot: anyId,
+        items: fc.array(itemArbitrary(), { maxLength: 2 }),
+      },
+      { requiredKeys: ['kind', 'base', 'items'] },
+    ),
+    fc.record({
+      kind: fc.constant('rare-upgrade-installed' as const),
+      id: anyId,
+      item: fc.constantFrom(...ITEM_IDS),
+      grade: fc.constantFrom(...GRADES),
+      slot: anyId,
+    }),
+    fc.record({
+      kind: fc.constant('item-found' as const),
+      id: anyId,
+      item: fc.constantFrom(...ITEM_IDS),
+      grade: fc.constantFrom(...GRADES),
+      subtable: fc.constantFrom(...D10_RESULTS),
+      entry: fc.constantFrom(...D10_RESULTS),
+    }),
+    fc.record({
+      kind: fc.constant('item-built' as const),
+      id: anyId,
+      item: fc.constantFrom(...ITEM_IDS),
+      grade: fc.constantFrom(...GRADES),
+      hardware: anyCount,
+      labor: anyCount,
+    }),
     fc.record({
       kind: fc.constant('items-spent' as const),
       team: fc.integer({ min: 1, max: 4 }),
@@ -727,6 +759,7 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
             itemArbitrary().filter((item) => item.grade !== 'shoddy'),
             { maxLength: 3 },
           ),
+          rareRollsOwed: anyCount,
           startingCommunityBuilt: fc.boolean(),
           // Half the campaigns have claimed a base and half have not; null is a
           // real state and a round trip can get it wrong by writing `{}`.
@@ -752,6 +785,7 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
             'survivors',
             'setAside',
             'inventory',
+            'rareRollsOwed',
             'startingCommunityBuilt',
             'base',
             'log',

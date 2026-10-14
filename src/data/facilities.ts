@@ -172,6 +172,8 @@ export interface Effects {
   readonly spellLearning?: { readonly xpCost: number; readonly maxHumanity: number };
   /** The Garden keeps producing in cold weather — the Greenhouse (pg. 72). Phase 8. */
   readonly ignoresColdWeather?: true;
+  /** Added to the community's Unrest while working (pg. 49): the video game console. */
+  readonly unrest?: number;
 }
 
 /** Limits on how many of an upgrade a facility may hold, beyond the cap of three. */
@@ -193,10 +195,11 @@ export interface Upgrade {
   /**
    * Rare base upgrades do not count against the three-upgrade cap (pg. 49).
    *
-   * Every upgrade in this table is an ordinary one; the flag exists because the
-   * cap is computed by filtering it, and a filter over a field nothing sets is
-   * still the correct shape for the rule. Rare upgrades arrive with the Rare
-   * Item Table in Phase 5.
+   * Set on the two rare upgrades that count as no ordinary one — fertilizer
+   * and the video game console — which are installed from the Inventory and
+   * never ordered (R47; Z5-8). A rare item that counts as an ordinary upgrade
+   * stands on the facility as that upgrade, flagged rare where it is installed
+   * (`occupants`).
    */
   readonly rare?: true;
 }
@@ -251,6 +254,14 @@ export const FACILITIES = {
         cost: { hardware: 2, labor: 1 },
         requires: { origin: 'cosmic-horror' },
         effects: { madnessRecovery: { base: 2, withPower: 4 } },
+      },
+      {
+        // A rare upgrade: installed from the Inventory, never ordered (pg. 49).
+        id: 'video-game-console',
+        cost: { hardware: 0, labor: 0 },
+        requires: { utilities: ['power'] },
+        effects: { unrest: -3, siegeThreat: { perTurn: 1 } },
+        rare: true,
       },
     ],
   },
@@ -307,6 +318,13 @@ export const FACILITIES = {
           ignoresColdWeather: true,
         },
         constraints: { maxPerFacility: 1, excludes: ['fence'], replacementDiscount: 1 },
+      },
+      {
+        // A rare upgrade: installed from the Inventory, never ordered (pg. 49).
+        id: 'fertilizer',
+        cost: { hardware: 0, labor: 0 },
+        effects: { production: [{ kind: 'flat', output: 'food', amount: 1 }] },
+        rare: true,
       },
     ],
   },
@@ -586,6 +604,8 @@ export const FACILITY_IDS = Object.keys(FACILITIES) as readonly FacilityId[];
 
 /** Every upgrade id in the table, as a union — an upgrade cannot be invented. */
 export type UpgradeId =
+  | 'video-game-console'
+  | 'fertilizer'
   | 'extra-bed'
   | 'loft'
   | 'lounge'

@@ -186,7 +186,6 @@ export function withConversion(campaign: Campaign, conversion: Conversion): Camp
     food: -spend.food,
     fuel: -spend.fuel,
     hardware: -spend.hardware,
-    rare: -spend.rare,
   });
 
   return { ...campaign, materials: combined(campaign.materials, change) };

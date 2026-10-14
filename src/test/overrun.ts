@@ -45,7 +45,7 @@ export function overrun(after: readonly LogEntry[] = [], overrides: Partial<Camp
     ...createNewCampaign('Cedar Hollow', FIXED),
     turn: 4,
     step: 'tactical-mission',
-    materials: { food: 7, fuel: 3, hardware: 5, rare: 1 },
+    materials: { food: 7, fuel: 3, hardware: 5 },
     base: { id: 'hobby-farm', slots: {} },
     survivors: [OVERRUN_EARL, OVERRUN_RUBY],
     log: [...OVERRUN_LOG, ...after],

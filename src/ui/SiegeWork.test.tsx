@@ -45,7 +45,7 @@ function besieged(overrides: Partial<Campaign> = {}, hurt: readonly string[] = [
     ...createNewCampaign('Cedar Hollow'),
     turn: 4,
     step: 'tactical-mission',
-    materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+    materials: { food: 0, fuel: 0, hardware: 0 },
     survivors,
     assignments: {
       [COOK]: { task: 'staff', slot: 'kitchen' },

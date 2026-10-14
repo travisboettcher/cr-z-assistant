@@ -60,13 +60,13 @@ describe('submitHaul', () => {
       submitHaul(afterAMission(), { rolls: [{ roll: 4 }, { roll: 7 }] }, AT),
     );
 
-    expect(after.materials).toEqual({ food: 1, fuel: 0, hardware: 1, rare: 0 });
+    expect(after.materials).toEqual({ food: 1, fuel: 0, hardware: 1 });
     expect(after.log).toEqual([
       {
         turn: 3,
         phase: 'advancement',
         at: AT,
-        event: { kind: 'materials-added', food: 1, fuel: 0, hardware: 1, rare: 0 },
+        event: { kind: 'materials-added', food: 1, fuel: 0, hardware: 1 },
       },
     ]);
   });
@@ -110,7 +110,7 @@ describe('submitHaul', () => {
 
     // One each of Food, Fuel and Hardware, the fourth in Hardware, and the
     // rolled 4 a Food.
-    expect(after.materials).toEqual({ food: 2, fuel: 1, hardware: 2, rare: 0 });
+    expect(after.materials).toEqual({ food: 2, fuel: 1, hardware: 2 });
   });
 
   it('records a scavenger’s find after the haul, with what they chose', () => {
@@ -120,22 +120,21 @@ describe('submitHaul', () => {
           survivors: [createSurvivor('Earl Rhodes', 3, { id: EARL })],
           assignments: { [EARL]: { task: 'scavenging' } },
         }),
-        { rolls: [], scavenged: 'rare' },
+        { rolls: [], scavenged: 'fuel' },
         AT,
       ),
     );
 
-    expect(after.materials).toEqual({ food: 0, fuel: 0, hardware: 0, rare: 1 });
+    expect(after.materials).toEqual({ food: 0, fuel: 1, hardware: 0 });
     expect(events(after)).toEqual([
-      { kind: 'materials-added', food: 0, fuel: 0, hardware: 0, rare: 1 },
+      { kind: 'materials-added', food: 0, fuel: 1, hardware: 0 },
       {
         kind: 'materials-scavenged',
         survivor: EARL,
         name: 'Earl Rhodes',
         food: 0,
-        fuel: 0,
+        fuel: 1,
         hardware: 0,
-        rare: 1,
       },
     ]);
   });
@@ -156,14 +155,14 @@ describe('submitHaul', () => {
             },
           ],
         }),
-        { rolls: [], scavenged: 'rare' },
+        { rolls: [], scavenged: 'fuel' },
         AT,
       ),
     );
 
-    expect(after.materials).toEqual({ food: 0, fuel: 0, hardware: 0, rare: 0 });
+    expect(after.materials).toEqual({ food: 0, fuel: 0, hardware: 0 });
     expect(events(after).slice(1)).toEqual([
-      { kind: 'materials-added', food: 0, fuel: 0, hardware: 0, rare: 0 },
+      { kind: 'materials-added', food: 0, fuel: 0, hardware: 0 },
     ]);
   });
 
@@ -178,7 +177,7 @@ describe('submitConversion', () => {
   /** A Gas Range in the Hobby Farm's built-in Kitchen, which trades two Fuel. */
   const kitchen = (fuel: number) =>
     community({
-      materials: { food: 0, fuel, hardware: 0, rare: 0 },
+      materials: { food: 0, fuel, hardware: 0 },
       base: { id: 'hobby-farm', slots: { kitchen: { upgrades: ['gas-range'] } } },
     });
 
@@ -187,7 +186,7 @@ describe('submitConversion', () => {
       submitConversion(kitchen(2), { slot: 'kitchen', source: 'gas-range' }, AT),
     );
 
-    expect(after.materials).toEqual({ food: 1, fuel: 0, hardware: 0, rare: 0 });
+    expect(after.materials).toEqual({ food: 1, fuel: 0, hardware: 0 });
     expect(events(after)).toEqual([
       {
         kind: 'materials-converted',

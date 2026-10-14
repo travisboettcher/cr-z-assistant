@@ -18,10 +18,24 @@ import {
   type ItemKind,
   type ItemRules,
 } from '../data/equipment';
-import type { Campaign } from '../engine/campaign';
+import type { Campaign, Item } from '../engine/campaign';
+import { D10_RESULTS, type D10Result } from '../data/dice';
+import { permitted } from '../engine/checks';
+import { installProblem, installTargets } from '../engine/install';
+import { rareItemFor } from '../engine/finding';
 import { newItemProblem } from '../engine/equipment';
+import {
+  buildableItems,
+  buildCheck,
+  buildCost,
+  buildGrades,
+  ENCHANTABLE,
+  type Enchantable,
+} from '../engine/making';
+import { laborAvailable } from '../engine/projects';
 import { useCampaign } from '../state/useCampaign';
-import { GRADE_LABELS, ITEM_KIND_LABELS, ITEM_LABELS } from './equipmentLabels';
+import { describeItem, GRADE_LABELS, ITEM_KIND_LABELS, ITEM_LABELS } from './equipmentLabels';
+import { slotLabel } from './baseLabels';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
@@ -84,6 +98,9 @@ export function InventoryPanel({ campaign }: { readonly campaign: Campaign }) {
                         </span>{' '}
                         <PageRef pages={EQUIPMENT[item.item].pages} />
                       </span>
+                      {EQUIPMENT[item.item].kind === 'rare-upgrade' && (
+                        <InstallRareUpgrade campaign={campaign} item={item} />
+                      )}
                       <button
                         type="button"
                         className={SECONDARY}
@@ -107,8 +124,291 @@ export function InventoryPanel({ campaign }: { readonly campaign: Campaign }) {
         )}
       </section>
 
+      <BuildItem campaign={campaign} />
+      <RollRareItem />
       <AddItem campaign={campaign} />
     </div>
+  );
+}
+
+/**
+ * Installing a rare upgrade in a standing facility of its kind, at Add
+ * Facilities and Upgrades (pg. 49; R47; Z5-8). Which facilities, and why not,
+ * are `install.ts`'s answers.
+ */
+function InstallRareUpgrade({
+  campaign,
+  item,
+}: {
+  readonly campaign: Campaign;
+  readonly item: Item;
+}) {
+  const { dispatch } = useCampaign();
+  const targets = installTargets(campaign, item);
+  const [chosen, setChosen] = useState('');
+  const slot = targets.some((occupant) => occupant.slotId === chosen)
+    ? chosen
+    : (targets[0]?.slotId ?? '');
+  const problem = installProblem(campaign, item.id, slot);
+
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      {targets.length > 1 && (
+        <select
+          aria-label={`Install ${ITEM_LABELS[item.item]} in`}
+          className={SELECT}
+          value={slot}
+          onChange={(changed) => {
+            setChosen(changed.target.value);
+          }}
+        >
+          {targets.map((occupant) => (
+            <option key={occupant.slotId} value={occupant.slotId}>
+              {slotLabel(occupant.slotId)}
+            </option>
+          ))}
+        </select>
+      )}
+      <button
+        type="button"
+        className={SECONDARY}
+        disabled={problem !== null}
+        onClick={() => {
+          dispatch({
+            type: 'advancement/rareUpgradeInstalled',
+            id: item.id,
+            slot,
+            at: new Date().toISOString(),
+          });
+        }}
+      >
+        {/* Where it goes is on the button when there is one place, beside it in the picker otherwise. */}
+        Install <span className="sr-only">{ITEM_LABELS[item.item]}</span>
+        {targets.length === 1 && ` in the ${slotLabel(slot)}`}
+      </button>
+      {/* Said, not left to a tooltip a thumb never finds. */}
+      {problem !== null && (
+        <span className="text-xs text-stone-600 dark:text-stone-400">{problem}</span>
+      )}
+    </span>
+  );
+}
+
+/**
+ * Building an item at Planning Step 2 (pp. 20–21, 41–42; Z5-6): the items the
+ * tables price, in the grades they price, at the cost `buildCost` quotes, and
+ * refused for whatever `buildCheck` says. It is in the Inventory the moment it
+ * is paid for.
+ */
+function BuildItem({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+  const itemId = useId();
+  const gradeId = useId();
+  const weaponId = useId();
+
+  const offered = buildableItems(campaign);
+  const [chosenItem, setItem] = useState<ItemId>('blunt');
+  const item = offered.includes(chosenItem) ? chosenItem : (offered[0] ?? 'blunt');
+  const grades = buildGrades(item);
+  const [chosenGrade, setGrade] = useState<Grade>('standard');
+  const grade = grades.includes(chosenGrade) ? chosenGrade : (grades[0] ?? 'standard');
+  const [enchants, setEnchants] = useState<Enchantable>('bladed');
+  const [fresh, setFresh] = useState(() => crypto.randomUUID());
+
+  const rules: ItemRules = EQUIPMENT[item];
+  const onWeapon = rules.build?.kind === 'as-base-weapon';
+  const order = { id: fresh, item, grade, ...(onWeapon ? { enchants } : {}) };
+  const check = buildCheck(campaign, order);
+  const cost = buildCost(campaign, order);
+
+  return (
+    <fieldset className="border-t border-stone-200 pt-4 dark:border-stone-800">
+      <legend className="font-medium">Build an item</legend>
+      <p className={`mt-1 ${HINT}`}>
+        The project team builds it in the Planning Phase, and it is here the moment it is paid for{' '}
+        <PageRef pages="20–21" />
+      </p>
+
+      <div className="mt-3 flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1">
+          <label htmlFor={itemId} className="text-sm">
+            Item to build
+          </label>
+          <select
+            id={itemId}
+            className={SELECT}
+            value={item}
+            onChange={(changed) => {
+              setItem(changed.target.value as ItemId);
+            }}
+          >
+            {KINDS.map((kind) => {
+              const ofKind = offered.filter((id) => EQUIPMENT[id].kind === kind);
+
+              return ofKind.length === 0 ? null : (
+                <optgroup key={kind} label={ITEM_KIND_LABELS[kind]}>
+                  {ofKind.map((id) => (
+                    <option key={id} value={id}>
+                      {ITEM_LABELS[id]}
+                    </option>
+                  ))}
+                </optgroup>
+              );
+            })}
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor={gradeId} className="text-sm">
+            Grade to build
+          </label>
+          <select
+            id={gradeId}
+            className={SELECT}
+            value={grade}
+            onChange={(changed) => {
+              setGrade(changed.target.value as Grade);
+            }}
+          >
+            {grades.map((option) => (
+              <option key={option} value={option}>
+                {GRADE_LABELS[option]}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {onWeapon && (
+          <div className="flex flex-col gap-1">
+            <label htmlFor={weaponId} className="text-sm">
+              Built on
+            </label>
+            <select
+              id={weaponId}
+              className={SELECT}
+              value={enchants}
+              onChange={(changed) => {
+                setEnchants(changed.target.value as Enchantable);
+              }}
+            >
+              {ENCHANTABLE.map((weapon) => (
+                <option key={weapon} value={weapon}>
+                  {ITEM_LABELS[weapon]}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {cost !== undefined && (
+        <p className={`mt-2 ${HINT}`}>
+          {cost.hardware} Hardware · {cost.labor} Labor, of {Math.max(0, laborAvailable(campaign))}{' '}
+          available <PageRef pages={rules.pages} />
+        </p>
+      )}
+
+      {check.blockers.length > 0 && (
+        <ul className="mt-2 flex flex-col gap-1">
+          {check.blockers.map((violation) => (
+            <li key={violation.code} className="text-sm text-amber-800 dark:text-amber-300">
+              {violation.message} <PageRef pages={violation.pages} />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <button
+        type="button"
+        className={`mt-3 ${PRIMARY}`}
+        disabled={!permitted(check, false)}
+        onClick={() => {
+          dispatch({ type: 'planning/itemBuilt', order, at: new Date().toISOString() });
+          setFresh(crypto.randomUUID());
+        }}
+      >
+        Build
+      </button>
+    </fieldset>
+  );
+}
+
+/**
+ * A roll on the Rare Item Table by hand (pg. 43; Z5-7), for the story and
+ * origin rewards that roll on it. A haul's 10s are rolled at Add Materials to
+ * Storage instead, where they are owed.
+ */
+function RollRareItem() {
+  const { dispatch } = useCampaign();
+  const firstId = useId();
+  const secondId = useId();
+  const [subtable, setSubtable] = useState<D10Result | undefined>(undefined);
+  const [entry, setEntry] = useState<D10Result | undefined>(undefined);
+
+  const die = (
+    id: string,
+    label: string,
+    value: D10Result | undefined,
+    set: (d: D10Result) => void,
+  ) => (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="text-sm">
+        {label}
+      </label>
+      <select
+        id={id}
+        className={SELECT}
+        value={value ?? ''}
+        onChange={(changed) => {
+          set(Number(changed.target.value) as D10Result);
+        }}
+      >
+        <option value="" disabled>
+          Rolled…
+        </option>
+        {D10_RESULTS.map((result) => (
+          <option key={result} value={result}>
+            {result}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
+  return (
+    <fieldset className="border-t border-stone-200 pt-4 dark:border-stone-800">
+      <legend className="font-medium">Roll on the Rare Item Table</legend>
+      <p className={`mt-1 ${HINT}`}>
+        For a reward that rolls on it. A material roll of 10 is rolled with the haul{' '}
+        <PageRef pages={43} />
+      </p>
+
+      <div className="mt-3 flex flex-wrap items-end gap-3">
+        {die(firstId, 'First d10', subtable, setSubtable)}
+        {die(secondId, 'Second d10', entry, setEntry)}
+        {subtable !== undefined && entry !== undefined && (
+          <p className="text-sm font-medium">{describeItem(rareItemFor(subtable, entry))}</p>
+        )}
+      </div>
+
+      <button
+        type="button"
+        className={`mt-3 ${SECONDARY}`}
+        disabled={subtable === undefined || entry === undefined}
+        onClick={() => {
+          if (subtable === undefined || entry === undefined) return;
+          dispatch({
+            type: 'inventory/rareItemRolled',
+            roll: { id: crypto.randomUUID(), subtable, entry },
+            at: new Date().toISOString(),
+          });
+          setSubtable(undefined);
+          setEntry(undefined);
+        }}
+      >
+        Add what it finds
+      </button>
+    </fieldset>
   );
 }
 
@@ -189,7 +489,7 @@ function AddItem({ campaign }: { readonly campaign: Campaign }) {
 
         <button
           type="button"
-          className={PRIMARY}
+          className={SECONDARY}
           disabled={problem !== null}
           onClick={() => {
             dispatch({

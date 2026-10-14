@@ -104,6 +104,7 @@ function orderedSlot(state: SlotState): Record<keyof SlotState, unknown> {
     upgrades: state.upgrades,
     power: state.power,
     water: state.water,
+    installed: state.installed?.map(orderedItem),
   };
 }
 
@@ -239,9 +240,11 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
       ...(event.stores === undefined
         ? {}
         : {
-            stores: Object.fromEntries(
-              MATERIALS.map((material) => [material, event.stores?.[material]]),
-            ),
+            // Rare after the three, on an entry from before v17 (R49).
+            stores: Object.fromEntries([
+              ...MATERIALS.map((material) => [material, event.stores?.[material]]),
+              ...(event.stores.rare === undefined ? [] : [['rare', event.stores.rare]]),
+            ]),
           }),
       ...(event.rebuild === undefined
         ? {}
@@ -255,6 +258,9 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
     };
   }
 
+  if (event.kind === 'equipment-handed-over') {
+    return { ...taggedFirst(event, 'kind'), items: event.items.map(orderedItem) };
+  }
   if (event.kind === 'items-spent') {
     return {
       ...taggedFirst(event, 'kind'),
@@ -337,6 +343,7 @@ function inFileOrder(campaign: Campaign): Record<keyof Campaign, unknown> {
     survivors: campaign.survivors.map(orderedSurvivor),
     setAside: campaign.setAside.map(orderedSurvivor),
     inventory: campaign.inventory.map(orderedItem),
+    rareRollsOwed: campaign.rareRollsOwed,
     startingCommunityBuilt: campaign.startingCommunityBuilt,
     base: campaign.base === null ? null : orderedBase(campaign.base),
     assignments: orderedAssignments(campaign),

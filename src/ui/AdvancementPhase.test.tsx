@@ -62,6 +62,26 @@ function open(campaign: Campaign) {
 }
 
 const walk = () => screen.getByRole('region', { name: /^turn \d+$/i });
+
+/** The two Rare Item Table dice for the first roll owed (pg. 43; Z5-7). */
+async function rollRare(user: ReturnType<typeof userEvent.setup>, subtable: number, entry: number) {
+  await user.selectOptions(
+    within(walk()).getByLabelText('Rare Item Table roll 1, first d10'),
+    String(subtable),
+  );
+  await user.selectOptions(
+    within(walk()).getByLabelText('Rare Item Table roll 1, second d10'),
+    String(entry),
+  );
+}
+
+/** What the Inventory card beside the turn counts. */
+const inventoryCount = () =>
+  within(
+    within(screen.getByRole('complementary', { name: /community summary/i })).getByRole('region', {
+      name: /^inventory$/i,
+    }),
+  ).getByText(/item/).textContent;
 const next = () => screen.getByRole('button', { name: /^next:/i });
 
 /** The +1 XP button on the row for this survivor, under this pool. */
@@ -258,7 +278,7 @@ describe('Add Materials to Storage', () => {
 
       expect(within(walk()).getByText(/earl rhodes scavenged instead/i)).toBeTruthy();
       expect(within(walk()).getByText(/\+1 Food/)).toBeTruthy();
-      expect(within(walk()).getByText(/\+1 Rare/)).toBeTruthy();
+      expect(within(walk()).getByText(/\+1 Hardware/)).toBeTruthy();
     });
 
     it('asks which material an unskilled scavenger brought back', async () => {
@@ -268,9 +288,9 @@ describe('Add Materials to Storage', () => {
       // the turn quietly come to nothing.
       expect(within(walk()).getByText(/brings back nothing/i)).toBeTruthy();
 
-      await user.selectOptions(within(walk()).getByLabelText(/brought back/i), 'rare');
+      await user.selectOptions(within(walk()).getByLabelText(/brought back/i), 'hardware');
 
-      expect(within(walk()).getByText(/\+1 Rare/)).toBeTruthy();
+      expect(within(walk()).getByText(/\+1 Hardware/)).toBeTruthy();
       expect(within(walk()).queryByText(/brings back nothing/i)).toBeNull();
     });
 
@@ -279,11 +299,8 @@ describe('Add Materials to Storage', () => {
 
       await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
 
-      expect(stored(/^rare$/i)).toBe(1);
       expect(
-        within(campaignLog()).getByText(
-          /earl rhodes scavenged 1 food, 1 fuel, 1 hardware, 1 rare/i,
-        ),
+        within(campaignLog()).getByText(/earl rhodes scavenged 1 food, 1 fuel, 1 hardware\./i),
       ).toBeTruthy();
     });
 
@@ -380,13 +397,41 @@ describe('Add Materials to Storage', () => {
     const user = open(onTheStep());
 
     await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '10');
+    await rollRare(user, 3, 1);
     await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
 
     expect(within(walk()).getByText(/already in storage/i)).toBeTruthy();
     expect(within(walk()).queryByRole('button', { name: /add to storage/i })).toBeNull();
 
-    // And it landed: the overview's Rare count moved.
-    expect(stored(/^rare$/i)).toBe(1);
+    // And it landed: the 10 is an item in the Inventory (Z5-7).
+    expect(inventoryCount()).toBe('1 item');
+  });
+
+  /** A 10 is a roll on the Rare Item Table, instead of a material (pp. 19, 43; Z5-7). */
+  it('asks for the Rare Item Table’s dice for a 10, and names what they find', async () => {
+    const user = open(onTheStep());
+
+    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '10');
+
+    expect(within(walk()).getByRole('button', { name: /add to storage/i })).toBeDisabled();
+    expect(within(walk()).getByText(/needs its two dice/i)).toBeTruthy();
+
+    await rollRare(user, 3, 1);
+
+    expect(within(walk()).getByText('standard riot shield')).toBeTruthy();
+    expect(within(walk()).getByRole('button', { name: /add to storage/i })).toBeEnabled();
+
+    await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
+
+    expect(within(campaignLog()).getByText(/rolling 3 then 1: standard riot shield/i)).toBeTruthy();
+  });
+
+  /** R49: each Rare a save from before v17 held is a roll owed here. */
+  it('asks for a roll for each Rare the campaign held', () => {
+    open({ ...onTheStep(), rareRollsOwed: 2 });
+
+    expect(within(walk()).getByText(/2 more are owed for the Rare/i)).toBeTruthy();
+    expect(within(walk()).getByLabelText('Rare Item Table roll 2, first d10')).toBeTruthy();
   });
 
   it('takes a roll back off the list', async () => {
@@ -535,9 +580,10 @@ describe('Add Materials to Storage', () => {
     await user.click(screen.getByRole('button', { name: /enter the rolls/i }));
 
     await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '10');
+    await rollRare(user, 3, 1);
     await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
 
-    expect(stored(/^rare$/i)).toBe(1);
+    expect(inventoryCount()).toBe('1 item');
   });
 
   it('stores the base’s production alone when the question is accepted', async () => {
@@ -566,7 +612,7 @@ describe('Add Materials to Storage', () => {
     const user = open(
       onTheStep({
         // The Small Town Home stores 4 Food (pg. 54).
-        materials: { food: 4, fuel: 0, hardware: 0, rare: 0 },
+        materials: { food: 4, fuel: 0, hardware: 0 },
       }),
     );
 
@@ -590,7 +636,7 @@ describe('conversions', () => {
   const withGasRange = (overrides: Partial<Campaign> = {}) =>
     advancement({
       step: 'add-materials-to-storage',
-      materials: { food: 0, fuel: 4, hardware: 0, rare: 0 },
+      materials: { food: 0, fuel: 4, hardware: 0 },
       base: { id: 'small-town-home', slots: { kitchen: { upgrades: ['gas-range'] } } },
       // Nobody went out, so pressing Add to storage with no rolls commits
       // rather than asking (issue #96's dialog). These are about the trades,
@@ -923,7 +969,7 @@ describe('Add Facilities and Upgrades', () => {
   const queued = (orderedOnTurn: number): Campaign =>
     advancement({
       step: 'add-facilities-and-upgrades',
-      materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+      materials: { food: 0, fuel: 0, hardware: 0 },
       projects: [
         onOrder({ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn }),
         onOrder({ kind: 'upgrade', slot: 'kitchen', upgrade: 'gas-range', orderedOnTurn }),
@@ -981,6 +1027,40 @@ describe('Add Facilities and Upgrades', () => {
     );
 
     expect(within(walk()).getByRole('button', { name: /finish the project/i })).toBeTruthy();
+  });
+
+  /** The Outdoor Sports Shop's Inventory slot hands over four weapons the player picks (R45). */
+  it('asks for the Sports Shop’s weapons before it finishes, and puts them in the Inventory', async () => {
+    const user = open(
+      advancement({
+        step: 'add-facilities-and-upgrades',
+        base: { id: 'outdoor-sports-shop', slots: {} },
+        projects: [onOrder({ kind: 'clearing', slot: 'inventory', orderedOnTurn: 2 })],
+      }),
+    );
+    const finish = within(walk()).getByRole('button', { name: /finish the project/i });
+
+    expect(finish).toHaveProperty('disabled', true);
+
+    for (const at of [1, 2, 3, 4]) {
+      await user.selectOptions(within(walk()).getByLabelText(`Weapon ${String(at)}`), 'bow');
+    }
+    expect(finish).toHaveProperty('disabled', false);
+    await user.click(finish);
+
+    expect(inventoryCount()).toBe('4 items');
+    expect(within(walk()).queryByLabelText('Weapon 1')).toBeNull();
+  });
+
+  it('points at the Inventory while it holds a rare upgrade to install', () => {
+    open(
+      advancement({
+        step: 'add-facilities-and-upgrades',
+        inventory: [{ id: 'g', item: 'gas-grill', grade: 'standard' }],
+      }),
+    );
+
+    expect(within(walk()).getByText(/holds a rare upgrade/i)).toBeTruthy();
   });
 });
 
@@ -1244,10 +1324,10 @@ describe('Moving in after an overrun', () => {
       }),
     );
 
-    // From 7 Food, 3 Fuel, 5 Hardware and 1 Rare, halved and rounded down.
+    // From 7 Food, 3 Fuel and 5 Hardware, halved and rounded down.
     expect(
       within(screen.getByRole('region', { name: 'Move into the new base' })).getByText(
-        /the stores will hold 3 Food, 1 Fuel, 2 Hardware, 0 Rare/,
+        /the stores will hold 3 Food, 1 Fuel, 2 Hardware/,
       ),
     ).toBeTruthy();
   });

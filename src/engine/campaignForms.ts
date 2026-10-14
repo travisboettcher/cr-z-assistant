@@ -19,9 +19,12 @@ import type { Tier } from '../data/tiers';
 import { withoutAssignment } from './assignments';
 import { storageCaps } from './base';
 import type { Campaign, Item, Survivor } from './campaign';
-import { newItemProblem, removalProblem, type NewItem } from './equipment';
-import { accepted, refused, type Accepted, type FormResult } from './forms';
+import { allItems, newItemProblem, removalProblem, type NewItem } from './equipment';
+import { rareItemFor, type RareItemRoll } from './finding';
+import { turnoutGear, withEquipmentHandedOver } from './handover';
+import { accepted, blockedBy, refused, type Accepted, type FormResult } from './forms';
 import { logged } from './log';
+import { buildCheck, buildCost, withItemBuilt, type BuildCost, type BuildOrder } from './making';
 import { FIRST_PLANNING_STEP, planningHasBegun, withPlanningReset } from './planning';
 import { deployed } from './missions';
 import { siegeDue } from './siege';
@@ -148,16 +151,17 @@ export function submitBaseClaim(campaign: Campaign, base: BaseId, at: string): F
   const claimed = { ...campaign, base: { id: base, slots: {} } };
   const caps = storageCaps(claimed.base, suppliedOccupants(claimed));
 
-  return accepted(
-    logged(
-      logged({ ...claimed, materials: { ...campaign.materials, ...caps } }, at, {
-        kind: 'base-claimed',
-        base,
-      }),
-      at,
-      { kind: 'base-stocked', ...caps },
-    ),
+  const stocked = logged(
+    logged({ ...claimed, materials: { ...campaign.materials, ...caps } }, at, {
+      kind: 'base-claimed',
+      base,
+    }),
+    at,
+    { kind: 'base-stocked', ...caps },
   );
+
+  // A Regional Firehouse hands over its Turnout Gear (R46; Z5-8).
+  return accepted(withEquipmentHandedOver(stocked, base, turnoutGear(stocked, base), at));
 }
 
 /**
@@ -455,6 +459,59 @@ export function submitItemRemoved(campaign: Campaign, id: string, at: string): F
       id,
       item: removed.item,
       grade: removed.grade,
+    }),
+  );
+}
+
+/**
+ * Build an item at Planning Step 2 (pp. 20–21; Z5-6): its Hardware spent, the
+ * item in the base's Inventory at once, and an `item-built` entry recording the
+ * Labor it took, which `laborCommitted` reads back.
+ */
+export function submitItemBuilt(campaign: Campaign, order: BuildOrder, at: string): FormResult {
+  const problem = blockedBy(buildCheck(campaign, order));
+  if (problem !== null) return refused(problem);
+
+  // Present: `buildCheck` refuses an order it cannot price.
+  const cost = buildCost(campaign, order) as BuildCost;
+
+  return accepted(
+    logged(withItemBuilt(campaign, order, cost), at, {
+      kind: 'item-built',
+      id: order.id,
+      item: order.item,
+      grade: order.grade,
+      hardware: cost.hardware,
+      labor: cost.labor,
+    }),
+  );
+}
+
+/**
+ * Roll on the Rare Item Table by hand, from the Inventory (pg. 43; Z5-7): for
+ * the story and origin rewards that roll on it, which are Phase 7's missions
+ * and have nowhere else to put their item yet. The item and both dice go on an
+ * `item-found` entry, as a haul's do.
+ */
+export function submitRareItemRolled(
+  campaign: Campaign,
+  roll: RareItemRoll,
+  at: string,
+): FormResult {
+  if (allItems(campaign).some((item) => item.id === roll.id)) {
+    return refused('An item already has that id.');
+  }
+
+  // Not `withItemsFound`, which also settles the rolls a haul owes (R49).
+  const found = rareItemFor(roll.subtable, roll.entry);
+  const item = { id: roll.id, item: found.item, grade: found.grade };
+
+  return accepted(
+    logged({ ...campaign, inventory: [...campaign.inventory, item] }, at, {
+      kind: 'item-found',
+      ...item,
+      subtable: roll.subtable,
+      entry: roll.entry,
     }),
   );
 }

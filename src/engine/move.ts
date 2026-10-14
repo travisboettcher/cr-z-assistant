@@ -109,11 +109,10 @@ export function withBaseMoved(campaign: Campaign, leaving: readonly string[]): C
  * - **Any other claim after an overrun:** nothing (R29).
  * - **Starting over, or a new community after leaving the survivors behind:**
  *   the old stores are lost, and the new base arrives stocked to its caps as a
- *   first base does (R30, R31). Rare has no cap (pg. 54), so it starts at
- *   none.
+ *   first base does (R30, R31).
  *
- * Every material alike, Rare included: the app keeps Rare in the same stores
- * as the other three, and the overrun's recovery is of the stores.
+ * Every material alike, since the overrun's recovery is of the stores. Rare
+ * was a fourth until schema v17 made a 10 an item (R49); items are not stores.
  */
 export function storesAfterMove(campaign: Campaign): Materials | null {
   // A way on is only ever chosen after an overrun, so a choice is the overrun.
@@ -124,7 +123,7 @@ export function storesAfterMove(campaign: Campaign): Materials | null {
   if (option !== 'claim') {
     const stocked = { ...campaign, base: { id: to, slots: {} } };
 
-    return { rare: 0, ...storageCaps(stocked.base, suppliedOccupants(stocked)) };
+    return storageCaps(stocked.base, suppliedOccupants(stocked));
   }
 
   // The outcome says "same map" only of a claim of the overrun base's own type:

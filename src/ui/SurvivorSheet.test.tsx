@@ -585,7 +585,7 @@ describe('a community that is going hungry', () => {
       createSurvivor('Tomas Ford', 4, { id: 'tomas' }),
       createSurvivor('Ada Poole', 4, { id: 'ada' }),
     ],
-    materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+    materials: { food: 0, fuel: 0, hardware: 0 },
     log: [
       {
         turn: 3,

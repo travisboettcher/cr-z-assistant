@@ -43,6 +43,7 @@ const SAMPLE_SLOT = {
   upgrades: ['spotlight'],
   power: true,
   water: true,
+  installed: [{ id: 'grill', item: 'gas-grill', grade: 'standard' }],
 } satisfies SlotState;
 
 const SAMPLE_BASE = {
@@ -266,7 +267,8 @@ describe('migrate', () => {
     expect(result.campaign.name).toBe('Cedar Hollow');
     expect(result.campaign.turn).toBe(3);
     expect(result.campaign.step).toBe('assign-facility-staff');
-    expect(result.campaign.materials).toEqual({ food: 4, fuel: 2, hardware: 7, rare: 1 });
+    expect(result.campaign.materials).toEqual({ food: 4, fuel: 2, hardware: 7 });
+    expect(result.campaign.rareRollsOwed).toBe(1);
   });
 
   it('leaves the original object untouched', () => {
@@ -637,5 +639,53 @@ describe('the v15 to v16 items', () => {
 
     expect(result.campaign.inventory).toEqual([pistol]);
     expect(result.campaign.survivors[0]?.items).toEqual([pistol]);
+  });
+});
+
+/** R49: the Rare in storage becomes Rare Item Table rolls owed, and stops being a material. */
+describe('the v16 to v17 Rare rolls', () => {
+  it('owes a roll for each Rare every earlier save held, and keeps the three materials', () => {
+    for (const fixture of fixtures.filter((f) => f.version < 17)) {
+      const before = (fixture.contents as { materials: Record<string, number> }).materials;
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok) continue;
+
+      expect(result.campaign.rareRollsOwed, fixture.path).toBe(before.rare ?? 0);
+      expect(Object.keys(result.campaign.materials), fixture.path).toEqual([
+        'food',
+        'fuel',
+        'hardware',
+      ]);
+    }
+  });
+
+  it('owes nothing for a save with no Rare count', () => {
+    const v16 = fixtures.find((fixture) => fixture.version === 16);
+    const result = migrate({
+      ...(v16?.contents as object),
+      materials: { food: 1, fuel: 1, hardware: 1 },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.rareRollsOwed).toBe(0);
+  });
+
+  it('hands unreadable materials on for the reader to refuse', () => {
+    const v16 = fixtures.find((fixture) => fixture.version === 16);
+
+    for (const materials of ['plenty', null, [1, 2]]) {
+      const result = migrate({ ...(v16?.contents as object), materials });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) continue;
+
+      expect(result.campaign.materials).toEqual(materials);
+      expect(result.campaign.rareRollsOwed).toBe(0);
+      expect(result.campaign.name).toBe('Cedar Hollow');
+    }
   });
 });

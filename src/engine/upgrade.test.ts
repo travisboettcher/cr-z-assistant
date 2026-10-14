@@ -10,7 +10,7 @@ const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-
 function campaignWith(base: Base | null, overrides: Partial<Campaign> = {}): Campaign {
   return withPlanningBegun({
     ...createNewCampaign('Cedar Hollow', FIXED),
-    materials: { food: 0, fuel: 0, hardware: 20, rare: 0 },
+    materials: { food: 0, fuel: 0, hardware: 20 },
     // A project team big enough that Labor is never the thing under test. The
     // pool is the summed Tier levels of whoever is on it (pg. 20), so the tests
     // that *are* about Labor override this with a smaller one.
@@ -80,7 +80,7 @@ describe('checkUpgrade', () => {
 
   it('refuses an upgrade the community cannot pay for', () => {
     const poor = campaignWith(home(), {
-      materials: { food: 0, fuel: 0, hardware: 1, rare: 0 },
+      materials: { food: 0, fuel: 0, hardware: 1 },
       ...projectTeamWorth(0),
     });
 
@@ -308,7 +308,7 @@ describe('checkUpgrade', () => {
     // The boundary, asserted because `<` and `<=` differ only here: a Gas Range
     // costs 2 Hardware and 1 Labor.
     const exact = campaignWith(home(), {
-      materials: { food: 0, fuel: 0, hardware: 2, rare: 0 },
+      materials: { food: 0, fuel: 0, hardware: 2 },
       ...projectTeamWorth(1),
     });
 
@@ -391,7 +391,7 @@ describe('checkUpgrade', () => {
 
     // Three is enough over a Fence and not enough over a bare Garden, which is
     // the whole of what the discount does.
-    const three = { food: 0, fuel: 0, hardware: 3, rare: 0 };
+    const three = { food: 0, fuel: 0, hardware: 3 };
 
     expect(
       codes(checkUpgrade(campaignWith(fenced, { materials: three }), request).blockers),

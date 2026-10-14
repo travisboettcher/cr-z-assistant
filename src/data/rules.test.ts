@@ -35,7 +35,7 @@ import {
   type UpgradeId,
 } from './facilities';
 import { CAMPAIGN_ORIGINS } from './origins';
-import { MATERIALS, type Material } from './materials';
+import { MATERIALS } from './materials';
 import {
   CAMPAIGN_PHASES,
   FOOD_EATEN_PER_TURN,
@@ -314,10 +314,13 @@ describe('facility table', () => {
   it('caps a facility at three upgrades, rare ones excepted', () => {
     expect(MAX_UPGRADES_PER_FACILITY).toBe(3);
 
-    // Nothing in the core table is rare — rare base upgrades come off the Rare
-    // Item Table in Phase 5. The flag exists so the cap is computed by
-    // filtering, which is the shape the rule needs whether or not it fires.
-    expect(UPGRADES_LIST.filter((upgrade) => upgrade.rare)).toHaveLength(0);
+    // The two rare upgrades that count as no ordinary one, installed from the
+    // Inventory and never ordered (pg. 49; R47). Every other rare item stands
+    // as an ordinary upgrade, flagged where it is installed.
+    expect(UPGRADES_LIST.filter((upgrade) => upgrade.rare).map((upgrade) => upgrade.id)).toEqual([
+      'video-game-console',
+      'fertilizer',
+    ]);
   });
 
   it('limits only the Fence and the Greenhouse to one per Garden', () => {
@@ -574,7 +577,7 @@ describe('the campaign turn', () => {
     expect(TIERS.map((tier) => FOOD_EATEN_PER_TURN[tier])).toEqual([1, 1, 2, 2]);
   });
 
-  it('turns every d10 into a material, on the boundaries the book prints', () => {
+  it('turns every d10 into a material or a Rare Item Table roll, on the boundaries the book prints', () => {
     const rolled = D10_RESULTS.map((result) => MATERIAL_ROLL_TABLE[result]);
 
     expect(rolled).toEqual([
@@ -587,12 +590,12 @@ describe('the campaign turn', () => {
       'hardware',
       'hardware',
       'hardware',
-      'rare',
+      'rare-item',
     ]);
 
     // And every material is reachable, so a range that swallowed its
     // neighbour would fail here as well as above.
-    expect([...new Set<Material>(rolled)].sort()).toEqual([...MATERIALS].sort());
+    expect([...new Set(rolled)].sort()).toEqual([...MATERIALS, 'rare-item'].sort());
   });
 
   it('builds Siege Threat out of five distinct terms', () => {
@@ -1001,10 +1004,17 @@ describe('the equipment catalogue (pp. 37–53)', () => {
     expect(EQUIPMENT['tool-belt'].caps).toEqual({ stealth: 3 });
   });
 
+  /** `installTargets` reads `installs` alone as "a rare base upgrade", which holds while this does. */
+  it('names a facility to install in for every rare base upgrade, and nothing else', () => {
+    for (const [id, item] of entries) {
+      expect(item.installs !== undefined, id).toBe(item.kind === 'rare-upgrade');
+    }
+  });
+
   it('installs each rare upgrade as an upgrade its facility really has (pg. 49)', () => {
     for (const [id, item] of entries) {
       const installs = item.installs;
-      if (installs?.countsAs === undefined) continue;
+      if (installs === undefined) continue;
 
       const upgrades: Facility['upgrades'] = FACILITIES[installs.facility].upgrades;
       expect(

@@ -186,6 +186,8 @@ describe('slotLabel', () => {
 
   it('restores punctuation an identifier cannot hold', () => {
     expect(slotLabel('kings-pavilion')).toBe("King's Pavilion");
+    // Not "Inventory": the base's Inventory and a survivor's Inventory Slots have that word.
+    expect(slotLabel('inventory')).toBe('Shop Inventory');
   });
 });
 
@@ -195,7 +197,7 @@ describe('building into a slot', () => {
     return openWith(
       withPlanningBegun({
         ...createNewCampaign('Cedar Hollow'),
-        materials: { food: 0, fuel: 0, hardware, rare: 0 },
+        materials: { food: 0, fuel: 0, hardware },
         // The step that places an order, which is also the only one that may
         // take it back (#148).
         step: 'assign-project-team',
@@ -357,7 +359,7 @@ describe('building into a slot', () => {
   it('says why there is no Labor before this turn has planned', async () => {
     const user = openWith({
       ...createNewCampaign('Cedar Hollow'),
-      materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+      materials: { food: 0, fuel: 0, hardware: 9 },
       base: { id: 'small-town-home', slots: {} },
       ...projectTeamWorth(5),
     });
@@ -396,7 +398,7 @@ describe('a free rebuild', () => {
       withPlanningBegun({
         ...createNewCampaign('Cedar Hollow'),
         turn: 5,
-        materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+        materials: { food: 0, fuel: 0, hardware: 0 },
         step: 'assign-project-team',
         base: { id: 'small-town-home', slots: {} },
         ...projectTeamWorth(5),
@@ -444,7 +446,7 @@ describe('upgrading a facility', () => {
         ...createNewCampaign('Cedar Hollow'),
         // The phase orders are placed in, which R14 confines them to (#171).
         step: 'assign-project-team',
-        materials: { food: 0, fuel: 0, hardware, rare: 0 },
+        materials: { food: 0, fuel: 0, hardware },
         base: { id: 'small-town-home', slots: {} },
         ...projectTeamWorth(5),
       }),
@@ -495,7 +497,7 @@ describe('upgrading a facility', () => {
         // this test is about (pg. 54).
         turn: 3,
         step: 'assign-project-team',
-        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        materials: { food: 0, fuel: 0, hardware: 9 },
         base: {
           id: 'small-town-home',
           slots: {
@@ -527,7 +529,7 @@ describe('upgrading a facility', () => {
       withPlanningBegun({
         ...createNewCampaign('Cedar Hollow'),
         turn: 3,
-        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        materials: { food: 0, fuel: 0, hardware: 9 },
         base: {
           id: 'small-town-home',
           slots: { 'front-yard': { built: { facility: 'garden', builtOnTurn: 1 } } },
@@ -552,7 +554,7 @@ describe('upgrading a facility', () => {
       withPlanningBegun({
         ...createNewCampaign('Cedar Hollow'),
         step: 'assign-project-team',
-        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        materials: { food: 0, fuel: 0, hardware: 9 },
         base: {
           id: 'small-town-home',
           slots: { garage: { built: { facility: 'workshop', builtOnTurn: 1 } } },
@@ -582,7 +584,7 @@ describe('upgrading a facility', () => {
     const user = openWith(
       withPlanningBegun({
         ...createNewCampaign('Cedar Hollow'),
-        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        materials: { food: 0, fuel: 0, hardware: 9 },
         base: { id: 'summer-camp', slots: {} },
         ...projectTeamWorth(5),
       }),
@@ -1042,7 +1044,7 @@ describe('ordering outside the Planning Phase', () => {
         ...createNewCampaign('Cedar Hollow'),
         turn: 3,
         step: 'check-storage',
-        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        materials: { food: 0, fuel: 0, hardware: 9 },
         base: { id: 'small-town-home', slots: {} },
         ...projectTeamWorth(5),
       }),
@@ -1071,7 +1073,7 @@ describe('ordering outside the Planning Phase', () => {
         ...createNewCampaign('Cedar Hollow'),
         turn: 3,
         step: 'assign-mission-team',
-        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        materials: { food: 0, fuel: 0, hardware: 9 },
         base: { id: 'small-town-home', slots: {} },
         ...projectTeamWorth(5),
       }),

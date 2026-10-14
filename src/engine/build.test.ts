@@ -10,7 +10,7 @@ const FIXED = { id: '11111111-2222-3333-4444-555555555555', createdAt: '2026-08-
 function campaignWith(base: Base | null, overrides: Partial<Campaign> = {}): Campaign {
   return withPlanningBegun({
     ...createNewCampaign('Cedar Hollow', FIXED),
-    materials: { food: 0, fuel: 0, hardware: 20, rare: 0 },
+    materials: { food: 0, fuel: 0, hardware: 20 },
     // A project team big enough that Labor is never the thing under test. The
     // pool is the summed Tier levels of whoever is on it (pg. 20), so the tests
     // that *are* about Labor override this with a smaller one.
@@ -105,7 +105,7 @@ describe('checkBuild', () => {
 
   it('refuses a build the community cannot pay for, in either currency', () => {
     const poor = campaignWith(smallTownHome(), {
-      materials: { food: 0, fuel: 0, hardware: 1, rare: 0 },
+      materials: { food: 0, fuel: 0, hardware: 1 },
       ...projectTeamWorth(1),
     });
 
@@ -165,7 +165,7 @@ describe('checkBuild', () => {
     // The boundary, asserted because `<` and `<=` differ only here: a Workshop
     // costs 3 Hardware and 2 Labor, and exactly enough is enough.
     const exact = campaignWith(smallTownHome(), {
-      materials: { food: 0, fuel: 0, hardware: 3, rare: 0 },
+      materials: { food: 0, fuel: 0, hardware: 3 },
       ...projectTeamWorth(2),
     });
 

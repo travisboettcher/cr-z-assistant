@@ -52,7 +52,7 @@ describe('rolledMaterial', () => {
     expect(rolledMaterial({ roll: 6 })).toBe('food');
     expect(rolledMaterial({ roll: 7 })).toBe('hardware');
     expect(rolledMaterial({ roll: 9 })).toBe('hardware');
-    expect(rolledMaterial({ roll: 10 })).toBe('rare');
+    expect(rolledMaterial({ roll: 10 })).toBe('rare-item');
   });
 
   it('takes the forced result over the one that was rolled', () => {
@@ -68,7 +68,6 @@ describe('recovered', () => {
       food: 2,
       fuel: 1,
       hardware: 0,
-      rare: 0,
     });
   });
 
@@ -92,7 +91,7 @@ describe('recovered', () => {
     ];
 
     expect(size(recovered(rolls))).toBe(rolls.length);
-    expect(recovered(rolls)).toEqual({ food: 1, fuel: 1, hardware: 1, rare: 0 });
+    expect(recovered(rolls)).toEqual({ food: 1, fuel: 1, hardware: 1 });
 
     // And the roll it replaced is gone: two Fuel without the substitution, one
     // with it.
@@ -105,7 +104,6 @@ describe('canForce', () => {
     expect(canForce('rationing', 'food')).toBe(true);
     expect(canForce('rationing', 'fuel')).toBe(false);
     expect(canForce('rationing', 'hardware')).toBe(false);
-    expect(canForce('rationing', 'rare')).toBe(false);
 
     expect(canForce('mechanics', 'hardware')).toBe(true);
     expect(canForce('mechanics', 'food')).toBe(false);
@@ -195,7 +193,6 @@ describe('baseProduction', () => {
       food: 2,
       fuel: 0,
       hardware: 0,
-      rare: 0,
     });
   });
 
@@ -298,11 +295,8 @@ describe('baseProduction', () => {
 describe('combined', () => {
   it('adds two hauls material by material', () => {
     expect(
-      combined(
-        { food: 1, fuel: 2, hardware: 3, rare: 4 },
-        { food: 10, fuel: 0, hardware: -1, rare: 0 },
-      ),
-    ).toEqual({ food: 11, fuel: 2, hardware: 2, rare: 4 });
+      combined({ food: 1, fuel: 2, hardware: 3 }, { food: 10, fuel: 0, hardware: -1 }),
+    ).toEqual({ food: 11, fuel: 2, hardware: 2 });
   });
 });
 
@@ -355,7 +349,7 @@ describe('checkMaterials', () => {
     const full: Campaign = {
       ...community({}, greasySpoon()),
       // The Greasy Spoon stores 6 Food (pg. 54).
-      materials: { food: 6, fuel: 0, hardware: 0, rare: 0 },
+      materials: { food: 6, fuel: 0, hardware: 0 },
     };
     const check = checkMaterials(full, [{ roll: 4 }]);
 
@@ -371,7 +365,7 @@ describe('checkMaterials', () => {
     // its cap. Over the cap is over it, not level with it.
     const level: Campaign = {
       ...community({}, greasySpoon()),
-      materials: { food: 4, fuel: 0, hardware: 0, rare: 0 },
+      materials: { food: 4, fuel: 0, hardware: 0 },
     };
 
     expect(checkMaterials(level, [{ roll: 4 }]).warnings).toEqual([]);
@@ -385,19 +379,22 @@ describe('checkMaterials', () => {
     ).toEqual(['over-storage-cap']);
   });
 
-  it('has no cap to report for Rare, which the book gives none', () => {
-    const hoard: Campaign = {
+  /** A 10 is an item, which storage does not cap (pp. 19, 23; R49). */
+  it('has no cap to report for a Rare Item Table roll', () => {
+    const full: Campaign = {
       ...community({}, greasySpoon()),
-      materials: { food: 0, fuel: 0, hardware: 0, rare: 99 },
+      materials: { food: 6, fuel: 6, hardware: 6 },
     };
 
-    expect(checkMaterials(hoard, [{ roll: 10 }]).warnings).toEqual([]);
+    expect(checkMaterials(full, [{ roll: 10 }]).warnings).toEqual(
+      checkMaterials(full, []).warnings,
+    );
   });
 
   it('has no caps to report at all without a base', () => {
     const rich: Campaign = {
       ...community(),
-      materials: { food: 999, fuel: 999, hardware: 999, rare: 999 },
+      materials: { food: 999, fuel: 999, hardware: 999 },
     };
 
     expect(checkMaterials(rich, [{ roll: 4 }]).warnings).toEqual([]);
@@ -408,7 +405,7 @@ describe('checkMaterials', () => {
     // seven — and no roll was involved at all.
     const nearly: Campaign = {
       ...community({}, { id: 'hobby-farm', slots: {} }),
-      materials: { food: 6, fuel: 0, hardware: 0, rare: 0 },
+      materials: { food: 6, fuel: 0, hardware: 0 },
     };
 
     expect(codes(checkMaterials(nearly, []).warnings)).toEqual(['over-storage-cap']);
@@ -424,7 +421,7 @@ describe('materialsAdded', () => {
     turn,
     phase: 'advancement',
     at: AT,
-    event: { kind: 'materials-added', food: 1, fuel: 0, hardware: 0, rare: 0 },
+    event: { kind: 'materials-added', food: 1, fuel: 0, hardware: 0 },
   });
 
   it('is false for a campaign that has not done the step', () => {
@@ -452,23 +449,23 @@ describe('withMaterialsAdded', () => {
   it('adds to what is stored rather than replacing it', () => {
     const stocked: Campaign = {
       ...community(),
-      materials: { food: 2, fuel: 2, hardware: 2, rare: 2 },
+      materials: { food: 2, fuel: 2, hardware: 2 },
     };
 
-    expect(
-      withMaterialsAdded(stocked, { food: 1, fuel: 0, hardware: -1, rare: 0 }).materials,
-    ).toEqual({ food: 3, fuel: 2, hardware: 1, rare: 2 });
+    expect(withMaterialsAdded(stocked, { food: 1, fuel: 0, hardware: -1 }).materials).toEqual({
+      food: 3,
+      fuel: 2,
+      hardware: 1,
+    });
   });
 
   it('caps nothing, because Check Storage is a Management step', () => {
     const full: Campaign = {
       ...community({}, { id: 'greasy-spoon', slots: {} }),
-      materials: { food: 6, fuel: 0, hardware: 0, rare: 0 },
+      materials: { food: 6, fuel: 0, hardware: 0 },
     };
 
-    expect(
-      withMaterialsAdded(full, { food: 10, fuel: 0, hardware: 0, rare: 0 }).materials.food,
-    ).toBe(16);
+    expect(withMaterialsAdded(full, { food: 10, fuel: 0, hardware: 0 }).materials.food).toBe(16);
   });
 
   it('leaves everything else about the campaign alone', () => {
@@ -554,15 +551,14 @@ describe('scavenging', () => {
         food: 1,
         fuel: 1,
         hardware: 1,
-        rare: 1,
       });
     });
 
     it('is one of the chosen type, without it', () => {
       const plain = scavenging(createSurvivor('Carla Proust', 1, { id: EARL }));
 
-      expect(scavenged(plain, 'fuel')).toEqual({ food: 0, fuel: 1, hardware: 0, rare: 0 });
-      expect(size(scavenged(plain, 'rare'))).toBe(1);
+      expect(scavenged(plain, 'fuel')).toEqual({ food: 0, fuel: 1, hardware: 0 });
+      expect(size(scavenged(plain, 'hardware'))).toBe(1);
     });
 
     /**
@@ -579,7 +575,8 @@ describe('scavenging', () => {
 
     /** The choice is ignored where the skill already answers the question. */
     it('is one of each whatever is chosen, with the skill', () => {
-      expect(size(scavenged(scavenging(withScavenge(EARL)), 'rare'))).toBe(4);
+      // One of each of the three: Rare is no longer a material (R49).
+      expect(size(scavenged(scavenging(withScavenge(EARL)), 'food'))).toBe(3);
       expect(scavengeNeedsAChoice(scavenging(withScavenge(EARL)))).toBe(false);
     });
 
@@ -649,11 +646,11 @@ const gathering = (team: number, carried: number, material?: Material): LogEntry
 
 describe('gatheredBy (pg. 80; Z4-6)', () => {
   it('gives one of each stored type and the rest in the chosen one', () => {
-    expect(gatheredBy(5, 'fuel')).toEqual({ food: 1, fuel: 3, hardware: 1, rare: 0 });
+    expect(gatheredBy(5, 'fuel')).toEqual({ food: 1, fuel: 3, hardware: 1 });
   });
 
   it('gives exactly one of each when there is no rest', () => {
-    expect(gatheredBy(3, 'hardware')).toEqual({ food: 1, fuel: 1, hardware: 1, rare: 0 });
+    expect(gatheredBy(3, 'hardware')).toEqual({ food: 1, fuel: 1, hardware: 1 });
   });
 
   it('gives nothing for fewer than one of each, which is rolled instead', () => {
@@ -672,14 +669,14 @@ describe('gathered and gatheredToRoll', () => {
   it('splits each Gather Materials team on its own, and adds them up (R19)', () => {
     const two = turn([...gathering(1, 4, 'food'), ...gathering(2, 3, 'fuel')]);
 
-    expect(gathered(two)).toEqual({ food: 3, fuel: 2, hardware: 2, rare: 0 });
+    expect(gathered(two)).toEqual({ food: 3, fuel: 2, hardware: 2 });
     expect(gatheredToRoll(two)).toBe(0);
   });
 
   it('rolls a short haul instead, and says how many', () => {
     const short = turn([...gathering(1, 2, 'food'), ...gathering(2, 5, 'fuel')]);
 
-    expect(gathered(short)).toEqual({ food: 1, fuel: 3, hardware: 1, rare: 0 });
+    expect(gathered(short)).toEqual({ food: 1, fuel: 3, hardware: 1 });
     expect(gatheredToRoll(short)).toBe(2);
   });
 
@@ -701,7 +698,7 @@ describe('gathered and gatheredToRoll', () => {
       },
     ]);
 
-    expect(gathered(other)).toEqual({ food: 2, fuel: 1, hardware: 1, rare: 0 });
+    expect(gathered(other)).toEqual({ food: 2, fuel: 1, hardware: 1 });
     expect(gatheredToRoll(other)).toBe(0);
   });
 

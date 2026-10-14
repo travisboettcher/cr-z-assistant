@@ -43,6 +43,7 @@ import {
   SCAVENGE_PER_MATERIAL_WITH_SKILL,
   SCAVENGE_TOTAL_WITHOUT_SKILL,
   SUBSTITUTION_SKILLS,
+  type MaterialRollResult,
   type SubstitutionSkill,
 } from '../data/turn';
 import type { D10Result } from '../data/dice';
@@ -80,25 +81,36 @@ export interface MaterialRoll {
 
 /** An empty haul, which is what a turn with no rolls and no production adds. */
 export function noMaterials(): Materials {
-  return { food: 0, fuel: 0, hardware: 0, rare: 0 };
+  return { food: 0, fuel: 0, hardware: 0 };
 }
 
-/** What one roll actually yielded, after any substitution spent on it. */
-export function rolledMaterial(entry: MaterialRoll): Material {
+/**
+ * What one roll actually yielded, after any substitution spent on it: a
+ * material, or a roll on the Rare Item Table for an unforced 10 (pp. 12, 19).
+ * No skill forces a 10 (R9).
+ */
+export function rolledMaterial(entry: MaterialRoll): MaterialRollResult {
   return entry.forced?.material ?? MATERIAL_ROLL_TABLE[entry.roll];
+}
+
+/** How many of these rolls are Rare Item Table rolls rather than materials (pg. 19). */
+export function rareItemRolls(rolls: readonly MaterialRoll[]): number {
+  return rolls.filter((entry) => rolledMaterial(entry) === 'rare-item').length;
 }
 
 /**
  * The materials a set of rolls recovered.
  *
- * The count of everything returned equals the number of rolls, always. That is
- * the substitution rule expressed as a shape rather than as a comment.
+ * The count of everything returned, with `rareItemRolls`, equals the number of
+ * rolls, always. That is the substitution rule expressed as a shape rather
+ * than as a comment: a 10 is an item instead of a material, not as well.
  */
 export function recovered(rolls: readonly MaterialRoll[]): Materials {
   const total = noMaterials();
 
   for (const entry of rolls) {
-    total[rolledMaterial(entry)] += 1;
+    const result = rolledMaterial(entry);
+    if (result !== 'rare-item') total[result] += 1;
   }
 
   return total;

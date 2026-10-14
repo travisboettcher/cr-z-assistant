@@ -1123,7 +1123,7 @@ describe('project/ordered', () => {
     return openState(
       withPlanningBegun({
         ...createNewCampaign('Cedar Hollow', FIXED),
-        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        materials: { food: 0, fuel: 0, hardware: 9 },
         turn: 3,
         // The phase orders are placed in (R14, #171).
         step: 'assign-project-team',
@@ -1270,7 +1270,7 @@ describe('project/ordered', () => {
     const farm = openState(
       withPlanningBegun({
         ...createNewCampaign('Cedar Hollow', FIXED),
-        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        materials: { food: 0, fuel: 0, hardware: 9 },
         turn: 3,
         step: 'assign-project-team',
         base: { id: 'hobby-farm', slots: {} },
@@ -1305,7 +1305,7 @@ describe('project/ordered', () => {
     const farm = openState(
       withPlanningBegun({
         ...createNewCampaign('Cedar Hollow', FIXED),
-        materials: { food: 0, fuel: 0, hardware: 1, rare: 0 },
+        materials: { food: 0, fuel: 0, hardware: 1 },
         turn: 3,
         base: { id: 'hobby-farm', slots: {} },
         ...projectTeamWorth(5),
@@ -1339,7 +1339,7 @@ describe('project/cancelled', () => {
     return openState(
       withPlanningBegun({
         ...createNewCampaign('Cedar Hollow', FIXED),
-        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        materials: { food: 0, fuel: 0, hardware: 9 },
         turn: 3,
         step,
         base: { id: 'small-town-home', slots: {} },
@@ -1415,7 +1415,7 @@ describe('project/cancelled', () => {
     const checked = openState({
       ...expectOpen(ordered('check-storage')),
       // A Small Town Home's Hardware cap is 4, and the two orders spent 6 of 9.
-      materials: { food: 0, fuel: 0, hardware: 4, rare: 0 },
+      materials: { food: 0, fuel: 0, hardware: 4 },
       log: [
         ...expectOpen(ordered('check-storage')).log,
         {
@@ -1533,7 +1533,7 @@ describe('management/projectUnfinished', () => {
     const ordered = openState(
       withPlanningBegun({
         ...createNewCampaign('Cedar Hollow', FIXED),
-        materials: { food: 0, fuel: 0, hardware: 9, rare: 0 },
+        materials: { food: 0, fuel: 0, hardware: 9 },
         turn: 3,
         step: 'departures',
         base: { id: 'small-town-home', slots: {} },
@@ -1649,7 +1649,7 @@ describe('advancement/projectUnfinished', () => {
 
     return openState({
       ...createNewCampaign('Cedar Hollow', FIXED),
-      materials: { food: 0, fuel: 0, hardware: 3, rare: 0 },
+      materials: { food: 0, fuel: 0, hardware: 3 },
       turn: 3,
       step: 'add-facilities-and-upgrades',
       base: { id: 'small-town-home', slots: {} },
@@ -1747,7 +1747,7 @@ describe('advancement/projectsCompleted', () => {
   function due(): CampaignState {
     return openState({
       ...createNewCampaign('Cedar Hollow', FIXED),
-      materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+      materials: { food: 0, fuel: 0, hardware: 0 },
       turn: 3,
       base: { id: 'hobby-farm', slots: {} },
       projects: [
@@ -1863,7 +1863,7 @@ describe('campaign/materialSet', () => {
       count: 7,
     });
 
-    expect(expectOpen(state).materials).toEqual({ food: 0, fuel: 0, hardware: 7, rare: 0 });
+    expect(expectOpen(state).materials).toEqual({ food: 0, fuel: 0, hardware: 7 });
   });
 
   it('records a count over any cap, because Check Storage is not this app’s yet', () => {
@@ -1991,15 +1991,14 @@ describe('base/claimed stocks the first base', () => {
   it('fills every capped material to its cap', () => {
     const after = expectOpen(campaignReducer(empty(), claim('small-town-home')));
 
-    expect(after.materials).toEqual({ food: 4, fuel: 4, hardware: 4, rare: 0 });
+    expect(after.materials).toEqual({ food: 4, fuel: 4, hardware: 4 });
   });
 
-  /** Rare has no cap (pg. 54), so nothing is invented for it. */
-  it('leaves Rare alone, which the book gives no cap', () => {
+  /** Food, Fuel and Hardware, the three a base caps (pg. 54). */
+  it('stocks the three materials, and nothing else', () => {
     const after = expectOpen(campaignReducer(empty(), claim('greasy-spoon')));
 
-    expect(after.materials.rare).toBe(0);
-    expect(after.materials.food).toBe(6);
+    expect(after.materials).toEqual({ food: 6, fuel: 6, hardware: 6 });
   });
 
   it('records the stocking, so found materials have a source', () => {
@@ -2305,7 +2304,7 @@ describe('what earns a line in the log', () => {
       // into the next phase and one step back has somewhere to go. Both turn
       // actions would otherwise be no-ops here and pass for the wrong reason.
       step: 'tactical-mission',
-      materials: { food: 1, fuel: 1, hardware: 9, rare: 0 },
+      materials: { food: 1, fuel: 1, hardware: 9 },
       survivors: [
         createSurvivor('Ruby Vance', 1, { id: DECOY }),
         {
@@ -2359,7 +2358,7 @@ describe('what earns a line in the log', () => {
    * because a table that called `baseProduction` to describe what
    * `baseProduction` produced would agree with any answer it gave.
    */
-  const HOBBY_FARM_PRODUCTION = { food: 2, fuel: 0, hardware: 0, rare: 0 } as const;
+  const HOBBY_FARM_PRODUCTION = { food: 2, fuel: 0, hardware: 0 } as const;
 
   interface Policy {
     readonly action: CampaignAction;
@@ -2480,6 +2479,57 @@ describe('what earns a line in the log', () => {
         kind: 'facility-ordered',
         slot: 'front-yard',
         facility: 'watchtower',
+      }),
+    },
+    'advancement/rareUpgradeInstalled': {
+      // A gas grill from the Inventory into the Hobby Farm's Kitchen, at Add
+      // Facilities and Upgrades (pg. 49; R47; Z5-8).
+      state: openState({
+        ...expectOpen(rich()),
+        step: 'add-facilities-and-upgrades',
+        inventory: [{ id: 'item-1', item: 'gas-grill', grade: 'standard' }],
+      }),
+      action: { type: 'advancement/rareUpgradeInstalled', id: 'item-1', slot: 'kitchen', at: AT },
+      entry: entry(3, 'advancement', {
+        kind: 'rare-upgrade-installed',
+        id: 'item-1',
+        item: 'gas-grill',
+        grade: 'standard',
+        slot: 'kitchen',
+      }),
+    },
+    'inventory/rareItemRolled': {
+      // A story reward's roll, entered by hand: 3 then 1 is a riot shield (pg. 43).
+      action: {
+        type: 'inventory/rareItemRolled',
+        at: AT,
+        roll: { id: 'item-1', subtable: 3, entry: 1 },
+      },
+      entry: entry(3, 'mission', {
+        kind: 'item-found',
+        id: 'item-1',
+        item: 'riot-shield',
+        grade: 'standard',
+        subtable: 3,
+        entry: 1,
+      }),
+    },
+    'planning/itemBuilt': {
+      // Improvised armor needs no facility (pg. 42), so the Hobby Farm builds
+      // it from the project team's Labor, into the Inventory at once (Z5-6).
+      state: openState(withPlanningBegun({ ...expectOpen(rich()), step: 'assign-project-team' })),
+      action: {
+        type: 'planning/itemBuilt',
+        at: AT,
+        order: { id: 'item-1', item: 'improvised-armor', grade: 'standard' },
+      },
+      entry: entry(3, 'planning', {
+        kind: 'item-built',
+        id: 'item-1',
+        item: 'improvised-armor',
+        grade: 'standard',
+        hardware: 2,
+        labor: 2,
       }),
     },
     'project/cancelled': {
@@ -2790,7 +2840,6 @@ describe('what earns a line in the log', () => {
         food: HOBBY_FARM_PRODUCTION.food + 1,
         fuel: HOBBY_FARM_PRODUCTION.fuel,
         hardware: HOBBY_FARM_PRODUCTION.hardware + 1,
-        rare: HOBBY_FARM_PRODUCTION.rare,
       }),
     },
     'advancement/materialsConverted': {
@@ -2798,7 +2847,7 @@ describe('what earns a line in the log', () => {
       // The Hobby Farm's built-in Kitchen is where the upgrade goes.
       state: openState({
         ...expectOpen(rich()),
-        materials: { food: 0, fuel: 2, hardware: 0, rare: 0 },
+        materials: { food: 0, fuel: 2, hardware: 0 },
         base: { id: 'hobby-farm', slots: { kitchen: { upgrades: ['gas-range'] } } },
       }),
       action: {
@@ -2823,7 +2872,7 @@ describe('what earns a line in the log', () => {
         ...createNewCampaign('Cedar Hollow', FIXED),
         turn: 3,
         survivors: [createSurvivor('Marcus Webb', 4, { id: LOGGED_SURVIVOR })],
-        materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+        materials: { food: 0, fuel: 0, hardware: 0 },
       }),
       action: { type: 'management/survivorsFed', at: AT },
       // A Hero eats two (pg. 22), and there is nothing to eat. The head count
@@ -2841,7 +2890,7 @@ describe('what earns a line in the log', () => {
       state: openState({
         ...createNewCampaign('Cedar Hollow', FIXED),
         turn: 3,
-        materials: { food: 8, fuel: 0, hardware: 0, rare: 0 },
+        materials: { food: 8, fuel: 0, hardware: 0 },
         base: { id: 'greasy-spoon', slots: {} },
       }),
       action: { type: 'management/storageChecked', at: AT },
@@ -3184,7 +3233,7 @@ describe('what earns a line in the log', () => {
     it('an order the community cannot pay for', () => {
       const poor = openState({
         ...expectOpen(rich()),
-        materials: { food: 0, fuel: 0, hardware: 0, rare: 0 },
+        materials: { food: 0, fuel: 0, hardware: 0 },
       });
       const before = expectOpen(poor);
 
@@ -3394,7 +3443,7 @@ describe('the Advancement Phase steps', () => {
   it('puts a turn’s haul in storage', () => {
     const after = expectOpen(campaignReducer(afterAMission(), add([{ roll: 4 }, { roll: 7 }])));
 
-    expect(after.materials).toEqual({ food: 1, fuel: 0, hardware: 1, rare: 0 });
+    expect(after.materials).toEqual({ food: 1, fuel: 0, hardware: 1 });
   });
 
   it('refuses a second helping in the same turn', () => {
@@ -3430,7 +3479,7 @@ describe('the Advancement Phase steps', () => {
     it('adds one of every material for a survivor with the skill', () => {
       const after = expectOpen(campaignReducer(scavenging({ scavenge: 0 }), add([])));
 
-      expect(after.materials).toEqual({ food: 1, fuel: 1, hardware: 1, rare: 1 });
+      expect(after.materials).toEqual({ food: 1, fuel: 1, hardware: 1 });
     });
 
     it('adds one of the chosen material for a survivor without it', () => {
@@ -3439,18 +3488,18 @@ describe('the Advancement Phase steps', () => {
           type: 'advancement/materialsAdded',
           at: AT,
           rolls: [],
-          scavenged: 'rare',
+          scavenged: 'fuel',
         }),
       );
 
-      expect(after.materials).toEqual({ food: 0, fuel: 0, hardware: 0, rare: 1 });
+      expect(after.materials).toEqual({ food: 0, fuel: 1, hardware: 0 });
     });
 
     /** Nothing chosen is nothing found, and the log says so rather than lying. */
     it('adds nothing for an unskilled scavenger nobody chose for', () => {
       const after = expectOpen(campaignReducer(scavenging({}), add([])));
 
-      expect(after.materials).toEqual({ food: 0, fuel: 0, hardware: 0, rare: 0 });
+      expect(after.materials).toEqual({ food: 0, fuel: 0, hardware: 0 });
       expect(after.log.map((entry) => entry.event.kind)).toEqual([
         'materials-added',
         'materials-scavenged',
@@ -3461,7 +3510,7 @@ describe('the Advancement Phase steps', () => {
       const after = expectOpen(campaignReducer(scavenging({ scavenge: 0 }), add([{ roll: 4 }])));
 
       expect(after.log.map((entry) => entry.event)).toEqual([
-        { kind: 'materials-added', food: 2, fuel: 1, hardware: 1, rare: 1 },
+        { kind: 'materials-added', food: 2, fuel: 1, hardware: 1 },
         {
           kind: 'materials-scavenged',
           survivor: EARL,
@@ -3469,7 +3518,6 @@ describe('the Advancement Phase steps', () => {
           food: 1,
           fuel: 1,
           hardware: 1,
-          rare: 1,
         },
       ]);
     });
@@ -3654,7 +3702,7 @@ describe('the Management Phase', () => {
       ...createNewCampaign('Cedar Hollow', FIXED),
       turn: 3,
       survivors: [createSurvivor('Marcus Webb', 4, { id: CHECKED })],
-      materials: { food: 9, fuel: 0, hardware: 0, rare: 0 },
+      materials: { food: 9, fuel: 0, hardware: 0 },
     });
 
     const once = campaignReducer(hungry, { type: 'management/survivorsFed', at: AT });
@@ -3669,7 +3717,7 @@ describe('the Management Phase', () => {
     const overflowing = openState({
       ...createNewCampaign('Cedar Hollow', FIXED),
       turn: 3,
-      materials: { food: 9, fuel: 0, hardware: 0, rare: 0 },
+      materials: { food: 9, fuel: 0, hardware: 0 },
       base: { id: 'greasy-spoon', slots: {} },
     });
 
