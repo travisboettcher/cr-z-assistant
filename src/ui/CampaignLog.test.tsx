@@ -141,6 +141,34 @@ describe('the sentences the log writes', () => {
     );
   });
 
+  /** Z5-8: a count after the name, so "2 standard bow" never needs a plural. */
+  it('counts what a base handed over without making a name plural', () => {
+    const item = (id: string, kind: 'bow' | 'rifle' | 'reinforced-clothing') =>
+      ({ id, item: kind, grade: 'standard' }) as const;
+
+    expect(
+      describeEvent({
+        kind: 'equipment-handed-over',
+        base: 'outdoor-sports-shop',
+        slot: 'inventory',
+        items: [item('a', 'bow'), item('b', 'rifle'), item('c', 'bow')],
+      }),
+    ).toEqual({
+      text: 'The Shop Inventory at the Outdoor Sports Shop handed over standard bow ×2, standard rifle.',
+      pages: 62,
+    });
+    expect(
+      describeEvent({
+        kind: 'equipment-handed-over',
+        base: 'regional-firehouse',
+        items: ['a', 'b'].map((id) => item(id, 'reinforced-clothing')),
+      }),
+    ).toEqual({
+      text: 'The Regional Firehouse handed over standard reinforced clothing ×2.',
+      pages: 66,
+    });
+  });
+
   /** Z4-5: which team's rescue, and the die only where one was thrown. */
   it('says which team rescued a stranger who joined, and what they rolled', () => {
     const joined = (tier: 1 | 2, roll?: 8) =>

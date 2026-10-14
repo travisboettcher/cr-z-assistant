@@ -173,9 +173,6 @@ function InstallRareUpgrade({
         type="button"
         className={SECONDARY}
         disabled={problem !== null}
-        aria-label={`Install ${ITEM_LABELS[item.item]}${
-          targets.length === 1 ? ` in the ${slotLabel(slot)}` : ''
-        }`}
         onClick={() => {
           dispatch({
             type: 'advancement/rareUpgradeInstalled',
@@ -185,7 +182,9 @@ function InstallRareUpgrade({
           });
         }}
       >
-        Install
+        {/* Where it goes is on the button when there is one place, beside it in the picker otherwise. */}
+        Install <span className="sr-only">{ITEM_LABELS[item.item]}</span>
+        {targets.length === 1 && ` in the ${slotLabel(slot)}`}
       </button>
       {/* Said, not left to a tooltip a thumb never finds. */}
       {problem !== null && (

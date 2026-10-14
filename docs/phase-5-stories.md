@@ -490,7 +490,11 @@ Confirmed 2026-10-14 ([the registry](rulings.md)):
   Exhaustion and never below zero, and Calculate Unrest shows the term when it is not zero.
 - **Installing is in the Inventory's modal**, one button per rare upgrade with a facility picker
   when there is more than one; Add Facilities and Upgrades links to it while the Inventory holds
-  one.
+  one. The button names the facility when there is only one.
+- **The Sports Shop's slot is the Shop Inventory on screen.** The book's name for it is the word
+  the base's Inventory and a survivor's Inventory Slots already have, and "Clearing the Inventory"
+  read as emptying the base's. The log counts what was handed over after each name ("standard bow
+  ×2"), so no item name has to be made plural.
 
 ## Part 3 — Trading and vehicles (outline)
 

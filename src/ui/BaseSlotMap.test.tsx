@@ -186,6 +186,8 @@ describe('slotLabel', () => {
 
   it('restores punctuation an identifier cannot hold', () => {
     expect(slotLabel('kings-pavilion')).toBe("King's Pavilion");
+    // Not "Inventory": the base's Inventory and a survivor's Inventory Slots have that word.
+    expect(slotLabel('inventory')).toBe('Shop Inventory');
   });
 });
 

@@ -113,10 +113,14 @@ export const HISTORIC_RARE_LABEL = 'Rare';
 /**
  * Slot names that title-casing the id gets wrong.
  *
- * One entry, and the rest are derived — see `slotLabel`.
+ * Two entries, and the rest are derived — see `slotLabel`. The Outdoor Sports
+ * Shop's slot the book calls Inventory is the Shop Inventory here: the base's
+ * Inventory and a survivor's Inventory Slots already have the word, and
+ * "Clearing the Inventory" read as emptying the base's.
  */
 const SLOT_LABEL_OVERRIDES: Readonly<Record<string, string>> = {
   'kings-pavilion': "King's Pavilion",
+  inventory: 'Shop Inventory',
 };
 
 /**
@@ -129,8 +133,9 @@ const SLOT_LABEL_OVERRIDES: Readonly<Record<string, string>> = {
  * the maps above worth writing by hand. An untypechecked map of forty entries
  * is a list that silently goes stale the first time a slot is renamed.
  *
- * So the id carries the name and this restores it, with an override for the one
- * slot whose name has punctuation an identifier cannot hold. A test walks every
+ * So the id carries the name and this restores it, with an override for the
+ * slot whose name has punctuation an identifier cannot hold and the one whose
+ * name another thing in the app already has. A test walks every
  * slot of every base and asserts each label comes out looking like a name.
  *
  * Repeated slots keep their number — "Parking Lot 2" is how a player tells the

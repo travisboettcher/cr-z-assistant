@@ -89,12 +89,23 @@ function amountsMoved(amounts: HistoricMaterials): readonly string[] {
   ];
 }
 
-/** Items as a list a person reads: "6 standard reinforced clothing, 1 standard bow". */
+/**
+ * Items as a list a person reads: "standard bow ×2, standard rifle".
+ *
+ * A count after the name rather than before it, so no name has to be made
+ * plural: "2 standard bow" is wrong, and a third of the catalogue is plural or
+ * a mass noun already (bandages, reinforced clothing), which a rule about
+ * adding an s would get wrong.
+ */
 function counted(items: readonly Item[]): string {
   const names = items.map(describeItem);
 
   return [...new Set(names)]
-    .map((name) => `${String(names.filter((one) => one === name).length)} ${name}`)
+    .map((name) => {
+      const count = names.filter((one) => one === name).length;
+
+      return count === 1 ? name : `${name} ×${String(count)}`;
+    })
     .join(', ');
 }
 
@@ -457,7 +468,7 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
 
     case 'equipment-handed-over':
       return {
-        text: `The ${BASE_LABELS[event.base]}${event.slot === undefined ? '' : `’s ${slotLabel(event.slot)}`} handed over ${counted(event.items)}.`,
+        text: `The ${event.slot === undefined ? '' : `${slotLabel(event.slot)} at the `}${BASE_LABELS[event.base]} handed over ${counted(event.items)}.`,
         pages: event.slot === undefined ? 66 : 62,
       };
 
