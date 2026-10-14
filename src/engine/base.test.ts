@@ -391,7 +391,7 @@ describe('staffCapacity', () => {
 });
 
 /**
- * pg. 73, and the whole purpose of the facility: a staffed Watchtower subtracts
+ * pg. 71, and the whole purpose of the facility: a staffed Watchtower subtracts
  * its lookout's best of Long Guns / Handguns / Archery / Traps. Nothing
  * consumed `reducedByBestOf` until the September playtest found that staffing
  * one *raised* Siege Threat by 1, through the staffed-facility count.

@@ -258,7 +258,7 @@ describe('rotCheckPasses', () => {
     expect(rotCheckPasses(citizen, 7, 9)).toBe(true);
   });
 
-  /** pg. 8, and the reason `rotTarget` needs no floor. */
+  /** pg. 5, and the reason `rotTarget` needs no floor. */
   it('always fails on a natural 1 and always holds on a natural 10', () => {
     expect(rotCheckPasses(citizen, 1, -5)).toBe(false);
     expect(rotCheckPasses(citizen, 10, 99)).toBe(true);
@@ -362,7 +362,7 @@ describe('rotOutcome and withRotApplied', () => {
       healed: { task: 'healing' },
     });
 
-  /** The same two, with a Clinic that has one set of Restraints (pg. 72). */
+  /** The same two, with a Clinic that has one set of Restraints (pp. 69, 72). */
   const restrained = (): Campaign => ({
     ...clinicful(),
     base: {
@@ -437,7 +437,7 @@ describe('rotOutcome and withRotApplied', () => {
   });
 
   /**
-   * The other half of the rule the Restraints exist for (pg. 72): the survivor
+   * The other half of the rule the Restraints exist for (pg. 69): the survivor
    * still turns and is still removed — what a set prevents is the bite.
    */
   it('holds the turning survivor so nobody is bitten', () => {
@@ -572,7 +572,7 @@ describe('checkBite', () => {
     expect(checkBite(alone, 'turning', 1, null).blockers).toEqual([]);
   });
 
-  /** A set of Restraints holds them, so there is no bite to name (pp. 72–73). */
+  /** A set of Restraints holds them, so there is no bite to name (pg. 69). */
   it('accepts nobody while a set of Restraints is free', () => {
     expect(checkBite(restrained(), 'turning', 1, null).blockers).toEqual([]);
   });

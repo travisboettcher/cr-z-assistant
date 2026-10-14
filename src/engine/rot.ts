@@ -9,7 +9,7 @@
  * Z1-6's field recruit and Z3-7's material rolls work. Nothing here generates a
  * number.
  *
- * A natural 1 always fails and a natural 10 always succeeds (pg. 8), whatever
+ * A natural 1 always fails and a natural 10 always succeeds (pg. 5), whatever
  * the target — which is what stops a well-staffed Clinic from making the check
  * a formality, and is the reason the target is left unclamped. See
  * [R2](../../docs/rulings.md).
@@ -123,7 +123,7 @@ export function rotTarget(campaign: Campaign): number {
 }
 
 /**
- * Sets of Restraints across the community's Medical Clinics (pp. 72–73).
+ * Sets of Restraints across the community's Medical Clinics (pp. 69, 72).
  *
  * "Each set prevents one turned survivor from biting", so this is a count of
  * preventions rather than of upgrades — read off `preventsBiting` for that
@@ -178,7 +178,7 @@ export function biteCandidates(campaign: Campaign, turning: string): readonly Su
 }
 
 /**
- * Whether a roll passes the check (pg. 8, 22).
+ * Whether a roll passes the check (pp. 5, 8, 22).
  *
  * A Tier check is the die plus the survivor's Tier against the target, with the
  * two natural results overriding it in both directions.
