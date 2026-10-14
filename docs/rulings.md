@@ -610,6 +610,9 @@ true at once: the second is about what was traded, the first about what was not.
 itself arrives with equipment in Phase 5; it is recorded now because #178's outcome entry for the
 mission carries the one field it reads.
 
+*Confirmed 2026-10-14 from the batch-17 extract (R60): one survivor exiting is enough, partial exits
+make no difference, and traded items arrive when the mission ends.*
+
 ---
 
 ## R23 — Which mission team Exhaustion counts
@@ -972,9 +975,13 @@ one of each kind of protective gear**: a second set of reinforced clothing adds 
 
 *Confirmed 2026-10-13 from the batch-16 extract.*
 
+*Confirmed again 2026-10-14 from the batch-17 extract (R80): two of one item, two pairs of binoculars
+among them, give one bonus; an item is equipped, and the FAQ's Dual Wield is the one written
+exception.*
+
 ---
 
-## R41 — A Watchtower reads its lookout's whole Score — **PROPOSED**
+## R41 — A Watchtower reads its lookout's whole Score
 
 **pp. 8, 14, 73; #177, Z5-3.** A staffed Watchtower takes its staff's best Long Guns, Handguns,
 Archery or Traps Score off Siege Threat (pg. 73). A Skill Score has an item term (pg. 8), and a
@@ -982,13 +989,16 @@ survivor with a weapon skill and nothing better holds a shoddy weapon at −1 (p
 what they carry between missions (R38), so a lookout at home has a weapon to hand. The book does not
 say whether the Watchtower means the Score with that term or the stat and level alone.
 
-**The proposed ruling is that it means the whole Score**, item term included: a lookout with only
+**The ruling is that it means the whole Score**, item term included: a lookout with only
 the free shoddy weapon takes one less off than before Z5-3, and one with a quality rifle one more.
 Traps has no free item, so a trapper's Score is unchanged.
 
 **What it costs.** A tower staffed by an unarmed lookout is a point weaker than it was before
 equipment arrived. Read the other way, the weapon a lookout carries would make no difference to the
 one facility that watches with a weapon skill.
+
+*Confirmed 2026-10-14 from the batch-17 extract (R79): the book's word is the Skill Score, which has
+the item term.*
 
 ---
 
@@ -1116,3 +1126,434 @@ reading as they did.
 instead.
 
 *Decided 2026-10-14.*
+
+---
+
+## R50 — What the Planning trade can buy
+
+**pp. 21, 37, 41–43; #177, part 3.** Equipment can be traded for in the Planning Phase at its trade
+cost (pg. 21), and Rare Items are bought from the Rare Goods Trader (pp. 37, 43). Neither page says
+a rare item cannot be bought another way, nor that every priced grade can be bought.
+
+**The ruling is that the Planning trade buys ordinary equipment in every grade with a printed trade
+price, and nothing else.** Shoddy is free and never bought. A grade printed "–" or N/A has no price
+and cannot be bought; weapon rows price standard only, so a quality weapon is never bought in
+Planning. Rare items, quality weapons among them, come only through a Rare Items trade (R56).
+
+**What it costs.** A table reading pg. 37 loosely could buy rare items without the Trader.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R51 — A Planning trade needs nobody
+
+**pp. 20–21, 37; #177, part 3.** A trade is the Build/Trade Equipment project at Planning Step 2,
+takes no Labor, any number at once, paid in any mix of Food and Fuel (pp. 20–21). The book does not
+say whether anybody must be assigned for it, and pg. 37 points at the tables "when building or
+trading" without saying whether the Requires column applies to a trade.
+
+**The ruling is that a trade needs no survivor, no Labor, no facility and has no limit per turn**:
+the Requires column is what building needs, and buying is the way round it.
+
+**What it costs.** A table applying the Requires column to trades could not buy what it cannot
+build, which leaves the higher trade price buying nothing.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R52 — A traded item arrives wherever the community is
+
+**pp. 19, 21; #177, part 3.** A traded item arrives at the next Advancement Phase's Step 5, and its
+materials leave at once (pp. 19, 21). The book says nothing of cancelling, or of a move or an overrun
+before it arrives.
+
+**The ruling is that an order belongs to the community and arrives at Advancement Step 5 in whatever
+base it holds then** (a move lands at Step 3, before it). There is no cancelling and no refund. A
+community that starts over (R30, R31) loses its pending orders with the old base.
+
+**What it costs.** A misclicked order cannot be taken back; the log is the record of it.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R53 — Only rare items are sold
+
+**pp. 21, 37; #177, part 3.** A Rare Item can be traded away for its value less two, without the
+Trader, and leaves the Inventory at once (pp. 21, 37). The book gives no sale price for anything
+else, and does not say what the seller is paid in or when.
+
+**The ruling is that only rare items are sold, at their price less two, paid at once in the Planning
+Phase in Food and Fuel, the player's mix.** The cheapest rare item is 4, so a sale is never below 2.
+
+**What it costs.** Ordinary equipment cannot be turned back into materials.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R54 — The channel decides the price
+
+**pp. 41–43; #177, part 3.** The quality tool belt is priced 8 on the equipment table (pg. 41) and 6
+on the Quality Item subtable (pg. 43); no other item is printed in both places.
+
+**The ruling is that a Planning trade pays the equipment table's price and a Rare Items trade the
+subtable's**, so the same tool belt is 8 in Planning and 6 from the Trader. Three quality prices
+look like misprints and are kept as printed: the heavy weapon 8 (pg. 43), the improvised shield 8
+and the knee pads 7 (pg. 42).
+
+**What it costs.** Two prices for one item, each correct in its own place.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R55 — A sale can overfill storage
+
+**pp. 21, 23; the FAQ; #177, part 3.** Check Storage, Management Step 5, destroys what is over the
+cap (pg. 23). The book says nothing special about what a sale brings in.
+
+**The ruling is that a sale's Food and Fuel go into storage like any income, over the cap if it
+comes to that, and the excess is lost at that turn's Check Storage.** The app warns and does not
+refuse.
+
+**What it costs.** A sale made carelessly late in a full turn spoils.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R56 — One Rare Items trade, in two halves
+
+**pp. 21, 83–84; #177, part 3.** Pg. 21 assigns a mission team to trade, makes the list, sets
+materials aside and forces the next mission; pp. 83–84 are that mission, played against a priority
+list of the Rare Items planned.
+
+**The ruling is that they are one trade**: made in the Planning Phase, resolved by the Rare Goods
+Trader mission it forces.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R57 — The trader's list is full Rare Item Table rolls
+
+**pp. 19, 21, 43; #177, part 3.** When the trade is decided, the community rolls a number of d10s
+equal to every survivor's Scout Score plus Cooperation, all added together, and applies them to the
+Rare Item Table (pg. 21). The table takes two dice, subtable then entry (pg. 43). The book does not
+say how one counted die becomes a two-dice roll, nor what a duplicate means.
+
+**The ruling is that the list is made when the trade is assigned in Planning, and each counted die
+is one full Rare Item Table roll**, subtable and entry, so the list has that many entries.
+Duplicates are separate entries. The player chooses from the list, and the priority list is written
+from those choices.
+
+**What it costs.** A long list for a big community: the app records the items chosen and their
+dice, not every roll on the list.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R58 — The trade's materials are set aside until the mission ends
+
+**pp. 21, 23, 84; #177, part 3.** The Food and Fuel the chosen items cost are set aside, leave the
+Inventory and are not counted against storage (pp. 21, 23). A successful trade returns what was not
+spent (pg. 84).
+
+**The ruling is that they are set aside in the same Planning step as the list, before Check
+Storage, and held outside storage until the forced mission ends.** What was not spent returns then
+and meets the next Check Storage. They are lost if another mission is chosen or a siege is called
+(pp. 21, 23).
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R59 — The trade forces the next turn's first mission
+
+**pp. 21, 23, 83; #177, part 3.** The next mission chosen must be the Rare Goods Trader; another
+choice, or a forced Siege Defense, loses the materials (pp. 21, 23). The book does not say which
+mission is bound when several teams go out, nor what a siege does to the obligation.
+
+**The ruling is that it binds the first mission chosen in the next Mission Phase, and other teams
+are free.** It can be declined only by losing the materials. A siege called at that turn's Check the
+Horde loses them there and cancels the trade; nothing carries over.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R60 — The Rare Goods Trader's outcome
+
+**pg. 84; #177, part 3.** This confirms R22, below its own heading. Any survivor exiting is a
+success, and partial exits make no difference. Items traded arrive when the mission ends rather than
+at Advancement Step 5, which the book leaves open and which is the same turn either way.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R61 — What a vehicle is
+
+**pp. 49, 52–53; #177, part 3.** A vehicle is a Tier 1–4 with fixed Inventory and Passenger Slots
+(Tier 4 splits a total of 20 as its owner chooses), a kind, and Noise of its Tier + 5; one spawned
+in deep water is a boat and deploys only in water (pg. 52). A rare vehicle upgrade attaches to one
+vehicle for good, one per vehicle (pg. 49). The core rules give a vehicle no Health.
+
+**The ruling is that a vehicle is recorded as its Tier, a label the player gives it, land or water,
+Tier 4's slot split, and its upgrade if it has one.** It has no Health, and whether it is working is
+a fact of one mission, never stored.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R62 — Retrieve New Vehicles' Tiers are rolled, then may be lowered
+
+**pp. 81–82; #177, part 3.** The mission's setup rolls five d10s for the vehicles' Tiers (1–3 Tier 1,
+4–7 Tier 2, 8–9 Tier 3, 10 Tier 4), any of which may be replaced with a lower Tier, and only those
+repaired and driven off join the Inventory (pg. 82).
+
+**The ruling is that each Tier is rolled and the player may then lower it, and a vehicle joins when
+it is driven off the map**, with nothing else required.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R63 — A won claim keeps the vehicles on the mission area
+
+**pp. 78–79; #177, part 3.** A won Claim a New Base adds the working vehicles on the mission area
+(pg. 79), and an ordinary claim has none to repair (pg. 78), so they are the ones the team brought.
+
+**The ruling is that they keep their Tier and are added on a won claim whether or not they were
+driven.** On a lost claim R69 applies: one not driven off is lost.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R64 — A vehicle's Fuel is paid at Equip Mission Team
+
+**pp. 18, 52; #177, part 3.** A deployed vehicle burns 1 Fuel per Tier per mission (pg. 52), and
+Equip Mission Team is where a team takes one (pg. 18). The book does not say when the Fuel is paid
+or what a shortage does.
+
+**The ruling is that it is paid at Equip Mission Team from storage, Tier × 1 for each vehicle**, and
+a vehicle the community cannot fuel is not taken. Fuel is not refunded when a vehicle is lost.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R65 — Auto Shops protect vehicles the owner picks
+
+**pp. 11, 32, 52, 67, 71–72; #177, part 3.** Vehicles taken beyond the base's number of Auto Shops
+break down on arrival, with no roll, and can be repaired on the map with a Tinker check at 4 × their
+Tier (pp. 11, 32, 52). Each Auto Shop protects one vehicle (pg. 71), and a Workshop holds up to
+three upgrades (pp. 67, 72). The book does not say which vehicles are protected.
+
+**The ruling is that the base's Auto Shop upgrades are counted, the owner picks that many of the
+vehicles deployed to be protected, and the rest start the mission broken.** A breakdown is never
+stored: it is the mission's, and R69 settles what it costs.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R66 — A vehicle upgrade is fitted at Planning for nothing
+
+**pp. 43, 49; #177, part 3.** The car roof rack and the electric car conversion come only from the
+Rare Upgrade subtable, attach to one vehicle for the campaign, one per vehicle, and the conversion
+deploys only with a powered Auto Shop (pp. 43, 49). The book gives fitting no step and no cost.
+
+**The ruling is that it is fitted in the Planning Phase at no cost, whenever it is in the Inventory
+and the vehicle has no upgrade**, and never removed. It goes with its vehicle.
+
+**What it costs.** Unlike a rare base upgrade (R47), which lands at Add Facilities and Upgrades: a
+vehicle is not a facility, and the Planning Phase is where a team gets ready.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R67 — Vehicles have no cap
+
+**pp. 23, 54; #177, part 3.** Check Storage counts materials only (pg. 23), the caps are per material
+(pg. 54), and nothing in the core rules caps vehicles.
+
+**The ruling is that a base holds any number of vehicles, and Check Storage ignores them.**
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R68 — A vehicle is empty between missions
+
+**pp. 32, 52–53, 159; #177, part 3.** Driving off takes a vehicle and what it holds home (pg. 32);
+Load and Unload move items in and out on the map (pg. 52); a Passenger Slot holds an item or a
+person (pg. 53), and Passenger Slots cap who deploys with the vehicle (pg. 52). The book does not
+say what a vehicle holds between missions.
+
+**The ruling is that a vehicle holds nothing between missions**: what it brings home joins the
+base's Inventory. Its Passenger Slots are recorded as a number and their occupants are not tracked.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R69 — A vehicle not driven off is lost
+
+**pp. 32, 52, 79, 82; #177, part 3.** A vehicle gets home by being driven off (pg. 32), and the two
+missions that add vehicles add the ones driven off or standing on a won claim (pp. 79, 82). The core
+rules have no rule that destroys a vehicle, so one left on the map could be read as lost or as coming
+home anyway.
+
+**The ruling is that a deployed vehicle not driven off, and not kept by a won claim (R63), is lost
+with everything in it**, and the log says so.
+
+**What it costs.** A broken vehicle nobody repairs is gone, which is what deploying more vehicles
+than Auto Shops risks. A table reading vehicles as base property would never lose one.
+
+*Decided 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R70 — A survivor who dies on a mission leaves their items on the map
+
+**pp. 31, 34; #177, part 3.** A carried survivor drops their items at a marker (pg. 31), and another
+survivor can take an item from one incapacitated (pg. 34). A body not carried off is lost.
+
+**The ruling is that what a survivor who dies on a mission carried is kept only if somebody took it
+before the map was left; the rest is lost.**
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R71 — A survivor bitten to death at home leaves their items to the base
+
+**pg. 22; #177, part 3.** The book removes a survivor whom a turning one bites to death and says
+nothing of their items.
+
+**The ruling is that their items go to the base's Inventory**: they died at home, where nothing is
+left in the field. This is what Z5-5 already does.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R72 — A survivor who departs takes their items
+
+**pp. 23, 124; #177, part 3.** The lowest-Tier survivor leaves at Departures (pg. 23). The core rules
+are silent on their items; the Cosmic origin's departing survivor takes everything they carry
+(pg. 124).
+
+**The ruling is that a departing survivor takes what they carry**, as the Cosmic wording has it.
+
+**What it costs.** Z5-5 left a departing survivor's items at the base until this was ruled; that
+changes.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R73 — A survivor who turns leaves their items to the base
+
+**pg. 22; #177, part 3.** A survivor who turns at a Rot check is removed, and the book says nothing
+of their items.
+
+**The ruling is that their items go to the base's Inventory**, as R71's do. This is what Z5-5 already
+does.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R74 — A survivor taken off the roster leaves their items to the base
+
+**pg. 124; #177, part 3.** The core rules have no removal by the player; exile exists for the
+Cosmic origin's Found survivors (pg. 124).
+
+**The ruling is that a survivor the player removes leaves their items in the base's Inventory**, and
+an exiled Found survivor goes back to the Lost holding nothing. This is what Z5-5 already does.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R75 — A survivor set aside keeps what they carry
+
+**pg. 86; #177, part 3.** Abandoned survivors come back with their Inventory and experience (pg.
+86), and a survivor's Inventory is their Inventory Slots (pg. 14).
+
+**The ruling is that a survivor set aside (R31) keeps the items they carried**, and nothing from the
+base's Inventory goes with them.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R76 — A move takes everything; a Hero sent away takes their own
+
+**pp. 19, 54; the FAQ; #177, part 3.** A move takes every vehicle, weapon and piece of equipment with
+the materials (the FAQ), and the old Inventory joins the new at Advancement Step 3 (pg. 19). A Hero
+over the new base's cap leaves (pg. 54); the book does not say with what.
+
+**The ruling is that everything moves, vehicles included, and survivors take what they carry. A Hero
+sent away takes the items they carry**, and the base's Inventory stays.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R77 — An overrun loses the base's Inventory
+
+**pp. 85–86; #177, part 3.** After an overrun, a claim of the same base type on the same map
+recovers half the stored materials, and the community's vehicles are on its map as repairable ones
+(pg. 86); starting over uses the survivors and their gear (pg. 86). No option mentions the items in
+the base's Inventory, nor whether vehicle upgrades survive.
+
+**The ruling is that survivors keep what they carry in every option, and the base's Inventory items
+are lost in every option.** On a same-type, same-map claim every vehicle comes back as a repairable
+vehicle at its Tier, with its upgrade, and joins as R62 and R63 have it; on any other claim the
+vehicles are lost too.
+
+**What it costs.** A community overrun with a well-stocked Inventory loses all of it. A table reading
+the silence generously would carry it over like a move's.
+
+*Decided 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R78 — Starting a new community keeps only what survivors carry
+
+**pp. 19, 76–77, 86; the FAQ; #177, part 3.** Starting over uses the remaining survivors and their
+gear (pg. 86); the First Mission brings no vehicle (pg. 76).
+
+**The ruling is that survivors keep what they carry, and the old base's Inventory and every vehicle
+are lost**, as R30 loses its stores.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R79 — The Watchtower reads the whole Score
+
+**pp. 8, 14, 73; #177, part 3.** This confirms R41, below its own heading. The extract cites the
+Watchtower at pg. 71; the repo has cited pg. 73 since Phase 2, and keeps it until a copy settles
+which.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R80 — Identical items give one bonus
+
+**pp. 8, 44; the FAQ; #177, part 3.** This confirms R40's reading of two identical items, below its
+own heading.
+
+*Confirmed 2026-10-14 from the batch-17 extract.*

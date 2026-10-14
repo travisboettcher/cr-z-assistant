@@ -13,7 +13,7 @@ It comes in three parts, each a set of stories that leaves the repo working:
   change, and closes it.
 - **Part 2 — Making and finding** (Z5-6 to Z5-8): building equipment in the Planning Phase, the
   Rare Item Table, and the equipment a base starts with or yields.
-- **Part 3 — Trading and vehicles** (Z5-9 to Z5-12): trades, the Rare Items trade and the Rare Goods
+- **Part 3 — Trading and vehicles** (Z5-9 to Z5-13): trades, the Rare Items trade and the Rare Goods
   Trader, vehicles, and where items go when a survivor or a base is lost.
 
 Parts 2 and 3 are outlined here so part 1's shapes are chosen knowing what will read them. Each is
@@ -246,8 +246,8 @@ Scout, and the like) add on top (R40).
   read off the catalogue: those an item that comes in shoddy is used with. Traps gives free traps
   but none is used with a Score, so Traps has no −1.
 - **That reaches the Watchtower**, the one base reader of a weapon skill: an unarmed lookout takes
-  one less off Siege Threat than before, and one with a quality rifle one more. Proposed as R41;
-  the code has no special case either way, since the Score is the Score.
+  one less off Siege Threat than before, and one with a quality rifle one more. R41, confirmed
+  2026-10-14 (R79); the code has no special case either way, since the Score is the Score.
 - **Bonuses count one of each item**, the best grade of it: R40's "different items stack" read as
   different catalogue entries, so two pairs of binoculars add one, as two sets of reinforced
   clothing do.
@@ -496,16 +496,150 @@ Confirmed 2026-10-14 ([the registry](rulings.md)):
   read as emptying the base's. The log counts what was handed over after each name ("standard bow
   ×2"), so no item name has to be made plural.
 
-## Part 3 — Trading and vehicles (outline)
+## Part 3 — Trading and vehicles
 
-- **Z5-9 — Trading.** Buying at Planning for Food and Fuel, arriving next Advancement (pp. 19, 21);
-  selling a rare item at its price less two (pp. 21, 37).
-- **Z5-10 — The Rare Items trade and Rare Goods Trader.** The trader's list, the set-aside materials
-  outside storage, the forced next mission, and R22's outcome (pp. 21, 83–84).
-- **Z5-11 — Vehicles.** In the base Inventory by Tier; added by Retrieve New Vehicles and a won
-  claim (pp. 79, 82); Fuel per mission and the Auto Shop's breakdowns (pp. 52, 71).
-- **Z5-12 — When items change hands.** A survivor who dies, departs, turns or is exiled; a move, and
-  each way on from an overrun (FAQ; R29–R31).
+Scoped 2026-10-14 from the batch-17 extract. Parts 1 and 2 gave the community items it carries,
+builds and finds; part 3 lets it buy and sell them, gives it vehicles, and says where both go when a
+survivor or a base is lost. The outline had four stories; vehicles are two here, what the community
+holds and what a mission does with them, so each story leaves the repo working.
+
+**One schema step for the part, v18**: the orders waiting to arrive, a Rare Items trade under way,
+and the vehicles. Like v17 in part 2, it is unreleased until the part's PR merges, so each story
+adds to it rather than bumping again.
+
+### Rulings part 3 needs
+
+Confirmed 2026-10-14 ([the registry](rulings.md)), R69 and R77 decided the same day:
+
+- **Trading**: R50 (the Planning trade buys ordinary equipment in its priced grades, never a rare
+  item), R51 (it needs nobody, no Labor and no facility), R52 (an order arrives at the next
+  Advancement Step 5 wherever the community is, with no cancelling), R53 (only rare items are sold,
+  at their price less two, in Food and Fuel), R54 (the channel decides the price), R55 (a sale can
+  overfill storage until Check Storage).
+- **The Rare Items trade**: R56 (one trade, made in Planning and resolved by the Rare Goods Trader),
+  R57 (the list is full Rare Item Table rolls), R58 (the materials are set aside until the mission
+  ends), R59 (it binds the next turn's first mission, and a siege cancels it), R60 (R22 confirmed).
+- **Vehicles**: R61 (Tier, label, land or water, Tier 4's split, upgrade; no Health), R62 (Retrieve
+  New Vehicles' Tiers are rolled, then may be lowered), R63 (a won claim keeps its vehicles),
+  R64 (Fuel at Equip Mission Team), R65 (Auto Shops protect vehicles the owner picks), R66 (a vehicle
+  upgrade is fitted at Planning for nothing), R67 (no cap), R68 (empty between missions), R69 (a
+  vehicle not driven off is lost).
+- **When items change hands**: R70 (a mission death leaves items on the map unless taken), R71,
+  R73 and R74 (bitten, turned and removed survivors leave theirs to the base, as Z5-5 does), R72 (a
+  departing survivor takes theirs), R75 (a survivor set aside keeps theirs), R76 (a move takes
+  everything; a Hero sent away takes their own), R77 (an overrun loses the base's Inventory), R78
+  (starting over keeps only what survivors carry).
+- **From part 1**: R41 confirmed (R79), and R40's two identical items give one bonus (R80). The code
+  already does both.
+
+### Z5-9 — Trading
+
+**Why:** The Planning Phase buys equipment for Food and Fuel, and sells rare items (pp. 19, 21, 37).
+
+**Scope**
+- At Planning Step 2, from the Inventory's modal beside the Build form: an item, a grade with a
+  printed trade price (R50, R54), and how much of its price is Food and how much Fuel. Refused for a
+  rare item, a quality weapon, an unpriced grade, or storage that cannot pay. Nobody is assigned and
+  no Labor is spent (R51).
+- The materials leave at once; the order waits on the campaign and arrives at the next Add
+  Facilities and Upgrades, in whatever base the community holds then (R52). No cancelling. Starting
+  over loses waiting orders.
+- Selling a rare item from the Inventory in the Planning Phase: its price less two, paid at once in
+  the player's mix of Food and Fuel (R53), over the cap if need be, with Check Storage's warning
+  (R55).
+
+**Acceptance**
+- An item ordered on turn 3 costs its Food and Fuel on turn 3 and is in the Inventory at turn 4's Add
+  Facilities and Upgrades, not before.
+- A rare item priced 6 sells for 4.
+
+### Z5-10 — The Rare Items trade and the Rare Goods Trader
+
+**Why:** Rare items are bought from a trader the community sends a team to meet (pp. 21, 37, 43,
+83–84).
+
+**Scope**
+- At Planning, a trade is made: the app shows how many Rare Item Table rolls the list has (every
+  survivor's Scout Score plus Cooperation, R57), and the player enters the two dice of each roll they
+  want to buy from. Each names its item and its subtable price (R54).
+- The chosen items' prices are set aside in the player's mix of Food and Fuel, outside storage and
+  outside Check Storage (R58). A `rare-trade-made` entry names the items, their dice and what was
+  set aside.
+- The next Mission Phase's first mission must be the Rare Goods Trader (R59). Choosing another loses
+  the materials, as a siege called at Check the Horde does; both cancel the trade.
+- The mission's outcome records which items were traded, in priority order. With a survivor out,
+  they arrive at once and the rest of the materials return to storage; with none, the traded items
+  and their materials are lost and the rest return (R22, R60).
+
+**Acceptance**
+- A trade for two items, one traded before nobody got out, loses that item and its materials and
+  returns the other's.
+
+### Z5-11 — Vehicles the community holds
+
+**Why:** A community keeps vehicles, and two missions add them (pp. 49, 52–53, 79, 81–82).
+
+**Scope**
+- `Campaign.vehicles`: each with an id, its Tier, a label, land or water, Tier 4's split of its 20
+  slots, and its upgrade if it has one (R61). No cap, and Check Storage ignores them (R67). They move
+  with the community (R76).
+- Retrieve New Vehicles' outcome counts the vehicles driven off; each then asks for its rolled Tier,
+  which the player may lower, and a label (R62). A won Claim a New Base adds the vehicles on its
+  mission area at their Tiers (R63).
+- A vehicle upgrade in the Inventory is fitted to a vehicle with none, in the Planning Phase, for
+  nothing (R66). It stays with that vehicle.
+- A Vehicles card's modal lists them; the main screen gets no new section.
+
+**Acceptance**
+- Retrieve New Vehicles with two driven off, rolled 5 and 10, adds a Tier 2 and a Tier 4, or a lower
+  Tier the player chose.
+
+### Z5-12 — Vehicles on a mission
+
+**Why:** A vehicle burns Fuel, breaks down past the base's Auto Shops, and is lost if nobody drives
+it home (pp. 18, 32, 52, 71).
+
+**Scope**
+- At Equip Mission Team a team takes vehicles, paying each one's Tier in Fuel from storage (R64); a
+  vehicle the community cannot fuel is refused, and an electric conversion needs a powered Auto Shop
+  and burns none (pg. 49).
+- The step says how many go protected by Auto Shops and that the rest arrive broken (R65); nothing is
+  stored about which.
+- The outcome records the vehicles not driven off, which are lost (R69), with what they held lost
+  as `items-spent` records lost gear. A won claim's vehicles are kept (R63).
+- Fuel is not refunded for a lost vehicle.
+
+**Acceptance**
+- A Tier 3 vehicle taken costs 3 Fuel; not driven off, it is gone from the community's vehicles and
+  the log says so.
+
+### Z5-13 — When items change hands
+
+**Why:** Z5-5 left every leaver's items at the base until part 3 ruled where they go (FAQ; pp. 22–23,
+31, 54, 85–86).
+
+**Scope**
+- A survivor who dies on a mission leaves with a cause of their own beside #201's three, and what
+  they carried is lost unless the outcome records it taken (R70).
+- A survivor who departs takes what they carry (R72). Bitten, turned and removed survivors leave
+  theirs to the base as now (R71, R73, R74).
+- A survivor set aside keeps what they carry (R75), and a Hero sent away by a move takes theirs
+  (R76).
+- An overrun loses the base's Inventory in every way on (R77); a same-type, same-map claim brings
+  the vehicles back as repairable ones to drive off (R62, R63), and starting over loses them (R78).
+
+**Acceptance**
+- A survivor who departs carrying a rifle takes it; one bitten to death leaves theirs in the
+  Inventory.
+- After an overrun claimed on another base type, the Inventory is empty and every survivor still
+  carries what they did.
+
+## Phase 5 is done when
+
+Every item and vehicle the community holds was built, found, traded, handed over or retrieved the
+way the book has it, and goes where the rulings say when a survivor or a base is lost —
+round-tripped through a save file, with CI green, the mutation score holding, and no rule prose in
+the repo.
 
 ## Phase 5, part 1 is done when
 
