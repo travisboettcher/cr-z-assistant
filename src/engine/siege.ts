@@ -225,7 +225,7 @@ export function siegeThreatTerms(campaign: Campaign): Record<SiegeThreatTerm, nu
 }
 
 /**
- * What every staffed Watchtower on the base takes off the threat (pg. 73).
+ * What every staffed Watchtower on the base takes off the threat (pg. 71).
  *
  * Negative, because it is a term of a sum rather than a magnitude — the screen
  * names it as a reduction by showing the sign.
@@ -335,7 +335,7 @@ export function hordeCame(campaign: Campaign): boolean {
  */
 
 /**
- * Watchtowers with somebody in them who cannot watch (pg. 73).
+ * Watchtowers with somebody in them who cannot watch (pg. 71).
  *
  * The slot ids, because a base can hold two towers and "one of them" is not an
  * answer a player can act on.

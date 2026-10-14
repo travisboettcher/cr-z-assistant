@@ -206,7 +206,7 @@ function RotCheck({
     candidates.find((candidate) => candidate.id === bitten)?.id ?? candidates[0]?.id ?? null;
 
   // A set of Restraints holds one turned survivor and the bite does not happen
-  // (pp. 72–73), so there is nothing to choose between — and the engine decides it
+  // (pg. 69), so there is nothing to choose between — and the engine decides it
   // either way, which is why this only takes the picker away.
   const held = restraintsFree(campaign) > 0;
 

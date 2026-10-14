@@ -25,8 +25,8 @@ export const D10_RESULTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
 export type D10Result = (typeof D10_RESULTS)[number];
 
-/** A roll of this fails however good the survivor is (pg. 8). */
+/** A roll of this fails however good the survivor is (pg. 5). */
 export const NATURAL_FAILURE = 1;
 
-/** A roll of this succeeds however bad the odds are (pg. 8). */
+/** A roll of this succeeds however bad the odds are (pg. 5). */
 export const NATURAL_SUCCESS = 10;

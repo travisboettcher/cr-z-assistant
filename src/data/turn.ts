@@ -326,7 +326,7 @@ export const FOOD_EATEN_PER_TURN = {
  * states **no floor** — a well-staffed Clinic can drive the target to 2 or
  * below, where only a natural 1 still fails. That is left unclamped on purpose:
  * clamping it would be inventing a rule the book does not have, and the
- * natural-1 convention (pg. 8) already stops it from becoming a certainty.
+ * natural-1 convention (pg. 5) already stops it from becoming a certainty.
  */
 export const ROT_CHECK_TARGET = 12;
 

@@ -246,8 +246,8 @@ Scout, and the like) add on top (R40).
   read off the catalogue: those an item that comes in shoddy is used with. Traps gives free traps
   but none is used with a Score, so Traps has no −1.
 - **That reaches the Watchtower**, the one base reader of a weapon skill: an unarmed lookout takes
-  one less off Siege Threat than before, and one with a quality rifle one more. Proposed as R41;
-  the code has no special case either way, since the Score is the Score.
+  one less off Siege Threat than before, and one with a quality rifle one more. R41, since settled
+  by the text (pp. 8, 71); the code has no special case either way, since the Score is the Score.
 - **Bonuses count one of each item**, the best grade of it: R40's "different items stack" read as
   different catalogue entries, so two pairs of binoculars add one, as two sets of reinforced
   clothing do.

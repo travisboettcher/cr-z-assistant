@@ -186,7 +186,7 @@ describe('Check for Rot', () => {
   it('shows what the entered roll would cost, before it costs it', async () => {
     const user = open(dying());
 
-    // A natural 1 always fails (pg. 8).
+    // A natural 1 always fails (pg. 5).
     await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '1');
     expect(walk().textContent).toContain('Earl Rhodes turns and is removed');
 

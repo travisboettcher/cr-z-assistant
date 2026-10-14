@@ -388,7 +388,7 @@ penalty, and the amendment recording that its expiry is turn-based rather than a
 [R6](rulings.md#r6--a-set-of-restraints-works-once-per-turn) (Restraints),
 [R7](rulings.md#r7--a-point-of-xp-handed-out-stays-handed-out) (XP already awarded),
 [R8](rulings.md#r8--a-teacher-with-a-score-of-nothing-still-replaces-the-discretionary-point) (the
-Score-0 Teacher), [R9](rulings.md#r9--how-broadly-the-utilities-substitution-applies--open) (the
+Score-0 Teacher), [R9](rulings.md#r9--how-broadly-the-utilities-substitution-applies) (the
 Utilities substitution, still open),
 [R12](rulings.md#r12--wounded-and-injured-are-one-state) (wounded and injured),
 [R13](rulings.md#r13--siege-threat-may-go-below-zero--recorded-without-a-ruling) (negative Siege
@@ -709,7 +709,7 @@ acquire a step to happen in.
   **changes a roll's result** rather than adding to it, with uses equal to that skill's summed
   score across the mission (pg. 12), plus facility production from Z3-5 added as a proposed
   amount the player accepts. How broadly Utilities may substitute is
-  [R9](rulings.md#r9--how-broadly-the-utilities-substitution-applies--open).
+  [R9](rulings.md#r9--how-broadly-the-utilities-substitution-applies).
 - XP, in the book's order (pg. 18): 1 to every survivor who was on the mission, then one further
   discretionary point, then a Training Room's output, then spending. A Teacher on the mission
   **replaces** the discretionary point rather than adding to it, and the two 2-XP caps are two

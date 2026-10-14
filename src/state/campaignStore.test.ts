@@ -2118,7 +2118,7 @@ describe('the steps that may only run once a turn', () => {
 
     /**
      * The exact shape the playtest saw: passing at 10, then dying at 1. A
-     * natural 10 always succeeds and a natural 1 always fails (pg. 8), so the
+     * natural 10 always succeeds and a natural 1 always fails (pg. 5), so the
      * second press is a second answer to a question already answered.
      */
     it('refuses a second check for the same survivor', () => {

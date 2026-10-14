@@ -152,13 +152,7 @@ export interface Effects {
   /** Vehicles kept from breaking down on a mission, per copy (pg. 73). Phase 5. */
   readonly protectsVehicles?: number;
   /**
-   * Turned survivors kept from biting, per copy (pp. 72–73).
-   *
-   * The spread rather than a page, because the two transcriptions of this one
-   * disagree: this line was written as pg. 73 and the September playtest read
-   * it off pg. 72. A range is honest about what was confirmed, and a wrong
-   * page is the failure the edition retrofit existed to remove. Narrow it next
-   * time the book is open.
+   * Turned survivors kept from biting, per copy (pg. 69; its row, pg. 72).
    */
   readonly preventsBiting?: number;
   /** Madness removed in Rest and Healing, with and without Power (pg. 72). Phase 7. */
