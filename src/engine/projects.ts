@@ -238,9 +238,32 @@ export function queuedFor(campaign: Campaign, slot: string): readonly QueuedProj
  * them.
  */
 export function laborCommitted(campaign: Campaign): number {
+  return queuedLaborThisTurn(campaign) + equipmentLaborThisTurn(campaign);
+}
+
+/** What this turn's queue has committed of this turn's Labor. */
+function queuedLaborThisTurn(campaign: Campaign): number {
   return campaign.projects.reduce(
     (total, project) =>
       project.orderedOnTurn === campaign.turn ? total + project.charged.labor : total,
+    0,
+  );
+}
+
+/**
+ * What this turn's equipment has spent of this turn's Labor (pp. 20–21; Z5-6).
+ *
+ * Read off the `item-built` entries, because a built item is finished the
+ * moment it is paid for and leaves nothing in the queue to read: the entry is
+ * the only record of what it cost. One budget with the queue, so every reader
+ * of `laborCommitted` sees the same number.
+ */
+export function equipmentLaborThisTurn(campaign: Campaign): number {
+  return campaign.log.reduce(
+    (total, entry) =>
+      entry.turn === campaign.turn && entry.event.kind === 'item-built'
+        ? total + entry.event.labor
+        : total,
     0,
   );
 }
@@ -292,10 +315,13 @@ export function laborAvailable(campaign: Campaign): number {
  * ordering. The queue is not wrong —
  * every order in it was affordable when it was placed — so this is not a
  * validation failure but the rule's own consequence, waiting for the player to
- * say which project does not get finished.
+ * say which project does not get finished. Equipment built this turn counts
+ * against the pool but is never unbuilt (R48).
  */
 export function laborShortfall(campaign: Campaign): number {
-  return Math.max(0, -laborAvailable(campaign));
+  // Never more than the queue can give back: an item already built stays built
+  // (R48), so a shortfall only equipment accounts for is forgiven.
+  return Math.max(0, Math.min(queuedLaborThisTurn(campaign), -laborAvailable(campaign)));
 }
 
 /**

@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign } from '../engine/campaign';
 import { createSurvivor } from '../engine/survivor';
 import { CampaignProvider } from '../state/CampaignProvider';
+import { withPlanningBegun } from '../test/campaigns';
 import { campaignLog, closePanel, openPanel } from '../test/screens';
 import { App } from './App';
 
@@ -135,5 +136,58 @@ describe('what a survivor carries, on their sheet (Z5-2)', () => {
     expect(
       screen.getByText('Carrying Heavy weapon (shoddy), Ultralight backpack (standard)'),
     ).toBeInTheDocument();
+  });
+});
+
+/** Building at Planning Step 2 (pp. 20–21, 41–42; Z5-6). */
+describe('building an item from the Inventory', () => {
+  /** Turn 3's Assign Project Team, a Workshop in the garage and a 2-Labor team. */
+  const building = (): Campaign =>
+    withPlanningBegun({
+      ...playing(),
+      base: {
+        id: 'small-town-home',
+        slots: { garage: { built: { facility: 'workshop', builtOnTurn: 1 } } },
+      },
+      materials: { food: 0, fuel: 0, hardware: 5, rare: 0 },
+      survivors: [createSurvivor('Earl Rhodes', 2, { id: 'earl' })],
+      assignments: { earl: { task: 'project' } },
+    });
+
+  it('builds into the Inventory at once, and says what it cost', async () => {
+    const user = open(building());
+    openPanel('inventory');
+
+    await user.selectOptions(screen.getByLabelText('Item to build'), 'blunt');
+    expect(screen.getByText(/1 Hardware · 1 Labor, of 2 available/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Build' }));
+
+    const stored = screen.getByRole('region', { name: 'In the Inventory' });
+    expect(within(stored).getByText(/standard/i)).toBeInTheDocument();
+    expect(card().getByText(/item/).textContent).toBe('1 item');
+    expect(campaignLog().textContent).toContain(
+      'Built into the base’s Inventory: standard blunt weapon, for 1 Hardware and 1 Labor.',
+    );
+  });
+
+  it('refuses what the base cannot build, and says why', async () => {
+    const user = open(building());
+    openPanel('inventory');
+
+    await user.selectOptions(screen.getByLabelText('Item to build'), 'bladed');
+
+    expect(screen.getByRole('button', { name: 'Build' })).toBeDisabled();
+    expect(
+      screen.getByText(/The base’s Workshop lacks the upgrade this is built with\./),
+    ).toBeInTheDocument();
+  });
+
+  it('is linked from Assign Project Team', async () => {
+    const user = open(building());
+
+    await user.click(screen.getByRole('button', { name: 'Inventory' }));
+
+    expect(screen.getByRole('dialog', { name: /inventory/i })).toBeInTheDocument();
   });
 });

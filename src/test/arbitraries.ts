@@ -560,6 +560,14 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       }),
     ),
     fc.record({
+      kind: fc.constant('item-built' as const),
+      id: anyId,
+      item: fc.constantFrom(...ITEM_IDS),
+      grade: fc.constantFrom(...GRADES),
+      hardware: anyCount,
+      labor: anyCount,
+    }),
+    fc.record({
       kind: fc.constant('items-spent' as const),
       team: fc.integer({ min: 1, max: 4 }),
       items: fc.array(

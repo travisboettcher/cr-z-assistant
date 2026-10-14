@@ -65,6 +65,7 @@ import {
 } from '../engine/advancementForms';
 import type { MissionOutcome } from '../engine/missions';
 import type { EquipMove } from '../engine/equip';
+import type { BuildOrder } from '../engine/making';
 import {
   submitMissionOutcome,
   submitMissionSelection,
@@ -79,6 +80,7 @@ import {
   submitBaseClaim,
   submitItemAdded,
   submitItemRemoved,
+  submitItemBuilt,
   submitNewSurvivor,
   submitRecruit,
   submitRemoval,
@@ -456,6 +458,8 @@ export type CampaignAction =
     }
   /** An item taken out of the base's Inventory by hand (Z5-2). */
   | { readonly type: 'inventory/itemRemoved'; readonly id: string; readonly at: string }
+  /** An item the project team builds, with its fresh id (Z5-6). */
+  | { readonly type: 'planning/itemBuilt'; readonly order: BuildOrder; readonly at: string }
   /** An item moved at Equip Mission Team, or shoddy gear taken up free (Z5-4). */
   | { readonly type: 'mission/itemMoved'; readonly move: EquipMove; readonly at: string }
   /** What a team's mission used up or lost, by item id (Z5-5). */
@@ -1034,6 +1038,9 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return submitted(state, (campaign) =>
         submitItemsSpent(campaign, action.team, action.items, action.at),
       );
+
+    case 'planning/itemBuilt':
+      return submitted(state, (campaign) => submitItemBuilt(campaign, action.order, action.at));
 
     case 'inventory/itemRemoved':
       return submitted(state, (campaign) => submitItemRemoved(campaign, action.id, action.at));

@@ -758,6 +758,19 @@ export type CampaignEvent =
       readonly item: ItemId;
       readonly grade: Grade;
     }
+  /**
+   * An item the project team built (pp. 20–21; Z5-6), into the base's
+   * Inventory at once, and what it cost: the Labor is read back by
+   * `laborCommitted`, since nothing else records it.
+   */
+  | {
+      readonly kind: 'item-built';
+      readonly id: string;
+      readonly item: ItemId;
+      readonly grade: Grade;
+      readonly hardware: number;
+      readonly labor: number;
+    }
   /** An item taken out of the base's Inventory by hand (Z5-2). */
   | {
       readonly kind: 'item-removed';

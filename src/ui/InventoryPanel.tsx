@@ -19,7 +19,17 @@ import {
   type ItemRules,
 } from '../data/equipment';
 import type { Campaign } from '../engine/campaign';
+import { permitted } from '../engine/checks';
 import { newItemProblem } from '../engine/equipment';
+import {
+  buildableItems,
+  buildCheck,
+  buildCost,
+  buildGrades,
+  ENCHANTABLE,
+  type Enchantable,
+} from '../engine/making';
+import { laborAvailable } from '../engine/projects';
 import { useCampaign } from '../state/useCampaign';
 import { GRADE_LABELS, ITEM_KIND_LABELS, ITEM_LABELS } from './equipmentLabels';
 import { PageRef } from './PageRef';
@@ -107,8 +117,148 @@ export function InventoryPanel({ campaign }: { readonly campaign: Campaign }) {
         )}
       </section>
 
+      <BuildItem campaign={campaign} />
       <AddItem campaign={campaign} />
     </div>
+  );
+}
+
+/**
+ * Building an item at Planning Step 2 (pp. 20–21, 41–42; Z5-6): the items the
+ * tables price, in the grades they price, at the cost `buildCost` quotes, and
+ * refused for whatever `buildCheck` says. It is in the Inventory the moment it
+ * is paid for.
+ */
+function BuildItem({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+  const itemId = useId();
+  const gradeId = useId();
+  const weaponId = useId();
+
+  const offered = buildableItems(campaign);
+  const [chosenItem, setItem] = useState<ItemId>('blunt');
+  const item = offered.includes(chosenItem) ? chosenItem : (offered[0] ?? 'blunt');
+  const grades = buildGrades(item);
+  const [chosenGrade, setGrade] = useState<Grade>('standard');
+  const grade = grades.includes(chosenGrade) ? chosenGrade : (grades[0] ?? 'standard');
+  const [enchants, setEnchants] = useState<Enchantable>('bladed');
+  const [fresh, setFresh] = useState(() => crypto.randomUUID());
+
+  const rules: ItemRules = EQUIPMENT[item];
+  const onWeapon = rules.build?.kind === 'as-base-weapon';
+  const order = { id: fresh, item, grade, ...(onWeapon ? { enchants } : {}) };
+  const check = buildCheck(campaign, order);
+  const cost = buildCost(campaign, order);
+
+  return (
+    <fieldset className="border-t border-stone-200 pt-4 dark:border-stone-800">
+      <legend className="font-medium">Build an item</legend>
+      <p className={`mt-1 ${HINT}`}>
+        The project team builds it in the Planning Phase, and it is here the moment it is paid for{' '}
+        <PageRef pages="20–21" />
+      </p>
+
+      <div className="mt-3 flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1">
+          <label htmlFor={itemId} className="text-sm">
+            Item to build
+          </label>
+          <select
+            id={itemId}
+            className={SELECT}
+            value={item}
+            onChange={(changed) => {
+              setItem(changed.target.value as ItemId);
+            }}
+          >
+            {KINDS.map((kind) => {
+              const ofKind = offered.filter((id) => EQUIPMENT[id].kind === kind);
+
+              return ofKind.length === 0 ? null : (
+                <optgroup key={kind} label={ITEM_KIND_LABELS[kind]}>
+                  {ofKind.map((id) => (
+                    <option key={id} value={id}>
+                      {ITEM_LABELS[id]}
+                    </option>
+                  ))}
+                </optgroup>
+              );
+            })}
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor={gradeId} className="text-sm">
+            Grade to build
+          </label>
+          <select
+            id={gradeId}
+            className={SELECT}
+            value={grade}
+            onChange={(changed) => {
+              setGrade(changed.target.value as Grade);
+            }}
+          >
+            {grades.map((option) => (
+              <option key={option} value={option}>
+                {GRADE_LABELS[option]}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {onWeapon && (
+          <div className="flex flex-col gap-1">
+            <label htmlFor={weaponId} className="text-sm">
+              Built on
+            </label>
+            <select
+              id={weaponId}
+              className={SELECT}
+              value={enchants}
+              onChange={(changed) => {
+                setEnchants(changed.target.value as Enchantable);
+              }}
+            >
+              {ENCHANTABLE.map((weapon) => (
+                <option key={weapon} value={weapon}>
+                  {ITEM_LABELS[weapon]}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {cost !== undefined && (
+        <p className={`mt-2 ${HINT}`}>
+          {cost.hardware} Hardware · {cost.labor} Labor, of {Math.max(0, laborAvailable(campaign))}{' '}
+          available <PageRef pages={rules.pages} />
+        </p>
+      )}
+
+      {check.blockers.length > 0 && (
+        <ul className="mt-2 flex flex-col gap-1">
+          {check.blockers.map((violation) => (
+            <li key={violation.code} className="text-sm text-amber-800 dark:text-amber-300">
+              {violation.message} <PageRef pages={violation.pages} />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <button
+        type="button"
+        className={`mt-3 ${PRIMARY}`}
+        disabled={!permitted(check, false)}
+        onClick={() => {
+          dispatch({ type: 'planning/itemBuilt', order, at: new Date().toISOString() });
+          setFresh(crypto.randomUUID());
+        }}
+      >
+        Build
+      </button>
+    </fieldset>
   );
 }
 
@@ -189,7 +339,7 @@ function AddItem({ campaign }: { readonly campaign: Campaign }) {
 
         <button
           type="button"
-          className={PRIMARY}
+          className={SECONDARY}
           disabled={problem !== null}
           onClick={() => {
             dispatch({

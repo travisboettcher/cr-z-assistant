@@ -685,6 +685,13 @@ const EVENT_FIELDS: Record<
     ['team', 'countFromOne'],
     ['items', 'spentItems'],
   ],
+  'item-built': [
+    ['id', 'id'],
+    ['item', 'itemId'],
+    ['grade', 'grade'],
+    ['hardware', 'count'],
+    ['labor', 'count'],
+  ],
   'item-moved': [
     ['id', 'id'],
     ['item', 'itemId'],

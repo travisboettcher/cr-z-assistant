@@ -2482,6 +2482,24 @@ describe('what earns a line in the log', () => {
         facility: 'watchtower',
       }),
     },
+    'planning/itemBuilt': {
+      // Improvised armor needs no facility (pg. 42), so the Hobby Farm builds
+      // it from the project team's Labor, into the Inventory at once (Z5-6).
+      state: openState(withPlanningBegun({ ...expectOpen(rich()), step: 'assign-project-team' })),
+      action: {
+        type: 'planning/itemBuilt',
+        at: AT,
+        order: { id: 'item-1', item: 'improvised-armor', grade: 'standard' },
+      },
+      entry: entry(3, 'planning', {
+        kind: 'item-built',
+        id: 'item-1',
+        item: 'improvised-armor',
+        grade: 'standard',
+        hardware: 2,
+        labor: 2,
+      }),
+    },
     'project/cancelled': {
       // In the step that placed the order, which is the only one that may take
       // it back (#148) — and a Watchtower's 3 Hardware is what comes back.

@@ -88,6 +88,16 @@ export function PlanningPhase({ campaign, step }: PlanningPhaseProps) {
             legend="On the project team"
             pages={20}
           />
+          {/*
+           * The team's Labor builds equipment as well as facilities, from the
+           * same pool, and an item is ready at once (Z5-6). Built from the
+           * Inventory's modal rather than a copy of it here.
+           */}
+          <p className="mt-3 text-sm text-stone-600 dark:text-stone-400">
+            Facilities are ordered on the <OpenPanel panel="base">base</OpenPanel>; equipment is
+            built from the <OpenPanel panel="inventory">Inventory</OpenPanel>, from the same Labor,
+            and is ready at once <PageRef pages="20–21" />
+          </p>
         </>
       )}
 

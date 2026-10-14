@@ -429,6 +429,12 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
         pages: '40, 45–48',
       };
 
+    case 'item-built':
+      return {
+        text: `Built into the base’s Inventory: ${describeItem(event)}, for ${String(event.hardware)} Hardware and ${String(event.labor)} Labor.`,
+        pages: '20, 41–42',
+      };
+
     case 'item-moved':
       return {
         text: `Equipped: ${describeItem(event)}, from ${holderLabel(event.from)} to ${holderLabel(event.to)}.`,

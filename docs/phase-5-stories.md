@@ -391,6 +391,23 @@ Confirmed 2026-10-14 ([the registry](rulings.md)):
   same turn (pp. 20, 41).
 - At the Renaissance Festival a crossbow costs 2 Labor, and a pistol its full 2.
 
+**What this story turned out to include.**
+
+- **`src/engine/making.ts`** prices and checks an order: the row's Hardware for the grade, its
+  Labor halved and rounded up by Blacksmithing Tools for a *weapon* used with bladed, blunt, heavy
+  or archery (R43) — so not the throwing axe, a disposable — and the enchanted melee weapon priced
+  as the blunt, bladed or heavy weapon it is built on, which the order names (pg. 40).
+- **Standing means built.** Facilities and Workshop upgrades are read from the base's occupants,
+  where an order in the queue is not yet; a Workshop upgrade's Utility is read from its Workshop,
+  and a row naming two facilities needs the Utility at either (R44).
+- **`item-built`** records the item, its id, and the Hardware and Labor it cost. Its Labor is read
+  back by `laborCommitted`, which every Labor reader already asks, so the slot cards' orders, the
+  Departures choice and the End-turn warning all see one budget. `laborShortfall` never asks for
+  more than this turn's queue can give back (R48).
+- **The Build form is in the Inventory's modal**, with the cost and the Labor left before the
+  button, and refusals said in the engine's words. Assign Project Team links to it and to the base.
+  "Add an item by hand" is demoted to a secondary button, so the Inventory has one amber action.
+
 ### Z5-7 — The Rare Item Table
 
 **Why:** A material roll of 10 is a roll on the Rare Item Table, instead of that material (pp. 19,
