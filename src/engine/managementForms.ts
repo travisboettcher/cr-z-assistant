@@ -98,6 +98,7 @@ export function submitRotCheck(campaign: Campaign, form: RotCheckForm, at: strin
     survivor: outcome.turned.id,
     name: outcome.turned.name,
     tier: outcome.turned.tier,
+    cause: 'turned',
   });
 
   /*
@@ -133,6 +134,7 @@ export function submitRotCheck(campaign: Campaign, form: RotCheckForm, at: strin
       survivor: outcome.bitten.survivor.id,
       name: outcome.bitten.survivor.name,
       tier: outcome.bitten.survivor.tier,
+      cause: 'bitten',
     }),
   );
 }

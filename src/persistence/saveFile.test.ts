@@ -881,6 +881,25 @@ describe('a campaign whose log is damaged', () => {
     expect(parseCampaignFile(savedWith({ log: [{ ...good, event }] })).ok).toBe(true);
   });
 
+  /** A survivor's leaving says why since #201, and one written before it does not. */
+  it.each([
+    ['naming why', { cause: 'bitten' }, true],
+    ['naming nothing, as one written before #201 does', {}, true],
+    ['naming a cause this version does not know', { cause: 'eaten' }, false],
+  ])('reads a survivor’s leaving %s', (_name, cause, ok) => {
+    const event = {
+      kind: 'survivor-left',
+      survivor: 'earl',
+      name: 'Earl Rhodes',
+      tier: 2,
+      ...cause,
+    };
+    const result = parseCampaignFile(savedWith({ log: [{ ...good, event }] }));
+
+    expect(result.ok).toBe(ok);
+    if (!result.ok) expect(result.error.message).toMatch(/unreadable cause/i);
+  });
+
   it.each([
     ['not a list at all', 5, /campaign log is missing/i],
     ['an entry that is not an object', [7], /is not a log entry/i],

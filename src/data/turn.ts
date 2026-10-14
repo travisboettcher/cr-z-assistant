@@ -42,7 +42,7 @@
  */
 
 import type { D10Result } from './dice';
-import { MATERIALS, type Material } from './materials';
+import type { Material } from './materials';
 import type { Tier } from './tiers';
 
 /** The four campaign phases, in the strict order the turn runs them (pg. 17). */
@@ -248,15 +248,15 @@ export type MaterialRollResult = Material | 'rare-item';
  * the obvious wrong implementation, so the rule is written here as a mapping
  * from skill to *allowed results* rather than as an amount.
  *
- * Rationing is locked to Food and Mechanics to Hardware. Utilities is written
- * as "a given material", and forces any of the three — never a 10, which is a
- * Rare Item Table roll rather than a material
- * ([R9](../../docs/rulings.md#r9--how-broadly-the-utilities-substitution-applies)).
+ * One material each: Rationing forces Food, Mechanics Hardware and Utilities
+ * Fuel (pg. 12, as the Errata corrects it), and none forces a 10, which is a
+ * Rare Item Table roll rather than a material (pg. 19;
+ * [R9](../../docs/rulings.md#r9--how-broadly-the-utilities-substitution-applies)).
  */
 export const MATERIAL_SUBSTITUTIONS = {
   rationing: ['food'],
   mechanics: ['hardware'],
-  utilities: MATERIALS,
+  utilities: ['fuel'],
 } as const satisfies Record<string, readonly Material[]>;
 
 /** A skill that can override a material roll (pg. 12). */

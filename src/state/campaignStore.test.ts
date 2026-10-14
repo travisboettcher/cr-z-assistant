@@ -2425,7 +2425,7 @@ describe('what earns a line in the log', () => {
     },
     'survivor/removed': {
       action: { type: 'survivor/removed', at: AT, id: LOGGED_SURVIVOR },
-      entry: entry(3, 'mission', { kind: 'survivor-left', ...WEBB, tier: 2 }),
+      entry: entry(3, 'mission', { kind: 'survivor-left', ...WEBB, tier: 2, cause: 'removed' }),
     },
     'survivor/tierBought': {
       action: { type: 'survivor/tierBought', at: AT, id: LOGGED_SURVIVOR, raise: 'intelligence' },
@@ -3815,7 +3815,7 @@ describe('the Management Phase', () => {
         target: 12,
         passed: false,
       },
-      { kind: 'survivor-left', survivor: CHECKED, name: 'Marcus Webb', tier: 2 },
+      { kind: 'survivor-left', survivor: CHECKED, name: 'Marcus Webb', tier: 2, cause: 'turned' },
     ]);
   });
 
@@ -3846,7 +3846,7 @@ describe('the Management Phase', () => {
         target: 12,
         passed: false,
       },
-      { kind: 'survivor-left', survivor: CHECKED, name: 'Marcus Webb', tier: 2 },
+      { kind: 'survivor-left', survivor: CHECKED, name: 'Marcus Webb', tier: 2, cause: 'turned' },
       { kind: 'survivor-bitten', survivor: DECOY, name: 'Ruby Vance', damage: 1 },
     ]);
   });
@@ -3866,9 +3866,9 @@ describe('the Management Phase', () => {
         target: 12,
         passed: false,
       },
-      { kind: 'survivor-left', survivor: CHECKED, name: 'Marcus Webb', tier: 2 },
+      { kind: 'survivor-left', survivor: CHECKED, name: 'Marcus Webb', tier: 2, cause: 'turned' },
       { kind: 'survivor-bitten', survivor: DECOY, name: 'Ruby Vance', damage: 1 },
-      { kind: 'survivor-left', survivor: DECOY, name: 'Ruby Vance', tier: 4 },
+      { kind: 'survivor-left', survivor: DECOY, name: 'Ruby Vance', tier: 4, cause: 'bitten' },
     ]);
   });
 });

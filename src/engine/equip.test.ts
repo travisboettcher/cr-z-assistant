@@ -228,7 +228,7 @@ describe('what a survivor can take (pp. 14, 38, 44; R40)', () => {
   });
 
   it('counts the slots an item brings with it', () => {
-    // An ultralight backpack takes none and adds two (pg. 51).
+    // An ultralight backpack takes one and adds two (pg. 51; R50).
     const packed = equipping({
       survivors: [
         {

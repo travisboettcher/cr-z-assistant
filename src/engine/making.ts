@@ -113,13 +113,14 @@ function blacksmithed(campaign: Campaign, rules: ItemRules): boolean {
  */
 export function buildCost(campaign: Campaign, order: BuildOrder): BuildCost | undefined {
   if (!Object.hasOwn(EQUIPMENT, order.item)) return undefined;
+  if (!buildGrades(order.item).includes(order.grade)) return undefined;
 
   const row = pricedRow(order);
   if (row === undefined) return undefined;
 
-  // No row prices shoddy, which nobody builds (R35).
-  const hardware = row.hardware[order.grade as PricedGrade];
-  if (hardware === undefined) return undefined;
+  // Present: `buildGrades` offers only a grade the row prices, and the
+  // enchanted melee weapon's base weapons all price standard (`making.test`).
+  const hardware = row.hardware[order.grade as PricedGrade] as number;
 
   const rules: ItemRules = EQUIPMENT[order.item];
   const labor = blacksmithed(campaign, rules) ? Math.ceil(row.labor / 2) : row.labor;
@@ -142,7 +143,11 @@ export function buildableItems(campaign: Campaign): readonly ItemId[] {
   });
 }
 
-/** The grades an item is built in: those its row prices, never shoddy (R34, R35). */
+/**
+ * The grades an item is built in: those its row prices, never shoddy (R35),
+ * and never a quality weapon, which is found or traded (pg. 37; R34). The
+ * weapon tables' quality column goes unbuilt.
+ */
 export function buildGrades(item: ItemId): readonly Grade[] {
   const rules: ItemRules = EQUIPMENT[item];
   const build = rules.build;
@@ -150,7 +155,10 @@ export function buildGrades(item: ItemId): readonly Grade[] {
   if (build === undefined) return [];
   if (build.kind === 'as-base-weapon') return ['standard'];
 
-  return (['standard', 'quality'] as const).filter((grade) => build.hardware[grade] !== undefined);
+  return (['standard', 'quality'] as const).filter(
+    (grade) =>
+      build.hardware[grade] !== undefined && !(rules.kind === 'weapon' && grade === 'quality'),
+  );
 }
 
 /** The facilities standing at the base that satisfy a row's facilities and upgrades. */
@@ -212,7 +220,9 @@ export function buildCheck(campaign: Campaign, order: BuildOrder): Check<BuildCo
 
   const cost = buildCost(campaign, order);
   if (cost === undefined) {
-    return refuse('no-such-grade', 'It is not built in that grade.');
+    return rules.kind === 'weapon' && order.grade === 'quality'
+      ? refuse('no-such-grade', 'A quality weapon is found or traded, never built.', 37)
+      : refuse('no-such-grade', 'It is not built in that grade.');
   }
 
   if (allItems(campaign).some((item) => item.id === order.id)) {

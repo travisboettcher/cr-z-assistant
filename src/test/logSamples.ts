@@ -175,6 +175,10 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'stranger-joined', ...SURVIVOR, tier: 2, team: 2, stranger: 0, roll: 6 },
   // A Rookie, who does not roll (pg. 7), and the second stranger on a team.
   { kind: 'stranger-joined', ...SURVIVOR, tier: 1, team: 1, stranger: 1 },
+  // Each cause (#201), and an entry from before the cause was recorded.
+  { kind: 'survivor-left', ...SURVIVOR, tier: 1, cause: 'turned' },
+  { kind: 'survivor-left', ...SURVIVOR, tier: 2, cause: 'bitten' },
+  { kind: 'survivor-left', ...SURVIVOR, tier: 3, cause: 'removed' },
   { kind: 'survivor-left', ...SURVIVOR, tier: 1 },
   { kind: 'survivor-departed', ...SURVIVOR, tier: 1 },
   { kind: 'mission-team-reduced', ...SURVIVOR },

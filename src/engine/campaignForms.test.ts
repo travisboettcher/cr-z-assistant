@@ -407,7 +407,7 @@ describe('submitRemoval', () => {
     expect(after.survivors.map((survivor) => survivor.id)).toEqual(['carla']);
     expect(after.assignments).toEqual({ carla: { task: 'project' } });
     expect(after.log.map((entry) => entry.event)).toEqual([
-      { kind: 'survivor-left', survivor: 'earl', name: 'Earl Rhodes', tier: 4 },
+      { kind: 'survivor-left', survivor: 'earl', name: 'Earl Rhodes', tier: 4, cause: 'removed' },
     ]);
   });
 

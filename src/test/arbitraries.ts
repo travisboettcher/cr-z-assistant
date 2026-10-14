@@ -44,7 +44,7 @@ import type {
   Stats,
   Survivor,
 } from '../engine/campaign';
-import type { CampaignEvent, LogEntry } from '../engine/log';
+import { LEAVING_CAUSES, type CampaignEvent, type LogEntry } from '../engine/log';
 
 /**
  * Any single UTF-16 code unit — **including an unpaired surrogate**.
@@ -497,11 +497,16 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       tier: fc.constantFrom(...TIERS),
       roll: fc.constantFrom(...D10_RESULTS),
     }),
-    fc.record({
-      kind: fc.constant('survivor-left' as const),
-      ...survivor,
-      tier: fc.constantFrom(...TIERS),
-    }),
+    // The cause is optional, absent on every entry written before #201.
+    fc.record(
+      {
+        kind: fc.constant('survivor-left' as const),
+        ...survivor,
+        tier: fc.constantFrom(...TIERS),
+        cause: fc.constantFrom(...LEAVING_CAUSES),
+      },
+      { requiredKeys: ['kind', 'survivor', 'name', 'tier'] },
+    ),
     fc.record({
       kind: fc.constant('survivor-promoted' as const),
       ...survivor,

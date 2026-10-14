@@ -112,6 +112,11 @@ export interface SpentItem {
  */
 export type ItemHolder = 'base' | 'free' | { readonly survivor: string; readonly name: string };
 
+/** Why a `survivor-left` entry's survivor left (#201). */
+export const LEAVING_CAUSES = ['turned', 'bitten', 'removed'] as const;
+
+export type LeavingCause = (typeof LEAVING_CAUSES)[number];
+
 /**
  * One thing that happened.
  *
@@ -718,11 +723,18 @@ export type CampaignEvent =
       readonly stranger: number;
       readonly roll?: D10Result;
     }
+  /**
+   * A survivor gone from the roster, and why (#201): `turned` at a Rot check,
+   * `bitten` to death by one who turned (pg. 22), or `removed` by hand from the
+   * roster. Absent on an entry written before the cause was recorded, which
+   * reads as it always did — inventing one would be writing history.
+   */
   | {
       readonly kind: 'survivor-left';
       readonly survivor: string;
       readonly name: string;
       readonly tier: Tier;
+      readonly cause?: LeavingCause;
     }
   | {
       readonly kind: 'survivor-promoted';

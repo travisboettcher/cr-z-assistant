@@ -27,7 +27,7 @@ import { FIELD_RECRUITABLE_TIERS } from '../data/recruitTable';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { CAMPAIGN_PHASES, HEALTH_SOURCES, XP_SOURCES } from '../data/turn';
 import type { Assignment, Campaign, Project } from '../engine/campaign';
-import type { CampaignEventKind } from '../engine/log';
+import { LEAVING_CAUSES, type CampaignEventKind } from '../engine/log';
 import { TURN_SEQUENCE } from '../engine/turn';
 import { migrate, type MigrationErrorReason } from './migrations';
 
@@ -437,6 +437,9 @@ const EVENT_FIELD_CHECKS = {
       value.survivor !== '' &&
       typeof value.name === 'string'),
   optionalFlag: (value: unknown) => value === undefined || typeof value === 'boolean',
+  // Why a survivor left (#201), absent on an entry from before it was recorded.
+  optionalLeavingCause: (value: unknown) =>
+    value === undefined || LEAVING_CAUSES.some((cause) => cause === value),
   overrunOption: (value: unknown) => OVERRUN_OPTIONS.some((option) => option === value),
   optionalBase: (value: unknown) =>
     value === undefined || (typeof value === 'string' && isKeyOf(BASES, value)),
@@ -655,6 +658,7 @@ const EVENT_FIELDS: Record<
     ['survivor', 'id'],
     ['name', 'name'],
     ['tier', 'tier'],
+    ['cause', 'optionalLeavingCause'],
   ],
   'survivor-departed': [
     ['survivor', 'id'],
