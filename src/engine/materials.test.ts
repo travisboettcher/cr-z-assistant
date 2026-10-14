@@ -87,7 +87,7 @@ describe('recovered', () => {
     const rolls: readonly MaterialRoll[] = [
       { roll: 1 },
       { roll: 1, forced: { skill: 'rationing', material: 'food' } },
-      { roll: 10, forced: { skill: 'utilities', material: 'hardware' } },
+      { roll: 10, forced: { skill: 'mechanics', material: 'hardware' } },
     ];
 
     expect(size(recovered(rolls))).toBe(rolls.length);
@@ -109,16 +109,9 @@ describe('canForce', () => {
     expect(canForce('mechanics', 'food')).toBe(false);
   });
 
-  /**
-   * R9. The book writes Utilities as "a given material" where the other
-   * two name one, and this takes the literal reading — Rare included, which is
-   * the reading's most surprising consequence and therefore the one worth
-   * writing down.
-   */
-  it('lets Utilities force any of the four, which is the open ruling', () => {
-    for (const material of MATERIALS) {
-      expect(canForce('utilities', material)).toBe(true);
-    }
+  /** R9, as the Errata to pg. 12 settles it (#218): Utilities forces Fuel and nothing else. */
+  it('locks Utilities to Fuel', () => {
+    expect(MATERIALS.filter((material) => canForce('utilities', material))).toEqual(['fuel']);
   });
 });
 

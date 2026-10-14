@@ -361,6 +361,7 @@ Confirmed 2026-10-14 ([the registry](rulings.md)):
 - **R48** — An item already built stays built when the turn's Labor falls short: the shortfall
   falls on the facility queue alone (pp. 20, 23).
 - **R9**, decided — Utilities forces Food, Fuel or Hardware, never a 10, now that a 10 is an item.
+  The Errata settled it the same day as Fuel only (#218).
 - **R49** — Each Rare in storage becomes a Rare Item Table roll owed at the next Add Materials step,
   and Rare stops being a material (schema v17).
 

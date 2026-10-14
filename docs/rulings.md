@@ -220,23 +220,21 @@ the difference, if a table wants it the other way.
 
 ## R9 — How broadly the Utilities substitution applies
 
-> **Under review, [#218](https://github.com/travisboettcher/cr-z-assistant/issues/218).** Errata, pg. 12 corrects the skill: a Utilities use forces
-> **Fuel**, as Rationing forces Food and Mechanics Hardware. The first half of the ruling below is
-> superseded and the app will follow the errata. The second half stands on pg. 19, where a material
-> roll of 10 is a Rare Item Table roll: a forced roll is always a material.
+> **Settled by Errata, pg. 12, and pg. 19; [#218](https://github.com/travisboettcher/cr-z-assistant/issues/218).**
+> The Errata corrects the skill: a Utilities use forces Fuel, as Rationing forces Food and
+> Mechanics Hardware. A material roll of 10 is a Rare Item Table roll (pg. 19), so a forced roll is
+> always a material and never a 10.
 
-**pg. 12.** Rationing is locked to Food and Mechanics to Hardware, but Utilities is written as "a
-given material" and appears to allow any — including, perhaps, forcing a 10 and a Rare Item Table
-roll. The asymmetry may be deliberate or may be loose phrasing. It mattered little while a 10 was
-recorded as a Rare material; from Phase 5's Rare Item Table (Z5-7) a 10 is an item.
+**pg. 12.** Before the Errata, Rationing was locked to Food and Mechanics to Hardware, but Utilities
+read as forcing any material — including, perhaps, a 10 and a Rare Item Table roll.
 
-**The ruling is that Utilities forces Food, Fuel or Hardware, never a 10.** A material roll forced
-by any skill is a material, not a Rare Item Table roll.
+**The answer is that Utilities forces Fuel and nothing else**, and no skill forces a 10.
 
-**What it costs.** A table reading "a given material" literally could turn Utilities uses into
-rare items, one per use.
+**What it costs.** Nothing now: the app follows the Errata. Utilities uses spent on Food or Hardware
+before the change were the app's error, and the log never recorded which skill forced a roll.
 
-*Decided 2026-10-14, for #177 part 2.*
+*Decided 2026-10-14, for #177 part 2, as Food, Fuel or Hardware; superseded the same day by the
+Errata (#218).*
 
 *Previously `phase-3-stories.md` ruling 4.*
 
