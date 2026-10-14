@@ -346,8 +346,7 @@ handed over by the bases that come with them.
 
 ### Rulings part 2 needs
 
-Six are proposed, from the extract's own proposals where it made one
-([the registry](rulings.md), each marked **PROPOSED** until confirmed):
+Confirmed 2026-10-14 ([the registry](rulings.md)):
 
 - **R43** — Blacksmithing Tools' halved Labor rounds up; it covers quality as well as standard, and
   the enchanted melee weapon, but not ammunition (pg. 63).
@@ -361,17 +360,9 @@ Six are proposed, from the extract's own proposals where it made one
   a standing facility of its kind; it stays with that facility (pg. 49).
 - **R48** — An item already built stays built when the turn's Labor falls short: the shortfall
   falls on the facility queue alone (pp. 20, 23).
-
-Two are questions only the table can answer, and are asked rather than proposed:
-
-- **R9, now that a 10 is an item.** Utilities forces "a given material" (pg. 12). Until now a
-  forced 10 only added Rare; from Z5-7 it is a Rare Item Table roll, so whether Utilities can force
-  one decides whether a community can buy rare items with Utilities uses. The extract did not have
-  pg. 12's text in front of it.
-- **The Rare already in storage.** The app recorded each 10 as a Rare material because the table did
-  not exist. Either each stored Rare becomes a Rare Item Table roll owed at the next Add Materials
-  step, and Rare stops being a material (schema v17); or Rare stays as a count the table may spend,
-  one at a time, on a roll.
+- **R9**, decided — Utilities forces Food, Fuel or Hardware, never a 10, now that a 10 is an item.
+- **R49** — Each Rare in storage becomes a Rare Item Table roll owed at the next Add Materials step,
+  and Rare stops being a material (schema v17).
 
 ### Z5-6 — Building equipment
 
@@ -408,8 +399,9 @@ Two are questions only the table can answer, and are asked rather than proposed:
 **Scope**
 - At Add Materials to Storage, each 10 asks for the two d10s the table throws — the subtable, then
   the entry — and the item goes into the base's Inventory with the haul. An `item-found` entry names
-  the item and both rolls. A forced 10 follows the R9 answer.
-- The Rare already in storage follows the answer to the second question above.
+  the item and both rolls. No skill forces a 10 (R9).
+- The Rare already in storage becomes rolls owed at the next Add Materials step, and Rare stops
+  being a material: schema v17 (R49).
 - A Rare Item Table result can be added from the Inventory's modal with its two rolls and a reason,
   for the story and origin rewards that roll on the table or a subtable (pp. 94–118), which are
   Phase 7's missions and would otherwise have nowhere to put their item.

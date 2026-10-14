@@ -194,11 +194,20 @@ the difference, if a table wants it the other way.
 
 ---
 
-## R9 — How broadly the Utilities substitution applies — **OPEN**
+## R9 — How broadly the Utilities substitution applies
 
 **pg. 12.** Rationing is locked to Food and Mechanics to Hardware, but Utilities is written as "a
 given material" and appears to allow any — including, perhaps, forcing a 10 and a Rare Item Table
-roll. The asymmetry may be deliberate or may be loose phrasing.
+roll. The asymmetry may be deliberate or may be loose phrasing. It mattered little while a 10 was
+recorded as a Rare material; from Phase 5's Rare Item Table (Z5-7) a 10 is an item.
+
+**The ruling is that Utilities forces Food, Fuel or Hardware, never a 10.** A material roll forced
+by any skill is a material, not a Rare Item Table roll.
+
+**What it costs.** A table reading "a given material" literally could turn Utilities uses into
+rare items, one per use.
+
+*Decided 2026-10-14, for #177 part 2.*
 
 *Previously `phase-3-stories.md` ruling 4.*
 
@@ -998,80 +1007,109 @@ and the haul says so.
 
 ---
 
-## R43 — Blacksmithing Tools round up — **PROPOSED**
+## R43 — Blacksmithing Tools round up
 
 **pp. 63, 82; #177, Z5-6.** The Renaissance Festival's Blacksmithing Tools halve the Labor of
 bladed, blunt, heavy and archery weapons (pg. 63). The book does not say how an odd Labor halves,
 nor whether quality builds, the enchanted melee weapon or ammunition are covered.
 
-**The proposed ruling is that the halved Labor rounds up**, as the book rounds halves of resources
+**The ruling is that the halved Labor rounds up**, as the book rounds halves of resources
 up elsewhere (pg. 82): a blunt weapon stays 1, bladed, heavy and the bow go to 1, the crossbow to 2.
 It covers quality builds as well as standard, and the enchanted melee weapon (a bladed, blunt or
 heavy weapon itself), but not ammunition, which is used with no weapon skill.
 
 **What it costs.** A table rounding down builds a blunt weapon for nothing.
 
+*Confirmed 2026-10-14.*
+
 ---
 
-## R44 — A Utility in an equipment row is supplied to a facility the row names — **PROPOSED**
+## R44 — A Utility in an equipment row is supplied to a facility the row names
 
 **pp. 41–42, 67; #177, Z5-6.** Some equipment rows require Power or Water beside a facility. Utilities
 are supplied per turn, to facilities (pg. 67), and the book does not say which facility must have
 one for the item to be built.
 
-**The proposed ruling is that at least one facility the row names must be supplied the Utility this
+**The ruling is that at least one facility the row names must be supplied the Utility this
 turn.** A row naming only a Workshop upgrade reads its Workshop.
 
 **What it costs.** A table that only needs the Utility somewhere at the base would build more often.
 
+*Confirmed 2026-10-14.*
+
 ---
 
-## R45 — The Outdoor Sports Shop's four weapons are the player's to choose — **PROPOSED**
+## R45 — The Outdoor Sports Shop's four weapons are the player's to choose
 
 **pg. 62; #177, Z5-8.** Clearing the Outdoor Sports Shop's Inventory slot adds four standard weapons
 to the Inventory. The book does not say which.
 
-**The proposed ruling is that the player chooses any four standard core weapons**, repeats allowed,
+**The ruling is that the player chooses any four standard core weapons**, repeats allowed,
 none of another origin, when the clearing project finishes in the Advancement Phase like any
 other.
 
 **What it costs.** A table rolling for them would get a random spread.
 
+*Confirmed 2026-10-14.*
+
 ---
 
-## R46 — Turnout Gear arrives with each move into a Regional Firehouse — **PROPOSED**
+## R46 — Turnout Gear arrives with each move into a Regional Firehouse
 
 **pg. 66; the FAQ; #177, Z5-8.** The Regional Firehouse's Turnout Gear is six standard reinforced
 clothing in the Inventory. The book does not say when, or whether reclaiming a Firehouse gives it
 again.
 
-**The proposed ruling is that it arrives each time the community moves into a Regional Firehouse**:
+**The ruling is that it arrives each time the community moves into a Regional Firehouse**:
 the first base claim, a move, or a way on from an overrun that claims one.
 
 **What it costs.** A community that loses and reclaims a Firehouse is six clothing richer for it.
 
+*Confirmed 2026-10-14.*
+
 ---
 
-## R47 — Installing a rare upgrade — **PROPOSED**
+## R47 — Installing a rare upgrade
 
 **pg. 49; #177, Z5-8.** A rare upgrade is installed in a facility and does not count toward its
 maximum upgrades. The book gives it no Labor, no Hardware and no step.
 
-**The proposed ruling is that installing costs nothing and happens at Add Facilities and Upgrades**
+**The ruling is that installing costs nothing and happens at Add Facilities and Upgrades**
 (Advancement Step 5), where upgrades land, into a facility of its kind that is standing. It counts
 as the upgrade it names, stays with that facility, and goes if the facility is destroyed.
 
 **What it costs.** A table treating it as a project would spend Labor on it and wait a turn.
 
+*Confirmed 2026-10-14.*
+
 ---
 
-## R48 — A built item stays built when Labor falls short — **PROPOSED**
+## R48 — A built item stays built when Labor falls short
 
 **pp. 20, 23; #177, Z5-6.** Equipment is finished the moment it is paid for (pg. 20), and a turn's
 Labor can fall short after it is spent, when a project-team member leaves at Departures (pg. 23).
 The shortfall has so far been settled by choosing a queued project to go unfinished.
 
-**The proposed ruling is that an item already built stays built**: the shortfall falls on this turn's
+**The ruling is that an item already built stays built**: the shortfall falls on this turn's
 facility queue alone, and a shortfall only equipment accounts for is forgiven.
 
 **What it costs.** A team can build equipment with Labor that later walks out of the door.
+
+*Confirmed 2026-10-14.*
+
+---
+
+## R49 — The Rare in storage becomes Rare Item Table rolls
+
+**pp. 19, 43; #177, Z5-7.** Until Phase 5 the app recorded each material roll of 10 as a Rare
+material, because the Rare Item Table did not exist. The book has no Rare material: a 10 is a roll
+on the table (pg. 19).
+
+**The ruling is that each Rare in storage becomes one Rare Item Table roll owed at the next Add
+Materials to Storage step, and Rare stops being a material.** Old entries that counted Rare keep
+reading as they did.
+
+**What it costs.** A schema step, and a table that had planned around a Rare count rolls for items
+instead.
+
+*Decided 2026-10-14.*
