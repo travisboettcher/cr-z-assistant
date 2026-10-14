@@ -337,17 +337,106 @@ Scout, and the like) add on top (R40).
 
 Part 1 is complete, and with it #177.
 
-## Part 2 — Making and finding (outline)
+## Part 2 — Making and finding
 
-- **Z5-6 — Building equipment.** An equipment order at Planning Step 2, paid from this turn's
-  Labor and Hardware, arriving in the base Inventory at once (pg. 20). Gated by its facility or
-  upgrade and Utility; Blacksmithing Tools halving Labor (pg. 63).
-- **Z5-7 — The Rare Item Table.** A material roll of 10 rolls on it instead of giving Rare (pp. 19,
-  43), which replaces the Rare material the app records today; story and origin rewards that roll on
-  a subtable.
-- **Z5-8 — What a base starts with or yields.** Turnout Gear's six standard reinforced clothing
-  (pg. 66), the Outdoor Sports Shop's four standard weapons (pg. 62), and rare upgrades installed
-  in a facility (pg. 49).
+Scoped 2026-10-14 from the batch-16 extract, which already answers or proposes an answer to most of
+what part 2 needs. Part 1 left items that exist only because a table added them by hand; part 2
+makes them the way the book does — built by the project team, found on a material roll of 10, and
+handed over by the bases that come with them.
+
+### Rulings part 2 needs
+
+Six are proposed, from the extract's own proposals where it made one
+([the registry](rulings.md), each marked **PROPOSED** until confirmed):
+
+- **R43** — Blacksmithing Tools' halved Labor rounds up; it covers quality as well as standard, and
+  the enchanted melee weapon, but not ammunition (pg. 63).
+- **R44** — An equipment row's Power or Water must be supplied this turn to at least one facility
+  the row names (pp. 41–42, 67).
+- **R45** — The Outdoor Sports Shop's four weapons are the player's choice of any four standard core
+  weapons, added when its Inventory slot is cleared (pg. 62).
+- **R46** — Turnout Gear's six reinforced clothing arrive each time a community moves into a
+  Regional Firehouse (pg. 66).
+- **R47** — Installing a rare upgrade costs nothing and happens at Add Facilities and Upgrades, into
+  a standing facility of its kind; it stays with that facility (pg. 49).
+- **R48** — An item already built stays built when the turn's Labor falls short: the shortfall
+  falls on the facility queue alone (pp. 20, 23).
+
+Two are questions only the table can answer, and are asked rather than proposed:
+
+- **R9, now that a 10 is an item.** Utilities forces "a given material" (pg. 12). Until now a
+  forced 10 only added Rare; from Z5-7 it is a Rare Item Table roll, so whether Utilities can force
+  one decides whether a community can buy rare items with Utilities uses. The extract did not have
+  pg. 12's text in front of it.
+- **The Rare already in storage.** The app recorded each 10 as a Rare material because the table did
+  not exist. Either each stored Rare becomes a Rare Item Table roll owed at the next Add Materials
+  step, and Rare stops being a material (schema v17); or Rare stays as a count the table may spend,
+  one at a time, on a roll.
+
+### Z5-6 — Building equipment
+
+**Why:** The project team builds equipment, and it is ready the moment it is paid for (pp. 20–21).
+
+**Scope**
+- An equipment order at Assign Project Team (Planning Step 2): an item and a grade it is built in
+  (never shoddy), paid in Hardware from the stores and Labor from this turn's project team, and in
+  the base's Inventory at once. Any number a turn (pg. 21). An `item-built` entry names the item,
+  its id and what it cost.
+- Refused, from the item's row (pp. 41–42): a facility or Workshop upgrade it names that is not
+  standing (one on order does not count); a Utility not supplied (R44); another origin's item; the
+  Hardware or Labor not there. The enchanted melee weapon costs what its standard weapon does
+  (pg. 40). Outside the Planning Phase, refused like any order (R14).
+- Blacksmithing Tools at the Renaissance Festival halves the Labor of bladed, blunt, heavy and
+  archery weapons (pg. 63; R43).
+- **One Labor budget.** `laborCommitted` counts this turn's equipment as well as its queue, so every
+  reader of it — the order checks, `laborShortfall`, `outstanding`, the Departures choice — sees
+  the same number. A shortfall never unbuilds an item (R48).
+- The order is placed from the Inventory's modal and from the step, opened with `OpenPanel`, not
+  from a new section of the main screen.
+
+**Acceptance**
+- A community with a Workshop and no Metal Shop is refused a standard bladed weapon, and builds a
+  standard blunt weapon for 1 Hardware and 1 Labor; it is in the Inventory and can be equipped the
+  same turn (pp. 20, 41).
+- At the Renaissance Festival a crossbow costs 2 Labor, and a pistol its full 2.
+
+### Z5-7 — The Rare Item Table
+
+**Why:** A material roll of 10 is a roll on the Rare Item Table, instead of that material (pp. 19,
+43).
+
+**Scope**
+- At Add Materials to Storage, each 10 asks for the two d10s the table throws — the subtable, then
+  the entry — and the item goes into the base's Inventory with the haul. An `item-found` entry names
+  the item and both rolls. A forced 10 follows the R9 answer.
+- The Rare already in storage follows the answer to the second question above.
+- A Rare Item Table result can be added from the Inventory's modal with its two rolls and a reason,
+  for the story and origin rewards that roll on the table or a subtable (pp. 94–118), which are
+  Phase 7's missions and would otherwise have nowhere to put their item.
+- Rare upgrades wait in the Inventory to be installed (Z5-8); vehicle upgrades wait for part 3's
+  vehicles.
+
+**Acceptance**
+- A haul with a 10 adds no material and one item: rolls of 3 then 1 are a riot shield (pg. 43).
+
+### Z5-8 — What a base hands over, and rare upgrades installed
+
+**Why:** Two bases come with equipment, and a rare upgrade belongs in a facility (pp. 49, 62, 66).
+
+**Scope**
+- Turnout Gear: six standard reinforced clothing into the Inventory when the community moves into a
+  Regional Firehouse (R46), written on the move's own entries.
+- The Outdoor Sports Shop's Inventory slot, when its clearing project finishes, asks for four
+  standard core weapons (R45).
+- Installing a rare upgrade (R47) at Add Facilities and Upgrades: it leaves the Inventory and stands
+  on the facility as the upgrade it counts as (pg. 49), outside the facility's upgrade cap. The two
+  that count as no upgrade — fertilizer and the video game console — enter the facility catalogue
+  as rare upgrades of their own, so production, Unrest and Siege Threat read them like any other.
+
+**Acceptance**
+- Moving into the Regional Firehouse puts six standard reinforced clothing in the Inventory.
+- A gas grill installed in a Kitchen is that Kitchen's Gas Range, and the Kitchen can still take
+  three upgrades.
 
 ## Part 3 — Trading and vehicles (outline)
 
