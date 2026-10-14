@@ -34,11 +34,10 @@ describe('slotsInUse (pp. 14, 38, 44)', () => {
     expect(slotsInUse(carrying())).toBe(0);
     expect(slotsInUse(carrying(item('pistol'), item('heavy', 'shoddy')))).toBe(2);
     expect(slotsInUse(carrying(item('breaching-tool', 'quality')))).toBe(2);
-    expect(
-      slotsInUse(
-        carrying(item('reinforced-clothing'), item('tool-belt'), item('backpack', 'quality')),
-      ),
-    ).toBe(0);
+    expect(slotsInUse(carrying(item('reinforced-clothing'), item('tool-belt')))).toBe(0);
+    // Either backpack takes one: pg. 44's only exception is the tool belt (#220).
+    expect(slotsInUse(carrying(item('backpack', 'quality')))).toBe(1);
+    expect(slotsInUse(carrying(item('ultralight-backpack')))).toBe(1);
   });
 
   it('carries one pistol or revolver free in a tactical holster, and only one (pg. 51)', () => {

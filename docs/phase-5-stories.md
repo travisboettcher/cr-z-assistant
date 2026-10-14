@@ -105,7 +105,8 @@ Part 1's seven, confirmed 2026-10-13 and recorded in [the registry](rulings.md):
 - [R35](rulings.md#r35--a-carried-shoddy-item-takes-its-slot) — a shoddy item a survivor
   carries takes its slot like any other; it is chosen at Equip Mission Team, costs nothing, and
   never enters or leaves the base Inventory.
-- [R36](rulings.md#r36--a-backpack-takes-no-slot) — a backpack takes no slot.
+- [R36](rulings.md#r36--a-backpack-takes-a-slot) — a backpack takes no slot. Corrected on
+  2026-10-14 by pg. 44 (#220): it takes one, and so does the ultralight backpack (R50).
 - [R37](rulings.md#r37--nothing-on-an-item-lasts-past-its-mission) — a jam, and every
   other per-mission state, ends with the mission; the tracker keeps no item state, only whether an
   item still exists.

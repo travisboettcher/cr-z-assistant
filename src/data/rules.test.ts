@@ -958,13 +958,12 @@ describe('the equipment catalogue (pp. 37–53)', () => {
     }
   });
 
-  it('takes no slot for worn gear, the tool belt, traps, attachments or a backpack (pp. 44–46, 50; R36)', () => {
+  it('takes no slot for worn gear, the tool belt, traps or attachments (pp. 44–46, 50)', () => {
     const none = entries.filter(([, item]) => item.slots === 0).map(([id]) => id);
 
     expect(none).toEqual(
       expect.arrayContaining([
         'tool-belt',
-        'backpack',
         'resistance-charm',
         'improvised-armor',
         'improvised-shield',
@@ -979,6 +978,12 @@ describe('the equipment catalogue (pp. 37–53)', () => {
       ]),
     );
     expect(EQUIPMENT['breaching-tool'].slots).toBe(2);
+  });
+
+  /** pg. 44 names the tool belt as the one item that takes no slot (#220; R36, R50). */
+  it('takes a slot for either backpack', () => {
+    expect(EQUIPMENT.backpack.slots).toBe(1);
+    expect(EQUIPMENT['ultralight-backpack'].slots).toBe(1);
   });
 
   it('names only real items as what an attachment fits or a holster holds', () => {

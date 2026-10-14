@@ -131,8 +131,8 @@ describe('what a survivor carries, on their sheet (Z5-2)', () => {
     openPanel('survivors');
     await user.click(screen.getByRole('button', { name: /^sheet$/i }));
 
-    // Two slots for a Tier 2, two more for the pack; the heavy weapon fills one.
-    expect(screen.getByText('1 / 4', { selector: 'p.text-2xl' })).toBeInTheDocument();
+    // Two slots for a Tier 2, two more for the pack; the pack and the heavy weapon fill one each.
+    expect(screen.getByText('2 / 4', { selector: 'p.text-2xl' })).toBeInTheDocument();
     expect(
       screen.getByText('Carrying Heavy weapon (shoddy), Ultralight backpack (standard)'),
     ).toBeInTheDocument();

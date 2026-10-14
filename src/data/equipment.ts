@@ -28,9 +28,10 @@
  *
  * One per weapon whatever its hands (pg. 38); most other carried items one
  * (pg. 44), the breaching tool two; worn protective gear, the tool belt, traps,
- * attachments and the resistance charm none (pp. 44–46, 50); a backpack none
- * (R36). `null` where the book does not say: a handful of origin and rare items,
- * settled when they are first carried.
+ * attachments and the resistance charm none (pp. 44–46, 50). A backpack takes
+ * one, which its +1 to Carry gives back (pg. 44; R36), and the ultralight
+ * backpack one, for a net +1 (R50). `null` where the book does not say: a
+ * handful of origin and rare items, settled when they are first carried.
  */
 
 import type { FacilityId, Utility, UpgradeId } from './facilities';
@@ -432,7 +433,7 @@ export const EQUIPMENT = {
     kind: 'equipment',
     pages: '10, 41, 44',
     grades: QUALITY,
-    slots: 0,
+    slots: 1,
     needs: 'carry',
     adds: plusOne('carry'),
     life: 'kept',
@@ -850,7 +851,7 @@ export const EQUIPMENT = {
     kind: 'rare-equipment',
     pages: '43, 51',
     grades: STANDARD,
-    slots: 0,
+    slots: 1,
     adds: { standard: { inventorySlots: 2 } },
     life: 'kept',
     trade: { standard: 6 },

@@ -965,23 +965,24 @@ rather than carrying them all for free.
 
 ---
 
-## R36 — A backpack takes no slot
+## R36 — A backpack takes a slot
 
-> **Under review, [#220](https://github.com/travisboettcher/cr-z-assistant/issues/220).** pg. 44 names the tool belt as the only equipment that takes no
-> slot, so the book settles this the other way: a standard or quality backpack takes one slot, and
-> its +1 to Carry gives it back. pg. 51 does not say the ultralight backpack takes no slot either.
-> That is a separate question, [R50](#r50--what-slot-the-ultralight-backpack-takes--open).
+> **Settled by pg. 44; [#220](https://github.com/travisboettcher/cr-z-assistant/issues/220).** pg. 44
+> names the tool belt as the only equipment that takes no slot, so a standard or quality backpack
+> takes one, and its +1 to Carry gives it back. The ultralight backpack is
+> [R50](#r50--what-slot-the-ultralight-backpack-takes).
 
 **pp. 10, 44, 51; #177, Z5-2.** The backpack adds one to its wearer's Carry Score, and Carry adds to
-Inventory Slots (pg. 10); but most equipment takes a slot (pg. 44), which would make a backpack worth
-nothing. The rare ultralight backpack adds two slots and takes none (pg. 51).
+Inventory Slots (pg. 10); most equipment takes a slot (pg. 44).
 
-**The ruling is that a backpack takes no slot**, as the ultralight one does, so it is worth the
-slot its Carry bonus gives.
+**The answer is that a backpack takes one slot**, so for a survivor with Carry it nets to nothing
+until something else needs the room its bonus makes.
 
-**What it costs.** Nothing a table would notice, unless it reads pg. 44 strictly.
+**What it costs.** A backpack is worth less than the app counted it before the October 2026 check,
+when it took no slot.
 
-*Confirmed 2026-10-13 from the batch-16 extract.*
+*Confirmed 2026-10-13 from the batch-16 extract as taking no slot; corrected by pg. 44 on
+2026-10-14 (#220).*
 
 ---
 
@@ -1216,18 +1217,19 @@ instead.
 
 ---
 
-## R50 — What slot the ultralight backpack takes — **OPEN**
+## R50 — What slot the ultralight backpack takes
 
-**pp. 44, 51; [#220](https://github.com/travisboettcher/cr-z-assistant/issues/220).** pg. 44's general rule gives most equipment a slot and names the tool
-belt as the only exception, which would give the ultralight backpack one slot, for a net +1. But the
-other rare equipment on pg. 51 each states its own slot use, and the ultralight's entry is silent.
-It gives +2 slots and may be worn by a survivor without Carry.
+**pp. 44, 51; [#220](https://github.com/travisboettcher/cr-z-assistant/issues/220).** pg. 44's
+general rule gives most equipment a slot and names the tool belt as the only exception. The other
+rare equipment on pg. 51 each states its own slot use, and the ultralight's entry is silent. It gives
++2 slots and may be worn by a survivor without Carry.
 
-**Not yet ruled.** The app records it as taking no slot (`src/data/equipment.ts`), for a net +2,
-which is what R36 assumed before the October 2026 check. That is the current behaviour, not a
-decision. Recorded so it is not mistaken for one.
+**The ruling is that it takes one slot, for a net +1**, under pg. 44's rule, as the ordinary backpack
+does (R36).
 
-*Found by the October 2026 check against the book.*
+**What it costs.** A table reading its silence as taking none gets one more slot from it.
+
+*Found by the October 2026 check against the book; decided 2026-10-14.*
 
 ---
 
