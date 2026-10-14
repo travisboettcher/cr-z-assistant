@@ -101,7 +101,8 @@ Part 1's seven, confirmed 2026-10-13 and recorded in [the registry](rulings.md):
 
 - [R34](rulings.md#r34--quality-gear-is-built-from-the-tables) — quality weapons and gear
   are built at the costs the tables print (pp. 41–42), despite pg. 37's sentence that quality
-  weapons are only traded.
+  weapons are only traded. Narrowed on 2026-10-14 (#217): a quality weapon is never built, as
+  pg. 37 has it; quality equipment, protective gear and disposables still are.
 - [R35](rulings.md#r35--a-carried-shoddy-item-takes-its-slot) — a shoddy item a survivor
   carries takes its slot like any other; it is chosen at Equip Mission Team, costs nothing, and
   never enters or leaves the base Inventory.
@@ -350,7 +351,7 @@ handed over by the bases that come with them.
 Confirmed 2026-10-14 ([the registry](rulings.md)):
 
 - **R43** — Blacksmithing Tools' halved Labor rounds up; it covers quality as well as standard, and
-  the enchanted melee weapon, but not ammunition (pg. 63).
+  the enchanted melee weapon, but not ammunition (pg. 63). Since #217 no quality weapon is built.
 - **R44** — An equipment row's Power or Water must be supplied this turn to at least one facility
   the row names (pp. 41–42, 67).
 - **R45** — The Outdoor Sports Shop's four weapons are the player's choice of any four standard core

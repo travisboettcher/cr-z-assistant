@@ -74,7 +74,6 @@ describe('building an item (pp. 20–21, 41–42; Z5-6)', () => {
     const campaign = planning(workshop(['metal-shop']));
 
     expect(buildCost(campaign, order('bladed'))).toEqual({ hardware: 2, labor: 2 });
-    expect(buildCost(campaign, order('bladed', 'quality'))).toEqual({ hardware: 5, labor: 2 });
     expect(codes(campaign, order('bladed', 'shoddy'))).toEqual(['no-such-grade']);
     // A backpack is built only as quality (pg. 41).
     expect(codes(campaign, order('backpack', 'standard'))).toEqual(['no-such-grade']);
@@ -283,7 +282,6 @@ describe('Blacksmithing Tools (pg. 63; R43)', () => {
   it('halves the Labor of bladed, blunt, heavy and archery weapons, rounding up', () => {
     expect(buildCost(festival(), order('crossbow'))).toEqual({ hardware: 3, labor: 2 });
     expect(buildCost(festival(), order('bow'))).toEqual({ hardware: 2, labor: 1 });
-    expect(buildCost(festival(), order('bladed', 'quality'))).toEqual({ hardware: 5, labor: 1 });
     expect(buildCost(festival(), order('blunt'))).toEqual({ hardware: 1, labor: 1 });
   });
 
@@ -311,8 +309,19 @@ describe('what the build form offers', () => {
     );
   });
 
+  /** pg. 37; R34 (#217): the weapon tables' quality column goes unbuilt. */
+  it('refuses a quality weapon, which is found or traded, and says so', () => {
+    const campaign = planning(workshop(['metal-shop']));
+    expect(buildCost(campaign, order('bladed', 'quality'))).toBeUndefined();
+    expect(
+      buildCheck(campaign, order('bladed', 'quality')).blockers.map((one) => one.message),
+    ).toEqual(['A quality weapon is found or traded, never built.']);
+  });
+
   it('offers the grades a row prices', () => {
-    expect(buildGrades('bladed')).toEqual(['standard', 'quality']);
+    expect(buildGrades('bladed')).toEqual(['standard']);
+    // Equipment keeps its quality column.
+    expect(buildGrades('tool-belt')).toEqual(['standard', 'quality']);
     expect(buildGrades('backpack')).toEqual(['quality']);
     expect(buildGrades('enchanted-melee-weapon')).toEqual(['standard']);
     expect(buildGrades('riot-shield')).toEqual([]);

@@ -924,24 +924,23 @@ build, staff or sleep, and every base-dependent number reads as zero until a bas
 
 ## R34 — Quality gear is built from the tables
 
-> **Under review, [#217](https://github.com/travisboettcher/cr-z-assistant/issues/217).** pg. 37 limits quality weapons to the Rare Goods Trader, and the
-> missing quality trade cost on pg. 41 and the Quality Item subtable (pg. 43) both support it. The
-> proposed narrower ruling: quality weapons are found or traded only, and quality equipment,
-> protective gear and disposables are built as below. Nothing changes until it is decided.
+**pp. 37, 41–43; [#177](https://github.com/travisboettcher/cr-z-assistant/issues/177),
+[#217](https://github.com/travisboettcher/cr-z-assistant/issues/217).** Pg. 37 says quality weapons
+come only through the Rare Goods Trader, but the cost tables on pp. 41–42 print a quality build cost
+for every weapon and for most equipment and protective gear. The weapon tables print no quality
+trade cost, and the Rare Item Table's Quality Item subtable sells quality weapons (pg. 43), which both
+support pg. 37.
 
-**pp. 37, 41–43; [#177](https://github.com/travisboettcher/cr-z-assistant/issues/177).** Pg. 37
-says quality weapons come only through the Rare Goods Trader, but the cost tables on pp. 41–42 print
-a quality build cost for every weapon and for most equipment and protective gear, and the Rare Item
-Table's Quality Item subtable sells quality weapons too (pg. 43).
+**The ruling is that a quality weapon is never built or bought in the Planning Phase**: it comes from
+the Rare Item Table or the Rare Goods Trader (pp. 21, 43, 83–84). Quality equipment, protective gear
+and disposables are built at the quality cost the tables print, at the same Labor as standard. It is
+the one reading that contradicts neither pg. 37 nor the equipment tables.
 
-**The ruling is that quality gear can be built at the costs the tables print**, at the same Labor
-as standard, as well as found or traded. A printed cost is a number the table gives; a reading that
-made every quality column unusable would be throwing data away.
+**What it costs.** The weapon tables' quality build column goes unused. A table that builds from
+every printed column would have quality weapons sooner.
 
-**What it costs.** A table that follows pg. 37 literally never builds a quality weapon; under this
-ruling a community with the Hardware has them sooner.
-
-*Confirmed 2026-10-13 from the batch-16 extract.*
+*Confirmed 2026-10-13 from the batch-16 extract as building every quality column; narrowed to
+exclude weapons on 2026-10-14, after the October 2026 check (#217).*
 
 ---
 
@@ -1116,8 +1115,9 @@ nor whether quality builds, the enchanted melee weapon or ammunition are covered
 
 **The ruling is that the halved Labor rounds up**, as the book rounds halves of resources
 up elsewhere (pg. 82): a blunt weapon stays 1, bladed, heavy and the bow go to 1, the crossbow to 2.
-It covers quality builds as well as standard, and the enchanted melee weapon (a bladed, blunt or
-heavy weapon itself), but not ammunition, which is used with no weapon skill.
+It covers the enchanted melee weapon (a bladed, blunt or heavy weapon itself), but not ammunition,
+which is used with no weapon skill. A quality weapon is never built (R34), so only standard builds
+are halved.
 
 **What it costs.** A table rounding down builds a blunt weapon for nothing.
 
