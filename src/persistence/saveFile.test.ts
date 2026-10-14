@@ -631,6 +631,18 @@ describe('a campaign whose items are damaged', () => {
     expect(result.campaign.survivors[0]?.items).toEqual([carried]);
   });
 
+  it('reads a rare upgrade installed in a facility back as it was written (Z5-8)', () => {
+    const grill = { id: 'grill', item: 'gas-grill', grade: 'standard' } as const;
+    const result = parseCampaignFile(
+      savedWith({ base: { id: 'hobby-farm', slots: { kitchen: { installed: [grill] } } } }),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.base?.slots.kitchen?.installed).toEqual([grill]);
+  });
+
   it.each([
     ['an Inventory that is not a list', { inventory: 'everything' }, /Inventory is not a list/],
     [
@@ -658,6 +670,30 @@ describe('a campaign whose items are damaged', () => {
       'a survivor with no list of items',
       { survivors: [{ ...VALID_SURVIVOR, items: undefined }] },
       /carries a list that is not a list/,
+    ],
+    // Rare upgrades installed in a facility (R47; Z5-8).
+    [
+      'installed items that are not a list',
+      { base: { id: 'hobby-farm', slots: { kitchen: { installed: 'a grill' } } } },
+      /installed items where is not a list/,
+    ],
+    [
+      'an installed item that is not a rare upgrade',
+      { base: { id: 'hobby-farm', slots: { kitchen: { installed: [pistol] } } } },
+      /not a rare upgrade/,
+    ],
+    [
+      'an installed item that shares an id with one in the Inventory',
+      {
+        inventory: [{ ...pistol, id: 'grill' }],
+        base: {
+          id: 'hobby-farm',
+          slots: {
+            kitchen: { installed: [{ id: 'grill', item: 'gas-grill', grade: 'standard' }] },
+          },
+        },
+      },
+      /two items with one id: grill/,
     ],
   ])('refuses %s', (_label, overrides, expected) => {
     expect(refusalFor(overrides)).toMatch(expected);

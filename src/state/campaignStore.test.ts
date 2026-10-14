@@ -2481,6 +2481,23 @@ describe('what earns a line in the log', () => {
         facility: 'watchtower',
       }),
     },
+    'advancement/rareUpgradeInstalled': {
+      // A gas grill from the Inventory into the Hobby Farm's Kitchen, at Add
+      // Facilities and Upgrades (pg. 49; R47; Z5-8).
+      state: openState({
+        ...expectOpen(rich()),
+        step: 'add-facilities-and-upgrades',
+        inventory: [{ id: 'item-1', item: 'gas-grill', grade: 'standard' }],
+      }),
+      action: { type: 'advancement/rareUpgradeInstalled', id: 'item-1', slot: 'kitchen', at: AT },
+      entry: entry(3, 'advancement', {
+        kind: 'rare-upgrade-installed',
+        id: 'item-1',
+        item: 'gas-grill',
+        grade: 'standard',
+        slot: 'kitchen',
+      }),
+    },
     'inventory/rareItemRolled': {
       // A story reward's roll, entered by hand: 3 then 1 is a riot shield (pg. 43).
       action: {

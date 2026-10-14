@@ -43,6 +43,7 @@ const SAMPLE_SLOT = {
   upgrades: ['spotlight'],
   power: true,
   water: true,
+  installed: [{ id: 'grill', item: 'gas-grill', grade: 'standard' }],
 } satisfies SlotState;
 
 const SAMPLE_BASE = {

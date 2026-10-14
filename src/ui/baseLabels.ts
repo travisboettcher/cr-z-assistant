@@ -41,6 +41,8 @@ export const FACILITY_LABELS: Record<FacilityId, string> = {
 };
 
 export const UPGRADE_LABELS: Record<UpgradeId, string> = {
+  'video-game-console': 'Video Game Console',
+  fertilizer: 'Fertilizer',
   'extra-bed': 'Extra Bed',
   loft: 'Loft',
   lounge: 'Lounge',

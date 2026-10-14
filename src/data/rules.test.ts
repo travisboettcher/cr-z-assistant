@@ -314,10 +314,13 @@ describe('facility table', () => {
   it('caps a facility at three upgrades, rare ones excepted', () => {
     expect(MAX_UPGRADES_PER_FACILITY).toBe(3);
 
-    // Nothing in the core table is rare — rare base upgrades come off the Rare
-    // Item Table in Phase 5. The flag exists so the cap is computed by
-    // filtering, which is the shape the rule needs whether or not it fires.
-    expect(UPGRADES_LIST.filter((upgrade) => upgrade.rare)).toHaveLength(0);
+    // The two rare upgrades that count as no ordinary one, installed from the
+    // Inventory and never ordered (pg. 49; R47). Every other rare item stands
+    // as an ordinary upgrade, flagged where it is installed.
+    expect(UPGRADES_LIST.filter((upgrade) => upgrade.rare).map((upgrade) => upgrade.id)).toEqual([
+      'video-game-console',
+      'fertilizer',
+    ]);
   });
 
   it('limits only the Fence and the Greenhouse to one per Garden', () => {

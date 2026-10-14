@@ -466,6 +466,32 @@ Confirmed 2026-10-14 ([the registry](rulings.md)):
 - A gas grill installed in a Kitchen is that Kitchen's Gas Range, and the Kitchen can still take
   three upgrades.
 
+**What this story turned out to include.**
+
+- **`src/engine/handover.ts`** makes the items a base hands over, with ids derived from the
+  campaign and the log's length, so a claim, a move or a finished project needs nothing about items
+  on its action. An `equipment-handed-over` entry names the base, the slot where there is one, and
+  the items. Turnout Gear follows a first claim's stocking and a move's `base-moved`, on top of what
+  the Inventory already held (R46).
+- **The Sports Shop's clearing waits for its weapons.** `weaponsOwed` asks for them while the
+  clearing is due; `completeProjects` finishes everything else and leaves that one due until four
+  core weapons are chosen, repeats allowed (R45). Add Facilities and Upgrades shows four pickers,
+  and its Finish button waits for them — the dice-shaped exception Z5-7 made, for a choice.
+- **`src/engine/install.ts`** checks and installs: at Add Facilities and Upgrades, from the
+  Inventory, into a standing facility of the kind the item names (R47). The item moves onto the
+  slot's new `installed` list, still the same item, so `allItems` and the id checks keep seeing it.
+  Schema v17 is unreleased, so the list joins it rather than a v18.
+- **`occupants` reads an installed item as its upgrade**, marked rare and outside the cap of three;
+  one in a facility of another kind, which only a hand-edited save could hold, stands as nothing.
+  The battery spotlight drops the Power its Spotlight requires (pg. 49).
+- **Fertilizer and the video game console are catalogue upgrades marked `rare`**, so production and
+  Siege Threat read them like any other, and the upgrade orders never offer them. A facility's
+  upgrades can now carry `unrest`: `unrest` adds what working facilities give, after Hunger and
+  Exhaustion and never below zero, and Calculate Unrest shows the term when it is not zero.
+- **Installing is in the Inventory's modal**, one button per rare upgrade with a facility picker
+  when there is more than one; Add Facilities and Upgrades links to it while the Inventory holds
+  one.
+
 ## Part 3 — Trading and vehicles (outline)
 
 - **Z5-9 — Trading.** Buying at Planning for Food and Fuel, arriving next Advancement (pp. 19, 21);

@@ -212,3 +212,34 @@ describe('rolling on the Rare Item Table from the Inventory', () => {
     );
   });
 });
+
+/** Installing a rare upgrade from the Inventory (pg. 49; R47; Z5-8). */
+describe('installing a rare upgrade', () => {
+  const grill = { id: 'grill', item: 'gas-grill', grade: 'standard' } as const;
+  const atStep = (step: Campaign['step']) =>
+    playing({
+      step,
+      base: { id: 'hobby-farm', slots: {} },
+      inventory: [grill],
+    });
+
+  it('installs it in the facility of its kind at Add Facilities and Upgrades', async () => {
+    const user = open(atStep('add-facilities-and-upgrades'));
+    openPanel('inventory');
+
+    await user.click(screen.getByRole('button', { name: 'Install Gas grill in the Kitchen' }));
+
+    expect(card().getByText('Nothing stored yet.')).toBeInTheDocument();
+    expect(campaignLog().textContent).toContain('Installed standard gas grill in the Kitchen.');
+  });
+
+  it('says when it is installed, anywhere else in the turn', () => {
+    open(atStep('assign-project-team'));
+    openPanel('inventory');
+
+    expect(screen.getByRole('button', { name: 'Install Gas grill in the Kitchen' })).toBeDisabled();
+    expect(
+      screen.getByText('A rare upgrade is installed at Add Facilities and Upgrades (R47).'),
+    ).toBeInTheDocument();
+  });
+});

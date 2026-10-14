@@ -104,6 +104,7 @@ function orderedSlot(state: SlotState): Record<keyof SlotState, unknown> {
     upgrades: state.upgrades,
     power: state.power,
     water: state.water,
+    installed: state.installed?.map(orderedItem),
   };
 }
 
@@ -257,6 +258,9 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
     };
   }
 
+  if (event.kind === 'equipment-handed-over') {
+    return { ...taggedFirst(event, 'kind'), items: event.items.map(orderedItem) };
+  }
   if (event.kind === 'items-spent') {
     return {
       ...taggedFirst(event, 'kind'),

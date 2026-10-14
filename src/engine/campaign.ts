@@ -188,6 +188,14 @@ export interface SlotState {
    */
   readonly power?: true;
   readonly water?: true;
+
+  /**
+   * Rare upgrades installed in this slot's facility (pg. 49; R47; Z5-8): the
+   * items themselves, out of the Inventory. Each stands on the facility as the
+   * upgrade it counts as, outside the cap of three, and goes with the facility.
+   * Absent where none is, which is every save from before v17.
+   */
+  readonly installed?: readonly Item[];
 }
 
 /**

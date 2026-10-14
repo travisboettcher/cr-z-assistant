@@ -1028,6 +1028,40 @@ describe('Add Facilities and Upgrades', () => {
 
     expect(within(walk()).getByRole('button', { name: /finish the project/i })).toBeTruthy();
   });
+
+  /** The Outdoor Sports Shop's Inventory slot hands over four weapons the player picks (R45). */
+  it('asks for the Sports Shop’s weapons before it finishes, and puts them in the Inventory', async () => {
+    const user = open(
+      advancement({
+        step: 'add-facilities-and-upgrades',
+        base: { id: 'outdoor-sports-shop', slots: {} },
+        projects: [onOrder({ kind: 'clearing', slot: 'inventory', orderedOnTurn: 2 })],
+      }),
+    );
+    const finish = within(walk()).getByRole('button', { name: /finish the project/i });
+
+    expect(finish).toHaveProperty('disabled', true);
+
+    for (const at of [1, 2, 3, 4]) {
+      await user.selectOptions(within(walk()).getByLabelText(`Weapon ${String(at)}`), 'bow');
+    }
+    expect(finish).toHaveProperty('disabled', false);
+    await user.click(finish);
+
+    expect(inventoryCount()).toBe('4 items');
+    expect(within(walk()).queryByLabelText('Weapon 1')).toBeNull();
+  });
+
+  it('points at the Inventory while it holds a rare upgrade to install', () => {
+    open(
+      advancement({
+        step: 'add-facilities-and-upgrades',
+        inventory: [{ id: 'g', item: 'gas-grill', grade: 'standard' }],
+      }),
+    );
+
+    expect(within(walk()).getByText(/holds a rare upgrade/i)).toBeTruthy();
+  });
 });
 
 /**

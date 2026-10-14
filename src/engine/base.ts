@@ -63,7 +63,8 @@ import {
   type Utility,
 } from '../data/facilities';
 import { STORAGE_ABOVE_TIER, STORED_MATERIALS, type StoredMaterial } from '../data/materials';
-import type { Base, Campaign, Survivor } from './campaign';
+import type { Base, Campaign, Item, Survivor } from './campaign';
+import { EQUIPMENT, type ItemRules } from '../data/equipment';
 import type { Skill } from '../data/skills';
 import { skillScore } from './survivor';
 
@@ -162,6 +163,28 @@ function resolveUpgrades(facility: Facility, ids: readonly string[]): readonly U
 }
 
 /**
+ * The upgrades the rare items installed in a facility stand as (pg. 49; R47):
+ * the one each counts as, flagged rare so the cap of three does not count it,
+ * and without its Utility where the item needs none — the battery spotlight.
+ * An item that names another facility, or no upgrade, stands as nothing.
+ */
+function installedUpgrades(facility: Facility, installed: readonly Item[]): readonly Upgrade[] {
+  return installed.flatMap((item) => {
+    const rules: ItemRules = EQUIPMENT[item.item];
+    const installs = rules.installs;
+    const upgrade = facility.upgrades.find((candidate) => candidate.id === installs?.countsAs);
+    if (upgrade === undefined || installs?.facility !== facility.id) return [];
+
+    if (installs.unpowered !== true) return [{ ...upgrade, rare: true }];
+
+    const { requires, ...unrequired } = upgrade;
+    void requires;
+
+    return [{ ...unrequired, rare: true }];
+  });
+}
+
+/**
  * Every slot of the base that has a facility in it, built-in or built.
  *
  * A slot that is empty, or a clearing project nobody has built into yet, has no
@@ -205,7 +228,10 @@ export function occupants(base: Base): readonly Occupant[] {
       slotId: slot.id,
       kind: slot.kind,
       facility,
-      upgrades: resolveUpgrades(facility, [...source.shipped, ...(state?.upgrades ?? [])]),
+      upgrades: [
+        ...resolveUpgrades(facility, [...source.shipped, ...(state?.upgrades ?? [])]),
+        ...installedUpgrades(facility, state?.installed ?? []),
+      ],
       builtOnTurn: source.builtOnTurn,
       upgradable: source.upgradable,
       power: state?.power === true,

@@ -68,7 +68,7 @@
 import { FOOD_EATEN_PER_TURN } from '../data/turn';
 import { phaseOf } from './turn';
 import { suppliedOccupants } from './utilities';
-import { beds } from './base';
+import { beds, working } from './base';
 import { claimWon } from './claim';
 import type { Campaign } from './campaign';
 
@@ -302,7 +302,22 @@ export function exhaustion(campaign: Campaign): number {
  * — the book says so twice — and so is this.
  */
 export function unrest(campaign: Campaign): number {
-  return unrestLocked(campaign) ? 0 : hunger(campaign) + exhaustion(campaign);
+  if (unrestLocked(campaign)) return 0;
+
+  return Math.max(0, hunger(campaign) + exhaustion(campaign) + unrestFromBase(campaign));
+}
+
+/**
+ * What the base's working facilities add to Unrest (pg. 49; Z5-8): the video
+ * game console's −3 while it has Power. Unrest is never below zero, so this
+ * can only take away what Hunger and Exhaustion put there.
+ */
+export function unrestFromBase(campaign: Campaign): number {
+  return suppliedOccupants(campaign).reduce(
+    (total, occupant) =>
+      working(occupant).reduce((sum, entry) => sum + (entry.effects.unrest ?? 0), total),
+    0,
+  );
 }
 
 /**

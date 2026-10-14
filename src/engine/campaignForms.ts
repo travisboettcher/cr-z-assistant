@@ -21,6 +21,7 @@ import { storageCaps } from './base';
 import type { Campaign, Item, Survivor } from './campaign';
 import { allItems, newItemProblem, removalProblem, type NewItem } from './equipment';
 import { rareItemFor, type RareItemRoll } from './finding';
+import { turnoutGear, withEquipmentHandedOver } from './handover';
 import { accepted, blockedBy, refused, type Accepted, type FormResult } from './forms';
 import { logged } from './log';
 import { buildCheck, buildCost, withItemBuilt, type BuildCost, type BuildOrder } from './making';
@@ -150,16 +151,17 @@ export function submitBaseClaim(campaign: Campaign, base: BaseId, at: string): F
   const claimed = { ...campaign, base: { id: base, slots: {} } };
   const caps = storageCaps(claimed.base, suppliedOccupants(claimed));
 
-  return accepted(
-    logged(
-      logged({ ...claimed, materials: { ...campaign.materials, ...caps } }, at, {
-        kind: 'base-claimed',
-        base,
-      }),
-      at,
-      { kind: 'base-stocked', ...caps },
-    ),
+  const stocked = logged(
+    logged({ ...claimed, materials: { ...campaign.materials, ...caps } }, at, {
+      kind: 'base-claimed',
+      base,
+    }),
+    at,
+    { kind: 'base-stocked', ...caps },
   );
+
+  // A Regional Firehouse hands over its Turnout Gear (R46; Z5-8).
+  return accepted(withEquipmentHandedOver(stocked, base, turnoutGear(stocked, base), at));
 }
 
 /**

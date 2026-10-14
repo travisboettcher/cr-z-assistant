@@ -18,9 +18,10 @@ import {
   type ItemKind,
   type ItemRules,
 } from '../data/equipment';
-import type { Campaign } from '../engine/campaign';
+import type { Campaign, Item } from '../engine/campaign';
 import { D10_RESULTS, type D10Result } from '../data/dice';
 import { permitted } from '../engine/checks';
+import { installProblem, installTargets } from '../engine/install';
 import { rareItemFor } from '../engine/finding';
 import { newItemProblem } from '../engine/equipment';
 import {
@@ -34,6 +35,7 @@ import {
 import { laborAvailable } from '../engine/projects';
 import { useCampaign } from '../state/useCampaign';
 import { describeItem, GRADE_LABELS, ITEM_KIND_LABELS, ITEM_LABELS } from './equipmentLabels';
+import { slotLabel } from './baseLabels';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
@@ -96,6 +98,9 @@ export function InventoryPanel({ campaign }: { readonly campaign: Campaign }) {
                         </span>{' '}
                         <PageRef pages={EQUIPMENT[item.item].pages} />
                       </span>
+                      {EQUIPMENT[item.item].kind === 'rare-upgrade' && (
+                        <InstallRareUpgrade campaign={campaign} item={item} />
+                      )}
                       <button
                         type="button"
                         className={SECONDARY}
@@ -123,6 +128,70 @@ export function InventoryPanel({ campaign }: { readonly campaign: Campaign }) {
       <RollRareItem />
       <AddItem campaign={campaign} />
     </div>
+  );
+}
+
+/**
+ * Installing a rare upgrade in a standing facility of its kind, at Add
+ * Facilities and Upgrades (pg. 49; R47; Z5-8). Which facilities, and why not,
+ * are `install.ts`'s answers.
+ */
+function InstallRareUpgrade({
+  campaign,
+  item,
+}: {
+  readonly campaign: Campaign;
+  readonly item: Item;
+}) {
+  const { dispatch } = useCampaign();
+  const targets = installTargets(campaign, item);
+  const [chosen, setChosen] = useState('');
+  const slot = targets.some((occupant) => occupant.slotId === chosen)
+    ? chosen
+    : (targets[0]?.slotId ?? '');
+  const problem = installProblem(campaign, item.id, slot);
+
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      {targets.length > 1 && (
+        <select
+          aria-label={`Install ${ITEM_LABELS[item.item]} in`}
+          className={SELECT}
+          value={slot}
+          onChange={(changed) => {
+            setChosen(changed.target.value);
+          }}
+        >
+          {targets.map((occupant) => (
+            <option key={occupant.slotId} value={occupant.slotId}>
+              {slotLabel(occupant.slotId)}
+            </option>
+          ))}
+        </select>
+      )}
+      <button
+        type="button"
+        className={SECONDARY}
+        disabled={problem !== null}
+        aria-label={`Install ${ITEM_LABELS[item.item]}${
+          targets.length === 1 ? ` in the ${slotLabel(slot)}` : ''
+        }`}
+        onClick={() => {
+          dispatch({
+            type: 'advancement/rareUpgradeInstalled',
+            id: item.id,
+            slot,
+            at: new Date().toISOString(),
+          });
+        }}
+      >
+        Install
+      </button>
+      {/* Said, not left to a tooltip a thumb never finds. */}
+      {problem !== null && (
+        <span className="text-xs text-stone-600 dark:text-stone-400">{problem}</span>
+      )}
+    </span>
   );
 }
 

@@ -20,6 +20,7 @@ import { MATERIALS, type Material } from '../data/materials';
 import { articleForNumber, withArticle } from './articles';
 import { FIRST_TURN } from '../engine/siege';
 import { SIEGE_TRIGGER, XP_SOURCE_PAGES, type HealthSource, type XpSource } from '../data/turn';
+import type { Item } from '../engine/campaign';
 import type { CampaignEvent, HistoricMaterials, LogEntry } from '../engine/log';
 import {
   BASE_LABELS,
@@ -86,6 +87,15 @@ function amountsMoved(amounts: HistoricMaterials): readonly string[] {
       ? []
       : [`${String(amounts.rare)} ${HISTORIC_RARE_LABEL}`]),
   ];
+}
+
+/** Items as a list a person reads: "6 standard reinforced clothing, 1 standard bow". */
+function counted(items: readonly Item[]): string {
+  const names = items.map(describeItem);
+
+  return [...new Set(names)]
+    .map((name) => `${String(names.filter((one) => one === name).length)} ${name}`)
+    .join(', ');
 }
 
 export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
@@ -443,6 +453,18 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
       return {
         text: `Mission team ${String(event.team)} used up or lost: ${event.items.map((one) => `${one.name}’s ${describeItem(one)}`).join(', ')}.`,
         pages: '40, 45–48',
+      };
+
+    case 'equipment-handed-over':
+      return {
+        text: `The ${BASE_LABELS[event.base]}${event.slot === undefined ? '' : `’s ${slotLabel(event.slot)}`} handed over ${counted(event.items)}.`,
+        pages: event.slot === undefined ? 66 : 62,
+      };
+
+    case 'rare-upgrade-installed':
+      return {
+        text: `Installed ${describeItem(event)} in the ${slotLabel(event.slot)}.`,
+        pages: 49,
       };
 
     case 'item-found':

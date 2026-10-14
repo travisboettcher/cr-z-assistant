@@ -134,7 +134,14 @@
         "water": true
       },
       "garden": {
-        "water": true
+        "water": true,
+        "installed": [
+          {
+            "id": "f7b4ca35-2e68-4a9d-8c54-6b3eac07d9fb",
+            "item": "fertilizer",
+            "grade": "standard"
+          }
+        ]
       },
       "ruined-chicken-coop": {
         "cleared": true

@@ -559,6 +559,22 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
         grade: fc.constantFrom(...GRADES),
       }),
     ),
+    fc.record(
+      {
+        kind: fc.constant('equipment-handed-over' as const),
+        base: fc.constantFrom(...BASE_IDS),
+        slot: anyId,
+        items: fc.array(itemArbitrary(), { maxLength: 2 }),
+      },
+      { requiredKeys: ['kind', 'base', 'items'] },
+    ),
+    fc.record({
+      kind: fc.constant('rare-upgrade-installed' as const),
+      id: anyId,
+      item: fc.constantFrom(...ITEM_IDS),
+      grade: fc.constantFrom(...GRADES),
+      slot: anyId,
+    }),
     fc.record({
       kind: fc.constant('item-found' as const),
       id: anyId,

@@ -192,7 +192,13 @@ export interface ItemRules {
    * A rare upgrade's facility, and the upgrade it counts as where it is one
    * (pg. 49). Outside the facility's three-upgrade cap.
    */
-  readonly installs?: { readonly facility: FacilityId; readonly countsAs?: UpgradeId };
+  readonly installs?: {
+    readonly facility: FacilityId;
+    /** The upgrade it stands on the facility as (pg. 49; R47). */
+    readonly countsAs?: UpgradeId;
+    /** Works without the Utility that upgrade needs: the battery spotlight. */
+    readonly unpowered?: true;
+  };
 }
 
 const WORKSHOP = { facilities: ['workshop'] } as const;
@@ -755,7 +761,7 @@ export const EQUIPMENT = {
     slots: null,
     life: 'kept',
     trade: { standard: 6 },
-    installs: { facility: 'garden' },
+    installs: { facility: 'garden', countsAs: 'fertilizer' },
   },
   'battery-spotlight': {
     kind: 'rare-upgrade',
@@ -764,7 +770,8 @@ export const EQUIPMENT = {
     slots: null,
     life: 'kept',
     trade: { standard: 4 },
-    installs: { facility: 'watchtower', countsAs: 'spotlight' },
+    // Battery-powered: the Spotlight it counts as, without the Power (pg. 49).
+    installs: { facility: 'watchtower', countsAs: 'spotlight', unpowered: true },
   },
   'flat-pack-shelves': {
     kind: 'rare-upgrade',
@@ -782,7 +789,7 @@ export const EQUIPMENT = {
     slots: null,
     life: 'kept',
     trade: { standard: 8 },
-    installs: { facility: 'bunk-room' },
+    installs: { facility: 'bunk-room', countsAs: 'video-game-console' },
   },
   'sleeping-bags': {
     kind: 'rare-upgrade',

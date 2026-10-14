@@ -77,7 +77,10 @@ export interface UpgradeRequest {
  * the picker has no business hiding the second one.
  */
 export function upgradesFor(campaign: Campaign, slot: string): readonly Upgrade[] {
-  return occupantAt(campaign, slot)?.facility.upgrades ?? [];
+  // Never the rare ones, which are installed from the Inventory (R47).
+  return (occupantAt(campaign, slot)?.facility.upgrades ?? []).filter(
+    (upgrade) => upgrade.rare !== true,
+  );
 }
 
 /**
@@ -131,7 +134,10 @@ export function checkUpgrade(
     };
   }
 
-  const upgrade = occupant.facility.upgrades.find((candidate) => candidate.id === request.upgrade);
+  // A rare upgrade is installed from the Inventory, never ordered (R47).
+  const upgrade = occupant.facility.upgrades.find(
+    (candidate) => candidate.id === request.upgrade && candidate.rare !== true,
+  );
 
   if (upgrade === undefined) {
     return {

@@ -53,7 +53,7 @@ import { phaseOf } from './turn';
 // `LogEntry` from here. Both directions are erased at compile time, so there is
 // no runtime cycle — and the alternative, a third module holding one of them,
 // would separate `Campaign` from the shape of its own field.
-import type { Assignment, Campaign } from './campaign';
+import type { Assignment, Campaign, Item } from './campaign';
 
 /**
  * One team member as a mission left them, carried on its outcome (#178, Z4-4).
@@ -776,6 +776,28 @@ export type CampaignEvent =
    * Inventory, with the two dice that found it: for a material roll of 10, or
    * a roll a save from before v17 owed (R49).
    */
+  /**
+   * Items a base handed over (pp. 62, 66; R45, R46; Z5-8): the Regional
+   * Firehouse's Turnout Gear on moving in, or the Outdoor Sports Shop's four
+   * weapons when its Inventory slot is cleared, which names the slot.
+   */
+  | {
+      readonly kind: 'equipment-handed-over';
+      readonly base: BaseId;
+      readonly slot?: string;
+      readonly items: readonly Item[];
+    }
+  /**
+   * A rare upgrade taken out of the base's Inventory and installed in the
+   * facility in this slot (pg. 49; R47; Z5-8).
+   */
+  | {
+      readonly kind: 'rare-upgrade-installed';
+      readonly id: string;
+      readonly item: ItemId;
+      readonly grade: Grade;
+      readonly slot: string;
+    }
   | {
       readonly kind: 'item-found';
       readonly id: string;

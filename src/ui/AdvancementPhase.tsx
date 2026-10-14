@@ -75,13 +75,15 @@ import {
 import {
   dueProjects,
   isDue,
+  weaponsOwed,
   orderedLastTurn,
   queuedCost,
   siegeLaborShortfall,
 } from '../engine/projects';
 import { fellInTheSiege } from '../engine/siegeWork';
 import { rareItemFor, rareRollsDue } from '../engine/finding';
-import { describeItem } from './equipmentLabels';
+import { describeItem, ITEM_LABELS } from './equipmentLabels';
+import { CORE_WEAPONS, EQUIPMENT, type ItemId } from '../data/equipment';
 import { SiegeWork } from './SiegeWork';
 import { describeProject } from './projectLabels';
 import {
@@ -91,6 +93,7 @@ import {
 } from '../persistence/pendingRolls';
 import { useCampaign } from '../state/useCampaign';
 import { BASE_LABELS, MATERIAL_LABELS, builtThingLabel, slotLabel } from './baseLabels';
+import { OpenPanel } from './OpenPanel';
 import { PageRef } from './PageRef';
 import { SKILL_LABELS } from './skillLabels';
 import { TIER_LABELS } from './tierLabels';
@@ -1238,12 +1241,26 @@ function FinishProjects({ campaign }: { readonly campaign: Campaign }) {
   const waiting = campaign.projects.filter((project) => !isDue(campaign, project));
   const short = siegeLaborShortfall(campaign);
 
+  // The Outdoor Sports Shop's weapons, the player's to choose (R45; Z5-8).
+  const owed = weaponsOwed(campaign);
+  const [weapons, setWeapons] = useState<readonly (ItemId | '')[]>([]);
+  const chosen = Array.from({ length: owed?.count ?? 0 }, (_, at) => weapons[at] ?? '');
+  const ready = chosen.every((weapon) => weapon !== '');
+
   return (
     <>
       <p className={HINT}>
         Projects ordered in a Planning Phase finish here, the turn after they were ordered{' '}
         <PageRef pages={19} />
       </p>
+
+      {/* Rare upgrades are installed now, from the Inventory (R47; Z5-8). */}
+      {campaign.inventory.some((item) => EQUIPMENT[item.item].kind === 'rare-upgrade') && (
+        <p className={`mt-2 ${HINT}`}>
+          The <OpenPanel panel="inventory">Inventory</OpenPanel> holds a rare upgrade, installed in
+          a facility of its kind at this step <PageRef pages={49} />
+        </p>
+      )}
 
       {due.length === 0 ? (
         <p className={`mt-3 ${HINT}`}>
@@ -1264,14 +1281,54 @@ function FinishProjects({ campaign }: { readonly campaign: Campaign }) {
             ))}
           </ul>
 
+          {owed !== null && (
+            <div className="mt-3">
+              <p className="text-sm font-medium">
+                Clearing the {slotLabel(owed.slot)} hands over {owed.count} standard weapons, yours
+                to choose <PageRef pages={62} />
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {chosen.map((weapon, at) => (
+                  <select
+                    key={at}
+                    aria-label={`Weapon ${String(at + 1)}`}
+                    className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 px-3 dark:border-stone-600 dark:bg-stone-800`}
+                    value={weapon}
+                    onChange={(changed) => {
+                      setWeapons(
+                        chosen.map((one, other) =>
+                          other === at ? (changed.target.value as ItemId) : one,
+                        ),
+                      );
+                    }}
+                  >
+                    <option value="" disabled>
+                      Weapon {at + 1}
+                    </option>
+                    {CORE_WEAPONS.map((id) => (
+                      <option key={id} value={id}>
+                        {ITEM_LABELS[id]}
+                      </option>
+                    ))}
+                  </select>
+                ))}
+              </div>
+            </div>
+          )}
+
           {short > 0 ? (
             <SiegeUnpaid campaign={campaign} short={short} />
           ) : (
             <button
               type="button"
-              className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+              disabled={!ready}
+              className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
               onClick={() => {
-                dispatch({ type: 'advancement/projectsCompleted', at: new Date().toISOString() });
+                dispatch({
+                  type: 'advancement/projectsCompleted',
+                  ...(owed === null ? {} : { weapons: chosen as readonly ItemId[] }),
+                  at: new Date().toISOString(),
+                });
               }}
             >
               Finish {due.length === 1 ? 'the project' : `${String(due.length)} projects`}

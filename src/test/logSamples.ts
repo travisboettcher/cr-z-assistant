@@ -220,6 +220,26 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   // An item put in and taken out of the base's Inventory by hand (Z5-2).
   { kind: 'item-added', id: 'item-1', item: 'pistol', grade: 'standard' },
   { kind: 'item-removed', id: 'item-1', item: 'pistol', grade: 'standard' },
+  // What a base handed over: the Firehouse's gear, and the Sports Shop's (Z5-8).
+  {
+    kind: 'equipment-handed-over',
+    base: 'regional-firehouse',
+    items: [{ id: 'item-8', item: 'reinforced-clothing', grade: 'standard' }],
+  },
+  {
+    kind: 'equipment-handed-over',
+    base: 'outdoor-sports-shop',
+    slot: 'inventory',
+    items: [{ id: 'item-9', item: 'bow', grade: 'standard' }],
+  },
+  // A rare upgrade installed from the Inventory (Z5-8).
+  {
+    kind: 'rare-upgrade-installed',
+    id: 'item-7',
+    item: 'gas-grill',
+    grade: 'standard',
+    slot: 'kitchen',
+  },
   // An item a material roll of 10 found on the Rare Item Table (Z5-7).
   {
     kind: 'item-found',

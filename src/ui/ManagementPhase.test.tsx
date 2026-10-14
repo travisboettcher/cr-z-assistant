@@ -378,6 +378,34 @@ describe('Calculate Unrest', () => {
     expect(walk().textContent).toContain('0 Hunger + 2 Exhaustion = 2 Unrest');
   });
 
+  /** A powered video game console in a Bunk Room takes three off (pg. 49; Z5-8). */
+  it('shows what the base takes off, and never goes below zero', () => {
+    open(
+      generatingFlatUtility(
+        withPlanningBegun(
+          management({
+            step: 'calculate-unrest',
+            survivors: Array.from({ length: 6 }, (_, at) =>
+              createSurvivor(`Survivor ${String(at)}`, 1, { id: `survivor-${String(at)}` }),
+            ),
+            base: {
+              id: 'small-town-home',
+              slots: {
+                'bunk-room-1': {
+                  power: true,
+                  installed: [{ id: 'c', item: 'video-game-console', grade: 'standard' }],
+                },
+              },
+            },
+          }),
+        ),
+        'power',
+      ),
+    );
+
+    expect(walk().textContent).toContain('0 Hunger + 2 Exhaustion − 3 from the base = 0 Unrest');
+  });
+
   it('says nothing about the mission team, which is Assign Beds’ business now', () => {
     open(
       management({

@@ -27,7 +27,7 @@ import {
   withTierBought,
   type PurchaseBlock,
 } from './advancement';
-import type { Campaign, Survivor } from './campaign';
+import type { Campaign, Item, Survivor } from './campaign';
 import { claimedBase } from './claim';
 import { checkConversion, conversions, withConversion } from './conversions';
 import { checkXpAward, withXpAwarded } from './experience';
@@ -46,6 +46,8 @@ import {
   type MaterialRoll,
 } from './materials';
 import { rareRollsProblem, withItemsFound, type RareItemRoll } from './finding';
+import { installProblem, withRareUpgradeInstalled } from './install';
+import { turnoutGear, withEquipmentHandedOver } from './handover';
 import { moveProblem, rebuildAfterMove, storesAfterMove, withBaseMoved } from './move';
 
 /** This turn's haul, as the table rolled it (pp. 17–19). */
@@ -435,16 +437,45 @@ export function submitBaseMove(
   const stores = storesAfterMove(campaign);
   const rebuild = rebuildAfterMove(campaign);
 
+  const moved = logged(withBaseMoved(campaign, leaving), at, {
+    kind: 'base-moved',
+    from,
+    to,
+    setAside: campaign.survivors
+      .filter((survivor) => leaving.includes(survivor.id))
+      .map((survivor) => ({ survivor: survivor.id, name: survivor.name })),
+    ...(stores === null ? {} : { stores }),
+    ...(rebuild === null ? {} : { rebuild }),
+  });
+
+  // Moving into a Regional Firehouse hands over its Turnout Gear (R46; Z5-8).
+  return accepted(withEquipmentHandedOver(moved, to, turnoutGear(moved, to), at));
+}
+
+/**
+ * Install a rare upgrade from the base's Inventory in a standing facility of
+ * its kind, at Add Facilities and Upgrades (pg. 49; R47; Z5-8). Refused for
+ * whatever `installProblem` says.
+ */
+export function submitRareUpgradeInstalled(
+  campaign: Campaign,
+  id: string,
+  slot: string,
+  at: string,
+): FormResult {
+  const problem = installProblem(campaign, id, slot);
+  if (problem !== null) return refused(problem);
+
+  // Present: `installProblem` found it in the Inventory.
+  const item = campaign.inventory.find((held) => held.id === id) as Item;
+
   return accepted(
-    logged(withBaseMoved(campaign, leaving), at, {
-      kind: 'base-moved',
-      from,
-      to,
-      setAside: campaign.survivors
-        .filter((survivor) => leaving.includes(survivor.id))
-        .map((survivor) => ({ survivor: survivor.id, name: survivor.name })),
-      ...(stores === null ? {} : { stores }),
-      ...(rebuild === null ? {} : { rebuild }),
+    logged(withRareUpgradeInstalled(campaign, id, slot), at, {
+      kind: 'rare-upgrade-installed',
+      id,
+      item: item.item,
+      grade: item.grade,
+      slot,
     }),
   );
 }

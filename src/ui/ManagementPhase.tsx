@@ -33,6 +33,7 @@ import {
   penaltyFor,
   survivorsFed,
   unrest,
+  unrestFromBase,
   unrestLocked,
 } from '../engine/feeding';
 import { beds } from '../engine/base';
@@ -490,6 +491,7 @@ function AssignBeds({ campaign }: { readonly campaign: Campaign }) {
 function CalculateUnrest({ campaign }: { readonly campaign: Campaign }) {
   const short = hunger(campaign);
   const tired = exhaustion(campaign);
+  const fromBase = unrestFromBase(campaign);
 
   return (
     <>
@@ -499,7 +501,11 @@ function CalculateUnrest({ campaign }: { readonly campaign: Campaign }) {
       </p>
 
       <p className="mt-3 text-sm font-medium tabular-nums">
-        {short} Hunger + {tired} Exhaustion = {unrest(campaign)} Unrest
+        {short} Hunger + {tired} Exhaustion
+        {/* The video game console's −3, while it has Power (pg. 49; Z5-8). */}
+        {fromBase !== 0 &&
+          `${fromBase < 0 ? ' − ' : ' + '}${String(Math.abs(fromBase))} from the base`}{' '}
+        = {unrest(campaign)} Unrest
       </p>
 
       {unrestLocked(campaign) && (
