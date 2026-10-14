@@ -380,7 +380,7 @@ export function staffCapacity(occupant: Occupant): number {
 }
 
 /**
- * What a staffed Watchtower takes off Siege Threat (pg. 73).
+ * What a staffed Watchtower takes off Siege Threat (pg. 71).
  *
  * The best of Long Guns, Handguns, Archery and Traps across its staff — the
  * best *one* Score, not the sum, which is what `reducedByBestOf` spells and why
@@ -409,7 +409,7 @@ export function siegeThreatReduction(
 }
 
 /**
- * The skills a slot watches with, across everything working in it (pg. 73).
+ * The skills a slot watches with, across everything working in it (pg. 71).
  *
  * Exported because the slot card needs the same list to say whether the person
  * standing in the tower has any of them, and a second copy of "which effects

@@ -290,7 +290,7 @@ export type CampaignEvent =
       readonly passed: boolean;
     }
   /**
-   * A set of Restraints held a turning survivor, so nobody was bitten (pp. 72–73).
+   * A set of Restraints held a turning survivor, so nobody was bitten (pg. 69).
    *
    * **Load-bearing**, like `planning-began` and `materials-added`:
    * `restraintsFree` counts these back to know how many sets a turn has left,

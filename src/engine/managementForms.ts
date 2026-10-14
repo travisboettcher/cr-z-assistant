@@ -55,7 +55,7 @@ export interface RotCheckForm {
  * The check itself is recorded whether it passed or failed: a step that only
  * wrote down the deaths would read as though nobody else had been in danger.
  * A failure then writes, in order, the survivor leaving; and either the
- * Restraints holding them (pg. 72) or the bite, and the bitten survivor leaving
+ * Restraints holding them (pg. 69) or the bite, and the bitten survivor leaving
  * if it finishes them.
  */
 export function submitRotCheck(campaign: Campaign, form: RotCheckForm, at: string): FormResult {
@@ -102,7 +102,7 @@ export function submitRotCheck(campaign: Campaign, form: RotCheckForm, at: strin
   });
 
   /*
-   * A set of Restraints held them (pg. 72). Written down because
+   * A set of Restraints held them (pg. 69). Written down because
    * `restraintsFree` counts these back — a turn with two sets holds two
    * survivors and no more, and nothing else on the campaign remembers that the
    * first one was held.

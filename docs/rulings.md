@@ -24,6 +24,9 @@ move: only that list's rulings 4 and 5 were renumbered, to R9 and R12.
 R16 arrived from the other direction: it was written as `phase-3-stories.md`'s ruling 9 on a branch
 cut before this registry existed, and took the next free number when the two met.
 
+R51–R81 are the batch-17 extract's R50–R80, one number up: the October 2026 check against the
+book took R50 for the ultralight backpack while the extract was being recorded.
+
 Rulings that are still open are marked **OPEN**. They are recorded rather than settled quietly,
 which is the point of the registry — a question nobody has answered looks exactly like a question
 nobody noticed, unless it is written down.
@@ -31,9 +34,26 @@ nobody noticed, unless it is written down.
 Rulings marked **PROPOSED** are written ahead of the work that needs them and await confirmation;
 nothing in the code cites one until it is confirmed.
 
+Two more markers open an entry's body rather than its heading, so the heading's link stays put.
+Rulings marked **Settled by** a source turned out, on a check against the printed book and the
+Errata & FAQ sheet (October 2026), to be answered there. They keep their numbers, because code and
+documents cite them, but they are no longer rulings: each says what the source establishes and
+where. FAQ entries are cited by their title in quotes, since the sheet has no page numbers; errata
+as "Errata, pg. N", N being the rulebook page corrected.
+
+Rulings marked **Under review** were found by the same check to conflict with the book or the FAQ.
+The entry still describes what the app does today, and links the issue that will change it.
+
+R50 was assigned by that check, for a question it found that no ruling covered.
+
 ---
 
 ## R1 — The hunger penalty is a starvation threshold, not a hunger tax
+
+> **Under review, [#215](https://github.com/travisboettcher/cr-z-assistant/issues/215).** FAQ "Hunger and Population" confirms the threshold, and FAQ
+> "Hunger Penalty" confirms that stats alone take it and floor at zero. But that entry's worked
+> example implies a penalty larger than `Hunger − population` can ever reach, so the *size* below
+> is expected to change. The issue holds the proposed reading; nothing changes until it is decided.
 
 **pg. 22.** The book says to subtract Hunger from the community's population and, if the result is
 negative, reduce every survivor's stats by that number. Two problems. `population − Hunger` is
@@ -94,7 +114,7 @@ Z3-6's posture that the walk guides rather than refuses is untouched.
 
 **pg. 22.** None is stated, so a Clinic with enough Medicine drives the target to 2 or below.
 
-**Left unclamped**, on the grounds that the natural-1 rule (pg. 8) already stops it becoming a
+**Left unclamped**, on the grounds that the natural-1 rule (pg. 5) already stops it becoming a
 certainty, and that clamping would be inventing a rule. Flagged rather than assumed.
 
 ---
@@ -112,9 +132,10 @@ that has not happened.
 
 ## R4 — The Distillery's Utility Station produces its Water with nobody in it
 
-**The flat output belongs to the slot rather than to the facility in it.** The Distillery's
-built-in Utility Station makes 2 Water unstaffed, while a Utility Station's own production is
-skill-named and therefore needs somebody in it.
+**Settled by pp. 61, 67, 71.** The Distillery's built-in station makes the Water of a Utility Station with two
+Rain Collectors (pg. 61). A Rain Collector is an upgrade that makes 1 Water (pg. 71), and upgrades
+produce without staff (pg. 67), so the station makes 2 Water unstaffed. A Utility Station's own
+production is skill-named and still needs somebody in it.
 
 Cited from `src/engine/production.ts`. `flatUtilitiesGenerated` had always counted it, so the base
 sheet showed the 2 Water while the slot card said the facility produced nothing — one ruling read
@@ -124,10 +145,10 @@ in two places, which is what this registry is for.
 
 ## R5 — The Herb Plot has no per-Garden limit
 
-**pg. 68.** Only the Fence and the Greenhouse are one-per-Garden; neither the table nor the prose
-restricts this one, so the general cap of three upgrades is the only limit.
+**Settled by pp. 67, 68.** Any upgrade may be built more than once, each copy counting toward the cap of three
+(pg. 67); only the Fence and the Greenhouse are limited to one per Garden (pg. 68).
 
-**Deliberately unlimited.** That opens a real build rather than an oversight: a watered Garden with
+**Unlimited, by the book.** That opens a real build rather than an oversight: a watered Garden with
 a Fence and two Herb Plots yields 2 Food and 2 Health a turn, and three Herb Plots trade the
 Garden's Food away entirely for 3 Health. Anything that enforces the upgrade cap must not quietly
 add a limit here.
@@ -136,7 +157,7 @@ add a limit here.
 
 ## R6 — A set of Restraints works once per turn
 
-**pp. 72–73, [#119](https://github.com/travisboettcher/cr-z-assistant/issues/119).** "Each set
+**pg. 69 (the text), pg. 72 (the table); [#119](https://github.com/travisboettcher/cr-z-assistant/issues/119).** "Each set
 prevents one turned survivor from biting" gives a count and no duration.
 
 **The ruling is per turn:** a set holds one survivor each night rather than one ever. The
@@ -145,9 +166,8 @@ worth nothing afterwards, which no other upgrade in the book behaves like, and t
 equipment bolted to a Clinic rather than a supply. Counted off the log, so two sets hold two
 survivors in one turn and no more.
 
-The spread rather than a page, because the two transcriptions of this upgrade disagree:
-`facilities.ts` recorded it as pg. 73 and the September playtest read it off pg. 72. Narrow it next
-time the book is open.
+The pages were narrowed in October 2026: the upgrade's text is on pg. 69 and its row on pg. 72.
+Earlier transcriptions cited pg. 73 and the spread pp. 72–73.
 
 ---
 
@@ -176,6 +196,10 @@ greyed-out state.
 
 ## R8 — A Teacher with a Score of nothing still replaces the discretionary point
 
+> **Settled by pg. 12.** A Teacher on the team replaces the discretionary point; the Teaching Score
+> only sets how many survivors then get a point, so a Score of 0 replaces the point and hands out
+> none. That is the ruling below, so `canTeach` stays the trigger. The reasoning is kept as written.
+
 **pg. 12, [#143](https://github.com/travisboettcher/cr-z-assistant/issues/143).** A Teacher on the
 mission team replaces the discretionary point, and their Teaching Score is how many survivors they
 then hand a point to. The book does not say what happens when those two come apart — a survivor who
@@ -195,6 +219,11 @@ the difference, if a table wants it the other way.
 ---
 
 ## R9 — How broadly the Utilities substitution applies
+
+> **Under review, [#218](https://github.com/travisboettcher/cr-z-assistant/issues/218).** Errata, pg. 12 corrects the skill: a Utilities use forces
+> **Fuel**, as Rationing forces Food and Mechanics Hardware. The first half of the ruling below is
+> superseded and the app will follow the errata. The second half stands on pg. 19, where a material
+> roll of 10 is a Rare Item Table roll: a forced roll is always a material.
 
 **pg. 12.** Rationing is locked to Food and Mechanics to Hardware, but Utilities is written as "a
 given material" and appears to allow any — including, perhaps, forcing a 10 and a Rare Item Table
@@ -225,9 +254,9 @@ are therefore the same character. They keep their existing skills and gain one n
 
 ## R11 — Which zero is raised is the player's choice, not the app's
 
-**pg. 18.** Decided the other way against v1.25, which left the clause vague enough to break the tie
-in code. The published edition is explicit: when a survivor has more than one stat at 0, *the player
-chooses which one is raised*.
+**Settled by pg. 18.** Decided the other way against v1.25, which left the clause vague enough to
+break the tie in code. The published edition settles it: when a promoted survivor has more than one
+stat at 0, the player picks which zero is raised.
 
 A T1 → T2 promotion has three zeros and a T2 → T3 has two, so `withTierBought` takes the stat to
 raise in exactly those cases and the sheet asks before promoting. T3 → T4 raises every stat, so
@@ -236,6 +265,11 @@ there is nothing to ask and nothing to pass.
 ---
 
 ## R12 — "Wounded" and "injured" are one state
+
+> **Settled by FAQ "Wounded Survivors and Assignments".** The FAQ uses the one word, wounded, for
+> both rules: a wounded survivor may not join a mission but may staff a facility or join the project
+> team, and regains no Health unless assigned to healing. So the book's two words are one state, as
+> below.
 
 **pp. 20–21.** A *wounded* survivor may staff a facility or join a project team, forfeiting healing;
 an *injured* one may not join a mission team. If they are one state the rules are consistent and
@@ -258,7 +292,8 @@ or join the project team, forfeiting healing (pp. 20–21). The book draws no se
 down, and drawing one here would be this app making up a rule. Nothing changes in the code, and
 no new warning is raised.
 
-**The exception is the siege's, and it is narrower.** The FAQ's "Siege Defense and Labor" takes a
+**The exception is the siege's, and it is narrower.** pg. 23, under Check the Horde, and FAQ
+"Siege Defense and Labor" take a
 survivor *reduced to 0 Health during a siege* off their work for that turn —
 [R17](#r17--what-a-siege-defense-does-to-the-turns-work), which is specific to the siege and does
 not generalise back into this ruling. Outside a siege, a survivor at 0 Health works like any other
@@ -279,7 +314,9 @@ arithmetic is right and the book states no floor, which is the same position as 
 in R2, so nothing here is a bug.
 
 It is written down because it became newly easy to reach when the Watchtower started subtracting,
-and because the number feeds **two** different thresholds that were written for a positive quantity:
+and the Watchtower is not the only way below zero: the Curtain Wall takes 3 off every turn (pg. 63),
+and each Spotlight 1 (pg. 71). The book sets no floor (pg. 23). It is also written down because the
+number feeds **two** different thresholds that were written for a positive quantity:
 the horde roll (d10 + Threat ≥ 16) and the departure test (Unrest + Threat ≥ 10). A negative Threat
 therefore makes a community *harder* to send somebody away from, which reads as intended — a
 well-watched base is a calmer one — but no rule says so. If a table wants a floor of zero it goes in
@@ -298,6 +335,7 @@ next turn's Planning Phase refuses it on `orderedOnTurn`.
 
 **The book is not neutral here.** There is no equipment ordering anywhere outside Planning Step 2.
 Build and trade are project-team activities, and nothing in the seven Management steps touches them.
+FAQ "Used Hardware and Storage Limits" agrees: Hardware is spent in the Planning Phase.
 
 **The ruling is that ordering is confined to the Planning Phase.** `project/ordered` takes the same
 turn-and-phase guard as `cancellable`, and the Management-phase note becomes a blocker. The guard
@@ -493,7 +531,14 @@ left is not a siege casualty.
 
 ## R18 — What Infection incapacitates
 
-**pp. 22–23, 123, [#176](https://github.com/travisboettcher/cr-z-assistant/issues/176).** Under
+> **Under review, [#219](https://github.com/travisboettcher/cr-z-assistant/issues/219).** pg. 21 lets only survivors below maximum Health be assigned to
+> rest or healing, and pg. 19 gives Health points only to those assigned. So the Heal Wounds
+> paragraph below is wrong about a survivor at full Health with Infection: they take no share and no
+> resting point. A survivor down on Infection with Health below maximum can still be helped by the
+> Clinic. The Rot row stands, now on pp. 22 and 123: the ordinary Rot check is unchanged, and
+> Infection has its own Viral check, which is unbuilt.
+
+**pp. 19, 21, 22–23, 123, [#176](https://github.com/travisboettcher/cr-z-assistant/issues/176).** Under
 the Viral origin a survivor at 10 Infection is incapacitated whatever their Health (pg. 123). The
 community rules were written with one way down — 0 Health — and three of them ask about it: who
 makes a Rot check (pg. 22), who can be chosen at Departures (pg. 23), and who is fit for a mission
@@ -610,7 +655,7 @@ true at once: the second is about what was traded, the first about what was not.
 itself arrives with equipment in Phase 5; it is recorded now because #178's outcome entry for the
 mission carries the one field it reads.
 
-*Confirmed 2026-10-14 from the batch-17 extract (R60): one survivor exiting is enough, partial exits
+*Confirmed 2026-10-14 from the batch-17 extract (R61): one survivor exiting is enough, partial exits
 make no difference, and traded items arrive when the mission ends.*
 
 ---
@@ -682,8 +727,9 @@ production at Step 3, says what the old base produced is kept rather than lost.
 **The ruling is that the community moves in at the end of the Advancement Phase.** Everything the
 last Planning Phase assigned was assigned in the old base and settles there, including the
 projects, which are built into the old building and left behind with it. The Hardware they cost is
-not refunded: it was spent when they were ordered (pg. 20, FAQ). The first Planning Phase is the
-new base's.
+not refunded: it was spent when they were ordered (pg. 21; FAQ "Used Hardware and Storage Limits").
+The first Planning Phase is the new base's. The old base's stores come along with the community
+(FAQ "New Bases and Materials").
 
 **What it costs.** The extract's own suggestion landed a due project in the new base when an empty
 slot fits it. That needs the player to re-aim each order at a slot of a different layout, and
@@ -751,7 +797,7 @@ for the First Mission.
 
 ## R29 — What a claim after an overrun recovers
 
-**pp. 19, 54, 86, FAQ; #182, Z4-9, Z4-10.** Half the stored materials, and a free rebuild of what
+**pp. 19, 54, 86; FAQ "New Bases and Materials"; #182, Z4-9, Z4-10.** Half the stored materials, and a free rebuild of what
 was destroyed, are given for the same base type on the same map (pg. 86). For any other claim the
 book is silent, and its normal transfer (pg. 19, FAQ) would give everything, which makes the half
 rule mean nothing unless an overrun replaces the transfer.
@@ -761,9 +807,17 @@ stored materials and no free rebuild; the same type on the same map recovers hal
 and its free rebuild covers every facility and upgrade the player had added, waives the Hardware
 only, and lasts until it is used.** Built-ins were never destroyed (pg. 54).
 
+**"Upgrades" is read as everything the player added.** pg. 86 says the overrun destroys the base's
+*upgrades*, and the free rebuild restores them. This ruling reads that word as the facilities the
+player built as well as their upgrades, so both are destroyed and both are rebuilt free. That is a
+reading, not the text: the narrower one leaves player-built facilities standing on a reclaimed
+same-type base, with only their upgrades lost.
+
 **What it costs.** Rounding down is the app's, chosen to match how the siege counter is halved
-(R16); the book does not say. A table reading the silence as "the normal transfer applies" would
-keep everything on a different type.
+(R16); the book does not say. FAQ "New Bases and Materials" says every base after the first receives
+the previous base's materials, vehicles, weapons and equipment, with no exception for an overrun. A
+table that takes that as governing keeps everything on a different type. The ruling stands because
+if everything transferred anyway, pg. 86's half for the same type and map would mean nothing.
 
 *Confirmed 2026-10-13 from the batch-15 extract.*
 
@@ -789,6 +843,11 @@ time. Every other move is a new building, with every slot as its layout has it (
 
 ## R30 — Start a New Community after an overrun
 
+> **Under review, [#216](https://github.com/travisboettcher/cr-z-assistant/issues/216).** FAQ "New Bases and Materials", pg. 19 and pg. 54 agree that only
+> a campaign's *first* base starts full, and starting over continues the campaign (pg. 86). So "stocked
+> to its caps as a first base does" below contradicts the text. What the new base gets instead (the
+> old stores in full, or nothing) is the decision the issue holds. The counters carrying on stands.
+
 **pp. 19, 76–77, 86, FAQ; #182, Z4-9.** Starting over uses the remaining survivors and their gear
 (pg. 86) and says nothing of storage. A campaign's first base arrives full (pg. 19, FAQ), but this
 is a way to continue the campaign rather than a new one.
@@ -806,6 +865,9 @@ which is a much harder opening.
 ---
 
 ## R31 — Abandoned survivors, and a Hero sent away, are set aside
+
+> **Partly under review.** "The new base is stocked as R30's" follows R30, which is under review
+> ([#216](https://github.com/travisboettcher/cr-z-assistant/issues/216)). The rest of this ruling stands.
 
 **pp. 7, 31, 54, 82–83, 86; #182, Z4-8, Z4-11.** Two rules take a survivor out of the community
 without killing them: the Hero sent away when a move lowers the cap (pg. 54), and the survivors
@@ -864,6 +926,11 @@ build, staff or sleep, and every base-dependent number reads as zero until a bas
 
 ## R34 — Quality gear is built from the tables
 
+> **Under review, [#217](https://github.com/travisboettcher/cr-z-assistant/issues/217).** pg. 37 limits quality weapons to the Rare Goods Trader, and the
+> missing quality trade cost on pg. 41 and the Quality Item subtable (pg. 43) both support it. The
+> proposed narrower ruling: quality weapons are found or traded only, and quality equipment,
+> protective gear and disposables are built as below. Nothing changes until it is decided.
+
 **pp. 37, 41–43; [#177](https://github.com/travisboettcher/cr-z-assistant/issues/177).** Pg. 37
 says quality weapons come only through the Rare Goods Trader, but the cost tables on pp. 41–42 print
 a quality build cost for every weapon and for most equipment and protective gear, and the Rare Item
@@ -891,6 +958,8 @@ say whether the shoddy one does too; Earl's worked sheet lists his shoddy axe am
 chosen at Equip Mission Team, costs nothing, and never enters or leaves the base Inventory: there
 is always another.
 
+FAQ "Dual Wield" points the same way: two weapons take two slots.
+
 **What it costs.** A survivor with several weapon skills chooses which shoddy weapons to carry,
 rather than carrying them all for free.
 
@@ -899,6 +968,11 @@ rather than carrying them all for free.
 ---
 
 ## R36 — A backpack takes no slot
+
+> **Under review, [#220](https://github.com/travisboettcher/cr-z-assistant/issues/220).** pg. 44 names the tool belt as the only equipment that takes no
+> slot, so the book settles this the other way: a standard or quality backpack takes one slot, and
+> its +1 to Carry gives it back. pg. 51 does not say the ultralight backpack takes no slot either.
+> That is a separate question, [R50](#r50--what-slot-the-ultralight-backpack-takes--open).
 
 **pp. 10, 44, 51; #177, Z5-2.** The backpack adds one to its wearer's Carry Score, and Carry adds to
 Inventory Slots (pg. 10); but most equipment takes a slot (pg. 44), which would make a backpack worth
@@ -975,7 +1049,7 @@ one of each kind of protective gear**: a second set of reinforced clothing adds 
 
 *Confirmed 2026-10-13 from the batch-16 extract.*
 
-*Confirmed again 2026-10-14 from the batch-17 extract (R80): two of one item, two pairs of binoculars
+*Confirmed again 2026-10-14 from the batch-17 extract (R81): two of one item, two pairs of binoculars
 among them, give one bonus; an item is equipped, and the FAQ's Dual Wield is the one written
 exception.*
 
@@ -983,13 +1057,18 @@ exception.*
 
 ## R41 — A Watchtower reads its lookout's whole Score
 
-**pp. 8, 14, 73; #177, Z5-3.** A staffed Watchtower takes its staff's best Long Guns, Handguns,
-Archery or Traps Score off Siege Threat (pg. 73). A Skill Score has an item term (pg. 8), and a
+> **Settled by pp. 8, 71.** A Skill Score is level, stat and item modifiers (pg. 8), and the Score is
+> what a skill uses whenever it is applied. The Watchtower subtracts its staff's Score (pg. 71). So the
+> whole Score, item term included, is the book's answer, and the work can be built on it. No longer
+> proposed.
+
+**pp. 8, 14, 71; #177, Z5-3.** A staffed Watchtower takes its staff's best Long Guns, Handguns,
+Archery or Traps Score off Siege Threat (pg. 71; its row is on pg. 73). A Skill Score has an item term (pg. 8), and a
 survivor with a weapon skill and nothing better holds a shoddy weapon at −1 (pg. 14). Survivors keep
 what they carry between missions (R38), so a lookout at home has a weapon to hand. The book does not
 say whether the Watchtower means the Score with that term or the stat and level alone.
 
-**The ruling is that it means the whole Score**, item term included: a lookout with only
+**The answer is the whole Score**, item term included: a lookout with only
 the free shoddy weapon takes one less off than before Z5-3, and one with a quality rifle one more.
 Traps has no free item, so a trapper's Score is unchanged.
 
@@ -997,12 +1076,22 @@ Traps has no free item, so a trapper's Score is unchanged.
 equipment arrived. Read the other way, the weapon a lookout carries would make no difference to the
 one facility that watches with a weapon skill.
 
-*Confirmed 2026-10-14 from the batch-17 extract (R79): the book's word is the Skill Score, which has
-the item term.*
+*The batch-17 extract agrees (R80).*
 
 ---
 
 ## R42 — Nobody scavenges on a siege turn
+
+> **Settled by pp. 17, 23; FAQ "Mission Phase Scavenging"; FAQ "Siege Defense and Labor".** A
+> scavenger is sent only when the community opts out of a mission at Select Mission (pg. 17). A
+> triggered siege forces the mission, and the FAQ says it removes the choice of mission, so nobody
+> scavenges on a siege turn.
+>
+> **The Planning-Phase assignment is the app's.** The book's Planning Phase has no scavenging step
+> (pp. 20–21): the scavenger is chosen at Select Mission, when the mission is skipped, and must hold
+> no other assignment that turn. The app takes the assignment a phase early, in Planning, so the
+> table can see who is free. That is an app convenience, not a rule, and the paragraphs below are
+> written in its terms.
 
 **pp. 17, 21, 23, 85; the FAQ; [#199](https://github.com/travisboettcher/cr-z-assistant/issues/199).**
 Scavenging pays when the community skips its mission (pg. 17). The Planning Phase assigns a
@@ -1129,7 +1218,22 @@ instead.
 
 ---
 
-## R50 — What the Planning trade can buy
+## R50 — What slot the ultralight backpack takes — **OPEN**
+
+**pp. 44, 51; [#220](https://github.com/travisboettcher/cr-z-assistant/issues/220).** pg. 44's general rule gives most equipment a slot and names the tool
+belt as the only exception, which would give the ultralight backpack one slot, for a net +1. But the
+other rare equipment on pg. 51 each states its own slot use, and the ultralight's entry is silent.
+It gives +2 slots and may be worn by a survivor without Carry.
+
+**Not yet ruled.** The app records it as taking no slot (`src/data/equipment.ts`), for a net +2,
+which is what R36 assumed before the October 2026 check. That is the current behaviour, not a
+decision. Recorded so it is not mistaken for one.
+
+*Found by the October 2026 check against the book.*
+
+---
+
+## R51 — What the Planning trade can buy
 
 **pp. 21, 37, 41–43; #177, part 3.** Equipment can be traded for in the Planning Phase at its trade
 cost (pg. 21), and Rare Items are bought from the Rare Goods Trader (pp. 37, 43). Neither page says
@@ -1138,7 +1242,7 @@ a rare item cannot be bought another way, nor that every priced grade can be bou
 **The ruling is that the Planning trade buys ordinary equipment in every grade with a printed trade
 price, and nothing else.** Shoddy is free and never bought. A grade printed "–" or N/A has no price
 and cannot be bought; weapon rows price standard only, so a quality weapon is never bought in
-Planning. Rare items, quality weapons among them, come only through a Rare Items trade (R56).
+Planning. Rare items, quality weapons among them, come only through a Rare Items trade (R57).
 
 **What it costs.** A table reading pg. 37 loosely could buy rare items without the Trader.
 
@@ -1146,7 +1250,7 @@ Planning. Rare items, quality weapons among them, come only through a Rare Items
 
 ---
 
-## R51 — A Planning trade needs nobody
+## R52 — A Planning trade needs nobody
 
 **pp. 20–21, 37; #177, part 3.** A trade is the Build/Trade Equipment project at Planning Step 2,
 takes no Labor, any number at once, paid in any mix of Food and Fuel (pp. 20–21). The book does not
@@ -1163,7 +1267,7 @@ build, which leaves the higher trade price buying nothing.
 
 ---
 
-## R52 — A traded item arrives wherever the community is
+## R53 — A traded item arrives wherever the community is
 
 **pp. 19, 21; #177, part 3.** A traded item arrives at the next Advancement Phase's Step 5, and its
 materials leave at once (pp. 19, 21). The book says nothing of cancelling, or of a move or an overrun
@@ -1179,7 +1283,7 @@ community that starts over (R30, R31) loses its pending orders with the old base
 
 ---
 
-## R53 — Only rare items are sold
+## R54 — Only rare items are sold
 
 **pp. 21, 37; #177, part 3.** A Rare Item can be traded away for its value less two, without the
 Trader, and leaves the Inventory at once (pp. 21, 37). The book gives no sale price for anything
@@ -1194,7 +1298,7 @@ Phase in Food and Fuel, the player's mix.** The cheapest rare item is 4, so a sa
 
 ---
 
-## R54 — The channel decides the price
+## R55 — The channel decides the price
 
 **pp. 41–43; #177, part 3.** The quality tool belt is priced 8 on the equipment table (pg. 41) and 6
 on the Quality Item subtable (pg. 43); no other item is printed in both places.
@@ -1210,7 +1314,7 @@ and the knee pads 7 (pg. 42).
 
 ---
 
-## R55 — A sale can overfill storage
+## R56 — A sale can overfill storage
 
 **pp. 21, 23; the FAQ; #177, part 3.** Check Storage, Management Step 5, destroys what is over the
 cap (pg. 23). The book says nothing special about what a sale brings in.
@@ -1225,7 +1329,7 @@ refuse.
 
 ---
 
-## R56 — One Rare Items trade, in two halves
+## R57 — One Rare Items trade, in two halves
 
 **pp. 21, 83–84; #177, part 3.** Pg. 21 assigns a mission team to trade, makes the list, sets
 materials aside and forces the next mission; pp. 83–84 are that mission, played against a priority
@@ -1238,7 +1342,7 @@ Trader mission it forces.
 
 ---
 
-## R57 — The trader's list is full Rare Item Table rolls
+## R58 — The trader's list is full Rare Item Table rolls
 
 **pp. 19, 21, 43; #177, part 3.** When the trade is decided, the community rolls a number of d10s
 equal to every survivor's Scout Score plus Cooperation, all added together, and applies them to the
@@ -1257,7 +1361,7 @@ dice, not every roll on the list.
 
 ---
 
-## R58 — The trade's materials are set aside until the mission ends
+## R59 — The trade's materials are set aside until the mission ends
 
 **pp. 21, 23, 84; #177, part 3.** The Food and Fuel the chosen items cost are set aside, leave the
 Inventory and are not counted against storage (pp. 21, 23). A successful trade returns what was not
@@ -1272,7 +1376,7 @@ and meets the next Check Storage. They are lost if another mission is chosen or 
 
 ---
 
-## R59 — The trade forces the next turn's first mission
+## R60 — The trade forces the next turn's first mission
 
 **pp. 21, 23, 83; #177, part 3.** The next mission chosen must be the Rare Goods Trader; another
 choice, or a forced Siege Defense, loses the materials (pp. 21, 23). The book does not say which
@@ -1286,7 +1390,7 @@ Horde loses them there and cancels the trade; nothing carries over.
 
 ---
 
-## R60 — The Rare Goods Trader's outcome
+## R61 — The Rare Goods Trader's outcome
 
 **pg. 84; #177, part 3.** This confirms R22, below its own heading. Any survivor exiting is a
 success, and partial exits make no difference. Items traded arrive when the mission ends rather than
@@ -1296,7 +1400,7 @@ at Advancement Step 5, which the book leaves open and which is the same turn eit
 
 ---
 
-## R61 — What a vehicle is
+## R62 — What a vehicle is
 
 **pp. 49, 52–53; #177, part 3.** A vehicle is a Tier 1–4 with fixed Inventory and Passenger Slots
 (Tier 4 splits a total of 20 as its owner chooses), a kind, and Noise of its Tier + 5; one spawned
@@ -1311,7 +1415,7 @@ a fact of one mission, never stored.
 
 ---
 
-## R62 — Retrieve New Vehicles' Tiers are rolled, then may be lowered
+## R63 — Retrieve New Vehicles' Tiers are rolled, then may be lowered
 
 **pp. 81–82; #177, part 3.** The mission's setup rolls five d10s for the vehicles' Tiers (1–3 Tier 1,
 4–7 Tier 2, 8–9 Tier 3, 10 Tier 4), any of which may be replaced with a lower Tier, and only those
@@ -1324,19 +1428,19 @@ it is driven off the map**, with nothing else required.
 
 ---
 
-## R63 — A won claim keeps the vehicles on the mission area
+## R64 — A won claim keeps the vehicles on the mission area
 
 **pp. 78–79; #177, part 3.** A won Claim a New Base adds the working vehicles on the mission area
 (pg. 79), and an ordinary claim has none to repair (pg. 78), so they are the ones the team brought.
 
 **The ruling is that they keep their Tier and are added on a won claim whether or not they were
-driven.** On a lost claim R69 applies: one not driven off is lost.
+driven.** On a lost claim R70 applies: one not driven off is lost.
 
 *Confirmed 2026-10-14 from the batch-17 extract.*
 
 ---
 
-## R64 — A vehicle's Fuel is paid at Equip Mission Team
+## R65 — A vehicle's Fuel is paid at Equip Mission Team
 
 **pp. 18, 52; #177, part 3.** A deployed vehicle burns 1 Fuel per Tier per mission (pg. 52), and
 Equip Mission Team is where a team takes one (pg. 18). The book does not say when the Fuel is paid
@@ -1349,7 +1453,7 @@ a vehicle the community cannot fuel is not taken. Fuel is not refunded when a ve
 
 ---
 
-## R65 — Auto Shops protect vehicles the owner picks
+## R66 — Auto Shops protect vehicles the owner picks
 
 **pp. 11, 32, 52, 67, 71–72; #177, part 3.** Vehicles taken beyond the base's number of Auto Shops
 break down on arrival, with no roll, and can be repaired on the map with a Tinker check at 4 × their
@@ -1358,13 +1462,13 @@ three upgrades (pp. 67, 72). The book does not say which vehicles are protected.
 
 **The ruling is that the base's Auto Shop upgrades are counted, the owner picks that many of the
 vehicles deployed to be protected, and the rest start the mission broken.** A breakdown is never
-stored: it is the mission's, and R69 settles what it costs.
+stored: it is the mission's, and R70 settles what it costs.
 
 *Confirmed 2026-10-14 from the batch-17 extract.*
 
 ---
 
-## R66 — A vehicle upgrade is fitted at Planning for nothing
+## R67 — A vehicle upgrade is fitted at Planning for nothing
 
 **pp. 43, 49; #177, part 3.** The car roof rack and the electric car conversion come only from the
 Rare Upgrade subtable, attach to one vehicle for the campaign, one per vehicle, and the conversion
@@ -1380,7 +1484,7 @@ vehicle is not a facility, and the Planning Phase is where a team gets ready.
 
 ---
 
-## R67 — Vehicles have no cap
+## R68 — Vehicles have no cap
 
 **pp. 23, 54; #177, part 3.** Check Storage counts materials only (pg. 23), the caps are per material
 (pg. 54), and nothing in the core rules caps vehicles.
@@ -1391,7 +1495,7 @@ vehicle is not a facility, and the Planning Phase is where a team gets ready.
 
 ---
 
-## R68 — A vehicle is empty between missions
+## R69 — A vehicle is empty between missions
 
 **pp. 32, 52–53, 159; #177, part 3.** Driving off takes a vehicle and what it holds home (pg. 32);
 Load and Unload move items in and out on the map (pg. 52); a Passenger Slot holds an item or a
@@ -1405,14 +1509,14 @@ base's Inventory. Its Passenger Slots are recorded as a number and their occupan
 
 ---
 
-## R69 — A vehicle not driven off is lost
+## R70 — A vehicle not driven off is lost
 
 **pp. 32, 52, 79, 82; #177, part 3.** A vehicle gets home by being driven off (pg. 32), and the two
 missions that add vehicles add the ones driven off or standing on a won claim (pp. 79, 82). The core
 rules have no rule that destroys a vehicle, so one left on the map could be read as lost or as coming
 home anyway.
 
-**The ruling is that a deployed vehicle not driven off, and not kept by a won claim (R63), is lost
+**The ruling is that a deployed vehicle not driven off, and not kept by a won claim (R64), is lost
 with everything in it**, and the log says so.
 
 **What it costs.** A broken vehicle nobody repairs is gone, which is what deploying more vehicles
@@ -1422,7 +1526,7 @@ than Auto Shops risks. A table reading vehicles as base property would never los
 
 ---
 
-## R70 — A survivor who dies on a mission leaves their items on the map
+## R71 — A survivor who dies on a mission leaves their items on the map
 
 **pp. 31, 34; #177, part 3.** A carried survivor drops their items at a marker (pg. 31), and another
 survivor can take an item from one incapacitated (pg. 34). A body not carried off is lost.
@@ -1434,7 +1538,7 @@ before the map was left; the rest is lost.**
 
 ---
 
-## R71 — A survivor bitten to death at home leaves their items to the base
+## R72 — A survivor bitten to death at home leaves their items to the base
 
 **pg. 22; #177, part 3.** The book removes a survivor whom a turning one bites to death and says
 nothing of their items.
@@ -1446,7 +1550,7 @@ left in the field. This is what Z5-5 already does.
 
 ---
 
-## R72 — A survivor who departs takes their items
+## R73 — A survivor who departs takes their items
 
 **pp. 23, 124; #177, part 3.** The lowest-Tier survivor leaves at Departures (pg. 23). The core rules
 are silent on their items; the Cosmic origin's departing survivor takes everything they carry
@@ -1461,19 +1565,19 @@ changes.
 
 ---
 
-## R73 — A survivor who turns leaves their items to the base
+## R74 — A survivor who turns leaves their items to the base
 
 **pg. 22; #177, part 3.** A survivor who turns at a Rot check is removed, and the book says nothing
 of their items.
 
-**The ruling is that their items go to the base's Inventory**, as R71's do. This is what Z5-5 already
+**The ruling is that their items go to the base's Inventory**, as R72's do. This is what Z5-5 already
 does.
 
 *Confirmed 2026-10-14 from the batch-17 extract.*
 
 ---
 
-## R74 — A survivor taken off the roster leaves their items to the base
+## R75 — A survivor taken off the roster leaves their items to the base
 
 **pg. 124; #177, part 3.** The core rules have no removal by the player; exile exists for the
 Cosmic origin's Found survivors (pg. 124).
@@ -1485,7 +1589,7 @@ an exiled Found survivor goes back to the Lost holding nothing. This is what Z5-
 
 ---
 
-## R75 — A survivor set aside keeps what they carry
+## R76 — A survivor set aside keeps what they carry
 
 **pg. 86; #177, part 3.** Abandoned survivors come back with their Inventory and experience (pg.
 86), and a survivor's Inventory is their Inventory Slots (pg. 14).
@@ -1497,7 +1601,7 @@ base's Inventory goes with them.
 
 ---
 
-## R76 — A move takes everything; a Hero sent away takes their own
+## R77 — A move takes everything; a Hero sent away takes their own
 
 **pp. 19, 54; the FAQ; #177, part 3.** A move takes every vehicle, weapon and piece of equipment with
 the materials (the FAQ), and the old Inventory joins the new at Advancement Step 3 (pg. 19). A Hero
@@ -1510,7 +1614,7 @@ sent away takes the items they carry**, and the base's Inventory stays.
 
 ---
 
-## R77 — An overrun loses the base's Inventory
+## R78 — An overrun loses the base's Inventory
 
 **pp. 85–86; #177, part 3.** After an overrun, a claim of the same base type on the same map
 recovers half the stored materials, and the community's vehicles are on its map as repairable ones
@@ -1519,7 +1623,7 @@ the base's Inventory, nor whether vehicle upgrades survive.
 
 **The ruling is that survivors keep what they carry in every option, and the base's Inventory items
 are lost in every option.** On a same-type, same-map claim every vehicle comes back as a repairable
-vehicle at its Tier, with its upgrade, and joins as R62 and R63 have it; on any other claim the
+vehicle at its Tier, with its upgrade, and joins as R63 and R64 have it; on any other claim the
 vehicles are lost too.
 
 **What it costs.** A community overrun with a well-stocked Inventory loses all of it. A table reading
@@ -1529,7 +1633,7 @@ the silence generously would carry it over like a move's.
 
 ---
 
-## R78 — Starting a new community keeps only what survivors carry
+## R79 — Starting a new community keeps only what survivors carry
 
 **pp. 19, 76–77, 86; the FAQ; #177, part 3.** Starting over uses the remaining survivors and their
 gear (pg. 86); the First Mission brings no vehicle (pg. 76).
@@ -1541,17 +1645,16 @@ are lost**, as R30 loses its stores.
 
 ---
 
-## R79 — The Watchtower reads the whole Score
+## R80 — The Watchtower reads the whole Score
 
-**pp. 8, 14, 73; #177, part 3.** This confirms R41, below its own heading. The extract cites the
-Watchtower at pg. 71; the repo has cited pg. 73 since Phase 2, and keeps it until a copy settles
-which.
+**pp. 8, 71; #177, part 3.** The extract's answer to R41, below its own heading, which the text
+settles the same way.
 
 *Confirmed 2026-10-14 from the batch-17 extract.*
 
 ---
 
-## R80 — Identical items give one bonus
+## R81 — Identical items give one bonus
 
 **pp. 8, 44; the FAQ; #177, part 3.** This confirms R40's reading of two identical items, below its
 own heading.
