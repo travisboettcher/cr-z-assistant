@@ -106,7 +106,7 @@ export function StartNewCampaign() {
               disabled={trimmed === ''}
               className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg bg-amber-600 px-5 font-semibold text-white enabled:hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500 dark:bg-amber-500 dark:text-stone-950 dark:enabled:hover:bg-amber-400 dark:disabled:bg-stone-700 dark:disabled:text-stone-400`}
             >
-              Start it
+              Start campaign
             </button>
           </div>
         </form>

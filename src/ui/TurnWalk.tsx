@@ -248,8 +248,8 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
           {laborShortfall(campaign) > 0 && (
             <p className="mt-4 text-sm font-medium text-amber-800 dark:text-amber-300">
               This turn is <span className="tabular-nums">{laborShortfall(campaign)}</span> Labor
-              short of what it ordered. A project goes unfinished, and the choice is in Departures{' '}
-              <PageRef pages={23} />
+              short of what it ordered. A project goes unfinished, and you choose which at
+              Departures <PageRef pages={23} />
             </p>
           )}
           <ManagementPhase campaign={campaign} step={campaign.step} />
@@ -266,8 +266,8 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
              */}
             {phase === 'mission' && siegeDue(campaign) && (
               <p className="mt-4 text-sm font-medium text-amber-800 dark:text-amber-300">
-                The horde came, called at Siege Threat {siegeCalledOn(campaign)}. This turn’s
-                mission is a Siege Defense <PageRef pages="23, 85" />
+                The horde came at Siege Threat {siegeCalledOn(campaign)}, so this turn’s mission is
+                a Siege Defense <PageRef pages="23, 85" />
               </p>
             )}
 
@@ -332,7 +332,7 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
 
             {campaign.step === 'tactical-mission' && (
               <p className="mt-4 text-sm text-stone-600 dark:text-stone-400">
-                This step is not built yet — work it on paper and move on when the table has.{' '}
+                The app does not cover this step yet. Play it on paper, then move on.{' '}
                 <PageRef pages={step.pages} />
               </p>
             )}
@@ -366,22 +366,22 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
          */}
         {owed.length > 0 && (
           <div className="mt-4 rounded-lg border border-amber-300 p-3 dark:border-amber-700">
-            <p className="text-sm font-medium">This turn has not finished with:</p>
+            <p className="text-sm font-medium">Still to do this turn:</p>
             <ul className="mt-2 flex list-disc flex-col gap-1 pl-5 text-sm">
               {owed.map((entry) => (
                 <li key={`${entry.step}:${entry.says}`}>
-                  <span className="font-medium">{STEP_LABELS[entry.step]}</span> — {entry.says}
+                  <span className="font-medium">{STEP_LABELS[entry.step]}:</span> {entry.says}
                 </li>
               ))}
             </ul>
             {entered > 0 && !materialsAdded(campaign) && (
               <p className="mt-2 text-sm">
                 <span className="font-medium tabular-nums">{entered}</span> entered roll
-                {entered === 1 ? '' : 's'} would go with it.
+                {entered === 1 ? '' : 's'} would be discarded.
               </p>
             )}
             <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">
-              Ending the turn leaves all of it undone <PageRef pages={17} />
+              If you end the turn now, these stay undone <PageRef pages={17} />
             </p>
           </div>
         )}

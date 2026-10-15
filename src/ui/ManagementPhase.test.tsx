@@ -572,7 +572,7 @@ describe('a Labor shortfall outstanding', () => {
    * too — so an assertion on "2 Labor short" alone passes without the banner
    * existing, which is how the first draft of this test passed against the bug.
    */
-  const banner = /the choice is in Departures/i;
+  const banner = /you choose which at Departures/i;
 
   it.each(['feed-your-survivors', 'check-storage', 'departures'] as const)(
     'is on screen at the %s step, not only at the one that offers the choice',

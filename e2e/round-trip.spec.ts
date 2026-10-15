@@ -333,7 +333,7 @@ async function startFreshCampaign(page: Page, name: string) {
   await openMenu(page, 'file');
   await page.getByRole('button', { name: /start a new campaign/i }).click();
   await page.getByLabel(/new campaign name/i).fill(name);
-  await page.getByRole('button', { name: /start it/i }).click();
+  await page.getByRole('button', { name: /start campaign/i }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(name);
 }
 
@@ -1951,7 +1951,7 @@ test('a turn ends with the horde called and somebody walking out', async ({ page
   await page.getByRole('dialog').getByRole('button', { name: 'End turn 1' }).click();
 
   await expect(page.getByRole('region', { name: 'Turn 2' })).toContainText(
-    'This turn’s mission is a Siege Defense',
+    'this turn’s mission is a Siege Defense',
   );
 
   await waitForAutosave(page, 'Cedar Hollow');
@@ -1960,7 +1960,7 @@ test('a turn ends with the horde called and somebody walking out', async ({ page
   // The flag is a stored turn number, so it survives the reload and still gates
   // the Mission Phase.
   await expect(page.getByRole('region', { name: 'Turn 2' })).toContainText(
-    'This turn’s mission is a Siege Defense',
+    'this turn’s mission is a Siege Defense',
   );
 
   /*

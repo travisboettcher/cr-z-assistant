@@ -215,7 +215,7 @@ describe('the one-screen layout', () => {
     await user.click(screen.getByRole('button', { name: /export, import or start new/i }));
     await user.click(screen.getByRole('button', { name: /start a new campaign/i }));
     await user.type(screen.getByLabelText(/new campaign name/i), 'Millbrook');
-    await user.click(screen.getByRole('button', { name: /start it/i }));
+    await user.click(screen.getByRole('button', { name: /start campaign/i }));
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Millbrook');
     expect(screen.queryByRole('dialog', { name: /^campaign file$/i })).toBeNull();
