@@ -263,6 +263,42 @@ describe('taking a vehicle at Equip Mission Team (pp. 18, 52; R65)', () => {
     expect(takeProblem(after, 2, 'truck')).toBeNull();
   });
 
+  it('leaves home only the vehicle named, and reads nothing else as leaving', () => {
+    const both = accepted(
+      submitVehicleTaken(
+        accepted(submitVehicleTaken(equipping(), 1, 'truck', AT)),
+        2,
+        'pickup',
+        AT,
+      ),
+    );
+    const after = accepted(submitVehicleLeftHome(both, 'truck', AT));
+
+    expect(vehiclesTaken(after)).toEqual([
+      { team: 2, vehicle: 'pickup', label: 'Red pickup', fuel: 2 },
+    ]);
+
+    // An entry that names the vehicle without leaving it home changes nothing.
+    const fitted: Campaign = {
+      ...both,
+      log: [
+        ...both.log,
+        {
+          turn: 4,
+          phase: 'planning',
+          at: AT,
+          event: {
+            kind: 'vehicle-upgrade-fitted',
+            vehicle: 'truck',
+            label: 'Box truck',
+            item: rack,
+          },
+        },
+      ],
+    };
+    expect(vehiclesTaken(fitted).map((one) => one.vehicle)).toEqual(['truck', 'pickup']);
+  });
+
   it('leaves home only a vehicle taken this turn, in the Mission Phase', () => {
     const taken = accepted(submitVehicleTaken(equipping(), 1, 'truck', AT));
 
@@ -360,6 +396,33 @@ describe('bringing vehicles home (pg. 32; R64, R65, R70)', () => {
     expect(leaveProblem(recorded, 'truck')).toBe(
       'Mission team 1’s vehicles are recorded home already.',
     );
+  });
+
+  it('owes each team in order, and reads only this turn’s record and the team’s own', () => {
+    const second = accepted(submitVehicleTaken(equipping(), 2, 'pickup', AT));
+    const both = accepted(submitVehicleTaken(second, 1, 'truck', AT));
+
+    expect(broughtHomeOwed(both)).toEqual([1, 2]);
+
+    const teamTwo = accepted(submitVehiclesBroughtHome(played(both, 2), 2, ['pickup'], AT));
+    expect(broughtHomeOwed(teamTwo)).toEqual([1]);
+    expect(takeProblem(teamTwo, 1, 'nothing')).toBe(
+      'Only a vehicle the community holds can be taken.',
+    );
+
+    const lastTurn: Campaign = {
+      ...both,
+      log: [
+        {
+          turn: 3,
+          phase: 'mission',
+          at: AT,
+          event: { kind: 'vehicles-brought-home', team: 1, lost: [] },
+        },
+        ...both.log,
+      ],
+    };
+    expect(broughtHomeOwed(lastTurn)).toEqual([1, 2]);
   });
 
   it('owes nothing from a won Claim a New Base, which keeps them all (R64)', () => {
