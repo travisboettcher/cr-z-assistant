@@ -56,10 +56,13 @@ import {
   overrunClaim,
 } from '../engine/overrun';
 import { maxHp } from '../engine/survivor';
+import { atTier, tierRolled } from '../engine/vehicles';
+import { D10_RESULTS, type D10Result } from '../data/dice';
 import { useCampaign } from '../state/useCampaign';
 import { withArticle } from './articles';
 import { BASE_LABELS } from './baseLabels';
 import { describeItem } from './equipmentLabels';
+import { VehicleFields, type VehicleDraft } from './VehicleFields';
 import {
   COUNT_LABELS,
   describeOutcome,
@@ -82,6 +85,13 @@ const SELECT = `${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300
 const PRIMARY = `${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`;
 
 const SECONDARY = `${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 px-3 py-1 text-sm font-medium hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800`;
+
+/** A vehicle driven off, as its row in the outcome holds it until the dice are in. */
+interface RetrievedDraft {
+  readonly id: string;
+  readonly roll?: D10Result;
+  readonly draft: VehicleDraft;
+}
 
 /** An empty field is no count at all, rather than the 0 `Number('')` makes it. */
 const count = (typed: string): number => (typed.trim() === '' ? Number.NaN : Number(typed));
@@ -275,6 +285,7 @@ function TeamOutcome({
   const [sameMap, setSameMap] = useState(false);
   const [returned, setReturned] = useState<readonly string[]>([]);
   const [traded, setTraded] = useState(0);
+  const [drafts, setDrafts] = useState<readonly RetrievedDraft[]>([]);
   const [typed, setTyped] = useState<Typed>({});
 
   // The claim an overrun goes on with places no strangers (pg. 86), and asks
@@ -292,6 +303,20 @@ function TeamOutcome({
   const trade =
     choice.mission === 'rare-goods-trader' && rareTradeDue(campaign) ? campaign.rareTrade : null;
   const number = (of: OutcomeCount) => count(numbers[of] ?? '');
+  // One row for each vehicle driven off, each with an id made as a hand-over's
+  // are, from the campaign and the log's length (Z5-11).
+  const drivenOff = choice.mission === 'retrieve-new-vehicles' ? number('vehicles-driven-off') : 0;
+  const rows = Array.from(
+    { length: Number.isSafeInteger(drivenOff) && drivenOff > 0 ? Math.min(drivenOff, 10) : 0 },
+    (_, at): RetrievedDraft =>
+      drafts[at] ?? {
+        id: `${campaign.id}-vehicle-${String(campaign.log.length)}-${String(at + 1)}`,
+        draft: { tier: 1, label: `Vehicle ${String(at + 1)}`, water: false },
+      },
+  );
+  const setRow = (at: number, row: RetrievedDraft) => {
+    setDrafts(rows.map((one, other) => (other === at ? row : one)));
+  };
   const wounds = woundsTyped(woundsAsTheyStand(campaign, choice.team), typed);
   const outcome = outcomeOf(choice, {
     endCondition: endCondition === 'none' ? null : count(endCondition),
@@ -305,6 +330,9 @@ function TeamOutcome({
     vehiclesDrivenOff: number('vehicles-driven-off'),
     ...(mapAsked ? { sameMap } : {}),
     ...(trade === null ? {} : { itemsTraded: traded }),
+    retrieved: rows.flatMap((row) =>
+      row.roll === undefined ? [] : [{ id: row.id, ...row.draft, roll: row.roll }],
+    ),
     returned,
     wounds,
   });
@@ -451,6 +479,45 @@ function TeamOutcome({
             );
         }
       })}
+
+      {rows.map((row, at) => (
+        <div key={row.id} className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="text-sm" htmlFor={`${prefix}-vehicle-${String(at)}`}>
+              Vehicle {at + 1}: its setup d10
+            </label>
+            <select
+              id={`${prefix}-vehicle-${String(at)}`}
+              className={SELECT}
+              value={row.roll ?? ''}
+              onChange={(changed) => {
+                const roll = Number(changed.target.value) as D10Result;
+                setRow(at, { ...row, roll, draft: atTier(row.draft, tierRolled(roll)) });
+              }}
+            >
+              <option value="" disabled>
+                Rolled…
+              </option>
+              {D10_RESULTS.map((result) => (
+                <option key={result} value={result}>
+                  {result}
+                </option>
+              ))}
+            </select>
+            <PageRef pages={82} />
+          </div>
+          {row.roll !== undefined && (
+            <VehicleFields
+              name={`Vehicle ${String(at + 1)}`}
+              draft={row.draft}
+              highest={tierRolled(row.roll)}
+              onChange={(draft) => {
+                setRow(at, { ...row, draft });
+              }}
+            />
+          )}
+        </div>
+      ))}
 
       {trade !== null && (
         <div className="flex flex-col gap-1">

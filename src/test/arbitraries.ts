@@ -25,7 +25,7 @@ import { COMMON_SKILLS, SKILLS, STATS, type Skill } from '../data/skills';
 import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS, type Materials } from '../data/materials';
-import { EQUIPMENT, GRADES, ITEM_IDS } from '../data/equipment';
+import { EQUIPMENT, GRADES, ITEM_IDS, VEHICLE_TIERS } from '../data/equipment';
 import { OVERRUN_OPTIONS } from '../data/missions';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { MISSIONS, type MissionId } from '../data/missions';
@@ -45,6 +45,7 @@ import type {
   RareTradeItem,
   Survivor,
   TradeOrder,
+  Vehicle,
 } from '../engine/campaign';
 import {
   LEAVING_CAUSES,
@@ -199,6 +200,30 @@ export function itemArbitrary(): fc.Arbitrary<Item> {
   );
 }
 
+/**
+ * A vehicle (Z5-11): every Tier, a boat or not, and the split and the upgrade
+ * left out as often as written, since a round trip has to keep them absent.
+ */
+function vehicleArbitrary(): fc.Arbitrary<Vehicle> {
+  return fc.record(
+    {
+      id: anyId,
+      tier: fc.constantFrom(...VEHICLE_TIERS),
+      label: anyName,
+      water: fc.boolean(),
+      inventorySlots: fc.integer({ min: 0, max: 20 }),
+      upgrade: fc.constantFrom('car-roof-rack', 'electric-car-conversion').chain((item) =>
+        fc.record({
+          id: anyId,
+          item: fc.constant(item),
+          grade: fc.constant('standard' as const),
+        }),
+      ),
+    },
+    { requiredKeys: ['id', 'tier', 'label', 'water'] },
+  );
+}
+
 /** One item of a Rare Items trade (Z5-10): an item, its dice, and what was set aside. */
 function rareTradeItemArbitrary(): fc.Arbitrary<RareTradeItem> {
   return itemArbitrary().chain((item) =>
@@ -237,6 +262,9 @@ function itemIdsDistinct(campaign: Omit<Campaign, 'assignments'>): boolean {
     ...[...campaign.survivors, ...campaign.setAside].flatMap((survivor) => survivor.items),
     ...campaign.trades,
     ...(campaign.rareTrade?.items ?? []),
+    ...campaign.vehicles.flatMap((vehicle) =>
+      vehicle.upgrade === undefined ? [] : [vehicle.upgrade],
+    ),
   ].map((item) => item.id);
 
   return new Set(ids).size === ids.length;
@@ -476,12 +504,27 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       }),
     ),
     withWounds(
-      fc.record({
-        kind: fc.constant('retrieve-new-vehicles-resolved' as const),
-        team: anyTeam,
-        vehiclesDrivenOff: anyCount,
-        strangers: anyStrangers,
-      }),
+      fc.record(
+        {
+          kind: fc.constant('retrieve-new-vehicles-resolved' as const),
+          team: anyTeam,
+          vehiclesDrivenOff: anyCount,
+          retrieved: fc.array(
+            vehicleArbitrary().chain((vehicle) =>
+              fc.constantFrom(...D10_RESULTS).map((roll) => {
+                const { upgrade, ...rest } = vehicle;
+                void upgrade;
+
+                return { ...rest, roll };
+              }),
+            ),
+            { maxLength: 2 },
+          ),
+          strangers: anyStrangers,
+        },
+        // Absent on every entry from before Z5-11.
+        { requiredKeys: ['kind', 'team', 'vehiclesDrivenOff', 'strangers'] },
+      ),
     ),
     withWounds(
       fc.record({
@@ -601,14 +644,20 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       setAside: fc.array(fc.record({ survivor: anyId, name: anyName }), { maxLength: 2 }),
     }),
     fc.record({ kind: fc.constant('survivor-returned' as const), survivor: anyId, name: anyName }),
-    ...(['item-added', 'item-removed'] as const).map((kind) =>
-      fc.record({
-        kind: fc.constant(kind),
-        id: anyId,
-        item: fc.constantFrom(...ITEM_IDS),
-        grade: fc.constantFrom(...GRADES),
-      }),
-    ),
+    // One record a kind: a record whose kind is a union of two is not one of
+    // them to the typechecker once another entry's `item` is an object.
+    fc.record({
+      kind: fc.constant('item-added' as const),
+      id: anyId,
+      item: fc.constantFrom(...ITEM_IDS),
+      grade: fc.constantFrom(...GRADES),
+    }),
+    fc.record({
+      kind: fc.constant('item-removed' as const),
+      id: anyId,
+      item: fc.constantFrom(...ITEM_IDS),
+      grade: fc.constantFrom(...GRADES),
+    }),
     fc.record(
       {
         kind: fc.constant('equipment-handed-over' as const),
@@ -640,6 +689,27 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       grade: fc.constantFrom(...GRADES),
       hardware: anyCount,
       labor: anyCount,
+    }),
+    fc.record({
+      kind: fc.constant('vehicle-added' as const),
+      vehicle: vehicleArbitrary().map((vehicle) => {
+        const { upgrade, ...rest } = vehicle;
+        void upgrade;
+
+        return rest;
+      }),
+    }),
+    fc.record({
+      kind: fc.constant('vehicle-removed' as const),
+      id: anyId,
+      label: anyName,
+      tier: fc.constantFrom(...VEHICLE_TIERS),
+    }),
+    fc.record({
+      kind: fc.constant('vehicle-upgrade-fitted' as const),
+      vehicle: anyId,
+      label: anyName,
+      item: itemArbitrary(),
     }),
     fc.record({
       kind: fc.constant('rare-trade-made' as const),
@@ -852,6 +922,7 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
           rareRollsOwed: anyCount,
           // Never shoddy, as the Inventory's: a trade buys a priced grade (R51).
           trades: fc.array(tradeArbitrary(), { maxLength: 2 }),
+          vehicles: fc.array(vehicleArbitrary(), { maxLength: 2 }),
           // None as often as one: a trade under way is the rarer state (Z5-10).
           rareTrade: fc.option(
             fc.record({
@@ -891,6 +962,7 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
             'rareRollsOwed',
             'trades',
             'rareTrade',
+            'vehicles',
             'startingCommunityBuilt',
             'base',
             'log',
@@ -898,12 +970,15 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
         },
       )
       // Nobody both in the community and set aside, which the save reader
-      // refuses: one id would name two people (R31). Likewise an item (Z5-2).
+      // refuses: one id would name two people (R31). Likewise an item (Z5-2),
+      // and a vehicle (Z5-11).
       .filter(
         (campaign) =>
           campaign.setAside.every(
             (gone) => !campaign.survivors.some((one) => one.id === gone.id),
-          ) && itemIdsDistinct(campaign),
+          ) &&
+          itemIdsDistinct(campaign) &&
+          new Set(campaign.vehicles.map((vehicle) => vehicle.id)).size === campaign.vehicles.length,
       )
   );
 }

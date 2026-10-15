@@ -40,7 +40,7 @@
 
 import type { BaseId } from '../data/bases';
 import type { D10Result } from '../data/dice';
-import type { Grade, ItemId } from '../data/equipment';
+import type { Grade, ItemId, VehicleTier } from '../data/equipment';
 import type { FacilityId, UpgradeId } from '../data/facilities';
 import type { Material, Materials } from '../data/materials';
 import type { MissionId, OverrunOption } from '../data/missions';
@@ -53,7 +53,7 @@ import { phaseOf } from './turn';
 // `LogEntry` from here. Both directions are erased at compile time, so there is
 // no runtime cycle — and the alternative, a third module holding one of them,
 // would separate `Campaign` from the shape of its own field.
-import type { Assignment, Campaign, Item, RareTradeItem } from './campaign';
+import type { Assignment, Campaign, Item, RareTradeItem, Vehicle } from './campaign';
 
 /**
  * One team member as a mission left them, carried on its outcome (#178, Z4-4).
@@ -111,6 +111,15 @@ export interface SpentItem {
  * shoddy gear (R35), or a survivor, named as they were.
  */
 export type ItemHolder = 'base' | 'free' | { readonly survivor: string; readonly name: string };
+
+/**
+ * A vehicle Retrieve New Vehicles drove off (pg. 82; R63; Z5-11): the vehicle
+ * as it joins, and the setup d10 that gave its Tier, which the player may have
+ * lowered.
+ */
+export interface RetrievedVehicle extends Omit<Vehicle, 'upgrade'> {
+  readonly roll: D10Result;
+}
 
 /** Why a Rare Items trade was lost before its mission settled it (pp. 21, 23; R59, R60). */
 export const RARE_TRADE_LOSSES = ['siege', 'other-mission', 'no-mission'] as const;
@@ -566,12 +575,14 @@ export type CampaignEvent =
     }
   /**
    * How many vehicles a Retrieve New Vehicles team repaired and drove off
-   * (pg. 82; Z4-3). Where they go is the base Inventory, which is Phase 5's.
+   * (pg. 82; Z4-3), and since Z5-11 what each was: the vehicles that joined
+   * the community. Absent on an entry from before, which added none.
    */
   | {
       readonly kind: 'retrieve-new-vehicles-resolved';
       readonly team: number;
       readonly vehiclesDrivenOff: number;
+      readonly retrieved?: readonly RetrievedVehicle[];
       /** A stranger its setup may place on the area (pg. 81). */
       readonly strangers: readonly FieldRecruitTier[];
       /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
@@ -887,6 +898,22 @@ export type CampaignEvent =
       readonly lost: readonly Item[];
       readonly food: number;
       readonly fuel: number;
+    }
+  /** A vehicle added by hand, for a campaign brought in part-way or a correction (Z5-11). */
+  | { readonly kind: 'vehicle-added'; readonly vehicle: Omit<Vehicle, 'upgrade'> }
+  /** A vehicle taken out by hand, its upgrade with it (Z5-11). */
+  | {
+      readonly kind: 'vehicle-removed';
+      readonly id: string;
+      readonly label: string;
+      readonly tier: VehicleTier;
+    }
+  /** A vehicle upgrade fitted from the Inventory, for good (pg. 49; R67; Z5-11). */
+  | {
+      readonly kind: 'vehicle-upgrade-fitted';
+      readonly vehicle: string;
+      readonly label: string;
+      readonly item: Item;
     }
   /** A rare item sold from the Inventory, and what it brought in (pp. 21, 37; R54; Z5-9). */
   | {

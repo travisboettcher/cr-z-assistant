@@ -2767,6 +2767,48 @@ describe('what earns a line in the log', () => {
         grade: 'standard',
       }),
     },
+    'vehicles/added': {
+      action: {
+        type: 'vehicles/added',
+        at: AT,
+        vehicle: { id: 'car', tier: 2, label: 'Red pickup', water: false },
+      },
+      entry: entry(3, 'mission', {
+        kind: 'vehicle-added',
+        vehicle: { id: 'car', tier: 2, label: 'Red pickup', water: false },
+      }),
+    },
+    'vehicles/removed': {
+      state: openState({
+        ...expectOpen(rich()),
+        vehicles: [{ id: 'car', tier: 2, label: 'Red pickup', water: false }],
+      }),
+      action: { type: 'vehicles/removed', id: 'car', at: AT },
+      entry: entry(3, 'mission', {
+        kind: 'vehicle-removed',
+        id: 'car',
+        label: 'Red pickup',
+        tier: 2,
+      }),
+    },
+    'planning/vehicleUpgradeFitted': {
+      // A roof rack from the Inventory onto the pickup, at Planning, for nothing (R67).
+      state: openState(
+        withPlanningBegun({
+          ...expectOpen(rich()),
+          step: 'assign-project-team',
+          inventory: [{ id: 'rack', item: 'car-roof-rack', grade: 'standard' }],
+          vehicles: [{ id: 'car', tier: 2, label: 'Red pickup', water: false }],
+        }),
+      ),
+      action: { type: 'planning/vehicleUpgradeFitted', item: 'rack', vehicle: 'car', at: AT },
+      entry: entry(3, 'planning', {
+        kind: 'vehicle-upgrade-fitted',
+        vehicle: 'car',
+        label: 'Red pickup',
+        item: { id: 'rack', item: 'car-roof-rack', grade: 'standard' },
+      }),
+    },
     'mission/itemMoved': {
       // Marcus is going out on team 1, so a pistol from the base's Inventory
       // goes to him at Equip Mission Team (R38; Z5-4).

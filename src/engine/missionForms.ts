@@ -41,6 +41,7 @@ import {
 } from './overrun';
 import { rareTradeBinds, withRareTradeLost, withRareTradeSettled } from './rareTrade';
 import { standInProblem } from './siegeWork';
+import { withoutRoll, withVehiclesAdded } from './vehicles';
 import { spentItems, spentProblem, withItemsSpent } from './spent';
 
 /**
@@ -187,6 +188,11 @@ export function submitMissionOutcome(
   });
 
   const recorded = logged(withWounds(campaign, wounds), at, { ...outcome, wounds });
+
+  // The vehicles driven off join the community at once (pg. 82; R63; Z5-11).
+  if (outcome.kind === 'retrieve-new-vehicles-resolved') {
+    return accepted(withVehiclesAdded(recorded, (outcome.retrieved ?? []).map(withoutRoll)));
+  }
 
   // The Rare Goods Trader settles the trade it was forced for (pg. 84; R61).
   return accepted(

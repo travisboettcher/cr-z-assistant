@@ -34,6 +34,7 @@
  * handful of origin and rare items, settled when they are first carried.
  */
 
+import type { D10Result } from './dice';
 import type { FacilityId, Utility, UpgradeId } from './facilities';
 import type { CampaignOrigin } from './origins';
 import type { CommonSkill, Skill } from './skills';
@@ -1139,6 +1140,20 @@ export const VEHICLE_SLOTS = {
   VehicleTier,
   { readonly inventory: number; readonly passengers: number } | { readonly total: number }
 >;
+
+/** The Tier a d10 rolled at Retrieve New Vehicles' setup gives a vehicle (pg. 82). */
+export const VEHICLE_TIER_BY_ROLL = {
+  1: 1,
+  2: 1,
+  3: 1,
+  4: 2,
+  5: 2,
+  6: 2,
+  7: 2,
+  8: 3,
+  9: 3,
+  10: 4,
+} as const satisfies Record<D10Result, VehicleTier>;
 
 /** Fuel a deployed vehicle burns per mission, per Tier (pg. 52). */
 export const VEHICLE_FUEL_PER_TIER = 1;

@@ -636,15 +636,40 @@ Confirmed 2026-10-14 ([the registry](rulings.md)), R70 and R78 decided the same 
   slots, and its upgrade if it has one (R62). No cap, and Check Storage ignores them (R68). They move
   with the community (R77).
 - Retrieve New Vehicles' outcome counts the vehicles driven off; each then asks for its rolled Tier,
-  which the player may lower, and a label (R63). A won Claim a New Base adds the vehicles on its
-  mission area at their Tiers (R64).
+  which the player may lower, and a label (R63). A won Claim a New Base keeps the vehicles on its
+  mission area at their Tiers (R64), which the community already holds.
 - A vehicle upgrade in the Inventory is fitted to a vehicle with none, in the Planning Phase, for
   nothing (R67). It stays with that vehicle.
-- A Vehicles card's modal lists them; the main screen gets no new section.
+- The Inventory's modal lists them, and its card counts them; the main screen gets no new section.
 
 **Acceptance**
 - Retrieve New Vehicles with two driven off, rolled 5 and 10, adds a Tier 2 and a Tier 4, or a lower
   Tier the player chose.
+
+**What this story turned out to include.**
+
+- **`Campaign.vehicles`, in v18**: each an id, a Tier, a label, whether it is a boat, Tier 4's
+  Inventory Slots (the rest are Passenger Slots), and the upgrade fitted to it, the item itself.
+  Campaign-wide, so a move takes them (R77), and nothing about a mission is kept (R62, R69).
+- **In the Inventory, not a card of their own.** The book adds vehicles to the base's Inventory
+  (pp. 79, 82), and the summary's four columns have no room for a fifth card: the Inventory card
+  counts them on a line of its own, and its modal lists them under Vehicles with their slots, a
+  button to fit an upgrade, and one to take a vehicle out, beside an add-by-hand form.
+- **Retrieve New Vehicles' outcome asks for each vehicle driven off**: its setup d10, a Tier no
+  higher than that roll gives (R63), a name, whether it is a boat, and Tier 4's split. The outcome
+  entry carries them as `retrieved`, and they join when it is recorded. `src/data/equipment.ts`
+  holds the d10's Tiers.
+- **A won Claim a New Base adds nothing new here.** The vehicles on its area are the ones the team
+  brought (R64), which the community already holds; Z5-12 keeps them where a lost vehicle would
+  otherwise go, and Z5-13 brings back an overrun base's.
+- **Fitting is `vehicleUpgrades.ts`**, kept apart from `vehicles.ts` because it reads the phase and
+  the outcome's check reads `vehicles.ts`. The item leaves the Inventory for the vehicle, and
+  `allItems` counts it there; a vehicle taken out takes it along (R67).
+- **What an upgrade does to slots is Z5-12's**, with the rest of what a vehicle does on a mission:
+  the roof rack's four more Inventory Slots, and the electric conversion's two fewer, which the
+  extract does not say are Inventory or Passenger Slots.
+- **The item generators in the property tests are one record per kind** now: a record whose kind
+  is a union of two stopped type-checking as either once another entry's `item` is an object.
 
 ### Z5-12 — Vehicles on a mission
 

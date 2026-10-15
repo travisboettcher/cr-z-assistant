@@ -18,7 +18,7 @@ import type { FieldRecruitTier } from '../data/recruitTable';
 import type { Tier } from '../data/tiers';
 import { withoutAssignment } from './assignments';
 import { storageCaps } from './base';
-import type { Campaign, Item, RareTrade, Survivor } from './campaign';
+import type { Campaign, Item, RareTrade, Survivor, Vehicle } from './campaign';
 import { idTaken, newItemProblem, removalProblem, type NewItem } from './equipment';
 import { rareItemFor, type RareItemRoll } from './finding';
 import { turnoutGear, withEquipmentHandedOver } from './handover';
@@ -30,6 +30,8 @@ import { deployed } from './missions';
 import { siegeDue } from './siege';
 import { rareTradeCheck, withRareTradeMade, type RareTradePick } from './rareTrade';
 import { withItemsLeftBehind } from './spent';
+import { fitProblem, withUpgradeFitted } from './vehicleUpgrades';
+import { vehicleProblem, withVehicleRemoved, withVehiclesAdded, type NewVehicle } from './vehicles';
 import {
   saleCheck,
   tradeCheck,
@@ -474,6 +476,66 @@ export function submitItemRemoved(campaign: Campaign, id: string, at: string): F
       id,
       item: removed.item,
       grade: removed.grade,
+    }),
+  );
+}
+
+/**
+ * Add a vehicle by hand (Z5-11), for a campaign brought in part-way or a
+ * correction, as an item is added. Vehicles the rules hand over arrive with
+ * the mission that does it.
+ */
+export function submitVehicleAdded(
+  campaign: Campaign,
+  vehicle: NewVehicle,
+  at: string,
+): FormResult {
+  const problem = vehicleProblem(campaign, vehicle);
+  if (problem !== null) return refused(problem);
+
+  return accepted(
+    logged(withVehiclesAdded(campaign, [vehicle]), at, { kind: 'vehicle-added', vehicle }),
+  );
+}
+
+/** Take a vehicle out by hand (Z5-11), for a correction; its upgrade goes with it (R67). */
+export function submitVehicleRemoved(campaign: Campaign, id: string, at: string): FormResult {
+  const vehicle = campaign.vehicles.find((held) => held.id === id);
+  if (vehicle === undefined) return refused('Only a vehicle the community holds can be taken out.');
+
+  return accepted(
+    logged(withVehicleRemoved(campaign, id), at, {
+      kind: 'vehicle-removed',
+      id,
+      label: vehicle.label,
+      tier: vehicle.tier,
+    }),
+  );
+}
+
+/**
+ * Fit a vehicle upgrade from the Inventory, in the Planning Phase, for nothing
+ * (pg. 49; R67; Z5-11). Refused for whatever `fitProblem` says.
+ */
+export function submitVehicleUpgradeFitted(
+  campaign: Campaign,
+  itemId: string,
+  vehicleId: string,
+  at: string,
+): FormResult {
+  const problem = fitProblem(campaign, itemId, vehicleId);
+  if (problem !== null) return refused(problem);
+
+  // Present: `fitProblem` found both.
+  const item = campaign.inventory.find((held) => held.id === itemId) as Item;
+  const vehicle = campaign.vehicles.find((held) => held.id === vehicleId) as Vehicle;
+
+  return accepted(
+    logged(withUpgradeFitted(campaign, itemId, vehicleId), at, {
+      kind: 'vehicle-upgrade-fitted',
+      vehicle: vehicleId,
+      label: vehicle.label,
+      item,
     }),
   );
 }

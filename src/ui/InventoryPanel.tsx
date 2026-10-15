@@ -32,7 +32,10 @@ import {
   ENCHANTABLE,
   type Enchantable,
 } from '../engine/making';
-import { laborAvailable } from '../engine/projects';
+import { laborAvailable, orderable } from '../engine/projects';
+import { fitProblem } from '../engine/vehicleUpgrades';
+import { vehicleProblem, vehicleSlots } from '../engine/vehicles';
+import { VehicleFields, type VehicleDraft } from './VehicleFields';
 import {
   pickPrice,
   rareTradeCheck,
@@ -162,12 +165,15 @@ export function InventoryPanel({ campaign }: { readonly campaign: Campaign }) {
         )}
       </section>
 
+      <Vehicles campaign={campaign} />
+
       <BuildItem campaign={campaign} />
       <TradeForItem campaign={campaign} />
       {saleableItems(campaign).length > 0 && <SellRareItem campaign={campaign} />}
       <RareItemsTrade campaign={campaign} />
       <RollRareItem />
       <AddItem campaign={campaign} />
+      <AddVehicle campaign={campaign} />
     </div>
   );
 }
@@ -620,6 +626,135 @@ function SellRareItem({ campaign }: { readonly campaign: Campaign }) {
  * origin rewards that roll on it. A haul's 10s are rolled at Add Materials to
  * Storage instead, where they are owed.
  */
+/**
+ * The vehicles the community holds (pp. 49, 52–53; R62, R67; Z5-11): each with
+ * its Tier, its slots, whether it is a boat and its upgrade, and in the
+ * Planning Phase a vehicle upgrade from the Inventory to fit to one with none.
+ */
+function Vehicles({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+  const upgrades = campaign.inventory.filter(
+    (item) => EQUIPMENT[item.item].kind === 'vehicle-upgrade',
+  );
+
+  return (
+    <section aria-label="Vehicles" className="border-t border-stone-200 pt-4 dark:border-stone-800">
+      <h3 className="font-medium">Vehicles</h3>
+      <p className={`mt-1 ${HINT}`}>
+        Held between missions with nothing in them, and never counted at Check Storage{' '}
+        <PageRef pages="23, 52–53" />
+      </p>
+
+      {campaign.vehicles.length === 0 ? (
+        <p className={`mt-3 ${HINT}`}>No vehicles yet.</p>
+      ) : (
+        <ul className="mt-2 flex flex-col">
+          {campaign.vehicles.map((vehicle) => {
+            const slots = vehicleSlots(vehicle);
+
+            return (
+              <li
+                key={vehicle.id}
+                className="flex flex-wrap items-center gap-2 border-b border-stone-100 py-1.5 last:border-b-0 dark:border-stone-800"
+              >
+                <span className="grow text-sm">
+                  {vehicle.label}{' '}
+                  <span className="text-stone-600 dark:text-stone-400">
+                    · Tier {vehicle.tier}
+                    {vehicle.water ? ' boat' : ''} · {slots.inventory} Inventory, {slots.passengers}{' '}
+                    Passenger Slots
+                    {vehicle.upgrade === undefined
+                      ? ''
+                      : ` · ${ITEM_LABELS[vehicle.upgrade.item].toLowerCase()}`}
+                  </span>
+                </span>
+                {vehicle.upgrade === undefined &&
+                  upgrades.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={SECONDARY}
+                      disabled={fitProblem(campaign, item.id, vehicle.id) !== null}
+                      onClick={() => {
+                        dispatch({
+                          type: 'planning/vehicleUpgradeFitted',
+                          item: item.id,
+                          vehicle: vehicle.id,
+                          at: new Date().toISOString(),
+                        });
+                      }}
+                    >
+                      Fit the {ITEM_LABELS[item.item].toLowerCase()}{' '}
+                      <span className="sr-only">to {vehicle.label}</span>
+                    </button>
+                  ))}
+                <button
+                  type="button"
+                  className={SECONDARY}
+                  aria-label={`Take ${vehicle.label} out`}
+                  onClick={() => {
+                    dispatch({
+                      type: 'vehicles/removed',
+                      id: vehicle.id,
+                      at: new Date().toISOString(),
+                    });
+                  }}
+                >
+                  Take out
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {/* Said once, not on every button: a fitting waits for the Planning Phase (R67). */}
+      {upgrades.length > 0 && !orderable(campaign) && (
+        <p className={`mt-2 ${HINT}`}>
+          A vehicle upgrade is fitted in the Planning Phase, to a vehicle with none{' '}
+          <PageRef pages={49} />
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** A vehicle added by hand (Z5-11): for a campaign brought in part-way, or a correction. */
+function AddVehicle({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+  const [draft, setDraft] = useState<VehicleDraft>({ tier: 1, label: '', water: false });
+  const [fresh, setFresh] = useState(() => crypto.randomUUID());
+  const vehicle = { id: fresh, ...draft };
+  const problem = vehicleProblem(campaign, vehicle);
+
+  return (
+    <fieldset className="border-t border-stone-200 pt-4 dark:border-stone-800">
+      <legend className="font-medium">Add a vehicle by hand</legend>
+      <p className={`mt-1 ${HINT}`}>
+        For corrections, or a campaign brought in part-way through. Vehicles a mission retrieves
+        arrive with its outcome <PageRef pages="53, 82" />
+      </p>
+
+      <div className="mt-3">
+        <VehicleFields name="New vehicle" draft={draft} onChange={setDraft} />
+      </div>
+
+      <button
+        type="button"
+        className={`mt-3 ${SECONDARY}`}
+        disabled={problem !== null}
+        onClick={() => {
+          dispatch({ type: 'vehicles/added', vehicle, at: new Date().toISOString() });
+          setDraft({ tier: 1, label: '', water: false });
+          setFresh(crypto.randomUUID());
+        }}
+      >
+        Add the vehicle
+      </button>
+    </fieldset>
+  );
+}
+
 /** One d10 as rolled, for the Rare Item Table's two (pg. 43). */
 function Die({
   label,

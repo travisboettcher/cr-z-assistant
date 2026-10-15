@@ -526,6 +526,20 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
         pages: '20, 41–42',
       };
 
+    case 'vehicle-added':
+      return {
+        text: `Added ${event.vehicle.label}, a Tier ${String(event.vehicle.tier)} ${event.vehicle.water ? 'boat' : 'vehicle'}, by hand.`,
+        pages: 53,
+      };
+
+    case 'vehicle-removed':
+      return {
+        text: `Took ${event.label}, a Tier ${String(event.tier)} vehicle, out by hand.`,
+      };
+
+    case 'vehicle-upgrade-fitted':
+      return { text: `Fitted ${describeItem(event.item)} to ${event.label}, for good.`, pages: 49 };
+
     case 'rare-trade-made':
       return {
         text: `Made a Rare Items trade for ${event.items.map(describeItem).join(', ')}, setting aside ${paid(

@@ -82,6 +82,7 @@ describe('createNewCampaign', () => {
       'survivors',
       'trades',
       'turn',
+      'vehicles',
     ]);
   });
 });

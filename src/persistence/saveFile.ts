@@ -21,7 +21,7 @@ import { COMMON_SKILLS, SKILL_STATS, STATS } from '../data/skills';
 import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS } from '../data/materials';
-import { EQUIPMENT, GRADES, type ItemId } from '../data/equipment';
+import { EQUIPMENT, GRADES, VEHICLE_TIERS, type ItemId } from '../data/equipment';
 import { MISSIONS, OVERRUN_OPTIONS } from '../data/missions';
 import { FIELD_RECRUITABLE_TIERS } from '../data/recruitTable';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
@@ -164,6 +164,44 @@ function describeRareTradeItemsProblem(value: unknown): string | null {
     }
     if (!isCountFromZero(food) || !isCountFromZero(fuel)) {
       return `${which} does not say what was set aside for it`;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * A vehicle (Z5-11): an id, a Tier, a label, whether it is a boat, and where
+ * they are written, Tier 4's split and its upgrade. Shape only: whether the
+ * split suits the Tier is the engine's, as everywhere here.
+ */
+function describeVehicleProblem(value: unknown): string | null {
+  if (!isRecord(value)) return 'is not a vehicle';
+  if (typeof value.id !== 'string' || value.id === '') return 'has no id';
+  if (!VEHICLE_TIERS.some((tier) => tier === value.tier)) return 'has no Tier from 1 to 4';
+  if (typeof value.label !== 'string') return 'has no label';
+  if (typeof value.water !== 'boolean') return 'does not say whether it is a boat';
+  if (value.inventorySlots !== undefined && !isCountFromZero(value.inventorySlots)) {
+    return 'has an unreadable split of its slots';
+  }
+  if (value.upgrade !== undefined) {
+    const problem = describeItemProblem(value.upgrade);
+    if (problem !== null) return `has an upgrade that ${problem}`;
+  }
+
+  return null;
+}
+
+/** Vehicles, each as `describeVehicleProblem` reads one, and its setup roll where `rolled`. */
+function describeVehiclesProblem(value: unknown, rolled = false): string | null {
+  if (!Array.isArray(value)) return 'is not a list';
+
+  for (const [index, vehicle] of value.entries()) {
+    const which = `vehicle ${String(index + 1)} of ${String(value.length)}`;
+    const problem = describeVehicleProblem(vehicle);
+    if (problem !== null) return `${which} ${problem}`;
+    if (rolled && !EVENT_FIELD_CHECKS.roll((vehicle as Record<string, unknown>).roll)) {
+      return `${which} does not say what its Tier rolled`;
     }
   }
 
@@ -482,6 +520,11 @@ const EVENT_FIELD_CHECKS = {
   // Items a base handed over (Z5-8), each checked as an Inventory item is.
   items: (value: unknown) => describeItemsProblem(value) === null,
   rareTradeItems: (value: unknown) => describeRareTradeItemsProblem(value) === null,
+  item: (value: unknown) => describeItemProblem(value) === null,
+  vehicle: (value: unknown) => describeVehicleProblem(value) === null,
+  vehicleTier: (value: unknown) => VEHICLE_TIERS.some((tier) => tier === value),
+  optionalRetrieved: (value: unknown) =>
+    value === undefined || describeVehiclesProblem(value, true) === null,
   rareTradeLoss: (value: unknown) => RARE_TRADE_LOSSES.some((reason) => reason === value),
   // One end of an item's move (Z5-4): the base, the free shoddy supply, or a
   // survivor by id and name. Not held to the roster, since this is history.
@@ -652,6 +695,7 @@ const EVENT_FIELDS: Record<
   'retrieve-new-vehicles-resolved': [
     ['team', 'countFromOne'],
     ['vehiclesDrivenOff', 'count'],
+    ['retrieved', 'optionalRetrieved'],
     ['strangers', 'tiers'],
     ['wounds', 'optionalWounds'],
   ],
@@ -790,6 +834,18 @@ const EVENT_FIELDS: Record<
     ['grade', 'grade'],
     ['hardware', 'count'],
     ['labor', 'count'],
+  ],
+  // Vehicles (Z5-11).
+  'vehicle-added': [['vehicle', 'vehicle']],
+  'vehicle-removed': [
+    ['id', 'id'],
+    ['label', 'name'],
+    ['tier', 'vehicleTier'],
+  ],
+  'vehicle-upgrade-fitted': [
+    ['vehicle', 'id'],
+    ['label', 'name'],
+    ['item', 'item'],
   ],
   // The Rare Items trade (Z5-10).
   'rare-trade-made': [['items', 'rareTradeItems']],
@@ -1103,6 +1159,13 @@ function describeCampaignProblem(value: unknown): string | null {
   const rareTrade = describeRareTradeProblem(value.rareTrade);
   if (rareTrade !== null) return `its Rare Items trade ${rareTrade}`;
 
+  // Its vehicles (Z5-11), one id each.
+  const vehicles = describeVehiclesProblem(value.vehicles);
+  if (vehicles !== null) return `its vehicles: ${vehicles}`;
+  const vehicleIds = (value.vehicles as readonly { readonly id: string }[]).map((one) => one.id);
+  const twice = vehicleIds.find((id, at) => vehicleIds.indexOf(id) !== at);
+  if (twice !== undefined) return `it holds two vehicles with one id: ${twice}`;
+
   if (typeof value.startingCommunityBuilt !== 'boolean') {
     return 'it does not say whether its starting community is finished';
   }
@@ -1136,6 +1199,10 @@ function describeCampaignProblem(value: unknown): string | null {
     ...(value.trades as readonly { readonly id: string }[]),
     ...((value.rareTrade as { readonly items: readonly { readonly id: string }[] } | null)?.items ??
       []),
+    // And an upgrade fitted to a vehicle (Z5-11).
+    ...(value.vehicles as readonly { readonly upgrade?: { readonly id: string } }[]).flatMap(
+      (vehicle) => (vehicle.upgrade === undefined ? [] : [vehicle.upgrade]),
+    ),
   ];
   const ids = held.map((item) => item.id);
   const repeated = ids.find((id, at) => ids.indexOf(id) !== at);

@@ -135,6 +135,26 @@
       "orderedOnTurn": 3
     }
   ],
+  "vehicles": [
+    {
+      "id": "pickup",
+      "tier": 2,
+      "label": "Red pickup",
+      "water": false,
+      "upgrade": {
+        "id": "rack",
+        "item": "car-roof-rack",
+        "grade": "standard"
+      }
+    },
+    {
+      "id": "bus",
+      "tier": 4,
+      "label": "School bus",
+      "water": false,
+      "inventorySlots": 12
+    }
+  ],
   "rareTrade": null,
   "startingCommunityBuilt": true,
   "base": {

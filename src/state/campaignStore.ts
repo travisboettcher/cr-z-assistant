@@ -71,6 +71,7 @@ import type { RareItemRoll } from '../engine/finding';
 import { withEquipmentHandedOver } from '../engine/handover';
 import { withTradesArrived, type Payment, type TradeRequest } from '../engine/trading';
 import type { RareTradePick } from '../engine/rareTrade';
+import type { NewVehicle } from '../engine/vehicles';
 import {
   submitMissionOutcome,
   submitMissionSelection,
@@ -87,6 +88,9 @@ import {
   submitItemRemoved,
   submitItemBuilt,
   submitItemSold,
+  submitVehicleAdded,
+  submitVehicleRemoved,
+  submitVehicleUpgradeFitted,
   submitRareTradeMade,
   submitTradeOrdered,
   submitRareItemRolled,
@@ -470,6 +474,16 @@ export type CampaignAction =
     }
   /** An item taken out of the base's Inventory by hand (Z5-2). */
   | { readonly type: 'inventory/itemRemoved'; readonly id: string; readonly at: string }
+  /** A vehicle added or taken out by hand (Z5-11). */
+  | { readonly type: 'vehicles/added'; readonly vehicle: NewVehicle; readonly at: string }
+  | { readonly type: 'vehicles/removed'; readonly id: string; readonly at: string }
+  /** A vehicle upgrade fitted from the Inventory at Planning (R67; Z5-11). */
+  | {
+      readonly type: 'planning/vehicleUpgradeFitted';
+      readonly item: string;
+      readonly vehicle: string;
+      readonly at: string;
+    }
   /** A rare upgrade installed from the Inventory in a slot's facility (Z5-8). */
   | {
       readonly type: 'advancement/rareUpgradeInstalled';
@@ -1106,6 +1120,19 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
     case 'planning/itemSold':
       return submitted(state, (campaign) =>
         submitItemSold(campaign, action.id, action.payment, action.at),
+      );
+
+    case 'vehicles/added':
+      return submitted(state, (campaign) =>
+        submitVehicleAdded(campaign, action.vehicle, action.at),
+      );
+
+    case 'vehicles/removed':
+      return submitted(state, (campaign) => submitVehicleRemoved(campaign, action.id, action.at));
+
+    case 'planning/vehicleUpgradeFitted':
+      return submitted(state, (campaign) =>
+        submitVehicleUpgradeFitted(campaign, action.item, action.vehicle, action.at),
       );
 
     case 'inventory/itemRemoved':

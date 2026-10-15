@@ -15,7 +15,7 @@
  */
 
 import type { BaseId } from '../data/bases';
-import type { Grade, ItemId } from '../data/equipment';
+import type { Grade, ItemId, VehicleTier } from '../data/equipment';
 import type { Cost, FacilityId, UpgradeId } from '../data/facilities';
 import type { Materials } from '../data/materials';
 import type { CampaignOrigin } from '../data/origins';
@@ -167,6 +167,31 @@ export interface RareTrade {
   readonly madeOnTurn: number;
   /** In priority order: the trader takes them one a round, first first (pg. 84). */
   readonly items: readonly RareTradeItem[];
+}
+
+/**
+ * A vehicle the community holds (pp. 49, 52–53; R62; Z5-11): its Tier, which
+ * fixes its slots, a label the player gives it, whether it is a boat, and the
+ * vehicle upgrade fitted to it for good, if one is.
+ *
+ * Nothing about a mission is kept: whether it is working is the mission's, and
+ * it holds nothing between missions (R62, R69). No Health, which the core rules
+ * do not give it.
+ */
+export interface Vehicle {
+  readonly id: string;
+  readonly tier: VehicleTier;
+  readonly label: string;
+  /** A boat, which deploys only in water (pg. 52). */
+  readonly water: boolean;
+  /**
+   * Tier 4's split of its 20 slots, as the Inventory Slots its owner chose;
+   * the rest are Passenger Slots (pg. 53). Absent below Tier 4, whose slots
+   * are fixed.
+   */
+  readonly inventorySlots?: number;
+  /** The vehicle upgrade fitted to it (R67), the item itself. */
+  readonly upgrade?: Item;
 }
 
 export interface TradeOrder {
@@ -483,6 +508,13 @@ export interface Campaign {
   rareTrade: RareTrade | null;
 
   /**
+   * The vehicles the community holds (R62; Z5-11), in the order they came.
+   * Campaign-wide rather than the base's, so a move takes them along (R77).
+   * Empty for every save from before v18.
+   */
+  vehicles: readonly Vehicle[];
+
+  /**
    * Whether the player has finished assembling their starting community.
    *
    * A starting community is built from ten Tier levels (pg. 13), and that rule
@@ -569,6 +601,7 @@ export function createNewCampaign(name: string, options: NewCampaignOptions = {}
     rareRollsOwed: 0,
     trades: [],
     rareTrade: null,
+    vehicles: [],
     // False, so a new campaign gets the ten-tier-level check while it is being
     // built. The v2 → v3 migration deliberately answers `true` instead — see
     // the step in `src/persistence/migrations.ts` for why the two differ.

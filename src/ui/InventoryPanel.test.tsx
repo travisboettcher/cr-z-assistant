@@ -359,3 +359,72 @@ describe('a Rare Items trade from the Inventory', () => {
     expect(screen.queryByRole('list', { name: 'Items to trade for' })).toBeNull();
   });
 });
+
+/** The vehicles the community holds, in the Inventory's modal (R62, R67; Z5-11). */
+describe('vehicles in the Inventory', () => {
+  const pickup = { id: 'pickup', tier: 2, label: 'Red pickup', water: false } as const;
+  const rack = { id: 'rack', item: 'car-roof-rack', grade: 'standard' } as const;
+
+  it('counts them on the card, and lists each with its slots', () => {
+    open(
+      playing({
+        vehicles: [
+          pickup,
+          { id: 'bus', tier: 4, label: 'School bus', water: true, inventorySlots: 12 },
+        ],
+      }),
+    );
+
+    expect(card().getByText(/vehicle/).textContent).toBe('2 vehicles');
+    openPanel('inventory');
+
+    const vehicles = screen.getByRole('region', { name: 'Vehicles' });
+    expect(
+      within(vehicles).getByText(/Tier 2 · 6 Inventory, 4 Passenger Slots/),
+    ).toBeInTheDocument();
+    expect(
+      within(vehicles).getByText(/Tier 4 boat · 12 Inventory, 8 Passenger Slots/),
+    ).toBeInTheDocument();
+  });
+
+  it('fits a vehicle upgrade at Planning, and says when it waits for it', async () => {
+    const user = open(withPlanningBegun(playing({ inventory: [rack], vehicles: [pickup] })));
+    openPanel('inventory');
+
+    await user.click(screen.getByRole('button', { name: 'Fit the car roof rack to Red pickup' }));
+
+    const vehicles = screen.getByRole('region', { name: 'Vehicles' });
+    expect(within(vehicles).getByText(/· car roof rack/)).toBeInTheDocument();
+    expect(campaignLog().textContent).toContain(
+      'Fitted standard car roof rack to Red pickup, for good.',
+    );
+  });
+
+  it('says a fitting waits for the Planning Phase', () => {
+    open(playing({ step: 'heal-wounds', inventory: [rack], vehicles: [pickup] }));
+    openPanel('inventory');
+
+    expect(
+      screen.getByRole('button', { name: 'Fit the car roof rack to Red pickup' }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText(/fitted in the Planning Phase, to a vehicle with none/),
+    ).toBeInTheDocument();
+  });
+
+  it('adds a vehicle by hand, and takes it out', async () => {
+    const user = open(playing());
+    openPanel('inventory');
+
+    expect(screen.getByText('No vehicles yet.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add the vehicle' })).toBeDisabled();
+    await user.type(screen.getByLabelText('New vehicle: name'), 'Skiff');
+    await user.click(screen.getByLabelText('New vehicle is a boat'));
+    await user.click(screen.getByRole('button', { name: 'Add the vehicle' }));
+
+    expect(screen.getByText(/Tier 1 boat · 2 Inventory, 2 Passenger Slots/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Take Skiff out' }));
+    expect(screen.getByText('No vehicles yet.')).toBeInTheDocument();
+    expect(campaignLog().textContent).toContain('Added Skiff, a Tier 1 boat, by hand.');
+  });
+});

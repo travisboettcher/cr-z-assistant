@@ -123,6 +123,17 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   // A Rookie its setup placed on the area (pg. 79).
   { kind: 'gather-materials-resolved', team: 1, materialsCarriedOut: 5, strangers: [1] },
   { kind: 'retrieve-new-vehicles-resolved', team: 3, vehiclesDrivenOff: 0, strangers: [] },
+  // What each vehicle driven off was, since Z5-11: a Tier 4 with its split, and a boat.
+  {
+    kind: 'retrieve-new-vehicles-resolved',
+    team: 1,
+    vehiclesDrivenOff: 2,
+    retrieved: [
+      { id: 'bus', tier: 4, label: 'School bus', water: false, inventorySlots: 12, roll: 10 },
+      { id: 'skiff', tier: 1, label: 'Skiff', water: true, roll: 5 },
+    ],
+    strangers: [],
+  },
   { kind: 'rescue-strangers-resolved', team: 1, strangers: [2] },
   { kind: 'rare-goods-trader-resolved', team: 2, survivorsExited: 1, strangers: [3] },
   // With a trade under way, and how many items the trader handed over (Z5-10).
@@ -263,6 +274,15 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   },
   // An item the project team built (Z5-6).
   { kind: 'item-built', id: 'item-5', item: 'blunt', grade: 'standard', hardware: 1, labor: 1 },
+  // Vehicles (Z5-11): added by hand, taken out, and an upgrade fitted.
+  { kind: 'vehicle-added', vehicle: { id: 'car', tier: 2, label: 'Red pickup', water: false } },
+  { kind: 'vehicle-removed', id: 'car', label: 'Red pickup', tier: 2 },
+  {
+    kind: 'vehicle-upgrade-fitted',
+    vehicle: 'car',
+    label: 'Red pickup',
+    item: { id: 'rack', item: 'car-roof-rack', grade: 'standard' },
+  },
   // The Rare Items trade (Z5-10): made, lost each way, and settled each way.
   {
     kind: 'rare-trade-made',

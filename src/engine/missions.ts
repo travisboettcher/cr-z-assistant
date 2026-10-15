@@ -45,10 +45,11 @@ import { FIELD_RECRUITABLE_TIERS, type FieldRecruitTier } from '../data/recruitT
 import { beforePlanning } from './assignments';
 import { continuationMission, continuationOpen, overrunChoice, overrunClaim } from './overrun';
 import type { Campaign, RareTrade, Survivor } from './campaign';
-import type { CampaignEvent, MissionWound } from './log';
+import type { CampaignEvent, MissionWound, RetrievedVehicle } from './log';
 import { FIRST_TURN, siegeDue } from './siege';
 import { maxHp } from './survivor';
 import { phaseOf } from './turn';
+import { retrievedProblem } from './vehicles';
 
 /** A mission team and who is on it. */
 export interface MissionTeam {
@@ -504,6 +505,12 @@ export interface OutcomeCounts {
   readonly itemsTraded?: number;
 
   /**
+   * What each vehicle a Retrieve New Vehicles team drove off was (R63;
+   * Z5-11). Asked of that mission only.
+   */
+  readonly retrieved?: readonly RetrievedVehicle[];
+
+  /**
    * Each team member's Health at the end, and their Infection in a Viral
    * campaign (Z4-4). Every mission records them, so unlike the counts above
    * they go on every kind; `woundsAsTheyStand` is where a form starts them.
@@ -576,6 +583,7 @@ export function outcomeOf(choice: MissionChoice, counts: OutcomeCounts): Mission
         kind: 'retrieve-new-vehicles-resolved',
         team,
         vehiclesDrivenOff: counts.vehiclesDrivenOff,
+        retrieved: counts.retrieved ?? [],
         strangers: counts.strangers,
         wounds,
       };
@@ -709,6 +717,12 @@ export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcom
         ? 'Say whether the claim was played on the overrun base’s own map.'
         : 'Only a claim of the overrun base’s own type asks about its map.';
     }
+  }
+
+  // Every vehicle driven off joins, so each says what it is (R63; Z5-11).
+  if (outcome.kind === 'retrieve-new-vehicles-resolved') {
+    const problem = retrievedProblem(campaign, outcome.vehiclesDrivenOff, outcome.retrieved ?? []);
+    if (problem !== null) return problem;
   }
 
   // A Rare Items trade made on an earlier turn is what this mission settles

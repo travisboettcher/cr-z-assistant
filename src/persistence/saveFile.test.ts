@@ -185,6 +185,56 @@ describe('parseCampaignFile', () => {
   });
 
   /** Trades on their way (Z5-9): each an item with what it cost and when it was ordered. */
+  /** The vehicles the community holds (Z5-11). */
+  describe('vehicles', () => {
+    const pickup = { id: 'pickup', tier: 2, label: 'Red pickup', water: false };
+    const message = (vehicles: unknown, more: object = {}) => {
+      const result = parseCampaignFile(savedWith({ vehicles, ...more }));
+
+      return result.ok ? null : result.error.message;
+    };
+
+    it('reads them back, a split and an upgrade included', () => {
+      const vehicles = [
+        { ...pickup, upgrade: { id: 'rack', item: 'car-roof-rack', grade: 'standard' } },
+        { id: 'bus', tier: 4, label: 'School bus', water: true, inventorySlots: 12 },
+      ];
+      const result = parseCampaignFile(savedWith({ vehicles }));
+
+      expect(result.ok && result.campaign.vehicles).toEqual(vehicles);
+    });
+
+    it.each([
+      ['a list that is not one', 'pickup', 'its vehicles: is not a list'],
+      ['a vehicle that is not one', [7], 'vehicle 1 of 1 is not a vehicle'],
+      ['no id', [{ ...pickup, id: '' }], 'has no id'],
+      ['an id that is not a string', [{ ...pickup, id: 7 }], 'has no id'],
+      ['no Tier', [{ ...pickup, tier: 5 }], 'has no Tier from 1 to 4'],
+      ['no label', [{ ...pickup, label: 3 }], 'has no label'],
+      ['no word on the water', [{ ...pickup, water: 'no' }], 'whether it is a boat'],
+      ['an unreadable split', [{ ...pickup, inventorySlots: -1 }], 'unreadable split'],
+      [
+        'an upgrade that is not an item',
+        [{ ...pickup, upgrade: { id: 'x', item: 'laser', grade: 'standard' } }],
+        'has an upgrade that',
+      ],
+      ['one id twice', [pickup, { ...pickup, label: 'Other' }], 'two vehicles with one id: pickup'],
+    ])('refuses %s', (_label, vehicles, expected) => {
+      expect(message(vehicles)).toContain(expected);
+    });
+
+    it('refuses an upgrade with an item’s id', () => {
+      expect(
+        message(
+          [{ ...pickup, upgrade: { id: 'rack', item: 'car-roof-rack', grade: 'standard' } }],
+          {
+            inventory: [{ id: 'rack', item: 'bow', grade: 'standard' }],
+          },
+        ),
+      ).toContain('it holds two items with one id: rack');
+    });
+  });
+
   /** A Rare Items trade under way (Z5-10): its turn, and each item with its dice and its share. */
   describe('a Rare Items trade under way', () => {
     const item = {
@@ -951,6 +1001,22 @@ describe('a campaign whose log is damaged', () => {
       'a trade made with an unreadable item',
       { kind: 'rare-trade-made', items: [{ id: 'a', item: 'riot-shield', grade: 'standard' }] },
       'unreadable items',
+    ],
+    [
+      'a vehicle driven off with no roll',
+      {
+        kind: 'retrieve-new-vehicles-resolved',
+        team: 1,
+        vehiclesDrivenOff: 1,
+        retrieved: [{ id: 'car', tier: 1, label: 'Car', water: false }],
+        strangers: [],
+      },
+      'unreadable retrieved',
+    ],
+    [
+      'a vehicle added that is not one',
+      { kind: 'vehicle-added', vehicle: { id: 'car', tier: 9, label: 'Car', water: false } },
+      'unreadable vehicle',
     ],
     [
       'a trade lost for a reason this version does not know',
