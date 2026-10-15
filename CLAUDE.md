@@ -25,6 +25,6 @@ come first; where a plugin's advice disagrees with them, it loses.
   [`docs/ux-principles.md`](docs/ux-principles.md), and `TOUCH_TARGET`, `FOCUS_RING` and the `dark:`
   pairs in `src/ui/styles.ts` stay. Do not run `--persist`: this app's design decisions live in
   `docs/`, not a generated `design-system/` folder.
-- **`humanizer`**, for text a player reads in the app. Write for someone opening it for the first
-  time, glancing at a tablet at the table. Change wording only: every number, rule name and printed
+- **`humanizer`**, for text a player reads in the app, following
+  [`docs/writing.md`](docs/writing.md). Change wording only: every number, rule name and printed
   page reference stays, and no rule text from the book replaces a page reference.

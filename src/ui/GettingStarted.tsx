@@ -81,7 +81,7 @@ export function GettingStarted({ campaign, onAddSurvivors, onClaimBase }: Gettin
           title="Choose who plays the First Mission"
           detail={
             <>
-              You pick them in this turn’s Mission Phase <PageRef pages={75} />
+              In this turn’s Mission Phase <PageRef pages={75} />
             </>
           }
         />

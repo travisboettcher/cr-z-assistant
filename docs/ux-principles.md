@@ -95,6 +95,9 @@ rule, and the app must not be the reason a game stops.
 
 ## Words
 
+How app text is written, from addressing the player to punctuation, is in
+[`writing.md`](writing.md). The rules that are about layout as much as words:
+
 - **Buttons are named for what they do and where they go**: "Next: Feed your Survivors", not
   "Next", and "Back to Assign Mission Team", not "Back". A button that opens a modal is named for
   what the modal is for: Manage, Open, Edit, Claim a base.
