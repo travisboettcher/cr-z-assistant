@@ -11,10 +11,12 @@ import {
   occupants,
   siegeThreatFromBase,
   siegeThreatReduction,
+  slotNeeded,
   staffCapacity,
   storageCaps,
   upgradesRemaining,
   upgradesUsed,
+  utilitiesNeeded,
   type Occupant,
 } from './base';
 import { createSurvivor } from './survivor';
@@ -149,6 +151,22 @@ describe('storageCaps', () => {
     expect(storageCaps(base, occupants(base))).toEqual({ hardware: 6, food: 6, fuel: 8 });
   });
 
+  it('gives no storage from an upgrade whose facility is switched off', () => {
+    // An outdoor Bunk Room with no Power does nothing, so its Loft does not
+    // either (Errata, pp. 68 and 72; pg. 54).
+    const yard = (power: boolean) =>
+      withSlots('small-town-home', {
+        'front-yard': {
+          built: { facility: 'bunk-room', builtOnTurn: 2 },
+          upgrades: ['loft'],
+          ...(power ? { power } : {}),
+        },
+      });
+    const hardware = (base: Base) => storageCaps(base, occupants(base)).hardware;
+
+    expect(hardware(yard(true)) - hardware(yard(false))).toBe(1);
+  });
+
   it('gives no storage at all for a facility whose utility is missing', () => {
     const unpowered = withSlots('small-town-home', {
       garage: { built: { facility: 'storage-area', builtOnTurn: 1 }, upgrades: ['refrigeration'] },
@@ -165,6 +183,49 @@ describe('storageCaps', () => {
     // Refrigeration switches off.
     expect(storageCaps(unpowered, occupants(unpowered)).food).toBe(6);
     expect(storageCaps(powered, occupants(powered)).food).toBe(8);
+  });
+});
+
+/**
+ * A slot requirement, and the Bunk Room's way round it: outdoors with Power
+ * (Errata, pp. 68 and 72).
+ */
+describe('slotNeeded and utilitiesNeeded', () => {
+  const facility = (id: keyof typeof FACILITIES) => FACILITIES[id] as Facility;
+
+  it('names the slot a facility still needs, and nothing once it has it', () => {
+    expect(slotNeeded(facility('garden'), 'indoor')).toBe('outdoor');
+    expect(slotNeeded(facility('garden'), 'outdoor')).toBeUndefined();
+    expect(slotNeeded(facility('workshop'), 'indoor')).toBeUndefined();
+  });
+
+  it('lets a Bunk Room stand in either kind of slot', () => {
+    expect(slotNeeded(facility('bunk-room'), 'indoor')).toBeUndefined();
+    expect(slotNeeded(facility('bunk-room'), 'outdoor')).toBeUndefined();
+  });
+
+  it('asks Power of a Bunk Room outdoors, and nothing indoors', () => {
+    expect(utilitiesNeeded(facility('bunk-room'), 'outdoor')).toEqual(['power']);
+    expect(utilitiesNeeded(facility('bunk-room'), 'indoor')).toEqual([]);
+  });
+
+  it('asks an entry for its own utilities wherever it stands', () => {
+    const refrigeration = facility('storage-area').upgrades.find(
+      (upgrade) => upgrade.id === 'refrigeration',
+    ) as Upgrade;
+
+    expect(utilitiesNeeded(refrigeration, 'indoor')).toEqual(['power']);
+    expect(utilitiesNeeded(facility('garden'), 'indoor')).toEqual([]);
+  });
+
+  it('adds the stand-in to a utility the entry already needs', () => {
+    const both: Facility = {
+      ...facility('bunk-room'),
+      requires: { slot: 'indoor', orUtility: 'power', utilities: ['water'] },
+    };
+
+    expect(utilitiesNeeded(both, 'outdoor')).toEqual(['water', 'power']);
+    expect(utilitiesNeeded(both, 'indoor')).toEqual(['water']);
   });
 });
 
@@ -195,13 +256,32 @@ describe('beds', () => {
   });
 
   it('does not give White Noise to a bunk room in an outdoor slot', () => {
-    // A Bunk Room requires an Indoor slot, so this is only reachable by
-    // overriding the build — and the special says *indoor* bunk rooms.
+    // Powered, so it works outdoors (Errata, pp. 68 and 72) — and the special
+    // says *indoor* bunk rooms.
     const outdoors = withSlots('hydroelectric-dam', {
-      'parking-lot': { built: { facility: 'bunk-room', builtOnTurn: 2 } },
+      'parking-lot': { built: { facility: 'bunk-room', builtOnTurn: 2 }, power: true },
     });
 
     expect(beds(outdoors, occupants(outdoors))).toBe(2);
+  });
+
+  /**
+   * Outdoors a Bunk Room needs Power (Errata, pp. 68 and 72), and a facility
+   * whose requirement is unmet does nothing — its upgrades with it.
+   */
+  it('counts an outdoor bunk room only while it has Power, Extra Beds and all', () => {
+    const yard = (power: boolean) =>
+      withSlots('small-town-home', {
+        'front-yard': {
+          built: { facility: 'bunk-room', builtOnTurn: 2 },
+          upgrades: ['extra-bed'],
+          ...(power ? { power } : {}),
+        },
+      });
+
+    // The home's own two bunk rooms are four beds either way.
+    expect(beds(yard(false), occupants(yard(false)))).toBe(4);
+    expect(beds(yard(true), occupants(yard(true)))).toBe(7);
   });
 
   it('counts a player’s Extra Beds, repeats included', () => {

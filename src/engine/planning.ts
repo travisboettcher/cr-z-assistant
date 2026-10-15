@@ -28,6 +28,7 @@
 import { TURN_STEPS } from '../data/turn';
 import { HERO_TIER } from '../data/tiers';
 import { suppliedOccupants } from './utilities';
+import { utilitiesNeeded } from './base';
 import type { Facility, Upgrade } from '../data/facilities';
 import type { Assignment, Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
@@ -214,16 +215,15 @@ function staffingWarnings(campaign: Campaign, slot: string): readonly PlanningVi
   }
 
   const unmet = (entry: Facility | Upgrade) =>
-    (entry.requires?.utilities ?? []).some((utility) => !occupant[utility]);
+    utilitiesNeeded(entry, occupant.kind).some((utility) => !occupant[utility]);
 
   /*
-   * **No facility in the catalogue requires a utility today** — every
-   * `requires.utilities` in `facilities.ts` is on an upgrade — so this branch
-   * is unreachable from the data and its mutants survive. It stays for the
-   * reason `Upgrade.rare` stays: the rule is real (pg. 54 stops an entry whose
-   * requirements are unmet, and `working` applies that to facilities too), the
-   * shape is the correct one for it, and the alternative is a silence that
-   * turns into a wrong screen the first time such a facility is transcribed.
+   * **One facility in the catalogue can need a utility**: the Bunk Room
+   * outdoors, which needs Power there (Errata, pp. 68 and 72). It takes no
+   * staff, so no screen offers this branch for it, but the rule is real
+   * (pg. 54 stops an entry whose requirements are unmet, and `working` applies
+   * that to the whole slot), and a silence here would turn into a wrong screen
+   * the first time a staffed one is transcribed.
    */
   if (unmet(occupant.facility)) {
     return [

@@ -35,7 +35,7 @@ import {
   type Upgrade,
   type UpgradeId,
 } from '../data/facilities';
-import { occupantAt, replacedBy, upgradesRemaining, upgradesUsed } from './base';
+import { occupantAt, replacedBy, slotNeeded, upgradesRemaining, upgradesUsed } from './base';
 import {
   laborRefusal,
   occupantAwaiting,
@@ -198,10 +198,12 @@ export function checkUpgrade(
    * silently zeroing a facility a player chose to build would be this app
    * inventing a consequence the book does not print.
    */
-  if (upgrade.requires?.slot !== undefined && upgrade.requires.slot !== occupant.kind) {
+  const needed = slotNeeded(upgrade, occupant.kind);
+
+  if (needed !== undefined) {
     warnings.push({
       code: 'wrong-slot-kind',
-      message: `Needs an ${upgrade.requires.slot} slot, and this one is ${occupant.kind}.`,
+      message: `Needs an ${needed} slot, and this one is ${occupant.kind}.`,
       pages: '72–73',
     });
   }

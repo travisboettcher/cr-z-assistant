@@ -29,7 +29,7 @@ import { BASES } from '../data/bases';
 import { hungerPenalty } from './feeding';
 import { skillScore } from './survivor';
 import type { Occupant } from './base';
-import { flatUtilitiesGenerated, layoutOf, occupants } from './base';
+import { flatUtilitiesGenerated, layoutOf, occupants, utilitiesNeeded } from './base';
 import { utilitiesScore } from './assignments';
 import type { Base, Campaign } from './campaign';
 import type { Check, Violation } from './checks';
@@ -278,14 +278,12 @@ export function checkUtility(campaign: Campaign, request: UtilityRequest): Utili
    * halving produces less. What they have in common is only that the point is
    * worth spending, which is the one question this warning asks.
    *
-   * "Needs nothing" is checked outright rather than smoothed into an empty
-   * array: a `?? []` here would be swallowed by `includes`, which answers false
-   * for whatever it is handed, leaving nothing able to tell the fallback from a
-   * list of junk.
+   * A requirement is `utilitiesNeeded` where the slot stands, so an outdoor
+   * Bunk Room's Power is wanted and an indoor one's is not (Errata, pp. 68
+   * and 72).
    */
   const wanted = [occupant.facility, ...occupant.upgrades].some((entry) => {
-    const needs = entry.requires?.utilities;
-    if (needs !== undefined && needs.includes(request.utility)) return true;
+    if (utilitiesNeeded(entry, occupant.kind).includes(request.utility)) return true;
 
     // Narrowed by kind rather than probed for a field: `staffed-split` is the
     // Utility Station, which has neither — its Score *is* the split, so it is

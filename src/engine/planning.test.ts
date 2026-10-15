@@ -202,6 +202,24 @@ describe('checkAssignment', () => {
       expect(check.warnings[0]?.message).toMatch(/the facility itself still works/i);
     });
 
+    /**
+     * Outdoors a Bunk Room needs Power (Errata, pp. 68 and 72), so without it
+     * the facility itself is off — the one in the catalogue that can be.
+     */
+    it('says the facility itself does nothing when it is missing a utility', () => {
+      const yard = home({ 'front-yard': { built: { facility: 'bunk-room', builtOnTurn: 1 } } });
+
+      expect(
+        checkAssignment(community({}, yard), EARL, { task: 'staff', slot: 'front-yard' }).warnings,
+      ).toEqual([
+        {
+          code: 'utility-unmet',
+          message: 'Needs a utility it does not have, so it produces nothing this turn.',
+          pages: 67,
+        },
+      ]);
+    });
+
     it('says nothing once the point is there and something is generating it', () => {
       const powered = home({
         garage: {
