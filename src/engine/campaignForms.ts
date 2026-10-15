@@ -18,8 +18,8 @@ import type { FieldRecruitTier } from '../data/recruitTable';
 import type { Tier } from '../data/tiers';
 import { withoutAssignment } from './assignments';
 import { storageCaps } from './base';
-import type { Campaign, Item, Survivor } from './campaign';
-import { allItems, newItemProblem, removalProblem, type NewItem } from './equipment';
+import type { Campaign, Item, RareTrade, Survivor, Vehicle } from './campaign';
+import { idTaken, newItemProblem, removalProblem, type NewItem } from './equipment';
 import { rareItemFor, type RareItemRoll } from './finding';
 import { turnoutGear, withEquipmentHandedOver } from './handover';
 import { accepted, blockedBy, refused, type Accepted, type FormResult } from './forms';
@@ -28,7 +28,18 @@ import { buildCheck, buildCost, withItemBuilt, type BuildCost, type BuildOrder }
 import { FIRST_PLANNING_STEP, planningHasBegun, withPlanningReset } from './planning';
 import { deployed } from './missions';
 import { siegeDue } from './siege';
+import { rareTradeCheck, withRareTradeMade, type RareTradePick } from './rareTrade';
 import { withItemsLeftBehind } from './spent';
+import { fitProblem, withUpgradeFitted } from './vehicleUpgrades';
+import { vehicleProblem, withVehicleRemoved, withVehiclesAdded, type NewVehicle } from './vehicles';
+import {
+  saleCheck,
+  tradeCheck,
+  withItemSold,
+  withTradeOrdered,
+  type Payment,
+  type TradeRequest,
+} from './trading';
 import {
   rescuedStrangers,
   returnProblem,
@@ -375,7 +386,7 @@ export function submitStrangerJoined(
 
 /**
  * Take a survivor off the roster, and their task with them. What they carried
- * goes into the base's Inventory (Z5-5).
+ * goes into the base's Inventory (R75).
  *
  * Reads the survivor before removing them, because the entry has to outlive the
  * roster: once they are gone their name is the only thing left to render, and
@@ -470,6 +481,66 @@ export function submitItemRemoved(campaign: Campaign, id: string, at: string): F
 }
 
 /**
+ * Add a vehicle by hand (Z5-11), for a campaign brought in part-way or a
+ * correction, as an item is added. Vehicles the rules hand over arrive with
+ * the mission that does it.
+ */
+export function submitVehicleAdded(
+  campaign: Campaign,
+  vehicle: NewVehicle,
+  at: string,
+): FormResult {
+  const problem = vehicleProblem(campaign, vehicle);
+  if (problem !== null) return refused(problem);
+
+  return accepted(
+    logged(withVehiclesAdded(campaign, [vehicle]), at, { kind: 'vehicle-added', vehicle }),
+  );
+}
+
+/** Take a vehicle out by hand (Z5-11), for a correction; its upgrade goes with it (R67). */
+export function submitVehicleRemoved(campaign: Campaign, id: string, at: string): FormResult {
+  const vehicle = campaign.vehicles.find((held) => held.id === id);
+  if (vehicle === undefined) return refused('Only a vehicle the community holds can be taken out.');
+
+  return accepted(
+    logged(withVehicleRemoved(campaign, id), at, {
+      kind: 'vehicle-removed',
+      id,
+      label: vehicle.label,
+      tier: vehicle.tier,
+    }),
+  );
+}
+
+/**
+ * Fit a vehicle upgrade from the Inventory, in the Planning Phase, for nothing
+ * (pg. 49; R67; Z5-11). Refused for whatever `fitProblem` says.
+ */
+export function submitVehicleUpgradeFitted(
+  campaign: Campaign,
+  itemId: string,
+  vehicleId: string,
+  at: string,
+): FormResult {
+  const problem = fitProblem(campaign, itemId, vehicleId);
+  if (problem !== null) return refused(problem);
+
+  // Present: `fitProblem` found both.
+  const item = campaign.inventory.find((held) => held.id === itemId) as Item;
+  const vehicle = campaign.vehicles.find((held) => held.id === vehicleId) as Vehicle;
+
+  return accepted(
+    logged(withUpgradeFitted(campaign, itemId, vehicleId), at, {
+      kind: 'vehicle-upgrade-fitted',
+      vehicle: vehicleId,
+      label: vehicle.label,
+      item,
+    }),
+  );
+}
+
+/**
  * Build an item at Planning Step 2 (pp. 20–21; Z5-6): its Hardware spent, the
  * item in the base's Inventory at once, and an `item-built` entry recording the
  * Labor it took, which `laborCommitted` reads back.
@@ -494,6 +565,83 @@ export function submitItemBuilt(campaign: Campaign, order: BuildOrder, at: strin
 }
 
 /**
+ * Trade for an item at Planning Step 2 (pp. 19, 21; R51–R53; Z5-9): its Food
+ * and Fuel go at once, and the order waits for the next Add Facilities and
+ * Upgrades. Refused for whatever `tradeCheck` says.
+ */
+export function submitTradeOrdered(
+  campaign: Campaign,
+  request: TradeRequest,
+  at: string,
+): FormResult {
+  const problem = blockedBy(tradeCheck(campaign, request));
+  if (problem !== null) return refused(problem);
+
+  return accepted(
+    logged(withTradeOrdered(campaign, request), at, {
+      kind: 'trade-ordered',
+      id: request.id,
+      item: request.item,
+      grade: request.grade,
+      food: request.food,
+      fuel: request.fuel,
+    }),
+  );
+}
+
+/**
+ * Make a Rare Items trade in the Planning Phase (pp. 21, 43; R57–R59; Z5-10):
+ * the items chosen from the trader's list, in priority order, and their Food
+ * and Fuel set aside. Refused for whatever `rareTradeCheck` says.
+ */
+export function submitRareTradeMade(
+  campaign: Campaign,
+  picks: readonly RareTradePick[],
+  at: string,
+): FormResult {
+  const problem = blockedBy(rareTradeCheck(campaign, picks));
+  if (problem !== null) return refused(problem);
+
+  const made = withRareTradeMade(campaign, picks);
+
+  return accepted(
+    logged(made, at, {
+      kind: 'rare-trade-made',
+      items: (made.rareTrade as RareTrade).items,
+    }),
+  );
+}
+
+/**
+ * Sell a rare item from the Inventory in the Planning Phase (pp. 21, 37; R54,
+ * R56; Z5-9), for its price less two in the player's mix of Food and Fuel.
+ * Refused for whatever `saleCheck` blocks; going over a cap is only warned of.
+ */
+export function submitItemSold(
+  campaign: Campaign,
+  id: string,
+  payment: Payment,
+  at: string,
+): FormResult {
+  const problem = blockedBy(saleCheck(campaign, id, payment));
+  if (problem !== null) return refused(problem);
+
+  // Present: `saleCheck` found it in the Inventory.
+  const item = campaign.inventory.find((held) => held.id === id) as Item;
+
+  return accepted(
+    logged(withItemSold(campaign, id, payment), at, {
+      kind: 'item-sold',
+      id,
+      item: item.item,
+      grade: item.grade,
+      food: payment.food,
+      fuel: payment.fuel,
+    }),
+  );
+}
+
+/**
  * Roll on the Rare Item Table by hand, from the Inventory (pg. 43; Z5-7): for
  * the story and origin rewards that roll on it, which are Phase 7's missions
  * and have nowhere else to put their item yet. The item and both dice go on an
@@ -504,7 +652,7 @@ export function submitRareItemRolled(
   roll: RareItemRoll,
   at: string,
 ): FormResult {
-  if (allItems(campaign).some((item) => item.id === roll.id)) {
+  if (idTaken(campaign, roll.id)) {
     return refused('An item already has that id.');
   }
 

@@ -1775,6 +1775,34 @@ describe('advancement/projectsCompleted', () => {
     expect(campaign.projects).toEqual([]);
   });
 
+  /** The Sports Shop's chosen weapons, then last turn's trades, after the projects (R45, R53). */
+  it('writes what a cleared slot handed over and what trades arrived', () => {
+    const shop = openState({
+      ...expectOpen(due()),
+      step: 'add-facilities-and-upgrades',
+      base: { id: 'outdoor-sports-shop', slots: {} },
+      projects: [onOrder({ kind: 'clearing', slot: 'inventory', orderedOnTurn: 2 })],
+      trades: [
+        { id: 'traded', item: 'trap', grade: 'standard', food: 2, fuel: 0, orderedOnTurn: 2 },
+      ],
+    });
+    const campaign = expectOpen(
+      campaignReducer(shop, { ...finish, weapons: ['bow', 'bow', 'rifle', 'blunt'] }),
+    );
+
+    expect(campaign.log.map((entry) => entry.event.kind)).toEqual([
+      'slot-cleared',
+      'equipment-handed-over',
+      'trade-arrived',
+    ]);
+    expect(campaign.log[1]?.event).toMatchObject({
+      base: 'outdoor-sports-shop',
+      slot: 'inventory',
+    });
+    expect(campaign.inventory).toHaveLength(5);
+    expect(campaign.trades).toEqual([]);
+  });
+
   /** The clearing's yield arrives here, a turn after it was ordered. */
   it('credits what a clearing project gave back', () => {
     expect(expectOpen(campaignReducer(due(), finish)).materials.hardware).toBe(2);
@@ -2532,6 +2560,80 @@ describe('what earns a line in the log', () => {
         labor: 2,
       }),
     },
+    'planning/tradeOrdered': {
+      // A trap costs 2 (pg. 42), paid with the one Food and the one Fuel, and
+      // is on its way rather than in the Inventory (R53; Z5-9).
+      state: openState(withPlanningBegun({ ...expectOpen(rich()), step: 'assign-project-team' })),
+      action: {
+        type: 'planning/tradeOrdered',
+        at: AT,
+        request: { id: 'item-1', item: 'trap', grade: 'standard', food: 1, fuel: 1 },
+      },
+      entry: entry(3, 'planning', {
+        kind: 'trade-ordered',
+        id: 'item-1',
+        item: 'trap',
+        grade: 'standard',
+        food: 1,
+        fuel: 1,
+      }),
+    },
+    'planning/rareTradeMade': {
+      // A riot shield is 3 then 1 on the Rare Item Table, at 10 (pg. 43): set
+      // aside as 4 Food and 6 Fuel, with a mission team to go (R57–R59; Z5-10).
+      state: openState(
+        withPlanningBegun({
+          ...expectOpen(rich()),
+          step: 'assign-mission-team',
+          materials: { food: 6, fuel: 6, hardware: 0 },
+          // One Cooperation is one roll on the trader's list (R58).
+          survivors: expectOpen(rich()).survivors.map((survivor) =>
+            survivor.id === LOGGED_SURVIVOR
+              ? { ...survivor, stats: { ...survivor.stats, cooperation: 1 } }
+              : survivor,
+          ),
+          assignments: { [LOGGED_SURVIVOR]: { task: 'mission', team: 1 } },
+        }),
+      ),
+      action: {
+        type: 'planning/rareTradeMade',
+        at: AT,
+        picks: [{ id: 'shield', subtable: 3, entry: 1, food: 4, fuel: 6 }],
+      },
+      entry: entry(3, 'planning', {
+        kind: 'rare-trade-made',
+        items: [
+          {
+            id: 'shield',
+            subtable: 3,
+            entry: 1,
+            food: 4,
+            fuel: 6,
+            item: 'riot-shield',
+            grade: 'standard',
+          },
+        ],
+      }),
+    },
+    'planning/itemSold': {
+      // A riot shield is a 10 on the Rare Item Table (pg. 43): it sells for 8 (R54; Z5-9).
+      state: openState(
+        withPlanningBegun({
+          ...expectOpen(rich()),
+          step: 'assign-project-team',
+          inventory: [{ id: 'shield', item: 'riot-shield', grade: 'standard' }],
+        }),
+      ),
+      action: { type: 'planning/itemSold', at: AT, id: 'shield', payment: { food: 3, fuel: 5 } },
+      entry: entry(3, 'planning', {
+        kind: 'item-sold',
+        id: 'shield',
+        item: 'riot-shield',
+        grade: 'standard',
+        food: 3,
+        fuel: 5,
+      }),
+    },
     'project/cancelled': {
       // In the step that placed the order, which is the only one that may take
       // it back (#148) — and a Watchtower's 3 Hardware is what comes back.
@@ -2665,6 +2767,48 @@ describe('what earns a line in the log', () => {
         grade: 'standard',
       }),
     },
+    'vehicles/added': {
+      action: {
+        type: 'vehicles/added',
+        at: AT,
+        vehicle: { id: 'car', tier: 2, label: 'Red pickup', water: false },
+      },
+      entry: entry(3, 'mission', {
+        kind: 'vehicle-added',
+        vehicle: { id: 'car', tier: 2, label: 'Red pickup', water: false },
+      }),
+    },
+    'vehicles/removed': {
+      state: openState({
+        ...expectOpen(rich()),
+        vehicles: [{ id: 'car', tier: 2, label: 'Red pickup', water: false }],
+      }),
+      action: { type: 'vehicles/removed', id: 'car', at: AT },
+      entry: entry(3, 'mission', {
+        kind: 'vehicle-removed',
+        id: 'car',
+        label: 'Red pickup',
+        tier: 2,
+      }),
+    },
+    'planning/vehicleUpgradeFitted': {
+      // A roof rack from the Inventory onto the pickup, at Planning, for nothing (R67).
+      state: openState(
+        withPlanningBegun({
+          ...expectOpen(rich()),
+          step: 'assign-project-team',
+          inventory: [{ id: 'rack', item: 'car-roof-rack', grade: 'standard' }],
+          vehicles: [{ id: 'car', tier: 2, label: 'Red pickup', water: false }],
+        }),
+      ),
+      action: { type: 'planning/vehicleUpgradeFitted', item: 'rack', vehicle: 'car', at: AT },
+      entry: entry(3, 'planning', {
+        kind: 'vehicle-upgrade-fitted',
+        vehicle: 'car',
+        label: 'Red pickup',
+        item: { id: 'rack', item: 'car-roof-rack', grade: 'standard' },
+      }),
+    },
     'mission/itemMoved': {
       // Marcus is going out on team 1, so a pistol from the base's Inventory
       // goes to him at Equip Mission Team (R38; Z5-4).
@@ -2710,6 +2854,113 @@ describe('what earns a line in the log', () => {
             name: 'Marcus Webb',
           },
         ],
+      }),
+    },
+    'mission/survivorKilled': {
+      // Marcus died on team 1's mission, and nobody took his pistol (R71; Z5-13).
+      state: openState({
+        ...expectOpen(
+          marcusOnTeamOne([
+            entry(3, 'mission', {
+              kind: 'mission-selected',
+              team: 1,
+              mission: 'left-behind-1',
+              names: ['Marcus Webb'],
+            }),
+            entry(3, 'mission', { kind: 'mission-played', team: 1, mission: 'left-behind-1' }),
+          ]),
+        ),
+        survivors: expectOpen(marcusOnTeamOne()).survivors.map((survivor) =>
+          survivor.id === LOGGED_SURVIVOR
+            ? { ...survivor, items: [{ id: 'item-1', item: 'pistol', grade: 'standard' }] }
+            : survivor,
+        ),
+      }),
+      action: {
+        type: 'mission/survivorKilled',
+        death: { team: 1, survivor: LOGGED_SURVIVOR, taken: {} },
+        at: AT,
+      },
+      entry: entry(3, 'mission', {
+        kind: 'survivor-left',
+        ...WEBB,
+        tier: 2,
+        cause: 'killed',
+        team: 1,
+        lost: [{ id: 'item-1', item: 'pistol', grade: 'standard' }],
+      }),
+    },
+    'mission/vehicleTaken': {
+      // Team 1 takes the Tier 1 runabout, burning the base's 1 Fuel (R65; Z5-12).
+      state: openState({
+        ...expectOpen(marcusOnTeamOne()),
+        vehicles: [{ id: 'car', tier: 1, label: 'Runabout', water: false }],
+      }),
+      action: { type: 'mission/vehicleTaken', team: 1, vehicle: 'car', at: AT },
+      entry: entry(3, 'mission', {
+        kind: 'vehicle-taken',
+        team: 1,
+        vehicle: 'car',
+        label: 'Runabout',
+        tier: 1,
+        fuel: 1,
+      }),
+    },
+    'mission/vehicleLeftHome': {
+      // Taken by mistake, the runabout stays home and its Fuel comes back (Z5-12).
+      state: openState({
+        ...expectOpen(
+          marcusOnTeamOne([
+            entry(3, 'mission', {
+              kind: 'vehicle-taken',
+              team: 1,
+              vehicle: 'car',
+              label: 'Runabout',
+              tier: 1,
+              fuel: 1,
+            }),
+          ]),
+        ),
+        vehicles: [{ id: 'car', tier: 1, label: 'Runabout', water: false }],
+      }),
+      action: { type: 'mission/vehicleLeftHome', vehicle: 'car', at: AT },
+      entry: entry(3, 'mission', {
+        kind: 'vehicle-left-home',
+        team: 1,
+        vehicle: 'car',
+        label: 'Runabout',
+        fuel: 1,
+      }),
+    },
+    'mission/vehiclesBroughtHome': {
+      // Nobody drove the runabout off team 1's mission, so it is lost (R70; Z5-12).
+      state: openState({
+        ...expectOpen(
+          marcusOnTeamOne([
+            entry(3, 'mission', {
+              kind: 'mission-selected',
+              team: 1,
+              mission: 'left-behind-1',
+              names: ['Marcus Webb'],
+            }),
+            entry(3, 'mission', {
+              kind: 'vehicle-taken',
+              team: 1,
+              vehicle: 'car',
+              label: 'Runabout',
+              tier: 1,
+              fuel: 1,
+            }),
+            entry(3, 'mission', { kind: 'mission-played', team: 1, mission: 'left-behind-1' }),
+          ]),
+        ),
+        vehicles: [{ id: 'car', tier: 1, label: 'Runabout', water: false }],
+      }),
+      action: { type: 'mission/vehiclesBroughtHome', team: 1, drivenOff: [], at: AT },
+      entry: entry(3, 'mission', {
+        kind: 'vehicles-brought-home',
+        team: 1,
+        lost: [{ id: 'car', tier: 1, label: 'Runabout', water: false }],
       }),
     },
     'advancement/survivorReturned': {

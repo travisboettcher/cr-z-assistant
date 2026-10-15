@@ -28,6 +28,7 @@ import {
   turnMissions,
   type MissionTeam,
 } from '../engine/missions';
+import { rareTradeBinds } from '../engine/rareTrade';
 import { claimWarning } from '../engine/claim';
 import { useCampaign } from '../state/useCampaign';
 import { BASE_LABELS, MATERIAL_LABELS } from './baseLabels';
@@ -218,6 +219,14 @@ export function SelectMission({ campaign }: { readonly campaign: Campaign }) {
         Each mission team plays its own mission this turn. The teams are the ones the Planning Phase
         assigned <PageRef pages="17, 21" />
       </p>
+
+      {/* The trade made last turn binds this turn's first choice (R60; Z5-10). */}
+      {rareTradeBinds(campaign) && (
+        <p className="mt-3 text-sm font-medium text-amber-800 dark:text-amber-300">
+          A Rare Items trade is under way: the first mission chosen must be the Rare Goods Trader.
+          Another, or skipping, loses what was set aside for it <PageRef pages={21} />
+        </p>
+      )}
 
       {skipped && (
         <p className="mt-3 text-sm font-medium">

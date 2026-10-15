@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import currentFixture from './__fixtures__/campaign-v17.json';
+import currentFixture from './__fixtures__/campaign-v18.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -182,6 +182,170 @@ describe('parseCampaignFile', () => {
 
     expect(result.error.reason).toBe('damaged-campaign');
     expect(result.error.message).toMatch(/County Road Z/);
+  });
+
+  /** Trades on their way (Z5-9): each an item with what it cost and when it was ordered. */
+  /** The vehicles the community holds (Z5-11). */
+  describe('vehicles', () => {
+    const pickup = { id: 'pickup', tier: 2, label: 'Red pickup', water: false };
+    const message = (vehicles: unknown, more: object = {}) => {
+      const result = parseCampaignFile(savedWith({ vehicles, ...more }));
+
+      return result.ok ? null : result.error.message;
+    };
+
+    it('reads them back, a split and an upgrade included', () => {
+      const vehicles = [
+        { ...pickup, upgrade: { id: 'rack', item: 'car-roof-rack', grade: 'standard' } },
+        { id: 'bus', tier: 4, label: 'School bus', water: true, inventorySlots: 12 },
+      ];
+      const result = parseCampaignFile(savedWith({ vehicles }));
+
+      expect(result.ok && result.campaign.vehicles).toEqual(vehicles);
+    });
+
+    it.each([
+      ['a list that is not one', 'pickup', 'its vehicles: is not a list'],
+      ['a vehicle that is not one', [7], 'vehicle 1 of 1 is not a vehicle'],
+      ['no id', [{ ...pickup, id: '' }], 'has no id'],
+      ['an id that is not a string', [{ ...pickup, id: 7 }], 'has no id'],
+      ['no Tier', [{ ...pickup, tier: 5 }], 'has no Tier from 1 to 4'],
+      ['no label', [{ ...pickup, label: 3 }], 'has no label'],
+      ['no word on the water', [{ ...pickup, water: 'no' }], 'whether it is a boat'],
+      ['an unreadable split', [{ ...pickup, inventorySlots: -1 }], 'unreadable split'],
+      [
+        'an upgrade that is not an item',
+        [{ ...pickup, upgrade: { id: 'x', item: 'laser', grade: 'standard' } }],
+        'has an upgrade that',
+      ],
+      ['one id twice', [pickup, { ...pickup, label: 'Other' }], 'two vehicles with one id: pickup'],
+    ])('refuses %s', (_label, vehicles, expected) => {
+      expect(message(vehicles)).toContain(expected);
+    });
+
+    it('refuses an upgrade with an item’s id', () => {
+      expect(
+        message(
+          [{ ...pickup, upgrade: { id: 'rack', item: 'car-roof-rack', grade: 'standard' } }],
+          {
+            inventory: [{ id: 'rack', item: 'bow', grade: 'standard' }],
+          },
+        ),
+      ).toContain('it holds two items with one id: rack');
+    });
+  });
+
+  /** A Rare Items trade under way (Z5-10): its turn, and each item with its dice and its share. */
+  describe('a Rare Items trade under way', () => {
+    const item = {
+      id: 'shield',
+      item: 'riot-shield',
+      grade: 'standard',
+      subtable: 3,
+      entry: 1,
+      food: 4,
+      fuel: 6,
+    };
+    const message = (rareTrade: unknown, more: object = {}) => {
+      const result = parseCampaignFile(savedWith({ rareTrade, ...more }));
+
+      return result.ok ? null : result.error.message;
+    };
+
+    it('reads one back, or none', () => {
+      const trade = { madeOnTurn: 3, items: [item] };
+      const result = parseCampaignFile(savedWith({ rareTrade: trade }));
+
+      expect(result.ok && result.campaign.rareTrade).toEqual(trade);
+      expect(message(null)).toBeNull();
+    });
+
+    it.each([
+      ['a trade that is not one', 7, 'its Rare Items trade is not a trade'],
+      ['no turn', { items: [item] }, 'does not say which turn it was made on'],
+      ['items that are not a list', { madeOnTurn: 3, items: 'shield' }, 'is not a list'],
+      [
+        'an item that is not one',
+        { madeOnTurn: 3, items: [item, { ...item, id: 'b', item: 'laser' }] },
+        'item 2 of 2',
+      ],
+      [
+        'a die that is not one',
+        { madeOnTurn: 3, items: [{ ...item, subtable: 11 }] },
+        'item 1 of 1 does not say which roll found it',
+      ],
+      [
+        'a second die that is not one',
+        { madeOnTurn: 3, items: [{ ...item, entry: 0 }] },
+        'item 1 of 1 does not say which roll found it',
+      ],
+      [
+        'no Food set aside',
+        { madeOnTurn: 3, items: [{ ...item, food: undefined }] },
+        'item 1 of 1 does not say what was set aside for it',
+      ],
+      [
+        'a Fuel of half',
+        { madeOnTurn: 3, items: [{ ...item, fuel: 0.5 }] },
+        'item 1 of 1 does not say what was set aside for it',
+      ],
+    ])('refuses %s', (_label, rareTrade, expected) => {
+      expect(message(rareTrade)).toContain(expected);
+    });
+
+    it('refuses an id an item already has', () => {
+      expect(
+        message(
+          { madeOnTurn: 3, items: [item] },
+          { inventory: [{ id: 'shield', item: 'bow', grade: 'standard' }] },
+        ),
+      ).toContain('it holds two items with one id: shield');
+    });
+  });
+
+  describe('trades on order', () => {
+    const trade = {
+      id: 'traded',
+      item: 'pistol',
+      grade: 'standard',
+      food: 2,
+      fuel: 4,
+      orderedOnTurn: 3,
+    };
+    const problem = (trades: unknown) => {
+      const result = parseCampaignFile(savedWith({ trades }));
+
+      return result.ok ? null : result.error.message;
+    };
+
+    it('reads a list of them back', () => {
+      const result = parseCampaignFile(savedWith({ trades: [trade] }));
+
+      expect(result.ok && result.campaign.trades).toEqual([trade]);
+    });
+
+    it.each([
+      ['a list that is not one', 'many', 'its trades on order: is not a list'],
+      ['an item that is not one', [trade, { ...trade, id: 'b', item: 'laser' }], 'trade 2 of 2'],
+      ['no Food', [{ ...trade, food: undefined }], 'trade 1 of 1 does not say what it cost'],
+      ['a Fuel of half', [{ ...trade, fuel: 0.5 }], 'trade 1 of 1 does not say what it cost'],
+      [
+        'no turn',
+        [{ ...trade, orderedOnTurn: 0 }],
+        'trade 1 of 1 does not say which turn it was ordered on',
+      ],
+      [
+        'an id an item already has',
+        [trade],
+        'it holds two items with one id: traded',
+        { inventory: [{ id: 'traded', item: 'bow', grade: 'standard' }] },
+      ],
+    ])('refuses %s', (_label, trades, expected, more?: object) => {
+      const result = parseCampaignFile(savedWith({ trades, ...more }));
+
+      expect(result.ok ? null : result.error.message).toContain(expected);
+      expect(problem([trade])).toBeNull();
+    });
   });
 
   it('says which part of the campaign is wrong', () => {
@@ -830,6 +994,40 @@ describe('a campaign whose log is damaged', () => {
     at: '2026-09-08T21:00:00.000Z',
     event: { kind: 'survivor-added', survivor: 'a', name: 'Earl Rhodes', tier: 3 },
   };
+
+  /** The Rare Items trade's entries (Z5-10), read as the campaign's trade is. */
+  it.each([
+    [
+      'a trade made with an unreadable item',
+      { kind: 'rare-trade-made', items: [{ id: 'a', item: 'riot-shield', grade: 'standard' }] },
+      'unreadable items',
+    ],
+    [
+      'a vehicle driven off with no roll',
+      {
+        kind: 'retrieve-new-vehicles-resolved',
+        team: 1,
+        vehiclesDrivenOff: 1,
+        retrieved: [{ id: 'car', tier: 1, label: 'Car', water: false }],
+        strangers: [],
+      },
+      'unreadable retrieved',
+    ],
+    [
+      'a vehicle added that is not one',
+      { kind: 'vehicle-added', vehicle: { id: 'car', tier: 9, label: 'Car', water: false } },
+      'unreadable vehicle',
+    ],
+    [
+      'a trade lost for a reason this version does not know',
+      { kind: 'rare-trade-lost', reason: 'weather', items: [], food: 0, fuel: 0 },
+      'unreadable reason',
+    ],
+  ])('refuses %s', (_label, event, expected) => {
+    const result = parseCampaignFile(savedWith({ log: [{ ...good, event }] }));
+
+    expect(result.ok ? null : result.error.message).toContain(expected);
+  });
 
   function refusalFor(log: unknown) {
     const result = parseCampaignFile(savedWith({ log }));

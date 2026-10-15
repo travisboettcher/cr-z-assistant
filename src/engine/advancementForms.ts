@@ -48,7 +48,13 @@ import {
 import { rareRollsProblem, withItemsFound, type RareItemRoll } from './finding';
 import { installProblem, withRareUpgradeInstalled } from './install';
 import { turnoutGear, withEquipmentHandedOver } from './handover';
-import { moveProblem, rebuildAfterMove, storesAfterMove, withBaseMoved } from './move';
+import {
+  lostInOverrun,
+  moveProblem,
+  rebuildAfterMove,
+  storesAfterMove,
+  withBaseMoved,
+} from './move';
 
 /** This turn's haul, as the table rolled it (pp. 17–19). */
 export interface HaulForm {
@@ -436,6 +442,7 @@ export function submitBaseMove(
 
   const stores = storesAfterMove(campaign);
   const rebuild = rebuildAfterMove(campaign);
+  const lost = lostInOverrun(campaign);
 
   const moved = logged(withBaseMoved(campaign, leaving), at, {
     kind: 'base-moved',
@@ -448,8 +455,16 @@ export function submitBaseMove(
     ...(rebuild === null ? {} : { rebuild }),
   });
 
+  // What stayed in the overrun base, an entry of its own when there was any
+  // (R53, R78, R79).
+  const left =
+    lost === null ||
+    (lost.items.length === 0 && lost.vehicles.length === 0 && lost.trades.length === 0)
+      ? moved
+      : logged(moved, at, { kind: 'overrun-lost', ...lost });
+
   // Moving into a Regional Firehouse hands over its Turnout Gear (R46; Z5-8).
-  return accepted(withEquipmentHandedOver(moved, to, turnoutGear(moved, to), at));
+  return accepted(withEquipmentHandedOver(left, to, turnoutGear(left, to), at));
 }
 
 /**

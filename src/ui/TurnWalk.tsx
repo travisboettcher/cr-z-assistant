@@ -22,7 +22,9 @@ import { AdvancementPhase } from './AdvancementPhase';
 import { EquipMissionTeam } from './EquipMissionTeam';
 import { FirstMission } from './FirstMission';
 import { MissionOutcome } from './MissionOutcome';
+import { MissionDeaths } from './MissionDeaths';
 import { MissionSpent } from './MissionSpent';
+import { MissionVehicles } from './MissionVehicles';
 import { SelectMission } from './SelectMission';
 import { SiegeWork } from './SiegeWork';
 import { ManagementPhase } from './ManagementPhase';
@@ -302,10 +304,23 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
             {campaign.step === 'tactical-mission' && <MissionOutcome campaign={campaign} />}
 
             {/*
+             * Who died on a team's mission (Z5-13), first of what follows the
+             * outcome: their gear is lost or taken there, and is then no
+             * longer the team's to record as used.
+             */}
+            {campaign.step === 'tactical-mission' && <MissionDeaths campaign={campaign} />}
+
+            {/*
              * What each team's mission used up or lost (Z5-5), beside its
              * outcome, because the table has the cards in front of it now.
              */}
             {campaign.step === 'tactical-mission' && <MissionSpent campaign={campaign} />}
+
+            {/*
+             * Which vehicles each team drove off (Z5-12), after what it used:
+             * a lost vehicle's load is ticked there.
+             */}
+            {campaign.step === 'tactical-mission' && <MissionVehicles campaign={campaign} />}
 
             {/*
              * The fourth, once a Siege Defense is on the record: who it took

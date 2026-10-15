@@ -545,8 +545,7 @@ Confirmed 2026-10-14 ([the registry](rulings.md)), R70 and R78 decided the same 
   rare item, a quality weapon, an unpriced grade, or storage that cannot pay. Nobody is assigned and
   no Labor is spent (R52).
 - The materials leave at once; the order waits on the campaign and arrives at the next Add
-  Facilities and Upgrades, in whatever base the community holds then (R53). No cancelling. Starting
-  over loses waiting orders.
+  Facilities and Upgrades, in whatever base the community holds then (R53). No cancelling.
 - Selling a rare item from the Inventory in the Planning Phase: its price less two, paid at once in
   the player's mix of Food and Fuel (R54), over the cap if need be, with Check Storage's warning
   (R56).
@@ -555,6 +554,32 @@ Confirmed 2026-10-14 ([the registry](rulings.md)), R70 and R78 decided the same 
 - An item ordered on turn 3 costs its Food and Fuel on turn 3 and is in the Inventory at turn 4's Add
   Facilities and Upgrades, not before.
 - A rare item priced 6 sells for 4.
+
+**What this story turned out to include.**
+
+- **Schema v18 adds `Campaign.trades`**, the orders on their way, each with the id its item will
+  have, what was paid and the turn it was ordered on. The v17 → v18 step gives every older save an
+  empty list: nothing before could trade.
+- **`src/engine/trading.ts`** answers what can be bought and sold. A Planning trade buys what the
+  equipment tables price for trade (R51, R55): never a rare kind, and never a quality weapon, whose
+  row prints no trade price. A sale is for an item on the Rare Item Table at its grade, at that
+  table's price less two (R54), so a quality tool belt sells for 4 however the community came by
+  it. Going over a cap is a warning in the haul's words; the sale stands (R56).
+- **Three entries**: `trade-ordered` with what was paid, `trade-arrived`, and `item-sold` with what
+  came in. Ordering and arriving are two things that happened, as a project's order and its
+  building are.
+- **Trades land with the projects.** Add Facilities and Upgrades lists them under "Finishing now"
+  and its one button finishes both, named for what it finishes ("Finish the project and 2 trades").
+  A trade not yet arrived is owed on End turn, as a due project is.
+- **One question for a new item's id.** `idTaken` asks whether anything the campaign holds, or a
+  trade on its way, has the id; building, rolling on the Rare Item Table, a haul's finds, adding by
+  hand and trading all ask it.
+- **The forms are in the Inventory's modal**, beside Build: Trade for an item, and Sell a rare item
+  while the Inventory holds one, each with a Food picker and the Fuel making up the rest. Both are
+  secondary buttons, so Build stays the modal's one amber action. Orders on their way are listed
+  under the Inventory as "On order".
+- **Starting over losing waiting orders (R53) moved to Z5-13**, with the rest of what an overrun
+  loses.
 
 ### Z5-10 — The Rare Items trade and the Rare Goods Trader
 
@@ -578,6 +603,30 @@ Confirmed 2026-10-14 ([the registry](rulings.md)), R70 and R78 decided the same 
 - A trade for two items, one traded before nobody got out, loses that item and its materials and
   returns the other's.
 
+**What this story turned out to include.**
+
+- **`Campaign.rareTrade`, in v18 beside the trades**: the turn it was made and its items in
+  priority order, each with the dice that found it on the trader's list, the id it will have, and
+  the Food and Fuel set aside for it. Kept per item because the outcome returns the materials of the
+  items not traded (R22): what comes back is then a fact, not a split worked out afterwards.
+- **`src/engine/rareTrade.ts`**: the list's size (every survivor's Scout Score plus Cooperation;
+  one without Scout adds Cooperation alone, noted under R58), the check, and the three ways a trade
+  ends. It is made in the Planning Phase with a mission team assigned for next turn; the team is
+  read from the assignments being made, since `missionTeams` reads the teams that went out this turn.
+- **Three entries**: `rare-trade-made`; `rare-trade-lost`, naming why (a siege, another mission
+  chosen first, or the mission sat out) and the Food and Fuel lost; and `rare-trade-closed`, naming
+  what arrived, what was lost with nobody out, and what came back.
+- **The Rare Goods Trader's outcome counts the items handed over**, `itemsTraded`, asked only while a
+  trade made on an earlier turn is under way and refused above what it holds. The first that many
+  in priority order are the ones traded (pg. 84).
+- **Losing the trade is in the forms that cause it**: `submitMissionSelection` for another mission
+  chosen first, `submitMissionSkip` for sitting it out, and `submitHordeCheck` for a siege. Select
+  Mission says what binds it while the trade waits.
+- **The form is in the Inventory's modal**, beside trading and selling: the list's size, two dice
+  per roll with the item and its price, a Food picker for what is set aside, the chosen items in
+  priority order, and one secondary button to make the trade. While one is under way the modal
+  shows what it holds back instead.
+
 ### Z5-11 — Vehicles the community holds
 
 **Why:** A community keeps vehicles, and two missions add them (pp. 49, 52–53, 79, 81–82).
@@ -587,15 +636,40 @@ Confirmed 2026-10-14 ([the registry](rulings.md)), R70 and R78 decided the same 
   slots, and its upgrade if it has one (R62). No cap, and Check Storage ignores them (R68). They move
   with the community (R77).
 - Retrieve New Vehicles' outcome counts the vehicles driven off; each then asks for its rolled Tier,
-  which the player may lower, and a label (R63). A won Claim a New Base adds the vehicles on its
-  mission area at their Tiers (R64).
+  which the player may lower, and a label (R63). A won Claim a New Base keeps the vehicles on its
+  mission area at their Tiers (R64), which the community already holds.
 - A vehicle upgrade in the Inventory is fitted to a vehicle with none, in the Planning Phase, for
   nothing (R67). It stays with that vehicle.
-- A Vehicles card's modal lists them; the main screen gets no new section.
+- The Inventory's modal lists them, and its card counts them; the main screen gets no new section.
 
 **Acceptance**
 - Retrieve New Vehicles with two driven off, rolled 5 and 10, adds a Tier 2 and a Tier 4, or a lower
   Tier the player chose.
+
+**What this story turned out to include.**
+
+- **`Campaign.vehicles`, in v18**: each an id, a Tier, a label, whether it is a boat, Tier 4's
+  Inventory Slots (the rest are Passenger Slots), and the upgrade fitted to it, the item itself.
+  Campaign-wide, so a move takes them (R77), and nothing about a mission is kept (R62, R69).
+- **In the Inventory, not a card of their own.** The book adds vehicles to the base's Inventory
+  (pp. 79, 82), and the summary's four columns have no room for a fifth card: the Inventory card
+  counts them on a line of its own, and its modal lists them under Vehicles with their slots, a
+  button to fit an upgrade, and one to take a vehicle out, beside an add-by-hand form.
+- **Retrieve New Vehicles' outcome asks for each vehicle driven off**: its setup d10, a Tier no
+  higher than that roll gives (R63), a name, whether it is a boat, and Tier 4's split. The outcome
+  entry carries them as `retrieved`, and they join when it is recorded. `src/data/equipment.ts`
+  holds the d10's Tiers.
+- **A won Claim a New Base adds nothing new here.** The vehicles on its area are the ones the team
+  brought (R64), which the community already holds; Z5-12 keeps them where a lost vehicle would
+  otherwise go, and Z5-13 brings back an overrun base's.
+- **Fitting is `vehicleUpgrades.ts`**, kept apart from `vehicles.ts` because it reads the phase and
+  the outcome's check reads `vehicles.ts`. The item leaves the Inventory for the vehicle, and
+  `allItems` counts it there; a vehicle taken out takes it along (R67).
+- **What an upgrade does to slots is Z5-12's**, with the rest of what a vehicle does on a mission:
+  the roof rack's four more Inventory Slots, and the electric conversion's two fewer, which the
+  extract does not say are Inventory or Passenger Slots (R82 settles it).
+- **The item generators in the property tests are one record per kind** now: a record whose kind
+  is a union of two stopped type-checking as either once another entry's `item` is an object.
 
 ### Z5-12 — Vehicles on a mission
 
@@ -616,6 +690,22 @@ it home (pp. 18, 32, 52, 71).
 - A Tier 3 vehicle taken costs 3 Fuel; not driven off, it is gone from the community's vehicles and
   the log says so.
 
+**What this story turned out to include.**
+- **The electric conversion's two fewer slots are Inventory Slots** (R82, decided 2026-10-15). An
+  upgrade's effect on its vehicle is catalogue data (`onVehicle`), which `vehicleSlots` and
+  `fuelFor` read; a vehicle never goes below no Inventory Slots.
+- **Which Auto Shop a conversion needs is R83, recorded open**: the app takes any working Auto Shop
+  on a powered slot, for any number of converted vehicles.
+- **What is taken is read off this turn's log**, as `missionVehicles.ts` does, and nothing is stored
+  on the vehicle (R62). A vehicle taken by mistake is left home at the same step and its Fuel comes
+  back; once its team records which came home, neither is possible.
+- **Which came home is recorded after the team's outcome**, because a won claim keeps them all
+  (R64) and only the outcome says it was won. Until then the turn owes it (`outstanding`), so a
+  vehicle left on the map does not stay in the community. A team whose mission is no longer chosen
+  owes nothing.
+- **What a lost vehicle held is lost through the items-spent record**: the tracker keeps every item
+  on a survivor (R69), so the bring-home record names only the vehicles.
+
 ### Z5-13 — When items change hands
 
 **Why:** Z5-5 left every leaver's items at the base until part 3 ruled where they go (FAQ; pp. 22–23,
@@ -630,12 +720,32 @@ it home (pp. 18, 32, 52, 71).
   (R77).
 - An overrun loses the base's Inventory in every way on (R78); a same-type, same-map claim brings
   the vehicles back as repairable ones to drive off (R63, R64), and starting over loses them (R79).
+- Starting over loses trades still on their way (R53), moved here from Z5-9.
 
 **Acceptance**
 - A survivor who departs carrying a rifle takes it; one bitten to death leaves theirs in the
   Inventory.
 - After an overrun claimed on another base type, the Inventory is empty and every survivor still
   carries what they did.
+
+**What this story turned out to include.**
+- **A death on a mission is recorded by the table**, under the team's outcome, folded away because
+  most missions lose nobody: who died, and for each item they carried whether it stayed on the map
+  or which teammate took it home (R71). The survivor leaves with the cause `killed`, beside #201's
+  three, and the entry names the team and what was lost; each item taken is an `item-moved` to its
+  taker. It is never owed: the tracker cannot know somebody died.
+- **A departure takes what the survivor carried** (R73), and its entry names it. Nothing of theirs
+  goes to the base now, and the turned, the bitten and the removed still leave theirs there (R72,
+  R74, R75).
+- **Set aside and sent away were already right**: a survivor set aside, by an abandoned community or
+  a Hero over a new base's cap, leaves the roster whole, with what they carry (R76, R77).
+- **What an overrun loses is lost at the move**, when the community leaves the base, and the move's
+  panel says what beforehand. The Inventory goes whichever way the community went on (R78); the
+  vehicles stay only with a reclaim on the same map (R64, R78); starting over, either way, loses the
+  orders on their way too (R53, R79). An `overrun-lost` entry after the move names all of it.
+- **A claim after an overrun keeps its orders**, which arrive wherever the community is (R53). One
+  that already arrived at this turn's Add Facilities and Upgrades is in the Inventory by the time of
+  the move, and is lost with it.
 
 ## Phase 5 is done when
 

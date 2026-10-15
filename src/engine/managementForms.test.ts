@@ -72,7 +72,8 @@ describe('submitRotCheck', () => {
     ]);
   });
 
-  it('leaves what the turned and the bitten carried, after they are written off (Z5-5)', () => {
+  /** The acceptance's other half: one bitten to death leaves theirs in the Inventory. */
+  it('leaves what the turned and the bitten carried, after they are written off (R72, R74)', () => {
     const base = dying(1);
     const armed = {
       ...base,
@@ -326,10 +327,10 @@ describe('submitDeparture', () => {
     ]);
   });
 
-  /** Until part 3 rules where it goes, nothing a leaver carried goes unrecorded (Z5-5). */
-  it('leaves what they carried in the base’s Inventory', () => {
+  /** The acceptance's first half: a survivor who departs carrying a rifle takes it (R73). */
+  it('takes what they carried, and the entry says what', () => {
     const crowded = crowd();
-    const bow = { id: 'bow-1', item: 'bow', grade: 'standard' } as const;
+    const bow = { id: 'rifle-1', item: 'rifle', grade: 'standard' } as const;
     const carrying = {
       ...crowded,
       survivors: crowded.survivors.map((survivor, index) =>
@@ -338,8 +339,16 @@ describe('submitDeparture', () => {
     };
     const after = expectAccepted(submitDeparture(carrying, 'survivor-0', AT));
 
-    expect(after.inventory).toEqual([bow]);
-    expect(kinds(after)).toEqual(['survivor-departed', 'item-moved']);
+    expect(after.inventory).toEqual([]);
+    expect(after.log.map((entry) => entry.event)).toEqual([
+      {
+        kind: 'survivor-departed',
+        survivor: 'survivor-0',
+        name: 'Survivor 0',
+        tier: 1,
+        items: [bow],
+      },
+    ]);
   });
 
   it('refuses a second departure in the same turn, however high the pressure', () => {

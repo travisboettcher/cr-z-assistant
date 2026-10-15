@@ -45,7 +45,7 @@ import {
 } from '../engine/materials';
 import { baseMoved, claimedBase, heroesOverCap } from '../engine/claim';
 import { deployed } from '../engine/missions';
-import { moveProblem, storesAfterMove } from '../engine/move';
+import { lostInOverrun, moveProblem, storesAfterMove } from '../engine/move';
 import {
   rescuedStrangers,
   strangerProblem,
@@ -83,6 +83,7 @@ import {
 import { fellInTheSiege } from '../engine/siegeWork';
 import { rareItemFor, rareRollsDue } from '../engine/finding';
 import { describeItem, ITEM_LABELS } from './equipmentLabels';
+import { dueTrades } from '../engine/trading';
 import { CORE_WEAPONS, EQUIPMENT, type ItemId } from '../data/equipment';
 import { SiegeWork } from './SiegeWork';
 import { describeProject } from './projectLabels';
@@ -1231,12 +1232,27 @@ const XP_POOL_EMPTY: Record<XpPoolEmptiness, string> = {
  * shape and a player should be able to see what is about to change. Nothing is
  * pressed for them: the walk can be stepped through by accident.
  */
+/** The step's button, naming what it finishes: "Finish 2 projects and the trade". */
+function finishLabel(projects: number, trades: number): string {
+  const counted = (count: number, one: string, many: string) =>
+    count === 1 ? `the ${one}` : `${String(count)} ${many}`;
+  const parts = [
+    ...(projects === 0 ? [] : [counted(projects, 'project', 'projects')]),
+    ...(trades === 0 ? [] : [counted(trades, 'trade', 'trades')]),
+  ];
+
+  return `Finish ${parts.join(' and ')}`;
+}
+
 function FinishProjects({ campaign }: { readonly campaign: Campaign }) {
   const { dispatch } = useCampaign();
 
   const due = dueProjects(campaign);
   const waiting = campaign.projects.filter((project) => !isDue(campaign, project));
   const short = siegeLaborShortfall(campaign);
+  // Last turn's trades land here too (pg. 19; R53; Z5-9).
+  const arriving = dueTrades(campaign);
+  const onTheWay = campaign.trades.length - arriving.length;
 
   // The Outdoor Sports Shop's weapons, the player's to choose (R45; Z5-8).
   const owed = weaponsOwed(campaign);
@@ -1259,9 +1275,9 @@ function FinishProjects({ campaign }: { readonly campaign: Campaign }) {
         </p>
       )}
 
-      {due.length === 0 ? (
+      {due.length === 0 && arriving.length === 0 ? (
         <p className={`mt-3 ${HINT}`}>
-          {waiting.length === 0
+          {waiting.length === 0 && onTheWay === 0
             ? 'Nothing was ordered, so nothing finishes this turn.'
             : 'Everything in the queue was ordered this turn, and finishes next turn.'}
         </p>
@@ -1274,6 +1290,11 @@ function FinishProjects({ campaign }: { readonly campaign: Campaign }) {
               // and have no identity of their own.
               <li key={at} className={HINT}>
                 {describeProject(project)}
+              </li>
+            ))}
+            {arriving.map((trade) => (
+              <li key={trade.id} className={HINT}>
+                A {describeItem(trade)}, from a trade <PageRef pages={21} />
               </li>
             ))}
           </ul>
@@ -1328,7 +1349,7 @@ function FinishProjects({ campaign }: { readonly campaign: Campaign }) {
                 });
               }}
             >
-              Finish {due.length === 1 ? 'the project' : `${String(due.length)} projects`}
+              {finishLabel(due.length, arriving.length)}
             </button>
           )}
         </>
@@ -1418,6 +1439,27 @@ function MoveIn({ campaign }: { readonly campaign: Campaign }) {
   const problem = moveProblem(campaign, leaving);
   const from = campaign.base === null ? null : BASE_LABELS[campaign.base.id];
   const stores = storesAfterMove(campaign);
+  const lost = lostInOverrun(campaign);
+  const losing =
+    lost === null
+      ? []
+      : [
+          ...(lost.items.length === 0
+            ? []
+            : [
+                lost.items.length === 1
+                  ? 'the 1 item in the Inventory'
+                  : `the ${String(lost.items.length)} items in the Inventory`,
+              ]),
+          ...lost.vehicles.map((vehicle) => vehicle.label),
+          ...(lost.trades.length === 0
+            ? []
+            : [
+                lost.trades.length === 1
+                  ? '1 order on its way'
+                  : `${String(lost.trades.length)} orders on their way`,
+              ]),
+        ];
 
   return (
     <section
@@ -1444,6 +1486,12 @@ function MoveIn({ campaign }: { readonly campaign: Campaign }) {
           </>
         )}
       </p>
+      {losing.length > 0 && (
+        <p className={`mt-1 ${HINT}`}>
+          Lost with the overrun base: {losing.join(', ')}. Survivors keep what they carry{' '}
+          <PageRef pages="85–86" />
+        </p>
+      )}
 
       {over > 0 && (
         <fieldset className="mt-3">

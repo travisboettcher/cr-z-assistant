@@ -74,12 +74,15 @@ describe('createNewCampaign', () => {
       'name',
       'projects',
       'rareRollsOwed',
+      'rareTrade',
       'schemaVersion',
       'setAside',
       'startingCommunityBuilt',
       'step',
       'survivors',
+      'trades',
       'turn',
+      'vehicles',
     ]);
   });
 });

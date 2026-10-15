@@ -18,8 +18,24 @@
 import { BASES } from '../data/bases';
 import { SKILLS, STATS } from '../data/skills';
 import { MATERIALS } from '../data/materials';
-import type { Base, Campaign, Item, Project, SlotState, Survivor } from '../engine/campaign';
-import type { CampaignEvent, ItemHolder, LogEntry, MissionWound } from '../engine/log';
+import type {
+  Base,
+  Campaign,
+  Item,
+  Project,
+  RareTradeItem,
+  SlotState,
+  Survivor,
+  TradeOrder,
+  Vehicle,
+} from '../engine/campaign';
+import type {
+  CampaignEvent,
+  ItemHolder,
+  LogEntry,
+  MissionWound,
+  RetrievedVehicle,
+} from '../engine/log';
 import { isMissionOutcome } from '../engine/missions';
 
 /** Material counts in the fixed order from the engine, not insertion order. */
@@ -84,6 +100,46 @@ function orderedSurvivor(survivor: Survivor): Record<keyof Survivor, unknown> {
 /** One item with its keys in a fixed order, for the reason a survivor's are. */
 function orderedItem(item: Item): Record<keyof Item, unknown> {
   return { id: item.id, item: item.item, grade: item.grade };
+}
+
+/** A vehicle with its keys in a fixed order, and its absent split and upgrade left absent. */
+function orderedVehicle(vehicle: Vehicle): Record<string, unknown> {
+  return {
+    id: vehicle.id,
+    tier: vehicle.tier,
+    label: vehicle.label,
+    water: vehicle.water,
+    ...(vehicle.inventorySlots === undefined ? {} : { inventorySlots: vehicle.inventorySlots }),
+    ...(vehicle.upgrade === undefined ? {} : { upgrade: orderedItem(vehicle.upgrade) }),
+  };
+}
+
+/** A vehicle Retrieve New Vehicles drove off, as `orderedVehicle` and then its roll. */
+function orderedRetrieved({ roll, ...vehicle }: RetrievedVehicle): Record<string, unknown> {
+  return { ...orderedVehicle(vehicle), roll };
+}
+
+function orderedRareTradeItem(item: RareTradeItem): Record<keyof RareTradeItem, unknown> {
+  return {
+    id: item.id,
+    item: item.item,
+    grade: item.grade,
+    subtable: item.subtable,
+    entry: item.entry,
+    food: item.food,
+    fuel: item.fuel,
+  };
+}
+
+function orderedTrade(trade: TradeOrder): Record<keyof TradeOrder, unknown> {
+  return {
+    id: trade.id,
+    item: trade.item,
+    grade: trade.grade,
+    food: trade.food,
+    fuel: trade.fuel,
+    orderedOnTurn: trade.orderedOnTurn,
+  };
 }
 
 /**
@@ -258,8 +314,41 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
     };
   }
 
-  if (event.kind === 'equipment-handed-over') {
+  if (event.kind === 'survivor-departed' && event.items !== undefined) {
     return { ...taggedFirst(event, 'kind'), items: event.items.map(orderedItem) };
+  }
+  if (event.kind === 'survivor-left' && event.lost !== undefined) {
+    return { ...taggedFirst(event, 'kind'), lost: event.lost.map(orderedItem) };
+  }
+  if (event.kind === 'equipment-handed-over' || event.kind === 'rare-trade-lost') {
+    return { ...taggedFirst(event, 'kind'), items: event.items.map(orderedItem) };
+  }
+  if (event.kind === 'vehicle-added') {
+    return { ...taggedFirst(event, 'kind'), vehicle: orderedVehicle(event.vehicle) };
+  }
+  if (event.kind === 'overrun-lost') {
+    return {
+      ...taggedFirst(event, 'kind'),
+      items: event.items.map(orderedItem),
+      vehicles: event.vehicles.map(orderedVehicle),
+      trades: event.trades.map(orderedTrade),
+    };
+  }
+  if (event.kind === 'vehicles-brought-home') {
+    return { ...taggedFirst(event, 'kind'), lost: event.lost.map(orderedVehicle) };
+  }
+  if (event.kind === 'vehicle-upgrade-fitted') {
+    return { ...taggedFirst(event, 'kind'), item: orderedItem(event.item) };
+  }
+  if (event.kind === 'rare-trade-made') {
+    return { ...taggedFirst(event, 'kind'), items: event.items.map(orderedRareTradeItem) };
+  }
+  if (event.kind === 'rare-trade-closed') {
+    return {
+      ...taggedFirst(event, 'kind'),
+      arrived: event.arrived.map(orderedItem),
+      lost: event.lost.map(orderedItem),
+    };
   }
   if (event.kind === 'items-spent') {
     return {
@@ -281,9 +370,15 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
     };
   }
 
-  if (!isMissionOutcome(event) || event.wounds === undefined) return taggedFirst(event, 'kind');
+  const outcome =
+    !isMissionOutcome(event) || event.wounds === undefined
+      ? taggedFirst(event, 'kind')
+      : { ...taggedFirst(event, 'kind'), wounds: event.wounds.map(orderedWound) };
 
-  return { ...taggedFirst(event, 'kind'), wounds: event.wounds.map(orderedWound) };
+  // The vehicles a Retrieve New Vehicles team drove off (Z5-11).
+  return event.kind === 'retrieve-new-vehicles-resolved' && event.retrieved !== undefined
+    ? { ...outcome, retrieved: event.retrieved.map(orderedRetrieved) }
+    : outcome;
 }
 
 /**
@@ -344,6 +439,15 @@ function inFileOrder(campaign: Campaign): Record<keyof Campaign, unknown> {
     setAside: campaign.setAside.map(orderedSurvivor),
     inventory: campaign.inventory.map(orderedItem),
     rareRollsOwed: campaign.rareRollsOwed,
+    trades: campaign.trades.map(orderedTrade),
+    vehicles: campaign.vehicles.map(orderedVehicle),
+    rareTrade:
+      campaign.rareTrade === null
+        ? null
+        : {
+            madeOnTurn: campaign.rareTrade.madeOnTurn,
+            items: campaign.rareTrade.items.map(orderedRareTradeItem),
+          },
     startingCommunityBuilt: campaign.startingCommunityBuilt,
     base: campaign.base === null ? null : orderedBase(campaign.base),
     assignments: orderedAssignments(campaign),

@@ -17,7 +17,7 @@
 import type { D10Result } from '../data/dice';
 import { RARE_ITEM_CATEGORIES, RARE_ITEM_TABLE, type RareItemEntry } from '../data/equipment';
 import type { Campaign } from './campaign';
-import { allItems } from './equipment';
+import { idTaken } from './equipment';
 import { logged } from './log';
 import { rareItemRolls, type MaterialRoll } from './materials';
 
@@ -64,8 +64,10 @@ export function rareRollsProblem(
       : `${String(due)} rolls on the Rare Item Table are owed: enter two dice for each.`;
   }
 
-  const ids = [...allItems(campaign).map((item) => item.id), ...rareItems.map((one) => one.id)];
-  if (ids.some((id, at) => ids.indexOf(id) !== at)) return 'An item already has that id.';
+  const ids = rareItems.map((one) => one.id);
+  if (ids.some((id, at) => idTaken(campaign, id) || ids.indexOf(id) !== at)) {
+    return 'An item already has that id.';
+  }
 
   return null;
 }

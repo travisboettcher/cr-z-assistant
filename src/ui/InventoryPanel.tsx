@@ -32,7 +32,27 @@ import {
   ENCHANTABLE,
   type Enchantable,
 } from '../engine/making';
-import { laborAvailable } from '../engine/projects';
+import { laborAvailable, orderable } from '../engine/projects';
+import { fitProblem } from '../engine/vehicleUpgrades';
+import { vehicleProblem, vehicleSlots } from '../engine/vehicles';
+import { VehicleFields, type VehicleDraft } from './VehicleFields';
+import {
+  pickPrice,
+  rareTradeCheck,
+  rareTradeRolls,
+  setAside,
+  tradeItemFor,
+  type RareTradePick,
+} from '../engine/rareTrade';
+import {
+  saleableItems,
+  saleCheck,
+  salePrice,
+  tradeableItems,
+  tradeCheck,
+  tradeGrades,
+  tradePrice,
+} from '../engine/trading';
 import { useCampaign } from '../state/useCampaign';
 import { describeItem, GRADE_LABELS, ITEM_KIND_LABELS, ITEM_LABELS } from './equipmentLabels';
 import { slotLabel } from './baseLabels';
@@ -122,11 +142,38 @@ export function InventoryPanel({ campaign }: { readonly campaign: Campaign }) {
             );
           })
         )}
+
+        {/* What a trade has paid for, arriving next Advancement (R53; Z5-9). */}
+        {campaign.trades.length > 0 && (
+          <div className="mt-4">
+            <h3 className="text-sm font-semibold">On order</h3>
+            <ul className="mt-1 flex flex-col">
+              {campaign.trades.map((trade) => (
+                <li
+                  key={trade.id}
+                  className="border-b border-stone-100 py-1.5 text-sm last:border-b-0 dark:border-stone-800"
+                >
+                  {ITEM_LABELS[trade.item]}{' '}
+                  <span className="text-stone-600 dark:text-stone-400">
+                    · {GRADE_LABELS[trade.grade]} · arrives at the next Add Facilities and Upgrades
+                  </span>{' '}
+                  <PageRef pages={19} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </section>
 
+      <Vehicles campaign={campaign} />
+
       <BuildItem campaign={campaign} />
+      <TradeForItem campaign={campaign} />
+      {saleableItems(campaign).length > 0 && <SellRareItem campaign={campaign} />}
+      <RareItemsTrade campaign={campaign} />
       <RollRareItem />
       <AddItem campaign={campaign} />
+      <AddVehicle campaign={campaign} />
     </div>
   );
 }
@@ -333,24 +380,394 @@ function BuildItem({ campaign }: { readonly campaign: Campaign }) {
   );
 }
 
+/** How much of a price is paid in Food, the rest in Fuel (pg. 21): a picker from none to all. */
+function FoodShare({
+  price,
+  food,
+  onChange,
+  label,
+}: {
+  readonly price: number;
+  readonly food: number;
+  readonly onChange: (food: number) => void;
+  readonly label: string;
+}) {
+  const id = useId();
+
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="text-sm">
+        {label}
+      </label>
+      <div className="flex items-center gap-2">
+        <select
+          id={id}
+          className={SELECT}
+          value={food}
+          onChange={(changed) => {
+            onChange(Number(changed.target.value));
+          }}
+        >
+          {Array.from({ length: price + 1 }, (_, amount) => (
+            <option key={amount} value={amount}>
+              {amount} Food
+            </option>
+          ))}
+        </select>
+        <span className="text-sm">and {price - food} Fuel</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Trading for an item at Planning Step 2 (pp. 19, 21; R51–R53; Z5-9): what the
+ * equipment tables price for trade, paid in any mix of Food and Fuel, and on
+ * order until the next Add Facilities and Upgrades. `trading.ts` says what may
+ * be bought and why not.
+ */
+function TradeForItem({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+  const itemId = useId();
+  const gradeId = useId();
+
+  const offered = tradeableItems(campaign);
+  const [chosenItem, setItem] = useState<ItemId>('pistol');
+  const item = offered.includes(chosenItem) ? chosenItem : (offered[0] ?? 'pistol');
+  const grades = tradeGrades(item);
+  const [chosenGrade, setGrade] = useState<Grade>('standard');
+  const grade = (grades as readonly Grade[]).includes(chosenGrade)
+    ? chosenGrade
+    : (grades[0] ?? 'standard');
+  const price = tradePrice(item, grade) ?? 0;
+  const [chosenFood, setFood] = useState<number | null>(null);
+  const food = Math.min(price, chosenFood ?? Math.min(price, campaign.materials.food));
+  const [fresh, setFresh] = useState(() => crypto.randomUUID());
+
+  const request = { id: fresh, item, grade, food, fuel: price - food };
+  const check = tradeCheck(campaign, request);
+
+  return (
+    <fieldset className="border-t border-stone-200 pt-4 dark:border-stone-800">
+      <legend className="font-medium">Trade for an item</legend>
+      <p className={`mt-1 ${HINT}`}>
+        Paid now in Food and Fuel, any mix, with no Labor, and here at the next Add Facilities and
+        Upgrades <PageRef pages="19, 21" />
+      </p>
+
+      <div className="mt-3 flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1">
+          <label htmlFor={itemId} className="text-sm">
+            Item to trade for
+          </label>
+          <select
+            id={itemId}
+            className={SELECT}
+            value={item}
+            onChange={(changed) => {
+              setItem(changed.target.value as ItemId);
+              setFood(null);
+            }}
+          >
+            {KINDS.map((kind) => {
+              const ofKind = offered.filter((id) => EQUIPMENT[id].kind === kind);
+
+              return ofKind.length === 0 ? null : (
+                <optgroup key={kind} label={ITEM_KIND_LABELS[kind]}>
+                  {ofKind.map((id) => (
+                    <option key={id} value={id}>
+                      {ITEM_LABELS[id]}
+                    </option>
+                  ))}
+                </optgroup>
+              );
+            })}
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor={gradeId} className="text-sm">
+            Grade to trade for
+          </label>
+          <select
+            id={gradeId}
+            className={SELECT}
+            value={grade}
+            onChange={(changed) => {
+              setGrade(changed.target.value as Grade);
+              setFood(null);
+            }}
+          >
+            {grades.map((option) => (
+              <option key={option} value={option}>
+                {GRADE_LABELS[option]}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <FoodShare price={price} food={food} onChange={setFood} label="Paid with" />
+      </div>
+
+      <p className={`mt-2 ${HINT}`}>
+        Costs {price} <PageRef pages={EQUIPMENT[item].pages} />
+      </p>
+
+      {check.blockers.length > 0 && (
+        <ul className="mt-2 flex flex-col gap-1">
+          {check.blockers.map((violation) => (
+            <li key={violation.code} className="text-sm text-amber-800 dark:text-amber-300">
+              {violation.message} <PageRef pages={violation.pages} />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <button
+        type="button"
+        className={`mt-3 ${SECONDARY}`}
+        disabled={check.blockers.length > 0}
+        onClick={() => {
+          dispatch({ type: 'planning/tradeOrdered', request, at: new Date().toISOString() });
+          setFresh(crypto.randomUUID());
+          setFood(null);
+        }}
+      >
+        Trade for it
+      </button>
+    </fieldset>
+  );
+}
+
+/**
+ * Selling a rare item in the Planning Phase (pp. 21, 37; R54, R56; Z5-9): its
+ * Rare Item Table price less two, in any mix of Food and Fuel. Going over a cap
+ * is said, not refused: Check Storage takes the excess.
+ */
+function SellRareItem({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+  const itemId = useId();
+
+  const offered = saleableItems(campaign);
+  const [chosen, setChosen] = useState('');
+  const item = offered.find((held) => held.id === chosen) ?? (offered[0] as Item);
+  const price = salePrice(item) ?? 0;
+  const [chosenFood, setFood] = useState(0);
+  const food = Math.min(price, chosenFood);
+  const payment = { food, fuel: price - food };
+  const check = saleCheck(campaign, item.id, payment);
+
+  return (
+    <fieldset className="border-t border-stone-200 pt-4 dark:border-stone-800">
+      <legend className="font-medium">Sell a rare item</legend>
+      <p className={`mt-1 ${HINT}`}>
+        At its price less two, in Food and Fuel, with no trader needed <PageRef pages="21, 37" />
+      </p>
+
+      <div className="mt-3 flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1">
+          <label htmlFor={itemId} className="text-sm">
+            Rare item to sell
+          </label>
+          <select
+            id={itemId}
+            className={SELECT}
+            value={item.id}
+            onChange={(changed) => {
+              setChosen(changed.target.value);
+            }}
+          >
+            {offered.map((held) => (
+              <option key={held.id} value={held.id}>
+                {ITEM_LABELS[held.item]} · {GRADE_LABELS[held.grade]}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <FoodShare price={price} food={food} onChange={setFood} label="Taken as" />
+      </div>
+
+      <p className={`mt-2 ${HINT}`}>
+        Sells for {price} <PageRef pages={43} />
+      </p>
+
+      {[...check.blockers, ...check.warnings].length > 0 && (
+        <ul className="mt-2 flex flex-col gap-1">
+          {[...check.blockers, ...check.warnings].map((violation) => (
+            <li key={violation.message} className="text-sm text-amber-800 dark:text-amber-300">
+              {violation.message} <PageRef pages={violation.pages} />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <button
+        type="button"
+        className={`mt-3 ${SECONDARY}`}
+        disabled={check.blockers.length > 0}
+        onClick={() => {
+          dispatch({
+            type: 'planning/itemSold',
+            id: item.id,
+            payment,
+            at: new Date().toISOString(),
+          });
+        }}
+      >
+        Sell
+      </button>
+    </fieldset>
+  );
+}
+
 /**
  * A roll on the Rare Item Table by hand (pg. 43; Z5-7), for the story and
  * origin rewards that roll on it. A haul's 10s are rolled at Add Materials to
  * Storage instead, where they are owed.
  */
-function RollRareItem() {
+/**
+ * The vehicles the community holds (pp. 49, 52–53; R62, R67; Z5-11): each with
+ * its Tier, its slots, whether it is a boat and its upgrade, and in the
+ * Planning Phase a vehicle upgrade from the Inventory to fit to one with none.
+ */
+function Vehicles({ campaign }: { readonly campaign: Campaign }) {
   const { dispatch } = useCampaign();
-  const firstId = useId();
-  const secondId = useId();
-  const [subtable, setSubtable] = useState<D10Result | undefined>(undefined);
-  const [entry, setEntry] = useState<D10Result | undefined>(undefined);
+  const upgrades = campaign.inventory.filter(
+    (item) => EQUIPMENT[item.item].kind === 'vehicle-upgrade',
+  );
 
-  const die = (
-    id: string,
-    label: string,
-    value: D10Result | undefined,
-    set: (d: D10Result) => void,
-  ) => (
+  return (
+    <section aria-label="Vehicles" className="border-t border-stone-200 pt-4 dark:border-stone-800">
+      <h3 className="font-medium">Vehicles</h3>
+      <p className={`mt-1 ${HINT}`}>
+        Held between missions with nothing in them, and never counted at Check Storage{' '}
+        <PageRef pages="23, 52–53" />
+      </p>
+
+      {campaign.vehicles.length === 0 ? (
+        <p className={`mt-3 ${HINT}`}>No vehicles yet.</p>
+      ) : (
+        <ul className="mt-2 flex flex-col">
+          {campaign.vehicles.map((vehicle) => {
+            const slots = vehicleSlots(vehicle);
+
+            return (
+              <li
+                key={vehicle.id}
+                className="flex flex-wrap items-center gap-2 border-b border-stone-100 py-1.5 last:border-b-0 dark:border-stone-800"
+              >
+                <span className="grow text-sm">
+                  {vehicle.label}{' '}
+                  <span className="text-stone-600 dark:text-stone-400">
+                    · Tier {vehicle.tier}
+                    {vehicle.water ? ' boat' : ''} · {slots.inventory} Inventory, {slots.passengers}{' '}
+                    Passenger Slots
+                    {vehicle.upgrade === undefined
+                      ? ''
+                      : ` · ${ITEM_LABELS[vehicle.upgrade.item].toLowerCase()}`}
+                  </span>
+                </span>
+                {vehicle.upgrade === undefined &&
+                  upgrades.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={SECONDARY}
+                      disabled={fitProblem(campaign, item.id, vehicle.id) !== null}
+                      onClick={() => {
+                        dispatch({
+                          type: 'planning/vehicleUpgradeFitted',
+                          item: item.id,
+                          vehicle: vehicle.id,
+                          at: new Date().toISOString(),
+                        });
+                      }}
+                    >
+                      Fit the {ITEM_LABELS[item.item].toLowerCase()}{' '}
+                      <span className="sr-only">to {vehicle.label}</span>
+                    </button>
+                  ))}
+                <button
+                  type="button"
+                  className={SECONDARY}
+                  aria-label={`Take ${vehicle.label} out`}
+                  onClick={() => {
+                    dispatch({
+                      type: 'vehicles/removed',
+                      id: vehicle.id,
+                      at: new Date().toISOString(),
+                    });
+                  }}
+                >
+                  Take out
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {/* Said once, not on every button: a fitting waits for the Planning Phase (R67). */}
+      {upgrades.length > 0 && !orderable(campaign) && (
+        <p className={`mt-2 ${HINT}`}>
+          A vehicle upgrade is fitted in the Planning Phase, to a vehicle with none{' '}
+          <PageRef pages={49} />
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** A vehicle added by hand (Z5-11): for a campaign brought in part-way, or a correction. */
+function AddVehicle({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+  const [draft, setDraft] = useState<VehicleDraft>({ tier: 1, label: '', water: false });
+  const [fresh, setFresh] = useState(() => crypto.randomUUID());
+  const vehicle = { id: fresh, ...draft };
+  const problem = vehicleProblem(campaign, vehicle);
+
+  return (
+    <fieldset className="border-t border-stone-200 pt-4 dark:border-stone-800">
+      <legend className="font-medium">Add a vehicle by hand</legend>
+      <p className={`mt-1 ${HINT}`}>
+        For corrections, or a campaign brought in part-way through. Vehicles a mission retrieves
+        arrive with its outcome <PageRef pages="53, 82" />
+      </p>
+
+      <div className="mt-3">
+        <VehicleFields name="New vehicle" draft={draft} onChange={setDraft} />
+      </div>
+
+      <button
+        type="button"
+        className={`mt-3 ${SECONDARY}`}
+        disabled={problem !== null}
+        onClick={() => {
+          dispatch({ type: 'vehicles/added', vehicle, at: new Date().toISOString() });
+          setDraft({ tier: 1, label: '', water: false });
+          setFresh(crypto.randomUUID());
+        }}
+      >
+        Add the vehicle
+      </button>
+    </fieldset>
+  );
+}
+
+/** One d10 as rolled, for the Rare Item Table's two (pg. 43). */
+function Die({
+  label,
+  value,
+  onChange,
+}: {
+  readonly label: string;
+  readonly value: D10Result | undefined;
+  readonly onChange: (rolled: D10Result) => void;
+}) {
+  const id = useId();
+
+  return (
     <div className="flex flex-col gap-1">
       <label htmlFor={id} className="text-sm">
         {label}
@@ -360,7 +777,7 @@ function RollRareItem() {
         className={SELECT}
         value={value ?? ''}
         onChange={(changed) => {
-          set(Number(changed.target.value) as D10Result);
+          onChange(Number(changed.target.value) as D10Result);
         }}
       >
         <option value="" disabled>
@@ -374,6 +791,147 @@ function RollRareItem() {
       </select>
     </div>
   );
+}
+
+/**
+ * A Rare Items trade (pp. 21, 43, 83–84; R57–R60; Z5-10): the rolls from the
+ * trader's list the player wants, in priority order, each with the Food and
+ * Fuel set aside for it. While one is under way, what it is for and what it
+ * holds back, and that the next turn's first mission is the Rare Goods Trader.
+ */
+function RareItemsTrade({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+  const [picks, setPicks] = useState<readonly RareTradePick[]>([]);
+  const [subtable, setSubtable] = useState<D10Result | undefined>(undefined);
+  const [entry, setEntry] = useState<D10Result | undefined>(undefined);
+  const [chosenFood, setFood] = useState(0);
+
+  const trade = campaign.rareTrade;
+  if (trade !== null) {
+    return (
+      <section
+        aria-label="Rare Items trade under way"
+        className="border-t border-stone-200 pt-4 dark:border-stone-800"
+      >
+        <h3 className="font-medium">Rare Items trade under way</h3>
+        <p className={`mt-1 ${HINT}`}>
+          {paidFor(setAside(trade.items))} set aside, outside storage. The next turn’s first mission
+          must be the Rare Goods Trader <PageRef pages="21, 83–84" />
+        </p>
+        <ol className="mt-2 list-decimal pl-5 text-sm">
+          {trade.items.map((item) => (
+            <li key={item.id}>{describeItem(item)}</li>
+          ))}
+        </ol>
+      </section>
+    );
+  }
+
+  const rolls = rareTradeRolls(campaign);
+  const rolled = subtable !== undefined && entry !== undefined ? { subtable, entry } : null;
+  const price = rolled === null ? 0 : pickPrice(rolled);
+  const food = Math.min(price, chosenFood);
+  const check = rareTradeCheck(campaign, picks);
+
+  return (
+    <fieldset className="border-t border-stone-200 pt-4 dark:border-stone-800">
+      <legend className="font-medium">Trade with the Rare Goods Trader</legend>
+      <p className={`mt-1 ${HINT}`}>
+        The trader’s list has {rolls} rolls on the Rare Item Table, every survivor’s Scout Score
+        plus Cooperation. Enter the ones to buy, first in priority first: their price is set aside
+        until the next turn’s mission, which must be the Rare Goods Trader{' '}
+        <PageRef pages="21, 43, 83–84" />
+      </p>
+
+      <div className="mt-3 flex flex-wrap items-end gap-3">
+        <Die label="Trader’s list, first d10" value={subtable} onChange={setSubtable} />
+        <Die label="Trader’s list, second d10" value={entry} onChange={setEntry} />
+        {rolled !== null && (
+          <>
+            <p className="text-sm font-medium">
+              {describeItem(rareItemFor(rolled.subtable, rolled.entry))}, {price}
+            </p>
+            <FoodShare price={price} food={food} onChange={setFood} label="Set aside" />
+          </>
+        )}
+      </div>
+
+      <button
+        type="button"
+        className={`mt-3 ${SECONDARY}`}
+        disabled={rolled === null || picks.length >= rolls}
+        onClick={() => {
+          if (rolled === null) return;
+          setPicks([...picks, { id: crypto.randomUUID(), ...rolled, food, fuel: price - food }]);
+          setSubtable(undefined);
+          setEntry(undefined);
+          setFood(0);
+        }}
+      >
+        Add to the list
+      </button>
+
+      {picks.length > 0 && (
+        <>
+          <ol aria-label="Items to trade for" className="mt-3 flex flex-col">
+            {picks.map((pick, at) => (
+              <li
+                key={pick.id}
+                className="flex items-center gap-2 border-b border-stone-100 py-1.5 last:border-b-0 dark:border-stone-800"
+              >
+                <span className="grow text-sm">
+                  {at + 1}. {describeItem(tradeItemFor(pick))} · {paidFor(pick)}
+                </span>
+                <button
+                  type="button"
+                  className={SECONDARY}
+                  aria-label={`Take ${describeItem(tradeItemFor(pick))} off the list`}
+                  onClick={() => {
+                    setPicks(picks.filter((other) => other.id !== pick.id));
+                  }}
+                >
+                  Take off
+                </button>
+              </li>
+            ))}
+          </ol>
+
+          {check.blockers.length > 0 && (
+            <ul className="mt-2 flex flex-col gap-1">
+              {check.blockers.map((violation) => (
+                <li key={violation.code} className="text-sm text-amber-800 dark:text-amber-300">
+                  {violation.message} <PageRef pages={violation.pages} />
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <button
+            type="button"
+            className={`mt-3 ${SECONDARY}`}
+            disabled={check.blockers.length > 0}
+            onClick={() => {
+              dispatch({ type: 'planning/rareTradeMade', picks, at: new Date().toISOString() });
+              setPicks([]);
+            }}
+          >
+            Make the trade
+          </button>
+        </>
+      )}
+    </fieldset>
+  );
+}
+
+/** Food and Fuel as the trade forms say them: "4 Food and 6 Fuel". */
+function paidFor({ food, fuel }: { readonly food: number; readonly fuel: number }): string {
+  return `${String(food)} Food and ${String(fuel)} Fuel`;
+}
+
+function RollRareItem() {
+  const { dispatch } = useCampaign();
+  const [subtable, setSubtable] = useState<D10Result | undefined>(undefined);
+  const [entry, setEntry] = useState<D10Result | undefined>(undefined);
 
   return (
     <fieldset className="border-t border-stone-200 pt-4 dark:border-stone-800">
@@ -384,8 +942,8 @@ function RollRareItem() {
       </p>
 
       <div className="mt-3 flex flex-wrap items-end gap-3">
-        {die(firstId, 'First d10', subtable, setSubtable)}
-        {die(secondId, 'Second d10', entry, setEntry)}
+        <Die label="First d10" value={subtable} onChange={setSubtable} />
+        <Die label="Second d10" value={entry} onChange={setEntry} />
         {subtable !== undefined && entry !== undefined && (
           <p className="text-sm font-medium">{describeItem(rareItemFor(subtable, entry))}</p>
         )}

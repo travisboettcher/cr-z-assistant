@@ -416,3 +416,72 @@ describe('bringing back a survivor set aside', () => {
     expect(within(walk()).queryByText(/Brought back from those set aside/)).toBeNull();
   });
 });
+
+/** A Rare Items trade the Rare Goods Trader settles (pg. 84; R61; Z5-10). */
+describe('the Rare Goods Trader with a trade under way', () => {
+  it('asks how many items were handed over, and settles the trade', async () => {
+    const shield = {
+      id: 'shield',
+      item: 'riot-shield',
+      grade: 'standard',
+      subtable: 3,
+      entry: 1,
+      food: 4,
+      fuel: 6,
+    } as const;
+    const user = open(
+      playing({
+        survivors: [createSurvivor('Earl Rhodes', 2, { id: 'earl' })],
+        assignments: { earl: { task: 'mission', team: 1 } },
+        rareTrade: { madeOnTurn: 3, items: [shield, { ...shield, id: 'second' }] },
+        log: [teamChose(1, 'rare-goods-trader')],
+      }),
+    );
+
+    const trader = group(/how rare goods trader ended/i);
+    expect(
+      trader.getByText(/First in priority first: standard riot shield, standard riot shield/),
+    ).toBeInTheDocument();
+    await user.type(trader.getByLabelText(/out over the map edge/i), '1');
+    await user.selectOptions(trader.getByLabelText('Items the trader handed over'), '1');
+    await user.click(trader.getByRole('button', { name: 'Record Rare Goods Trader' }));
+
+    expect(walk().textContent).toContain('1 survivor out over the map edge, 1 item traded');
+  });
+});
+
+/** The vehicles a Retrieve New Vehicles team drove off (pg. 82; R63; Z5-11). */
+describe('Retrieve New Vehicles', () => {
+  it('asks what each vehicle driven off was, and adds it', async () => {
+    const user = open(
+      playing({
+        survivors: [createSurvivor('Earl Rhodes', 2, { id: 'earl' })],
+        assignments: { earl: { task: 'mission', team: 1 } },
+        log: [teamChose(1, 'retrieve-new-vehicles')],
+      }),
+    );
+
+    const retrieving = group(/how retrieve new vehicles ended/i);
+    await user.type(retrieving.getByLabelText(/vehicles repaired and driven off/i), '2');
+    const record = retrieving.getByRole('button', { name: 'Record Retrieve New Vehicles' });
+    expect(record).toBeDisabled();
+
+    await user.selectOptions(retrieving.getByLabelText('Vehicle 1: its setup d10'), '5');
+    // A 5 is a Tier 2, so nothing higher is on offer.
+    expect(
+      within(retrieving.getByLabelText('Vehicle 1: Tier'))
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['1', '2']);
+    await user.clear(retrieving.getByLabelText('Vehicle 1: name'));
+    await user.type(retrieving.getByLabelText('Vehicle 1: name'), 'Red pickup');
+
+    await user.selectOptions(retrieving.getByLabelText('Vehicle 2: its setup d10'), '10');
+    await user.selectOptions(retrieving.getByLabelText('Vehicle 2: Inventory Slots of 20'), '12');
+    await user.click(record);
+
+    expect(walk().textContent).toContain(
+      '2 vehicles repaired and driven off (Red pickup, Tier 2; Vehicle 2, Tier 4)',
+    );
+  });
+});

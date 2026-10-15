@@ -21,7 +21,13 @@ import { articleForNumber, withArticle } from './articles';
 import { FIRST_TURN } from '../engine/siege';
 import { SIEGE_TRIGGER, XP_SOURCE_PAGES, type HealthSource, type XpSource } from '../data/turn';
 import type { Item } from '../engine/campaign';
-import type { CampaignEvent, HistoricMaterials, LeavingCause, LogEntry } from '../engine/log';
+import type {
+  CampaignEvent,
+  HistoricMaterials,
+  LeavingCause,
+  LogEntry,
+  RareTradeLoss,
+} from '../engine/log';
 import {
   BASE_LABELS,
   FACILITY_LABELS,
@@ -110,12 +116,30 @@ function counted(items: readonly Item[]): string {
 }
 
 /** How a `survivor-left` entry's survivor left, by its cause (#201). */
-const LEFT_BY_CAUSE: Readonly<Record<LeavingCause, { readonly how: string; readonly pages?: 22 }>> =
-  {
-    turned: { how: 'turned and left the community', pages: 22 },
-    bitten: { how: 'died of the bite', pages: 22 },
-    removed: { how: 'was taken off the roster' },
-  };
+const LEFT_BY_CAUSE: Readonly<
+  Record<Exclude<LeavingCause, 'killed'>, { readonly how: string; readonly pages?: 22 }>
+> = {
+  turned: { how: 'turned and left the community', pages: 22 },
+  bitten: { how: 'died of the bite', pages: 22 },
+  removed: { how: 'was taken off the roster' },
+};
+
+/** Why a Rare Items trade was lost, as its line opens (pp. 21, 23; R59, R60). */
+const RARE_TRADE_LOST: Readonly<Record<RareTradeLoss, string>> = {
+  siege: 'The horde called a siege',
+  'other-mission': 'Another mission was chosen first',
+  'no-mission': 'The community sat the mission out',
+};
+
+/** Food and Fuel as a trade's line names them: "2 Food and 1 Fuel", or the one alone. */
+function paid(amount: { readonly food: number; readonly fuel: number }): string {
+  const parts = [
+    ...(amount.food === 0 ? [] : [`${String(amount.food)} Food`]),
+    ...(amount.fuel === 0 ? [] : [`${String(amount.fuel)} Fuel`]),
+  ];
+
+  return parts.length === 0 ? 'nothing' : parts.join(' and ');
+}
 
 export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
   switch (event.kind) {
@@ -401,6 +425,14 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
       // An entry from before the cause was recorded reads as it always did (#201).
       if (event.cause === undefined) return { text: `${who}, left the community.` };
 
+      // A death on a mission names the team, and what was lost on the map (R71).
+      if (event.cause === 'killed') {
+        return {
+          text: `${who}, died on mission team ${String(event.team ?? 1)}’s mission${event.lost === undefined ? '' : `, and ${counted(event.lost)} stayed on the map`}.`,
+          pages: 34,
+        };
+      }
+
       const { how, pages } = LEFT_BY_CAUSE[event.cause];
 
       return { text: `${who}, ${how}.`, ...(pages === undefined ? {} : { pages }) };
@@ -408,7 +440,7 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
 
     case 'survivor-departed':
       return {
-        text: `${event.name}, ${withArticle(TIER_LABELS[event.tier])}, walked out over the Unrest.`,
+        text: `${event.name}, ${withArticle(TIER_LABELS[event.tier])}, walked out over the Unrest${event.items === undefined ? '' : `, taking ${counted(event.items)}`}.`,
         pages: 23,
       };
 
@@ -502,6 +534,100 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
         text: `Built into the base’s Inventory: ${describeItem(event)}, for ${String(event.hardware)} Hardware and ${String(event.labor)} Labor.`,
         pages: '20, 41–42',
       };
+
+    case 'vehicle-added':
+      return {
+        text: `Added ${event.vehicle.label}, a Tier ${String(event.vehicle.tier)} ${event.vehicle.water ? 'boat' : 'vehicle'}, by hand.`,
+        pages: 53,
+      };
+
+    case 'vehicle-removed':
+      return {
+        text: `Took ${event.label}, a Tier ${String(event.tier)} vehicle, out by hand.`,
+      };
+
+    case 'vehicle-upgrade-fitted':
+      return { text: `Fitted ${describeItem(event.item)} to ${event.label}, for good.`, pages: 49 };
+
+    case 'overrun-lost': {
+      const lost = [
+        ...(event.items.length === 0 ? [] : [counted(event.items)]),
+        ...event.vehicles.map((vehicle) => vehicle.label),
+        ...(event.trades.length === 0 ? [] : [`${counted(event.trades)} on order`]),
+      ];
+
+      return {
+        text:
+          lost.length === 0
+            ? 'Nothing was lost with the overrun base.'
+            : `Lost with the overrun base: ${lost.join('; ')}.`,
+        pages: 86,
+      };
+    }
+
+    case 'vehicle-taken':
+      return {
+        text: `Mission team ${String(event.team)} took ${event.label}, Tier ${String(event.tier)}, ${event.fuel === 0 ? 'burning no Fuel' : `burning ${String(event.fuel)} Fuel`}.`,
+        pages: 52,
+      };
+
+    case 'vehicle-left-home':
+      return {
+        text: `Mission team ${String(event.team)} left ${event.label} at home${event.fuel === 0 ? '' : `, and its ${String(event.fuel)} Fuel went back into storage`}.`,
+        pages: 52,
+      };
+
+    case 'vehicles-brought-home':
+      return {
+        text:
+          event.lost.length === 0
+            ? `Mission team ${String(event.team)} drove its vehicles home.`
+            : `Mission team ${String(event.team)} lost ${event.lost.map((vehicle) => (vehicle.upgrade === undefined ? vehicle.label : `${vehicle.label} and its ${describeItem(vehicle.upgrade)}`)).join(', ')}, not driven off.`,
+        pages: 32,
+      };
+
+    case 'rare-trade-made':
+      return {
+        text: `Made a Rare Items trade for ${event.items.map(describeItem).join(', ')}, setting aside ${paid(
+          event.items.reduce(
+            (total, item) => ({ food: total.food + item.food, fuel: total.fuel + item.fuel }),
+            { food: 0, fuel: 0 },
+          ),
+        )}. The next mission is the Rare Goods Trader.`,
+        pages: '21, 43',
+      };
+
+    case 'rare-trade-lost':
+      return {
+        text: `${RARE_TRADE_LOST[event.reason]}, so the Rare Items trade is off and what was set aside for it is lost: ${paid(event)}.`,
+        pages: event.reason === 'siege' ? 23 : 21,
+      };
+
+    case 'rare-trade-closed':
+      return {
+        text: [
+          ...(event.arrived.length === 0
+            ? []
+            : [`From the Rare Goods Trader: ${counted(event.arrived)}.`]),
+          ...(event.lost.length === 0
+            ? []
+            : [`Lost with nobody out: ${counted(event.lost)}, and what was paid for it.`]),
+          `${event.food + event.fuel === 0 ? 'Nothing' : paid(event)} set aside came back to storage.`,
+        ].join(' '),
+        pages: 84,
+      };
+
+    case 'trade-ordered':
+      return {
+        text: `Traded for ${describeItem(event)}, for ${paid(event)}. It arrives next Advancement Phase.`,
+        pages: 21,
+      };
+
+    case 'trade-arrived':
+      return { text: `Arrived from a trade: ${describeItem(event)}.`, pages: 19 };
+
+    case 'item-sold':
+      return { text: `Sold ${describeItem(event)} for ${paid(event)}.`, pages: '21, 37' };
 
     case 'item-moved':
       return {

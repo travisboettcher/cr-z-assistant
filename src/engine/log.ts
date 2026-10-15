@@ -40,7 +40,7 @@
 
 import type { BaseId } from '../data/bases';
 import type { D10Result } from '../data/dice';
-import type { Grade, ItemId } from '../data/equipment';
+import type { Grade, ItemId, VehicleTier } from '../data/equipment';
 import type { FacilityId, UpgradeId } from '../data/facilities';
 import type { Material, Materials } from '../data/materials';
 import type { MissionId, OverrunOption } from '../data/missions';
@@ -53,7 +53,7 @@ import { phaseOf } from './turn';
 // `LogEntry` from here. Both directions are erased at compile time, so there is
 // no runtime cycle — and the alternative, a third module holding one of them,
 // would separate `Campaign` from the shape of its own field.
-import type { Assignment, Campaign, Item } from './campaign';
+import type { Assignment, Campaign, Item, RareTradeItem, TradeOrder, Vehicle } from './campaign';
 
 /**
  * One team member as a mission left them, carried on its outcome (#178, Z4-4).
@@ -112,8 +112,22 @@ export interface SpentItem {
  */
 export type ItemHolder = 'base' | 'free' | { readonly survivor: string; readonly name: string };
 
+/**
+ * A vehicle Retrieve New Vehicles drove off (pg. 82; R63; Z5-11): the vehicle
+ * as it joins, and the setup d10 that gave its Tier, which the player may have
+ * lowered.
+ */
+export interface RetrievedVehicle extends Omit<Vehicle, 'upgrade'> {
+  readonly roll: D10Result;
+}
+
+/** Why a Rare Items trade was lost before its mission settled it (pp. 21, 23; R59, R60). */
+export const RARE_TRADE_LOSSES = ['siege', 'other-mission', 'no-mission'] as const;
+
+export type RareTradeLoss = (typeof RARE_TRADE_LOSSES)[number];
+
 /** Why a `survivor-left` entry's survivor left (#201). */
-export const LEAVING_CAUSES = ['turned', 'bitten', 'removed'] as const;
+export const LEAVING_CAUSES = ['turned', 'bitten', 'removed', 'killed'] as const;
 
 export type LeavingCause = (typeof LEAVING_CAUSES)[number];
 
@@ -320,6 +334,11 @@ export type CampaignEvent =
       readonly survivor: string;
       readonly name: string;
       readonly tier: Tier;
+      /**
+       * What they took with them (R73; Z5-13). Absent when they carried
+       * nothing, and on an entry from before Z5-13, which left it at the base.
+       */
+      readonly items?: readonly Item[];
     }
   /**
    * Exhaustion took a survivor off the mission team at Assign Beds (pg. 23).
@@ -561,12 +580,14 @@ export type CampaignEvent =
     }
   /**
    * How many vehicles a Retrieve New Vehicles team repaired and drove off
-   * (pg. 82; Z4-3). Where they go is the base Inventory, which is Phase 5's.
+   * (pg. 82; Z4-3), and since Z5-11 what each was: the vehicles that joined
+   * the community. Absent on an entry from before, which added none.
    */
   | {
       readonly kind: 'retrieve-new-vehicles-resolved';
       readonly team: number;
       readonly vehiclesDrivenOff: number;
+      readonly retrieved?: readonly RetrievedVehicle[];
       /** A stranger its setup may place on the area (pg. 81). */
       readonly strangers: readonly FieldRecruitTier[];
       /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
@@ -595,6 +616,12 @@ export type CampaignEvent =
       readonly kind: 'rare-goods-trader-resolved';
       readonly team: number;
       readonly survivorsExited: number;
+      /**
+       * How many of the trade's items the trader handed over, first in priority
+       * first (pg. 84; Z5-10). Absent when no trade was under way, and on every
+       * entry from before one could be.
+       */
+      readonly itemsTraded?: number;
       /** A stranger its setup may place on the area (pg. 84). */
       readonly strangers: readonly FieldRecruitTier[];
       /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
@@ -725,9 +752,10 @@ export type CampaignEvent =
     }
   /**
    * A survivor gone from the roster, and why (#201): `turned` at a Rot check,
-   * `bitten` to death by one who turned (pg. 22), or `removed` by hand from the
-   * roster. Absent on an entry written before the cause was recorded, which
-   * reads as it always did — inventing one would be writing history.
+   * `bitten` to death by one who turned (pg. 22), `removed` by hand from the
+   * roster, or `killed` on a mission (R71; Z5-13). Absent on an entry written
+   * before the cause was recorded, which reads as it always did — inventing
+   * one would be writing history.
    */
   | {
       readonly kind: 'survivor-left';
@@ -735,6 +763,10 @@ export type CampaignEvent =
       readonly name: string;
       readonly tier: Tier;
       readonly cause?: LeavingCause;
+      /** The team whose mission a `killed` survivor died on. */
+      readonly team?: number;
+      /** What a `killed` survivor carried that nobody took, lost on the map (R71). */
+      readonly lost?: readonly Item[];
     }
   | {
       readonly kind: 'survivor-promoted';
@@ -826,6 +858,112 @@ export type CampaignEvent =
       readonly hardware: number;
       readonly labor: number;
     }
+  /**
+   * An item traded for in the Planning Phase (pg. 21; R51–R53; Z5-9): the id it
+   * will have, and the Food and Fuel paid at once. It arrives next turn, with a
+   * `trade-arrived` entry of its own, so the two read as two things that
+   * happened, as a project's order and its building do.
+   */
+  | {
+      readonly kind: 'trade-ordered';
+      readonly id: string;
+      readonly item: ItemId;
+      readonly grade: Grade;
+      readonly food: number;
+      readonly fuel: number;
+    }
+  /** A traded item in the Inventory, at Add Facilities and Upgrades (pg. 19; Z5-9). */
+  | {
+      readonly kind: 'trade-arrived';
+      readonly id: string;
+      readonly item: ItemId;
+      readonly grade: Grade;
+    }
+  /**
+   * A Rare Items trade made in the Planning Phase (pg. 21; R57–R59; Z5-10):
+   * each item in priority order, with the dice that found it on the trader's
+   * list and the Food and Fuel set aside for it.
+   */
+  | { readonly kind: 'rare-trade-made'; readonly items: readonly RareTradeItem[] }
+  /**
+   * A trade cancelled before its mission, and the set-aside materials lost
+   * with it (pp. 21, 23; R59, R60): a siege called, another mission chosen
+   * first, or no mission at all.
+   */
+  | {
+      readonly kind: 'rare-trade-lost';
+      readonly reason: RareTradeLoss;
+      readonly items: readonly Item[];
+      readonly food: number;
+      readonly fuel: number;
+    }
+  /**
+   * A trade the Rare Goods Trader's outcome settled (pg. 84; R22, R61): what
+   * arrived, what was traded and lost with nobody out, and the Food and Fuel
+   * that came back for the items not traded.
+   */
+  | {
+      readonly kind: 'rare-trade-closed';
+      readonly arrived: readonly Item[];
+      readonly lost: readonly Item[];
+      readonly food: number;
+      readonly fuel: number;
+    }
+  /** A vehicle added by hand, for a campaign brought in part-way or a correction (Z5-11). */
+  | { readonly kind: 'vehicle-added'; readonly vehicle: Omit<Vehicle, 'upgrade'> }
+  /** A vehicle taken out by hand, its upgrade with it (Z5-11). */
+  | {
+      readonly kind: 'vehicle-removed';
+      readonly id: string;
+      readonly label: string;
+      readonly tier: VehicleTier;
+    }
+  /** A vehicle upgrade fitted from the Inventory, for good (pg. 49; R67; Z5-11). */
+  | {
+      readonly kind: 'vehicle-upgrade-fitted';
+      readonly vehicle: string;
+      readonly label: string;
+      readonly item: Item;
+    }
+  /**
+   * A vehicle a team takes at Equip Mission Team, and the Fuel it burned from
+   * storage: its Tier, or none for an electric conversion (pp. 18, 49, 52;
+   * R65; Z5-12).
+   */
+  | {
+      readonly kind: 'vehicle-taken';
+      readonly team: number;
+      readonly vehicle: string;
+      readonly label: string;
+      readonly tier: VehicleTier;
+      readonly fuel: number;
+    }
+  /** A vehicle taken and then left at home at the same step, its Fuel back in storage (Z5-12). */
+  | {
+      readonly kind: 'vehicle-left-home';
+      readonly team: number;
+      readonly vehicle: string;
+      readonly label: string;
+      readonly fuel: number;
+    }
+  /**
+   * Which of the vehicles a team took came home, once its mission is played:
+   * the ones not driven off are lost with their upgrades (R70; Z5-12).
+   */
+  | {
+      readonly kind: 'vehicles-brought-home';
+      readonly team: number;
+      readonly lost: readonly Vehicle[];
+    }
+  /** A rare item sold from the Inventory, and what it brought in (pp. 21, 37; R54; Z5-9). */
+  | {
+      readonly kind: 'item-sold';
+      readonly id: string;
+      readonly item: ItemId;
+      readonly grade: Grade;
+      readonly food: number;
+      readonly fuel: number;
+    }
   /** An item taken out of the base's Inventory by hand (Z5-2). */
   | {
       readonly kind: 'item-removed';
@@ -907,6 +1045,18 @@ export type CampaignEvent =
        * Absent for every other move.
        */
       readonly rebuild?: readonly RebuildSlot[];
+    }
+  /**
+   * What a move out of an overrun base left in it, lost: the Inventory's
+   * items, the vehicles a reclaim on the same map did not keep, and a
+   * community starting over's orders on the way (pp. 85–86; R53, R78, R79;
+   * Z5-13). Written after the move, and only when something was lost.
+   */
+  | {
+      readonly kind: 'overrun-lost';
+      readonly items: readonly Item[];
+      readonly vehicles: readonly Vehicle[];
+      readonly trades: readonly TradeOrder[];
     }
   /**
    * A community's first base arrived stocked to its caps (pg. 19, 54).

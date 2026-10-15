@@ -1073,6 +1073,50 @@ describe('Add Facilities and Upgrades', () => {
     expect(within(walk()).queryByLabelText('Weapon 1')).toBeNull();
   });
 
+  /** Last turn's trades land here too (pg. 19; R53; Z5-9). */
+  it('takes in last turn’s trade, alone or with the projects', async () => {
+    const pistol = {
+      id: 'traded',
+      item: 'pistol',
+      grade: 'standard',
+      food: 2,
+      fuel: 4,
+      orderedOnTurn: 2,
+    } as const;
+    const user = open(
+      advancement({
+        step: 'add-facilities-and-upgrades',
+        trades: [pistol, { ...pistol, id: 'later', orderedOnTurn: 3 }],
+      }),
+    );
+
+    expect(within(walk()).getByText(/A standard pistol, from a trade/)).toBeTruthy();
+    await user.click(within(walk()).getByRole('button', { name: 'Finish the trade' }));
+
+    expect(inventoryCount()).toBe('1 item');
+    // The one ordered this turn waits for next turn's.
+    expect(within(walk()).getByText(/ordered this turn, and finishes next turn/i)).toBeTruthy();
+  });
+
+  it('names both on the button when projects and trades land together', () => {
+    open(
+      advancement({
+        step: 'add-facilities-and-upgrades',
+        projects: [
+          onOrder({ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 2 }),
+        ],
+        trades: [
+          { id: 't', item: 'trap', grade: 'standard', food: 2, fuel: 0, orderedOnTurn: 2 },
+          { id: 'u', item: 'trap', grade: 'standard', food: 2, fuel: 0, orderedOnTurn: 2 },
+        ],
+      }),
+    );
+
+    expect(
+      within(walk()).getByRole('button', { name: 'Finish the project and 2 trades' }),
+    ).toBeTruthy();
+  });
+
   it('points at the Inventory while it holds a rare upgrade to install', () => {
     open(
       advancement({
@@ -1351,6 +1395,74 @@ describe('Moving in after an overrun', () => {
         /the stores will hold 3 Food, 1 Fuel, 2 Hardware/,
       ),
     ).toBeTruthy();
+  });
+
+  it('says what is lost with the overrun base, and nothing when nothing is (R78, R79)', () => {
+    const order = {
+      id: 'club-1',
+      item: 'blunt',
+      grade: 'standard',
+      food: 1,
+      fuel: 0,
+      orderedOnTurn: 4,
+    } as const;
+
+    open(
+      overrun([...wentOn('start-over', 'summer-camp'), continued('start-over', true)], {
+        step: 'add-facilities-and-upgrades',
+        inventory: [
+          { id: 'bat-1', item: 'blunt', grade: 'standard' },
+          { id: 'bat-2', item: 'blunt', grade: 'standard' },
+        ],
+        vehicles: [{ id: 'truck', tier: 3, label: 'Box truck', water: false }],
+        trades: [order, { ...order, id: 'club-2' }],
+      }),
+    );
+
+    expect(
+      within(screen.getByRole('region', { name: 'Move into the new base' })).getByText(
+        /^Lost with the overrun base: the 2 items in the Inventory, Box truck, 2 orders on their way\./,
+      ),
+    ).toBeTruthy();
+  });
+
+  it('names one item and one order in the singular', () => {
+    open(
+      overrun([...wentOn('start-over', 'summer-camp'), continued('start-over', true)], {
+        step: 'add-facilities-and-upgrades',
+        inventory: [{ id: 'bat-1', item: 'blunt', grade: 'standard' }],
+        trades: [
+          {
+            id: 'club-1',
+            item: 'blunt',
+            grade: 'standard',
+            food: 1,
+            fuel: 0,
+            orderedOnTurn: 4,
+          },
+        ],
+      }),
+    );
+
+    expect(
+      within(screen.getByRole('region', { name: 'Move into the new base' })).getByText(
+        /^Lost with the overrun base: the 1 item in the Inventory, 1 order on its way\./,
+      ),
+    ).toBeTruthy();
+  });
+
+  it('warns of no loss when the overrun base held nothing', () => {
+    open(
+      overrun([...wentOn('claim', 'hobby-farm'), continued('claim', true, true)], {
+        step: 'add-facilities-and-upgrades',
+      }),
+    );
+
+    expect(
+      within(screen.getByRole('region', { name: 'Move into the new base' })).queryByText(
+        /Lost with the overrun base/,
+      ),
+    ).toBeNull();
   });
 });
 

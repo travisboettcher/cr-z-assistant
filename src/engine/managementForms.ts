@@ -24,6 +24,7 @@ import { departureCandidates, someoneDeparted, withDeparture } from './departure
 import { foodRequired, hungerIfFedNow, survivorsFed, withSurvivorsFed } from './feeding';
 import { accepted, blockedBy, refused, type FormResult } from './forms';
 import { logged } from './log';
+import { withRareTradeLost } from './rareTrade';
 import { withItemsLeftBehind } from './spent';
 import { checkBite, rotCheckResolved, rotOutcome, rotTarget, withRotApplied } from './rot';
 import { hordeChecked, hordeForced, siegeThreat, siegeTriggered } from './siege';
@@ -85,7 +86,7 @@ export function submitRotCheck(campaign: Campaign, form: RotCheckForm, at: strin
 
   if (outcome.turned === null) return accepted(checked);
 
-  // What a survivor gone this way carried stays at the base (Z5-5), written
+  // What a survivor gone this way carried stays at the base (R72, R74), written
   // after the entries that took them off the roster.
   const gone = [
     outcome.turned,
@@ -230,7 +231,11 @@ export function submitHordeCheck(campaign: Campaign, roll: D10Result, at: string
   const threat = siegeThreat(campaign);
   const siege = hordeForced(campaign) || siegeTriggered(roll, threat);
 
-  return accepted(logged(campaign, at, { kind: 'horde-checked', roll, threat, siege }));
+  const checked = logged(campaign, at, { kind: 'horde-checked', roll, threat, siege });
+
+  // A siege forces the next mission, so a Rare Items trade waiting on it is
+  // lost here, with its materials (pg. 23; R59, R60).
+  return accepted(siege ? withRareTradeLost(checked, at, 'siege') : checked);
 }
 
 /**
@@ -248,17 +253,14 @@ export function submitDeparture(campaign: Campaign, survivor: string, at: string
   const leaving = departureCandidates(campaign).find((candidate) => candidate.id === survivor);
   if (leaving === undefined) return refused('Only somebody the rule sends away can leave.');
 
-  // What they carried stays at the base until part 3 rules otherwise (Z5-5).
+  // They take what they carry (R73), so nothing of theirs stays at the base.
   return accepted(
-    withItemsLeftBehind(
-      logged(withDeparture(campaign, survivor), at, {
-        kind: 'survivor-departed',
-        survivor: leaving.id,
-        name: leaving.name,
-        tier: leaving.tier,
-      }),
-      [leaving],
-      at,
-    ),
+    logged(withDeparture(campaign, survivor), at, {
+      kind: 'survivor-departed',
+      survivor: leaving.id,
+      name: leaving.name,
+      tier: leaving.tier,
+      ...(leaving.items.length === 0 ? {} : { items: leaving.items }),
+    }),
   );
 }

@@ -17,7 +17,7 @@
 
 import type { BaseId } from '../data/bases';
 import type { OverrunOption } from '../data/missions';
-import type { Campaign, Survivor } from './campaign';
+import type { Campaign, Survivor, Vehicle } from './campaign';
 import { equipCheck, withEquipMove, type EquipMove } from './equip';
 import { accepted, blockedBy, refused, type FormResult } from './forms';
 import { logged, type MissionWound } from './log';
@@ -39,8 +39,22 @@ import {
   overrunChoiceProblem,
   withCommunityAbandoned,
 } from './overrun';
+import { rareTradeBinds, withRareTradeLost, withRareTradeSettled } from './rareTrade';
 import { standInProblem } from './siegeWork';
+import { withoutRoll, withVehiclesAdded } from './vehicles';
+import {
+  broughtHomeProblem,
+  leaveProblem,
+  takeProblem,
+  vehiclesLost,
+  vehiclesTaken,
+  withVehicleLeftHome,
+  withVehiclesLost,
+  withVehicleTaken,
+  type TakenVehicle,
+} from './missionVehicles';
 import { spentItems, spentProblem, withItemsSpent } from './spent';
+import { deathProblem, withMissionDeath, type MissionDeath } from './missionDeaths';
 
 /**
  * A team's mission, chosen at Select Mission (pg. 17; Z4-2).
@@ -62,15 +76,20 @@ export function submitMissionSelection(
     (candidate) => candidate.team === choice.team,
   ) as MissionTeam;
 
+  const selected = logged(campaign, at, {
+    kind: 'mission-selected',
+    team: choice.team,
+    mission: choice.mission,
+    names: team.members.map((survivor) => survivor.name),
+    ...(choice.material === undefined ? {} : { material: choice.material }),
+    ...(choice.base === undefined ? {} : { base: choice.base }),
+  });
+
+  // A Rare Items trade binds the first mission chosen (R60): another loses it.
   return accepted(
-    logged(campaign, at, {
-      kind: 'mission-selected',
-      team: choice.team,
-      mission: choice.mission,
-      names: team.members.map((survivor) => survivor.name),
-      ...(choice.material === undefined ? {} : { material: choice.material }),
-      ...(choice.base === undefined ? {} : { base: choice.base }),
-    }),
+    rareTradeBinds(campaign) && choice.mission !== 'rare-goods-trader'
+      ? withRareTradeLost(selected, at, 'other-mission')
+      : selected,
   );
 }
 
@@ -129,9 +148,14 @@ export function submitOverrunContinuation(
 export function submitMissionSkip(campaign: Campaign, at: string): FormResult {
   const problem = skipProblem(campaign);
 
-  return problem === null
-    ? accepted(logged(campaign, at, { kind: 'mission-skipped' }))
-    : refused(problem);
+  if (problem !== null) return refused(problem);
+
+  // Sitting the mission out declines the trade that forced one (R60).
+  const skipped = logged(campaign, at, { kind: 'mission-skipped' });
+
+  return accepted(
+    rareTradeBinds(campaign) ? withRareTradeLost(skipped, at, 'no-mission') : skipped,
+  );
 }
 
 /**
@@ -175,7 +199,19 @@ export function submitMissionOutcome(
     };
   });
 
-  return accepted(logged(withWounds(campaign, wounds), at, { ...outcome, wounds }));
+  const recorded = logged(withWounds(campaign, wounds), at, { ...outcome, wounds });
+
+  // The vehicles driven off join the community at once (pg. 82; R63; Z5-11).
+  if (outcome.kind === 'retrieve-new-vehicles-resolved') {
+    return accepted(withVehiclesAdded(recorded, (outcome.retrieved ?? []).map(withoutRoll)));
+  }
+
+  // The Rare Goods Trader settles the trade it was forced for (pg. 84; R61).
+  return accepted(
+    outcome.kind === 'rare-goods-trader-resolved' && outcome.itemsTraded !== undefined
+      ? withRareTradeSettled(recorded, outcome.itemsTraded, outcome.survivorsExited, at)
+      : recorded,
+  );
 }
 
 /** A place the siege emptied, and who fills it. */
@@ -261,4 +297,88 @@ export function submitItemsSpent(
   return accepted(
     logged(withItemsSpent(campaign, items), at, { kind: 'items-spent', team, items }),
   );
+}
+
+/**
+ * A vehicle a team takes at Equip Mission Team, its Fuel burned from storage
+ * (pp. 18, 49, 52; R65; Z5-12). Refused for whatever `takeProblem` says.
+ */
+export function submitVehicleTaken(
+  campaign: Campaign,
+  team: number,
+  id: string,
+  at: string,
+): FormResult {
+  const problem = takeProblem(campaign, team, id);
+  if (problem !== null) return refused(problem);
+
+  // Present by now: `takeProblem` refuses a vehicle the community does not hold.
+  const vehicle = campaign.vehicles.find((held) => held.id === id) as Vehicle;
+  const taken = withVehicleTaken(campaign, vehicle);
+
+  return accepted(
+    logged(taken, at, {
+      kind: 'vehicle-taken',
+      team,
+      vehicle: id,
+      label: vehicle.label,
+      tier: vehicle.tier,
+      fuel: campaign.materials.fuel - taken.materials.fuel,
+    }),
+  );
+}
+
+/** A vehicle taken this turn left home again, its Fuel back in storage (Z5-12). */
+export function submitVehicleLeftHome(campaign: Campaign, id: string, at: string): FormResult {
+  const problem = leaveProblem(campaign, id);
+  if (problem !== null) return refused(problem);
+
+  // Present by now: `leaveProblem` refuses a vehicle not taken this turn.
+  const taken = vehiclesTaken(campaign).find((one) => one.vehicle === id) as TakenVehicle;
+
+  return accepted(
+    logged(withVehicleLeftHome(campaign, taken), at, {
+      kind: 'vehicle-left-home',
+      team: taken.team,
+      vehicle: id,
+      label: taken.label,
+      fuel: taken.fuel,
+    }),
+  );
+}
+
+/**
+ * Which of the vehicles a team took it drove off, once its mission is played
+ * (pg. 32; R64, R70; Z5-12): the rest are lost, with their upgrades.
+ */
+export function submitVehiclesBroughtHome(
+  campaign: Campaign,
+  team: number,
+  drivenOff: readonly string[],
+  at: string,
+): FormResult {
+  const problem = broughtHomeProblem(campaign, team, drivenOff);
+  if (problem !== null) return refused(problem);
+
+  const lost = vehiclesLost(campaign, team, drivenOff);
+
+  return accepted(
+    logged(withVehiclesLost(campaign, lost), at, { kind: 'vehicles-brought-home', team, lost }),
+  );
+}
+
+/**
+ * A survivor who died on a team's mission (pp. 31, 34; R71; Z5-13): what
+ * somebody else on the team took goes home with them, the rest is lost on the
+ * map, and they leave the roster.
+ */
+export function submitMissionDeath(
+  campaign: Campaign,
+  death: MissionDeath,
+  at: string,
+): FormResult {
+  const problem = deathProblem(campaign, death);
+  if (problem !== null) return refused(problem);
+
+  return accepted(withMissionDeath(campaign, death, at));
 }

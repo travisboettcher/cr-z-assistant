@@ -34,6 +34,7 @@
  * handful of origin and rare items, settled when they are first carried.
  */
 
+import type { D10Result } from './dice';
 import type { FacilityId, Utility, UpgradeId } from './facilities';
 import type { CampaignOrigin } from './origins';
 import type { CommonSkill, Skill } from './skills';
@@ -199,6 +200,16 @@ export interface ItemRules {
     readonly countsAs: UpgradeId;
     /** Works without the Utility that upgrade needs: the battery spotlight. */
     readonly unpowered?: true;
+  };
+
+  /** What a vehicle upgrade does to the vehicle it is fitted to (pg. 49; R82). */
+  readonly onVehicle?: {
+    /** Inventory Slots it adds, or takes away (R82). */
+    readonly inventorySlots: number;
+    /** The vehicle burns no Fuel. */
+    readonly noFuel?: true;
+    /** The vehicle deploys only while the base has a powered Auto Shop. */
+    readonly needsPoweredAutoShop?: true;
   };
 }
 
@@ -828,6 +839,7 @@ export const EQUIPMENT = {
     slots: null,
     life: 'kept',
     trade: { standard: 8 },
+    onVehicle: { inventorySlots: -2, noFuel: true, needsPoweredAutoShop: true },
   },
   'car-roof-rack': {
     kind: 'vehicle-upgrade',
@@ -836,6 +848,7 @@ export const EQUIPMENT = {
     slots: null,
     life: 'kept',
     trade: { standard: 6 },
+    onVehicle: { inventorySlots: 4 },
   },
 
   // Rare equipment (pp. 43, 51).
@@ -1139,6 +1152,20 @@ export const VEHICLE_SLOTS = {
   VehicleTier,
   { readonly inventory: number; readonly passengers: number } | { readonly total: number }
 >;
+
+/** The Tier a d10 rolled at Retrieve New Vehicles' setup gives a vehicle (pg. 82). */
+export const VEHICLE_TIER_BY_ROLL = {
+  1: 1,
+  2: 1,
+  3: 1,
+  4: 2,
+  5: 2,
+  6: 2,
+  7: 2,
+  8: 3,
+  9: 3,
+  10: 4,
+} as const satisfies Record<D10Result, VehicleTier>;
 
 /** Fuel a deployed vehicle burns per mission, per Tier (pg. 52). */
 export const VEHICLE_FUEL_PER_TIER = 1;

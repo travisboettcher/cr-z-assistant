@@ -238,6 +238,13 @@ function InventoryCard({
           </>
         )}
       </p>
+      {/* Vehicles are the base's Inventory too (pp. 79, 82; Z5-11). */}
+      {campaign.vehicles.length > 0 && (
+        <p className="text-sm text-stone-600 dark:text-stone-400">
+          <span className="tabular-nums">{campaign.vehicles.length}</span> vehicle
+          {campaign.vehicles.length === 1 ? '' : 's'}
+        </p>
+      )}
       {kinds.length > 0 && (
         <ul className="mt-1 hidden text-sm lg:block">
           {kinds.map((kind) => (

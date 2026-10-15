@@ -468,6 +468,26 @@ const rareBecameRolls: MigrationStep = {
   },
 };
 
+/**
+ * v17 → v18: items traded for and on their way (R53; Z5-9), a Rare Items
+ * trade under way (Z5-10), and the vehicles the community holds (Z5-11).
+ *
+ * **Empty, and that is the truth.** A v17 build could not trade, so no v17
+ * save has anything on order, a trade under way, or a vehicle: a table that
+ * kept its vehicles on paper adds them on the Inventory card once. What is already present is
+ * left alone.
+ */
+const tradesRecorded: MigrationStep = {
+  from: 17,
+  to: 18,
+  up: (previous) => ({
+    ...previous,
+    trades: 'trades' in previous ? previous.trades : [],
+    rareTrade: 'rareTrade' in previous ? previous.rareTrade : null,
+    vehicles: 'vehicles' in previous ? previous.vehicles : [],
+  }),
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -486,6 +506,7 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   setAsideRecorded,
   itemsRecorded,
   rareBecameRolls,
+  tradesRecorded,
 ];
 
 /** Why a save could not be brought forward. */

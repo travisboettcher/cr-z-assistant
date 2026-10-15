@@ -1027,6 +1027,18 @@ describe('the equipment catalogue (pp. 37–53)', () => {
     }
   });
 
+  it('says what every vehicle upgrade does to its vehicle, and nothing else does (pg. 49; R82)', () => {
+    for (const [id, item] of entries) {
+      expect(item.onVehicle !== undefined, id).toBe(item.kind === 'vehicle-upgrade');
+    }
+    expect(EQUIPMENT['car-roof-rack'].onVehicle).toEqual({ inventorySlots: 4 });
+    expect(EQUIPMENT['electric-car-conversion'].onVehicle).toEqual({
+      inventorySlots: -2,
+      noFuel: true,
+      needsPoweredAutoShop: true,
+    });
+  });
+
   it('installs each rare upgrade as an upgrade its facility really has (pg. 49)', () => {
     for (const [id, item] of entries) {
       const installs = item.installs;

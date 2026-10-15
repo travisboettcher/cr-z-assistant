@@ -173,11 +173,19 @@ function counted(outcome: MissionOutcome): string {
     case 'gather-materials-resolved':
       return `${plural(outcome.materialsCarriedOut, 'material', 'materials')} carried off the map${anyStrangers(outcome.strangers)}`;
     case 'retrieve-new-vehicles-resolved':
-      return `${plural(outcome.vehiclesDrivenOff, 'vehicle', 'vehicles')} repaired and driven off${anyStrangers(outcome.strangers)}`;
+      return `${plural(outcome.vehiclesDrivenOff, 'vehicle', 'vehicles')} repaired and driven off${
+        outcome.retrieved === undefined || outcome.retrieved.length === 0
+          ? ''
+          : ` (${outcome.retrieved.map((vehicle) => `${vehicle.label}, Tier ${String(vehicle.tier)}`).join('; ')})`
+      }${anyStrangers(outcome.strangers)}`;
     case 'rescue-strangers-resolved':
       return `${strangersOf(outcome.strangers)}${broughtBack(outcome.returned)}`;
     case 'rare-goods-trader-resolved':
-      return `${plural(outcome.survivorsExited, 'survivor', 'survivors')} out over the map edge${anyStrangers(outcome.strangers)}`;
+      return `${plural(outcome.survivorsExited, 'survivor', 'survivors')} out over the map edge${
+        outcome.itemsTraded === undefined
+          ? ''
+          : `, ${plural(outcome.itemsTraded, 'item', 'items')} traded`
+      }${anyStrangers(outcome.strangers)}`;
     case 'mission-played':
       return 'played';
   }

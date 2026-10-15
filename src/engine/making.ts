@@ -32,7 +32,7 @@ import type { Skill } from '../data/skills';
 import type { Occupant } from './base';
 import type { Campaign } from './campaign';
 import type { Check, Violation } from './checks';
-import { allItems } from './equipment';
+import { idTaken } from './equipment';
 import { laborRefusal, orderable } from './projects';
 import { suppliedOccupants } from './utilities';
 
@@ -225,7 +225,7 @@ export function buildCheck(campaign: Campaign, order: BuildOrder): Check<BuildCo
       : refuse('no-such-grade', 'It is not built in that grade.');
   }
 
-  if (allItems(campaign).some((item) => item.id === order.id)) {
+  if (idTaken(campaign, order.id)) {
     return refuse('id-taken', 'An item already has that id.', 18);
   }
 

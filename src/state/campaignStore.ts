@@ -66,9 +66,13 @@ import {
 } from '../engine/advancementForms';
 import type { MissionOutcome } from '../engine/missions';
 import type { EquipMove } from '../engine/equip';
+import type { MissionDeath } from '../engine/missionDeaths';
 import type { BuildOrder } from '../engine/making';
 import type { RareItemRoll } from '../engine/finding';
 import { withEquipmentHandedOver } from '../engine/handover';
+import { withTradesArrived, type Payment, type TradeRequest } from '../engine/trading';
+import type { RareTradePick } from '../engine/rareTrade';
+import type { NewVehicle } from '../engine/vehicles';
 import {
   submitMissionOutcome,
   submitMissionSelection,
@@ -77,6 +81,10 @@ import {
   submitStandIn,
   submitEquipMove,
   submitItemsSpent,
+  submitMissionDeath,
+  submitVehicleLeftHome,
+  submitVehiclesBroughtHome,
+  submitVehicleTaken,
 } from '../engine/missionForms';
 import {
   submitAdvance,
@@ -84,6 +92,12 @@ import {
   submitItemAdded,
   submitItemRemoved,
   submitItemBuilt,
+  submitItemSold,
+  submitVehicleAdded,
+  submitVehicleRemoved,
+  submitVehicleUpgradeFitted,
+  submitRareTradeMade,
+  submitTradeOrdered,
   submitRareItemRolled,
   submitNewSurvivor,
   submitRecruit,
@@ -105,6 +119,7 @@ import {
 import type { XpSource } from '../data/turn';
 import type {
   Assignment,
+  Base,
   Campaign,
   Project,
   ProjectOrder,
@@ -464,6 +479,16 @@ export type CampaignAction =
     }
   /** An item taken out of the base's Inventory by hand (Z5-2). */
   | { readonly type: 'inventory/itemRemoved'; readonly id: string; readonly at: string }
+  /** A vehicle added or taken out by hand (Z5-11). */
+  | { readonly type: 'vehicles/added'; readonly vehicle: NewVehicle; readonly at: string }
+  | { readonly type: 'vehicles/removed'; readonly id: string; readonly at: string }
+  /** A vehicle upgrade fitted from the Inventory at Planning (R67; Z5-11). */
+  | {
+      readonly type: 'planning/vehicleUpgradeFitted';
+      readonly item: string;
+      readonly vehicle: string;
+      readonly at: string;
+    }
   /** A rare upgrade installed from the Inventory in a slot's facility (Z5-8). */
   | {
       readonly type: 'advancement/rareUpgradeInstalled';
@@ -475,6 +500,21 @@ export type CampaignAction =
   | { readonly type: 'inventory/rareItemRolled'; readonly roll: RareItemRoll; readonly at: string }
   /** An item the project team builds, with its fresh id (Z5-6). */
   | { readonly type: 'planning/itemBuilt'; readonly order: BuildOrder; readonly at: string }
+  /** A trade at Planning Step 2: paid now, arriving next Advancement (R51–R53; Z5-9). */
+  | { readonly type: 'planning/tradeOrdered'; readonly request: TradeRequest; readonly at: string }
+  /** A Rare Items trade made, its materials set aside (R57–R59; Z5-10). */
+  | {
+      readonly type: 'planning/rareTradeMade';
+      readonly picks: readonly RareTradePick[];
+      readonly at: string;
+    }
+  /** A rare item sold from the Inventory, for its price less two (R54; Z5-9). */
+  | {
+      readonly type: 'planning/itemSold';
+      readonly id: string;
+      readonly payment: Payment;
+      readonly at: string;
+    }
   /** An item moved at Equip Mission Team, or shoddy gear taken up free (Z5-4). */
   | { readonly type: 'mission/itemMoved'; readonly move: EquipMove; readonly at: string }
   /** What a team's mission used up or lost, by item id (Z5-5). */
@@ -484,6 +524,24 @@ export type CampaignAction =
       readonly items: readonly string[];
       readonly at: string;
     }
+  /** A vehicle a team takes at Equip Mission Team, burning its Fuel (R65; Z5-12). */
+  | {
+      readonly type: 'mission/vehicleTaken';
+      readonly team: number;
+      readonly vehicle: string;
+      readonly at: string;
+    }
+  /** A vehicle taken this turn left home again, its Fuel back (Z5-12). */
+  | { readonly type: 'mission/vehicleLeftHome'; readonly vehicle: string; readonly at: string }
+  /** Which of a team's vehicles it drove off; the rest are lost (R70; Z5-12). */
+  | {
+      readonly type: 'mission/vehiclesBroughtHome';
+      readonly team: number;
+      readonly drivenOff: readonly string[];
+      readonly at: string;
+    }
+  /** A survivor who died on a team's mission, and who took what from them (R71; Z5-13). */
+  | { readonly type: 'mission/survivorKilled'; readonly death: MissionDeath; readonly at: string }
   /** A survivor set aside, brought back this turn, rejoins (R31; Z4-11). */
   | {
       readonly type: 'advancement/survivorReturned';
@@ -1063,6 +1121,24 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         submitItemsSpent(campaign, action.team, action.items, action.at),
       );
 
+    case 'mission/survivorKilled':
+      return submitted(state, (campaign) => submitMissionDeath(campaign, action.death, action.at));
+
+    case 'mission/vehicleTaken':
+      return submitted(state, (campaign) =>
+        submitVehicleTaken(campaign, action.team, action.vehicle, action.at),
+      );
+
+    case 'mission/vehicleLeftHome':
+      return submitted(state, (campaign) =>
+        submitVehicleLeftHome(campaign, action.vehicle, action.at),
+      );
+
+    case 'mission/vehiclesBroughtHome':
+      return submitted(state, (campaign) =>
+        submitVehiclesBroughtHome(campaign, action.team, action.drivenOff, action.at),
+      );
+
     case 'advancement/rareUpgradeInstalled':
       return submitted(state, (campaign) =>
         submitRareUpgradeInstalled(campaign, action.id, action.slot, action.at),
@@ -1073,6 +1149,32 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
     case 'planning/itemBuilt':
       return submitted(state, (campaign) => submitItemBuilt(campaign, action.order, action.at));
+
+    case 'planning/tradeOrdered':
+      return submitted(state, (campaign) =>
+        submitTradeOrdered(campaign, action.request, action.at),
+      );
+
+    case 'planning/rareTradeMade':
+      return submitted(state, (campaign) => submitRareTradeMade(campaign, action.picks, action.at));
+
+    case 'planning/itemSold':
+      return submitted(state, (campaign) =>
+        submitItemSold(campaign, action.id, action.payment, action.at),
+      );
+
+    case 'vehicles/added':
+      return submitted(state, (campaign) =>
+        submitVehicleAdded(campaign, action.vehicle, action.at),
+      );
+
+    case 'vehicles/removed':
+      return submitted(state, (campaign) => submitVehicleRemoved(campaign, action.id, action.at));
+
+    case 'planning/vehicleUpgradeFitted':
+      return submitted(state, (campaign) =>
+        submitVehicleUpgradeFitted(campaign, action.item, action.vehicle, action.at),
+      );
 
     case 'inventory/itemRemoved':
       return submitted(state, (campaign) => submitItemRemoved(campaign, action.id, action.at));
@@ -1106,15 +1208,20 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         );
 
         // Then what the cleared slot handed over (R45).
-        return handedOver === null || finished.base === null
-          ? built
-          : withEquipmentHandedOver(
-              built,
-              finished.base.id,
-              handedOver.items,
-              action.at,
-              handedOver.slot,
-            );
+        // Present when anything is handed over: only a base's slot hands it.
+        const handed =
+          handedOver === null
+            ? built
+            : withEquipmentHandedOver(
+                built,
+                (finished.base as Base).id,
+                handedOver.items,
+                action.at,
+                handedOver.slot,
+              );
+
+        // And last turn's trades, which land at this step too (pg. 19; R53).
+        return withTradesArrived(handed, action.at);
       });
 
     case 'assignment/set':

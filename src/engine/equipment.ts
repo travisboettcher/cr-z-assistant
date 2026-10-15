@@ -102,23 +102,36 @@ export function newItemProblem(campaign: Campaign, item: NewItem): string | null
     return 'That item belongs to another Origin of the Rot.';
   }
 
-  if (allItems(campaign).some((held) => held.id === item.id)) {
-    return 'An item already has that id.';
-  }
+  if (idTaken(campaign, item.id)) return 'An item already has that id.';
 
   return null;
 }
 
 /**
  * Every item the campaign holds: the base's, the roster's, the set-aside's,
- * and the rare upgrades installed in its facilities (Z5-8).
+ * the rare upgrades installed in its facilities (Z5-8), and the upgrades
+ * fitted to its vehicles (Z5-11).
  */
 export function allItems(campaign: Campaign): readonly Item[] {
   return [
     ...campaign.inventory,
     ...[...campaign.survivors, ...campaign.setAside].flatMap((survivor) => survivor.items),
     ...Object.values(campaign.base?.slots ?? {}).flatMap((slot) => slot.installed ?? []),
+    ...campaign.vehicles.flatMap((vehicle) =>
+      vehicle.upgrade === undefined ? [] : [vehicle.upgrade],
+    ),
   ];
+}
+
+/**
+ * Whether a new item may not have this id: one the campaign holds has it, or
+ * one on its way from a trade will (Z5-9), or one a Rare Items trade is for
+ * (Z5-10).
+ */
+export function idTaken(campaign: Campaign, id: string): boolean {
+  return [...allItems(campaign), ...campaign.trades, ...(campaign.rareTrade?.items ?? [])].some(
+    (held) => held.id === id,
+  );
 }
 
 /** Why this item cannot be taken out of the base's Inventory by hand, or `null`. */

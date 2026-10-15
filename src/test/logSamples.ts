@@ -123,8 +123,27 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   // A Rookie its setup placed on the area (pg. 79).
   { kind: 'gather-materials-resolved', team: 1, materialsCarriedOut: 5, strangers: [1] },
   { kind: 'retrieve-new-vehicles-resolved', team: 3, vehiclesDrivenOff: 0, strangers: [] },
+  // What each vehicle driven off was, since Z5-11: a Tier 4 with its split, and a boat.
+  {
+    kind: 'retrieve-new-vehicles-resolved',
+    team: 1,
+    vehiclesDrivenOff: 2,
+    retrieved: [
+      { id: 'bus', tier: 4, label: 'School bus', water: false, inventorySlots: 12, roll: 10 },
+      { id: 'skiff', tier: 1, label: 'Skiff', water: true, roll: 5 },
+    ],
+    strangers: [],
+  },
   { kind: 'rescue-strangers-resolved', team: 1, strangers: [2] },
   { kind: 'rare-goods-trader-resolved', team: 2, survivorsExited: 1, strangers: [3] },
+  // With a trade under way, and how many items the trader handed over (Z5-10).
+  {
+    kind: 'rare-goods-trader-resolved',
+    team: 1,
+    survivorsExited: 0,
+    strangers: [],
+    itemsTraded: 2,
+  },
   { kind: 'mission-played', team: 1, mission: 'left-behind-1' },
   { kind: 'siege-defense-resolved', zombiesLeft: 3, survivorsExited: 1 },
   // The team's wounds, which every outcome written since Z4-4 carries: Health
@@ -180,7 +199,24 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'survivor-left', ...SURVIVOR, tier: 2, cause: 'bitten' },
   { kind: 'survivor-left', ...SURVIVOR, tier: 3, cause: 'removed' },
   { kind: 'survivor-left', ...SURVIVOR, tier: 1 },
+  // A death on a mission (R71; Z5-13), with what stayed on the map and without.
+  {
+    kind: 'survivor-left',
+    ...SURVIVOR,
+    tier: 2,
+    cause: 'killed',
+    team: 2,
+    lost: [{ id: 'rifle-1', item: 'rifle', grade: 'standard' }],
+  },
+  { kind: 'survivor-left', ...SURVIVOR, tier: 2, cause: 'killed', team: 1 },
   { kind: 'survivor-departed', ...SURVIVOR, tier: 1 },
+  // What a departing survivor took (R73; Z5-13).
+  {
+    kind: 'survivor-departed',
+    ...SURVIVOR,
+    tier: 2,
+    items: [{ id: 'rifle-1', item: 'rifle', grade: 'standard' }],
+  },
   { kind: 'mission-team-reduced', ...SURVIVOR },
   { kind: 'survivor-promoted', ...SURVIVOR, tier: 4 },
   { kind: 'skill-level-bought', ...SURVIVOR, skill: 'archery', level: 2 },
@@ -255,6 +291,83 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   },
   // An item the project team built (Z5-6).
   { kind: 'item-built', id: 'item-5', item: 'blunt', grade: 'standard', hardware: 1, labor: 1 },
+  // Vehicles (Z5-11): added by hand, taken out, and an upgrade fitted.
+  { kind: 'vehicle-added', vehicle: { id: 'car', tier: 2, label: 'Red pickup', water: false } },
+  { kind: 'vehicle-removed', id: 'car', label: 'Red pickup', tier: 2 },
+  {
+    kind: 'vehicle-upgrade-fitted',
+    vehicle: 'car',
+    label: 'Red pickup',
+    item: { id: 'rack', item: 'car-roof-rack', grade: 'standard' },
+  },
+  // What a move out of an overrun base lost (R53, R78, R79; Z5-13).
+  {
+    kind: 'overrun-lost',
+    items: [{ id: 'rifle-1', item: 'rifle', grade: 'standard' }],
+    vehicles: [{ id: 'car', tier: 2, label: 'Red pickup', water: false }],
+    trades: [{ id: 'bat-1', item: 'blunt', grade: 'standard', food: 1, fuel: 0, orderedOnTurn: 3 }],
+  },
+  { kind: 'overrun-lost', items: [], vehicles: [], trades: [] },
+  // Vehicles on a mission (Z5-12): taken, left home, and brought home or lost.
+  { kind: 'vehicle-taken', team: 1, vehicle: 'car', label: 'Red pickup', tier: 2, fuel: 2 },
+  { kind: 'vehicle-left-home', team: 1, vehicle: 'car', label: 'Red pickup', fuel: 2 },
+  { kind: 'vehicles-brought-home', team: 1, lost: [] },
+  {
+    kind: 'vehicles-brought-home',
+    team: 2,
+    lost: [
+      {
+        id: 'van',
+        tier: 4,
+        label: 'Grey van',
+        water: false,
+        inventorySlots: 12,
+        upgrade: { id: 'rack', item: 'car-roof-rack', grade: 'standard' },
+      },
+    ],
+  },
+  // The Rare Items trade (Z5-10): made, lost each way, and settled each way.
+  {
+    kind: 'rare-trade-made',
+    items: [
+      {
+        id: 'item-9',
+        item: 'riot-shield',
+        grade: 'standard',
+        subtable: 3,
+        entry: 1,
+        food: 4,
+        fuel: 6,
+      },
+    ],
+  },
+  ...(['siege', 'other-mission', 'no-mission'] as const).map((reason) => ({
+    kind: 'rare-trade-lost' as const,
+    reason,
+    items: [{ id: 'item-9', item: 'riot-shield' as const, grade: 'standard' as const }],
+    food: 4,
+    fuel: 6,
+  })),
+  {
+    kind: 'rare-trade-closed',
+    arrived: [{ id: 'item-9', item: 'riot-shield', grade: 'standard' }],
+    lost: [],
+    food: 0,
+    fuel: 6,
+  },
+  {
+    kind: 'rare-trade-closed',
+    arrived: [],
+    lost: [{ id: 'item-9', item: 'riot-shield', grade: 'standard' }],
+    food: 2,
+    fuel: 0,
+  },
+  { kind: 'rare-trade-closed', arrived: [], lost: [], food: 0, fuel: 0 },
+  // Trading (Z5-9): paid in a mix, and in one material alone.
+  { kind: 'trade-ordered', id: 'item-6', item: 'pistol', grade: 'standard', food: 1, fuel: 2 },
+  { kind: 'trade-ordered', id: 'item-7', item: 'tool-belt', grade: 'quality', food: 0, fuel: 8 },
+  { kind: 'trade-arrived', id: 'item-6', item: 'pistol', grade: 'standard' },
+  { kind: 'item-sold', id: 'item-8', item: 'riot-shield', grade: 'standard', food: 8, fuel: 0 },
   // What a mission used up (Z5-5).
   {
     kind: 'items-spent',
