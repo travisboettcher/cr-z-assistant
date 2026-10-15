@@ -4,7 +4,13 @@ import { queued } from '../test/queued';
 import { submitBaseMove } from './advancementForms';
 import { createNewCampaign, type Campaign } from './campaign';
 import type { LogEntry } from './log';
-import { moveProblem, rebuildAfterMove, storesAfterMove, withBaseMoved } from './move';
+import {
+  lostInOverrun,
+  moveProblem,
+  rebuildAfterMove,
+  storesAfterMove,
+  withBaseMoved,
+} from './move';
 import { createSurvivor } from './survivor';
 import { expectAccepted, expectRefused } from '../test/forms';
 
@@ -379,5 +385,123 @@ describe('storesAfterMove for a community begun again (R30, R31; Z4-11)', () => 
     );
 
     expect(storesAfterMove(campaign)).toEqual({ food: 4, fuel: 4, hardware: 4 });
+  });
+});
+
+/** What the move out of an overrun base loses (pp. 85–86; R53, R78, R79; Z5-13). */
+describe('lostInOverrun, and the move that loses it', () => {
+  const rifle = { id: 'rifle-1', item: 'rifle', grade: 'standard' } as const;
+  const bat = { id: 'bat-1', item: 'blunt', grade: 'standard' } as const;
+  const pistol = { id: 'pistol-1', item: 'pistol', grade: 'standard' } as const;
+  const truck = { id: 'truck', tier: 3, label: 'Box truck', water: false } as const;
+  const order = {
+    id: 'club-1',
+    item: 'blunt',
+    grade: 'standard',
+    food: 1,
+    fuel: 0,
+    orderedOnTurn: 4,
+  } as const;
+
+  /** Turn 4 at the last Advancement step after the overrun, holding all of it. */
+  const holding = (after: readonly LogEntry[]) =>
+    overrun(after, {
+      step: 'add-facilities-and-upgrades',
+      inventory: [bat],
+      vehicles: [{ ...truck, upgrade: pistol }],
+      trades: [order],
+      survivors: [{ ...earl, items: [rifle] }, hera],
+    });
+
+  it('loses nothing on an ordinary move, which takes everything (R77)', () => {
+    const campaign = moving({
+      inventory: [bat],
+      vehicles: [truck],
+      trades: [order],
+    });
+
+    expect(lostInOverrun(campaign)).toBeNull();
+    expect(withBaseMoved(campaign, [])).toMatchObject({
+      inventory: [bat],
+      vehicles: [truck],
+      trades: [order],
+    });
+  });
+
+  /** The acceptance's second half. */
+  it('empties the Inventory on a claim of another type, and survivors keep what they carry', () => {
+    const campaign = holding([...wentOn('claim', 'distillery'), continued('claim', true)]);
+    const after = expectAccepted(submitBaseMove(campaign, [], LATER));
+
+    expect(after.inventory).toEqual([]);
+    expect(after.vehicles).toEqual([]);
+    expect(after.trades).toEqual([order]);
+    expect(after.survivors.map((survivor) => survivor.items)).toEqual([[rifle], []]);
+    expect(after.log.at(-1)?.event).toEqual({
+      kind: 'overrun-lost',
+      items: [bat],
+      vehicles: [{ ...truck, upgrade: pistol }],
+      trades: [],
+    });
+  });
+
+  it('keeps the vehicles, upgrades and all, on a reclaim on the same map (R64, R78)', () => {
+    const campaign = holding([...wentOn('claim', 'hobby-farm'), continued('claim', true, true)]);
+    const after = expectAccepted(submitBaseMove(campaign, [], LATER));
+
+    expect(after.vehicles).toEqual([{ ...truck, upgrade: pistol }]);
+    expect(after.inventory).toEqual([]);
+    expect(lostInOverrun(campaign)).toEqual({ items: [bat], vehicles: [], trades: [] });
+  });
+
+  it('loses the vehicles on the same type on another map', () => {
+    const campaign = holding([...wentOn('claim', 'hobby-farm'), continued('claim', true, false)]);
+
+    expect(lostInOverrun(campaign)?.vehicles).toEqual([{ ...truck, upgrade: pistol }]);
+  });
+
+  it('loses everything but what survivors carry when the community starts over (R53, R79)', () => {
+    for (const option of ['start-over', 'abandon'] as const) {
+      const campaign = holding([...wentOn(option, 'summer-camp'), continued(option, true)]);
+
+      expect(lostInOverrun(campaign), option).toEqual({
+        items: [bat],
+        vehicles: [{ ...truck, upgrade: pistol }],
+        trades: [order],
+      });
+    }
+
+    const after = expectAccepted(
+      submitBaseMove(
+        holding([...wentOn('start-over', 'summer-camp'), continued('start-over', true)]),
+        [],
+        LATER,
+      ),
+    );
+    expect(after).toMatchObject({ inventory: [], vehicles: [], trades: [] });
+    expect(after.survivors[0]?.items).toEqual([rifle]);
+  });
+
+  it('is nothing until a way on has won', () => {
+    expect(lostInOverrun(holding([...wentOn('claim', 'distillery')]))).toBeNull();
+  });
+
+  it('writes no entry when there was nothing to lose', () => {
+    const campaign = overrun([...wentOn('claim', 'distillery'), continued('claim', true)], {
+      step: 'add-facilities-and-upgrades',
+    });
+    const after = expectAccepted(submitBaseMove(campaign, [], LATER));
+
+    expect(after.log.at(-1)?.event.kind).toBe('base-moved');
+  });
+
+  it('keeps every order on a claim, which arrives wherever the community is (R53)', () => {
+    const second = { ...order, id: 'club-2' };
+    const campaign = holding([...wentOn('claim', 'distillery'), continued('claim', true)]);
+
+    expect(withBaseMoved({ ...campaign, trades: [order, second] }, []).trades).toEqual([
+      order,
+      second,
+    ]);
   });
 });

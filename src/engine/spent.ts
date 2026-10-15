@@ -20,10 +20,13 @@
  *
  * ## Leaving the roster
  *
- * A survivor who turns, departs or is taken off the roster leaves what they
- * carried. Where it goes is part 3's ruling; until then it goes into the
- * base's Inventory, with an entry for each, so nothing disappears unrecorded.
- * Shoddy gear goes back to the free supply, as it does when set down (R35).
+ * A survivor who turns, is bitten to death or is taken off the roster leaves
+ * what they carried at the base: into its Inventory, with an entry for each
+ * (R72, R74, R75). Shoddy gear goes back to the free supply, as it does when
+ * set down (R35). The rest take theirs: a survivor who departs (R73), one set
+ * aside (R76) and a Hero sent away by a move (R77). One who dies on a mission
+ * leaves theirs on the map, lost unless a teammate took it (R71;
+ * `missionDeaths.ts`).
  */
 
 import type { Campaign, Item, Survivor } from './campaign';
@@ -130,8 +133,8 @@ export function spentOwed(campaign: Campaign): readonly number[] {
 /**
  * The campaign with what these survivors carried left behind: into the base's
  * Inventory, or back to the free supply for shoddy gear (R35), an entry for
- * each. For survivors already taken off the roster; until part 3 rules on
- * where a leaver's items go, nothing goes unrecorded.
+ * each. For survivors already taken off the roster at the base: turned,
+ * bitten to death or removed (R72, R74, R75).
  */
 export function withItemsLeftBehind(
   campaign: Campaign,

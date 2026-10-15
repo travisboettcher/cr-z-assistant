@@ -45,7 +45,7 @@ import {
 } from '../engine/materials';
 import { baseMoved, claimedBase, heroesOverCap } from '../engine/claim';
 import { deployed } from '../engine/missions';
-import { moveProblem, storesAfterMove } from '../engine/move';
+import { lostInOverrun, moveProblem, storesAfterMove } from '../engine/move';
 import {
   rescuedStrangers,
   strangerProblem,
@@ -1439,6 +1439,27 @@ function MoveIn({ campaign }: { readonly campaign: Campaign }) {
   const problem = moveProblem(campaign, leaving);
   const from = campaign.base === null ? null : BASE_LABELS[campaign.base.id];
   const stores = storesAfterMove(campaign);
+  const lost = lostInOverrun(campaign);
+  const losing =
+    lost === null
+      ? []
+      : [
+          ...(lost.items.length === 0
+            ? []
+            : [
+                lost.items.length === 1
+                  ? 'the 1 item in the Inventory'
+                  : `the ${String(lost.items.length)} items in the Inventory`,
+              ]),
+          ...lost.vehicles.map((vehicle) => vehicle.label),
+          ...(lost.trades.length === 0
+            ? []
+            : [
+                lost.trades.length === 1
+                  ? '1 order on its way'
+                  : `${String(lost.trades.length)} orders on their way`,
+              ]),
+        ];
 
   return (
     <section
@@ -1465,6 +1486,12 @@ function MoveIn({ campaign }: { readonly campaign: Campaign }) {
           </>
         )}
       </p>
+      {losing.length > 0 && (
+        <p className={`mt-1 ${HINT}`}>
+          Lost with the overrun base: {losing.join(', ')}. Survivors keep what they carry{' '}
+          <PageRef pages="85–86" />
+        </p>
+      )}
 
       {over > 0 && (
         <fieldset className="mt-3">

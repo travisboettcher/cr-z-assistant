@@ -519,6 +519,8 @@ const EVENT_FIELD_CHECKS = {
     ),
   // Items a base handed over (Z5-8), each checked as an Inventory item is.
   items: (value: unknown) => describeItemsProblem(value) === null,
+  trades: (value: unknown) => describeTradesProblem(value) === null,
+  optionalItems: (value: unknown) => value === undefined || describeItemsProblem(value) === null,
   rareTradeItems: (value: unknown) => describeRareTradeItemsProblem(value) === null,
   item: (value: unknown) => describeItemProblem(value) === null,
   vehicle: (value: unknown) => describeVehicleProblem(value) === null,
@@ -761,11 +763,14 @@ const EVENT_FIELDS: Record<
     ['name', 'name'],
     ['tier', 'tier'],
     ['cause', 'optionalLeavingCause'],
+    ['team', 'optionalTeam'],
+    ['lost', 'optionalItems'],
   ],
   'survivor-departed': [
     ['survivor', 'id'],
     ['name', 'name'],
     ['tier', 'tier'],
+    ['items', 'optionalItems'],
   ],
   'mission-team-reduced': [
     ['survivor', 'id'],
@@ -847,6 +852,12 @@ const EVENT_FIELDS: Record<
     ['vehicle', 'id'],
     ['label', 'name'],
     ['item', 'item'],
+  ],
+  // What a move out of an overrun base lost (Z5-13).
+  'overrun-lost': [
+    ['items', 'items'],
+    ['vehicles', 'vehicles'],
+    ['trades', 'trades'],
   ],
   // Vehicles on a mission (Z5-12).
   'vehicle-taken': [

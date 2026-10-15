@@ -13,7 +13,14 @@
  * (`storesAfterMove`; R29, R30). A first base's
  * stocking (`submitBaseClaim`) is not repeated: a later base has only what was
  * carried. One Hero of the player's choice leaves for every Hero the new base
- * cannot hold (pg. 54; R32), and is set aside rather than lost (R31).
+ * cannot hold (pg. 54; R32), and is set aside rather than lost (R31), with
+ * what they carry (R77).
+ *
+ * Everything else moves too, the Inventory and the vehicles with it (R77) —
+ * but not out of a base the horde overran. Then the Inventory is lost, the
+ * vehicles come back only to a reclaim on the same map, and a community
+ * starting over loses its orders on the way (`lostInOverrun`; R53, R78, R79).
+ * Survivors keep what they carry in every case.
  *
  * Pure, like the rest of `src/engine`.
  */
@@ -22,7 +29,7 @@ import { BASES } from '../data/bases';
 import { MATERIALS, type Materials } from '../data/materials';
 import { withoutAssignment } from './assignments';
 import { storageCaps } from './base';
-import type { Campaign, SlotState } from './campaign';
+import type { Campaign, Item, SlotState, TradeOrder, Vehicle } from './campaign';
 import { baseMoved, claimedBase, heroesOverCap } from './claim';
 import type { RebuildSlot } from './log';
 import { overrunChoice, reclaimedOnSameMap } from './overrun';
@@ -97,6 +104,53 @@ export function withBaseMoved(campaign: Campaign, leaving: readonly string[]): C
     ],
     assignments: leaving.reduce(withoutAssignment, campaign.assignments),
     materials: storesAfterMove(campaign) ?? campaign.materials,
+    ...withoutLost(campaign, lostInOverrun(campaign)),
+  };
+}
+
+/** What a move after an overrun leaves in the overrun base, lost (R53, R78, R79). */
+export interface LostInOverrun {
+  readonly items: readonly Item[];
+  readonly vehicles: readonly Vehicle[];
+  readonly trades: readonly TradeOrder[];
+}
+
+/**
+ * What the move out of an overrun base loses, or `null` for any other move
+ * (pp. 85–86; R53, R78, R79):
+ *
+ * - **Every item in the base's Inventory**, whichever way the community went
+ *   on (R78). Survivors keep what they carry.
+ * - **Every vehicle**, unless the claim was of the overrun base's own type on
+ *   its own map: there they stand on the mission area and a won claim keeps
+ *   them, upgrades and all (R64, R78). Starting over loses them too (R79).
+ * - **Orders on their way**, for a community starting over, which loses them
+ *   with the old base (R53). A claim keeps them: they arrive wherever the
+ *   community is.
+ */
+export function lostInOverrun(campaign: Campaign): LostInOverrun | null {
+  // A way on is only ever chosen after an overrun, so a choice is the overrun.
+  const option = overrunChoice(campaign);
+  if (option === null || claimedBase(campaign) === null) return null;
+
+  return {
+    items: campaign.inventory,
+    vehicles: reclaimedOnSameMap(campaign) ? [] : campaign.vehicles,
+    trades: option === 'claim' ? [] : campaign.trades,
+  };
+}
+
+/** The Inventory, vehicles and orders without what was lost, or nothing to change. */
+function withoutLost(
+  campaign: Campaign,
+  lost: LostInOverrun | null,
+): Partial<Pick<Campaign, 'inventory' | 'vehicles' | 'trades'>> {
+  if (lost === null) return {};
+
+  return {
+    inventory: [],
+    vehicles: campaign.vehicles.filter((vehicle) => !lost.vehicles.includes(vehicle)),
+    trades: campaign.trades.filter((trade) => !lost.trades.includes(trade)),
   };
 }
 

@@ -2856,6 +2856,40 @@ describe('what earns a line in the log', () => {
         ],
       }),
     },
+    'mission/survivorKilled': {
+      // Marcus died on team 1's mission, and nobody took his pistol (R71; Z5-13).
+      state: openState({
+        ...expectOpen(
+          marcusOnTeamOne([
+            entry(3, 'mission', {
+              kind: 'mission-selected',
+              team: 1,
+              mission: 'left-behind-1',
+              names: ['Marcus Webb'],
+            }),
+            entry(3, 'mission', { kind: 'mission-played', team: 1, mission: 'left-behind-1' }),
+          ]),
+        ),
+        survivors: expectOpen(marcusOnTeamOne()).survivors.map((survivor) =>
+          survivor.id === LOGGED_SURVIVOR
+            ? { ...survivor, items: [{ id: 'item-1', item: 'pistol', grade: 'standard' }] }
+            : survivor,
+        ),
+      }),
+      action: {
+        type: 'mission/survivorKilled',
+        death: { team: 1, survivor: LOGGED_SURVIVOR, taken: {} },
+        at: AT,
+      },
+      entry: entry(3, 'mission', {
+        kind: 'survivor-left',
+        ...WEBB,
+        tier: 2,
+        cause: 'killed',
+        team: 1,
+        lost: [{ id: 'item-1', item: 'pistol', grade: 'standard' }],
+      }),
+    },
     'mission/vehicleTaken': {
       // Team 1 takes the Tier 1 runabout, burning the base's 1 Fuel (R65; Z5-12).
       state: openState({

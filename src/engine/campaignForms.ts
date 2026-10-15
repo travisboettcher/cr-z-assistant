@@ -386,7 +386,7 @@ export function submitStrangerJoined(
 
 /**
  * Take a survivor off the roster, and their task with them. What they carried
- * goes into the base's Inventory (Z5-5).
+ * goes into the base's Inventory (R75).
  *
  * Reads the survivor before removing them, because the entry has to outlive the
  * roster: once they are gone their name is the only thing left to render, and

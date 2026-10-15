@@ -314,11 +314,25 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
     };
   }
 
+  if (event.kind === 'survivor-departed' && event.items !== undefined) {
+    return { ...taggedFirst(event, 'kind'), items: event.items.map(orderedItem) };
+  }
+  if (event.kind === 'survivor-left' && event.lost !== undefined) {
+    return { ...taggedFirst(event, 'kind'), lost: event.lost.map(orderedItem) };
+  }
   if (event.kind === 'equipment-handed-over' || event.kind === 'rare-trade-lost') {
     return { ...taggedFirst(event, 'kind'), items: event.items.map(orderedItem) };
   }
   if (event.kind === 'vehicle-added') {
     return { ...taggedFirst(event, 'kind'), vehicle: orderedVehicle(event.vehicle) };
+  }
+  if (event.kind === 'overrun-lost') {
+    return {
+      ...taggedFirst(event, 'kind'),
+      items: event.items.map(orderedItem),
+      vehicles: event.vehicles.map(orderedVehicle),
+      trades: event.trades.map(orderedTrade),
+    };
   }
   if (event.kind === 'vehicles-brought-home') {
     return { ...taggedFirst(event, 'kind'), lost: event.lost.map(orderedVehicle) };

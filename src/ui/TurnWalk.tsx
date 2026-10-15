@@ -22,6 +22,7 @@ import { AdvancementPhase } from './AdvancementPhase';
 import { EquipMissionTeam } from './EquipMissionTeam';
 import { FirstMission } from './FirstMission';
 import { MissionOutcome } from './MissionOutcome';
+import { MissionDeaths } from './MissionDeaths';
 import { MissionSpent } from './MissionSpent';
 import { MissionVehicles } from './MissionVehicles';
 import { SelectMission } from './SelectMission';
@@ -301,6 +302,13 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
             {campaign.step === 'equip-mission-team' && <EquipMissionTeam campaign={campaign} />}
 
             {campaign.step === 'tactical-mission' && <MissionOutcome campaign={campaign} />}
+
+            {/*
+             * Who died on a team's mission (Z5-13), first of what follows the
+             * outcome: their gear is lost or taken there, and is then no
+             * longer the team's to record as used.
+             */}
+            {campaign.step === 'tactical-mission' && <MissionDeaths campaign={campaign} />}
 
             {/*
              * What each team's mission used up or lost (Z5-5), beside its

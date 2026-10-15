@@ -53,7 +53,7 @@ import { phaseOf } from './turn';
 // `LogEntry` from here. Both directions are erased at compile time, so there is
 // no runtime cycle — and the alternative, a third module holding one of them,
 // would separate `Campaign` from the shape of its own field.
-import type { Assignment, Campaign, Item, RareTradeItem, Vehicle } from './campaign';
+import type { Assignment, Campaign, Item, RareTradeItem, TradeOrder, Vehicle } from './campaign';
 
 /**
  * One team member as a mission left them, carried on its outcome (#178, Z4-4).
@@ -127,7 +127,7 @@ export const RARE_TRADE_LOSSES = ['siege', 'other-mission', 'no-mission'] as con
 export type RareTradeLoss = (typeof RARE_TRADE_LOSSES)[number];
 
 /** Why a `survivor-left` entry's survivor left (#201). */
-export const LEAVING_CAUSES = ['turned', 'bitten', 'removed'] as const;
+export const LEAVING_CAUSES = ['turned', 'bitten', 'removed', 'killed'] as const;
 
 export type LeavingCause = (typeof LEAVING_CAUSES)[number];
 
@@ -334,6 +334,11 @@ export type CampaignEvent =
       readonly survivor: string;
       readonly name: string;
       readonly tier: Tier;
+      /**
+       * What they took with them (R73; Z5-13). Absent when they carried
+       * nothing, and on an entry from before Z5-13, which left it at the base.
+       */
+      readonly items?: readonly Item[];
     }
   /**
    * Exhaustion took a survivor off the mission team at Assign Beds (pg. 23).
@@ -747,9 +752,10 @@ export type CampaignEvent =
     }
   /**
    * A survivor gone from the roster, and why (#201): `turned` at a Rot check,
-   * `bitten` to death by one who turned (pg. 22), or `removed` by hand from the
-   * roster. Absent on an entry written before the cause was recorded, which
-   * reads as it always did — inventing one would be writing history.
+   * `bitten` to death by one who turned (pg. 22), `removed` by hand from the
+   * roster, or `killed` on a mission (R71; Z5-13). Absent on an entry written
+   * before the cause was recorded, which reads as it always did — inventing
+   * one would be writing history.
    */
   | {
       readonly kind: 'survivor-left';
@@ -757,6 +763,10 @@ export type CampaignEvent =
       readonly name: string;
       readonly tier: Tier;
       readonly cause?: LeavingCause;
+      /** The team whose mission a `killed` survivor died on. */
+      readonly team?: number;
+      /** What a `killed` survivor carried that nobody took, lost on the map (R71). */
+      readonly lost?: readonly Item[];
     }
   | {
       readonly kind: 'survivor-promoted';
@@ -1035,6 +1045,18 @@ export type CampaignEvent =
        * Absent for every other move.
        */
       readonly rebuild?: readonly RebuildSlot[];
+    }
+  /**
+   * What a move out of an overrun base left in it, lost: the Inventory's
+   * items, the vehicles a reclaim on the same map did not keep, and a
+   * community starting over's orders on the way (pp. 85–86; R53, R78, R79;
+   * Z5-13). Written after the move, and only when something was lost.
+   */
+  | {
+      readonly kind: 'overrun-lost';
+      readonly items: readonly Item[];
+      readonly vehicles: readonly Vehicle[];
+      readonly trades: readonly TradeOrder[];
     }
   /**
    * A community's first base arrived stocked to its caps (pg. 19, 54).

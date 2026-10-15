@@ -1396,6 +1396,74 @@ describe('Moving in after an overrun', () => {
       ),
     ).toBeTruthy();
   });
+
+  it('says what is lost with the overrun base, and nothing when nothing is (R78, R79)', () => {
+    const order = {
+      id: 'club-1',
+      item: 'blunt',
+      grade: 'standard',
+      food: 1,
+      fuel: 0,
+      orderedOnTurn: 4,
+    } as const;
+
+    open(
+      overrun([...wentOn('start-over', 'summer-camp'), continued('start-over', true)], {
+        step: 'add-facilities-and-upgrades',
+        inventory: [
+          { id: 'bat-1', item: 'blunt', grade: 'standard' },
+          { id: 'bat-2', item: 'blunt', grade: 'standard' },
+        ],
+        vehicles: [{ id: 'truck', tier: 3, label: 'Box truck', water: false }],
+        trades: [order, { ...order, id: 'club-2' }],
+      }),
+    );
+
+    expect(
+      within(screen.getByRole('region', { name: 'Move into the new base' })).getByText(
+        /^Lost with the overrun base: the 2 items in the Inventory, Box truck, 2 orders on their way\./,
+      ),
+    ).toBeTruthy();
+  });
+
+  it('names one item and one order in the singular', () => {
+    open(
+      overrun([...wentOn('start-over', 'summer-camp'), continued('start-over', true)], {
+        step: 'add-facilities-and-upgrades',
+        inventory: [{ id: 'bat-1', item: 'blunt', grade: 'standard' }],
+        trades: [
+          {
+            id: 'club-1',
+            item: 'blunt',
+            grade: 'standard',
+            food: 1,
+            fuel: 0,
+            orderedOnTurn: 4,
+          },
+        ],
+      }),
+    );
+
+    expect(
+      within(screen.getByRole('region', { name: 'Move into the new base' })).getByText(
+        /^Lost with the overrun base: the 1 item in the Inventory, 1 order on its way\./,
+      ),
+    ).toBeTruthy();
+  });
+
+  it('warns of no loss when the overrun base held nothing', () => {
+    open(
+      overrun([...wentOn('claim', 'hobby-farm'), continued('claim', true, true)], {
+        step: 'add-facilities-and-upgrades',
+      }),
+    );
+
+    expect(
+      within(screen.getByRole('region', { name: 'Move into the new base' })).queryByText(
+        /Lost with the overrun base/,
+      ),
+    ).toBeNull();
+  });
 });
 
 /** A survivor set aside, brought back this turn, rejoins at Step 2 (R31; Z4-11). */

@@ -116,12 +116,13 @@ function counted(items: readonly Item[]): string {
 }
 
 /** How a `survivor-left` entry's survivor left, by its cause (#201). */
-const LEFT_BY_CAUSE: Readonly<Record<LeavingCause, { readonly how: string; readonly pages?: 22 }>> =
-  {
-    turned: { how: 'turned and left the community', pages: 22 },
-    bitten: { how: 'died of the bite', pages: 22 },
-    removed: { how: 'was taken off the roster' },
-  };
+const LEFT_BY_CAUSE: Readonly<
+  Record<Exclude<LeavingCause, 'killed'>, { readonly how: string; readonly pages?: 22 }>
+> = {
+  turned: { how: 'turned and left the community', pages: 22 },
+  bitten: { how: 'died of the bite', pages: 22 },
+  removed: { how: 'was taken off the roster' },
+};
 
 /** Why a Rare Items trade was lost, as its line opens (pp. 21, 23; R59, R60). */
 const RARE_TRADE_LOST: Readonly<Record<RareTradeLoss, string>> = {
@@ -424,6 +425,14 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
       // An entry from before the cause was recorded reads as it always did (#201).
       if (event.cause === undefined) return { text: `${who}, left the community.` };
 
+      // A death on a mission names the team, and what was lost on the map (R71).
+      if (event.cause === 'killed') {
+        return {
+          text: `${who}, died on mission team ${String(event.team ?? 1)}’s mission${event.lost === undefined ? '' : `, and ${counted(event.lost)} stayed on the map`}.`,
+          pages: 34,
+        };
+      }
+
       const { how, pages } = LEFT_BY_CAUSE[event.cause];
 
       return { text: `${who}, ${how}.`, ...(pages === undefined ? {} : { pages }) };
@@ -431,7 +440,7 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
 
     case 'survivor-departed':
       return {
-        text: `${event.name}, ${withArticle(TIER_LABELS[event.tier])}, walked out over the Unrest.`,
+        text: `${event.name}, ${withArticle(TIER_LABELS[event.tier])}, walked out over the Unrest${event.items === undefined ? '' : `, taking ${counted(event.items)}`}.`,
         pages: 23,
       };
 
@@ -539,6 +548,22 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
 
     case 'vehicle-upgrade-fitted':
       return { text: `Fitted ${describeItem(event.item)} to ${event.label}, for good.`, pages: 49 };
+
+    case 'overrun-lost': {
+      const lost = [
+        ...(event.items.length === 0 ? [] : [counted(event.items)]),
+        ...event.vehicles.map((vehicle) => vehicle.label),
+        ...(event.trades.length === 0 ? [] : [`${counted(event.trades)} on order`]),
+      ];
+
+      return {
+        text:
+          lost.length === 0
+            ? 'Nothing was lost with the overrun base.'
+            : `Lost with the overrun base: ${lost.join('; ')}.`,
+        pages: 86,
+      };
+    }
 
     case 'vehicle-taken':
       return {

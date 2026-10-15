@@ -199,7 +199,24 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'survivor-left', ...SURVIVOR, tier: 2, cause: 'bitten' },
   { kind: 'survivor-left', ...SURVIVOR, tier: 3, cause: 'removed' },
   { kind: 'survivor-left', ...SURVIVOR, tier: 1 },
+  // A death on a mission (R71; Z5-13), with what stayed on the map and without.
+  {
+    kind: 'survivor-left',
+    ...SURVIVOR,
+    tier: 2,
+    cause: 'killed',
+    team: 2,
+    lost: [{ id: 'rifle-1', item: 'rifle', grade: 'standard' }],
+  },
+  { kind: 'survivor-left', ...SURVIVOR, tier: 2, cause: 'killed', team: 1 },
   { kind: 'survivor-departed', ...SURVIVOR, tier: 1 },
+  // What a departing survivor took (R73; Z5-13).
+  {
+    kind: 'survivor-departed',
+    ...SURVIVOR,
+    tier: 2,
+    items: [{ id: 'rifle-1', item: 'rifle', grade: 'standard' }],
+  },
   { kind: 'mission-team-reduced', ...SURVIVOR },
   { kind: 'survivor-promoted', ...SURVIVOR, tier: 4 },
   { kind: 'skill-level-bought', ...SURVIVOR, skill: 'archery', level: 2 },
@@ -283,6 +300,14 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
     label: 'Red pickup',
     item: { id: 'rack', item: 'car-roof-rack', grade: 'standard' },
   },
+  // What a move out of an overrun base lost (R53, R78, R79; Z5-13).
+  {
+    kind: 'overrun-lost',
+    items: [{ id: 'rifle-1', item: 'rifle', grade: 'standard' }],
+    vehicles: [{ id: 'car', tier: 2, label: 'Red pickup', water: false }],
+    trades: [{ id: 'bat-1', item: 'blunt', grade: 'standard', food: 1, fuel: 0, orderedOnTurn: 3 }],
+  },
+  { kind: 'overrun-lost', items: [], vehicles: [], trades: [] },
   // Vehicles on a mission (Z5-12): taken, left home, and brought home or lost.
   { kind: 'vehicle-taken', team: 1, vehicle: 'car', label: 'Red pickup', tier: 2, fuel: 2 },
   { kind: 'vehicle-left-home', team: 1, vehicle: 'car', label: 'Red pickup', fuel: 2 },

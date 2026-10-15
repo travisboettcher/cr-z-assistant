@@ -728,6 +728,25 @@ it home (pp. 18, 32, 52, 71).
 - After an overrun claimed on another base type, the Inventory is empty and every survivor still
   carries what they did.
 
+**What this story turned out to include.**
+- **A death on a mission is recorded by the table**, under the team's outcome, folded away because
+  most missions lose nobody: who died, and for each item they carried whether it stayed on the map
+  or which teammate took it home (R71). The survivor leaves with the cause `killed`, beside #201's
+  three, and the entry names the team and what was lost; each item taken is an `item-moved` to its
+  taker. It is never owed: the tracker cannot know somebody died.
+- **A departure takes what the survivor carried** (R73), and its entry names it. Nothing of theirs
+  goes to the base now, and the turned, the bitten and the removed still leave theirs there (R72,
+  R74, R75).
+- **Set aside and sent away were already right**: a survivor set aside, by an abandoned community or
+  a Hero over a new base's cap, leaves the roster whole, with what they carry (R76, R77).
+- **What an overrun loses is lost at the move**, when the community leaves the base, and the move's
+  panel says what beforehand. The Inventory goes whichever way the community went on (R78); the
+  vehicles stay only with a reclaim on the same map (R64, R78); starting over, either way, loses the
+  orders on their way too (R53, R79). An `overrun-lost` entry after the move names all of it.
+- **A claim after an overrun keeps its orders**, which arrive wherever the community is (R53). One
+  that already arrived at this turn's Add Facilities and Upgrades is in the Inventory by the time of
+  the move, and is lost with it.
+
 ## Phase 5 is done when
 
 Every item and vehicle the community holds was built, found, traded, handed over or retrieved the

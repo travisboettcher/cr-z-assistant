@@ -148,6 +148,7 @@ describe('the event samples', () => {
     'vehicle-removed': true,
     'vehicle-upgrade-fitted': true,
     'vehicle-taken': true,
+    'overrun-lost': true,
     'vehicle-left-home': true,
     'vehicles-brought-home': true,
     'rare-trade-lost': true,

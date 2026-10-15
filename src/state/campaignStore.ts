@@ -66,6 +66,7 @@ import {
 } from '../engine/advancementForms';
 import type { MissionOutcome } from '../engine/missions';
 import type { EquipMove } from '../engine/equip';
+import type { MissionDeath } from '../engine/missionDeaths';
 import type { BuildOrder } from '../engine/making';
 import type { RareItemRoll } from '../engine/finding';
 import { withEquipmentHandedOver } from '../engine/handover';
@@ -80,6 +81,7 @@ import {
   submitStandIn,
   submitEquipMove,
   submitItemsSpent,
+  submitMissionDeath,
   submitVehicleLeftHome,
   submitVehiclesBroughtHome,
   submitVehicleTaken,
@@ -538,6 +540,8 @@ export type CampaignAction =
       readonly drivenOff: readonly string[];
       readonly at: string;
     }
+  /** A survivor who died on a team's mission, and who took what from them (R71; Z5-13). */
+  | { readonly type: 'mission/survivorKilled'; readonly death: MissionDeath; readonly at: string }
   /** A survivor set aside, brought back this turn, rejoins (R31; Z4-11). */
   | {
       readonly type: 'advancement/survivorReturned';
@@ -1116,6 +1120,9 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return submitted(state, (campaign) =>
         submitItemsSpent(campaign, action.team, action.items, action.at),
       );
+
+    case 'mission/survivorKilled':
+      return submitted(state, (campaign) => submitMissionDeath(campaign, action.death, action.at));
 
     case 'mission/vehicleTaken':
       return submitted(state, (campaign) =>

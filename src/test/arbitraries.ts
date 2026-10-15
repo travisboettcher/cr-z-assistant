@@ -592,6 +592,18 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
         ...survivor,
         tier: fc.constantFrom(...TIERS),
         cause: fc.constantFrom(...LEAVING_CAUSES),
+        team: fc.integer({ min: 1, max: 4 }),
+        lost: fc.array(itemArbitrary(), { minLength: 1, maxLength: 2 }),
+      },
+      { requiredKeys: ['kind', 'survivor', 'name', 'tier'] },
+    ),
+    // What a departing survivor took, absent before Z5-13 and when nothing (R73).
+    fc.record(
+      {
+        kind: fc.constant('survivor-departed' as const),
+        ...survivor,
+        tier: fc.constantFrom(...TIERS),
+        items: fc.array(itemArbitrary(), { minLength: 1, maxLength: 2 }),
       },
       { requiredKeys: ['kind', 'survivor', 'name', 'tier'] },
     ),
@@ -710,6 +722,12 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       vehicle: anyId,
       label: anyName,
       item: itemArbitrary(),
+    }),
+    fc.record({
+      kind: fc.constant('overrun-lost' as const),
+      items: fc.array(itemArbitrary(), { maxLength: 2 }),
+      vehicles: fc.array(vehicleArbitrary(), { maxLength: 2 }),
+      trades: fc.array(tradeArbitrary(), { maxLength: 2 }),
     }),
     fc.record({
       kind: fc.constant('vehicle-taken' as const),

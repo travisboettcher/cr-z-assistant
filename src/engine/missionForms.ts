@@ -54,6 +54,7 @@ import {
   type TakenVehicle,
 } from './missionVehicles';
 import { spentItems, spentProblem, withItemsSpent } from './spent';
+import { deathProblem, withMissionDeath, type MissionDeath } from './missionDeaths';
 
 /**
  * A team's mission, chosen at Select Mission (pg. 17; Z4-2).
@@ -364,4 +365,20 @@ export function submitVehiclesBroughtHome(
   return accepted(
     logged(withVehiclesLost(campaign, lost), at, { kind: 'vehicles-brought-home', team, lost }),
   );
+}
+
+/**
+ * A survivor who died on a team's mission (pp. 31, 34; R71; Z5-13): what
+ * somebody else on the team took goes home with them, the rest is lost on the
+ * map, and they leave the roster.
+ */
+export function submitMissionDeath(
+  campaign: Campaign,
+  death: MissionDeath,
+  at: string,
+): FormResult {
+  const problem = deathProblem(campaign, death);
+  if (problem !== null) return refused(problem);
+
+  return accepted(withMissionDeath(campaign, death, at));
 }
