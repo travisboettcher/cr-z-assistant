@@ -283,6 +283,24 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
     label: 'Red pickup',
     item: { id: 'rack', item: 'car-roof-rack', grade: 'standard' },
   },
+  // Vehicles on a mission (Z5-12): taken, left home, and brought home or lost.
+  { kind: 'vehicle-taken', team: 1, vehicle: 'car', label: 'Red pickup', tier: 2, fuel: 2 },
+  { kind: 'vehicle-left-home', team: 1, vehicle: 'car', label: 'Red pickup', fuel: 2 },
+  { kind: 'vehicles-brought-home', team: 1, lost: [] },
+  {
+    kind: 'vehicles-brought-home',
+    team: 2,
+    lost: [
+      {
+        id: 'van',
+        tier: 4,
+        label: 'Grey van',
+        water: false,
+        inventorySlots: 12,
+        upgrade: { id: 'rack', item: 'car-roof-rack', grade: 'standard' },
+      },
+    ],
+  },
   // The Rare Items trade (Z5-10): made, lost each way, and settled each way.
   {
     kind: 'rare-trade-made',

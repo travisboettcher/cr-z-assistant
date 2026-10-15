@@ -540,6 +540,27 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
     case 'vehicle-upgrade-fitted':
       return { text: `Fitted ${describeItem(event.item)} to ${event.label}, for good.`, pages: 49 };
 
+    case 'vehicle-taken':
+      return {
+        text: `Mission team ${String(event.team)} took ${event.label}, Tier ${String(event.tier)}, ${event.fuel === 0 ? 'burning no Fuel' : `burning ${String(event.fuel)} Fuel`}.`,
+        pages: 52,
+      };
+
+    case 'vehicle-left-home':
+      return {
+        text: `Mission team ${String(event.team)} left ${event.label} at home${event.fuel === 0 ? '' : `, and its ${String(event.fuel)} Fuel went back into storage`}.`,
+        pages: 52,
+      };
+
+    case 'vehicles-brought-home':
+      return {
+        text:
+          event.lost.length === 0
+            ? `Mission team ${String(event.team)} drove its vehicles home.`
+            : `Mission team ${String(event.team)} lost ${event.lost.map((vehicle) => (vehicle.upgrade === undefined ? vehicle.label : `${vehicle.label} and its ${describeItem(vehicle.upgrade)}`)).join(', ')}, not driven off.`,
+        pages: 32,
+      };
+
     case 'rare-trade-made':
       return {
         text: `Made a Rare Items trade for ${event.items.map(describeItem).join(', ')}, setting aside ${paid(

@@ -3,7 +3,8 @@
  *
  * One block per mission team, a row per survivor on it: their slots, what
  * they carry and where each item can go, and what they can take — from the
- * base's Inventory, or shoddy gear free (R35). Who may be equipped, and why a
+ * base's Inventory, or shoddy gear free (R35) — and the vehicles it takes,
+ * each burning its Fuel (R65; Z5-12). Who may be equipped, and why a
  * move is refused or warned about, are `equip.ts`'s answers: this screen
  * renders them. The Inventory and the roster stay in their modals, opened from
  * here with `OpenPanel`.
@@ -26,6 +27,7 @@ import { missionTeams } from '../engine/missions';
 import { inventorySlots } from '../engine/survivor';
 import { useCampaign } from '../state/useCampaign';
 import { describeItem, ITEM_LABELS } from './equipmentLabels';
+import { AutoShopNote, TeamVehicles } from './MissionVehicles';
 import { OpenPanel } from './OpenPanel';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
@@ -68,9 +70,12 @@ export function EquipMissionTeam({ campaign }: { readonly campaign: Campaign }) 
                 going={going}
               />
             ))}
+            <TeamVehicles campaign={campaign} team={team.team} />
           </fieldset>
         ))
       )}
+
+      <AutoShopNote campaign={campaign} />
 
       <p className={HINT}>
         Skills and Scores are on each survivor’s sheet, in the{' '}

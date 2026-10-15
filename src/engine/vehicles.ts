@@ -4,6 +4,7 @@
  *
  * A vehicle is a Tier, which fixes its Inventory and Passenger Slots (Tier 4
  * splits its 20 as its owner chooses), a label, and whether it is a boat (R62).
+ * An upgrade changes its Inventory Slots (R82).
  * Retrieve New Vehicles adds the ones driven off the map, each at the Tier its
  * setup d10 rolled or a lower one the player chose (R63); a table bringing a
  * campaign in part-way adds them by hand. No cap, and Check Storage never
@@ -24,6 +25,7 @@ import {
   type VehicleTier,
 } from '../data/equipment';
 import type { Campaign, Vehicle } from './campaign';
+import { rulesOf } from './equipment';
 import type { RetrievedVehicle } from './log';
 
 /** A vehicle as it arrives: no upgrade yet. */
@@ -55,17 +57,27 @@ export function tierRolled(roll: D10Result): VehicleTier {
   return VEHICLE_TIER_BY_ROLL[roll];
 }
 
-/** A vehicle's Inventory and Passenger Slots, by its Tier and Tier 4's split (pg. 53). */
-export function vehicleSlots(vehicle: NewVehicle): {
+/**
+ * A vehicle's Inventory and Passenger Slots, by its Tier and Tier 4's split
+ * (pg. 53), and then its upgrade: the roof rack's four more Inventory Slots,
+ * the electric conversion's two fewer (pg. 49; R82), never below none.
+ */
+export function vehicleSlots(vehicle: Vehicle): {
   readonly inventory: number;
   readonly passengers: number;
 } {
-  if (vehicle.tier !== 4) return VEHICLE_SLOTS[vehicle.tier];
-
   // Present: `vehicleProblem` refuses a Tier 4 with no split.
-  const inventory = vehicle.inventorySlots as number;
+  const { inventory, passengers } =
+    vehicle.tier === 4
+      ? {
+          inventory: vehicle.inventorySlots as number,
+          passengers: TIER_FOUR_SLOTS - (vehicle.inventorySlots as number),
+        }
+      : VEHICLE_SLOTS[vehicle.tier];
+  const change =
+    vehicle.upgrade === undefined ? 0 : (rulesOf(vehicle.upgrade).onVehicle?.inventorySlots ?? 0);
 
-  return { inventory, passengers: TIER_FOUR_SLOTS - inventory };
+  return { inventory: Math.max(0, inventory + change), passengers };
 }
 
 /**

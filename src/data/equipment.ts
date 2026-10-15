@@ -201,6 +201,16 @@ export interface ItemRules {
     /** Works without the Utility that upgrade needs: the battery spotlight. */
     readonly unpowered?: true;
   };
+
+  /** What a vehicle upgrade does to the vehicle it is fitted to (pg. 49; R82). */
+  readonly onVehicle?: {
+    /** Inventory Slots it adds, or takes away (R82). */
+    readonly inventorySlots: number;
+    /** The vehicle burns no Fuel. */
+    readonly noFuel?: true;
+    /** The vehicle deploys only while the base has a powered Auto Shop. */
+    readonly needsPoweredAutoShop?: true;
+  };
 }
 
 const WORKSHOP = { facilities: ['workshop'] } as const;
@@ -829,6 +839,7 @@ export const EQUIPMENT = {
     slots: null,
     life: 'kept',
     trade: { standard: 8 },
+    onVehicle: { inventorySlots: -2, noFuel: true, needsPoweredAutoShop: true },
   },
   'car-roof-rack': {
     kind: 'vehicle-upgrade',
@@ -837,6 +848,7 @@ export const EQUIPMENT = {
     slots: null,
     life: 'kept',
     trade: { standard: 6 },
+    onVehicle: { inventorySlots: 4 },
   },
 
   // Rare equipment (pp. 43, 51).

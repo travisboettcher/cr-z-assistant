@@ -522,6 +522,7 @@ const EVENT_FIELD_CHECKS = {
   rareTradeItems: (value: unknown) => describeRareTradeItemsProblem(value) === null,
   item: (value: unknown) => describeItemProblem(value) === null,
   vehicle: (value: unknown) => describeVehicleProblem(value) === null,
+  vehicles: (value: unknown) => describeVehiclesProblem(value) === null,
   vehicleTier: (value: unknown) => VEHICLE_TIERS.some((tier) => tier === value),
   optionalRetrieved: (value: unknown) =>
     value === undefined || describeVehiclesProblem(value, true) === null,
@@ -846,6 +847,24 @@ const EVENT_FIELDS: Record<
     ['vehicle', 'id'],
     ['label', 'name'],
     ['item', 'item'],
+  ],
+  // Vehicles on a mission (Z5-12).
+  'vehicle-taken': [
+    ['team', 'countFromOne'],
+    ['vehicle', 'id'],
+    ['label', 'name'],
+    ['tier', 'vehicleTier'],
+    ['fuel', 'count'],
+  ],
+  'vehicle-left-home': [
+    ['team', 'countFromOne'],
+    ['vehicle', 'id'],
+    ['label', 'name'],
+    ['fuel', 'count'],
+  ],
+  'vehicles-brought-home': [
+    ['team', 'countFromOne'],
+    ['lost', 'vehicles'],
   ],
   // The Rare Items trade (Z5-10).
   'rare-trade-made': [['items', 'rareTradeItems']],

@@ -1677,3 +1677,34 @@ settles the same way.
 own heading.
 
 *Confirmed 2026-10-14 from the batch-17 extract.*
+
+---
+
+## R82 — The electric conversion's two fewer slots are Inventory Slots
+
+**pg. 49; #177, part 3.** The electric car conversion takes two slots from the vehicle it is fitted
+to, and the car roof rack adds four Inventory Slots (pg. 49). The book does not say which of the
+vehicle's two kinds of slot the conversion's two come from.
+
+**The ruling is that they are Inventory Slots**, as the roof rack's are, and a vehicle never goes
+below none: a Tier 1 with a conversion has no Inventory Slots and keeps its Passenger Slots.
+
+**What it costs.** A table reading them as Passenger Slots carries two more items and two fewer
+people or items in the seats.
+
+*Decided 2026-10-15.*
+
+---
+
+## R83 — Which Auto Shop lets an electric conversion go out
+
+**pp. 49, 71; #177, part 3.** **OPEN.** The electric conversion goes out only with a powered Auto
+Shop (pg. 49), and each Auto Shop protects one vehicle from breaking down (pg. 71; R66). The book
+does not say whether one powered Auto Shop lets any number of converted vehicles go out, nor
+whether a converted vehicle uses up that Auto Shop's protection.
+
+**Until it is settled the app takes the simplest reading**: a converted vehicle may be
+taken while any working Auto Shop stands on a slot with Power, however many go, and the Auto Shops
+protect vehicles as R66 counts them, converted or not.
+
+*Recorded 2026-10-15 with Z5-12.*

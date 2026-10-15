@@ -2856,6 +2856,79 @@ describe('what earns a line in the log', () => {
         ],
       }),
     },
+    'mission/vehicleTaken': {
+      // Team 1 takes the Tier 1 runabout, burning the base's 1 Fuel (R65; Z5-12).
+      state: openState({
+        ...expectOpen(marcusOnTeamOne()),
+        vehicles: [{ id: 'car', tier: 1, label: 'Runabout', water: false }],
+      }),
+      action: { type: 'mission/vehicleTaken', team: 1, vehicle: 'car', at: AT },
+      entry: entry(3, 'mission', {
+        kind: 'vehicle-taken',
+        team: 1,
+        vehicle: 'car',
+        label: 'Runabout',
+        tier: 1,
+        fuel: 1,
+      }),
+    },
+    'mission/vehicleLeftHome': {
+      // Taken by mistake, the runabout stays home and its Fuel comes back (Z5-12).
+      state: openState({
+        ...expectOpen(
+          marcusOnTeamOne([
+            entry(3, 'mission', {
+              kind: 'vehicle-taken',
+              team: 1,
+              vehicle: 'car',
+              label: 'Runabout',
+              tier: 1,
+              fuel: 1,
+            }),
+          ]),
+        ),
+        vehicles: [{ id: 'car', tier: 1, label: 'Runabout', water: false }],
+      }),
+      action: { type: 'mission/vehicleLeftHome', vehicle: 'car', at: AT },
+      entry: entry(3, 'mission', {
+        kind: 'vehicle-left-home',
+        team: 1,
+        vehicle: 'car',
+        label: 'Runabout',
+        fuel: 1,
+      }),
+    },
+    'mission/vehiclesBroughtHome': {
+      // Nobody drove the runabout off team 1's mission, so it is lost (R70; Z5-12).
+      state: openState({
+        ...expectOpen(
+          marcusOnTeamOne([
+            entry(3, 'mission', {
+              kind: 'mission-selected',
+              team: 1,
+              mission: 'left-behind-1',
+              names: ['Marcus Webb'],
+            }),
+            entry(3, 'mission', {
+              kind: 'vehicle-taken',
+              team: 1,
+              vehicle: 'car',
+              label: 'Runabout',
+              tier: 1,
+              fuel: 1,
+            }),
+            entry(3, 'mission', { kind: 'mission-played', team: 1, mission: 'left-behind-1' }),
+          ]),
+        ),
+        vehicles: [{ id: 'car', tier: 1, label: 'Runabout', water: false }],
+      }),
+      action: { type: 'mission/vehiclesBroughtHome', team: 1, drivenOff: [], at: AT },
+      entry: entry(3, 'mission', {
+        kind: 'vehicles-brought-home',
+        team: 1,
+        lost: [{ id: 'car', tier: 1, label: 'Runabout', water: false }],
+      }),
+    },
     'advancement/survivorReturned': {
       // Hera, sent away over a Hero cap, brought back by a Rescue Strangers
       // team this turn, rejoins at Advancement Step 2 (R31; Z4-11).

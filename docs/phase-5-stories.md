@@ -667,7 +667,7 @@ Confirmed 2026-10-14 ([the registry](rulings.md)), R70 and R78 decided the same 
   `allItems` counts it there; a vehicle taken out takes it along (R67).
 - **What an upgrade does to slots is Z5-12's**, with the rest of what a vehicle does on a mission:
   the roof rack's four more Inventory Slots, and the electric conversion's two fewer, which the
-  extract does not say are Inventory or Passenger Slots.
+  extract does not say are Inventory or Passenger Slots (R82 settles it).
 - **The item generators in the property tests are one record per kind** now: a record whose kind
   is a union of two stopped type-checking as either once another entry's `item` is an object.
 
@@ -689,6 +689,22 @@ it home (pp. 18, 32, 52, 71).
 **Acceptance**
 - A Tier 3 vehicle taken costs 3 Fuel; not driven off, it is gone from the community's vehicles and
   the log says so.
+
+**What this story turned out to include.**
+- **The electric conversion's two fewer slots are Inventory Slots** (R82, decided 2026-10-15). An
+  upgrade's effect on its vehicle is catalogue data (`onVehicle`), which `vehicleSlots` and
+  `fuelFor` read; a vehicle never goes below no Inventory Slots.
+- **Which Auto Shop a conversion needs is R83, recorded open**: the app takes any working Auto Shop
+  on a powered slot, for any number of converted vehicles.
+- **What is taken is read off this turn's log**, as `missionVehicles.ts` does, and nothing is stored
+  on the vehicle (R62). A vehicle taken by mistake is left home at the same step and its Fuel comes
+  back; once its team records which came home, neither is possible.
+- **Which came home is recorded after the team's outcome**, because a won claim keeps them all
+  (R64) and only the outcome says it was won. Until then the turn owes it (`outstanding`), so a
+  vehicle left on the map does not stay in the community. A team whose mission is no longer chosen
+  owes nothing.
+- **What a lost vehicle held is lost through the items-spent record**: the tracker keeps every item
+  on a survivor (R69), so the bring-home record names only the vehicles.
 
 ### Z5-13 — When items change hands
 

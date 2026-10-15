@@ -320,6 +320,9 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
   if (event.kind === 'vehicle-added') {
     return { ...taggedFirst(event, 'kind'), vehicle: orderedVehicle(event.vehicle) };
   }
+  if (event.kind === 'vehicles-brought-home') {
+    return { ...taggedFirst(event, 'kind'), lost: event.lost.map(orderedVehicle) };
+  }
   if (event.kind === 'vehicle-upgrade-fitted') {
     return { ...taggedFirst(event, 'kind'), item: orderedItem(event.item) };
   }

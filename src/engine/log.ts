@@ -915,6 +915,36 @@ export type CampaignEvent =
       readonly label: string;
       readonly item: Item;
     }
+  /**
+   * A vehicle a team takes at Equip Mission Team, and the Fuel it burned from
+   * storage: its Tier, or none for an electric conversion (pp. 18, 49, 52;
+   * R65; Z5-12).
+   */
+  | {
+      readonly kind: 'vehicle-taken';
+      readonly team: number;
+      readonly vehicle: string;
+      readonly label: string;
+      readonly tier: VehicleTier;
+      readonly fuel: number;
+    }
+  /** A vehicle taken and then left at home at the same step, its Fuel back in storage (Z5-12). */
+  | {
+      readonly kind: 'vehicle-left-home';
+      readonly team: number;
+      readonly vehicle: string;
+      readonly label: string;
+      readonly fuel: number;
+    }
+  /**
+   * Which of the vehicles a team took came home, once its mission is played:
+   * the ones not driven off are lost with their upgrades (R70; Z5-12).
+   */
+  | {
+      readonly kind: 'vehicles-brought-home';
+      readonly team: number;
+      readonly lost: readonly Vehicle[];
+    }
   /** A rare item sold from the Inventory, and what it brought in (pp. 21, 37; R54; Z5-9). */
   | {
       readonly kind: 'item-sold';

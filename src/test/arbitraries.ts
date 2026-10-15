@@ -712,6 +712,26 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       item: itemArbitrary(),
     }),
     fc.record({
+      kind: fc.constant('vehicle-taken' as const),
+      team: fc.integer({ min: 1, max: 4 }),
+      vehicle: anyId,
+      label: anyName,
+      tier: fc.constantFrom(...VEHICLE_TIERS),
+      fuel: fc.nat({ max: 4 }),
+    }),
+    fc.record({
+      kind: fc.constant('vehicle-left-home' as const),
+      team: fc.integer({ min: 1, max: 4 }),
+      vehicle: anyId,
+      label: anyName,
+      fuel: fc.nat({ max: 4 }),
+    }),
+    fc.record({
+      kind: fc.constant('vehicles-brought-home' as const),
+      team: fc.integer({ min: 1, max: 4 }),
+      lost: fc.array(vehicleArbitrary(), { maxLength: 2 }),
+    }),
+    fc.record({
       kind: fc.constant('rare-trade-made' as const),
       items: fc.array(rareTradeItemArbitrary(), { maxLength: 3 }),
     }),

@@ -23,6 +23,7 @@ import { EquipMissionTeam } from './EquipMissionTeam';
 import { FirstMission } from './FirstMission';
 import { MissionOutcome } from './MissionOutcome';
 import { MissionSpent } from './MissionSpent';
+import { MissionVehicles } from './MissionVehicles';
 import { SelectMission } from './SelectMission';
 import { SiegeWork } from './SiegeWork';
 import { ManagementPhase } from './ManagementPhase';
@@ -306,6 +307,12 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
              * outcome, because the table has the cards in front of it now.
              */}
             {campaign.step === 'tactical-mission' && <MissionSpent campaign={campaign} />}
+
+            {/*
+             * Which vehicles each team drove off (Z5-12), after what it used:
+             * a lost vehicle's load is ticked there.
+             */}
+            {campaign.step === 'tactical-mission' && <MissionVehicles campaign={campaign} />}
 
             {/*
              * The fourth, once a Siege Defense is on the record: who it took

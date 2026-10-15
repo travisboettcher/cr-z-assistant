@@ -45,6 +45,7 @@ import { mustCheck, rotCheckResolved } from './rot';
 import { hordeChecked } from './siege';
 import { anythingOverCap, storageChecked } from './storage';
 import { someoneDeparted, someoneIsLeaving } from './departures';
+import { broughtHomeOwed } from './missionVehicles';
 import { spentOwed } from './spent';
 import { dueTrades } from './trading';
 import { returnedWaiting, strangersWaiting } from './strangers';
@@ -105,6 +106,15 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
     owed.push({
       step: 'tactical-mission',
       says: `Mission team ${String(team)} carries gear that lasts one mission, and what it used is not recorded.`,
+    });
+  }
+
+  // A vehicle not driven off is lost (R70; Z5-12): owed until the team says
+  // which of its vehicles came home, so none stays in the community unrecorded.
+  for (const team of broughtHomeOwed(campaign)) {
+    owed.push({
+      step: 'tactical-mission',
+      says: `Mission team ${String(team)} took vehicles, and which came home is not recorded.`,
     });
   }
 

@@ -80,6 +80,9 @@ import {
   submitStandIn,
   submitEquipMove,
   submitItemsSpent,
+  submitVehicleLeftHome,
+  submitVehiclesBroughtHome,
+  submitVehicleTaken,
 } from '../engine/missionForms';
 import {
   submitAdvance,
@@ -517,6 +520,22 @@ export type CampaignAction =
       readonly type: 'mission/itemsSpent';
       readonly team: number;
       readonly items: readonly string[];
+      readonly at: string;
+    }
+  /** A vehicle a team takes at Equip Mission Team, burning its Fuel (R65; Z5-12). */
+  | {
+      readonly type: 'mission/vehicleTaken';
+      readonly team: number;
+      readonly vehicle: string;
+      readonly at: string;
+    }
+  /** A vehicle taken this turn left home again, its Fuel back (Z5-12). */
+  | { readonly type: 'mission/vehicleLeftHome'; readonly vehicle: string; readonly at: string }
+  /** Which of a team's vehicles it drove off; the rest are lost (R70; Z5-12). */
+  | {
+      readonly type: 'mission/vehiclesBroughtHome';
+      readonly team: number;
+      readonly drivenOff: readonly string[];
       readonly at: string;
     }
   /** A survivor set aside, brought back this turn, rejoins (R31; Z4-11). */
@@ -1096,6 +1115,21 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
     case 'mission/itemsSpent':
       return submitted(state, (campaign) =>
         submitItemsSpent(campaign, action.team, action.items, action.at),
+      );
+
+    case 'mission/vehicleTaken':
+      return submitted(state, (campaign) =>
+        submitVehicleTaken(campaign, action.team, action.vehicle, action.at),
+      );
+
+    case 'mission/vehicleLeftHome':
+      return submitted(state, (campaign) =>
+        submitVehicleLeftHome(campaign, action.vehicle, action.at),
+      );
+
+    case 'mission/vehiclesBroughtHome':
+      return submitted(state, (campaign) =>
+        submitVehiclesBroughtHome(campaign, action.team, action.drivenOff, action.at),
       );
 
     case 'advancement/rareUpgradeInstalled':
