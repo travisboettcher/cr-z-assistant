@@ -225,6 +225,28 @@ describe('checkUtility', () => {
     expect(codes(check.warnings)).toEqual(['not-needed']);
   });
 
+  /**
+   * Outdoors a Bunk Room needs Power to work at all (Errata, pp. 68 and 72),
+   * so a point there is the point that makes its beds. Indoors it needs none.
+   */
+  it('wants Power on an outdoor Bunk Room, and only Power', () => {
+    // The Station in the garage, so the front yard is free for the Bunk Room.
+    const campaign = generatingUtilities(
+      campaignWith(home({ 'front-yard': { built: { facility: 'bunk-room', builtOnTurn: 1 } } })),
+      9,
+      'garage',
+    );
+
+    expect(checkUtility(campaign, { slot: 'front-yard', utility: 'power' }).warnings).toEqual([]);
+    expect(
+      codes(checkUtility(campaign, { slot: 'front-yard', utility: 'water' }).warnings),
+    ).toEqual(['not-needed']);
+    // Indoors it needs nothing at all.
+    expect(
+      codes(checkUtility(campaign, { slot: 'bunk-room-1', utility: 'power' }).warnings),
+    ).toEqual(['not-needed']);
+  });
+
   it('counts an upgrade’s need as the facility’s, because one point covers both', () => {
     // A Storage Area wants nothing; its Refrigeration wants Power. The point
     // goes on the slot, so the upgrade's need is what makes it useful.

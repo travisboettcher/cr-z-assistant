@@ -127,6 +127,35 @@ describe('checkBuild', () => {
     expect(codes(check.warnings)).toEqual(['wrong-slot-kind']);
   });
 
+  /**
+   * A Bunk Room may stand outdoors if it is supplied Power (Errata, pp. 68 and
+   * 72): Power is a question for each turn's supply, so the build itself is
+   * not the wrong slot.
+   */
+  it('lets a Bunk Room go into an outdoor slot without a warning', () => {
+    const check = checkBuild(campaignWith(smallTownHome()), {
+      slot: 'front-yard',
+      facility: 'bunk-room',
+    });
+
+    expect(check).toEqual({ blockers: [], warnings: [] });
+  });
+
+  it('names the slot a facility needs when the other kind will not do', () => {
+    const check = checkBuild(campaignWith(smallTownHome()), {
+      slot: 'garage',
+      facility: 'garden',
+    });
+
+    expect(check.warnings).toEqual([
+      {
+        code: 'wrong-slot-kind',
+        message: 'Needs an outdoor slot, and this one is indoor.',
+        pages: '72–73',
+      },
+    ]);
+  });
+
   it('warns about an origin this campaign is not running, and stops once it is', () => {
     const none = checkBuild(campaignWith(smallTownHome()), {
       slot: 'garage',

@@ -56,9 +56,9 @@ describe('mustCheck', () => {
   });
 
   /**
-   * The check is about Health (pg. 22), and a survivor held down by Infection
-   * with Health left has not been brought to 0 — R18. One at 0 Health checks
-   * whatever their Infection.
+   * The ordinary check is unchanged under the Viral origin, and Infection has
+   * its own (pp. 22, 123; R18). One at 0 Health checks whatever their
+   * Infection.
    */
   it('passes over a survivor down on Infection with Health left', () => {
     const campaign = community([

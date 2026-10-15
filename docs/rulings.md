@@ -529,12 +529,13 @@ left is not a siege casualty.
 
 ## R18 — What Infection incapacitates
 
-> **Under review, [#219](https://github.com/travisboettcher/cr-z-assistant/issues/219).** pg. 21 lets only survivors below maximum Health be assigned to
-> rest or healing, and pg. 19 gives Health points only to those assigned. So the Heal Wounds
-> paragraph below is wrong about a survivor at full Health with Infection: they take no share and no
-> resting point. A survivor down on Infection with Health below maximum can still be helped by the
-> Clinic. The Rot row stands, now on pp. 22 and 123: the ordinary Rot check is unchanged, and
-> Infection has its own Viral check, which is unbuilt.
+> **Settled by pp. 19, 21, 22 and 123, in part; [#219](https://github.com/travisboettcher/cr-z-assistant/issues/219).**
+> Only survivors below maximum Health may be assigned to rest or healing (pg. 21), and only those
+> assigned are given Health points (pg. 19). The Viral option to spend a point on Infection instead
+> (pp. 19, 123) is about those points, so a survivor at full Health takes no share and no resting
+> point whatever their Infection. The Rot row is settled too: the ordinary Rot check is unchanged,
+> and Infection has the Viral origin's own check (pp. 22, 123). The rest of the table, how many
+> points a wounded survivor with Infection takes, and Health first are still rulings.
 
 **pp. 19, 21, 22–23, 123, [#176](https://github.com/travisboettcher/cr-z-assistant/issues/176).** Under
 the Viral origin a survivor at 10 Infection is incapacitated whatever their Health (pg. 123). The
@@ -549,7 +550,7 @@ asks the one it means:
 
 | Rule | Reads | Why |
 |---|---|---|
-| Check for Rot (pg. 22) | `outOfHealth` | It names Health, and is about somebody bleeding out. A survivor kept down by Infection with Health left has not been brought to 0, and Heal Wounds can still take the Infection away. |
+| Check for Rot (pg. 22) | `outOfHealth` | Settled by pp. 22 and 123: the ordinary check is unchanged, and Infection is the Viral origin's own check, not this one. |
 | Departures (pg. 23) | `isDown` | The exclusion is about being in no state to walk anywhere, which pg. 123's incapacitation is exactly. Where that is everybody, nobody is leaving and the turn owes no Departures step ([#192](https://github.com/travisboettcher/cr-z-assistant/issues/192)). |
 | Siege casualties and stand-ins (FAQ, [R17](#r17--what-a-siege-defense-does-to-the-turns-work)) | `outOfHealth` | The FAQ names "reduced to 0 Health" for who stops working and "not at 0 Health" for who may substitute. Asked of the Health the siege's outcome recorded where it has one (R17's October 2026 amendment), and of the roster's otherwise. |
 | Mission team | both, separately | 0 Health is a wound, and R12 already keeps every wounded survivor off a team; 10 Infection adds its own warning, because full Health does not make an incapacitated survivor fit. |
@@ -558,30 +559,38 @@ asks the one it means:
 at full Health and 9 Infection may join a mission team, and one at 3/4 Health and no Infection
 still may not. Nothing about R12 changes.
 
-**Heal Wounds counts a point as one a survivor "would receive" if they have a use for it** — a
-wound, or Infection it could remove instead (pg. 19, 123). The equal share is measured against
-that (`need` in `healing.ts`), so a survivor at full Health with Infection takes a share like
-anybody wounded, and their points can only go on Infection. Read strictly, a survivor at full
-Health would receive no Health at all, and a survivor down on Infection with Health left — the
-case [#176](https://github.com/travisboettcher/cr-z-assistant/issues/176) was opened for — could
-never be helped by the Clinic. The same holds for a resting survivor's own point, which is a
-Health point received like any other. Healing and resting no longer warn "already at full
-Health" about a survivor with Infection to clear.
+**Heal Wounds gives points only to a survivor below maximum Health** (pp. 19, 21, settled above).
+`need` in `healing.ts`, which the equal share is measured against, is nothing at full Health, and
+the Planning Phase warns "already at full Health" about resting or healing such a survivor
+whatever their Infection. A survivor down on Infection with Health below maximum — the case
+[#176](https://github.com/travisboettcher/cr-z-assistant/issues/176) was opened for — can still be
+helped by the Clinic; only one at full Health cannot.
+
+**A wounded survivor with Infection counts a point as one they "would receive" if they have a use
+for it** — the wound, or Infection it could remove instead (pg. 19, 123). So below maximum,
+`need` is their room for Health plus their Infection, and they may take more points than the wound
+alone would hold, the ones past it going on Infection. The stricter reading gives them no more
+than their wound holds. The same holds for a resting survivor's own point, which is a Health
+point received like any other.
 
 **Health comes first unless the player says otherwise.** Each award opens with its points on
 Health and only what Health cannot hold on Infection; the step then offers the rest of the split
 point by point. The book's "may instead" makes the trade an option, so the default is not taking
 it — and it is what every campaign that is not Viral has always done.
 
-**What it costs.** A survivor at 10 Infection with Health left faces no Rot check and cannot
-turn at the base, which may be gentler than the book means. If it is, the place to say so is the
-Viral origin's own Infection check, which `src/data/dice.ts` records against pg. 22 and which
-nothing builds yet — not the Rot check, whose wording is about Health.
+**What it costs.** A survivor at full Health and 10 Infection cannot bring it down by healing or
+rest, and Containment (pg. 69) works only on survivors assigned to healing, so it cannot either.
+A survivor at 10 Infection with Health left faces no Rot check (pp. 22, 123); whether they turn
+at the base is the Viral origin's own Infection check, which `src/data/dice.ts` records against
+pg. 22 and which is unbuilt.
 
 **Left open:** the turning survivor's bite at Check for Rot adds no Infection. It is a zombie's
 damage, which is what pg. 123 says adds it, but it lands at the base rather than on a mission,
 and the tracker has no mission to compare it with. Recorded so that it is not mistaken for a
 decision.
+
+*Heal Wounds at full Health decided 2026-10-11 for #176; corrected by pp. 19 and 21 on 2026-10-15
+(#219).*
 
 ---
 

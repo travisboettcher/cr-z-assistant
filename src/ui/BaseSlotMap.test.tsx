@@ -270,6 +270,27 @@ describe('building into a slot', () => {
   });
 
   /**
+   * A Bunk Room may stand outdoors if it is supplied Power (Errata, pp. 68 and
+   * 72), so the front yard is not the wrong slot for one and nothing is held
+   * behind an override.
+   */
+  it('orders a Bunk Room into an outdoor slot with no override', async () => {
+    const user = readyToBuild(5, 9);
+    await user.click(screen.getByRole('button', { name: /build in front yard/i }));
+
+    // A Bunk Room is the first facility offered.
+    expect(screen.getByLabelText(/^facility$/i)).toHaveDisplayValue('Bunk Room');
+    expect(screen.queryByText(/needs an indoor slot/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/order it anyway/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /order the build/i }));
+
+    // The front yard is the fifth slot of the Small Town Home's layout.
+    const cards = within(slots()).getAllByRole('listitem');
+    expect(cards[4]).toHaveTextContent(/on order: bunk room/i);
+  });
+
+  /**
    * The queue is what building became, and the card is where a player sees it:
    * the slot is still empty, still offers the verb, and now says what is coming.
    */
@@ -820,6 +841,38 @@ describe('the base sheet', () => {
 
     // The Greasy Spoon ships a Bunk Room with an Extra Bed: three beds.
     expect(screen.getByRole('definition', { name: /beds/i })).toHaveTextContent('3');
+  });
+
+  /**
+   * Outdoors a Bunk Room needs Power to make its beds (Errata, pp. 68 and 72).
+   * The Station in the garage is what generates the point.
+   */
+  it('counts an outdoor Bunk Room’s beds only while it has Power', () => {
+    const yard = (power: boolean) =>
+      generatingUtilities(
+        {
+          ...createNewCampaign('Cedar Hollow'),
+          base: {
+            id: 'small-town-home',
+            slots: {
+              'front-yard': {
+                built: { facility: 'bunk-room', builtOnTurn: 1 },
+                ...(power ? { power } : {}),
+              },
+            },
+          },
+        },
+        1,
+        'garage',
+      );
+
+    // The home's own two Bunk Rooms make four beds either way.
+    openWith(yard(false));
+    expect(screen.getByRole('definition', { name: /beds/i })).toHaveTextContent('4');
+    cleanup();
+
+    openWith(yard(true));
+    expect(screen.getByRole('definition', { name: /beds/i })).toHaveTextContent('6');
   });
 
   it('shows storage against the cap, and says when it is over', async () => {

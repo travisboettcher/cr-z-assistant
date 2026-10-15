@@ -3593,20 +3593,20 @@ describe('the Advancement Phase steps', () => {
     });
 
     /**
-     * A survivor at full Health and infected still takes the point (R18), and
-     * it has nowhere to go but Infection — whatever the screen sent.
+     * A survivor at full Health takes no point, whatever their Infection
+     * (pg. 19, 21; #219) — and whatever the screen sent for them.
      */
-    it('spends a point on Infection when Health cannot hold it, whatever was sent', () => {
+    it('gives a survivor at full Health nothing to spend, whatever was sent', () => {
       const after = expectOpen(
         campaignReducer(fevered(4), {
           type: 'advancement/woundsHealed',
           at: AT,
-          infection: { [`rest:${EARL}`]: 0 },
+          infection: { [`rest:${EARL}`]: 1 },
         }),
       );
 
-      expect(after.survivors[0]).toMatchObject({ currentHp: 4, infection: 4 });
-      expect(after.log[0]?.event).toMatchObject({ health: 1, infection: 1 });
+      expect(after.survivors[0]).toMatchObject({ currentHp: 4, infection: 5 });
+      expect(after.log).toEqual([]);
     });
   });
 

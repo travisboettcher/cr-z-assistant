@@ -463,24 +463,39 @@ describe('Infection in Heal Wounds', () => {
     infection,
   });
 
-  it('counts Infection as something a point can be used on', () => {
-    expect(need(infected('a', 4, 3))).toBe(3);
+  it('counts Infection as something a point can be used on, below full Health', () => {
     expect(need(infected('a', 2, 3))).toBe(5);
+    expect(need(infected('a', 3, 3))).toBe(4);
     // Outside a Viral campaign it is room, and nothing else.
     expect(need(wounded('a', 'A', 2))).toBe(room(wounded('a', 'A', 2)));
   });
 
   /**
-   * The case the issue was opened for: a survivor down on Infection with
-   * Health left. At full Health they would take nothing from a pool measured in
-   * wounds, and the Clinic could never help them (R18).
+   * Only a survivor below their maximum is given any Health (pg. 19, 21), so
+   * Infection alone earns nothing (#219).
    */
-  it('shares a point with somebody at full Health who is infected', () => {
+  it('counts nothing at full Health, whatever the Infection', () => {
+    expect(need(infected('a', 4, 3))).toBe(0);
+    expect(need(infected('a', 9, 3))).toBe(0);
+  });
+
+  it('shares nothing with somebody at full Health who is infected', () => {
     const awards = sharedEqually([infected('fevered', 4, 10), wounded('hurt', 'Hurt', 3)], 2);
 
-    expect(shares(awards)).toEqual({ fevered: 1, hurt: 1 });
-    // At full Health, the point has nowhere to go but Infection.
-    expect(awards[0]?.infection).toBe(1);
+    expect(shares(awards)).toEqual({ hurt: 1 });
+  });
+
+  /**
+   * The case #176 was opened for: a survivor down on Infection with Health
+   * left. Below their maximum they take points for their Infection as well as
+   * their wound, and Health cannot hold the ones past it (R18).
+   */
+  it('shares points past the wound with somebody below full Health who is infected', () => {
+    const awards = sharedEqually([infected('fevered', 3, 10), wounded('hurt', 'Hurt', 3)], 4);
+
+    expect(shares(awards)).toEqual({ fevered: 3, hurt: 1 });
+    // One closes the wound; the other two have nowhere to go but Infection.
+    expect(awards[0]?.infection).toBe(2);
     expect(awards[1]?.infection).toBe(0);
   });
 
@@ -540,10 +555,21 @@ describe('Infection in Heal Wounds', () => {
   });
 
   it('lets a resting survivor’s own point go on Infection', () => {
+    const campaign = community([infected('a', 3, 3)], { a: { task: 'rest' } });
+    const [award] = healthAwards(campaign);
+
+    expect(award).toEqual({
+      survivor: campaign.survivors[0],
+      health: 1,
+      infection: 0,
+      source: 'rest',
+    });
+    expect(withInfectionSpent([award as HealthAward], { 'rest:a': 1 })[0]?.infection).toBe(1);
+  });
+
+  it('gives a resting survivor at full Health no point, whatever their Infection', () => {
     const campaign = community([infected('a', 4, 3)], { a: { task: 'rest' } });
 
-    expect(healthAwards(campaign)).toEqual([
-      { survivor: campaign.survivors[0], health: 1, infection: 1, source: 'rest' },
-    ]);
+    expect(healthAwards(campaign)).toEqual([]);
   });
 });
