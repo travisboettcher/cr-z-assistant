@@ -826,6 +826,36 @@ export type CampaignEvent =
       readonly hardware: number;
       readonly labor: number;
     }
+  /**
+   * An item traded for in the Planning Phase (pg. 21; R51–R53; Z5-9): the id it
+   * will have, and the Food and Fuel paid at once. It arrives next turn, with a
+   * `trade-arrived` entry of its own, so the two read as two things that
+   * happened, as a project's order and its building do.
+   */
+  | {
+      readonly kind: 'trade-ordered';
+      readonly id: string;
+      readonly item: ItemId;
+      readonly grade: Grade;
+      readonly food: number;
+      readonly fuel: number;
+    }
+  /** A traded item in the Inventory, at Add Facilities and Upgrades (pg. 19; Z5-9). */
+  | {
+      readonly kind: 'trade-arrived';
+      readonly id: string;
+      readonly item: ItemId;
+      readonly grade: Grade;
+    }
+  /** A rare item sold from the Inventory, and what it brought in (pp. 21, 37; R54; Z5-9). */
+  | {
+      readonly kind: 'item-sold';
+      readonly id: string;
+      readonly item: ItemId;
+      readonly grade: Grade;
+      readonly food: number;
+      readonly fuel: number;
+    }
   /** An item taken out of the base's Inventory by hand (Z5-2). */
   | {
       readonly kind: 'item-removed';

@@ -46,6 +46,7 @@ import { hordeChecked } from './siege';
 import { anythingOverCap, storageChecked } from './storage';
 import { someoneDeparted, someoneIsLeaving } from './departures';
 import { spentOwed } from './spent';
+import { dueTrades } from './trading';
 import { returnedWaiting, strangersWaiting } from './strangers';
 
 /** Why a step is outstanding, in the words the walk shows the player. */
@@ -169,6 +170,15 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
     owed.push({
       step: 'add-facilities-and-upgrades',
       says: 'Projects ordered last turn are due and have not been finished.',
+    });
+  }
+
+  // A trade lands at the same step (pg. 19; R53; Z5-9), and is owed until it
+  // has: read off the orders, as the projects are off the queue.
+  if (dueTrades(campaign).length > 0) {
+    owed.push({
+      step: 'add-facilities-and-upgrades',
+      says: 'Items traded for last turn have not arrived.',
     });
   }
 

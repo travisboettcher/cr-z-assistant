@@ -1274,8 +1274,10 @@ materials leave at once (pp. 19, 21). The book says nothing of cancelling, or of
 before it arrives.
 
 **The ruling is that an order belongs to the community and arrives at Advancement Step 5 in whatever
-base it holds then** (a move lands at Step 3, before it). There is no cancelling and no refund. A
-community that starts over (R30, R31) loses its pending orders with the old base.
+base it holds then.** The app moves the community at the end of the Advancement Phase (R25), after
+Step 5, so an order arrives in the old base and moves with the Inventory (R77). There is no
+cancelling and no refund. A community that starts over (R30, R31) loses its pending orders with the
+old base.
 
 **What it costs.** A misclicked order cannot be taken back; the log is the record of it.
 

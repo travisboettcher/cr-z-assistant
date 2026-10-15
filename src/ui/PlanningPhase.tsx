@@ -96,7 +96,8 @@ export function PlanningPhase({ campaign, step }: PlanningPhaseProps) {
           <p className="mt-3 text-sm text-stone-600 dark:text-stone-400">
             Facilities are ordered on the <OpenPanel panel="base">base</OpenPanel>; equipment is
             built from the <OpenPanel panel="inventory">Inventory</OpenPanel>, from the same Labor,
-            and is ready at once <PageRef pages="20–21" />
+            and is ready at once, or traded for there with Food and Fuel, and arrives next turn{' '}
+            <PageRef pages="20–21" />
           </p>
         </>
       )}

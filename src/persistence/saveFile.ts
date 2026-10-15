@@ -125,6 +125,27 @@ function describeItemsProblem(value: unknown): string | null {
   return null;
 }
 
+/**
+ * A trade on its way (Z5-9): an item, as the Inventory's are, with what was
+ * paid and the turn it was ordered on.
+ */
+function describeTradesProblem(value: unknown): string | null {
+  if (!Array.isArray(value)) return 'is not a list';
+
+  for (const [index, trade] of value.entries()) {
+    const which = `trade ${String(index + 1)} of ${String(value.length)}`;
+    const problem = describeItemProblem(trade);
+    if (problem !== null) return `${which} ${problem}`;
+
+    const { food, fuel, orderedOnTurn } = trade as Record<string, unknown>;
+    if (!isCountFromZero(food) || !isCountFromZero(fuel))
+      return `${which} does not say what it cost`;
+    if (!isCountFromOne(orderedOnTurn)) return `${which} does not say which turn it was ordered on`;
+  }
+
+  return null;
+}
+
 function describeSurvivorProblem(value: unknown): string | null {
   if (!isRecord(value)) return 'is not a survivor';
 
@@ -734,6 +755,26 @@ const EVENT_FIELDS: Record<
     ['hardware', 'count'],
     ['labor', 'count'],
   ],
+  // Trading (Z5-9): what was paid or brought in, each a count.
+  'trade-ordered': [
+    ['id', 'id'],
+    ['item', 'itemId'],
+    ['grade', 'grade'],
+    ['food', 'count'],
+    ['fuel', 'count'],
+  ],
+  'trade-arrived': [
+    ['id', 'id'],
+    ['item', 'itemId'],
+    ['grade', 'grade'],
+  ],
+  'item-sold': [
+    ['id', 'id'],
+    ['item', 'itemId'],
+    ['grade', 'grade'],
+    ['food', 'count'],
+    ['fuel', 'count'],
+  ],
   'item-moved': [
     ['id', 'id'],
     ['item', 'itemId'],
@@ -1006,6 +1047,9 @@ function describeCampaignProblem(value: unknown): string | null {
     return 'its Inventory holds a shoddy item, which nobody owns';
   }
 
+  const trades = describeTradesProblem(value.trades);
+  if (trades !== null) return `its trades on order: ${trades}`;
+
   if (typeof value.startingCommunityBuilt !== 'boolean') {
     return 'it does not say whether its starting community is finished';
   }
@@ -1034,6 +1078,8 @@ function describeCampaignProblem(value: unknown): string | null {
       ...(value.setAside as readonly { readonly items: readonly { readonly id: string }[] }[]),
     ].flatMap((survivor) => survivor.items),
     ...installed,
+    // An item on its way from a trade has its id already (Z5-9).
+    ...(value.trades as readonly { readonly id: string }[]),
   ];
   const ids = held.map((item) => item.id);
   const repeated = ids.find((id, at) => ids.indexOf(id) !== at);

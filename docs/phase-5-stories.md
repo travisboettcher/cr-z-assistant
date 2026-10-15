@@ -545,8 +545,7 @@ Confirmed 2026-10-14 ([the registry](rulings.md)), R70 and R78 decided the same 
   rare item, a quality weapon, an unpriced grade, or storage that cannot pay. Nobody is assigned and
   no Labor is spent (R52).
 - The materials leave at once; the order waits on the campaign and arrives at the next Add
-  Facilities and Upgrades, in whatever base the community holds then (R53). No cancelling. Starting
-  over loses waiting orders.
+  Facilities and Upgrades, in whatever base the community holds then (R53). No cancelling.
 - Selling a rare item from the Inventory in the Planning Phase: its price less two, paid at once in
   the player's mix of Food and Fuel (R54), over the cap if need be, with Check Storage's warning
   (R56).
@@ -555,6 +554,32 @@ Confirmed 2026-10-14 ([the registry](rulings.md)), R70 and R78 decided the same 
 - An item ordered on turn 3 costs its Food and Fuel on turn 3 and is in the Inventory at turn 4's Add
   Facilities and Upgrades, not before.
 - A rare item priced 6 sells for 4.
+
+**What this story turned out to include.**
+
+- **Schema v18 adds `Campaign.trades`**, the orders on their way, each with the id its item will
+  have, what was paid and the turn it was ordered on. The v17 → v18 step gives every older save an
+  empty list: nothing before could trade.
+- **`src/engine/trading.ts`** answers what can be bought and sold. A Planning trade buys what the
+  equipment tables price for trade (R51, R55): never a rare kind, and never a quality weapon, whose
+  row prints no trade price. A sale is for an item on the Rare Item Table at its grade, at that
+  table's price less two (R54), so a quality tool belt sells for 4 however the community came by
+  it. Going over a cap is a warning in the haul's words; the sale stands (R56).
+- **Three entries**: `trade-ordered` with what was paid, `trade-arrived`, and `item-sold` with what
+  came in. Ordering and arriving are two things that happened, as a project's order and its
+  building are.
+- **Trades land with the projects.** Add Facilities and Upgrades lists them under "Finishing now"
+  and its one button finishes both, named for what it finishes ("Finish the project and 2 trades").
+  A trade not yet arrived is owed on End turn, as a due project is.
+- **One question for a new item's id.** `idTaken` asks whether anything the campaign holds, or a
+  trade on its way, has the id; building, rolling on the Rare Item Table, a haul's finds, adding by
+  hand and trading all ask it.
+- **The forms are in the Inventory's modal**, beside Build: Trade for an item, and Sell a rare item
+  while the Inventory holds one, each with a Food picker and the Fuel making up the rest. Both are
+  secondary buttons, so Build stays the modal's one amber action. Orders on their way are listed
+  under the Inventory as "On order".
+- **Starting over losing waiting orders (R53) moved to Z5-13**, with the rest of what an overrun
+  loses.
 
 ### Z5-10 — The Rare Items trade and the Rare Goods Trader
 
@@ -630,6 +655,7 @@ it home (pp. 18, 32, 52, 71).
   (R77).
 - An overrun loses the base's Inventory in every way on (R78); a same-type, same-map claim brings
   the vehicles back as repairable ones to drive off (R63, R64), and starting over loses them (R79).
+- Starting over loses trades still on their way (R53), moved here from Z5-9.
 
 **Acceptance**
 - A survivor who departs carrying a rifle takes it; one bitten to death leaves theirs in the

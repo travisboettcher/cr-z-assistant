@@ -79,6 +79,7 @@ describe('createNewCampaign', () => {
       'startingCommunityBuilt',
       'step',
       'survivors',
+      'trades',
       'turn',
     ]);
   });

@@ -117,6 +117,16 @@ const LEFT_BY_CAUSE: Readonly<Record<LeavingCause, { readonly how: string; reado
     removed: { how: 'was taken off the roster' },
   };
 
+/** Food and Fuel as a trade's line names them: "2 Food and 1 Fuel", or the one alone. */
+function paid(amount: { readonly food: number; readonly fuel: number }): string {
+  const parts = [
+    ...(amount.food === 0 ? [] : [`${String(amount.food)} Food`]),
+    ...(amount.fuel === 0 ? [] : [`${String(amount.fuel)} Fuel`]),
+  ];
+
+  return parts.length === 0 ? 'nothing' : parts.join(' and ');
+}
+
 export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
   switch (event.kind) {
     case 'campaign-started':
@@ -502,6 +512,18 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
         text: `Built into the base’s Inventory: ${describeItem(event)}, for ${String(event.hardware)} Hardware and ${String(event.labor)} Labor.`,
         pages: '20, 41–42',
       };
+
+    case 'trade-ordered':
+      return {
+        text: `Traded for ${describeItem(event)}, for ${paid(event)}. It arrives next Advancement Phase.`,
+        pages: 21,
+      };
+
+    case 'trade-arrived':
+      return { text: `Arrived from a trade: ${describeItem(event)}.`, pages: 19 };
+
+    case 'item-sold':
+      return { text: `Sold ${describeItem(event)} for ${paid(event)}.`, pages: '21, 37' };
 
     case 'item-moved':
       return {

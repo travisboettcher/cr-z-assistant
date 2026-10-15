@@ -19,7 +19,7 @@ import type { Tier } from '../data/tiers';
 import { withoutAssignment } from './assignments';
 import { storageCaps } from './base';
 import type { Campaign, Item, Survivor } from './campaign';
-import { allItems, newItemProblem, removalProblem, type NewItem } from './equipment';
+import { idTaken, newItemProblem, removalProblem, type NewItem } from './equipment';
 import { rareItemFor, type RareItemRoll } from './finding';
 import { turnoutGear, withEquipmentHandedOver } from './handover';
 import { accepted, blockedBy, refused, type Accepted, type FormResult } from './forms';
@@ -29,6 +29,14 @@ import { FIRST_PLANNING_STEP, planningHasBegun, withPlanningReset } from './plan
 import { deployed } from './missions';
 import { siegeDue } from './siege';
 import { withItemsLeftBehind } from './spent';
+import {
+  saleCheck,
+  tradeCheck,
+  withItemSold,
+  withTradeOrdered,
+  type Payment,
+  type TradeRequest,
+} from './trading';
 import {
   rescuedStrangers,
   returnProblem,
@@ -494,6 +502,60 @@ export function submitItemBuilt(campaign: Campaign, order: BuildOrder, at: strin
 }
 
 /**
+ * Trade for an item at Planning Step 2 (pp. 19, 21; R51–R53; Z5-9): its Food
+ * and Fuel go at once, and the order waits for the next Add Facilities and
+ * Upgrades. Refused for whatever `tradeCheck` says.
+ */
+export function submitTradeOrdered(
+  campaign: Campaign,
+  request: TradeRequest,
+  at: string,
+): FormResult {
+  const problem = blockedBy(tradeCheck(campaign, request));
+  if (problem !== null) return refused(problem);
+
+  return accepted(
+    logged(withTradeOrdered(campaign, request), at, {
+      kind: 'trade-ordered',
+      id: request.id,
+      item: request.item,
+      grade: request.grade,
+      food: request.food,
+      fuel: request.fuel,
+    }),
+  );
+}
+
+/**
+ * Sell a rare item from the Inventory in the Planning Phase (pp. 21, 37; R54,
+ * R56; Z5-9), for its price less two in the player's mix of Food and Fuel.
+ * Refused for whatever `saleCheck` blocks; going over a cap is only warned of.
+ */
+export function submitItemSold(
+  campaign: Campaign,
+  id: string,
+  payment: Payment,
+  at: string,
+): FormResult {
+  const problem = blockedBy(saleCheck(campaign, id, payment));
+  if (problem !== null) return refused(problem);
+
+  // Present: `saleCheck` found it in the Inventory.
+  const item = campaign.inventory.find((held) => held.id === id) as Item;
+
+  return accepted(
+    logged(withItemSold(campaign, id, payment), at, {
+      kind: 'item-sold',
+      id,
+      item: item.item,
+      grade: item.grade,
+      food: payment.food,
+      fuel: payment.fuel,
+    }),
+  );
+}
+
+/**
  * Roll on the Rare Item Table by hand, from the Inventory (pg. 43; Z5-7): for
  * the story and origin rewards that roll on it, which are Phase 7's missions
  * and have nowhere else to put their item yet. The item and both dice go on an
@@ -504,7 +566,7 @@ export function submitRareItemRolled(
   roll: RareItemRoll,
   at: string,
 ): FormResult {
-  if (allItems(campaign).some((item) => item.id === roll.id)) {
+  if (idTaken(campaign, roll.id)) {
     return refused('An item already has that id.');
   }
 

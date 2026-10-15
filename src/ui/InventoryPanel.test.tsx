@@ -243,3 +243,60 @@ describe('installing a rare upgrade', () => {
     ).toBeInTheDocument();
   });
 });
+
+/** Trading at Planning (pp. 19, 21; R51–R56; Z5-9). */
+describe('trading from the Inventory', () => {
+  const shield = { id: 'shield', item: 'riot-shield', grade: 'standard' } as const;
+  const atPlanning = (overrides: Partial<Campaign> = {}) =>
+    withPlanningBegun(playing({ materials: { food: 4, fuel: 6, hardware: 0 }, ...overrides }));
+
+  it('trades for an item, paid at once, and puts it on order', async () => {
+    const user = open(atPlanning());
+    openPanel('inventory');
+
+    await user.selectOptions(screen.getByLabelText('Item to trade for'), 'pistol');
+    expect(screen.getByText(/^Costs 6/)).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Paid with'), '2');
+    expect(screen.getByText('and 4 Fuel')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Trade for it' }));
+
+    expect(screen.getByText(/arrives at the next Add Facilities and Upgrades/)).toBeInTheDocument();
+    expect(card().getByText('Nothing stored yet.')).toBeInTheDocument();
+    expect(campaignLog().textContent).toContain(
+      'Traded for standard pistol, for 2 Food and 4 Fuel. It arrives next Advancement Phase.',
+    );
+  });
+
+  it('says why it cannot, and offers no rare item', () => {
+    open(atPlanning({ materials: { food: 0, fuel: 1, hardware: 0 } }));
+    openPanel('inventory');
+
+    const items = screen.getByLabelText('Item to trade for');
+    expect(within(items).queryByRole('option', { name: 'Riot shield' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Trade for it' })).toBeDisabled();
+    expect(screen.getByText(/the base has 1\./)).toBeInTheDocument();
+  });
+
+  it('sells a rare item for its price less two, and warns of a full store', async () => {
+    const user = open(atPlanning({ inventory: [shield] }));
+    openPanel('inventory');
+
+    expect(screen.getByText(/^Sells for 8/)).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Taken as'), '8');
+    expect(screen.getByText(/12 food is over this base’s/)).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText('Taken as'), '3');
+    await user.click(screen.getByRole('button', { name: 'Sell' }));
+
+    expect(card().getByText('Nothing stored yet.')).toBeInTheDocument();
+    expect(campaignLog().textContent).toContain('Sold standard riot shield for 3 Food and 5 Fuel.');
+  });
+
+  it('offers nothing to sell without a rare item', () => {
+    open(atPlanning());
+    openPanel('inventory');
+
+    expect(screen.queryByRole('group', { name: 'Sell a rare item' })).toBeNull();
+  });
+});

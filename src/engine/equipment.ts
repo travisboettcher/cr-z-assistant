@@ -102,9 +102,7 @@ export function newItemProblem(campaign: Campaign, item: NewItem): string | null
     return 'That item belongs to another Origin of the Rot.';
   }
 
-  if (allItems(campaign).some((held) => held.id === item.id)) {
-    return 'An item already has that id.';
-  }
+  if (idTaken(campaign, item.id)) return 'An item already has that id.';
 
   return null;
 }
@@ -119,6 +117,17 @@ export function allItems(campaign: Campaign): readonly Item[] {
     ...[...campaign.survivors, ...campaign.setAside].flatMap((survivor) => survivor.items),
     ...Object.values(campaign.base?.slots ?? {}).flatMap((slot) => slot.installed ?? []),
   ];
+}
+
+/**
+ * Whether a new item may not have this id: one the campaign holds has it, or
+ * one on its way from a trade will (Z5-9).
+ */
+export function idTaken(campaign: Campaign, id: string): boolean {
+  return (
+    allItems(campaign).some((held) => held.id === id) ||
+    campaign.trades.some((trade) => trade.id === id)
+  );
 }
 
 /** Why this item cannot be taken out of the base's Inventory by hand, or `null`. */

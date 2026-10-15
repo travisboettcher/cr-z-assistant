@@ -37,6 +37,15 @@ const SAMPLE_SURVIVOR = {
  * — a key list taken from a sample slot would only cover the fields that sample
  * happened to use, so the sample uses all of them.
  */
+const TRADE = {
+  id: 'traded',
+  item: 'pistol',
+  grade: 'standard',
+  food: 1,
+  fuel: 2,
+  orderedOnTurn: 3,
+};
+
 const SAMPLE_SLOT = {
   cleared: true,
   built: { facility: 'watchtower', builtOnTurn: 2 },
@@ -687,5 +696,30 @@ describe('the v16 to v17 Rare rolls', () => {
       expect(result.campaign.rareRollsOwed).toBe(0);
       expect(result.campaign.name).toBe('Cedar Hollow');
     }
+  });
+});
+
+/** R53: trades on their way, which nothing before v18 could place (Z5-9). */
+describe('the v17 to v18 trades', () => {
+  it('brings every earlier save forward with nothing on order', () => {
+    for (const fixture of fixtures.filter((f) => f.version < 18)) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok) continue;
+
+      expect(result.campaign.trades, fixture.path).toEqual([]);
+    }
+  });
+
+  it('keeps a v18 save’s own trades, and a list already there', () => {
+    const v18 = fixtures.find((fixture) => fixture.version === 18);
+    const ordered = migrate(v18?.contents);
+    const v17 = fixtures.find((fixture) => fixture.version === 17);
+    const trade = { ...TRADE, id: 'another' };
+    const kept = migrate({ ...(v17?.contents as object), trades: [trade] });
+
+    expect(ordered.ok && ordered.campaign.trades.map((one) => one.item)).toEqual(['pistol']);
+    expect(kept.ok && kept.campaign.trades).toEqual([trade]);
   });
 });

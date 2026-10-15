@@ -43,6 +43,7 @@ import type {
   SlotState,
   Stats,
   Survivor,
+  TradeOrder,
 } from '../engine/campaign';
 import { LEAVING_CAUSES, type CampaignEvent, type LogEntry } from '../engine/log';
 
@@ -192,11 +193,28 @@ export function itemArbitrary(): fc.Arbitrary<Item> {
   );
 }
 
+/** A trade on its way (Z5-9): an item with what it cost and when it was ordered. */
+function tradeArbitrary(): fc.Arbitrary<TradeOrder> {
+  return itemArbitrary()
+    .filter((item) => item.grade !== 'shoddy')
+    .chain((item) =>
+      fc.record({
+        id: fc.constant(item.id),
+        item: fc.constant(item.item),
+        grade: fc.constant(item.grade),
+        food: anyCount,
+        fuel: anyCount,
+        orderedOnTurn: fc.integer({ min: 1, max: 9999 }),
+      }),
+    );
+}
+
 /** Whether no item id is held in two places, which the save reader refuses (Z5-2). */
 function itemIdsDistinct(campaign: Omit<Campaign, 'assignments'>): boolean {
   const ids = [
     ...campaign.inventory,
     ...[...campaign.survivors, ...campaign.setAside].flatMap((survivor) => survivor.items),
+    ...campaign.trades,
   ].map((item) => item.id);
 
   return new Set(ids).size === ids.length;
@@ -597,6 +615,28 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       labor: anyCount,
     }),
     fc.record({
+      kind: fc.constant('trade-ordered' as const),
+      id: anyId,
+      item: fc.constantFrom(...ITEM_IDS),
+      grade: fc.constantFrom(...GRADES),
+      food: anyCount,
+      fuel: anyCount,
+    }),
+    fc.record({
+      kind: fc.constant('trade-arrived' as const),
+      id: anyId,
+      item: fc.constantFrom(...ITEM_IDS),
+      grade: fc.constantFrom(...GRADES),
+    }),
+    fc.record({
+      kind: fc.constant('item-sold' as const),
+      id: anyId,
+      item: fc.constantFrom(...ITEM_IDS),
+      grade: fc.constantFrom(...GRADES),
+      food: anyCount,
+      fuel: anyCount,
+    }),
+    fc.record({
       kind: fc.constant('items-spent' as const),
       team: fc.integer({ min: 1, max: 4 }),
       items: fc.array(
@@ -765,6 +805,8 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
             { maxLength: 3 },
           ),
           rareRollsOwed: anyCount,
+          // Never shoddy, as the Inventory's: a trade buys a priced grade (R51).
+          trades: fc.array(tradeArbitrary(), { maxLength: 2 }),
           startingCommunityBuilt: fc.boolean(),
           // Half the campaigns have claimed a base and half have not; null is a
           // real state and a round trip can get it wrong by writing `{}`.
@@ -791,6 +833,7 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
             'setAside',
             'inventory',
             'rareRollsOwed',
+            'trades',
             'startingCommunityBuilt',
             'base',
             'log',

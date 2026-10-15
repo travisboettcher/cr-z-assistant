@@ -69,6 +69,7 @@ import type { EquipMove } from '../engine/equip';
 import type { BuildOrder } from '../engine/making';
 import type { RareItemRoll } from '../engine/finding';
 import { withEquipmentHandedOver } from '../engine/handover';
+import { withTradesArrived, type Payment, type TradeRequest } from '../engine/trading';
 import {
   submitMissionOutcome,
   submitMissionSelection,
@@ -84,6 +85,8 @@ import {
   submitItemAdded,
   submitItemRemoved,
   submitItemBuilt,
+  submitItemSold,
+  submitTradeOrdered,
   submitRareItemRolled,
   submitNewSurvivor,
   submitRecruit,
@@ -105,6 +108,7 @@ import {
 import type { XpSource } from '../data/turn';
 import type {
   Assignment,
+  Base,
   Campaign,
   Project,
   ProjectOrder,
@@ -475,6 +479,15 @@ export type CampaignAction =
   | { readonly type: 'inventory/rareItemRolled'; readonly roll: RareItemRoll; readonly at: string }
   /** An item the project team builds, with its fresh id (Z5-6). */
   | { readonly type: 'planning/itemBuilt'; readonly order: BuildOrder; readonly at: string }
+  /** A trade at Planning Step 2: paid now, arriving next Advancement (R51–R53; Z5-9). */
+  | { readonly type: 'planning/tradeOrdered'; readonly request: TradeRequest; readonly at: string }
+  /** A rare item sold from the Inventory, for its price less two (R54; Z5-9). */
+  | {
+      readonly type: 'planning/itemSold';
+      readonly id: string;
+      readonly payment: Payment;
+      readonly at: string;
+    }
   /** An item moved at Equip Mission Team, or shoddy gear taken up free (Z5-4). */
   | { readonly type: 'mission/itemMoved'; readonly move: EquipMove; readonly at: string }
   /** What a team's mission used up or lost, by item id (Z5-5). */
@@ -1074,6 +1087,16 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
     case 'planning/itemBuilt':
       return submitted(state, (campaign) => submitItemBuilt(campaign, action.order, action.at));
 
+    case 'planning/tradeOrdered':
+      return submitted(state, (campaign) =>
+        submitTradeOrdered(campaign, action.request, action.at),
+      );
+
+    case 'planning/itemSold':
+      return submitted(state, (campaign) =>
+        submitItemSold(campaign, action.id, action.payment, action.at),
+      );
+
     case 'inventory/itemRemoved':
       return submitted(state, (campaign) => submitItemRemoved(campaign, action.id, action.at));
 
@@ -1106,15 +1129,20 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         );
 
         // Then what the cleared slot handed over (R45).
-        return handedOver === null || finished.base === null
-          ? built
-          : withEquipmentHandedOver(
-              built,
-              finished.base.id,
-              handedOver.items,
-              action.at,
-              handedOver.slot,
-            );
+        // Present when anything is handed over: only a base's slot hands it.
+        const handed =
+          handedOver === null
+            ? built
+            : withEquipmentHandedOver(
+                built,
+                (finished.base as Base).id,
+                handedOver.items,
+                action.at,
+                handedOver.slot,
+              );
+
+        // And last turn's trades, which land at this step too (pg. 19; R53).
+        return withTradesArrived(handed, action.at);
       });
 
     case 'assignment/set':

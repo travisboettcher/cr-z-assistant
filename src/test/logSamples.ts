@@ -255,6 +255,11 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   },
   // An item the project team built (Z5-6).
   { kind: 'item-built', id: 'item-5', item: 'blunt', grade: 'standard', hardware: 1, labor: 1 },
+  // Trading (Z5-9): paid in a mix, and in one material alone.
+  { kind: 'trade-ordered', id: 'item-6', item: 'pistol', grade: 'standard', food: 1, fuel: 2 },
+  { kind: 'trade-ordered', id: 'item-7', item: 'tool-belt', grade: 'quality', food: 0, fuel: 8 },
+  { kind: 'trade-arrived', id: 'item-6', item: 'pistol', grade: 'standard' },
+  { kind: 'item-sold', id: 'item-8', item: 'riot-shield', grade: 'standard', food: 8, fuel: 0 },
   // What a mission used up (Z5-5).
   {
     kind: 'items-spent',

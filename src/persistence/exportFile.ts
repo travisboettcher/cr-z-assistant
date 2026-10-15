@@ -18,7 +18,15 @@
 import { BASES } from '../data/bases';
 import { SKILLS, STATS } from '../data/skills';
 import { MATERIALS } from '../data/materials';
-import type { Base, Campaign, Item, Project, SlotState, Survivor } from '../engine/campaign';
+import type {
+  Base,
+  Campaign,
+  Item,
+  Project,
+  SlotState,
+  Survivor,
+  TradeOrder,
+} from '../engine/campaign';
 import type { CampaignEvent, ItemHolder, LogEntry, MissionWound } from '../engine/log';
 import { isMissionOutcome } from '../engine/missions';
 
@@ -84,6 +92,17 @@ function orderedSurvivor(survivor: Survivor): Record<keyof Survivor, unknown> {
 /** One item with its keys in a fixed order, for the reason a survivor's are. */
 function orderedItem(item: Item): Record<keyof Item, unknown> {
   return { id: item.id, item: item.item, grade: item.grade };
+}
+
+function orderedTrade(trade: TradeOrder): Record<keyof TradeOrder, unknown> {
+  return {
+    id: trade.id,
+    item: trade.item,
+    grade: trade.grade,
+    food: trade.food,
+    fuel: trade.fuel,
+    orderedOnTurn: trade.orderedOnTurn,
+  };
 }
 
 /**
@@ -344,6 +363,7 @@ function inFileOrder(campaign: Campaign): Record<keyof Campaign, unknown> {
     setAside: campaign.setAside.map(orderedSurvivor),
     inventory: campaign.inventory.map(orderedItem),
     rareRollsOwed: campaign.rareRollsOwed,
+    trades: campaign.trades.map(orderedTrade),
     startingCommunityBuilt: campaign.startingCommunityBuilt,
     base: campaign.base === null ? null : orderedBase(campaign.base),
     assignments: orderedAssignments(campaign),

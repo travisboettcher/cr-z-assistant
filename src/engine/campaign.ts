@@ -33,7 +33,7 @@ import type { LogEntry } from './log';
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 17;
+export const CURRENT_SCHEMA_VERSION = 18;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -126,6 +126,25 @@ export interface Item {
   readonly id: string;
   readonly item: ItemId;
   readonly grade: Grade;
+}
+
+/**
+ * An item traded for in the Planning Phase and not yet arrived (pp. 19, 21;
+ * R53; Z5-9): paid for when it was ordered, in the Inventory at the next Add
+ * Facilities and Upgrades.
+ *
+ * The id is the one the item will have, chosen when it is ordered, as a built
+ * item's is. What was paid is kept on the order because it is a fact of the
+ * day, as a project's charge is: there is no cancelling (R53), but the log
+ * and a reader of the order both have it.
+ */
+export interface TradeOrder {
+  readonly id: string;
+  readonly item: ItemId;
+  readonly grade: Grade;
+  readonly food: number;
+  readonly fuel: number;
+  readonly orderedOnTurn: number;
 }
 
 /**
@@ -421,6 +440,12 @@ export interface Campaign {
   rareRollsOwed: number;
 
   /**
+   * Items traded for and on their way (R53; Z5-9), oldest first. Empty for
+   * every save from before v18, which could not trade.
+   */
+  trades: readonly TradeOrder[];
+
+  /**
    * Whether the player has finished assembling their starting community.
    *
    * A starting community is built from ten Tier levels (pg. 13), and that rule
@@ -505,6 +530,7 @@ export function createNewCampaign(name: string, options: NewCampaignOptions = {}
     setAside: [],
     inventory: [],
     rareRollsOwed: 0,
+    trades: [],
     // False, so a new campaign gets the ten-tier-level check while it is being
     // built. The v2 → v3 migration deliberately answers `true` instead — see
     // the step in `src/persistence/migrations.ts` for why the two differ.

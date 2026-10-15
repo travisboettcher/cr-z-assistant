@@ -33,6 +33,15 @@ import {
   type Enchantable,
 } from '../engine/making';
 import { laborAvailable } from '../engine/projects';
+import {
+  saleableItems,
+  saleCheck,
+  salePrice,
+  tradeableItems,
+  tradeCheck,
+  tradeGrades,
+  tradePrice,
+} from '../engine/trading';
 import { useCampaign } from '../state/useCampaign';
 import { describeItem, GRADE_LABELS, ITEM_KIND_LABELS, ITEM_LABELS } from './equipmentLabels';
 import { slotLabel } from './baseLabels';
@@ -122,9 +131,32 @@ export function InventoryPanel({ campaign }: { readonly campaign: Campaign }) {
             );
           })
         )}
+
+        {/* What a trade has paid for, arriving next Advancement (R53; Z5-9). */}
+        {campaign.trades.length > 0 && (
+          <div className="mt-4">
+            <h3 className="text-sm font-semibold">On order</h3>
+            <ul className="mt-1 flex flex-col">
+              {campaign.trades.map((trade) => (
+                <li
+                  key={trade.id}
+                  className="border-b border-stone-100 py-1.5 text-sm last:border-b-0 dark:border-stone-800"
+                >
+                  {ITEM_LABELS[trade.item]}{' '}
+                  <span className="text-stone-600 dark:text-stone-400">
+                    · {GRADE_LABELS[trade.grade]} · arrives at the next Add Facilities and Upgrades
+                  </span>{' '}
+                  <PageRef pages={19} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </section>
 
       <BuildItem campaign={campaign} />
+      <TradeForItem campaign={campaign} />
+      {saleableItems(campaign).length > 0 && <SellRareItem campaign={campaign} />}
       <RollRareItem />
       <AddItem campaign={campaign} />
     </div>
@@ -328,6 +360,247 @@ function BuildItem({ campaign }: { readonly campaign: Campaign }) {
         }}
       >
         Build
+      </button>
+    </fieldset>
+  );
+}
+
+/** How much of a price is paid in Food, the rest in Fuel (pg. 21): a picker from none to all. */
+function FoodShare({
+  price,
+  food,
+  onChange,
+  label,
+}: {
+  readonly price: number;
+  readonly food: number;
+  readonly onChange: (food: number) => void;
+  readonly label: string;
+}) {
+  const id = useId();
+
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="text-sm">
+        {label}
+      </label>
+      <div className="flex items-center gap-2">
+        <select
+          id={id}
+          className={SELECT}
+          value={food}
+          onChange={(changed) => {
+            onChange(Number(changed.target.value));
+          }}
+        >
+          {Array.from({ length: price + 1 }, (_, amount) => (
+            <option key={amount} value={amount}>
+              {amount} Food
+            </option>
+          ))}
+        </select>
+        <span className="text-sm">and {price - food} Fuel</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Trading for an item at Planning Step 2 (pp. 19, 21; R51–R53; Z5-9): what the
+ * equipment tables price for trade, paid in any mix of Food and Fuel, and on
+ * order until the next Add Facilities and Upgrades. `trading.ts` says what may
+ * be bought and why not.
+ */
+function TradeForItem({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+  const itemId = useId();
+  const gradeId = useId();
+
+  const offered = tradeableItems(campaign);
+  const [chosenItem, setItem] = useState<ItemId>('pistol');
+  const item = offered.includes(chosenItem) ? chosenItem : (offered[0] ?? 'pistol');
+  const grades = tradeGrades(item);
+  const [chosenGrade, setGrade] = useState<Grade>('standard');
+  const grade = (grades as readonly Grade[]).includes(chosenGrade)
+    ? chosenGrade
+    : (grades[0] ?? 'standard');
+  const price = tradePrice(item, grade) ?? 0;
+  const [chosenFood, setFood] = useState<number | null>(null);
+  const food = Math.min(price, chosenFood ?? Math.min(price, campaign.materials.food));
+  const [fresh, setFresh] = useState(() => crypto.randomUUID());
+
+  const request = { id: fresh, item, grade, food, fuel: price - food };
+  const check = tradeCheck(campaign, request);
+
+  return (
+    <fieldset className="border-t border-stone-200 pt-4 dark:border-stone-800">
+      <legend className="font-medium">Trade for an item</legend>
+      <p className={`mt-1 ${HINT}`}>
+        Paid now in Food and Fuel, any mix, with no Labor, and here at the next Add Facilities and
+        Upgrades <PageRef pages="19, 21" />
+      </p>
+
+      <div className="mt-3 flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1">
+          <label htmlFor={itemId} className="text-sm">
+            Item to trade for
+          </label>
+          <select
+            id={itemId}
+            className={SELECT}
+            value={item}
+            onChange={(changed) => {
+              setItem(changed.target.value as ItemId);
+              setFood(null);
+            }}
+          >
+            {KINDS.map((kind) => {
+              const ofKind = offered.filter((id) => EQUIPMENT[id].kind === kind);
+
+              return ofKind.length === 0 ? null : (
+                <optgroup key={kind} label={ITEM_KIND_LABELS[kind]}>
+                  {ofKind.map((id) => (
+                    <option key={id} value={id}>
+                      {ITEM_LABELS[id]}
+                    </option>
+                  ))}
+                </optgroup>
+              );
+            })}
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor={gradeId} className="text-sm">
+            Grade to trade for
+          </label>
+          <select
+            id={gradeId}
+            className={SELECT}
+            value={grade}
+            onChange={(changed) => {
+              setGrade(changed.target.value as Grade);
+              setFood(null);
+            }}
+          >
+            {grades.map((option) => (
+              <option key={option} value={option}>
+                {GRADE_LABELS[option]}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <FoodShare price={price} food={food} onChange={setFood} label="Paid with" />
+      </div>
+
+      <p className={`mt-2 ${HINT}`}>
+        Costs {price} <PageRef pages={EQUIPMENT[item].pages} />
+      </p>
+
+      {check.blockers.length > 0 && (
+        <ul className="mt-2 flex flex-col gap-1">
+          {check.blockers.map((violation) => (
+            <li key={violation.code} className="text-sm text-amber-800 dark:text-amber-300">
+              {violation.message} <PageRef pages={violation.pages} />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <button
+        type="button"
+        className={`mt-3 ${SECONDARY}`}
+        disabled={check.blockers.length > 0}
+        onClick={() => {
+          dispatch({ type: 'planning/tradeOrdered', request, at: new Date().toISOString() });
+          setFresh(crypto.randomUUID());
+          setFood(null);
+        }}
+      >
+        Trade for it
+      </button>
+    </fieldset>
+  );
+}
+
+/**
+ * Selling a rare item in the Planning Phase (pp. 21, 37; R54, R56; Z5-9): its
+ * Rare Item Table price less two, in any mix of Food and Fuel. Going over a cap
+ * is said, not refused: Check Storage takes the excess.
+ */
+function SellRareItem({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+  const itemId = useId();
+
+  const offered = saleableItems(campaign);
+  const [chosen, setChosen] = useState('');
+  const item = offered.find((held) => held.id === chosen) ?? (offered[0] as Item);
+  const price = salePrice(item) ?? 0;
+  const [chosenFood, setFood] = useState(0);
+  const food = Math.min(price, chosenFood);
+  const payment = { food, fuel: price - food };
+  const check = saleCheck(campaign, item.id, payment);
+
+  return (
+    <fieldset className="border-t border-stone-200 pt-4 dark:border-stone-800">
+      <legend className="font-medium">Sell a rare item</legend>
+      <p className={`mt-1 ${HINT}`}>
+        At its price less two, in Food and Fuel, with no trader needed <PageRef pages="21, 37" />
+      </p>
+
+      <div className="mt-3 flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1">
+          <label htmlFor={itemId} className="text-sm">
+            Rare item to sell
+          </label>
+          <select
+            id={itemId}
+            className={SELECT}
+            value={item.id}
+            onChange={(changed) => {
+              setChosen(changed.target.value);
+            }}
+          >
+            {offered.map((held) => (
+              <option key={held.id} value={held.id}>
+                {ITEM_LABELS[held.item]} · {GRADE_LABELS[held.grade]}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <FoodShare price={price} food={food} onChange={setFood} label="Taken as" />
+      </div>
+
+      <p className={`mt-2 ${HINT}`}>
+        Sells for {price} <PageRef pages={43} />
+      </p>
+
+      {[...check.blockers, ...check.warnings].length > 0 && (
+        <ul className="mt-2 flex flex-col gap-1">
+          {[...check.blockers, ...check.warnings].map((violation) => (
+            <li key={violation.message} className="text-sm text-amber-800 dark:text-amber-300">
+              {violation.message} <PageRef pages={violation.pages} />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <button
+        type="button"
+        className={`mt-3 ${SECONDARY}`}
+        disabled={check.blockers.length > 0}
+        onClick={() => {
+          dispatch({
+            type: 'planning/itemSold',
+            id: item.id,
+            payment,
+            at: new Date().toISOString(),
+          });
+        }}
+      >
+        Sell
       </button>
     </fieldset>
   );

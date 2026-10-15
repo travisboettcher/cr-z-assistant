@@ -1052,6 +1052,50 @@ describe('Add Facilities and Upgrades', () => {
     expect(within(walk()).queryByLabelText('Weapon 1')).toBeNull();
   });
 
+  /** Last turn's trades land here too (pg. 19; R53; Z5-9). */
+  it('takes in last turn’s trade, alone or with the projects', async () => {
+    const pistol = {
+      id: 'traded',
+      item: 'pistol',
+      grade: 'standard',
+      food: 2,
+      fuel: 4,
+      orderedOnTurn: 2,
+    } as const;
+    const user = open(
+      advancement({
+        step: 'add-facilities-and-upgrades',
+        trades: [pistol, { ...pistol, id: 'later', orderedOnTurn: 3 }],
+      }),
+    );
+
+    expect(within(walk()).getByText(/A standard pistol, from a trade/)).toBeTruthy();
+    await user.click(within(walk()).getByRole('button', { name: 'Finish the trade' }));
+
+    expect(inventoryCount()).toBe('1 item');
+    // The one ordered this turn waits for next turn's.
+    expect(within(walk()).getByText(/ordered this turn, and finishes next turn/i)).toBeTruthy();
+  });
+
+  it('names both on the button when projects and trades land together', () => {
+    open(
+      advancement({
+        step: 'add-facilities-and-upgrades',
+        projects: [
+          onOrder({ kind: 'facility', slot: 'garage', facility: 'workshop', orderedOnTurn: 2 }),
+        ],
+        trades: [
+          { id: 't', item: 'trap', grade: 'standard', food: 2, fuel: 0, orderedOnTurn: 2 },
+          { id: 'u', item: 'trap', grade: 'standard', food: 2, fuel: 0, orderedOnTurn: 2 },
+        ],
+      }),
+    );
+
+    expect(
+      within(walk()).getByRole('button', { name: 'Finish the project and 2 trades' }),
+    ).toBeTruthy();
+  });
+
   it('points at the Inventory while it holds a rare upgrade to install', () => {
     open(
       advancement({

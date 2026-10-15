@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import currentFixture from './__fixtures__/campaign-v17.json';
+import currentFixture from './__fixtures__/campaign-v18.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -182,6 +182,52 @@ describe('parseCampaignFile', () => {
 
     expect(result.error.reason).toBe('damaged-campaign');
     expect(result.error.message).toMatch(/County Road Z/);
+  });
+
+  /** Trades on their way (Z5-9): each an item with what it cost and when it was ordered. */
+  describe('trades on order', () => {
+    const trade = {
+      id: 'traded',
+      item: 'pistol',
+      grade: 'standard',
+      food: 2,
+      fuel: 4,
+      orderedOnTurn: 3,
+    };
+    const problem = (trades: unknown) => {
+      const result = parseCampaignFile(savedWith({ trades }));
+
+      return result.ok ? null : result.error.message;
+    };
+
+    it('reads a list of them back', () => {
+      const result = parseCampaignFile(savedWith({ trades: [trade] }));
+
+      expect(result.ok && result.campaign.trades).toEqual([trade]);
+    });
+
+    it.each([
+      ['a list that is not one', 'many', 'its trades on order: is not a list'],
+      ['an item that is not one', [trade, { ...trade, id: 'b', item: 'laser' }], 'trade 2 of 2'],
+      ['no Food', [{ ...trade, food: undefined }], 'trade 1 of 1 does not say what it cost'],
+      ['a Fuel of half', [{ ...trade, fuel: 0.5 }], 'trade 1 of 1 does not say what it cost'],
+      [
+        'no turn',
+        [{ ...trade, orderedOnTurn: 0 }],
+        'trade 1 of 1 does not say which turn it was ordered on',
+      ],
+      [
+        'an id an item already has',
+        [trade],
+        'it holds two items with one id: traded',
+        { inventory: [{ id: 'traded', item: 'bow', grade: 'standard' }] },
+      ],
+    ])('refuses %s', (_label, trades, expected, more?: object) => {
+      const result = parseCampaignFile(savedWith({ trades, ...more }));
+
+      expect(result.ok ? null : result.error.message).toContain(expected);
+      expect(problem([trade])).toBeNull();
+    });
   });
 
   it('says which part of the campaign is wrong', () => {

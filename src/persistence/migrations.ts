@@ -468,6 +468,18 @@ const rareBecameRolls: MigrationStep = {
   },
 };
 
+/**
+ * v17 → v18: items traded for and on their way (R53; Z5-9).
+ *
+ * **Empty, and that is the truth.** A v17 build could not trade, so no v17
+ * save has anything on order. A list already present is left alone.
+ */
+const tradesRecorded: MigrationStep = {
+  from: 17,
+  to: 18,
+  up: (previous) => ('trades' in previous ? previous : { ...previous, trades: [] }),
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -486,6 +498,7 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   setAsideRecorded,
   itemsRecorded,
   rareBecameRolls,
+  tradesRecorded,
 ];
 
 /** Why a save could not be brought forward. */

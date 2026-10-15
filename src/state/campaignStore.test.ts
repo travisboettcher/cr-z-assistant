@@ -1775,6 +1775,34 @@ describe('advancement/projectsCompleted', () => {
     expect(campaign.projects).toEqual([]);
   });
 
+  /** The Sports Shop's chosen weapons, then last turn's trades, after the projects (R45, R53). */
+  it('writes what a cleared slot handed over and what trades arrived', () => {
+    const shop = openState({
+      ...expectOpen(due()),
+      step: 'add-facilities-and-upgrades',
+      base: { id: 'outdoor-sports-shop', slots: {} },
+      projects: [onOrder({ kind: 'clearing', slot: 'inventory', orderedOnTurn: 2 })],
+      trades: [
+        { id: 'traded', item: 'trap', grade: 'standard', food: 2, fuel: 0, orderedOnTurn: 2 },
+      ],
+    });
+    const campaign = expectOpen(
+      campaignReducer(shop, { ...finish, weapons: ['bow', 'bow', 'rifle', 'blunt'] }),
+    );
+
+    expect(campaign.log.map((entry) => entry.event.kind)).toEqual([
+      'slot-cleared',
+      'equipment-handed-over',
+      'trade-arrived',
+    ]);
+    expect(campaign.log[1]?.event).toMatchObject({
+      base: 'outdoor-sports-shop',
+      slot: 'inventory',
+    });
+    expect(campaign.inventory).toHaveLength(5);
+    expect(campaign.trades).toEqual([]);
+  });
+
   /** The clearing's yield arrives here, a turn after it was ordered. */
   it('credits what a clearing project gave back', () => {
     expect(expectOpen(campaignReducer(due(), finish)).materials.hardware).toBe(2);
@@ -2530,6 +2558,43 @@ describe('what earns a line in the log', () => {
         grade: 'standard',
         hardware: 2,
         labor: 2,
+      }),
+    },
+    'planning/tradeOrdered': {
+      // A trap costs 2 (pg. 42), paid with the one Food and the one Fuel, and
+      // is on its way rather than in the Inventory (R53; Z5-9).
+      state: openState(withPlanningBegun({ ...expectOpen(rich()), step: 'assign-project-team' })),
+      action: {
+        type: 'planning/tradeOrdered',
+        at: AT,
+        request: { id: 'item-1', item: 'trap', grade: 'standard', food: 1, fuel: 1 },
+      },
+      entry: entry(3, 'planning', {
+        kind: 'trade-ordered',
+        id: 'item-1',
+        item: 'trap',
+        grade: 'standard',
+        food: 1,
+        fuel: 1,
+      }),
+    },
+    'planning/itemSold': {
+      // A riot shield is a 10 on the Rare Item Table (pg. 43): it sells for 8 (R54; Z5-9).
+      state: openState(
+        withPlanningBegun({
+          ...expectOpen(rich()),
+          step: 'assign-project-team',
+          inventory: [{ id: 'shield', item: 'riot-shield', grade: 'standard' }],
+        }),
+      ),
+      action: { type: 'planning/itemSold', at: AT, id: 'shield', payment: { food: 3, fuel: 5 } },
+      entry: entry(3, 'planning', {
+        kind: 'item-sold',
+        id: 'shield',
+        item: 'riot-shield',
+        grade: 'standard',
+        food: 3,
+        fuel: 5,
       }),
     },
     'project/cancelled': {
