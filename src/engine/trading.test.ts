@@ -94,7 +94,7 @@ describe('a trade at Planning (pp. 19, 21; R52, R53)', () => {
       'That item belongs to another Origin of the Rot.',
     ]);
     expect(messages(trading(), request({ grade: 'quality' }))).toEqual([
-      'It is not traded for in that grade.',
+      'It isn’t traded for in that grade.',
     ]);
   });
 
@@ -221,9 +221,9 @@ describe('a trade arriving (pg. 19; R53)', () => {
   it('is owed until it has arrived', () => {
     const says = (campaign: Campaign) => outstanding(campaign).map((one) => one.says);
 
-    expect(says(nextTurn())).toContain('Items traded for last turn have not arrived.');
+    expect(says(nextTurn())).toContain('Items traded for last turn haven’t arrived.');
     expect(says(withTradesArrived(nextTurn(), AT))).not.toContain(
-      'Items traded for last turn have not arrived.',
+      'Items traded for last turn haven’t arrived.',
     );
   });
 });

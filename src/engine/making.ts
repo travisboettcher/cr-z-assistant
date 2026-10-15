@@ -222,7 +222,7 @@ export function buildCheck(campaign: Campaign, order: BuildOrder): Check<BuildCo
   if (cost === undefined) {
     return rules.kind === 'weapon' && order.grade === 'quality'
       ? refuse('no-such-grade', 'A quality weapon is found or traded, never built.', 37)
-      : refuse('no-such-grade', 'It is not built in that grade.');
+      : refuse('no-such-grade', 'It isn’t built in that grade.');
   }
 
   if (idTaken(campaign, order.id)) {
@@ -254,7 +254,7 @@ export function buildCheck(campaign: Campaign, order: BuildOrder): Check<BuildCo
   if ((build.requires.utilities ?? []).some((utility) => !supplied(named, utility))) {
     blockers.push({
       code: 'utility-missing',
-      message: 'The facility this is built in is not supplied the Power or Water it needs.',
+      message: 'The facility this is built in isn’t supplied the Power or Water it needs.',
       pages: '41–42, 67',
     });
   }

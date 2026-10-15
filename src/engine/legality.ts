@@ -56,7 +56,7 @@ export function survivorViolations(survivor: Survivor): readonly Violation[] {
   if (skills.length > rules.skillSlots) {
     violations.push({
       code: 'too-many-skills',
-      message: `Has ${skills.length} skills, and a tier ${survivor.tier} survivor has ${rules.skillSlots}.`,
+      message: `Has ${skills.length} skills, and a Tier ${survivor.tier} survivor has ${rules.skillSlots}.`,
       pages: 7,
     });
   }
@@ -65,7 +65,7 @@ export function survivorViolations(survivor: Survivor): readonly Violation[] {
     if (level > rules.maxSkillLevel) {
       violations.push({
         code: 'skill-above-tier',
-        message: `${skill} is at level ${level}, above the maximum of ${rules.maxSkillLevel} for tier ${survivor.tier}.`,
+        message: `${skill} is at level ${level}, above the maximum of ${rules.maxSkillLevel} for Tier ${survivor.tier}.`,
         pages: 7,
       });
     }
@@ -74,7 +74,7 @@ export function survivorViolations(survivor: Survivor): readonly Violation[] {
   if (!hasTierStatArray(survivor)) {
     violations.push({
       code: 'stats-not-tier-array',
-      message: `Their stats are not the ${rules.statArray.join('/')} a tier ${survivor.tier} survivor is built from.`,
+      message: `Their stats aren’t the ${rules.statArray.join('/')} a Tier ${survivor.tier} survivor is built from.`,
       pages: 7,
     });
   }
@@ -134,7 +134,7 @@ export function communityViolations(
   return [
     {
       code: 'community-over-budget',
-      message: `A starting community is built from ${STARTING_COMMUNITY_TIER_LEVELS} tier levels, and this one spends ${spent}.`,
+      message: `A starting community is built from ${STARTING_COMMUNITY_TIER_LEVELS} Tier levels, and this one spends ${spent}.`,
       pages: 13,
     },
   ];

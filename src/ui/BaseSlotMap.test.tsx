@@ -686,7 +686,7 @@ describe('clearing a slot', () => {
     const user = await openCampaign();
     await claim(user, 'Outdoor Sports Shop — Tier 2');
 
-    expect(screen.getByText(/4 standard weapons this version cannot track/i)).toBeInTheDocument();
+    expect(screen.getByText(/4 standard weapons this version can’t track/i)).toBeInTheDocument();
   });
 });
 
@@ -913,7 +913,7 @@ describe('the base sheet', () => {
 
     openPanel('survivors');
     await user.type(screen.getByLabelText(/survivor name/i), 'Earl');
-    await user.selectOptions(screen.getByLabelText(/^tier$/i), '4');
+    await user.selectOptions(screen.getByLabelText(/^Tier$/i), '4');
     await user.click(screen.getByRole('button', { name: /^add survivor$/i }));
     openPanel('base');
 
@@ -927,7 +927,7 @@ describe('staffing a facility', () => {
     openPanel('survivors');
 
     await user.type(screen.getByLabelText(/survivor name/i), 'Carla');
-    await user.selectOptions(screen.getByLabelText(/^tier$/i), '2');
+    await user.selectOptions(screen.getByLabelText(/^Tier$/i), '2');
     await user.click(screen.getByRole('button', { name: /^add survivor$/i }));
 
     await claim(user, 'Small Town Home — Tier 1');
@@ -941,7 +941,7 @@ describe('staffing a facility', () => {
 
     // A Citizen with no Rationing has no Rationing Score at all — which the
     // sheet says rather than showing a zero.
-    expect(screen.getByText(/they do not have the skill/i)).toBeInTheDocument();
+    expect(screen.getByText(/they don’t have the skill/i)).toBeInTheDocument();
     expect(screen.queryByText(/needs someone assigned/i)).not.toBeInTheDocument();
   });
 
@@ -1107,7 +1107,7 @@ describe('ordering outside the Planning Phase', () => {
     const user = atManagement();
     await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
 
-    expect(screen.getByText(/could not be cancelled/i)).toBeInTheDocument();
+    expect(screen.getByText(/couldn’t be cancelled/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /order the upgrade/i })).toBeDisabled();
   });
 
@@ -1185,7 +1185,7 @@ describe('a Training Room’s restricted XP', () => {
     await openCard(['weight-room', 'ropes-course', 'classroom']);
 
     expect(screen.getByText(/6 of that XP is restricted/i)).toBeInTheDocument();
-    expect(screen.getByText(/does not model restricted XP/i)).toBeInTheDocument();
+    expect(screen.getByText(/doesn’t model restricted XP/i)).toBeInTheDocument();
   });
 
   /** A room with no restricted upgrades promises nothing it cannot pay. */

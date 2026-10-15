@@ -96,7 +96,7 @@ export function SurvivorRoster({ campaign, onOpenSheet }: SurvivorRosterProps) {
          */}
         <p className="text-sm text-stone-600 dark:text-stone-400">
           {campaign.survivors.length} survivor{campaign.survivors.length === 1 ? '' : 's'} ·{' '}
-          {communityTierLevels(campaign.survivors)} tier levels <PageRef pages={48} />
+          {communityTierLevels(campaign.survivors)} Tier levels <PageRef pages={48} />
         </p>
       </div>
 
@@ -157,7 +157,7 @@ export function SurvivorRoster({ campaign, onOpenSheet }: SurvivorRosterProps) {
 
       {campaign.survivors.length === 0 ? (
         <p className="mt-6 text-stone-600 dark:text-stone-400">
-          No survivors yet. A starting community is built from ten tier levels{' '}
+          No survivors yet. A starting community is built from ten Tier levels{' '}
           <PageRef pages={48} />.
         </p>
       ) : (
@@ -224,7 +224,7 @@ export function SurvivorRoster({ campaign, onOpenSheet }: SurvivorRosterProps) {
         <p className="mt-2 text-stone-600 dark:text-stone-400">
           {pendingRemoval === null
             ? null
-            : `“${pendingRemoval.name}” will be taken off the roster. This cannot be undone.`}
+            : `“${pendingRemoval.name}” will be taken off the roster. This can’t be undone.`}
         </p>
 
         <div className="mt-6 flex flex-wrap justify-end gap-3">
@@ -323,7 +323,7 @@ function RecruitForm() {
 
         <div>
           <label htmlFor={tierId} className="block text-sm font-medium">
-            Recruit tier
+            Recruit Tier
           </label>
           <select
             id={tierId}
@@ -430,7 +430,7 @@ function CommunityBudget({ campaign }: { readonly campaign: Campaign }) {
           className={`${FOCUS_RING} size-5 rounded border-stone-300 dark:border-stone-600`}
         />
         <span className="text-stone-600 dark:text-stone-400">
-          The starting community is built — stop checking it against the ten-tier-level budget.
+          The starting community is built — stop checking it against the ten-Tier-level budget.
         </span>
       </label>
     </div>

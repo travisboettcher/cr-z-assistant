@@ -114,7 +114,7 @@ describe('who is equipped (R38)', () => {
     expect(equipCheck(away, move('bow-1', 'earl')).blockers).toEqual([
       {
         code: 'not-going',
-        message: 'Whoever holds that item is not on the roster to give it.',
+        message: 'Whoever holds that item isn’t on the roster to give it.',
         pages: 18,
       },
     ]);

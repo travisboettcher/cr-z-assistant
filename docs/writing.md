@@ -46,13 +46,13 @@ community, their base. "Changed since your last export", "Claim your base". Do n
 carries nothing: "Survivors", not "Your survivors", on a card heading.
 
 **The people in the game are third person.** Survivors, the community, the mission team and the
-project team are always named, never "you": "The community has not eaten", not "You have not fed
+project team are always named, never "you": "The community hasn’t eaten", not "You haven’t fed
 your community". The player runs the community; they are not in it.
 
 **Never "we", "I", "us" or "our".** The app does not speak as a person.
 
 **"The app" only for its own limits.** When a step is not built or a trade is not modelled, say so
-plainly and say what to do instead: "The app does not cover this step yet. Play it on paper, then
+plainly and say what to do instead: "The app doesn’t cover this step yet. Play it on paper, then
 move on." Do not use "this version".
 
 **"The table" means play off the screen**: dice, miniatures, counting at the end of a mission.
@@ -67,30 +67,31 @@ this turn's Mission Phase".
 - **One idea per sentence.** If a sentence needs a dash or a semicolon to hold together, it is two
   sentences.
 - **No em dashes or semicolons joining clauses.** Use a full stop, a comma, "so", or "and". A colon
-  is for a label and its value ("Feed your Survivors: The community has not eaten") or a list.
+  is for a label and its value ("Feed your Survivors: The community hasn’t eaten") or a list.
 - **Say the fact, then what follows from it.** "The horde came at Siege Threat 8, so this turn's
   mission is a Siege Defense."
 - **Lead with what the player needs.** A warning starts with what is wrong, not with the background
   to it. A blocker says what is stopping the action and, where the app knows, what would clear it.
 - **No filler or emphasis words**: simply, just, easily, please, actually, note that, important.
   No exclamation marks.
-- **Active voice when there is an actor.** "Nobody is assigned to healing", not "Healing has not
+- **Active voice when there is an actor.** "Nobody is assigned to healing", not "Healing hasn’t
   been assigned".
 
 ## Words
 
-- **The book's names for things, capitalised as the book does** (but see
-  [Not decided yet](#not-decided-yet) for Tier): phases and steps (Mission Phase,
+- **The book's names for things, capitalised as the book does**: phases and steps (Mission Phase,
   Add Materials to Storage), materials (Food, Fuel, Hardware), stats and derived values (Health,
-  Labor, Unrest, Siege Threat), skills and facilities. Step names come from `turnLabels.ts` and are
+  Labor, Unrest, Siege Threat), Tier, skills and facilities. Tier is capitalised everywhere, as a
+  number ("Tier 2"), as a noun ("a Tier hands out") and in a compound ("Tier levels"). Step names come from `turnLabels.ts` and are
   never reworded.
 - **One word for one thing.** Once the app calls something a mission team, it is never "the
   squad" or "the party" elsewhere. Use the name already in the `*Labels.ts` files.
 - **Somebody, nobody, anybody, everybody**, not someone or no one. It is what the copy already uses.
-- **No contractions**: "cannot", "does not", "is not". The copy has none today, and a glance reads
-  "not" faster than "n't".
+- **Contractions, the everyday ones**: can’t, don’t, doesn’t, isn’t, hasn’t, won’t, it’s, you’re,
+  there’s. They read as a person talking. Avoid the stacked and the formal ones (would’ve,
+  it’ll, ’tis).
 - **Press, choose, pick**, never click or tap. The app runs on tablets and laptops.
-- **Digits for any number the player reads off or enters**: "3 of 10 tier levels", "Tier 2",
+- **Digits for any number the player reads off or enters**: "3 of 10 Tier levels", "Tier 2",
   "0 Health". Words are fine where the number is not a quantity to check: "one each", "a second
   point".
 - **US spelling**, as the book uses: Labor, armor.
@@ -130,7 +131,7 @@ happened: "The horde came: a 9 against a Siege Threat of 8."
 The app ships numbers, names and page references, and no rule text ([`NOTICE`](../NOTICE)). For
 wording, that draws the line here:
 
-- **It may say what a number is**: "3 of 10 tier levels".
+- **It may say what a number is**: "3 of 10 Tier levels".
 - **It may say where the rule is**, with a `PageRef`.
 - **It may say how to use the app**: where to record something, which button does what, what is
   saved and what is lost.
@@ -146,18 +147,12 @@ From the first pass over the first-run screens:
 
 | Before | After |
 |---|---|
-| Name it now — you can rename it later. | Choose a name. It cannot be changed later. |
+| Name it now — you can rename it later. | Choose a name. It can’t be changed later. |
 | What the first turn needs. This goes away once they are done. | Three things to do on your first turn. This list goes away when they are done. |
 | In the Mission Phase of the turn below | In this turn's Mission Phase |
-| This step is not built yet — work it on paper and move on when the table has. | The app does not cover this step yet. Play it on paper, then move on. |
+| This step is not built yet — work it on paper and move on when the table has. | The app doesn’t cover this step yet. Play it on paper, then move on. |
 | This turn has not finished with: | Still to do this turn: |
 | Start it | Start campaign |
 
 The first one was also wrong: there is no way to rename a campaign. Rewriting copy is a chance to
 check that it is still true.
-
-## Not decided yet
-
-- **Tier or tier.** The copy writes "Tier 2" and "Hero-Tier" but "tier levels" and "a tier hands
-  out", 44 to 35. It should follow the book, and which the book does is for somebody with the book
-  to say.

@@ -556,7 +556,7 @@ export function migrate(raw: unknown): MigrationResult {
       error: {
         reason: 'unreadable-version',
         message:
-          'This file does not say which save format it uses, so it is probably not a County Road Z campaign.',
+          'This file doesn’t say which save format it uses, so it is probably not a County Road Z campaign.',
       },
     };
   }

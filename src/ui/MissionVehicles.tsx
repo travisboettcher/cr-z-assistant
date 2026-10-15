@@ -244,7 +244,7 @@ function TeamBroughtHome({
       {problem === null && lost.length > 0 && (
         <p className={HINT}>
           Lost: {lost.map((vehicle) => vehicle.label).join(', ')}. What a lost vehicle held is lost
-          too, so tick it with what the team used; its Fuel is not refunded.
+          too, so tick it with what the team used; its Fuel isn’t refunded.
         </p>
       )}
 

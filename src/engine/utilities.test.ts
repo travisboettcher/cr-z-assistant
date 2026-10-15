@@ -156,7 +156,7 @@ describe('checkUtility', () => {
   it.each([
     ['a campaign with no base', campaignWith(null), 'kitchen', 'no-base'],
     [
-      'a slot this base does not have',
+      'a slot this base doesn’t have',
       generating(campaignWith(home()), 9),
       'wine-cellar',
       'no-such-slot',

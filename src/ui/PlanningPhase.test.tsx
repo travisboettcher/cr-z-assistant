@@ -190,7 +190,7 @@ describe('the Planning Phase steps', () => {
     open(planning({ step: 'assign-mission-team' }));
 
     const team = within(screen.getByRole('group', { name: /on the mission team/i }));
-    expect(team.getByText(/injured survivors cannot be sent/i)).toBeTruthy();
+    expect(team.getByText(/injured survivors can’t be sent/i)).toBeTruthy();
   });
 
   it('offers a second mission team once somebody is on the first (pg. 21; Z4-2)', async () => {

@@ -123,7 +123,7 @@ function receivingViolations(
   if (rules.needs !== undefined && !(rules.needs in survivor.skills)) {
     blockers.push({
       code: 'needs-skill',
-      message: `${survivor.name} does not have the skill this item needs.`,
+      message: `${survivor.name} doesn’t have the skill this item needs.`,
       pages: 44,
     });
   }
@@ -191,10 +191,10 @@ export function equipCheck(campaign: Campaign, move: EquipMove): Check<EquipCode
     const from = holderOf(campaign, move.id);
 
     if (from === undefined) {
-      return blocked('not-going', 'Whoever holds that item is not on the roster to give it.', 18);
+      return blocked('not-going', 'Whoever holds that item isn’t on the roster to give it.', 18);
     }
     if (from !== 'base' && !isGoing(from)) {
-      return blocked('not-going', `${from.name} is not going out, and keeps what they hold.`, 18);
+      return blocked('not-going', `${from.name} isn’t going out, and keeps what they hold.`, 18);
     }
     if ((from === 'base' ? 'base' : from.id) === targetId(move.to)) {
       return blocked(
@@ -218,7 +218,7 @@ export function equipCheck(campaign: Campaign, move: EquipMove): Check<EquipCode
   if (move.kind === 'take-shoddy' && !shoddyOffers(survivor).includes(move.item)) {
     return blocked(
       'not-free',
-      `That is not free gear for ${survivor.name}: shoddy gear comes free with a skill it is used with (R35).`,
+      `That isn’t free gear for ${survivor.name}: shoddy gear comes free with a skill it is used with (R35).`,
       37,
     );
   }

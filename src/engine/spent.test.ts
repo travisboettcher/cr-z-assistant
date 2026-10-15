@@ -143,7 +143,7 @@ describe('one-mission gear the turn still owes (pp. 40, 45, 47)', () => {
     expect(spentOwed(playing())).toEqual([1]);
     expect(outstanding(playing())).toContainEqual({
       step: 'tactical-mission',
-      says: 'Mission team 1 carries gear that lasts one mission, and what it used is not recorded.',
+      says: 'Mission team 1 carries gear that lasts one mission, and what it used isn’t recorded.',
     });
     expect(spentOwed(after(playing(), 1, []))).toEqual([]);
   });

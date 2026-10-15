@@ -56,7 +56,7 @@ function clearingReward(slot: Extract<BaseSlot, { state: 'clearing-project' }>):
     // Said here rather than promised and quietly dropped: Phase 5 owns the item
     // catalogue, so there is no Inventory to put four standard weapons into.
     materials.push(
-      `${String(equipment.count)} standard ${equipment.category}s this version cannot track`,
+      `${String(equipment.count)} standard ${equipment.category}s this version can’t track`,
     );
   }
 

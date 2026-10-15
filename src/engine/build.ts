@@ -162,7 +162,7 @@ export function checkBuild(
   if (facility.requires?.origin !== undefined && facility.requires.origin !== campaign.origin) {
     warnings.push({
       code: 'origin-locked',
-      message: 'Belongs to an apocalypse origin this campaign is not running.',
+      message: 'Belongs to an apocalypse origin this campaign isn’t running.',
       pages: '122–133',
     });
   }
@@ -174,7 +174,7 @@ export function checkBuild(
     // information here, not the player.
     warnings.push({
       code: 'mission-locked',
-      message: 'Unlocked by a mission, which this version does not track yet.',
+      message: 'Unlocked by a mission, which this version doesn’t track yet.',
       pages: '72–73',
     });
   }

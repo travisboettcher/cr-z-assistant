@@ -31,7 +31,7 @@ async function openCampaign(name = 'Cedar Hollow') {
 
 async function addSurvivor(user: ReturnType<typeof userEvent.setup>, name: string, tier: string) {
   await user.type(screen.getByLabelText(/survivor name/i), name);
-  await user.selectOptions(screen.getByLabelText(/^tier$/i), tier);
+  await user.selectOptions(screen.getByLabelText(/^Tier$/i), tier);
   await user.click(screen.getByRole('button', { name: /^add survivor$/i }));
 }
 
@@ -58,7 +58,7 @@ describe('SurvivorRoster', () => {
 
     const row = within(roster()).getByRole('listitem');
     expect(within(row).getByText('Earl Rhodes')).toBeInTheDocument();
-    expect(within(row).getByText(/tier 4 · hero/i)).toBeInTheDocument();
+    expect(within(row).getByText(/Tier 4 · hero/i)).toBeInTheDocument();
     // Max HP is the tier, computed rather than stored.
     expect(within(row).getByText('4 / 4')).toBeInTheDocument();
   });
@@ -69,7 +69,7 @@ describe('SurvivorRoster', () => {
     await addSurvivor(user, 'Earl Rhodes', '4');
     await addSurvivor(user, 'Carla Proust', '3');
 
-    expect(within(roster()).getByText(/2 survivors · 7 tier levels/i)).toBeInTheDocument();
+    expect(within(roster()).getByText(/2 survivors · 7 Tier levels/i)).toBeInTheDocument();
   });
 
   it('clears the name field so the next survivor can be typed straight in', async () => {
@@ -133,7 +133,7 @@ describe('SurvivorRoster', () => {
 
 describe('the starting-community budget', () => {
   function budgetWarning() {
-    return within(roster()).queryByText(/is built from 10 tier levels/i);
+    return within(roster()).queryByText(/is built from 10 Tier levels/i);
   }
 
   it('says nothing while a community is within its ten tier levels', async () => {
@@ -190,7 +190,7 @@ describe('recruiting from the field', () => {
     await openRecruitForm(user);
 
     await user.type(screen.getByLabelText(/recruit name/i), 'Carla Proust');
-    await user.selectOptions(screen.getByLabelText(/recruit tier/i), '3');
+    await user.selectOptions(screen.getByLabelText(/recruit Tier/i), '3');
     await user.selectOptions(screen.getByLabelText(/skill roll/i), '6');
     await user.click(screen.getByRole('button', { name: /^recruit$/i }));
 
@@ -211,7 +211,7 @@ describe('recruiting from the field', () => {
     const user = await openCampaign();
     await openRecruitForm(user);
 
-    const tiers = within(screen.getByLabelText(/recruit tier/i)).getAllByRole('option');
+    const tiers = within(screen.getByLabelText(/recruit Tier/i)).getAllByRole('option');
 
     expect(tiers.map((option) => option.textContent)).toEqual([
       '1 — Rookie',
@@ -225,7 +225,7 @@ describe('recruiting from the field', () => {
     await openRecruitForm(user);
 
     await user.type(screen.getByLabelText(/recruit name/i), 'Marcus Webb');
-    await user.selectOptions(screen.getByLabelText(/recruit tier/i), '2');
+    await user.selectOptions(screen.getByLabelText(/recruit Tier/i), '2');
     await user.selectOptions(screen.getByLabelText(/skill roll/i), '10');
     await user.click(screen.getByRole('button', { name: /^recruit$/i }));
 
@@ -249,7 +249,7 @@ describe('recruiting from the field', () => {
     const user = await openCampaign();
     await openRecruitForm(user);
 
-    await user.selectOptions(screen.getByLabelText(/recruit tier/i), '1');
+    await user.selectOptions(screen.getByLabelText(/recruit Tier/i), '1');
 
     expect(screen.getByLabelText(/skill roll/i)).not.toBeVisible();
     expect(within(roster()).getByText(/a rookie’s single skill is never rolled/i)).toBeTruthy();
@@ -266,8 +266,8 @@ describe('recruiting from the field', () => {
     const user = await openCampaign();
     await openRecruitForm(user);
 
-    await user.selectOptions(screen.getByLabelText(/recruit tier/i), '1');
-    await user.selectOptions(screen.getByLabelText(/recruit tier/i), '2');
+    await user.selectOptions(screen.getByLabelText(/recruit Tier/i), '1');
+    await user.selectOptions(screen.getByLabelText(/recruit Tier/i), '2');
 
     expect(screen.getByLabelText(/skill roll/i)).toBeVisible();
   });
@@ -286,10 +286,10 @@ describe('recruiting from the field', () => {
 
     await openRecruitForm(user);
     await user.type(screen.getByLabelText(/recruit name/i), 'Carla Proust');
-    await user.selectOptions(screen.getByLabelText(/recruit tier/i), '2');
+    await user.selectOptions(screen.getByLabelText(/recruit Tier/i), '2');
     await user.click(screen.getByRole('button', { name: /^recruit$/i }));
 
-    expect(within(roster()).queryByText(/tier levels, and this one spends/i)).toBeNull();
+    expect(within(roster()).queryByText(/Tier levels, and this one spends/i)).toBeNull();
     // And it says so, rather than throwing the player's switch behind their back.
     expect(
       within(roster()).getByRole('checkbox', { name: /the starting community is built/i }),

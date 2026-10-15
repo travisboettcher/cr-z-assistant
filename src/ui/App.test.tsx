@@ -170,7 +170,7 @@ describe('the one-screen layout', () => {
 
     await user.click(within(summary()).getByRole('button', { name: /add survivors/i }));
     await user.type(screen.getByLabelText(/survivor name/i), 'Earl Rhodes');
-    await user.selectOptions(screen.getByLabelText(/^tier$/i), '4');
+    await user.selectOptions(screen.getByLabelText(/^Tier$/i), '4');
     await user.click(screen.getByRole('button', { name: /^add survivor$/i }));
     await user.click(screen.getByRole('button', { name: /^done$/i }));
 

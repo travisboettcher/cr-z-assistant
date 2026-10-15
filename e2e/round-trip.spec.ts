@@ -456,7 +456,7 @@ test('a roster survives export, a reload, and import', async ({ page }) => {
   await addSurvivor(page, 'Carla Proust', '3');
 
   const community = page.getByRole('region', { name: /community/i });
-  await expect(community).toContainText('2 survivors · 7 tier levels');
+  await expect(community).toContainText('2 survivors · 7 Tier levels');
 
   const exported = await exportCampaign(page);
   expect(JSON.parse(exported.text).survivors).toMatchObject([
@@ -481,7 +481,7 @@ test('a roster survives export, a reload, and import', async ({ page }) => {
   await openPanel(page, 'survivors');
   await expect(community).toContainText('Earl Rhodes');
   await expect(community).toContainText('Carla Proust');
-  await expect(community).toContainText('2 survivors · 7 tier levels');
+  await expect(community).toContainText('2 survivors · 7 Tier levels');
 
   // Byte-identical, so the roster made the trip intact rather than merely
   // recognisably.
@@ -511,7 +511,7 @@ test('a survivor can be renamed and removed', async ({ page }) => {
   await page.getByRole('button', { name: /remove them/i }).click();
 
   await expect(community).not.toContainText('Earl Rhodes Jr');
-  await expect(community).toContainText('1 survivor · 3 tier levels');
+  await expect(community).toContainText('1 survivor · 3 Tier levels');
 });
 
 /**

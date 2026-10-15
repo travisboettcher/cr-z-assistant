@@ -95,7 +95,7 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
   for (const team of unresolvedTeams(campaign)) {
     owed.push({
       step: 'tactical-mission',
-      says: `Mission team ${String(team)}’s outcome is not recorded.`,
+      says: `Mission team ${String(team)}’s outcome isn’t recorded.`,
     });
   }
 
@@ -105,7 +105,7 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
   for (const team of spentOwed(campaign)) {
     owed.push({
       step: 'tactical-mission',
-      says: `Mission team ${String(team)} carries gear that lasts one mission, and what it used is not recorded.`,
+      says: `Mission team ${String(team)} carries gear that lasts one mission, and what it used isn’t recorded.`,
     });
   }
 
@@ -114,7 +114,7 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
   for (const team of broughtHomeOwed(campaign)) {
     owed.push({
       step: 'tactical-mission',
-      says: `Mission team ${String(team)} took vehicles, and which came home is not recorded.`,
+      says: `Mission team ${String(team)} took vehicles, and which came home isn’t recorded.`,
     });
   }
 
@@ -123,7 +123,7 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
   if (overrunChoiceOwed(campaign)) {
     owed.push({
       step: 'tactical-mission',
-      says: 'The base is overrun, and how the community goes on is not chosen.',
+      says: 'The base is overrun, and how the community goes on isn’t chosen.',
     });
   }
 
@@ -133,7 +133,7 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
   if (continuationOpen(campaign)) {
     owed.push({
       step: 'tactical-mission',
-      says: 'The new community’s First Mission is not chosen.',
+      says: 'The new community’s First Mission isn’t chosen.',
     });
   }
 
@@ -158,8 +158,8 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
       step: 'create-new-survivors',
       says:
         waiting === 1
-          ? 'A rescued stranger has not joined the community.'
-          : `${String(waiting)} rescued strangers have not joined the community.`,
+          ? 'A rescued stranger hasn’t joined the community.'
+          : `${String(waiting)} rescued strangers haven’t joined the community.`,
     });
   }
 
@@ -171,15 +171,15 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
       step: 'create-new-survivors',
       says:
         returning === 1
-          ? 'A survivor brought back has not rejoined the community.'
-          : `${String(returning)} survivors brought back have not rejoined the community.`,
+          ? 'A survivor brought back hasn’t rejoined the community.'
+          : `${String(returning)} survivors brought back haven’t rejoined the community.`,
     });
   }
 
   if (projectsOutstanding(campaign)) {
     owed.push({
       step: 'add-facilities-and-upgrades',
-      says: 'Projects ordered last turn are due and have not been finished.',
+      says: 'Projects ordered last turn are due and haven’t been finished.',
     });
   }
 
@@ -188,7 +188,7 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
   if (dueTrades(campaign).length > 0) {
     owed.push({
       step: 'add-facilities-and-upgrades',
-      says: 'Items traded for last turn have not arrived.',
+      says: 'Items traded for last turn haven’t arrived.',
     });
   }
 
@@ -206,27 +206,27 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
   if (moveOwed(campaign)) {
     owed.push({
       step: 'add-facilities-and-upgrades',
-      says: 'The community has not moved into the base its claim won.',
+      says: 'The community hasn’t moved into the base its claim won.',
     });
   }
 
   if (!materialsAdded(campaign)) {
     owed.push({
       step: 'add-materials-to-storage',
-      says: 'This turn’s haul has not gone into storage.',
+      says: 'This turn’s haul hasn’t gone into storage.',
     });
   }
 
   if (!woundsHealed(campaign) && healthAwards(campaign).length > 0) {
-    owed.push({ step: 'heal-wounds', says: 'Health this turn makes has not been handed out.' });
+    owed.push({ step: 'heal-wounds', says: 'Health this turn makes hasn’t been handed out.' });
   }
 
   if (rotOutstanding(campaign)) {
-    owed.push({ step: 'check-for-rot', says: 'Somebody at 0 Health has not checked for Rot.' });
+    owed.push({ step: 'check-for-rot', says: 'Somebody at 0 Health hasn’t checked for Rot.' });
   }
 
   if (!survivorsFed(campaign)) {
-    owed.push({ step: 'feed-your-survivors', says: 'The community has not eaten.' });
+    owed.push({ step: 'feed-your-survivors', says: 'The community hasn’t eaten.' });
   }
 
   if (!storageChecked(campaign) && anythingOverCap(campaign)) {
@@ -234,11 +234,11 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
   }
 
   if (!hordeChecked(campaign)) {
-    owed.push({ step: 'check-the-horde', says: 'The horde has not been checked for.' });
+    owed.push({ step: 'check-the-horde', says: 'The horde hasn’t been checked for.' });
   }
 
   if (someoneIsLeaving(campaign) && !someoneDeparted(campaign)) {
-    owed.push({ step: 'departures', says: 'Somebody is leaving and has not gone.' });
+    owed.push({ step: 'departures', says: 'Somebody is leaving and hasn’t gone.' });
   }
 
   if (laborShortfall(campaign) > 0) {

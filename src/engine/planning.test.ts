@@ -214,7 +214,7 @@ describe('checkAssignment', () => {
       ).toEqual([
         {
           code: 'utility-unmet',
-          message: 'Needs a utility it does not have, so it produces nothing this turn.',
+          message: 'Needs a utility it doesn’t have, so it produces nothing this turn.',
           pages: 67,
         },
       ]);

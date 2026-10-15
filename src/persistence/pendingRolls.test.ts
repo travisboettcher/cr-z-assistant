@@ -132,10 +132,10 @@ describe('readPendingRolls', () => {
   });
 
   it.each([
-    ['a roll that is not an object', 7],
+    ['a roll that isn’t an object', 7],
     ['a roll that is null', null],
     ['a roll outside the d10', { roll: 0 }],
-    ['a forced result that is not an object', { roll: 7, forced: 'rationing' }],
+    ['a forced result that isn’t an object', { roll: 7, forced: 'rationing' }],
     ['a forced result that is null', { roll: 7, forced: null }],
     [
       'a skill nothing in the catalogue matches',
@@ -151,7 +151,7 @@ describe('readPendingRolls', () => {
      * door around it. `rationing` forces Food and nothing else (pg. 12).
      */
     [
-      'a pairing the book does not allow',
+      'a pairing the book doesn’t allow',
       { roll: 7, forced: { skill: 'rationing', material: 'rare' } },
     ],
   ])('refuses %s', (_name, roll) => {

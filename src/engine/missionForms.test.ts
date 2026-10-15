@@ -122,7 +122,7 @@ describe('submitMissionSkip', () => {
 
   it('refuses with the engine’s own reason — here, turn 1', () => {
     expect(expectRefused(submitMissionSkip(ordinary(1), LATER))).toBe(
-      'Turn 1’s First Mission cannot be skipped.',
+      'Turn 1’s First Mission can’t be skipped.',
     );
   });
 });

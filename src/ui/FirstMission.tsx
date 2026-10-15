@@ -50,7 +50,7 @@ export function FirstMission({ campaign }: { readonly campaign: Campaign }) {
     <>
       <p className="mt-4 text-sm text-stone-600 dark:text-stone-400">
         The First Mission is played on turn 1, so its team is chosen here rather than in a Planning
-        Phase that has not happened yet. Everyone who goes earns a point of XP, and their skills are
+        Phase that hasn’t happened yet. Everyone who goes earns a point of XP, and their skills are
         what this turn’s haul can be forced with <PageRef pages="12, 18" />
       </p>
 

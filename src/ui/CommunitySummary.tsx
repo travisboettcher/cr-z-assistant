@@ -81,7 +81,7 @@ function Survivors({
       <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
         <span className="tabular-nums">{survivors.length}</span> survivor
         {survivors.length === 1 ? '' : 's'} ·{' '}
-        <span className="tabular-nums">{communityTierLevels(survivors)}</span> tier levels
+        <span className="tabular-nums">{communityTierLevels(survivors)}</span> Tier levels
       </p>
 
       {empty ? (

@@ -201,7 +201,7 @@ function Shell({ header, children }: { readonly header: ReactNode; readonly chil
           <p>This app tracks a campaign. You need the County Road Z rulebook to play.</p>
           <p>
             It gives page numbers instead of rule text. County Road Z is copyright Jordan Heckman.
-            This project is not affiliated with it.
+            This project isn’t affiliated with it.
           </p>
           <AppVersion version={import.meta.env.VITE_APP_VERSION} />
         </div>

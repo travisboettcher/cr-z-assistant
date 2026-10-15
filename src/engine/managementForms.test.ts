@@ -222,7 +222,7 @@ describe('submitTeamReduction', () => {
   });
 
   it('refuses when Exhaustion is not above the team’s size', () => {
-    expect(expectRefused(submitTeamReduction(tired(2), 'survivor-0', AT))).toMatch(/not above/);
+    expect(expectRefused(submitTeamReduction(tired(2), 'survivor-0', AT))).toMatch(/isn’t above/);
   });
 
   it('refuses somebody who is not on the mission team', () => {

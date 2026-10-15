@@ -302,12 +302,12 @@ describe('taking a vehicle at Equip Mission Team (pp. 18, 52; R65)', () => {
   it('leaves home only a vehicle taken this turn, in the Mission Phase', () => {
     const taken = accepted(submitVehicleTaken(equipping(), 1, 'truck', AT));
 
-    expect(leaveProblem(taken, 'pickup')).toBe('That vehicle is not taken this turn.');
+    expect(leaveProblem(taken, 'pickup')).toBe('That vehicle isn’t taken this turn.');
     expect(refusal(submitVehicleLeftHome({ ...taken, step: 'heal-wounds' }, 'truck', AT))).toBe(
       'A vehicle is left home at Equip Mission Team, in the Mission Phase.',
     );
     expect(leaveProblem({ ...taken, turn: 5 }, 'truck')).toBe(
-      'That vehicle is not taken this turn.',
+      'That vehicle isn’t taken this turn.',
     );
   });
 });
@@ -356,7 +356,7 @@ describe('bringing vehicles home (pg. 32; R64, R65, R70)', () => {
 
   it('is owed from a team that took vehicles until it is recorded', () => {
     const taken = twoTaken();
-    const says = 'Mission team 1 took vehicles, and which came home is not recorded.';
+    const says = 'Mission team 1 took vehicles, and which came home isn’t recorded.';
 
     expect(broughtHomeOwed(equipping())).toEqual([]);
     expect(broughtHomeOwed(taken)).toEqual([1]);

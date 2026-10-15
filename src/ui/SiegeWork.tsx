@@ -96,7 +96,7 @@ export function SiegeWork({ campaign }: { readonly campaign: Campaign }) {
             <p className={`mt-1 ${HINT}`}>
               {candidates.length === 0
                 ? 'Nobody on the mission team is fit to stand in for them.'
-                : 'Nobody went out on a mission, so somebody from the mission team who is not at 0 Health may take a casualty’s place — with their own Labor, or their own skills.'}
+                : 'Nobody went out on a mission, so somebody from the mission team who isn’t at 0 Health may take a casualty’s place — with their own Labor, or their own skills.'}
             </p>
           )}
 

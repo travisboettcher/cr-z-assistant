@@ -352,10 +352,10 @@ function EditableNumber({
  */
 const BLOCKED_REASONS: Record<PurchaseBlock, string> = {
   'not-enough-xp': 'not enough experience yet',
-  'at-tier-maximum': 'already at the maximum level for their tier',
+  'at-tier-maximum': 'already at the maximum level for their Tier',
   'at-score-maximum': 'already at the maximum score of eight',
-  'skill-not-taken': 'they do not have this skill',
-  'already-a-hero': 'tier 4 is the top of the table',
+  'skill-not-taken': 'they don’t have this skill',
+  'already-a-hero': 'Tier 4 is the top of the table',
   'stat-choice-required': 'choose which stat comes off zero first',
 };
 
@@ -469,7 +469,7 @@ function Promote({ survivor }: { readonly survivor: Survivor }) {
       <BuyButton
         purchase={tierPurchase(survivor, raise)}
         label="Promote"
-        what="their tier"
+        what="their Tier"
         held={held}
         onBuy={() => {
           dispatch({
@@ -514,7 +514,7 @@ function Promote({ survivor }: { readonly survivor: Survivor }) {
        */}
       {survivor.currentHp < maxHp(survivor) + 1 && survivor.tier < 4 && (
         <span className="text-sm text-stone-600 dark:text-stone-400">
-          Raises maximum Health; current Health does not follow <PageRef pages={18} />
+          Raises maximum Health; current Health doesn’t follow <PageRef pages={18} />
         </span>
       )}
 
@@ -570,7 +570,7 @@ function Stats({ survivor, penalty }: { readonly survivor: Survivor; readonly pe
         Stats <PageRef pages={8} />
       </h3>
       <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-        A tier hands out a fixed set of values and lets you choose which stat gets which. Moving a
+        A Tier hands out a fixed set of values and lets you choose which stat gets which. Moving a
         value here swaps it with the stat that had it, so the four always stay that set.
       </p>
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -727,9 +727,9 @@ function Skills({ survivor, penalty }: { readonly survivor: Survivor; readonly p
         Skills <PageRef pages={8} />
       </h3>
       <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-        Score is the skill&rsquo;s level plus its governing stat. A dash means this survivor does
-        not have the skill and cannot use it. Skills start at level zero, and each level costs its
-        own number in experience &mdash; so they are only ever bought one at a time, in order.
+        Score is the skill&rsquo;s level plus its governing stat. A dash means this survivor doesn’t
+        have the skill and can’t use it. Skills start at level zero, and each level costs its own
+        number in experience &mdash; so they are only ever bought one at a time, in order.
       </p>
 
       <div className="mt-3 grid gap-4 sm:grid-cols-2">
@@ -770,7 +770,7 @@ function Skills({ survivor, penalty }: { readonly survivor: Survivor; readonly p
           {pending === null
             ? null
             : `${survivor.name} already has ${slots} ${slots === 1 ? 'skill' : 'skills'}, which is
-               all a tier ${survivor.tier} survivor gets. Taking ${SKILL_LABELS[pending]} as well
+               all a Tier ${survivor.tier} survivor gets. Taking ${SKILL_LABELS[pending]} as well
                will keep showing on this sheet as a broken rule.`}{' '}
           <PageRef pages={7} />
         </p>

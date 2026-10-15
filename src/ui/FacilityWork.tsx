@@ -118,7 +118,7 @@ export function FacilityWork({ campaign, occupant }: FacilityWorkProps) {
             .map((entry) => builtThingLabel(entry.id))
             .join(' and ')}{' '}
           trade{unmodelledExchanges(occupant).length === 1 ? 's' : ''} Fuel for a utility, and this
-          version does not run that trade — which phase owns it is still open. Work it at the table{' '}
+          version doesn’t run that trade — which phase owns it is still open. Work it at the table{' '}
           <PageRef pages={67} />
         </p>
       )}
@@ -141,7 +141,7 @@ export function FacilityWork({ campaign, occupant }: FacilityWorkProps) {
               {line.restrictedToStat !== undefined &&
                 `, ${STAT_LABELS[line.restrictedToStat]} skills only — not handed out yet`}
               {line.halved && ', halved for want of a utility'}
-              {line.staffed && line.missingSkill && ', but they do not have the skill'}
+              {line.staffed && line.missingSkill && ', but they don’t have the skill'}
               {line.staffed && staff.length === 0 && ' — needs someone assigned'}
             </li>
           ))}
@@ -164,7 +164,7 @@ export function FacilityWork({ campaign, occupant }: FacilityWorkProps) {
       {restricted.length > 0 && (
         <p className="mt-3 text-sm text-amber-800 dark:text-amber-300">
           {restricted.reduce((total, line) => total + line.amount, 0)} of that XP is restricted to
-          the skills of one stat, and this version does not model restricted XP — the Advancement
+          the skills of one stat, and this version doesn’t model restricted XP — the Advancement
           Phase will offer the rest. Work it at the table <PageRef pages={73} />
         </p>
       )}

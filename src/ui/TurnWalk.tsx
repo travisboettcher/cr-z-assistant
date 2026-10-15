@@ -332,7 +332,7 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
 
             {campaign.step === 'tactical-mission' && (
               <p className="mt-4 text-sm text-stone-600 dark:text-stone-400">
-                The app does not cover this step yet. Play it on paper, then move on.{' '}
+                The app doesn’t cover this step yet. Play it on paper, then move on.{' '}
                 <PageRef pages={step.pages} />
               </p>
             )}

@@ -162,8 +162,8 @@ function CheckForRot({ campaign }: { readonly campaign: Campaign }) {
             .filter((survivor) => !outstanding.includes(survivor))
             .map((survivor) => survivor.name)
             .join(', ')}{' '}
-          held on this turn. A check is rolled once, and stepping back through the walk will not
-          roll it again.
+          held on this turn. A check is rolled once, and stepping back through the walk won’t roll
+          it again.
         </p>
       )}
     </>
@@ -370,7 +370,7 @@ function Feed({ campaign }: { readonly campaign: Campaign }) {
 
       {done ? (
         <p className="mt-3 text-sm font-medium">
-          This turn’s Food is eaten. Stepping back through the walk will not eat it twice.
+          This turn’s Food is eaten. Stepping back through the walk won’t eat it twice.
         </p>
       ) : (
         <button
@@ -540,7 +540,7 @@ function CheckStorage({ campaign }: { readonly campaign: Campaign }) {
 
       {done ? (
         <p className="mt-3 text-sm font-medium">
-          Storage is checked for this turn. Stepping back will not spill it twice.
+          Storage is checked for this turn. Stepping back won’t spill it twice.
         </p>
       ) : anything ? (
         <>

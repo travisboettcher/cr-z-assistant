@@ -182,7 +182,7 @@ function CreateNewSurvivors({ campaign }: { readonly campaign: Campaign }) {
       ) : waiting.length === 0 ? (
         <p className="mt-3 text-sm font-medium">
           Every stranger rescued this turn has joined the community. Stepping back through the walk
-          will not add them twice.
+          won’t add them twice.
         </p>
       ) : (
         <ul className="mt-3 flex flex-col gap-3">
@@ -562,8 +562,8 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
       {done ? (
         <>
           <p className="mt-3 text-sm font-medium">
-            This turn’s materials are already in storage. Stepping back through the walk will not
-            add them twice.
+            This turn’s materials are already in storage. Stepping back through the walk won’t add
+            them twice.
           </p>
 
           <Conversions campaign={campaign} />
@@ -742,8 +742,8 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
 
               {unchosen && (
                 <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
-                  Nothing is chosen, so {scavenging.name}’s turn brings back nothing. This step does
-                  not run again this turn. <PageRef pages={17} />
+                  Nothing is chosen, so {scavenging.name}’s turn brings back nothing. This step
+                  doesn’t run again this turn. <PageRef pages={17} />
                 </p>
               )}
             </div>
@@ -816,7 +816,7 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
             </h2>
             <p className="mt-2 text-stone-600 dark:text-stone-400">
               {team.length} survivor{team.length === 1 ? '' : 's'} went out this turn and no rolls
-              are entered. Only the base’s production goes into storage, and this step does not run
+              are entered. Only the base’s production goes into storage, and this step doesn’t run
               again this turn.
             </p>
 
@@ -979,7 +979,7 @@ function HealWounds({ campaign }: { readonly campaign: Campaign }) {
 
       {done ? (
         <p className="mt-3 text-sm font-medium">
-          This turn’s wounds are healed. Stepping back through the walk will not heal them again.
+          This turn’s wounds are healed. Stepping back through the walk won’t heal them again.
         </p>
       ) : (
         <>

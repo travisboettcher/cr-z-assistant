@@ -374,10 +374,10 @@ export function submitNewSkill(campaign: Campaign, form: NewSkillForm): FormResu
  * does not show these.
  */
 const PURCHASE_BLOCKED: Record<PurchaseBlock, string> = {
-  'not-enough-xp': 'They do not have the experience for this yet.',
+  'not-enough-xp': 'They don’t have the experience for this yet.',
   'at-tier-maximum': 'That skill is already at the highest level their Tier allows.',
   'at-score-maximum': 'That Score is already at its maximum.',
-  'skill-not-taken': 'They have not taken that skill.',
+  'skill-not-taken': 'They haven’t taken that skill.',
   'already-a-hero': 'A Hero has no higher Tier to reach.',
   'stat-choice-required': 'Choose which stat the promotion lifts off zero.',
 };

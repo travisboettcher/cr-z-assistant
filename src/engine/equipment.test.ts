@@ -217,7 +217,7 @@ describe('adding an item to the Inventory by hand (Z5-2)', () => {
 
   it('refuses a grade the item does not come in, an unknown item or grade', () => {
     expect(newItemProblem(campaign(), { id: 'new', item: 'backpack', grade: 'standard' })).toMatch(
-      /does not come in/,
+      /doesn’t come in/,
     );
     expect(
       newItemProblem(campaign(), { id: 'new', item: 'toString' as ItemId, grade: 'standard' }),

@@ -64,7 +64,7 @@ export function GettingStarted({ campaign, onAddSurvivors, onClaimBase }: Gettin
           detail={
             <>
               <span className="tabular-nums">{communityTierLevels(campaign.survivors)}</span> of{' '}
-              {STARTING_COMMUNITY_TIER_LEVELS} tier levels so far. When it is complete, mark it
+              {STARTING_COMMUNITY_TIER_LEVELS} Tier levels so far. When it is complete, mark it
               built in the roster <PageRef pages={48} />
             </>
           }

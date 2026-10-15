@@ -501,12 +501,12 @@ describe('missionOutcomeProblem', () => {
 
   it('refuses a mission no team chose, rather than guessing from the siege', () => {
     expect(outcomeProblem(playing({ step: 'tactical-mission' }), herd)).toMatch(
-      /has not chosen a mission/,
+      /hasn’t chosen a mission/,
     );
     expect(
       outcomeProblem(playing({ step: 'tactical-mission', log: [calledForTurn4] }), siege),
-    ).toMatch(/has not chosen a mission/);
-    expect(outcomeProblem(thinning(), siege)).toMatch(/not the mission team 1 chose/);
+    ).toMatch(/hasn’t chosen a mission/);
+    expect(outcomeProblem(thinning(), siege)).toMatch(/isn’t the mission team 1 chose/);
   });
 
   it('checks each team’s outcome against its own choice (Z4-3)', () => {
@@ -521,7 +521,7 @@ describe('missionOutcomeProblem', () => {
     };
 
     expect(outcomeProblem(two, rescued)).toBeNull();
-    expect(outcomeProblem(two, { ...rescued, team: 1 })).toMatch(/not the mission/);
+    expect(outcomeProblem(two, { ...rescued, team: 1 })).toMatch(/isn’t the mission/);
     // Team 1's outcome does not count as team 2's.
     expect(outcomeProblem({ ...two, log: [...two.log, at(4, herd)] }, rescued)).toBeNull();
     expect(outcomeProblem({ ...two, log: [...two.log, at(4, rescued)] }, rescued)).toMatch(
@@ -667,7 +667,7 @@ describe('the outcomes of the other standard missions (Z4-3)', () => {
     ).toBeNull();
     expect(
       outcomeProblem(campaign, { kind: 'mission-played', team: 1, mission: 'chased' }),
-    ).toMatch(/not the mission/);
+    ).toMatch(/isn’t the mission/);
   });
 
   it('reopens a failed First Mission on turn 1, and nothing else (R21)', () => {

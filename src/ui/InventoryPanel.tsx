@@ -91,7 +91,7 @@ export function InventoryPanel({ campaign }: { readonly campaign: Campaign }) {
     <div className="flex flex-col gap-6">
       <section aria-label="In the Inventory">
         <p className={HINT}>
-          Everything the community owns that nobody is carrying. Shoddy gear is free and is not kept
+          Everything the community owns that nobody is carrying. Shoddy gear is free and isn’t kept
           here <PageRef pages="18, 37" />
         </p>
 
