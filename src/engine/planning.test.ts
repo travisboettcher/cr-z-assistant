@@ -348,10 +348,10 @@ describe('checkAssignment', () => {
     });
 
     /**
-     * A Viral survivor at full Health with Infection is somebody the Clinic can
-     * still help — a point may remove Infection instead (pg. 19, 123; R18).
+     * Only a survivor below their maximum is given any Health, so one at full
+     * Health with Infection has nothing coming either (pg. 19, 21; #219).
      */
-    it('says nothing about full Health when there is Infection to clear', () => {
+    it('warns about full Health whatever the survivor’s Infection', () => {
       const infected: Campaign = {
         ...community({}, clinic()),
         origin: 'viral',
@@ -360,16 +360,33 @@ describe('checkAssignment', () => {
         ),
       };
 
-      expect(checkAssignment(infected, EARL, { task: 'healing' }).warnings).toEqual([]);
-      expect(checkAssignment(infected, EARL, { task: 'rest' }).warnings).toEqual([]);
+      expect(checkAssignment(infected, EARL, { task: 'healing' }).warnings).toEqual([
+        {
+          code: 'already-at-full-health',
+          message: 'Already at full Health, so healing would do nothing.',
+          pages: 21,
+        },
+      ]);
+      expect(checkAssignment(infected, EARL, { task: 'rest' }).warnings).toEqual([
+        {
+          code: 'already-at-full-health',
+          message: 'Already at full Health, so resting would do nothing.',
+          pages: 21,
+        },
+      ]);
     });
 
-    it('names Infection in the warning when the campaign has it', () => {
-      const viral: Campaign = { ...community({}, clinic()), origin: 'viral' };
+    it('says nothing about a wounded survivor with Infection', () => {
+      const infected: Campaign = {
+        ...community({}, clinic()),
+        origin: 'viral',
+        survivors: community().survivors.map((survivor) =>
+          survivor.id === CARLA ? { ...survivor, infection: 2 } : survivor,
+        ),
+      };
 
-      expect(checkAssignment(viral, EARL, { task: 'healing' }).warnings[0]?.message).toBe(
-        'At full Health with no Infection, so healing would do nothing.',
-      );
+      expect(checkAssignment(infected, CARLA, { task: 'healing' }).warnings).toEqual([]);
+      expect(checkAssignment(infected, CARLA, { task: 'rest' }).warnings).toEqual([]);
     });
 
     it('lets any number be healed, unlike resting', () => {

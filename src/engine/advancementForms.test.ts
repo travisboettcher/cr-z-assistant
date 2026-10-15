@@ -250,6 +250,16 @@ describe('submitHealing', () => {
     ]);
   });
 
+  /** Only a survivor below their maximum is given Health (pg. 19, 21; #219). */
+  it('gives a resting survivor at full Health nothing, whatever their Infection', () => {
+    const after = expectAccepted(
+      submitHealing(hurt({ currentHp: 4, infection: 5 }, 'viral'), { [`rest:${EARL}`]: 1 }, AT),
+    );
+
+    expect(earl(after)).toMatchObject({ currentHp: 4, infection: 5 });
+    expect(events(after)).toEqual([]);
+  });
+
   it('refuses to heal the same turn twice', () => {
     const once = expectAccepted(submitHealing(hurt(), {}, AT));
 

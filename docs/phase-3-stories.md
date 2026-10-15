@@ -374,8 +374,11 @@ two decisions as it was built to. The step offers the split per award, Health fi
 Wrap remove a point too, but only Infection gained on the same mission (pg. 47); they are
 equipment, which is [#177](https://github.com/travisboettcher/cr-z-assistant/issues/177)'s. What
 the book does *not* settle — which "0 Health" rules a survivor down on Infection also falls under,
-and whether a survivor at full Health takes a share of the Clinic's points for their Infection —
-is [R18](rulings.md#r18--what-infection-incapacitates).
+and how many of the Clinic's points a wounded survivor takes for their Infection — is
+[R18](rulings.md#r18--what-infection-incapacitates). Whether a survivor at full Health takes a
+share for their Infection was ruled here as yes, and is settled by pp. 19 and 21 as no: only a
+survivor below maximum Health is assigned to rest or healing, and only they are given Health
+([#219](https://github.com/travisboettcher/cr-z-assistant/issues/219)).
 
 ## Rulings the book leaves open
 

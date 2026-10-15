@@ -24,9 +24,11 @@
  * does not change — only what each point is spent on, which is the award's
  * `infection` and the player's to set within `infectionRange` (#176).
  *
- * A point counts as one a survivor "would receive" if they have a use for it,
- * on a wound or on Infection: `need` rather than `room`. Outside a Viral
- * campaign nobody has Infection and the two are the same number. See
+ * Only a survivor below their maximum Health receives any (pg. 19, 21), so a
+ * survivor at full Health takes nothing whatever their Infection. One below it
+ * counts a point as one they "would receive" if they have a use for it, on a
+ * wound or on Infection: `need` rather than `room`. Outside a Viral campaign
+ * nobody has Infection and the two are the same number. See
  * [R18](../../docs/rulings.md#r18--what-infection-incapacitates).
  *
  * ## Rest is a different rule arriving at the same survivors
@@ -96,17 +98,21 @@ export function room(survivor: Survivor): number {
 }
 
 /**
- * How many points this survivor can use: their room for Health, and every
- * point of Infection a point could remove instead (pg. 19, 123).
+ * How many points this survivor can use: none at full Health, and otherwise
+ * their room for Health and every point of Infection a point could remove
+ * instead (pg. 19, 21, 123).
  *
- * The number the equal share is measured against. A Viral survivor at full
- * Health and 4 Infection is somebody the Clinic can still help — that is the
- * case the issue was opened for, a survivor down on Infection with Health
- * left — so they take a share like anybody wounded (R18). Everywhere else
- * Infection is 0 and this is `room`.
+ * The number the equal share is measured against. Only a survivor below their
+ * maximum is given Health at all (pg. 19, 21), so a Viral survivor at full
+ * Health and 4 Infection takes no share and no resting point (#219). One at
+ * 3 of 4 with the same Infection may put every point they take on it, which is
+ * how the Clinic helps somebody down on Infection with Health left (R18).
+ * Everywhere else Infection is 0 and this is `room`.
  */
 export function need(survivor: Survivor): number {
-  return room(survivor) + Math.max(0, survivor.infection);
+  const wound = room(survivor);
+
+  return wound > 0 ? wound + Math.max(0, survivor.infection) : 0;
 }
 
 /**
@@ -115,9 +121,9 @@ export function need(survivor: Survivor): number {
  * **The fewest** is whatever Health cannot hold: a point the survivor took
  * because of their Infection has nowhere else to go. **The most** is every
  * point, but never more than the Infection there is to remove. So a survivor
- * at full Health spends everything on Infection, one with no Infection spends
- * nothing on it, and only somebody with both a wound and Infection has a
- * choice to make — which is the point-by-point decision pg. 19 gives them.
+ * with no Infection spends nothing on it, and anybody with a wound and
+ * Infection has a choice to make within those two — which is the
+ * point-by-point decision pg. 19 gives them.
  */
 export function infectionRange(award: HealthAward): {
   readonly least: number;
@@ -274,8 +280,8 @@ export function sharedEqually(
 export function healthAwards(campaign: Campaign): readonly HealthAward[] {
   const shared = sharedEqually(beingHealed(campaign), healingPool(campaign));
 
-  // A rested point is a Health point the survivor receives like any other, so
-  // it may go on Infection too (pg. 19, 21, 123).
+  // A rested point is a Health point the survivor receives like any other: it
+  // may go on Infection too, and nobody at full Health rests (pg. 19, 21, 123).
   const rested = resting(campaign)
     .map((survivor) => healthFirst(survivor, Math.min(REST_HEALTH, need(survivor)), 'rest'))
     .filter((each) => each.health > 0);

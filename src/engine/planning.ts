@@ -33,6 +33,7 @@ import type { Assignment, Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
 import { missionTeam, survivorsDoing } from './assignments';
 import { incapacitatedByInfection, maxHp } from './survivor';
+import { need } from './healing';
 
 export type PlanningViolationCode =
   | 'nothing-in-slot'
@@ -113,23 +114,14 @@ function isInjured(survivor: Survivor): boolean {
 }
 
 /**
- * Whether resting or healing could do this survivor any good.
+ * Whether resting or healing would give this survivor nothing.
  *
- * A wound, or Infection a point could remove instead (pg. 19, 123): a Viral
- * survivor at full Health with Infection is somebody the Clinic can still
- * help, and warning that it "would do nothing" would talk the table out of
- * the one thing that clears it (#176). Outside a Viral campaign this is
- * `isInjured`, because nobody has any Infection.
+ * `need`, the number Heal Wounds shares its points against, so the warning and
+ * the award cannot disagree. Nothing at full Health, whatever their Infection:
+ * only a survivor below their maximum is given any (pg. 19, 21; #219).
  */
-function hasSomethingToHeal(survivor: Survivor): boolean {
-  return isInjured(survivor) || survivor.infection > 0;
-}
-
-/** "Full Health", or "full Health and no Infection" where Infection is a thing. */
-function nothingToHeal(campaign: Campaign): string {
-  return campaign.origin === 'viral'
-    ? 'At full Health with no Infection'
-    : 'Already at full Health';
+function nothingToHeal(survivor: Survivor): boolean {
+  return need(survivor) === 0;
 }
 
 /** Somebody other than this survivor already doing the task. */
@@ -260,10 +252,10 @@ function staffingWarnings(campaign: Campaign, slot: string): readonly PlanningVi
 function restWarnings(campaign: Campaign, survivor: Survivor): readonly PlanningViolation[] {
   const warnings: PlanningViolation[] = [];
 
-  if (!hasSomethingToHeal(survivor)) {
+  if (nothingToHeal(survivor)) {
     warnings.push({
       code: 'already-at-full-health',
-      message: `${nothingToHeal(campaign)}, so resting would do nothing.`,
+      message: 'Already at full Health, so resting would do nothing.',
       pages: 21,
     });
   }
@@ -290,10 +282,10 @@ function restWarnings(campaign: Campaign, survivor: Survivor): readonly Planning
 function healingWarnings(campaign: Campaign, survivor: Survivor): readonly PlanningViolation[] {
   const warnings: PlanningViolation[] = [];
 
-  if (!hasSomethingToHeal(survivor)) {
+  if (nothingToHeal(survivor)) {
     warnings.push({
       code: 'already-at-full-health',
-      message: `${nothingToHeal(campaign)}, so healing would do nothing.`,
+      message: 'Already at full Health, so healing would do nothing.',
       pages: 21,
     });
   }

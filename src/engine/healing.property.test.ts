@@ -21,8 +21,9 @@ const RUNS = { seed: 20260911, numRuns: 400 } as const;
  *
  * Infection half the time, up to the 10 that puts somebody down (pg. 123), so
  * the properties hold for a Viral campaign as well as for one where nobody has
- * any — and a full-Health survivor with Infection, who takes points for it
- * alone, turns up often (#176).
+ * any — and a full-Health survivor with Infection, who takes nothing for it
+ * (#219), turns up often beside a wounded one who takes points for both
+ * (#176).
  */
 function woundedArbitrary(): fc.Arbitrary<Survivor> {
   return fc
@@ -67,6 +68,18 @@ describe('sharing a pool of Health equally', () => {
       fc.property(communityArbitrary, anyPool, (survivors, pool) => {
         for (const award of sharedEqually(survivors, pool)) {
           expect(award.health).toBeLessThanOrEqual(need(award.survivor));
+        }
+      }),
+      RUNS,
+    );
+  });
+
+  /** Only a survivor below their maximum is given Health (pg. 19, 21; #219). */
+  it('never gives a point to somebody at full Health, whatever their Infection', () => {
+    fc.assert(
+      fc.property(communityArbitrary, anyPool, (survivors, pool) => {
+        for (const award of sharedEqually(survivors, pool)) {
+          expect(award.survivor.currentHp).toBeLessThan(maxHp(award.survivor));
         }
       }),
       RUNS,
