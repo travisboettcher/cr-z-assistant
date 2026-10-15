@@ -2578,6 +2578,43 @@ describe('what earns a line in the log', () => {
         fuel: 1,
       }),
     },
+    'planning/rareTradeMade': {
+      // A riot shield is 3 then 1 on the Rare Item Table, at 10 (pg. 43): set
+      // aside as 4 Food and 6 Fuel, with a mission team to go (R57–R59; Z5-10).
+      state: openState(
+        withPlanningBegun({
+          ...expectOpen(rich()),
+          step: 'assign-mission-team',
+          materials: { food: 6, fuel: 6, hardware: 0 },
+          // One Cooperation is one roll on the trader's list (R58).
+          survivors: expectOpen(rich()).survivors.map((survivor) =>
+            survivor.id === LOGGED_SURVIVOR
+              ? { ...survivor, stats: { ...survivor.stats, cooperation: 1 } }
+              : survivor,
+          ),
+          assignments: { [LOGGED_SURVIVOR]: { task: 'mission', team: 1 } },
+        }),
+      ),
+      action: {
+        type: 'planning/rareTradeMade',
+        at: AT,
+        picks: [{ id: 'shield', subtable: 3, entry: 1, food: 4, fuel: 6 }],
+      },
+      entry: entry(3, 'planning', {
+        kind: 'rare-trade-made',
+        items: [
+          {
+            id: 'shield',
+            subtable: 3,
+            entry: 1,
+            food: 4,
+            fuel: 6,
+            item: 'riot-shield',
+            grade: 'standard',
+          },
+        ],
+      }),
+    },
     'planning/itemSold': {
       // A riot shield is a 10 on the Rare Item Table (pg. 43): it sells for 8 (R54; Z5-9).
       state: openState(

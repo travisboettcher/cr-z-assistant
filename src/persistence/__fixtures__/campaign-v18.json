@@ -135,6 +135,7 @@
       "orderedOnTurn": 3
     }
   ],
+  "rareTrade": null,
   "startingCommunityBuilt": true,
   "base": {
     "id": "hobby-farm",

@@ -70,6 +70,7 @@ import type { BuildOrder } from '../engine/making';
 import type { RareItemRoll } from '../engine/finding';
 import { withEquipmentHandedOver } from '../engine/handover';
 import { withTradesArrived, type Payment, type TradeRequest } from '../engine/trading';
+import type { RareTradePick } from '../engine/rareTrade';
 import {
   submitMissionOutcome,
   submitMissionSelection,
@@ -86,6 +87,7 @@ import {
   submitItemRemoved,
   submitItemBuilt,
   submitItemSold,
+  submitRareTradeMade,
   submitTradeOrdered,
   submitRareItemRolled,
   submitNewSurvivor,
@@ -481,6 +483,12 @@ export type CampaignAction =
   | { readonly type: 'planning/itemBuilt'; readonly order: BuildOrder; readonly at: string }
   /** A trade at Planning Step 2: paid now, arriving next Advancement (R51–R53; Z5-9). */
   | { readonly type: 'planning/tradeOrdered'; readonly request: TradeRequest; readonly at: string }
+  /** A Rare Items trade made, its materials set aside (R57–R59; Z5-10). */
+  | {
+      readonly type: 'planning/rareTradeMade';
+      readonly picks: readonly RareTradePick[];
+      readonly at: string;
+    }
   /** A rare item sold from the Inventory, for its price less two (R54; Z5-9). */
   | {
       readonly type: 'planning/itemSold';
@@ -1091,6 +1099,9 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return submitted(state, (campaign) =>
         submitTradeOrdered(campaign, action.request, action.at),
       );
+
+    case 'planning/rareTradeMade':
+      return submitted(state, (campaign) => submitRareTradeMade(campaign, action.picks, action.at));
 
     case 'planning/itemSold':
       return submitted(state, (campaign) =>

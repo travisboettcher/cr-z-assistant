@@ -195,6 +195,7 @@ it('does not survive a negative zero material count, which is why the generator 
     inventory: [],
     rareRollsOwed: 0,
     trades: [],
+    rareTrade: null,
     startingCommunityBuilt: false,
     base: null,
     assignments: {},

@@ -1361,6 +1361,12 @@ dice, not every roll on the list.
 
 *Confirmed 2026-10-14 from the batch-17 extract.*
 
+
+### Note, October 2026 — a survivor without Scout
+
+Built with Z5-10. A survivor who has not taken Scout has no Scout Score, so they add their
+Cooperation alone; nothing in the count is invented for a skill they lack. Scores and Cooperation are
+read as they stand that turn, the hunger penalty included, as every other Score is.
 ---
 
 ## R59 — The trade's materials are set aside until the mission ends

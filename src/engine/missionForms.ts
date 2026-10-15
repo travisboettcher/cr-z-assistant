@@ -39,6 +39,7 @@ import {
   overrunChoiceProblem,
   withCommunityAbandoned,
 } from './overrun';
+import { rareTradeBinds, withRareTradeLost, withRareTradeSettled } from './rareTrade';
 import { standInProblem } from './siegeWork';
 import { spentItems, spentProblem, withItemsSpent } from './spent';
 
@@ -62,15 +63,20 @@ export function submitMissionSelection(
     (candidate) => candidate.team === choice.team,
   ) as MissionTeam;
 
+  const selected = logged(campaign, at, {
+    kind: 'mission-selected',
+    team: choice.team,
+    mission: choice.mission,
+    names: team.members.map((survivor) => survivor.name),
+    ...(choice.material === undefined ? {} : { material: choice.material }),
+    ...(choice.base === undefined ? {} : { base: choice.base }),
+  });
+
+  // A Rare Items trade binds the first mission chosen (R60): another loses it.
   return accepted(
-    logged(campaign, at, {
-      kind: 'mission-selected',
-      team: choice.team,
-      mission: choice.mission,
-      names: team.members.map((survivor) => survivor.name),
-      ...(choice.material === undefined ? {} : { material: choice.material }),
-      ...(choice.base === undefined ? {} : { base: choice.base }),
-    }),
+    rareTradeBinds(campaign) && choice.mission !== 'rare-goods-trader'
+      ? withRareTradeLost(selected, at, 'other-mission')
+      : selected,
   );
 }
 
@@ -129,9 +135,14 @@ export function submitOverrunContinuation(
 export function submitMissionSkip(campaign: Campaign, at: string): FormResult {
   const problem = skipProblem(campaign);
 
-  return problem === null
-    ? accepted(logged(campaign, at, { kind: 'mission-skipped' }))
-    : refused(problem);
+  if (problem !== null) return refused(problem);
+
+  // Sitting the mission out declines the trade that forced one (R60).
+  const skipped = logged(campaign, at, { kind: 'mission-skipped' });
+
+  return accepted(
+    rareTradeBinds(campaign) ? withRareTradeLost(skipped, at, 'no-mission') : skipped,
+  );
 }
 
 /**
@@ -175,7 +186,14 @@ export function submitMissionOutcome(
     };
   });
 
-  return accepted(logged(withWounds(campaign, wounds), at, { ...outcome, wounds }));
+  const recorded = logged(withWounds(campaign, wounds), at, { ...outcome, wounds });
+
+  // The Rare Goods Trader settles the trade it was forced for (pg. 84; R61).
+  return accepted(
+    outcome.kind === 'rare-goods-trader-resolved' && outcome.itemsTraded !== undefined
+      ? withRareTradeSettled(recorded, outcome.itemsTraded, outcome.survivorsExited, at)
+      : recorded,
+  );
 }
 
 /** A place the siege emptied, and who fills it. */

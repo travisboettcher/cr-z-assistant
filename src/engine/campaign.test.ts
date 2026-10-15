@@ -74,6 +74,7 @@ describe('createNewCampaign', () => {
       'name',
       'projects',
       'rareRollsOwed',
+      'rareTrade',
       'schemaVersion',
       'setAside',
       'startingCommunityBuilt',

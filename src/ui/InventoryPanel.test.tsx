@@ -300,3 +300,62 @@ describe('trading from the Inventory', () => {
     expect(screen.queryByRole('group', { name: 'Sell a rare item' })).toBeNull();
   });
 });
+
+/** A Rare Items trade, made from the Inventory at Planning (pp. 21, 43; R57–R59; Z5-10). */
+describe('a Rare Items trade from the Inventory', () => {
+  const going = () =>
+    withPlanningBegun(
+      playing({
+        step: 'assign-mission-team',
+        materials: { food: 6, fuel: 6, hardware: 0 },
+        survivors: [
+          {
+            ...createSurvivor('Earl Rhodes', 2, { id: 'earl' }),
+            stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: 2 },
+          },
+        ],
+        assignments: { earl: { task: 'mission', team: 1 } },
+      }),
+    );
+
+  it('lists the rolls chosen, sets their price aside, and says what is under way', async () => {
+    const user = open(going());
+    openPanel('inventory');
+
+    expect(screen.getByText(/The trader’s list has 2 rolls/)).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Trader’s list, first d10'), '3');
+    await user.selectOptions(screen.getByLabelText('Trader’s list, second d10'), '1');
+    expect(screen.getByText('standard riot shield, 10')).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Set aside'), '4');
+    await user.click(screen.getByRole('button', { name: 'Add to the list' }));
+
+    const list = screen.getByRole('list', { name: 'Items to trade for' });
+    expect(
+      within(list).getByText(/1\. standard riot shield · 4 Food and 6 Fuel/),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Make the trade' }));
+
+    const underWay = screen.getByRole('region', { name: 'Rare Items trade under way' });
+    expect(within(underWay).getByText(/4 Food and 6 Fuel set aside/)).toBeInTheDocument();
+    expect(campaignLog().textContent).toContain(
+      'Made a Rare Items trade for standard riot shield, setting aside 4 Food and 6 Fuel. The next mission is the Rare Goods Trader.',
+    );
+  });
+
+  it('takes a roll back off the list, and says why it cannot be made', async () => {
+    const user = open(going());
+    openPanel('inventory');
+
+    await user.selectOptions(screen.getByLabelText('Trader’s list, first d10'), '3');
+    await user.selectOptions(screen.getByLabelText('Trader’s list, second d10'), '1');
+    await user.click(screen.getByRole('button', { name: 'Add to the list' }));
+    expect(screen.getByText(/It sets aside 10 Fuel and the base has 6\./)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Make the trade' })).toBeDisabled();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Take standard riot shield off the list' }),
+    );
+    expect(screen.queryByRole('list', { name: 'Items to trade for' })).toBeNull();
+  });
+});

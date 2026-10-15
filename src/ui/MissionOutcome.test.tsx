@@ -416,3 +416,36 @@ describe('bringing back a survivor set aside', () => {
     expect(within(walk()).queryByText(/Brought back from those set aside/)).toBeNull();
   });
 });
+
+/** A Rare Items trade the Rare Goods Trader settles (pg. 84; R61; Z5-10). */
+describe('the Rare Goods Trader with a trade under way', () => {
+  it('asks how many items were handed over, and settles the trade', async () => {
+    const shield = {
+      id: 'shield',
+      item: 'riot-shield',
+      grade: 'standard',
+      subtable: 3,
+      entry: 1,
+      food: 4,
+      fuel: 6,
+    } as const;
+    const user = open(
+      playing({
+        survivors: [createSurvivor('Earl Rhodes', 2, { id: 'earl' })],
+        assignments: { earl: { task: 'mission', team: 1 } },
+        rareTrade: { madeOnTurn: 3, items: [shield, { ...shield, id: 'second' }] },
+        log: [teamChose(1, 'rare-goods-trader')],
+      }),
+    );
+
+    const trader = group(/how rare goods trader ended/i);
+    expect(
+      trader.getByText(/First in priority first: standard riot shield, standard riot shield/),
+    ).toBeInTheDocument();
+    await user.type(trader.getByLabelText(/out over the map edge/i), '1');
+    await user.selectOptions(trader.getByLabelText('Items the trader handed over'), '1');
+    await user.click(trader.getByRole('button', { name: 'Record Rare Goods Trader' }));
+
+    expect(walk().textContent).toContain('1 survivor out over the map edge, 1 item traded');
+  });
+});

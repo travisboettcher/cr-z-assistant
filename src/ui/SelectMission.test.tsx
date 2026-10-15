@@ -185,3 +185,37 @@ describe('Select Mission (pg. 17; Z4-2)', () => {
     ).toEqual(['The First Mission']);
   });
 });
+
+/** A Rare Items trade made last turn binds this turn's first choice (R60; Z5-10). */
+describe('a Rare Items trade under way', () => {
+  it('says the first mission must be the Rare Goods Trader', () => {
+    open(
+      selecting({
+        rareTrade: {
+          madeOnTurn: 3,
+          items: [
+            {
+              id: 'shield',
+              item: 'riot-shield',
+              grade: 'standard',
+              subtable: 3,
+              entry: 1,
+              food: 4,
+              fuel: 6,
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(
+      walk().getByText(/the first mission chosen must be the Rare Goods Trader/),
+    ).toBeInTheDocument();
+  });
+
+  it('says nothing without one', () => {
+    open(selecting());
+
+    expect(walk().queryByText(/must be the Rare Goods Trader/)).toBeNull();
+  });
+});

@@ -34,6 +34,14 @@ import {
 } from '../engine/making';
 import { laborAvailable } from '../engine/projects';
 import {
+  pickPrice,
+  rareTradeCheck,
+  rareTradeRolls,
+  setAside,
+  tradeItemFor,
+  type RareTradePick,
+} from '../engine/rareTrade';
+import {
   saleableItems,
   saleCheck,
   salePrice,
@@ -157,6 +165,7 @@ export function InventoryPanel({ campaign }: { readonly campaign: Campaign }) {
       <BuildItem campaign={campaign} />
       <TradeForItem campaign={campaign} />
       {saleableItems(campaign).length > 0 && <SellRareItem campaign={campaign} />}
+      <RareItemsTrade campaign={campaign} />
       <RollRareItem />
       <AddItem campaign={campaign} />
     </div>
@@ -611,19 +620,19 @@ function SellRareItem({ campaign }: { readonly campaign: Campaign }) {
  * origin rewards that roll on it. A haul's 10s are rolled at Add Materials to
  * Storage instead, where they are owed.
  */
-function RollRareItem() {
-  const { dispatch } = useCampaign();
-  const firstId = useId();
-  const secondId = useId();
-  const [subtable, setSubtable] = useState<D10Result | undefined>(undefined);
-  const [entry, setEntry] = useState<D10Result | undefined>(undefined);
+/** One d10 as rolled, for the Rare Item Table's two (pg. 43). */
+function Die({
+  label,
+  value,
+  onChange,
+}: {
+  readonly label: string;
+  readonly value: D10Result | undefined;
+  readonly onChange: (rolled: D10Result) => void;
+}) {
+  const id = useId();
 
-  const die = (
-    id: string,
-    label: string,
-    value: D10Result | undefined,
-    set: (d: D10Result) => void,
-  ) => (
+  return (
     <div className="flex flex-col gap-1">
       <label htmlFor={id} className="text-sm">
         {label}
@@ -633,7 +642,7 @@ function RollRareItem() {
         className={SELECT}
         value={value ?? ''}
         onChange={(changed) => {
-          set(Number(changed.target.value) as D10Result);
+          onChange(Number(changed.target.value) as D10Result);
         }}
       >
         <option value="" disabled>
@@ -647,6 +656,147 @@ function RollRareItem() {
       </select>
     </div>
   );
+}
+
+/**
+ * A Rare Items trade (pp. 21, 43, 83–84; R57–R60; Z5-10): the rolls from the
+ * trader's list the player wants, in priority order, each with the Food and
+ * Fuel set aside for it. While one is under way, what it is for and what it
+ * holds back, and that the next turn's first mission is the Rare Goods Trader.
+ */
+function RareItemsTrade({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+  const [picks, setPicks] = useState<readonly RareTradePick[]>([]);
+  const [subtable, setSubtable] = useState<D10Result | undefined>(undefined);
+  const [entry, setEntry] = useState<D10Result | undefined>(undefined);
+  const [chosenFood, setFood] = useState(0);
+
+  const trade = campaign.rareTrade;
+  if (trade !== null) {
+    return (
+      <section
+        aria-label="Rare Items trade under way"
+        className="border-t border-stone-200 pt-4 dark:border-stone-800"
+      >
+        <h3 className="font-medium">Rare Items trade under way</h3>
+        <p className={`mt-1 ${HINT}`}>
+          {paidFor(setAside(trade.items))} set aside, outside storage. The next turn’s first mission
+          must be the Rare Goods Trader <PageRef pages="21, 83–84" />
+        </p>
+        <ol className="mt-2 list-decimal pl-5 text-sm">
+          {trade.items.map((item) => (
+            <li key={item.id}>{describeItem(item)}</li>
+          ))}
+        </ol>
+      </section>
+    );
+  }
+
+  const rolls = rareTradeRolls(campaign);
+  const rolled = subtable !== undefined && entry !== undefined ? { subtable, entry } : null;
+  const price = rolled === null ? 0 : pickPrice(rolled);
+  const food = Math.min(price, chosenFood);
+  const check = rareTradeCheck(campaign, picks);
+
+  return (
+    <fieldset className="border-t border-stone-200 pt-4 dark:border-stone-800">
+      <legend className="font-medium">Trade with the Rare Goods Trader</legend>
+      <p className={`mt-1 ${HINT}`}>
+        The trader’s list has {rolls} rolls on the Rare Item Table, every survivor’s Scout Score
+        plus Cooperation. Enter the ones to buy, first in priority first: their price is set aside
+        until the next turn’s mission, which must be the Rare Goods Trader{' '}
+        <PageRef pages="21, 43, 83–84" />
+      </p>
+
+      <div className="mt-3 flex flex-wrap items-end gap-3">
+        <Die label="Trader’s list, first d10" value={subtable} onChange={setSubtable} />
+        <Die label="Trader’s list, second d10" value={entry} onChange={setEntry} />
+        {rolled !== null && (
+          <>
+            <p className="text-sm font-medium">
+              {describeItem(rareItemFor(rolled.subtable, rolled.entry))}, {price}
+            </p>
+            <FoodShare price={price} food={food} onChange={setFood} label="Set aside" />
+          </>
+        )}
+      </div>
+
+      <button
+        type="button"
+        className={`mt-3 ${SECONDARY}`}
+        disabled={rolled === null || picks.length >= rolls}
+        onClick={() => {
+          if (rolled === null) return;
+          setPicks([...picks, { id: crypto.randomUUID(), ...rolled, food, fuel: price - food }]);
+          setSubtable(undefined);
+          setEntry(undefined);
+          setFood(0);
+        }}
+      >
+        Add to the list
+      </button>
+
+      {picks.length > 0 && (
+        <>
+          <ol aria-label="Items to trade for" className="mt-3 flex flex-col">
+            {picks.map((pick, at) => (
+              <li
+                key={pick.id}
+                className="flex items-center gap-2 border-b border-stone-100 py-1.5 last:border-b-0 dark:border-stone-800"
+              >
+                <span className="grow text-sm">
+                  {at + 1}. {describeItem(tradeItemFor(pick))} · {paidFor(pick)}
+                </span>
+                <button
+                  type="button"
+                  className={SECONDARY}
+                  aria-label={`Take ${describeItem(tradeItemFor(pick))} off the list`}
+                  onClick={() => {
+                    setPicks(picks.filter((other) => other.id !== pick.id));
+                  }}
+                >
+                  Take off
+                </button>
+              </li>
+            ))}
+          </ol>
+
+          {check.blockers.length > 0 && (
+            <ul className="mt-2 flex flex-col gap-1">
+              {check.blockers.map((violation) => (
+                <li key={violation.code} className="text-sm text-amber-800 dark:text-amber-300">
+                  {violation.message} <PageRef pages={violation.pages} />
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <button
+            type="button"
+            className={`mt-3 ${SECONDARY}`}
+            disabled={check.blockers.length > 0}
+            onClick={() => {
+              dispatch({ type: 'planning/rareTradeMade', picks, at: new Date().toISOString() });
+              setPicks([]);
+            }}
+          >
+            Make the trade
+          </button>
+        </>
+      )}
+    </fieldset>
+  );
+}
+
+/** Food and Fuel as the trade forms say them: "4 Food and 6 Fuel". */
+function paidFor({ food, fuel }: { readonly food: number; readonly fuel: number }): string {
+  return `${String(food)} Food and ${String(fuel)} Fuel`;
+}
+
+function RollRareItem() {
+  const { dispatch } = useCampaign();
+  const [subtable, setSubtable] = useState<D10Result | undefined>(undefined);
+  const [entry, setEntry] = useState<D10Result | undefined>(undefined);
 
   return (
     <fieldset className="border-t border-stone-200 pt-4 dark:border-stone-800">
@@ -657,8 +807,8 @@ function RollRareItem() {
       </p>
 
       <div className="mt-3 flex flex-wrap items-end gap-3">
-        {die(firstId, 'First d10', subtable, setSubtable)}
-        {die(secondId, 'Second d10', entry, setEntry)}
+        <Die label="First d10" value={subtable} onChange={setSubtable} />
+        <Die label="Second d10" value={entry} onChange={setEntry} />
         {subtable !== undefined && entry !== undefined && (
           <p className="text-sm font-medium">{describeItem(rareItemFor(subtable, entry))}</p>
         )}

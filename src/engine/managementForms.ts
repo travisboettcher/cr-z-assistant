@@ -24,6 +24,7 @@ import { departureCandidates, someoneDeparted, withDeparture } from './departure
 import { foodRequired, hungerIfFedNow, survivorsFed, withSurvivorsFed } from './feeding';
 import { accepted, blockedBy, refused, type FormResult } from './forms';
 import { logged } from './log';
+import { withRareTradeLost } from './rareTrade';
 import { withItemsLeftBehind } from './spent';
 import { checkBite, rotCheckResolved, rotOutcome, rotTarget, withRotApplied } from './rot';
 import { hordeChecked, hordeForced, siegeThreat, siegeTriggered } from './siege';
@@ -230,7 +231,11 @@ export function submitHordeCheck(campaign: Campaign, roll: D10Result, at: string
   const threat = siegeThreat(campaign);
   const siege = hordeForced(campaign) || siegeTriggered(roll, threat);
 
-  return accepted(logged(campaign, at, { kind: 'horde-checked', roll, threat, siege }));
+  const checked = logged(campaign, at, { kind: 'horde-checked', roll, threat, siege });
+
+  // A siege forces the next mission, so a Rare Items trade waiting on it is
+  // lost here, with its materials (pg. 23; R59, R60).
+  return accepted(siege ? withRareTradeLost(checked, at, 'siege') : checked);
 }
 
 /**

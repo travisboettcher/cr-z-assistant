@@ -37,6 +37,7 @@ import type { MissionWound } from '../engine/log';
 import { claimWarning } from '../engine/claim';
 import {
   asksSameMap,
+  rareTradeDue,
   missionOutcomeProblem,
   outcomeOf,
   selectionProblem,
@@ -58,6 +59,7 @@ import { maxHp } from '../engine/survivor';
 import { useCampaign } from '../state/useCampaign';
 import { withArticle } from './articles';
 import { BASE_LABELS } from './baseLabels';
+import { describeItem } from './equipmentLabels';
 import {
   COUNT_LABELS,
   describeOutcome,
@@ -272,6 +274,7 @@ function TeamOutcome({
   const [allDown, setAllDown] = useState(false);
   const [sameMap, setSameMap] = useState(false);
   const [returned, setReturned] = useState<readonly string[]>([]);
+  const [traded, setTraded] = useState(0);
   const [typed, setTyped] = useState<Typed>({});
 
   // The claim an overrun goes on with places no strangers (pg. 86), and asks
@@ -285,6 +288,9 @@ function TeamOutcome({
       ),
   );
   const mapAsked = asksSameMap(campaign, choice);
+  // The trade this mission settles, asked how many of its items were handed over (Z5-10).
+  const trade =
+    choice.mission === 'rare-goods-trader' && rareTradeDue(campaign) ? campaign.rareTrade : null;
   const number = (of: OutcomeCount) => count(numbers[of] ?? '');
   const wounds = woundsTyped(woundsAsTheyStand(campaign, choice.team), typed);
   const outcome = outcomeOf(choice, {
@@ -298,6 +304,7 @@ function TeamOutcome({
     allIncapacitated: allDown,
     vehiclesDrivenOff: number('vehicles-driven-off'),
     ...(mapAsked ? { sameMap } : {}),
+    ...(trade === null ? {} : { itemsTraded: traded }),
     returned,
     wounds,
   });
@@ -444,6 +451,34 @@ function TeamOutcome({
             );
         }
       })}
+
+      {trade !== null && (
+        <div className="flex flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="text-sm" htmlFor={`${prefix}-traded`}>
+              Items the trader handed over
+            </label>
+            <select
+              id={`${prefix}-traded`}
+              className={SELECT}
+              value={traded}
+              onChange={(changed) => {
+                setTraded(Number(changed.target.value));
+              }}
+            >
+              {Array.from({ length: trade.items.length + 1 }, (_, amount) => (
+                <option key={amount} value={amount}>
+                  {amount}
+                </option>
+              ))}
+            </select>
+            <PageRef pages={84} />
+          </div>
+          <p className={HINT}>
+            First in priority first: {trade.items.map((item) => describeItem(item)).join(', ')}.
+          </p>
+        </div>
+      )}
 
       <WoundFields
         campaign={campaign}

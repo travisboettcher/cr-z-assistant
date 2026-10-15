@@ -177,7 +177,11 @@ function counted(outcome: MissionOutcome): string {
     case 'rescue-strangers-resolved':
       return `${strangersOf(outcome.strangers)}${broughtBack(outcome.returned)}`;
     case 'rare-goods-trader-resolved':
-      return `${plural(outcome.survivorsExited, 'survivor', 'survivors')} out over the map edge${anyStrangers(outcome.strangers)}`;
+      return `${plural(outcome.survivorsExited, 'survivor', 'survivors')} out over the map edge${
+        outcome.itemsTraded === undefined
+          ? ''
+          : `, ${plural(outcome.itemsTraded, 'item', 'items')} traded`
+      }${anyStrangers(outcome.strangers)}`;
     case 'mission-played':
       return 'played';
   }

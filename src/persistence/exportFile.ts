@@ -23,6 +23,7 @@ import type {
   Campaign,
   Item,
   Project,
+  RareTradeItem,
   SlotState,
   Survivor,
   TradeOrder,
@@ -92,6 +93,18 @@ function orderedSurvivor(survivor: Survivor): Record<keyof Survivor, unknown> {
 /** One item with its keys in a fixed order, for the reason a survivor's are. */
 function orderedItem(item: Item): Record<keyof Item, unknown> {
   return { id: item.id, item: item.item, grade: item.grade };
+}
+
+function orderedRareTradeItem(item: RareTradeItem): Record<keyof RareTradeItem, unknown> {
+  return {
+    id: item.id,
+    item: item.item,
+    grade: item.grade,
+    subtable: item.subtable,
+    entry: item.entry,
+    food: item.food,
+    fuel: item.fuel,
+  };
 }
 
 function orderedTrade(trade: TradeOrder): Record<keyof TradeOrder, unknown> {
@@ -277,8 +290,18 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
     };
   }
 
-  if (event.kind === 'equipment-handed-over') {
+  if (event.kind === 'equipment-handed-over' || event.kind === 'rare-trade-lost') {
     return { ...taggedFirst(event, 'kind'), items: event.items.map(orderedItem) };
+  }
+  if (event.kind === 'rare-trade-made') {
+    return { ...taggedFirst(event, 'kind'), items: event.items.map(orderedRareTradeItem) };
+  }
+  if (event.kind === 'rare-trade-closed') {
+    return {
+      ...taggedFirst(event, 'kind'),
+      arrived: event.arrived.map(orderedItem),
+      lost: event.lost.map(orderedItem),
+    };
   }
   if (event.kind === 'items-spent') {
     return {
@@ -364,6 +387,13 @@ function inFileOrder(campaign: Campaign): Record<keyof Campaign, unknown> {
     inventory: campaign.inventory.map(orderedItem),
     rareRollsOwed: campaign.rareRollsOwed,
     trades: campaign.trades.map(orderedTrade),
+    rareTrade:
+      campaign.rareTrade === null
+        ? null
+        : {
+            madeOnTurn: campaign.rareTrade.madeOnTurn,
+            items: campaign.rareTrade.items.map(orderedRareTradeItem),
+          },
     startingCommunityBuilt: campaign.startingCommunityBuilt,
     base: campaign.base === null ? null : orderedBase(campaign.base),
     assignments: orderedAssignments(campaign),

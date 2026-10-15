@@ -469,15 +469,21 @@ const rareBecameRolls: MigrationStep = {
 };
 
 /**
- * v17 → v18: items traded for and on their way (R53; Z5-9).
+ * v17 → v18: items traded for and on their way (R53; Z5-9), and a Rare Items
+ * trade under way (Z5-10).
  *
  * **Empty, and that is the truth.** A v17 build could not trade, so no v17
- * save has anything on order. A list already present is left alone.
+ * save has anything on order or a trade under way. What is already present is
+ * left alone.
  */
 const tradesRecorded: MigrationStep = {
   from: 17,
   to: 18,
-  up: (previous) => ('trades' in previous ? previous : { ...previous, trades: [] }),
+  up: (previous) => ({
+    ...previous,
+    trades: 'trades' in previous ? previous.trades : [],
+    rareTrade: 'rareTrade' in previous ? previous.rareTrade : null,
+  }),
 };
 
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */

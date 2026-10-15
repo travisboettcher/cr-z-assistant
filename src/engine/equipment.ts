@@ -121,12 +121,12 @@ export function allItems(campaign: Campaign): readonly Item[] {
 
 /**
  * Whether a new item may not have this id: one the campaign holds has it, or
- * one on its way from a trade will (Z5-9).
+ * one on its way from a trade will (Z5-9), or one a Rare Items trade is for
+ * (Z5-10).
  */
 export function idTaken(campaign: Campaign, id: string): boolean {
-  return (
-    allItems(campaign).some((held) => held.id === id) ||
-    campaign.trades.some((trade) => trade.id === id)
+  return [...allItems(campaign), ...campaign.trades, ...(campaign.rareTrade?.items ?? [])].some(
+    (held) => held.id === id,
   );
 }
 

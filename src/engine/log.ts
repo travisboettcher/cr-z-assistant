@@ -53,7 +53,7 @@ import { phaseOf } from './turn';
 // `LogEntry` from here. Both directions are erased at compile time, so there is
 // no runtime cycle — and the alternative, a third module holding one of them,
 // would separate `Campaign` from the shape of its own field.
-import type { Assignment, Campaign, Item } from './campaign';
+import type { Assignment, Campaign, Item, RareTradeItem } from './campaign';
 
 /**
  * One team member as a mission left them, carried on its outcome (#178, Z4-4).
@@ -111,6 +111,11 @@ export interface SpentItem {
  * shoddy gear (R35), or a survivor, named as they were.
  */
 export type ItemHolder = 'base' | 'free' | { readonly survivor: string; readonly name: string };
+
+/** Why a Rare Items trade was lost before its mission settled it (pp. 21, 23; R59, R60). */
+export const RARE_TRADE_LOSSES = ['siege', 'other-mission', 'no-mission'] as const;
+
+export type RareTradeLoss = (typeof RARE_TRADE_LOSSES)[number];
 
 /** Why a `survivor-left` entry's survivor left (#201). */
 export const LEAVING_CAUSES = ['turned', 'bitten', 'removed'] as const;
@@ -595,6 +600,12 @@ export type CampaignEvent =
       readonly kind: 'rare-goods-trader-resolved';
       readonly team: number;
       readonly survivorsExited: number;
+      /**
+       * How many of the trade's items the trader handed over, first in priority
+       * first (pg. 84; Z5-10). Absent when no trade was under way, and on every
+       * entry from before one could be.
+       */
+      readonly itemsTraded?: number;
       /** A stranger its setup may place on the area (pg. 84). */
       readonly strangers: readonly FieldRecruitTier[];
       /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
@@ -846,6 +857,36 @@ export type CampaignEvent =
       readonly id: string;
       readonly item: ItemId;
       readonly grade: Grade;
+    }
+  /**
+   * A Rare Items trade made in the Planning Phase (pg. 21; R57–R59; Z5-10):
+   * each item in priority order, with the dice that found it on the trader's
+   * list and the Food and Fuel set aside for it.
+   */
+  | { readonly kind: 'rare-trade-made'; readonly items: readonly RareTradeItem[] }
+  /**
+   * A trade cancelled before its mission, and the set-aside materials lost
+   * with it (pp. 21, 23; R59, R60): a siege called, another mission chosen
+   * first, or no mission at all.
+   */
+  | {
+      readonly kind: 'rare-trade-lost';
+      readonly reason: RareTradeLoss;
+      readonly items: readonly Item[];
+      readonly food: number;
+      readonly fuel: number;
+    }
+  /**
+   * A trade the Rare Goods Trader's outcome settled (pg. 84; R22, R61): what
+   * arrived, what was traded and lost with nobody out, and the Food and Fuel
+   * that came back for the items not traded.
+   */
+  | {
+      readonly kind: 'rare-trade-closed';
+      readonly arrived: readonly Item[];
+      readonly lost: readonly Item[];
+      readonly food: number;
+      readonly fuel: number;
     }
   /** A rare item sold from the Inventory, and what it brought in (pp. 21, 37; R54; Z5-9). */
   | {

@@ -18,7 +18,7 @@ import type { FieldRecruitTier } from '../data/recruitTable';
 import type { Tier } from '../data/tiers';
 import { withoutAssignment } from './assignments';
 import { storageCaps } from './base';
-import type { Campaign, Item, Survivor } from './campaign';
+import type { Campaign, Item, RareTrade, Survivor } from './campaign';
 import { idTaken, newItemProblem, removalProblem, type NewItem } from './equipment';
 import { rareItemFor, type RareItemRoll } from './finding';
 import { turnoutGear, withEquipmentHandedOver } from './handover';
@@ -28,6 +28,7 @@ import { buildCheck, buildCost, withItemBuilt, type BuildCost, type BuildOrder }
 import { FIRST_PLANNING_STEP, planningHasBegun, withPlanningReset } from './planning';
 import { deployed } from './missions';
 import { siegeDue } from './siege';
+import { rareTradeCheck, withRareTradeMade, type RareTradePick } from './rareTrade';
 import { withItemsLeftBehind } from './spent';
 import {
   saleCheck,
@@ -522,6 +523,29 @@ export function submitTradeOrdered(
       grade: request.grade,
       food: request.food,
       fuel: request.fuel,
+    }),
+  );
+}
+
+/**
+ * Make a Rare Items trade in the Planning Phase (pp. 21, 43; R57–R59; Z5-10):
+ * the items chosen from the trader's list, in priority order, and their Food
+ * and Fuel set aside. Refused for whatever `rareTradeCheck` says.
+ */
+export function submitRareTradeMade(
+  campaign: Campaign,
+  picks: readonly RareTradePick[],
+  at: string,
+): FormResult {
+  const problem = blockedBy(rareTradeCheck(campaign, picks));
+  if (problem !== null) return refused(problem);
+
+  const made = withRareTradeMade(campaign, picks);
+
+  return accepted(
+    logged(made, at, {
+      kind: 'rare-trade-made',
+      items: (made.rareTrade as RareTrade).items,
     }),
   );
 }

@@ -27,7 +27,7 @@ import { FIELD_RECRUITABLE_TIERS } from '../data/recruitTable';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { CAMPAIGN_PHASES, HEALTH_SOURCES, XP_SOURCES } from '../data/turn';
 import type { Assignment, Campaign, Project } from '../engine/campaign';
-import { LEAVING_CAUSES, type CampaignEventKind } from '../engine/log';
+import { LEAVING_CAUSES, RARE_TRADE_LOSSES, type CampaignEventKind } from '../engine/log';
 import { TURN_SEQUENCE } from '../engine/turn';
 import { migrate, type MigrationErrorReason } from './migrations';
 
@@ -144,6 +144,39 @@ function describeTradesProblem(value: unknown): string | null {
   }
 
   return null;
+}
+
+/**
+ * The items of a Rare Items trade (Z5-10): each an item, as the Inventory's
+ * are, with the two dice that found it and the Food and Fuel set aside for it.
+ */
+function describeRareTradeItemsProblem(value: unknown): string | null {
+  if (!Array.isArray(value)) return 'is not a list';
+
+  for (const [index, item] of value.entries()) {
+    const which = `item ${String(index + 1)} of ${String(value.length)}`;
+    const problem = describeItemProblem(item);
+    if (problem !== null) return `${which} ${problem}`;
+
+    const { subtable, entry, food, fuel } = item as Record<string, unknown>;
+    if (!EVENT_FIELD_CHECKS.roll(subtable) || !EVENT_FIELD_CHECKS.roll(entry)) {
+      return `${which} does not say which roll found it`;
+    }
+    if (!isCountFromZero(food) || !isCountFromZero(fuel)) {
+      return `${which} does not say what was set aside for it`;
+    }
+  }
+
+  return null;
+}
+
+/** A Rare Items trade under way (Z5-10), or `null` for none. */
+function describeRareTradeProblem(value: unknown): string | null {
+  if (value === null) return null;
+  if (!isRecord(value)) return 'is not a trade';
+  if (!isCountFromOne(value.madeOnTurn)) return 'does not say which turn it was made on';
+
+  return describeRareTradeItemsProblem(value.items);
 }
 
 function describeSurvivorProblem(value: unknown): string | null {
@@ -448,6 +481,8 @@ const EVENT_FIELD_CHECKS = {
     ),
   // Items a base handed over (Z5-8), each checked as an Inventory item is.
   items: (value: unknown) => describeItemsProblem(value) === null,
+  rareTradeItems: (value: unknown) => describeRareTradeItemsProblem(value) === null,
+  rareTradeLoss: (value: unknown) => RARE_TRADE_LOSSES.some((reason) => reason === value),
   // One end of an item's move (Z5-4): the base, the free shoddy supply, or a
   // survivor by id and name. Not held to the roster, since this is history.
   holder: (value: unknown) =>
@@ -629,6 +664,7 @@ const EVENT_FIELDS: Record<
   'rare-goods-trader-resolved': [
     ['team', 'countFromOne'],
     ['survivorsExited', 'count'],
+    ['itemsTraded', 'optionalCount'],
     ['strangers', 'tiers'],
     ['wounds', 'optionalWounds'],
   ],
@@ -754,6 +790,20 @@ const EVENT_FIELDS: Record<
     ['grade', 'grade'],
     ['hardware', 'count'],
     ['labor', 'count'],
+  ],
+  // The Rare Items trade (Z5-10).
+  'rare-trade-made': [['items', 'rareTradeItems']],
+  'rare-trade-lost': [
+    ['reason', 'rareTradeLoss'],
+    ['items', 'items'],
+    ['food', 'count'],
+    ['fuel', 'count'],
+  ],
+  'rare-trade-closed': [
+    ['arrived', 'items'],
+    ['lost', 'items'],
+    ['food', 'count'],
+    ['fuel', 'count'],
   ],
   // Trading (Z5-9): what was paid or brought in, each a count.
   'trade-ordered': [
@@ -1050,6 +1100,9 @@ function describeCampaignProblem(value: unknown): string | null {
   const trades = describeTradesProblem(value.trades);
   if (trades !== null) return `its trades on order: ${trades}`;
 
+  const rareTrade = describeRareTradeProblem(value.rareTrade);
+  if (rareTrade !== null) return `its Rare Items trade ${rareTrade}`;
+
   if (typeof value.startingCommunityBuilt !== 'boolean') {
     return 'it does not say whether its starting community is finished';
   }
@@ -1078,8 +1131,11 @@ function describeCampaignProblem(value: unknown): string | null {
       ...(value.setAside as readonly { readonly items: readonly { readonly id: string }[] }[]),
     ].flatMap((survivor) => survivor.items),
     ...installed,
-    // An item on its way from a trade has its id already (Z5-9).
+    // An item on its way from a trade has its id already (Z5-9), and so does
+    // one a Rare Items trade is for (Z5-10).
     ...(value.trades as readonly { readonly id: string }[]),
+    ...((value.rareTrade as { readonly items: readonly { readonly id: string }[] } | null)?.items ??
+      []),
   ];
   const ids = held.map((item) => item.id);
   const repeated = ids.find((id, at) => ids.indexOf(id) !== at);

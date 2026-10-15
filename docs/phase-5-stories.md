@@ -603,6 +603,30 @@ Confirmed 2026-10-14 ([the registry](rulings.md)), R70 and R78 decided the same 
 - A trade for two items, one traded before nobody got out, loses that item and its materials and
   returns the other's.
 
+**What this story turned out to include.**
+
+- **`Campaign.rareTrade`, in v18 beside the trades**: the turn it was made and its items in
+  priority order, each with the dice that found it on the trader's list, the id it will have, and
+  the Food and Fuel set aside for it. Kept per item because the outcome returns the materials of the
+  items not traded (R22): what comes back is then a fact, not a split worked out afterwards.
+- **`src/engine/rareTrade.ts`**: the list's size (every survivor's Scout Score plus Cooperation;
+  one without Scout adds Cooperation alone, noted under R58), the check, and the three ways a trade
+  ends. It is made in the Planning Phase with a mission team assigned for next turn; the team is
+  read from the assignments being made, since `missionTeams` reads the teams that went out this turn.
+- **Three entries**: `rare-trade-made`; `rare-trade-lost`, naming why (a siege, another mission
+  chosen first, or the mission sat out) and the Food and Fuel lost; and `rare-trade-closed`, naming
+  what arrived, what was lost with nobody out, and what came back.
+- **The Rare Goods Trader's outcome counts the items handed over**, `itemsTraded`, asked only while a
+  trade made on an earlier turn is under way and refused above what it holds. The first that many
+  in priority order are the ones traded (pg. 84).
+- **Losing the trade is in the forms that cause it**: `submitMissionSelection` for another mission
+  chosen first, `submitMissionSkip` for sitting it out, and `submitHordeCheck` for a siege. Select
+  Mission says what binds it while the trade waits.
+- **The form is in the Inventory's modal**, beside trading and selling: the list's size, two dice
+  per roll with the item and its price, a Food picker for what is set aside, the chosen items in
+  priority order, and one secondary button to make the trade. While one is under way the modal
+  shows what it holds back instead.
+
 ### Z5-11 — Vehicles the community holds
 
 **Why:** A community keeps vehicles, and two missions add them (pp. 49, 52–53, 79, 81–82).

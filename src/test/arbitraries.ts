@@ -42,10 +42,16 @@ import type {
   SkillLevels,
   SlotState,
   Stats,
+  RareTradeItem,
   Survivor,
   TradeOrder,
 } from '../engine/campaign';
-import { LEAVING_CAUSES, type CampaignEvent, type LogEntry } from '../engine/log';
+import {
+  LEAVING_CAUSES,
+  RARE_TRADE_LOSSES,
+  type CampaignEvent,
+  type LogEntry,
+} from '../engine/log';
 
 /**
  * Any single UTF-16 code unit — **including an unpaired surrogate**.
@@ -193,6 +199,21 @@ export function itemArbitrary(): fc.Arbitrary<Item> {
   );
 }
 
+/** One item of a Rare Items trade (Z5-10): an item, its dice, and what was set aside. */
+function rareTradeItemArbitrary(): fc.Arbitrary<RareTradeItem> {
+  return itemArbitrary().chain((item) =>
+    fc.record({
+      id: fc.constant(item.id),
+      item: fc.constant(item.item),
+      grade: fc.constant(item.grade),
+      subtable: fc.constantFrom(...D10_RESULTS),
+      entry: fc.constantFrom(...D10_RESULTS),
+      food: anyCount,
+      fuel: anyCount,
+    }),
+  );
+}
+
 /** A trade on its way (Z5-9): an item with what it cost and when it was ordered. */
 function tradeArbitrary(): fc.Arbitrary<TradeOrder> {
   return itemArbitrary()
@@ -215,6 +236,7 @@ function itemIdsDistinct(campaign: Omit<Campaign, 'assignments'>): boolean {
     ...campaign.inventory,
     ...[...campaign.survivors, ...campaign.setAside].flatMap((survivor) => survivor.items),
     ...campaign.trades,
+    ...(campaign.rareTrade?.items ?? []),
   ].map((item) => item.id);
 
   return new Set(ids).size === ids.length;
@@ -469,12 +491,17 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       }),
     ),
     withWounds(
-      fc.record({
-        kind: fc.constant('rare-goods-trader-resolved' as const),
-        team: anyTeam,
-        survivorsExited: anyCount,
-        strangers: anyStrangers,
-      }),
+      fc.record(
+        {
+          kind: fc.constant('rare-goods-trader-resolved' as const),
+          team: anyTeam,
+          survivorsExited: anyCount,
+          strangers: anyStrangers,
+          itemsTraded: anyCount,
+        },
+        // Absent when no trade was under way (Z5-10).
+        { requiredKeys: ['kind', 'team', 'survivorsExited', 'strangers'] },
+      ),
     ),
     withWounds(
       fc.record({
@@ -613,6 +640,24 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       grade: fc.constantFrom(...GRADES),
       hardware: anyCount,
       labor: anyCount,
+    }),
+    fc.record({
+      kind: fc.constant('rare-trade-made' as const),
+      items: fc.array(rareTradeItemArbitrary(), { maxLength: 3 }),
+    }),
+    fc.record({
+      kind: fc.constant('rare-trade-lost' as const),
+      reason: fc.constantFrom(...RARE_TRADE_LOSSES),
+      items: fc.array(itemArbitrary(), { maxLength: 3 }),
+      food: anyCount,
+      fuel: anyCount,
+    }),
+    fc.record({
+      kind: fc.constant('rare-trade-closed' as const),
+      arrived: fc.array(itemArbitrary(), { maxLength: 3 }),
+      lost: fc.array(itemArbitrary(), { maxLength: 3 }),
+      food: anyCount,
+      fuel: anyCount,
     }),
     fc.record({
       kind: fc.constant('trade-ordered' as const),
@@ -807,6 +852,17 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
           rareRollsOwed: anyCount,
           // Never shoddy, as the Inventory's: a trade buys a priced grade (R51).
           trades: fc.array(tradeArbitrary(), { maxLength: 2 }),
+          // None as often as one: a trade under way is the rarer state (Z5-10).
+          rareTrade: fc.option(
+            fc.record({
+              madeOnTurn: fc.integer({ min: 1, max: 9999 }),
+              items: fc.array(
+                rareTradeItemArbitrary().filter((item) => item.grade !== 'shoddy'),
+                { maxLength: 2 },
+              ),
+            }),
+            { nil: null },
+          ),
           startingCommunityBuilt: fc.boolean(),
           // Half the campaigns have claimed a base and half have not; null is a
           // real state and a round trip can get it wrong by writing `{}`.
@@ -834,6 +890,7 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
             'inventory',
             'rareRollsOwed',
             'trades',
+            'rareTrade',
             'startingCommunityBuilt',
             'base',
             'log',

@@ -125,6 +125,14 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'retrieve-new-vehicles-resolved', team: 3, vehiclesDrivenOff: 0, strangers: [] },
   { kind: 'rescue-strangers-resolved', team: 1, strangers: [2] },
   { kind: 'rare-goods-trader-resolved', team: 2, survivorsExited: 1, strangers: [3] },
+  // With a trade under way, and how many items the trader handed over (Z5-10).
+  {
+    kind: 'rare-goods-trader-resolved',
+    team: 1,
+    survivorsExited: 0,
+    strangers: [],
+    itemsTraded: 2,
+  },
   { kind: 'mission-played', team: 1, mission: 'left-behind-1' },
   { kind: 'siege-defense-resolved', zombiesLeft: 3, survivorsExited: 1 },
   // The team's wounds, which every outcome written since Z4-4 carries: Health
@@ -255,6 +263,43 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   },
   // An item the project team built (Z5-6).
   { kind: 'item-built', id: 'item-5', item: 'blunt', grade: 'standard', hardware: 1, labor: 1 },
+  // The Rare Items trade (Z5-10): made, lost each way, and settled each way.
+  {
+    kind: 'rare-trade-made',
+    items: [
+      {
+        id: 'item-9',
+        item: 'riot-shield',
+        grade: 'standard',
+        subtable: 3,
+        entry: 1,
+        food: 4,
+        fuel: 6,
+      },
+    ],
+  },
+  ...(['siege', 'other-mission', 'no-mission'] as const).map((reason) => ({
+    kind: 'rare-trade-lost' as const,
+    reason,
+    items: [{ id: 'item-9', item: 'riot-shield' as const, grade: 'standard' as const }],
+    food: 4,
+    fuel: 6,
+  })),
+  {
+    kind: 'rare-trade-closed',
+    arrived: [{ id: 'item-9', item: 'riot-shield', grade: 'standard' }],
+    lost: [],
+    food: 0,
+    fuel: 6,
+  },
+  {
+    kind: 'rare-trade-closed',
+    arrived: [],
+    lost: [{ id: 'item-9', item: 'riot-shield', grade: 'standard' }],
+    food: 2,
+    fuel: 0,
+  },
+  { kind: 'rare-trade-closed', arrived: [], lost: [], food: 0, fuel: 0 },
   // Trading (Z5-9): paid in a mix, and in one material alone.
   { kind: 'trade-ordered', id: 'item-6', item: 'pistol', grade: 'standard', food: 1, fuel: 2 },
   { kind: 'trade-ordered', id: 'item-7', item: 'tool-belt', grade: 'quality', food: 0, fuel: 8 },

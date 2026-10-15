@@ -21,7 +21,13 @@ import { articleForNumber, withArticle } from './articles';
 import { FIRST_TURN } from '../engine/siege';
 import { SIEGE_TRIGGER, XP_SOURCE_PAGES, type HealthSource, type XpSource } from '../data/turn';
 import type { Item } from '../engine/campaign';
-import type { CampaignEvent, HistoricMaterials, LeavingCause, LogEntry } from '../engine/log';
+import type {
+  CampaignEvent,
+  HistoricMaterials,
+  LeavingCause,
+  LogEntry,
+  RareTradeLoss,
+} from '../engine/log';
 import {
   BASE_LABELS,
   FACILITY_LABELS,
@@ -116,6 +122,13 @@ const LEFT_BY_CAUSE: Readonly<Record<LeavingCause, { readonly how: string; reado
     bitten: { how: 'died of the bite', pages: 22 },
     removed: { how: 'was taken off the roster' },
   };
+
+/** Why a Rare Items trade was lost, as its line opens (pp. 21, 23; R59, R60). */
+const RARE_TRADE_LOST: Readonly<Record<RareTradeLoss, string>> = {
+  siege: 'The horde called a siege',
+  'other-mission': 'Another mission was chosen first',
+  'no-mission': 'The community sat the mission out',
+};
 
 /** Food and Fuel as a trade's line names them: "2 Food and 1 Fuel", or the one alone. */
 function paid(amount: { readonly food: number; readonly fuel: number }): string {
@@ -511,6 +524,37 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
       return {
         text: `Built into the base’s Inventory: ${describeItem(event)}, for ${String(event.hardware)} Hardware and ${String(event.labor)} Labor.`,
         pages: '20, 41–42',
+      };
+
+    case 'rare-trade-made':
+      return {
+        text: `Made a Rare Items trade for ${event.items.map(describeItem).join(', ')}, setting aside ${paid(
+          event.items.reduce(
+            (total, item) => ({ food: total.food + item.food, fuel: total.fuel + item.fuel }),
+            { food: 0, fuel: 0 },
+          ),
+        )}. The next mission is the Rare Goods Trader.`,
+        pages: '21, 43',
+      };
+
+    case 'rare-trade-lost':
+      return {
+        text: `${RARE_TRADE_LOST[event.reason]}, so the Rare Items trade is off and what was set aside for it is lost: ${paid(event)}.`,
+        pages: event.reason === 'siege' ? 23 : 21,
+      };
+
+    case 'rare-trade-closed':
+      return {
+        text: [
+          ...(event.arrived.length === 0
+            ? []
+            : [`From the Rare Goods Trader: ${counted(event.arrived)}.`]),
+          ...(event.lost.length === 0
+            ? []
+            : [`Lost with nobody out: ${counted(event.lost)}, and what was paid for it.`]),
+          `${event.food + event.fuel === 0 ? 'Nothing' : paid(event)} set aside came back to storage.`,
+        ].join(' '),
+        pages: 84,
       };
 
     case 'trade-ordered':

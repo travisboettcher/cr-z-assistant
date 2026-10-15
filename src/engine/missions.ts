@@ -44,7 +44,7 @@ import {
 import { FIELD_RECRUITABLE_TIERS, type FieldRecruitTier } from '../data/recruitTable';
 import { beforePlanning } from './assignments';
 import { continuationMission, continuationOpen, overrunChoice, overrunClaim } from './overrun';
-import type { Campaign, Survivor } from './campaign';
+import type { Campaign, RareTrade, Survivor } from './campaign';
 import type { CampaignEvent, MissionWound } from './log';
 import { FIRST_TURN, siegeDue } from './siege';
 import { maxHp } from './survivor';
@@ -497,6 +497,13 @@ export interface OutcomeCounts {
   readonly returned?: readonly string[];
 
   /**
+   * How many of a Rare Items trade's items the trader handed over, first in
+   * priority first (pg. 84; Z5-10). Asked of the Rare Goods Trader while a
+   * trade is under way.
+   */
+  readonly itemsTraded?: number;
+
+  /**
    * Each team member's Health at the end, and their Infection in a Viral
    * campaign (Z4-4). Every mission records them, so unlike the counts above
    * they go on every kind; `woundsAsTheyStand` is where a form starts them.
@@ -587,6 +594,7 @@ export function outcomeOf(choice: MissionChoice, counts: OutcomeCounts): Mission
         kind: 'rare-goods-trader-resolved',
         team,
         survivorsExited: counts.survivorsExited,
+        ...(counts.itemsTraded === undefined ? {} : { itemsTraded: counts.itemsTraded }),
         strangers: counts.strangers,
         wounds,
       };
@@ -622,7 +630,7 @@ function countsOf(outcome: MissionOutcome): readonly number[] {
     case 'retrieve-new-vehicles-resolved':
       return [outcome.vehiclesDrivenOff];
     case 'rare-goods-trader-resolved':
-      return [outcome.survivorsExited];
+      return [outcome.survivorsExited, outcome.itemsTraded ?? 0];
     default:
       return [];
   }
@@ -703,6 +711,23 @@ export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcom
     }
   }
 
+  // A Rare Items trade made on an earlier turn is what this mission settles
+  // (R57): it says how many of its items were handed over, and no more than it
+  // holds. Without one, it says nothing about items.
+  if (outcome.kind === 'rare-goods-trader-resolved') {
+    const items = rareTradeDue(campaign) ? (campaign.rareTrade as RareTrade).items.length : null;
+
+    if (items === null) {
+      if (outcome.itemsTraded !== undefined) {
+        return 'No Rare Items trade is under way, so no items were traded.';
+      }
+    } else if (outcome.itemsTraded === undefined) {
+      return 'Say how many of the trade’s items the trader handed over.';
+    } else if (outcome.itemsTraded > items) {
+      return `The trade was for ${String(items)} items.`;
+    }
+  }
+
   // Survivors set aside — a Hero sent away over the cap, or a community left
   // behind — come back through Rescue Strangers as themselves (R31). Only that
   // outcome carries `returned`; the kind is checked for the typechecker.
@@ -716,6 +741,15 @@ export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcom
   }
 
   return woundsProblem(campaign, outcome);
+}
+
+/**
+ * Whether a Rare Goods Trader outcome this turn settles a Rare Items trade:
+ * one made on an earlier turn (R57; Z5-10). Here rather than in `rareTrade.ts`
+ * because the outcome check asks it, and that module already reads this one.
+ */
+export function rareTradeDue(campaign: Campaign): boolean {
+  return campaign.rareTrade !== null && campaign.rareTrade.madeOnTurn < campaign.turn;
 }
 
 /**

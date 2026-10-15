@@ -185,6 +185,74 @@ describe('parseCampaignFile', () => {
   });
 
   /** Trades on their way (Z5-9): each an item with what it cost and when it was ordered. */
+  /** A Rare Items trade under way (Z5-10): its turn, and each item with its dice and its share. */
+  describe('a Rare Items trade under way', () => {
+    const item = {
+      id: 'shield',
+      item: 'riot-shield',
+      grade: 'standard',
+      subtable: 3,
+      entry: 1,
+      food: 4,
+      fuel: 6,
+    };
+    const message = (rareTrade: unknown, more: object = {}) => {
+      const result = parseCampaignFile(savedWith({ rareTrade, ...more }));
+
+      return result.ok ? null : result.error.message;
+    };
+
+    it('reads one back, or none', () => {
+      const trade = { madeOnTurn: 3, items: [item] };
+      const result = parseCampaignFile(savedWith({ rareTrade: trade }));
+
+      expect(result.ok && result.campaign.rareTrade).toEqual(trade);
+      expect(message(null)).toBeNull();
+    });
+
+    it.each([
+      ['a trade that is not one', 7, 'its Rare Items trade is not a trade'],
+      ['no turn', { items: [item] }, 'does not say which turn it was made on'],
+      ['items that are not a list', { madeOnTurn: 3, items: 'shield' }, 'is not a list'],
+      [
+        'an item that is not one',
+        { madeOnTurn: 3, items: [item, { ...item, id: 'b', item: 'laser' }] },
+        'item 2 of 2',
+      ],
+      [
+        'a die that is not one',
+        { madeOnTurn: 3, items: [{ ...item, subtable: 11 }] },
+        'item 1 of 1 does not say which roll found it',
+      ],
+      [
+        'a second die that is not one',
+        { madeOnTurn: 3, items: [{ ...item, entry: 0 }] },
+        'item 1 of 1 does not say which roll found it',
+      ],
+      [
+        'no Food set aside',
+        { madeOnTurn: 3, items: [{ ...item, food: undefined }] },
+        'item 1 of 1 does not say what was set aside for it',
+      ],
+      [
+        'a Fuel of half',
+        { madeOnTurn: 3, items: [{ ...item, fuel: 0.5 }] },
+        'item 1 of 1 does not say what was set aside for it',
+      ],
+    ])('refuses %s', (_label, rareTrade, expected) => {
+      expect(message(rareTrade)).toContain(expected);
+    });
+
+    it('refuses an id an item already has', () => {
+      expect(
+        message(
+          { madeOnTurn: 3, items: [item] },
+          { inventory: [{ id: 'shield', item: 'bow', grade: 'standard' }] },
+        ),
+      ).toContain('it holds two items with one id: shield');
+    });
+  });
+
   describe('trades on order', () => {
     const trade = {
       id: 'traded',
@@ -876,6 +944,24 @@ describe('a campaign whose log is damaged', () => {
     at: '2026-09-08T21:00:00.000Z',
     event: { kind: 'survivor-added', survivor: 'a', name: 'Earl Rhodes', tier: 3 },
   };
+
+  /** The Rare Items trade's entries (Z5-10), read as the campaign's trade is. */
+  it.each([
+    [
+      'a trade made with an unreadable item',
+      { kind: 'rare-trade-made', items: [{ id: 'a', item: 'riot-shield', grade: 'standard' }] },
+      'unreadable items',
+    ],
+    [
+      'a trade lost for a reason this version does not know',
+      { kind: 'rare-trade-lost', reason: 'weather', items: [], food: 0, fuel: 0 },
+      'unreadable reason',
+    ],
+  ])('refuses %s', (_label, event, expected) => {
+    const result = parseCampaignFile(savedWith({ log: [{ ...good, event }] }));
+
+    expect(result.ok ? null : result.error.message).toContain(expected);
+  });
 
   function refusalFor(log: unknown) {
     const result = parseCampaignFile(savedWith({ log }));

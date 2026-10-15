@@ -19,6 +19,7 @@ import type { Grade, ItemId } from '../data/equipment';
 import type { Cost, FacilityId, UpgradeId } from '../data/facilities';
 import type { Materials } from '../data/materials';
 import type { CampaignOrigin } from '../data/origins';
+import type { D10Result } from '../data/dice';
 import type { Skill, Stat } from '../data/skills';
 import type { Tier } from '../data/tiers';
 import type { TurnStepId } from '../data/turn';
@@ -138,6 +139,36 @@ export interface Item {
  * day, as a project's charge is: there is no cancelling (R53), but the log
  * and a reader of the order both have it.
  */
+/**
+ * One item a Rare Items trade is for (pp. 21, 43, 83–84; R58, R59; Z5-10): a
+ * Rare Item Table roll's item, with the dice that found it on the trader's
+ * list, the id it will have, and the Food and Fuel set aside for it.
+ *
+ * Each item carries its own share of the set-aside pile because the outcome
+ * returns the materials of the items not traded (R22): kept per item, what
+ * comes back is a fact rather than a split worked out afterwards.
+ */
+export interface RareTradeItem {
+  readonly id: string;
+  readonly item: ItemId;
+  readonly grade: Grade;
+  readonly subtable: D10Result;
+  readonly entry: D10Result;
+  readonly food: number;
+  readonly fuel: number;
+}
+
+/**
+ * A Rare Items trade under way (pp. 21, 83–84; R57–R61; Z5-10): made in a
+ * Planning Phase, its materials set aside outside storage, and resolved by the
+ * next Mission Phase's first mission, the Rare Goods Trader.
+ */
+export interface RareTrade {
+  readonly madeOnTurn: number;
+  /** In priority order: the trader takes them one a round, first first (pg. 84). */
+  readonly items: readonly RareTradeItem[];
+}
+
 export interface TradeOrder {
   readonly id: string;
   readonly item: ItemId;
@@ -446,6 +477,12 @@ export interface Campaign {
   trades: readonly TradeOrder[];
 
   /**
+   * A Rare Items trade under way (R57–R61; Z5-10), or `null` for none, as
+   * every save from before v18 has.
+   */
+  rareTrade: RareTrade | null;
+
+  /**
    * Whether the player has finished assembling their starting community.
    *
    * A starting community is built from ten Tier levels (pg. 13), and that rule
@@ -531,6 +568,7 @@ export function createNewCampaign(name: string, options: NewCampaignOptions = {}
     inventory: [],
     rareRollsOwed: 0,
     trades: [],
+    rareTrade: null,
     // False, so a new campaign gets the ten-tier-level check while it is being
     // built. The v2 → v3 migration deliberately answers `true` instead — see
     // the step in `src/persistence/migrations.ts` for why the two differ.
