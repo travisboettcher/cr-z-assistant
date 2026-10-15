@@ -280,6 +280,13 @@ or a decoration.
   through.
 - Building deducts exactly the Hardware cost and nothing else.
 
+**Corrected by the Errata, pp. 68 and 72
+([#222](https://github.com/travisboettcher/cr-z-assistant/issues/222)).** The Bunk Room's slot
+requirement is Indoor, or Power: it may be built outdoors, and there it works only while supplied
+Power. `requires.orUtility` holds the alternative; `slotNeeded` in `base.ts` lets the build through
+with no warning, and `utilitiesNeeded` asks for the Power every turn wherever a requirement is read,
+so an outdoor Bunk Room without it gives no beds, and nothing its upgrades give either.
+
 ---
 
 ## Z2-6 — Upgrades and the three-upgrade cap

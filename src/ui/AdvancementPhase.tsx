@@ -972,8 +972,8 @@ function HealWounds({ campaign }: { readonly campaign: Campaign }) {
       </p>
       {viral && (
         <p className={`mt-1 ${HINT}`}>
-          Any point may remove a point of Infection instead of closing a wound, and a survivor with
-          Infection takes a share for it even at full Health <PageRef pages={123} />
+          Any point may remove a point of Infection instead of closing a wound, and a survivor at
+          full Health takes none <PageRef pages="19, 21, 123" />
         </p>
       )}
 
@@ -1056,9 +1056,9 @@ const HEALTH_SOURCE_LABELS: Record<HealthSource, string> = {
  * Point by point, which is how the book puts it, and a choice of a number
  * rather than a toggle per point because the points are interchangeable — two
  * on Infection is two on Infection whichever two they were. Only the numbers
- * `infectionRange` allows are offered: a survivor at full Health has nothing
- * to choose (every point goes on Infection) and one with no Infection has
- * nothing either, so the control says what happens rather than offering one
+ * `infectionRange` allows are offered: where Health can take none of the
+ * points past a wound they go on Infection, and one with no Infection has
+ * nothing to choose, so the control says what happens rather than offering one
  * option.
  */
 function InfectionSpent({
@@ -1073,10 +1073,7 @@ function InfectionSpent({
 
   if (most === least) {
     return least === 0 ? null : (
-      <span className="block text-xs">
-        {least === award.health ? 'All of it' : String(least)} against Infection — Health can take
-        no more
-      </span>
+      <span className="block text-xs">{least} against Infection — Health can take no more</span>
     );
   }
 

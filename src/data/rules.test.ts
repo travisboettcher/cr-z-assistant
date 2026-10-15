@@ -250,6 +250,17 @@ describe('facility table', () => {
     }
   });
 
+  /** Indoor, or outdoor with Power (Errata, pp. 68 and 72). */
+  it('lets only the Bunk Room meet its slot with a utility instead', () => {
+    const standingIn = [...FACILITIES_LIST, ...UPGRADES_LIST].filter(
+      (entry) => entry.requires?.orUtility !== undefined,
+    );
+
+    expect(standingIn.map((entry) => [entry.id, entry.requires])).toEqual([
+      ['bunk-room', { slot: 'indoor', orUtility: 'power' }],
+    ]);
+  });
+
   it('excludes only upgrades of the same facility', () => {
     for (const facility of FACILITIES_LIST) {
       const siblings = facility.upgrades.map((upgrade) => upgrade.id);

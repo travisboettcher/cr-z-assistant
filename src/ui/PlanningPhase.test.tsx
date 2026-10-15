@@ -148,6 +148,26 @@ describe('the Planning Phase steps', () => {
     expect(earl).toBeChecked();
   });
 
+  /** Infection earns a survivor at full Health no point (pg. 19, 21; #219). */
+  it('warns about resting at full Health in a Viral campaign, Infection or not', () => {
+    open(
+      planning({
+        step: 'assign-rest-and-healing',
+        origin: 'viral',
+        survivors: [
+          { ...createSurvivor('Earl Rhodes', 4, { id: EARL }), infection: 4 },
+          { ...createSurvivor('Carla Proust', 3, { id: CARLA }), currentHp: 1, infection: 4 },
+        ],
+      }),
+    );
+
+    const resting = within(screen.getByRole('group', { name: /^resting/i }));
+
+    expect(
+      resting.getAllByText(/already at full health, so resting would do nothing/i),
+    ).toHaveLength(1);
+  });
+
   it('warns that only one survivor may rest, naming who is', async () => {
     const user = open(planning({ step: 'assign-rest-and-healing' }));
 

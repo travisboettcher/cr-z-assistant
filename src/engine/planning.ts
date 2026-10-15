@@ -28,11 +28,13 @@
 import { TURN_STEPS } from '../data/turn';
 import { HERO_TIER } from '../data/tiers';
 import { suppliedOccupants } from './utilities';
+import { utilitiesNeeded } from './base';
 import type { Facility, Upgrade } from '../data/facilities';
 import type { Assignment, Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
 import { missionTeam, survivorsDoing } from './assignments';
 import { incapacitatedByInfection, maxHp } from './survivor';
+import { need } from './healing';
 
 export type PlanningViolationCode =
   | 'nothing-in-slot'
@@ -113,23 +115,14 @@ function isInjured(survivor: Survivor): boolean {
 }
 
 /**
- * Whether resting or healing could do this survivor any good.
+ * Whether resting or healing would give this survivor nothing.
  *
- * A wound, or Infection a point could remove instead (pg. 19, 123): a Viral
- * survivor at full Health with Infection is somebody the Clinic can still
- * help, and warning that it "would do nothing" would talk the table out of
- * the one thing that clears it (#176). Outside a Viral campaign this is
- * `isInjured`, because nobody has any Infection.
+ * `need`, the number Heal Wounds shares its points against, so the warning and
+ * the award cannot disagree. Nothing at full Health, whatever their Infection:
+ * only a survivor below their maximum is given any (pg. 19, 21; #219).
  */
-function hasSomethingToHeal(survivor: Survivor): boolean {
-  return isInjured(survivor) || survivor.infection > 0;
-}
-
-/** "Full Health", or "full Health and no Infection" where Infection is a thing. */
-function nothingToHeal(campaign: Campaign): string {
-  return campaign.origin === 'viral'
-    ? 'At full Health with no Infection'
-    : 'Already at full Health';
+function nothingToHeal(survivor: Survivor): boolean {
+  return need(survivor) === 0;
 }
 
 /** Somebody other than this survivor already doing the task. */
@@ -222,16 +215,15 @@ function staffingWarnings(campaign: Campaign, slot: string): readonly PlanningVi
   }
 
   const unmet = (entry: Facility | Upgrade) =>
-    (entry.requires?.utilities ?? []).some((utility) => !occupant[utility]);
+    utilitiesNeeded(entry, occupant.kind).some((utility) => !occupant[utility]);
 
   /*
-   * **No facility in the catalogue requires a utility today** — every
-   * `requires.utilities` in `facilities.ts` is on an upgrade — so this branch
-   * is unreachable from the data and its mutants survive. It stays for the
-   * reason `Upgrade.rare` stays: the rule is real (pg. 54 stops an entry whose
-   * requirements are unmet, and `working` applies that to facilities too), the
-   * shape is the correct one for it, and the alternative is a silence that
-   * turns into a wrong screen the first time such a facility is transcribed.
+   * **One facility in the catalogue can need a utility**: the Bunk Room
+   * outdoors, which needs Power there (Errata, pp. 68 and 72). It takes no
+   * staff, so no screen offers this branch for it, but the rule is real
+   * (pg. 54 stops an entry whose requirements are unmet, and `working` applies
+   * that to the whole slot), and a silence here would turn into a wrong screen
+   * the first time a staffed one is transcribed.
    */
   if (unmet(occupant.facility)) {
     return [
@@ -260,10 +252,10 @@ function staffingWarnings(campaign: Campaign, slot: string): readonly PlanningVi
 function restWarnings(campaign: Campaign, survivor: Survivor): readonly PlanningViolation[] {
   const warnings: PlanningViolation[] = [];
 
-  if (!hasSomethingToHeal(survivor)) {
+  if (nothingToHeal(survivor)) {
     warnings.push({
       code: 'already-at-full-health',
-      message: `${nothingToHeal(campaign)}, so resting would do nothing.`,
+      message: 'Already at full Health, so resting would do nothing.',
       pages: 21,
     });
   }
@@ -290,10 +282,10 @@ function restWarnings(campaign: Campaign, survivor: Survivor): readonly Planning
 function healingWarnings(campaign: Campaign, survivor: Survivor): readonly PlanningViolation[] {
   const warnings: PlanningViolation[] = [];
 
-  if (!hasSomethingToHeal(survivor)) {
+  if (nothingToHeal(survivor)) {
     warnings.push({
       code: 'already-at-full-health',
-      message: `${nothingToHeal(campaign)}, so healing would do nothing.`,
+      message: 'Already at full Health, so healing would do nothing.',
       pages: 21,
     });
   }

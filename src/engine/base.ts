@@ -28,6 +28,11 @@
  * illegal, which is what `legality.ts` already does for survivors, is the
  * answer that stays inside what the rules actually say.
  *
+ * **One slot requirement is a utility in disguise.** The Errata lets a Bunk
+ * Room stand outdoors if it is supplied Power (pp. 68 and 72), so outdoors its
+ * slot requirement *is* a Power requirement: `utilitiesNeeded` adds it, and
+ * it gates like any other. Indoors it needs nothing.
+ *
  * Origin and mission requirements are gates on *building* the thing, not
  * conditions on operating it, so they do not appear here either.
  *
@@ -247,6 +252,36 @@ export function occupants(base: Base): readonly Occupant[] {
 }
 
 /**
+ * The kind of slot this entry still needs, or `undefined` where this kind will
+ * do (pg. 54, 72–73).
+ *
+ * The other kind will do too where a utility stands in for the slot — the
+ * Bunk Room outdoors (Errata, pp. 68 and 72) — because then the requirement is
+ * that utility, which `utilitiesNeeded` asks for every turn rather than this
+ * asking once at the build.
+ */
+export function slotNeeded(entry: Facility | Upgrade, kind: SlotKind): SlotKind | undefined {
+  const { slot, orUtility } = entry.requires ?? {};
+
+  return slot === kind || orUtility !== undefined ? undefined : slot;
+}
+
+/**
+ * Every utility this entry needs supplied to have any effect where it stands:
+ * its own, and the one that stands in for its slot when it is in the other
+ * kind (Errata, pp. 68 and 72).
+ *
+ * The one list every reader of an entry's utility requirements asks — what
+ * works, what the Planning Phase warns about, what a point of supply is for —
+ * so an outdoor Bunk Room's Power is wanted everywhere it is needed.
+ */
+export function utilitiesNeeded(entry: Facility | Upgrade, kind: SlotKind): readonly Utility[] {
+  const { slot, utilities = [], orUtility } = entry.requires ?? {};
+
+  return orUtility === undefined || slot === kind ? utilities : [...utilities, orUtility];
+}
+
+/**
  * Whether this entry's utility requirements are met where it stands.
  *
  * Indexed rather than branched on which utility it is: `Utility` and the
@@ -254,16 +289,9 @@ export function occupants(base: Base): readonly Occupant[] {
  * here to get backwards.
  */
 function supplied(entry: Facility | Upgrade, occupant: Occupant): boolean {
-  return (entry.requires?.utilities ?? []).every((utility) => occupant[utility]);
+  return utilitiesNeeded(entry, occupant.kind).every((utility) => occupant[utility]);
 }
 
-/**
- * The facility and its upgrades, minus everything an unmet utility switches off.
- *
- * Exported because production reads it too: what a facility makes and what it
- * stores are switched off by the same rule, and two copies of that rule would
- * be two places for it to drift.
- */
 /**
  * What clearing this slot costs and gives, or `undefined` where there is no
  * rubble in it.
@@ -294,8 +322,24 @@ export function occupantAt(campaign: Campaign, slot: string): Occupant | undefin
   return occupants(campaign.base).find((occupant) => occupant.slotId === slot);
 }
 
+/**
+ * The facility and its upgrades, minus everything an unmet utility switches off.
+ *
+ * **Nothing at all where the facility itself is switched off**: an unmet
+ * requirement on the facility stops everything in the slot, and one on an
+ * upgrade stops only that upgrade (pg. 54, 67) — which is what the Planning
+ * Phase has always told a table. No facility needed a utility until the
+ * Errata's outdoor Bunk Room, so filtering each entry alone never showed the
+ * difference; an unpowered one with an Extra Bed would have kept the bed.
+ *
+ * Exported because production reads it too: what a facility makes and what it
+ * stores are switched off by the same rule, and two copies of that rule would
+ * be two places for it to drift.
+ */
 export function working(occupant: Occupant): readonly (Facility | Upgrade)[] {
-  return [occupant.facility, ...occupant.upgrades].filter((entry) => supplied(entry, occupant));
+  if (!supplied(occupant.facility, occupant)) return [];
+
+  return [occupant.facility, ...occupant.upgrades.filter((entry) => supplied(entry, occupant))];
 }
 
 /**

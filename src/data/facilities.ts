@@ -54,6 +54,12 @@ export interface Cost {
 export interface Requirements {
   /** The slot this must be built in. Absent means either kind will do. */
   readonly slot?: SlotKind;
+  /**
+   * A utility that stands in for `slot`: built in the other kind of slot, the
+   * entry needs this supplied for any effect to apply, as it would a utility
+   * of its own. The Bunk Room outdoors (Errata, pp. 68 and 72).
+   */
+  readonly orUtility?: Utility;
   /** Utilities that must be supplied this turn for any effect to apply. */
   readonly utilities?: readonly Utility[];
   /** Only available to a campaign running this origin (pg. 122–133). */
@@ -229,7 +235,8 @@ export const FACILITIES = {
   'bunk-room': {
     id: 'bunk-room',
     cost: { hardware: 3, labor: 2 },
-    requires: { slot: 'indoor' },
+    // Indoor, or outdoor with Power (Errata, pp. 68 and 72).
+    requires: { slot: 'indoor', orUtility: 'power' },
     staffed: false,
     effects: { beds: 2 },
     upgrades: [

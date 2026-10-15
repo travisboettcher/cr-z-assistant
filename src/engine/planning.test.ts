@@ -202,6 +202,24 @@ describe('checkAssignment', () => {
       expect(check.warnings[0]?.message).toMatch(/the facility itself still works/i);
     });
 
+    /**
+     * Outdoors a Bunk Room needs Power (Errata, pp. 68 and 72), so without it
+     * the facility itself is off — the one in the catalogue that can be.
+     */
+    it('says the facility itself does nothing when it is missing a utility', () => {
+      const yard = home({ 'front-yard': { built: { facility: 'bunk-room', builtOnTurn: 1 } } });
+
+      expect(
+        checkAssignment(community({}, yard), EARL, { task: 'staff', slot: 'front-yard' }).warnings,
+      ).toEqual([
+        {
+          code: 'utility-unmet',
+          message: 'Needs a utility it does not have, so it produces nothing this turn.',
+          pages: 67,
+        },
+      ]);
+    });
+
     it('says nothing once the point is there and something is generating it', () => {
       const powered = home({
         garage: {
@@ -348,10 +366,10 @@ describe('checkAssignment', () => {
     });
 
     /**
-     * A Viral survivor at full Health with Infection is somebody the Clinic can
-     * still help — a point may remove Infection instead (pg. 19, 123; R18).
+     * Only a survivor below their maximum is given any Health, so one at full
+     * Health with Infection has nothing coming either (pg. 19, 21; #219).
      */
-    it('says nothing about full Health when there is Infection to clear', () => {
+    it('warns about full Health whatever the survivor’s Infection', () => {
       const infected: Campaign = {
         ...community({}, clinic()),
         origin: 'viral',
@@ -360,16 +378,33 @@ describe('checkAssignment', () => {
         ),
       };
 
-      expect(checkAssignment(infected, EARL, { task: 'healing' }).warnings).toEqual([]);
-      expect(checkAssignment(infected, EARL, { task: 'rest' }).warnings).toEqual([]);
+      expect(checkAssignment(infected, EARL, { task: 'healing' }).warnings).toEqual([
+        {
+          code: 'already-at-full-health',
+          message: 'Already at full Health, so healing would do nothing.',
+          pages: 21,
+        },
+      ]);
+      expect(checkAssignment(infected, EARL, { task: 'rest' }).warnings).toEqual([
+        {
+          code: 'already-at-full-health',
+          message: 'Already at full Health, so resting would do nothing.',
+          pages: 21,
+        },
+      ]);
     });
 
-    it('names Infection in the warning when the campaign has it', () => {
-      const viral: Campaign = { ...community({}, clinic()), origin: 'viral' };
+    it('says nothing about a wounded survivor with Infection', () => {
+      const infected: Campaign = {
+        ...community({}, clinic()),
+        origin: 'viral',
+        survivors: community().survivors.map((survivor) =>
+          survivor.id === CARLA ? { ...survivor, infection: 2 } : survivor,
+        ),
+      };
 
-      expect(checkAssignment(viral, EARL, { task: 'healing' }).warnings[0]?.message).toBe(
-        'At full Health with no Infection, so healing would do nothing.',
-      );
+      expect(checkAssignment(infected, CARLA, { task: 'healing' }).warnings).toEqual([]);
+      expect(checkAssignment(infected, CARLA, { task: 'rest' }).warnings).toEqual([]);
     });
 
     it('lets any number be healed, unlike resting', () => {

@@ -816,8 +816,8 @@ describe('Heal Wounds', () => {
 
     /**
      * Earl at 1 of 4 with 3 Infection, Carla at full Health with 2. Three
-     * points: two to Earl and one to Carla, who takes a share for her
-     * Infection alone (R18).
+     * points, all of them Earl's: only a survivor below their maximum is given
+     * Health, so Carla's Infection earns her none (pg. 19, 21; #219).
      */
     const fevered = () =>
       withClinic({
@@ -836,14 +836,37 @@ describe('Heal Wounds', () => {
       expect(within(walk()).queryByText(/infection/i)).toBeNull();
     });
 
-    it('shares a point with somebody at full Health for their Infection', () => {
+    it('shares nothing with somebody at full Health for their Infection', () => {
       open(fevered());
 
-      expect(within(walk()).getByText(/Earl Rhodes \+2 Health/)).toBeTruthy();
-      expect(within(walk()).getByText(/Carla Proust \+1 Health/)).toBeTruthy();
-      // Carla has nowhere to put it but Infection, so there is nothing to pick.
-      expect(within(walk()).getByText(/all of it against infection/i)).toBeTruthy();
+      expect(within(walk()).getByText(/Earl Rhodes \+3 Health/)).toBeTruthy();
+      expect(within(walk()).queryByText(/Carla Proust/)).toBeNull();
       expect(within(walk()).queryByLabelText(/points against infection for carla/i)).toBeNull();
+    });
+
+    /**
+     * Carla at 2 of 3 with 1 Infection, and Earl at full Health with 3, so
+     * Carla takes two points: one closes her wound and the other has nowhere
+     * to go but Infection.
+     */
+    it('says where a point Health cannot hold goes, rather than offering one option', () => {
+      open(
+        withClinic({
+          origin: 'viral',
+          survivors: [
+            medic,
+            { ...createSurvivor('Earl Rhodes', 4, { id: EARL }), infection: 3 },
+            { ...createSurvivor('Carla Proust', 3, { id: CARLA }), currentHp: 2, infection: 1 },
+          ],
+        }),
+      );
+
+      expect(within(walk()).getByText(/Carla Proust \+2 Health/)).toBeTruthy();
+      expect(
+        within(walk()).getByText(/1 against infection — health can take no more/i),
+      ).toBeTruthy();
+      expect(within(walk()).queryByLabelText(/points against infection/i)).toBeNull();
+      expect(within(walk()).queryByText(/Earl Rhodes/)).toBeNull();
     });
 
     it('spends the points as chosen, and the history says how', async () => {
@@ -853,18 +876,16 @@ describe('Heal Wounds', () => {
         within(walk()).getByLabelText(/points against infection for earl rhodes/i),
         '1',
       );
-      // Shown before it is applied: one on a wound, one on Infection.
-      expect(within(walk()).getByText(/to 2, Infection 2/)).toBeTruthy();
+      // Shown before it is applied: two on a wound, one on Infection.
+      expect(within(walk()).getByText(/to 3, Infection 2/)).toBeTruthy();
 
       await user.click(within(walk()).getByRole('button', { name: /heal wounds/i }));
 
       const history = campaignLog().textContent;
       expect(history).toContain(
-        'Earl Rhodes took 2 Health from the community’s Health: 1 of it against Infection, 1 on wounds.',
+        'Earl Rhodes took 3 Health from the community’s Health: 1 of it against Infection, 2 on wounds.',
       );
-      expect(history).toContain(
-        'Carla Proust took 1 Health from the community’s Health: all of it against Infection.',
-      );
+      expect(history).not.toContain('Carla Proust took');
     });
   });
 });

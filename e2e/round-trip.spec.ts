@@ -1030,8 +1030,10 @@ test('an upgrade waits for the turn after its facility went up', async ({ page }
  * what kind of slot it is.
  *
  * The Hobby Farm's ruined chicken coop is Outdoor. Cleared, it takes a Garden
- * without complaint and still reports a Bunk Room as wanting an Indoor slot —
- * which is the distinction a clearing project could most easily lose.
+ * without complaint, which only an Outdoor slot does — and that is the
+ * distinction a clearing project could most easily lose. (It used to show a
+ * Bunk Room questioned as well; since the Errata, pp. 68 and 72, a Bunk Room
+ * may stand outdoors, and no other Indoor-only facility is offered.)
  */
 test('a cleared slot builds like an empty one of its own kind', async ({ page }) => {
   await startCampaign(page, 'Cedar Hollow');
@@ -1065,13 +1067,10 @@ test('a cleared slot builds like an empty one of its own kind', async ({ page })
   await ensurePanel(page, 'base');
   await page.getByRole('button', { name: /build in ruined chicken coop/i }).click();
 
-  // Still an Outdoor slot: an Indoor facility is questioned, an Outdoor one is
-  // not. Clearing changed availability, not kind.
-  await page.getByLabel(/^facility$/i).selectOption({ label: 'Bunk Room' });
-  await expect(page.getByText(/needs an indoor slot, and this one is outdoor/i)).toBeVisible();
-
+  // Still an Outdoor slot: a Garden, which needs one, is not questioned.
+  // Clearing changed availability, not kind.
   await page.getByLabel(/^facility$/i).selectOption({ label: 'Garden' });
-  await expect(page.getByText(/needs an indoor slot/i)).not.toBeVisible();
+  await expect(page.getByText(/needs an outdoor slot/i)).not.toBeVisible();
   await page.getByRole('button', { name: /order the build/i }).click();
 
   await finishProjects(page, 2);
