@@ -91,6 +91,10 @@ Z3-3 ships the frame empty. Every later story fills in one or more steps:
 | Calculate Unrest → Departures | [Z3-10](phase-3-stories.md#z3-10--management-phase-steps-47-unrest-storage-the-horde-departures) |
 | The three Mission Phase steps | Phase 4 — here they are a doorway and the outcome is typed in |
 
+**Inside a step**, what it shows before its action is recorded and after is
+[`step-records.md`](step-records.md), and the assignment and equipment steps are drawn as the board
+in [`assignment-board.md`](assignment-board.md).
+
 **The roster and the base are not steps, and do not move into the walk.** A player looks up a
 survivor's Skill Score whenever they want, not only during Character Advancement. Both sit in the
 community summary beside the walk and open in a modal over it

@@ -129,6 +129,11 @@ In the turn walk the area is the step, and which of its buttons is amber follows
 one and Next is secondary. Once it owes nothing, Next is amber, and an action left on the step
 (choosing a team's mission again, healing with nobody wounded) is secondary.
 
+**A step is a form until it is recorded, then a record.** Drafts wait for the step's one button;
+once it is pressed, the step shows what was recorded rather than live controls beside it. See
+[`step-records.md`](step-records.md), and [`assignment-board.md`](assignment-board.md) for the steps
+made of assignments. Both are proposed and not built yet.
+
 ## Before you add a screen
 
 1. Is it part of playing a turn? Then it is a step, or part of one, inside the turn walk.
