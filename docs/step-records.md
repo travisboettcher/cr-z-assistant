@@ -120,10 +120,9 @@ R1 and R4 stand alone. R3 is the largest and is the one to read most carefully i
 
 ## Open questions
 
-- **A mis-pressed "+1 XP".** R7 says a point handed out stays handed out when the team changes
-  later, which is a ruling about the team. A mis-tap is a different thing, and taking it back is
-  undo. Pull a narrow undo for it forward from Phase 8 (a logged "taken back" entry, the newest
-  award only, this step only), or leave it for Phase 8?
+- **A mis-pressed "+1 XP".** *Decided 2026-10-16: not yet.* R7 says a point handed out stays
+  handed out when the team changes later, which is a ruling about the team. A mis-tap is a
+  different thing, and taking it back is undo, which stays Phase 8's.
 - **R3's one press.** If recording a death has to follow the outcome in the engine, the outcome
   form either submits twice in order (and shows the death form again if the second is refused) or
   needs one composite engine form. Which is decided when R3 is written, with the engine in front of

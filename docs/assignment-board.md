@@ -140,9 +140,9 @@ record. The base's slot card keeps its list throughout.
   commonest mistake this screen exists to prevent". Owing it at Assign Mission Team would make Next
   ask (#234) each turn somebody is idle, including on purpose. Owe it, show it only, or owe it only
   when everybody was idle last turn too?
-- **One board or four?** This design keeps the four steps and focuses lanes. The alternative is one
-  Planning step showing the whole board, with the four steps as the order the lanes are listed in.
-  That is shorter to walk and further from the book's step list.
+- **One board or four?** *Decided 2026-10-16: four.* The four steps stay, each focusing its lanes,
+  because the walk follows the book's step list. One Planning step showing the whole board was the
+  alternative.
 
 ## What this design does not decide
 
