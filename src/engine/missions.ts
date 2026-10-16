@@ -69,10 +69,22 @@ export interface MissionChoice {
   readonly base?: BaseId;
 }
 
+/**
+ * A choice as it was recorded: the team's mission, and who was on the team
+ * when it was chosen.
+ *
+ * The names are the entry's, not the team's now. A record that read the
+ * current team rewrote who it said went when somebody came off the team
+ * afterwards (#236, R1).
+ */
+export interface RecordedChoice extends MissionChoice {
+  readonly names: readonly string[];
+}
+
 /** What Select Mission has recorded this turn. */
 export interface TurnMissions {
   /** Each team's latest choice, in team order. */
-  readonly choices: readonly MissionChoice[];
+  readonly choices: readonly RecordedChoice[];
 
   /** Whether the community opted out (pg. 17). */
   readonly skipped: boolean;
@@ -126,7 +138,7 @@ export function missionTeams(campaign: Campaign): readonly MissionTeam[] {
  * unless an opt-out came after it.
  */
 export function turnMissions(campaign: Campaign): TurnMissions {
-  let choices = new Map<number, MissionChoice>();
+  let choices = new Map<number, RecordedChoice>();
   let skipped = false;
   let recorded = false;
 
@@ -139,6 +151,7 @@ export function turnMissions(campaign: Campaign): TurnMissions {
       choices.set(event.team, {
         team: event.team,
         mission: event.mission,
+        names: event.names,
         ...(event.material === undefined ? {} : { material: event.material }),
         ...(event.base === undefined ? {} : { base: event.base }),
       });

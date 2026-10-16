@@ -9,8 +9,13 @@
  * on turn 1 it is the First Mission. What is on offer, and why a choice is
  * refused, are `missions.ts`'s answers: this screen renders them.
  *
- * A choice can be made again, which is how one is corrected, and the
- * community may opt out instead, which is when a scavenger goes out (pg. 17).
+ * A team's choice is a form until it is recorded, then a record
+ * (`docs/step-records.md`, R1; #236): the sentence its entry wrote, with the
+ * names it was recorded with rather than whoever is on the team now, and a
+ * Change button that reopens the form while `selectionProblem` would still
+ * take a new choice. Choosing again appends an entry and the latest wins, so
+ * Change is the same press made again on purpose, not an undo. The community
+ * may opt out instead, which is when a scavenger goes out (pg. 17).
  */
 
 import { useState } from 'react';
@@ -45,6 +50,8 @@ const SELECT = `${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300
 const PRIMARY = `${FOCUS_RING} ${TOUCH_TARGET} rounded-lg ${PRIMARY_FILL} px-4 py-2 font-medium disabled:cursor-not-allowed disabled:opacity-50`;
 const CHOSEN = `${FOCUS_RING} ${TOUCH_TARGET} rounded-lg ${SECONDARY_FILL} px-4 py-2 font-medium disabled:cursor-not-allowed disabled:opacity-50`;
 
+const QUIET = `${FOCUS_RING} ${TOUCH_TARGET} rounded-lg px-4 py-2 font-medium text-stone-600 enabled:hover:bg-stone-100 dark:text-stone-400 dark:enabled:hover:bg-stone-800`;
+
 const SECONDARY = `${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800`;
 
 /** The chapters the catalogue's families come from, for grouping the list. */
@@ -78,6 +85,7 @@ function TeamChoice({
   );
   const [material, setMaterial] = useState<Material>(current?.material ?? 'food');
   const [base, setBase] = useState<BaseId>(current?.base ?? 'small-town-home');
+  const [changing, setChanging] = useState(false);
 
   const choice = {
     team: team.team,
@@ -93,21 +101,52 @@ function TeamChoice({
   const materialId = `mission-material-${String(team.team)}`;
   const baseId = `mission-base-${String(team.team)}`;
 
+  const members = team.members.map((survivor) => survivor.name);
+
+  if (current !== undefined && !changing) {
+    // The engine's answer to "would a new choice be taken": refused once the
+    // team's outcome is recorded, except where a retry or a way on reopens it.
+    const changeable = selectionProblem(campaign, current) === null;
+    const moved =
+      members.length !== current.names.length ||
+      members.some((name) => !current.names.includes(name));
+
+    return (
+      <fieldset className="mt-3 flex flex-col gap-2 rounded-lg border border-stone-200 p-3 dark:border-stone-700">
+        <legend className="px-1 text-sm font-semibold">Mission team {team.team}</legend>
+
+        <p className="text-sm font-medium">
+          {describeSelection(current)} <PageRef pages={MISSIONS[current.mission].pages} />
+        </p>
+
+        {moved && <p className={HINT}>The team is now {members.join(', ')}.</p>}
+
+        {changeable && (
+          <div>
+            <button
+              type="button"
+              className={CHOSEN}
+              onClick={() => {
+                // From what was recorded, not from a draft left over before it.
+                setMission(current.mission);
+                setMaterial(current.material ?? 'food');
+                setBase(current.base ?? 'small-town-home');
+                setChanging(true);
+              }}
+            >
+              Change team {team.team}’s mission
+            </button>
+          </div>
+        )}
+      </fieldset>
+    );
+  }
+
   return (
     <fieldset className="mt-3 flex flex-col gap-2 rounded-lg border border-stone-200 p-3 dark:border-stone-700">
       <legend className="px-1 text-sm font-semibold">Mission team {team.team}</legend>
 
-      <p className="text-sm">{team.members.map((survivor) => survivor.name).join(', ')}</p>
-
-      {current !== undefined && (
-        <p className="text-sm font-medium">
-          {describeSelection({
-            ...current,
-            names: team.members.map((survivor) => survivor.name),
-          })}{' '}
-          <PageRef pages={MISSIONS[current.mission].pages} />
-        </p>
-      )}
+      <p className="text-sm">{members.join(', ')}</p>
 
       <div className="flex flex-wrap items-center gap-2">
         <label className="text-sm" htmlFor={missionId}>
@@ -190,7 +229,7 @@ function TeamChoice({
         </p>
       )}
 
-      <div>
+      <div className="flex flex-wrap gap-3">
         {/*
          * Primary until the team has a mission on the record. After that,
          * choosing again is there for a table that changes its mind, and is
@@ -202,12 +241,24 @@ function TeamChoice({
           disabled={problem !== null}
           onClick={() => {
             dispatch({ type: 'mission/selected', ...choice, at: new Date().toISOString() });
+            setChanging(false);
           }}
         >
           {current === undefined
             ? `Choose for team ${String(team.team)}`
             : `Choose again for team ${String(team.team)}`}
         </button>
+        {current !== undefined && (
+          <button
+            type="button"
+            className={QUIET}
+            onClick={() => {
+              setChanging(false);
+            }}
+          >
+            Keep {MISSION_LABELS[current.mission]}
+          </button>
+        )}
       </div>
     </fieldset>
   );
