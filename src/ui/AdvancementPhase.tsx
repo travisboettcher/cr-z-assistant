@@ -99,7 +99,7 @@ import { PageRef } from './PageRef';
 import { SKILL_LABELS } from './skillLabels';
 import { TIER_LABELS } from './tierLabels';
 import { withArticle } from './articles';
-import { FOCUS_RING, TOUCH_TARGET } from './styles';
+import { FOCUS_RING, PRIMARY_FILL, SECONDARY_FILL, TOUCH_TARGET } from './styles';
 
 export interface AdvancementPhaseProps {
   readonly campaign: Campaign;
@@ -221,7 +221,7 @@ function ReturnedRejoining({ campaign }: { readonly campaign: Campaign }) {
           </span>
           <button
             type="button"
-            className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+            className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg ${PRIMARY_FILL} px-4 py-2 font-medium`}
             onClick={() => {
               dispatch({
                 type: 'advancement/survivorReturned',
@@ -323,7 +323,7 @@ function StrangerJoining({
         <button
           type="button"
           disabled={problem !== null}
-          className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+          className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg ${PRIMARY_FILL} px-4 py-2 font-medium disabled:cursor-not-allowed disabled:opacity-40`}
           onClick={() => {
             dispatch({
               type: 'advancement/strangerJoined',
@@ -788,7 +788,7 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
           <button
             type="button"
             disabled={!rareReady}
-            className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+            className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg ${PRIMARY_FILL} px-4 py-2 font-medium disabled:cursor-not-allowed disabled:opacity-50`}
             onClick={() => {
               // Zero rolls is legitimate — a turn with no mission still adds
               // the base's production — so the button is never disabled. It
@@ -834,7 +834,7 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
                   emptyRef.current?.close();
                   commit();
                 }}
-                className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg bg-amber-600 px-5 font-semibold text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+                className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg ${PRIMARY_FILL} px-5 font-semibold`}
               >
                 Add production only
               </button>
@@ -1018,9 +1018,13 @@ function HealWounds({ campaign }: { readonly campaign: Campaign }) {
             </p>
           ))}
 
+          {/*
+           * Still a press with nobody to heal, so the step records that it ran,
+           * but not the primary one: the step owes nothing, so Next is (#231).
+           */}
           <button
             type="button"
-            className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+            className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg ${awards.length === 0 ? SECONDARY_FILL : PRIMARY_FILL} px-4 py-2 font-medium`}
             onClick={() => {
               dispatch({
                 type: 'advancement/woundsHealed',
@@ -1340,7 +1344,7 @@ function FinishProjects({ campaign }: { readonly campaign: Campaign }) {
             <button
               type="button"
               disabled={!ready}
-              className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+              className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg ${PRIMARY_FILL} px-4 py-2 font-medium disabled:cursor-not-allowed disabled:opacity-50`}
               onClick={() => {
                 dispatch({
                   type: 'advancement/projectsCompleted',
@@ -1527,7 +1531,7 @@ function MoveIn({ campaign }: { readonly campaign: Campaign }) {
       <button
         type="button"
         disabled={problem !== null}
-        className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+        className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg ${PRIMARY_FILL} px-4 py-2 font-medium disabled:cursor-not-allowed disabled:opacity-50`}
         onClick={() => {
           dispatch({ type: 'advancement/moved', leaving, at: new Date().toISOString() });
         }}

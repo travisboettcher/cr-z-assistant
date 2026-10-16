@@ -12,10 +12,10 @@
  * phases that looks tappable and refuses is worse than one that plainly is not.
  */
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { CAMPAIGN_PHASES, TURN_STEPS, type TurnStepId } from '../data/turn';
 import type { Campaign } from '../engine/campaign';
-import { advance, phaseOf, positionOf, reverse } from '../engine/turn';
+import { advance, phaseOf, positionOf, reverse, type AdvanceBy } from '../engine/turn';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
 import { AdvancementPhase } from './AdvancementPhase';
@@ -30,12 +30,12 @@ import { SiegeWork } from './SiegeWork';
 import { ManagementPhase } from './ManagementPhase';
 import { PlanningPhase } from './PlanningPhase';
 import { FIRST_TURN, siegeCalledOn, siegeDue } from '../engine/siege';
-import { outstanding } from '../engine/outstanding';
+import { outstanding, owedOnLeaving } from '../engine/outstanding';
 import { laborShortfall } from '../engine/projects';
 import { materialsAdded } from '../engine/materials';
 import { clearPendingRolls, readPendingRolls } from '../persistence/pendingRolls';
 import { PHASE_LABELS, STEP_LABELS } from './turnLabels';
-import { FOCUS_RING, TOUCH_TARGET } from './styles';
+import { FOCUS_RING, PRIMARY_FILL, SECONDARY_FILL, TOUCH_TARGET } from './styles';
 
 export interface TurnWalkProps {
   readonly campaign: Campaign;
@@ -46,6 +46,9 @@ const BUTTON = `${TOUCH_TARGET} ${FOCUS_RING} rounded-lg px-4 py-2 font-medium`;
 export function TurnWalk({ campaign }: TurnWalkProps) {
   const { dispatch } = useCampaign();
   const endTurnRef = useRef<HTMLDialogElement>(null);
+  const leaveRef = useRef<HTMLDialogElement>(null);
+  /** The move the leave dialog is asking about, while it is open. */
+  const [leaving, setLeaving] = useState<AdvanceBy>('step');
 
   const phase = phaseOf(campaign.step);
   const steps = TURN_STEPS[phase];
@@ -80,9 +83,27 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
   }
 
   /**
-   * The one move that asks first. Everything else is a press away from being
-   * undone by the press next to it; ending a turn is not, because the turn that
-   * ended took materials, Health and sometimes survivors with it.
+   * Forward, asking first when the move would leave something owed behind
+   * (#234). Guidance, not a gate: the dialog always lets the table go on. A
+   * move that ends the turn asks in the End-turn dialog instead, which names
+   * the whole turn.
+   */
+  function forward(by: AdvanceBy) {
+    if (advance(campaign.step, by).endsTurn) {
+      endTurnRef.current?.showModal();
+    } else if (owedOnLeaving(campaign, by).length > 0) {
+      setLeaving(by);
+      leaveRef.current?.showModal();
+    } else {
+      move(by);
+    }
+  }
+
+  /**
+   * The one move that always asks first. Everything else is a press away from
+   * being undone by the press next to it, and asks only when it would leave a
+   * step owed (`forward`); ending a turn is not, because the turn that ended
+   * took materials, Health and sometimes survivors with it.
    */
   function endTurn(by: 'step' | 'phase') {
     endTurnRef.current?.close();
@@ -104,8 +125,9 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
       </h2>
 
       {/* Band one: orientation. A list rather than buttons, because the turn
-          runs in order and there is nothing here to press. */}
-      <ol className="mt-4 flex gap-2 overflow-x-auto text-sm">
+          runs in order and there is nothing here to press. It wraps rather
+          than scrolls, so no phase is ever off the edge of a phone (#232). */}
+      <ol className="mt-4 flex flex-wrap gap-2 text-sm">
         {CAMPAIGN_PHASES.map((candidate) => (
           <li
             key={candidate}
@@ -144,8 +166,8 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
                 current
                   ? 'bg-stone-100 font-semibold dark:bg-stone-800'
                   : done
-                    ? 'text-stone-400 dark:text-stone-500'
-                    : 'text-stone-600 dark:text-stone-400'
+                    ? 'text-stone-500 dark:text-stone-400'
+                    : 'text-stone-600 dark:text-stone-300'
               }`}
             >
               {/*
@@ -176,12 +198,17 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
 
       {/* Band three: this step, and the moves. */}
       <div className="mt-6 flex flex-wrap items-center gap-3">
+        {/*
+         * Amber only when moving on is the thing to do. While this step still
+         * owes something, its own action is the area's one primary and Next
+         * stands back beside it (#231). The same `owed` the progress list and
+         * the End-turn dialog read, so the three cannot disagree.
+         */}
         <button
           type="button"
-          className={`${BUTTON} bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+          className={`${BUTTON} ${owedHere(campaign.step).length > 0 ? SECONDARY_FILL : PRIMARY_FILL} disabled:opacity-50`}
           onClick={() => {
-            if (byStep.endsTurn) endTurnRef.current?.showModal();
-            else move('step');
+            forward('step');
           }}
         >
           {byStep.endsTurn ? `End turn ${campaign.turn}` : `Next: ${STEP_LABELS[byStep.step]}`}
@@ -197,8 +224,7 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
             type="button"
             className={`${BUTTON} border border-stone-300 hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800`}
             onClick={() => {
-              if (byPhase.endsTurn) endTurnRef.current?.showModal();
-              else move('phase');
+              forward('phase');
             }}
           >
             {byPhase.endsTurn
@@ -388,7 +414,7 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
         <div className="mt-5 flex flex-wrap gap-3">
           <button
             type="button"
-            className={`${BUTTON} bg-amber-600 text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+            className={`${BUTTON} ${PRIMARY_FILL}`}
             onClick={() => {
               endTurn(byStep.endsTurn ? 'step' : 'phase');
             }}
@@ -403,6 +429,60 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
             }}
           >
             Stay on this turn
+          </button>
+        </div>
+      </dialog>
+
+      {/*
+       * Asked only when moving on passes a step `outstanding` owes, so a table
+       * that does each step sees it never, and one that presses Next past the
+       * meal sees it then rather than five steps later (#234). Staying is the
+       * primary: the owed action is on this step, and that is the one to take.
+       */}
+      <dialog
+        ref={leaveRef}
+        aria-labelledby="leave-step-heading"
+        className="m-auto max-w-md rounded-xl border border-stone-200 bg-white p-6 text-stone-900 backdrop:bg-stone-900/50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
+      >
+        <h3 id="leave-step-heading" className="text-lg font-semibold">
+          {leaving === 'step'
+            ? `Go on to ${STEP_LABELS[byStep.step]}?`
+            : `Skip to ${PHASE_LABELS[phaseOf(byPhase.step)]}?`}
+        </h3>
+        <div className="mt-4 rounded-lg border border-amber-300 p-3 dark:border-amber-700">
+          <p className="text-sm font-medium">Still to do:</p>
+          <ul className="mt-2 flex list-disc flex-col gap-1 pl-5 text-sm">
+            {owedOnLeaving(campaign, leaving).map((entry) => (
+              <li key={`${entry.step}:${entry.says}`}>
+                <span className="font-medium">{STEP_LABELS[entry.step]}:</span> {entry.says}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">
+            You can come back to it with Back.
+          </p>
+        </div>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <button
+            type="button"
+            className={`${BUTTON} ${PRIMARY_FILL}`}
+            onClick={() => {
+              leaveRef.current?.close();
+            }}
+          >
+            Stay on {STEP_LABELS[campaign.step]}
+          </button>
+          <button
+            type="button"
+            className={`${BUTTON} ${SECONDARY_FILL}`}
+            onClick={() => {
+              leaveRef.current?.close();
+              move(leaving);
+            }}
+          >
+            {leaving === 'step'
+              ? `Go on to ${STEP_LABELS[byStep.step]}`
+              : `Skip to ${PHASE_LABELS[phaseOf(byPhase.step)]}`}
           </button>
         </div>
       </dialog>

@@ -7,7 +7,7 @@ import { createSurvivor } from '../engine/survivor';
 import { PENDING_ROLLS_KEY } from '../persistence/pendingRolls';
 import { serializeCampaign } from '../persistence/exportFile';
 import { CampaignProvider } from '../state/CampaignProvider';
-import { campaignLog, communityRoster, openMenu, openPanel, stored } from '../test/screens';
+import { campaignLog, communityRoster, goOn, openMenu, openPanel, stored } from '../test/screens';
 import { App } from './App';
 import { generatingUtilities } from '../test/campaigns';
 import { continued, overrun, wentOn } from '../test/overrun';
@@ -975,6 +975,7 @@ describe('Create New Survivors', () => {
       stranger(/mission team 2/i).getByRole('button', { name: 'Join the community' }),
     );
     await user.click(next());
+    goOn();
     await user.click(screen.getByRole('button', { name: /^back to create new survivors$/i }));
 
     expect(within(walk()).queryByRole('group', { name: /mission team 2/i })).toBeNull();
@@ -1169,6 +1170,7 @@ describe('stepping out to the Planning Phase and back', () => {
     expect(within(walk()).getByText(/Nell Haig \+1 Health/)).toBeTruthy();
 
     await user.click(skipToPlanning());
+    goOn();
     await user.click(back(/^back to add facilities and upgrades$/i));
     await user.click(back(/^back to heal wounds$/i));
 
@@ -1182,6 +1184,7 @@ describe('stepping out to the Planning Phase and back', () => {
     expect(within(walk()).getByText(/for going on the mission/i)).toHaveTextContent('1 of 1');
 
     await user.click(skipToPlanning());
+    goOn();
     for (const step of [
       /^back to add facilities and upgrades$/i,
       /^back to heal wounds$/i,
@@ -1206,6 +1209,7 @@ describe('stepping out to the Planning Phase and back', () => {
 
     await user.click(award(/for going on the mission/i, /earl/i));
     await user.click(skipToPlanning());
+    goOn();
     for (const step of [
       /^back to add facilities and upgrades$/i,
       /^back to heal wounds$/i,
@@ -1258,6 +1262,7 @@ describe('stepping out to the Planning Phase and back', () => {
     expect(within(walk()).getByText(/\+1 Food/)).toBeTruthy();
 
     await user.click(skipToPlanning());
+    goOn();
     await user.click(back(/^back to add facilities and upgrades$/i));
     await user.click(back(/^back to heal wounds$/i));
     await user.click(back(/^back to add materials to storage$/i));
@@ -1273,6 +1278,7 @@ describe('stepping out to the Planning Phase and back', () => {
     const user = open(midTurn('heal-wounds'));
 
     await user.click(skipToPlanning());
+    goOn();
 
     expect(screen.getByText(/3 with nothing to do/i)).toBeTruthy();
   });

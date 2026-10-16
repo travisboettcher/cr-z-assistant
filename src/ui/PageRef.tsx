@@ -16,7 +16,7 @@ export interface PageRefProps {
 
 export function PageRef({ pages }: PageRefProps) {
   return (
-    <span className="text-xs whitespace-nowrap text-stone-500 tabular-nums dark:text-stone-400">
+    <span className="text-xs whitespace-nowrap text-stone-600 tabular-nums dark:text-stone-400">
       {/*
        * "pg." is an abbreviation a screen reader would spell out or mangle, and
        * a citation read aloud as "pee gee forty-one" is worse than useless. The

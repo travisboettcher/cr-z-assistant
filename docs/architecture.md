@@ -98,8 +98,9 @@ The turn's **shape** — four phases, nineteen numbered steps, every threshold �
 whether that ends the turn. A campaign stores the step, never the phase, and cannot be asked to
 jump to one by name. [`turn-walk-interaction.md`](turn-walk-interaction.md) explains the screen.
 
-**`src/engine/outstanding.ts`** is what End turn asks before it lets go: which steps had something
-to resolve and have nothing recording that they were. Any rule that adds a step, or changes when a
+**`src/engine/outstanding.ts`** is what End turn asks before it lets go, and what Next and a skip
+ask before they pass a step (`owedOnLeaving`): which steps had something to resolve and have
+nothing recording that they were. Any rule that adds a step, or changes when a
 step has anything to do, changes what this owes — and is the place a disagreement between "the
 step is due" and "the step can be taken" shows up as a turn that never ends.
 

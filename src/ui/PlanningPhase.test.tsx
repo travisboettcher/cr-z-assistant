@@ -325,3 +325,41 @@ describe('ordering outside the step it belongs to', () => {
     expect(screen.queryByText(/are ordered in/i)).toBeNull();
   });
 });
+
+/**
+ * #235. A project team was assigned and nothing ordered, so the turn's Labor
+ * was lost, and nothing said so: the base and the Inventory were two
+ * underlined words in a sentence.
+ */
+describe('a project team with nothing ordered', () => {
+  const idle = () =>
+    planning({ step: 'assign-project-team', assignments: { [EARL]: { task: 'project' } } });
+
+  it('says how much Labor is left, and opens the base to spend it', async () => {
+    const user = open(idle());
+
+    // Earl is Tier 4: four Labor (pg. 20).
+    expect(walk().textContent).toMatch(/4 of 4 Labor left to spend this turn/);
+
+    await user.click(within(walk()).getByRole('button', { name: 'Order on the base' }));
+
+    expect(screen.getByRole('dialog', { name: 'Base' })).toBeTruthy();
+  });
+
+  it('asks before Next leaves the Labor unspent', async () => {
+    const user = open(idle());
+
+    await user.click(next());
+
+    expect(
+      screen.getByRole('dialog', { name: 'Go on to Assign Rest and Healing?' }),
+    ).toHaveTextContent('4 Labor with nothing ordered. It is lost at the end of the turn.');
+  });
+
+  it('shows no Labor to spend with nobody on the team', () => {
+    open(planning({ step: 'assign-project-team' }));
+
+    expect(within(walk()).queryByText(/labor left to spend/i)).toBeNull();
+    expect(within(walk()).queryByRole('button', { name: 'Order on the base' })).toBeNull();
+  });
+});

@@ -243,8 +243,9 @@ remove.
 are, but a table sometimes does things out of order and then corrects itself, and the app must
 not be the reason a game stops. Stepping past an unfinished step is a warning in the
 [`Check`](../src/engine/checks.ts) shape Phase 2 established, behind the same never-stored
-override. Advancing out of the Management Phase — the transition that ends a turn — is the one
-that asks first, because it is the only one that is awkward to walk back.
+override. Advancing out of the Management Phase — the transition that ends a turn — always asks
+first, because it is the only one that is awkward to walk back. Any other move forward asks only
+when it would leave a step owed, and going on is the override (#234).
 
 **Consequences that remove a survivor are named and confirmed, never silent.** Rot and Departures
 both take someone out of the community. The app works out who, says why, cites the page, and

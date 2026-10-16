@@ -16,7 +16,7 @@ import type { ChangeEvent, DragEvent } from 'react';
 import type { Campaign } from '../engine/campaign';
 import { readCampaignFile } from '../persistence/saveFile';
 import { useCampaign } from '../state/useCampaign';
-import { FOCUS_RING, TOUCH_TARGET } from './styles';
+import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 
 export interface ImportCampaignProps {
   /**
@@ -175,7 +175,7 @@ export function ImportCampaign({ confirmOverwrite }: ImportCampaignProps) {
           <button
             type="button"
             onClick={confirm}
-            className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg bg-amber-600 px-5 font-semibold text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+            className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg ${PRIMARY_FILL} px-5 font-semibold`}
           >
             Replace it
           </button>

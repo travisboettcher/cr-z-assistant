@@ -82,14 +82,18 @@ rule, and the app must not be the reason a game stops.
 
 - **Empty is a call to act.** A card with nothing in it, like an empty roster or an unclaimed base,
   is drawn with a dashed amber border and a primary button saying what to do. It is never shown
-  as a zero.
+  as a zero. On turn 1, while Getting started is on screen, the checklist holds that primary
+  action and the empty cards' buttons are secondary: the dashed border still says what needs
+  doing, and the same press is not offered in amber twice.
 - **Turn 1 says what it needs.** The Getting started checklist above the turn lists the three
   things a new campaign needs, in order: build the starting community, choose the First Mission
   team, claim the base. It shows the action for the first one not done, and it goes away once all
   three are done or turn 1 is over. Each tick reads a question the rest of the app already asks,
   so the checklist cannot disagree with the screens it points to.
 - **The End-turn dialog names what is owed** (`src/engine/outstanding.ts`), and still ends the
-  turn. A turn ending with no base claimed is one of those warnings (R33).
+  turn. A turn ending with no base claimed is one of those warnings (R33), and so is a project
+  team with Labor and nothing ordered. Next and a skip ask the same question before they pass a
+  step that owes something, and always let the table go on.
 - **Blockers and warnings are different.** A blocker disables the action and says why. A warning
   shows, and unlocks an override that is never stored. See `src/ui/README.md`.
 
@@ -119,6 +123,11 @@ The palette is Tailwind's stone with one accent, amber, and amber means **act he
 
 A second amber button beside the first is a sign the area has two primary actions and needs one of
 them demoted.
+
+In the turn walk the area is the step, and which of its buttons is amber follows what it owes
+(`src/engine/outstanding.ts`). While the step still owes something, its own action is the amber
+one and Next is secondary. Once it owes nothing, Next is amber, and an action left on the step
+(choosing a team's mission again, healing with nobody wounded) is secondary.
 
 ## Before you add a screen
 

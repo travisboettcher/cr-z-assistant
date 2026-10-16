@@ -27,7 +27,7 @@ import { communityTierLevels, inventorySlots, maxHp } from '../engine/survivor';
 import { hungerPenalty } from '../engine/feeding';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
-import { FOCUS_RING, TOUCH_TARGET } from './styles';
+import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 import { TIER_LABELS } from './tierLabels';
 
 export interface SurvivorRosterProps {
@@ -135,7 +135,7 @@ export function SurvivorRoster({ campaign, onOpenSheet }: SurvivorRosterProps) {
 
         <button
           type="submit"
-          className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg bg-amber-600 px-5 font-semibold text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+          className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg ${PRIMARY_FILL} px-5 font-semibold`}
         >
           Add survivor
         </button>

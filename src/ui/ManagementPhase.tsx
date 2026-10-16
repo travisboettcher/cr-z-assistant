@@ -68,7 +68,7 @@ import { laborShortfall, orderedThisTurn, queuedCost } from '../engine/projects'
 import { describeProject } from './projectLabels';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
-import { FOCUS_RING, TOUCH_TARGET } from './styles';
+import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 
 export interface ManagementPhaseProps {
   readonly campaign: Campaign;
@@ -77,7 +77,7 @@ export interface ManagementPhaseProps {
 
 const HINT = 'text-sm text-stone-600 dark:text-stone-400';
 
-const PRIMARY = `${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`;
+const PRIMARY = `${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg ${PRIMARY_FILL} px-4 py-2 font-medium`;
 
 const FIELD = `${FOCUS_RING} rounded-lg border border-stone-300 px-2 py-1 text-sm dark:border-stone-600 dark:bg-stone-800`;
 

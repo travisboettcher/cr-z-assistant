@@ -57,12 +57,12 @@ import { useCampaign } from '../state/useCampaign';
 import { describeItem, GRADE_LABELS, ITEM_KIND_LABELS, ITEM_LABELS } from './equipmentLabels';
 import { slotLabel } from './baseLabels';
 import { PageRef } from './PageRef';
-import { FOCUS_RING, TOUCH_TARGET } from './styles';
+import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 
 const HINT = 'text-sm text-stone-600 dark:text-stone-400';
 const SELECT = `${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 bg-white px-3 dark:border-stone-700 dark:bg-stone-950`;
 const SECONDARY = `${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 px-3 text-sm font-medium hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800`;
-const PRIMARY = `${TOUCH_TARGET} ${FOCUS_RING} rounded-lg bg-amber-600 px-4 font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`;
+const PRIMARY = `${TOUCH_TARGET} ${FOCUS_RING} rounded-lg ${PRIMARY_FILL} px-4 font-semibold disabled:cursor-not-allowed disabled:opacity-50`;
 
 /** The groups in the order the chapter prints them. */
 const KINDS: readonly ItemKind[] = [

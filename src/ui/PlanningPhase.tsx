@@ -27,6 +27,7 @@ import {
   utilitiesScore,
 } from '../engine/assignments';
 import { unassigned } from '../engine/planning';
+import { laborAvailable, laborThisTurn, projectTeamIdle } from '../engine/projects';
 import { AssignTask } from './AssignTask';
 import { FACILITY_LABELS, slotLabel } from './baseLabels';
 import { OpenPanel } from './OpenPanel';
@@ -88,6 +89,32 @@ export function PlanningPhase({ campaign, step }: PlanningPhaseProps) {
             legend="On the project team"
             pages={20}
           />
+          {/*
+           * What the team has to spend, and where. Ordering is this step's
+           * action once there is Labor, and the primary one while nothing is
+           * ordered: a team assigned and nothing built is a turn's building
+           * lost, and the two places it is spent were words in a sentence
+           * (#235). `projectTeamIdle` is what `outstanding` owes here too.
+           */}
+          {laborThisTurn(campaign) > 0 && (
+            <div className="mt-3 flex flex-col gap-2">
+              <p
+                className={`text-sm font-medium ${projectTeamIdle(campaign) ? 'text-amber-800 dark:text-amber-300' : ''}`}
+              >
+                <span className="tabular-nums">{Math.max(0, laborAvailable(campaign))}</span> of{' '}
+                <span className="tabular-nums">{laborThisTurn(campaign)}</span> Labor left to spend
+                this turn.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <OpenPanel panel="base" look={projectTeamIdle(campaign) ? 'primary' : 'secondary'}>
+                  Order on the base
+                </OpenPanel>
+                <OpenPanel panel="inventory" look="secondary">
+                  Build from the Inventory
+                </OpenPanel>
+              </div>
+            </div>
+          )}
           {/*
            * The team's Labor builds equipment as well as facilities, from the
            * same pool, and an item is ready at once (Z5-6). Built from the

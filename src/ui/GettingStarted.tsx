@@ -7,21 +7,19 @@
  * walked without them. This says what to do first, in order, and goes away
  * once it is done or the first turn is over.
  *
- * Every tick is a question the rest of the app already asks — the starting
- * community's own "built" flag, the First Mission's recorded team and
- * `firstBaseOwed` — so the checklist cannot disagree with the screens it points
- * to. It is guidance, never a gate: nothing here stops the walk (R33).
+ * What is done and what is next is `firstTurnChecklist`'s answer, which the
+ * summary cards read too: while this is on screen it holds turn 1's primary
+ * action, and their empty states stand back (#231). It is guidance, never a
+ * gate: nothing here stops the walk (R33).
  */
 
 import { STARTING_COMMUNITY_TIER_LEVELS } from '../data/tiers';
-import { beforePlanning, missionTeam } from '../engine/assignments';
-import { firstBaseOwed } from '../engine/base';
 import type { Campaign } from '../engine/campaign';
-import { FIRST_TURN } from '../engine/siege';
+import { firstTurnChecklist } from '../engine/firstTurn';
 import { communityTierLevels } from '../engine/survivor';
 import type { ReactNode } from 'react';
 import { PageRef } from './PageRef';
-import { FOCUS_RING, TOUCH_TARGET } from './styles';
+import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 
 export interface GettingStartedProps {
   readonly campaign: Campaign;
@@ -29,19 +27,13 @@ export interface GettingStartedProps {
   readonly onClaimBase: () => void;
 }
 
-const ACT = `${TOUCH_TARGET} ${FOCUS_RING} shrink-0 rounded-lg bg-amber-600 px-4 font-semibold text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`;
+const ACT = `${TOUCH_TARGET} ${FOCUS_RING} shrink-0 rounded-lg ${PRIMARY_FILL} px-4 font-semibold`;
 
 export function GettingStarted({ campaign, onAddSurvivors, onClaimBase }: GettingStartedProps) {
-  if (campaign.turn !== FIRST_TURN) return null;
+  const checklist = firstTurnChecklist(campaign);
+  if (checklist === null) return null;
 
-  const community = campaign.startingCommunityBuilt;
-  const team = missionTeam(beforePlanning(campaign)).length > 0;
-  const base = !firstBaseOwed(campaign);
-
-  if (community && team && base) return null;
-
-  /** The first thing not done is the one to do now. */
-  const next = !community ? 1 : !team ? 2 : !base ? 3 : 0;
+  const { community, team, base, next } = checklist;
 
   return (
     <section
@@ -59,7 +51,7 @@ export function GettingStarted({ campaign, onAddSurvivors, onClaimBase }: Gettin
         <Item
           number={1}
           done={community}
-          current={next === 1}
+          current={next === 'community'}
           title="Build your starting community"
           detail={
             <>
@@ -77,7 +69,7 @@ export function GettingStarted({ campaign, onAddSurvivors, onClaimBase }: Gettin
         <Item
           number={2}
           done={team}
-          current={next === 2}
+          current={next === 'team'}
           title="Choose who plays the First Mission"
           detail={
             <>
@@ -88,7 +80,7 @@ export function GettingStarted({ campaign, onAddSurvivors, onClaimBase }: Gettin
         <Item
           number={3}
           done={base}
-          current={next === 3}
+          current={next === 'base'}
           title="Claim your base"
           detail={
             <>
@@ -132,7 +124,7 @@ function Item({ number, done, current, title, detail, action }: ItemProps) {
           done
             ? 'bg-stone-200 text-stone-600 dark:bg-stone-700 dark:text-stone-300'
             : current
-              ? 'bg-amber-600 text-white dark:bg-amber-500 dark:text-stone-950'
+              ? PRIMARY_FILL
               : 'border-2 border-stone-400 text-stone-600 dark:text-stone-400'
         }`}
       >

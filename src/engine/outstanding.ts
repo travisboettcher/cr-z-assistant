@@ -39,7 +39,13 @@ import { survivorsFed } from './feeding';
 import { healthAwards, woundsHealed } from './healing';
 import { materialsAdded } from './materials';
 import { firstMissionFailed, missionsChosen, unresolvedTeams } from './missions';
-import { dueProjects, laborShortfall, siegeLaborShortfall } from './projects';
+import {
+  dueProjects,
+  laborShortfall,
+  laborThisTurn,
+  projectTeamIdle,
+  siegeLaborShortfall,
+} from './projects';
 import { continuationOpen, overrunChoiceOwed } from './overrun';
 import { mustCheck, rotCheckResolved } from './rot';
 import { hordeChecked } from './siege';
@@ -47,6 +53,7 @@ import { anythingOverCap, storageChecked } from './storage';
 import { someoneDeparted, someoneIsLeaving } from './departures';
 import { broughtHomeOwed } from './missionVehicles';
 import { spentOwed } from './spent';
+import { advance, positionOf, type AdvanceBy } from './turn';
 import { dueTrades } from './trading';
 import { returnedWaiting, strangersWaiting } from './strangers';
 
@@ -224,6 +231,15 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
     owed.push({ step: 'heal-wounds', says: 'This turn’s Health hasn’t been handed out.' });
   }
 
+  // A project team with Labor and nothing ordered from it, owed at the step
+  // that assigned it (#235). Any order or build this Planning Phase clears it.
+  if (projectTeamIdle(campaign)) {
+    owed.push({
+      step: 'assign-project-team',
+      says: `${String(laborThisTurn(campaign))} Labor with nothing ordered. It is lost at the end of the turn.`,
+    });
+  }
+
   if (rotOutstanding(campaign)) {
     owed.push({ step: 'check-for-rot', says: 'Somebody at 0 Health hasn’t made a Rot check.' });
   }
@@ -252,4 +268,27 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
   }
 
   return owed;
+}
+
+/**
+ * What moving on would leave owed behind: everything owed from this step up to
+ * the one the move lands on, that one not included.
+ *
+ * Next passes this step only; skipping to the next phase passes the rest of
+ * this one. Both ask first when this is not empty (#234), from the same
+ * `outstanding` the End-turn dialog reads, so a step that is not owed there
+ * is never asked about here. Owed steps already behind are not asked about
+ * again: the progress list marks them, and End turn names them.
+ *
+ * Empty when the move ends the turn, because the End-turn dialog asks about
+ * the whole turn instead. That needs no test of its own: a move that ends the
+ * turn lands on its first step, so nothing is at or after here and before it.
+ */
+export function owedOnLeaving(campaign: Campaign, by: AdvanceBy): readonly Outstanding[] {
+  const from = positionOf(campaign.step);
+  const to = positionOf(advance(campaign.step, by).step);
+  return outstanding(campaign).filter((entry) => {
+    const at = positionOf(entry.step);
+    return at >= from && at < to;
+  });
 }

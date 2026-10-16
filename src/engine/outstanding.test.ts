@@ -3,7 +3,7 @@ import { continued, inMission, overrun, wentOn } from '../test/overrun';
 import { createNewCampaign, type Campaign } from './campaign';
 import { createSurvivor } from './survivor';
 import type { LogEntry } from './log';
-import { outstanding } from './outstanding';
+import { outstanding, owedOnLeaving } from './outstanding';
 import { projectTeamWorth, withPlanningBegun } from '../test/campaigns';
 import { queued } from '../test/queued';
 
@@ -526,5 +526,82 @@ describe('outstanding', () => {
       'feed-your-survivors',
       'check-the-horde',
     ]);
+  });
+});
+
+describe('owedOnLeaving', () => {
+  /** `settled`, with this turn's haul and meal not yet recorded. */
+  const unfed = (step: Campaign['step']) =>
+    settled({
+      step,
+      log: [entry({ kind: 'horde-checked', roll: 2, threat: 0, siege: false })],
+    });
+
+  it('names what this step owes when Next leaves it', () => {
+    expect(owedOnLeaving(unfed('feed-your-survivors'), 'step')).toEqual([
+      { step: 'feed-your-survivors', says: 'The community hasn’t eaten.' },
+    ]);
+  });
+
+  it('is empty when this step owes nothing', () => {
+    expect(owedOnLeaving(settled({ step: 'feed-your-survivors' }), 'step')).toEqual([]);
+  });
+
+  it('does not ask about a step Next does not pass', () => {
+    expect(owedOnLeaving(unfed('character-advancement'), 'step')).toEqual([]);
+  });
+
+  it('does not ask about the owed step it lands on', () => {
+    // Add Materials is owed here, and Next arrives at it rather than passing it.
+    expect(owedOnLeaving(unfed('create-new-survivors'), 'step')).toEqual([]);
+  });
+
+  it('names every owed step a skip to the next phase passes', () => {
+    expect(owedOnLeaving(unfed('character-advancement'), 'phase').map((e) => e.step)).toEqual([
+      'add-materials-to-storage',
+    ]);
+  });
+
+  it('does not ask again about an owed step already behind', () => {
+    expect(owedOnLeaving(unfed('heal-wounds'), 'step')).toEqual([]);
+  });
+
+  it('leaves a move that ends the turn to the End-turn dialog', () => {
+    const leaving = settled({
+      step: 'departures',
+      log: [],
+    });
+    expect(outstanding(leaving).length).toBeGreaterThan(0);
+    expect(owedOnLeaving(leaving, 'step')).toEqual([]);
+  });
+});
+
+describe('outstanding: a project team with nothing ordered', () => {
+  it('owes it at Assign Project Team, naming the Labor and what happens to it', () => {
+    const idle = withPlanningBegun(
+      settled({ step: 'assign-mission-team', ...projectTeamWorth(3) }),
+    );
+
+    expect(outstanding(idle)).toContainEqual({
+      step: 'assign-project-team',
+      says: '3 Labor with nothing ordered. It is lost at the end of the turn.',
+    });
+  });
+
+  it('owes nothing once something is ordered from it', () => {
+    const ordered = withPlanningBegun(
+      settled({
+        step: 'assign-mission-team',
+        ...projectTeamWorth(3),
+        projects: [
+          queued(
+            { kind: 'facility', slot: 'front-yard', facility: 'workshop', orderedOnTurn: 3 },
+            { hardware: 0, labor: 1 },
+          ),
+        ],
+      }),
+    );
+
+    expect(outstanding(ordered).map((entry) => entry.step)).not.toContain('assign-project-team');
   });
 });

@@ -309,6 +309,20 @@ export function laborAvailable(campaign: Campaign): number {
 }
 
 /**
+ * Whether this turn's project team has Labor and none of it is committed yet:
+ * no project ordered and no item built (pg. 20; #235).
+ *
+ * Deliberately not "some Labor is left". A table that orders one project and
+ * leaves a point spare has decided, the way a community banking its
+ * discretionary XP has, and owing that every turn would teach a player to press
+ * through the warning that matters. A team assigned and nothing ordered at all
+ * is the turn's building lost without a word, which is what a play-through hit.
+ */
+export function projectTeamIdle(campaign: Campaign): boolean {
+  return laborThisTurn(campaign) > 0 && laborCommitted(campaign) === 0;
+}
+
+/**
  * How much Labor this turn's queue is short, or zero (pg. 23).
  *
  * Only ever non-zero after the pool shrinks under an order already placed —
