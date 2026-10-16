@@ -7,6 +7,7 @@ import {
   isDue,
   laborAvailable,
   laborCommitted,
+  projectTeamIdle,
   laborRefusal,
   laborShortfall,
   cancellable,
@@ -163,6 +164,53 @@ describe('laborCommitted and laborAvailable', () => {
     const campaign = community({ projects: [WORKSHOP, WORKSHOP, WORKSHOP, WORKSHOP] });
 
     expect(laborAvailable(campaign)).toBe(-2);
+  });
+});
+
+describe('projectTeamIdle', () => {
+  it('is true for a team with Labor and nothing ordered', () => {
+    expect(projectTeamIdle(community())).toBe(true);
+  });
+
+  it('is false once any project is ordered, though Labor is left', () => {
+    // A Gas Range is 1 of the team's 6 Labor.
+    expect(projectTeamIdle(community({ projects: [GAS_RANGE] }))).toBe(false);
+  });
+
+  it('is false once an item is built, which spends Labor and queues nothing', () => {
+    const built = community();
+    const campaign = {
+      ...built,
+      log: [
+        ...built.log,
+        {
+          turn: 3,
+          phase: 'planning' as const,
+          at: '2026-09-12T09:00:00.000Z',
+          event: {
+            kind: 'item-built' as const,
+            id: 'item-1',
+            item: 'blunt' as const,
+            grade: 'standard' as const,
+            hardware: 1,
+            labor: 1,
+          },
+        },
+      ],
+    };
+
+    expect(projectTeamIdle(campaign)).toBe(false);
+  });
+
+  it('is false with nobody on the project team', () => {
+    expect(projectTeamIdle(community({ assignments: {} }))).toBe(false);
+  });
+
+  /** Last turn's order was last turn's team's Labor, not this one's. */
+  it('is true when the only order in the queue is last turn’s', () => {
+    expect(projectTeamIdle(community({ projects: [{ ...WORKSHOP, orderedOnTurn: 2 }] }))).toBe(
+      true,
+    );
   });
 });
 

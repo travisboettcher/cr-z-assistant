@@ -39,7 +39,13 @@ import { survivorsFed } from './feeding';
 import { healthAwards, woundsHealed } from './healing';
 import { materialsAdded } from './materials';
 import { firstMissionFailed, missionsChosen, unresolvedTeams } from './missions';
-import { dueProjects, laborShortfall, siegeLaborShortfall } from './projects';
+import {
+  dueProjects,
+  laborShortfall,
+  laborThisTurn,
+  projectTeamIdle,
+  siegeLaborShortfall,
+} from './projects';
 import { continuationOpen, overrunChoiceOwed } from './overrun';
 import { mustCheck, rotCheckResolved } from './rot';
 import { hordeChecked } from './siege';
@@ -223,6 +229,15 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
 
   if (!woundsHealed(campaign) && healthAwards(campaign).length > 0) {
     owed.push({ step: 'heal-wounds', says: 'This turn’s Health hasn’t been handed out.' });
+  }
+
+  // A project team with Labor and nothing ordered from it, owed at the step
+  // that assigned it (#235). Any order or build this Planning Phase clears it.
+  if (projectTeamIdle(campaign)) {
+    owed.push({
+      step: 'assign-project-team',
+      says: `${String(laborThisTurn(campaign))} Labor with nothing ordered. It is lost at the end of the turn.`,
+    });
   }
 
   if (rotOutstanding(campaign)) {

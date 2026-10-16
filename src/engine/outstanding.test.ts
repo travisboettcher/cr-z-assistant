@@ -575,3 +575,33 @@ describe('owedOnLeaving', () => {
     expect(owedOnLeaving(leaving, 'step')).toEqual([]);
   });
 });
+
+describe('outstanding: a project team with nothing ordered', () => {
+  it('owes it at Assign Project Team, naming the Labor and what happens to it', () => {
+    const idle = withPlanningBegun(
+      settled({ step: 'assign-mission-team', ...projectTeamWorth(3) }),
+    );
+
+    expect(outstanding(idle)).toContainEqual({
+      step: 'assign-project-team',
+      says: '3 Labor with nothing ordered. It is lost at the end of the turn.',
+    });
+  });
+
+  it('owes nothing once something is ordered from it', () => {
+    const ordered = withPlanningBegun(
+      settled({
+        step: 'assign-mission-team',
+        ...projectTeamWorth(3),
+        projects: [
+          queued(
+            { kind: 'facility', slot: 'front-yard', facility: 'workshop', orderedOnTurn: 3 },
+            { hardware: 0, labor: 1 },
+          ),
+        ],
+      }),
+    );
+
+    expect(outstanding(ordered).map((entry) => entry.step)).not.toContain('assign-project-team');
+  });
+});

@@ -91,7 +91,9 @@ rule, and the app must not be the reason a game stops.
   three are done or turn 1 is over. Each tick reads a question the rest of the app already asks,
   so the checklist cannot disagree with the screens it points to.
 - **The End-turn dialog names what is owed** (`src/engine/outstanding.ts`), and still ends the
-  turn. A turn ending with no base claimed is one of those warnings (R33).
+  turn. A turn ending with no base claimed is one of those warnings (R33), and so is a project
+  team with Labor and nothing ordered. Next and a skip ask the same question before they pass a
+  step that owes something, and always let the table go on.
 - **Blockers and warnings are different.** A blocker disables the action and says why. A warning
   shows, and unlocks an override that is never stored. See `src/ui/README.md`.
 
