@@ -332,7 +332,7 @@ describe('building into a slot', () => {
     // cannot know the second before the press, and "the Garage project" alone
     // is ambiguous the moment two are queued there (#151).
     expect(campaignLog().textContent).toContain(
-      'Cancelled the Bunk Room in the Garage — 3 Hardware came back',
+      'Cancelled the Bunk Room in the Garage. 3 Hardware came back',
     );
   });
 

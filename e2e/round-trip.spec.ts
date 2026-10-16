@@ -2110,7 +2110,7 @@ test('a turn’s Labor is a budget, and the queue survives the round trip', asyn
   await expect(history).toContainText('Ordered a Workshop for the Garage');
   await expect(history).toContainText('Built a Workshop in the Garage');
   await expect(history).toContainText(
-    'Cancelled the Watchtower in the Front Yard — 3 Hardware came back',
+    'Cancelled the Watchtower in the Front Yard. 3 Hardware came back',
   );
 
   const exported = await exportCampaign(page);

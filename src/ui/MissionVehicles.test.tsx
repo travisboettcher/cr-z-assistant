@@ -131,7 +131,9 @@ describe('bringing vehicles home (pg. 32; R70; Z5-12)', () => {
     await user.click(home().getByRole('button', { name: 'Record team 1’s vehicles' }));
 
     expect(walk().queryByRole('group', { name: 'Mission team 1’s vehicles' })).toBeNull();
-    expect(walk().getByText('Mission team 1 lost Box truck, not driven off.')).toBeInTheDocument();
+    expect(
+      walk().getByText('Mission team 1 lost Box truck, which stayed on the map.'),
+    ).toBeInTheDocument();
   });
 
   it('records every vehicle driven home', async () => {

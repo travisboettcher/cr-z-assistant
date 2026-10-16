@@ -82,7 +82,7 @@ describe('Equip Mission Team (pg. 18; Z5-4)', () => {
       member('Carla Proust').queryByRole('option', { name: 'quality pistol' }),
     ).not.toBeInTheDocument();
     expect(campaignLog().textContent).toContain(
-      'Equipped: quality pistol, from the base’s Inventory to Earl Rhodes.',
+      'Moved quality pistol from the base’s Inventory to Earl Rhodes.',
     );
   });
 
@@ -126,7 +126,7 @@ describe('Equip Mission Team (pg. 18; Z5-4)', () => {
 
     expect(member('Carla Proust').getByText('Carrying nothing')).toBeInTheDocument();
     expect(campaignLog().textContent).toContain(
-      'Equipped: shoddy trap, from Carla Proust to the free shoddy supply.',
+      'Moved shoddy trap from Carla Proust to the free shoddy supply.',
     );
   });
 
