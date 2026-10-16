@@ -146,7 +146,10 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
 
   // A First Mission that met no end condition is played again in turn 1 (R21).
   if (firstMissionFailed(campaign)) {
-    owed.push({ step: 'select-mission', says: 'The First Mission failed, and is played again.' });
+    owed.push({
+      step: 'select-mission',
+      says: 'The First Mission failed and has to be played again.',
+    });
   }
 
   // Every stranger this turn's outcomes counted joins at Advancement Step 2
@@ -218,11 +221,11 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
   }
 
   if (!woundsHealed(campaign) && healthAwards(campaign).length > 0) {
-    owed.push({ step: 'heal-wounds', says: 'Health this turn makes hasn’t been handed out.' });
+    owed.push({ step: 'heal-wounds', says: 'This turn’s Health hasn’t been handed out.' });
   }
 
   if (rotOutstanding(campaign)) {
-    owed.push({ step: 'check-for-rot', says: 'Somebody at 0 Health hasn’t checked for Rot.' });
+    owed.push({ step: 'check-for-rot', says: 'Somebody at 0 Health hasn’t made a Rot check.' });
   }
 
   if (!survivorsFed(campaign)) {
@@ -234,7 +237,7 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
   }
 
   if (!hordeChecked(campaign)) {
-    owed.push({ step: 'check-the-horde', says: 'The horde hasn’t been checked for.' });
+    owed.push({ step: 'check-the-horde', says: 'The horde hasn’t been checked.' });
   }
 
   if (someoneIsLeaving(campaign) && !someoneDeparted(campaign)) {

@@ -132,7 +132,7 @@ describe('recording what a mission used (Z5-5)', () => {
 
   it('is recorded in the Mission Phase', () => {
     expect(spentProblem(playing({ step: 'heal-wounds' }), 1, ['grenade-1'])).toBe(
-      'What a mission used is recorded in the Mission Phase.',
+      'Record what a mission used in the Mission Phase.',
     );
     expect(submitItemsSpent(playing({ step: 'heal-wounds' }), 1, [], AT).ok).toBe(false);
   });

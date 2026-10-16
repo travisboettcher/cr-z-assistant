@@ -276,7 +276,7 @@ describe('submitMissionOutcome', () => {
           LATER,
         ),
       ),
-    ).toBe('Ruby Vance’s Health is a whole number from 0 to 2.');
+    ).toBe('Ruby Vance’s Health must be a whole number from 0 to 2.');
   });
 
   it('refuses Infection in a campaign that is not Viral', () => {
@@ -347,7 +347,7 @@ describe('submitStandIn', () => {
 
   it('refuses with the engine’s own reason', () => {
     expect(expectRefused(submitStandIn(besieged(), { survivor: 'earl', by: null }, AT))).toBe(
-      'Nobody is standing in already.',
+      'Nobody is standing in.',
     );
   });
 });

@@ -68,7 +68,7 @@ describe('taking vehicles at Equip Mission Team (pp. 18, 52; R65, R66; Z5-12)', 
     ).toBeInTheDocument();
     // The Box truck burned 3 of the 4 Fuel, so the pickup's 2 is more than is left.
     expect(
-      teamVehicles().getByText('Red pickup burns 2 Fuel and the base has 1 (R65).'),
+      teamVehicles().getByText('Red pickup burns 2 Fuel, but the base has 1.'),
     ).toBeInTheDocument();
     expect(
       teamVehicles().getByRole('button', { name: 'Take a vehicle for team 1' }),
@@ -131,7 +131,9 @@ describe('bringing vehicles home (pg. 32; R70; Z5-12)', () => {
     await user.click(home().getByRole('button', { name: 'Record team 1’s vehicles' }));
 
     expect(walk().queryByRole('group', { name: 'Mission team 1’s vehicles' })).toBeNull();
-    expect(walk().getByText('Mission team 1 lost Box truck, not driven off.')).toBeInTheDocument();
+    expect(
+      walk().getByText('Mission team 1 lost Box truck, which stayed on the map.'),
+    ).toBeInTheDocument();
   });
 
   it('records every vehicle driven home', async () => {

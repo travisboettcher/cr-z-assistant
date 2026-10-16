@@ -137,7 +137,7 @@ describe('a survivor who dies on a mission (pp. 31, 34; R71)', () => {
 
   it('is recorded in the Mission Phase, after the team’s outcome', () => {
     expect(deathProblem({ ...played(), step: 'heal-wounds' }, earl())).toBe(
-      'A death on a mission is recorded in the Mission Phase.',
+      'Record deaths on a mission in the Mission Phase.',
     );
     expect(deathProblem(chosen(), earl())).toBe('Record mission team 1’s outcome first.');
     expect(deathProblem(played(), earl())).toBeNull();
@@ -156,7 +156,7 @@ describe('a survivor who dies on a mission (pp. 31, 34; R71)', () => {
       'Only what Earl Rhodes carried can be taken from them.',
     );
 
-    const problem = 'Only somebody else on mission team 1 takes an item from Earl Rhodes (R71).';
+    const problem = 'Only somebody else on mission team 1 takes an item from Earl Rhodes.';
     expect(deathProblem(played(), earl({ 'rifle-1': 'earl' }))).toBe(problem);
     expect(deathProblem(played(), earl({ 'rifle-1': 'ada' }))).toBe(problem);
     expect(deathProblem(played(), earl({ 'rifle-1': 'bo' }))).toBe(problem);

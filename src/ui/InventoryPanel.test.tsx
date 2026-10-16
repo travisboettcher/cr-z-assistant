@@ -239,7 +239,7 @@ describe('installing a rare upgrade', () => {
 
     expect(screen.getByRole('button', { name: 'Install Gas grill in the Kitchen' })).toBeDisabled();
     expect(
-      screen.getByText('A rare upgrade is installed at Add Facilities and Upgrades (R47).'),
+      screen.getByText('Install rare upgrades at Add Facilities and Upgrades.'),
     ).toBeInTheDocument();
   });
 });
@@ -350,7 +350,7 @@ describe('a Rare Items trade from the Inventory', () => {
     await user.selectOptions(screen.getByLabelText('Trader’s list, first d10'), '3');
     await user.selectOptions(screen.getByLabelText('Trader’s list, second d10'), '1');
     await user.click(screen.getByRole('button', { name: 'Add to the list' }));
-    expect(screen.getByText(/It sets aside 10 Fuel and the base has 6\./)).toBeInTheDocument();
+    expect(screen.getByText(/It sets aside 10 Fuel, but the base has 6\./)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Make the trade' })).toBeDisabled();
 
     await user.click(

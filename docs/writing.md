@@ -123,6 +123,9 @@ not "OK" and "Cancel".
 **Page references** go at the end of the sentence they support, through `PageRef`. Do not write
 "see p. 23" around them.
 
+**No ruling numbers** in app text. "(R35)" means nothing to a player, and the rulings in
+[`rulings.md`](rulings.md) are for contributors. Code comments and tests still cite them.
+
 **Log entries** (`logLabels.ts`) are past tense and say what happened, with the numbers that
 happened: "The horde came: a 9 against a Siege Threat of 8."
 

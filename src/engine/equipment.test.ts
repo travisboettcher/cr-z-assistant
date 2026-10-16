@@ -211,7 +211,7 @@ describe('adding an item to the Inventory by hand (Z5-2)', () => {
 
   it('refuses shoddy gear, which nobody owns (R35)', () => {
     expect(newItemProblem(campaign(), { id: 'new', item: 'pistol', grade: 'shoddy' })).toMatch(
-      /R35/,
+      /Shoddy gear is free/,
     );
   });
 

@@ -331,7 +331,7 @@ export function checkHealing(campaign: Campaign): HealingCheck {
   if (spare > 0 && beingHealed(campaign).length === 0) {
     warnings.push({
       code: 'nothing-to-share',
-      message: `${spare} Health with nobody assigned to healing — it is lost at the end of the turn.`,
+      message: `${spare} Health with nobody assigned to healing. It’s lost at the end of the turn.`,
       pages: 21,
     });
   } else if (spare > 0) {

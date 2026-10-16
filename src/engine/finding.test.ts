@@ -52,10 +52,10 @@ describe('the rolls a haul owes (pg. 19; R9, R49)', () => {
 
     expect(rareRollsProblem(hauling(), [{ roll: 10 }], [one])).toBeNull();
     expect(rareRollsProblem(hauling(), [{ roll: 10 }], [])).toBe(
-      'A 10 is a roll on the Rare Item Table: enter its two dice.',
+      'A 10 is a roll on the Rare Item Table. Enter its two dice.',
     );
     expect(rareRollsProblem(hauling({ rareRollsOwed: 1 }), [{ roll: 10 }], [one])).toBe(
-      '2 rolls on the Rare Item Table are owed: enter two dice for each.',
+      '2 rolls on the Rare Item Table are owed. Enter two dice for each.',
     );
     expect(rareRollsProblem(hauling(), [], [one])).toBe('No roll on the Rare Item Table is owed.');
     expect(rareRollsProblem(hauling({ rareRollsOwed: 1 }), [{ roll: 10 }], [one, { ...one }])).toBe(
@@ -115,7 +115,7 @@ describe('what the rolls find', () => {
     ]);
     expect(submitHaul(hauling(), { rolls: [{ roll: 10 }] }, AT)).toEqual({
       ok: false,
-      problem: 'A 10 is a roll on the Rare Item Table: enter its two dice.',
+      problem: 'A 10 is a roll on the Rare Item Table. Enter its two dice.',
     });
   });
 

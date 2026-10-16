@@ -68,7 +68,7 @@ export function weaponsProblem(weapons: readonly ItemId[], count: number): strin
   }
 
   if (!weapons.every((weapon) => (CORE_WEAPONS as readonly ItemId[]).includes(weapon))) {
-    return 'They are standard weapons of the nine core kinds.';
+    return 'Choose standard weapons of the nine core kinds.';
   }
 
   return null;

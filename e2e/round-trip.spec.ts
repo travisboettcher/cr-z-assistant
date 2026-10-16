@@ -958,12 +958,12 @@ test('an upgrade waits for the turn after its facility went up', async ({ page }
   // The Workshop went up this turn, in the step just walked through: held, with
   // an override rather than a flat refusal.
   await page.getByRole('button', { name: /upgrade garage/i }).click();
-  await expect(page.getByText(/went up this turn/i)).toBeVisible();
+  await expect(page.getByText(/was built this turn/i)).toBeVisible();
   await expect(page.getByRole('button', { name: /order the upgrade/i })).toBeDisabled();
 
   // A built-in was never built, so the same rule never touches it.
   await page.getByRole('button', { name: /upgrade kitchen/i }).click();
-  await expect(page.getByText(/went up this turn/i)).not.toBeVisible();
+  await expect(page.getByText(/was built this turn/i)).not.toBeVisible();
 
   const exported = await exportCampaign(page);
   expect(JSON.parse(exported.text)).toMatchObject({
@@ -981,7 +981,7 @@ test('an upgrade waits for the turn after its facility went up', async ({ page }
   // The turn the Workshop went up survived the reload, so the rule still holds.
   await ensurePanel(page, 'base');
   await page.getByRole('button', { name: /upgrade garage/i }).click();
-  await expect(page.getByText(/went up this turn/i)).toBeVisible();
+  await expect(page.getByText(/was built this turn/i)).toBeVisible();
 
   /*
    * Z3-3's acceptance, and the reason it is here rather than in a test of its
@@ -1004,7 +1004,7 @@ test('an upgrade waits for the turn after its facility went up', async ({ page }
   // the base modal closed for the walk and a closed modal keeps no open card.
   await ensurePanel(page, 'base');
   await page.getByRole('button', { name: /upgrade garage/i }).click();
-  await expect(page.getByText(/went up this turn/i)).not.toBeVisible();
+  await expect(page.getByText(/was built this turn/i)).not.toBeVisible();
 
   // Turn 3's own project team, because the top of a Planning Phase clears last
   // turn's tasks (pg. 20) — so the Labor a Metal Shop costs has to be assigned
@@ -1143,7 +1143,7 @@ test('a point of Power covers a facility and its upgrades, and survives the roun
     await ensurePanel(page, 'base');
     await page.getByRole('button', { name: /upgrade garage/i }).click();
     await page.getByLabel(/^upgrade$/i).selectOption({ label: upgrade });
-    await expect(page.getByText(/went up this turn/i)).toBeVisible();
+    await expect(page.getByText(/was built this turn/i)).toBeVisible();
     await page.getByLabel(/order it anyway/i).check();
     await page.getByRole('button', { name: /order the upgrade/i }).click();
   }
@@ -2045,7 +2045,7 @@ test('a turn’s Labor is a budget, and the queue survives the round trip', asyn
   // stored: one Labor is left and a Bunk Room wants two.
   await page.getByRole('button', { name: /build in garage/i }).click();
   await page.getByLabel(/^facility$/i).selectOption({ label: 'Bunk Room' });
-  await expect(page.getByText(/costs 2 labor and 1 is available/i)).toBeVisible();
+  await expect(page.getByText(/costs 2 labor, but only 1 is available/i)).toBeVisible();
   await expect(page.getByRole('button', { name: /order the build/i })).toBeDisabled();
   await page.getByRole('button', { name: /^cancel$/i }).click();
 
@@ -2110,7 +2110,7 @@ test('a turn’s Labor is a budget, and the queue survives the round trip', asyn
   await expect(history).toContainText('Ordered a Workshop for the Garage');
   await expect(history).toContainText('Built a Workshop in the Garage');
   await expect(history).toContainText(
-    'Cancelled the Watchtower in the Front Yard — 3 Hardware came back',
+    'Cancelled the Watchtower in the Front Yard. 3 Hardware came back',
   );
 
   const exported = await exportCampaign(page);

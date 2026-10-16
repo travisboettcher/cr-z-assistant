@@ -149,7 +149,7 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
     case 'phase-entered':
       // Deliberately says nothing about *which* phase: the entry it came from
       // carries that, and the log screen already groups by it.
-      return { text: 'Moved to this phase.', pages: 17 };
+      return { text: 'The phase began.', pages: 17 };
 
     case 'turn-began':
       return { text: 'The turn began.', pages: 17 };
@@ -158,7 +158,7 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
       return {
         text: event.built
           ? 'Finished building the starting community.'
-          : 'Re-opened the starting community for changes.',
+          : 'Reopened the starting community for changes.',
         pages: 13,
       };
 
@@ -172,7 +172,7 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
         text:
           turn <= FIRST_TURN
             ? 'Started planning.'
-            : 'Started planning: last turn’s tasks and utilities cleared.',
+            : 'Started planning, and cleared last turn’s tasks and utilities.',
         pages: 20,
       };
 
@@ -285,7 +285,7 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
         text:
           event.hardware === undefined || event.hardware === 0
             ? `Cancelled ${what}.`
-            : `Cancelled ${what} — ${String(event.hardware)} Hardware came back.`,
+            : `Cancelled ${what}. ${String(event.hardware)} Hardware came back.`,
         pages: 20,
       };
     }
@@ -306,7 +306,7 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
           : ` ${String(event.hardware)} Hardware came back.`;
 
       return {
-        text: `${what} went unfinished — the Labor for it left the community.${back}`,
+        text: `${what} went unfinished. The Labor for it left the community.${back}`,
         pages: 23,
       };
     }
@@ -582,7 +582,7 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
         text:
           event.lost.length === 0
             ? `Mission team ${String(event.team)} drove its vehicles home.`
-            : `Mission team ${String(event.team)} lost ${event.lost.map((vehicle) => (vehicle.upgrade === undefined ? vehicle.label : `${vehicle.label} and its ${describeItem(vehicle.upgrade)}`)).join(', ')}, not driven off.`,
+            : `Mission team ${String(event.team)} lost ${event.lost.map((vehicle) => (vehicle.upgrade === undefined ? vehicle.label : `${vehicle.label} and its ${describeItem(vehicle.upgrade)}`)).join(', ')}, which stayed on the map.`,
         pages: 32,
       };
 
@@ -611,7 +611,7 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
             : [`From the Rare Goods Trader: ${counted(event.arrived)}.`]),
           ...(event.lost.length === 0
             ? []
-            : [`Lost with nobody out: ${counted(event.lost)}, and what was paid for it.`]),
+            : [`Lost because nobody went out: ${counted(event.lost)}, and what was paid.`]),
           `${event.food + event.fuel === 0 ? 'Nothing' : paid(event)} set aside came back to storage.`,
         ].join(' '),
         pages: 84,
@@ -631,13 +631,13 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
 
     case 'item-moved':
       return {
-        text: `Equipped: ${describeItem(event)}, from ${holderLabel(event.from)} to ${holderLabel(event.to)}.`,
+        text: `Moved ${describeItem(event)} from ${holderLabel(event.from)} to ${holderLabel(event.to)}.`,
         pages: event.from === 'free' || event.to === 'free' ? '18, 37' : 18,
       };
 
     case 'community-abandoned':
       return {
-        text: `The community left ${event.setAside.map((one) => one.name).join(', ') || 'nobody'} behind, to begin again with new characters.`,
+        text: `The community left ${event.setAside.map((one) => one.name).join(', ') || 'nobody'} behind, to begin again with new survivors.`,
         pages: 86,
       };
 

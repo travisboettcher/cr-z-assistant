@@ -448,7 +448,11 @@ describe('checkOrder, priced against a given Labor', () => {
 
     expect(checkOrder(advancing(), WORKSHOP, { labor: 2 }).blockers).toEqual([]);
     expect(checkOrder(advancing(), WORKSHOP, { labor: 1 }).blockers).toEqual([
-      { code: 'not-enough-labor', message: 'Costs 2 Labor and 1 is available.', pages: '72–73' },
+      {
+        code: 'not-enough-labor',
+        message: 'Costs 2 Labor, but only 1 is available.',
+        pages: '72–73',
+      },
     ]);
   });
 
@@ -471,7 +475,11 @@ describe('checkOrder, priced against a given Labor', () => {
     const second = { ...WORKSHOP, slot: 'back-yard' };
 
     expect(checkOrder(ordered, second, { labor: 3 }).blockers).toEqual([
-      { code: 'not-enough-labor', message: 'Costs 2 Labor and 1 is available.', pages: '72–73' },
+      {
+        code: 'not-enough-labor',
+        message: 'Costs 2 Labor, but only 1 is available.',
+        pages: '72–73',
+      },
     ]);
     expect(checkOrder(ordered, second, { labor: 4 }).blockers).toEqual([]);
   });
@@ -484,7 +492,11 @@ describe('checkOrder, priced against a given Labor', () => {
     expect(unpriced?.message).toContain('Planning Phase');
 
     expect(checkOrder(unassigned, WORKSHOP, { labor: 0 }).blockers).toEqual([
-      { code: 'not-enough-labor', message: 'Costs 2 Labor and 0 is available.', pages: '72–73' },
+      {
+        code: 'not-enough-labor',
+        message: 'Costs 2 Labor, but only 0 is available.',
+        pages: '72–73',
+      },
     ]);
   });
 

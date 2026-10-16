@@ -125,7 +125,7 @@ export function tradeCheck(campaign: Campaign, request: TradeRequest): Check<Tra
   });
 
   if (!orderable(campaign)) {
-    return refuse('outside-the-planning-phase', 'Equipment is traded for in the Planning Phase.');
+    return refuse('outside-the-planning-phase', 'Trade for equipment in the Planning Phase.');
   }
 
   if (!Object.hasOwn(EQUIPMENT, request.item))
@@ -137,7 +137,7 @@ export function tradeCheck(campaign: Campaign, request: TradeRequest): Check<Tra
     return refuse(
       'not-traded',
       RARE_KINDS.includes(rules.kind)
-        ? 'A rare item is bought from the Rare Goods Trader (R51).'
+        ? 'A rare item is bought from the Rare Goods Trader.'
         : 'It has no trade price.',
       37,
     );
@@ -165,7 +165,7 @@ export function tradeCheck(campaign: Campaign, request: TradeRequest): Check<Tra
   if (request.food > campaign.materials.food) {
     blockers.push({
       code: 'not-enough-food',
-      message: `It takes ${String(request.food)} Food and the base has ${String(campaign.materials.food)}.`,
+      message: `It takes ${String(request.food)} Food, but the base has ${String(campaign.materials.food)}.`,
       pages: 21,
     });
   }
@@ -173,7 +173,7 @@ export function tradeCheck(campaign: Campaign, request: TradeRequest): Check<Tra
   if (request.fuel > campaign.materials.fuel) {
     blockers.push({
       code: 'not-enough-fuel',
-      message: `It takes ${String(request.fuel)} Fuel and the base has ${String(campaign.materials.fuel)}.`,
+      message: `It takes ${String(request.fuel)} Fuel, but the base has ${String(campaign.materials.fuel)}.`,
       pages: 21,
     });
   }
@@ -265,7 +265,7 @@ export function saleCheck(campaign: Campaign, id: string, payment: Payment): Che
   });
 
   if (!orderable(campaign)) {
-    return refuse('outside-the-planning-phase', 'A rare item is sold in the Planning Phase.');
+    return refuse('outside-the-planning-phase', 'Sell rare items in the Planning Phase.');
   }
 
   const item = campaign.inventory.find((held) => held.id === id);
@@ -274,7 +274,7 @@ export function saleCheck(campaign: Campaign, id: string, payment: Payment): Che
   }
 
   const price = salePrice(item);
-  if (price === undefined) return refuse('not-rare', 'Only a rare item can be sold (R54).', 37);
+  if (price === undefined) return refuse('not-rare', 'Only a rare item can be sold.', 37);
 
   if (!pays(payment, price)) {
     return refuse('wrong-payment', `It sells for ${String(price)}, in Food and Fuel.`);
@@ -291,7 +291,7 @@ export function saleCheck(campaign: Campaign, id: string, payment: Payment): Che
 
       return {
         code: 'over-storage-cap',
-        message: `${String(after)} ${material} is over this base’s ${String(after - spilled[material])}. Check Storage is a Management step, so it keeps until then.`,
+        message: `${String(after)} ${material} is over this base’s ${String(after - spilled[material])}. It stays until Check Storage, in the Management Phase.`,
         pages: 23,
       };
     }),

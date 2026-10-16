@@ -162,7 +162,7 @@ describe('the overrun base', () => {
     await user.click(first.getByRole('button', { name: 'Record the First Mission' }));
 
     // Not R21's replay, which is turn 1's.
-    expect(walk().textContent).toContain('the community chooses again how it goes on (R28)');
+    expect(walk().textContent).toContain('the community chooses again how it goes on');
     expect(choice().getByRole('button', { name: 'Go on this way' })).toBeEnabled();
   });
 });
@@ -353,7 +353,7 @@ describe('the Health a team came home with (Z4-4)', () => {
 
     await user.type(form.getByLabelText('Earl Rhodes’s Health'), '5');
     expect(record).toBeDisabled();
-    expect(form.getByText('Earl Rhodes’s Health is a whole number from 0 to 2.')).toBeTruthy();
+    expect(form.getByText('Earl Rhodes’s Health must be a whole number from 0 to 2.')).toBeTruthy();
 
     await user.clear(form.getByLabelText('Earl Rhodes’s Health'));
     expect(record).toBeDisabled();

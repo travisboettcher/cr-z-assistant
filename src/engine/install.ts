@@ -31,7 +31,7 @@ export function installTargets(campaign: Campaign, item: Item): readonly Occupan
 /** Why this item cannot be installed in this slot now, or `null`. */
 export function installProblem(campaign: Campaign, id: string, slot: string): string | null {
   if (campaign.step !== PROJECT_STEP) {
-    return 'A rare upgrade is installed at Add Facilities and Upgrades (R47).';
+    return 'Install rare upgrades at Add Facilities and Upgrades.';
   }
 
   const item = campaign.inventory.find((held) => held.id === id);
@@ -42,7 +42,7 @@ export function installProblem(campaign: Campaign, id: string, slot: string): st
   }
 
   if (!installTargets(campaign, item).some((occupant) => occupant.slotId === slot)) {
-    return 'It is installed in a standing facility of the kind it names.';
+    return 'Install it in a standing facility of the kind it names.';
   }
 
   return null;

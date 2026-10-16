@@ -272,7 +272,7 @@ export function asksForBase(campaign: Campaign, mission: MissionId): boolean {
  * played is not chosen again, except a failed First Mission (R21).
  */
 export function selectionProblem(campaign: Campaign, choice: MissionChoice): string | null {
-  if (phaseOf(campaign.step) !== 'mission') return 'A mission is chosen in the Mission Phase.';
+  if (phaseOf(campaign.step) !== 'mission') return 'Choose missions in the Mission Phase.';
 
   if (!Object.hasOwn(MISSIONS, choice.mission)) return 'There is no such mission.';
 
@@ -289,7 +289,7 @@ export function selectionProblem(campaign: Campaign, choice: MissionChoice): str
     !retryOwed(campaign, choice.team) &&
     !continuationOpen(campaign)
   ) {
-    return `Mission team ${String(choice.team)}’s mission is played and its outcome recorded.`;
+    return `Mission team ${String(choice.team)} has already played its mission.`;
   }
 
   if (!missionsOnOffer(campaign).includes(choice.mission)) {
@@ -299,8 +299,8 @@ export function selectionProblem(campaign: Campaign, choice: MissionChoice): str
     }
     if (siegeDue(campaign)) return 'This turn’s mission is the Siege Defense the horde called.';
     if (choice.mission === 'siege-defense')
-      return 'A Siege Defense is played when the horde calls one.';
-    if (choice.mission === 'first-mission') return 'The First Mission is turn 1’s.';
+      return 'A Siege Defense is only played when the horde calls one.';
+    if (choice.mission === 'first-mission') return 'The First Mission is only played on turn 1.';
 
     return 'That mission belongs to another Origin of the Rot.';
   }
@@ -316,7 +316,7 @@ export function selectionProblem(campaign: Campaign, choice: MissionChoice): str
 
   if (asksForMaterial(choice.mission)) {
     if (choice.material === undefined) {
-      return 'Gather Materials needs the type it takes the rest in.';
+      return 'Choose the material type Gather Materials takes the rest in.';
     }
     if (!MATERIALS.includes(choice.material)) return 'There is no such material.';
     if (!(GATHERED_MATERIALS as readonly string[]).includes(choice.material)) {
@@ -345,7 +345,7 @@ export function selectionProblem(campaign: Campaign, choice: MissionChoice): str
  * not once a team's mission has been played; and not twice.
  */
 export function skipProblem(campaign: Campaign): string | null {
-  if (phaseOf(campaign.step) !== 'mission') return 'A mission is skipped in the Mission Phase.';
+  if (phaseOf(campaign.step) !== 'mission') return 'Skip missions in the Mission Phase.';
   if (campaign.turn === FIRST_TURN) return 'Turn 1’s First Mission can’t be skipped.';
   if (siegeDue(campaign)) return 'A siege the horde called can’t be skipped.';
   if (turnMissions(campaign).skipped) return 'This turn’s mission is already skipped.';
@@ -660,7 +660,7 @@ function countsOf(outcome: MissionOutcome): readonly number[] {
  * a warning, not this (`strangerWarning`).
  */
 export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcome): string | null {
-  if (phaseOf(campaign.step) !== 'mission') return 'A mission is recorded in the Mission Phase.';
+  if (phaseOf(campaign.step) !== 'mission') return 'Record missions in the Mission Phase.';
 
   const team = outcomeTeam(outcome);
   const choice = turnMissions(campaign).choices.find((candidate) => candidate.team === team);
@@ -676,7 +676,7 @@ export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcom
   }
 
   if (!countsOf(outcome).every((count) => Number.isSafeInteger(count) && count >= 0)) {
-    return 'Every count is a whole number, from zero.';
+    return 'Each count must be a whole number, 0 or more.';
   }
 
   if ('endCondition' in outcome && outcome.endCondition !== null) {
@@ -688,7 +688,7 @@ export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcom
       outcome.endCondition < 1 ||
       outcome.endCondition > conditions
     ) {
-      return `The end condition met is one of 1 to ${String(conditions)}, or none.`;
+      return `Choose an end condition from 1 to ${String(conditions)}, or none.`;
     }
   }
 
@@ -698,7 +698,7 @@ export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcom
     'strangers' in outcome &&
     !outcome.strangers.every((tier) => FIELD_RECRUITABLE_TIERS.includes(tier))
   ) {
-    return 'Every stranger has a Tier from 1 to 3 — a Hero is never rescued (R24).';
+    return 'Every stranger is Tier 1 to 3. A Hero is never rescued.';
   }
 
   // The kind is checked for the typechecker's sake: while an overrun's claim is
@@ -714,7 +714,7 @@ export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcom
 
     if (asksSameMap(campaign, choice) !== (outcome.sameMap !== undefined)) {
       return asksSameMap(campaign, choice)
-        ? 'Say whether the claim was played on the overrun base’s own map.'
+        ? 'Choose whether the claim was played on the overrun base’s own map.'
         : 'Only a claim of the overrun base’s own type asks about its map.';
     }
   }
@@ -736,7 +736,7 @@ export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcom
         return 'No Rare Items trade is under way, so no items were traded.';
       }
     } else if (outcome.itemsTraded === undefined) {
-      return 'Say how many of the trade’s items the trader handed over.';
+      return 'Enter how many of the trade’s items the trader handed over.';
     } else if (outcome.itemsTraded > items) {
       return `The trade was for ${String(items)} items.`;
     }
@@ -844,7 +844,7 @@ export function woundsProblem(campaign: Campaign, outcome: MissionOutcome): stri
 
     const most = maxHp(survivor);
     if (!Number.isSafeInteger(wound.health) || wound.health < 0 || wound.health > most) {
-      return `${survivor.name}’s Health is a whole number from 0 to ${String(most)}.`;
+      return `${survivor.name}’s Health must be a whole number from 0 to ${String(most)}.`;
     }
 
     // One mutant survives below and is equivalent: `wound.infection ===
@@ -859,13 +859,13 @@ export function woundsProblem(campaign: Campaign, outcome: MissionOutcome): stri
       !Number.isSafeInteger(wound.infection) ||
       wound.infection < 0
     ) {
-      return `${survivor.name}’s Infection is a whole number, from zero.`;
+      return `${survivor.name}’s Infection must be a whole number, 0 or more.`;
     }
   }
 
   return recorded.size === members.length
     ? null
-    : `Everybody on mission team ${String(team)} has their Health at the end recorded.`;
+    : `Record the end-of-mission Health of everybody on mission team ${String(team)}.`;
 }
 
 /**

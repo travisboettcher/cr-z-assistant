@@ -47,7 +47,7 @@ import { suppliedOccupants } from './utilities';
  */
 export function moveProblem(campaign: Campaign, leaving: readonly string[]): string | null {
   if (phaseOf(campaign.step) !== 'advancement') {
-    return 'The community moves in at the end of the Advancement Phase (R25).';
+    return 'The community moves in at the end of the Advancement Phase.';
   }
 
   const base = claimedBase(campaign);
@@ -56,7 +56,7 @@ export function moveProblem(campaign: Campaign, leaving: readonly string[]): str
   if (baseMoved(campaign)) return 'The community has already moved this turn.';
 
   if (dueProjects(campaign).length > 0) {
-    return 'Finish last turn’s projects first: they are built into the old base (R25).';
+    return 'Finish last turn’s projects first: they are built into the old base.';
   }
 
   const over = heroesOverCap(campaign, base);

@@ -206,8 +206,8 @@ export function outcomeConsequences(outcome: MissionOutcome, turn: number): read
   if (outcome.kind === 'first-mission-resolved' && outcome.endCondition === null) {
     return [
       turn === FIRST_TURN
-        ? 'The First Mission failed, so turn 1 plays it again (R21).'
-        : 'The First Mission failed, so the community chooses again how it goes on (R28).',
+        ? 'The First Mission failed, so turn 1 plays it again.'
+        : 'The First Mission failed, so the community chooses again how it goes on.',
     ];
   }
 
@@ -217,7 +217,7 @@ export function outcomeConsequences(outcome: MissionOutcome, turn: number): read
 
   if (baseOverrun(outcome)) {
     consequences.push(
-      'The base is overrun: the community goes on by claiming a new base, starting a new community, or leaving the survivors behind for new ones — played as a further mission this turn (R27).',
+      'The base is overrun. The community goes on by claiming a new base, starting a new community, or leaving the survivors behind for new ones, played as a further mission this turn.',
     );
   }
 

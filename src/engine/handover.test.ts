@@ -108,7 +108,7 @@ describe('the Outdoor Sports Shop’s weapons (pg. 62; R45)', () => {
     expect(weaponsProblem(['bow', 'bow', 'rifle', 'blunt'], 4)).toBeNull();
     expect(weaponsProblem(['bow'], 4)).toBe('Clearing it hands over 4 standard weapons: choose 4.');
     expect(weaponsProblem(['bow', 'bow', 'rifle', 'riot-shield'], 4)).toBe(
-      'They are standard weapons of the nine core kinds.',
+      'Choose standard weapons of the nine core kinds.',
     );
   });
 

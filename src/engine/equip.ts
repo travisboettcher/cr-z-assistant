@@ -115,7 +115,7 @@ function receivingViolations(
   if (rules.slots === null) {
     blockers.push({
       code: 'unsettled',
-      message: 'Nobody carries this item yet: where it goes comes in a later part of Phase 5.',
+      message: 'The app can’t hand this item out yet.',
       pages: rules.pages,
     });
   }
@@ -131,7 +131,7 @@ function receivingViolations(
   if (rules.kind === 'protective' && survivor.items.some((held) => held.item === item.item)) {
     blockers.push({
       code: 'worn-already',
-      message: `${survivor.name} already wears one (R40).`,
+      message: `${survivor.name} already wears one.`,
       pages: 45,
     });
   }
@@ -174,7 +174,7 @@ const blocked = (code: EquipCode, message: string, pages: number | string): Chec
  */
 export function equipCheck(campaign: Campaign, move: EquipMove): Check<EquipCode> {
   if (phaseOf(campaign.step) !== 'mission') {
-    return blocked('phase', 'Items move at Equip Mission Team, in the Mission Phase.', 18);
+    return blocked('phase', 'Move items at Equip the Mission Team, in the Mission Phase.', 18);
   }
 
   const item = movedItem(campaign, move);
@@ -218,7 +218,7 @@ export function equipCheck(campaign: Campaign, move: EquipMove): Check<EquipCode
   if (move.kind === 'take-shoddy' && !shoddyOffers(survivor).includes(move.item)) {
     return blocked(
       'not-free',
-      `That isn’t free gear for ${survivor.name}: shoddy gear comes free with a skill it is used with (R35).`,
+      `That isn’t free gear for ${survivor.name}. Shoddy gear comes free with a skill it’s used with.`,
       37,
     );
   }

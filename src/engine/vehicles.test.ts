@@ -66,9 +66,7 @@ describe('a vehicle (pp. 52–53; R62)', () => {
     expect(vehicleProblem(holding, { ...pickup, id: 'b', tier: 5 as 4 })).toBe(
       'A vehicle is Tier 1 to 4.',
     );
-    expect(vehicleProblem(holding, { ...bus, label: '  ' })).toBe(
-      'Give the vehicle a name to know it by.',
-    );
+    expect(vehicleProblem(holding, { ...bus, label: '  ' })).toBe('Give the vehicle a name.');
     expect(vehicleProblem(holding, { ...pickup, id: 'b', inventorySlots: 3 })).toBe(
       'Only a Tier 4 vehicle splits its slots.',
     );
@@ -77,7 +75,7 @@ describe('a vehicle (pp. 52–53; R62)', () => {
       void _;
       expect(
         vehicleProblem(holding, inventorySlots === undefined ? rest : { ...rest, inventorySlots }),
-      ).toBe('A Tier 4 vehicle splits its 20 slots: say how many are Inventory Slots.');
+      ).toBe('A Tier 4 vehicle splits its 20 slots. Enter how many are Inventory Slots.');
     }
     expect(vehicleProblem(holding, { ...bus, inventorySlots: 0 })).toBeNull();
     expect(vehicleProblem(holding, { ...bus, inventorySlots: 20 })).toBeNull();
@@ -115,12 +113,12 @@ describe('Retrieve New Vehicles (pg. 82; R63)', () => {
   it('asks what each vehicle driven off was, at no higher a Tier than it rolled', () => {
     const here = campaign();
 
-    expect(retrievedProblem(here, 1, [])).toBe('Say what the vehicle driven off was.');
+    expect(retrievedProblem(here, 1, [])).toBe('Enter the vehicle that was driven off.');
     expect(retrievedProblem(here, 2, [retrieved()])).toBe(
-      'Say what each of the 2 vehicles driven off was.',
+      'Enter each of the 2 vehicles driven off.',
     );
     expect(retrievedProblem(here, 1, [retrieved({ roll: 3 })])).toBe(
-      'A vehicle may be taken at a lower Tier than it rolled, never a higher one (R63).',
+      'A vehicle may be taken at a lower Tier than it rolled, never a higher one.',
     );
     expect(retrievedProblem(here, 1, [retrieved({ roll: 3, tier: 1 })])).toBeNull();
     expect(retrievedProblem(here, 2, [retrieved(), retrieved()])).toBe(
@@ -171,9 +169,7 @@ describe('Retrieve New Vehicles (pg. 82; R63)', () => {
     expect(lowered.vehicles.map((vehicle) => vehicle.tier)).toEqual([1, 3]);
 
     const refused = record([retrieved({ roll: 5 })]);
-    expect(refused.ok ? null : refused.problem).toBe(
-      'Say what each of the 2 vehicles driven off was.',
-    );
+    expect(refused.ok ? null : refused.problem).toBe('Enter each of the 2 vehicles driven off.');
   });
 });
 
@@ -215,7 +211,7 @@ describe('fitting a vehicle upgrade (pg. 49; R67)', () => {
 
   it('is refused outside Planning, for anything but a vehicle upgrade, or twice', () => {
     expect(fitProblem(planning({ step: 'heal-wounds' }), 'rack', 'pickup')).toBe(
-      'A vehicle upgrade is fitted in the Planning Phase (R67).',
+      'Fit vehicle upgrades in the Planning Phase.',
     );
     expect(fitProblem(planning(), 'nothing', 'pickup')).toBe(
       'Only an item in the base’s Inventory can be fitted.',

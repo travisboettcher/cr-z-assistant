@@ -543,7 +543,7 @@ describe('a second Hero on one mission', () => {
       checkAssignment(campaign, 'earl', { task: 'mission', team: 1 }).warnings.map(
         (warning) => warning.message,
       ),
-    ).toContain('Only one Hero may go on a mission, and Nell Haig is.');
+    ).toContain('Only one Hero may go on a mission, and Nell Haig already is.');
   });
 
   it('says nothing about two Heroes on two different teams', () => {

@@ -509,7 +509,7 @@ describe('submitItemAdded and submitItemRemoved', () => {
       expectRefused(
         submitItemAdded(opened('select-mission'), { id: 'x', item: 'pistol', grade: 'shoddy' }, AT),
       ),
-    ).toMatch(/R35/);
+    ).toMatch(/Shoddy gear is free/);
     expect(expectRefused(submitItemRemoved(opened('select-mission'), 'nothing', AT))).toMatch(
       /Only an item in the base/,
     );

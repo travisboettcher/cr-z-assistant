@@ -56,7 +56,7 @@ export function survivorViolations(survivor: Survivor): readonly Violation[] {
   if (skills.length > rules.skillSlots) {
     violations.push({
       code: 'too-many-skills',
-      message: `Has ${skills.length} skills, and a Tier ${survivor.tier} survivor has ${rules.skillSlots}.`,
+      message: `Has ${skills.length} skills, but a Tier ${survivor.tier} survivor has ${rules.skillSlots}.`,
       pages: 7,
     });
   }
@@ -134,7 +134,7 @@ export function communityViolations(
   return [
     {
       code: 'community-over-budget',
-      message: `A starting community is built from ${STARTING_COMMUNITY_TIER_LEVELS} Tier levels, and this one spends ${spent}.`,
+      message: `A starting community is built from ${STARTING_COMMUNITY_TIER_LEVELS} Tier levels, but this one spends ${spent}.`,
       pages: 13,
     },
   ];

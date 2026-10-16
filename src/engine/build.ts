@@ -138,7 +138,7 @@ export function checkBuild(
   if (campaign.materials.hardware < cost.hardware) {
     blockers.push({
       code: 'not-enough-hardware',
-      message: `Costs ${String(cost.hardware)} Hardware and the community has ${String(campaign.materials.hardware)}.`,
+      message: `Costs ${String(cost.hardware)} Hardware, but the community has ${String(campaign.materials.hardware)}.`,
       pages: '72–73',
     });
   }
@@ -174,7 +174,7 @@ export function checkBuild(
     // information here, not the player.
     warnings.push({
       code: 'mission-locked',
-      message: 'Unlocked by a mission, which this version doesn’t track yet.',
+      message: 'Unlocked by a mission, which the app doesn’t track yet.',
       pages: '72–73',
     });
   }
