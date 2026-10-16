@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -384,6 +384,16 @@ async function addSurvivor(page: Page, name: string, tier: string) {
   await expect(page.getByRole('region', { name: /community/i })).toContainText(name);
 }
 
+/**
+ * A directory of its own for one file. The name used to be `Date.now()` plus
+ * the file's, and two workers exporting "Cedar Hollow" in the same millisecond
+ * wrote to one path, so a test could read the other's campaign: a queue that
+ * was on screen and empty in the file.
+ */
+function tempDir() {
+  return mkdtemp(join(tmpdir(), 'crz-e2e-'));
+}
+
 /** Clicks Export and returns the file's contents and suggested name. */
 async function exportCampaign(page: Page) {
   await openMenu(page, 'file');
@@ -392,14 +402,14 @@ async function exportCampaign(page: Page) {
     page.getByRole('button', { name: /export campaign/i }).click(),
   ]);
 
-  const path = join(tmpdir(), `crz-e2e-${Date.now()}-${download.suggestedFilename()}`);
+  const path = join(await tempDir(), download.suggestedFilename());
   await download.saveAs(path);
 
   return { path, name: download.suggestedFilename(), text: await readFile(path, 'utf8') };
 }
 
 async function writeTempFile(name: string, contents: string) {
-  const path = join(tmpdir(), `crz-e2e-${Date.now()}-${name}`);
+  const path = join(await tempDir(), name);
   await writeFile(path, contents, 'utf8');
   return path;
 }
