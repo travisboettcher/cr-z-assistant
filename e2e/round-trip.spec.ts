@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -30,6 +30,20 @@ async function startCampaign(page: Page, name: string) {
  * player would.
  */
 const CARDS = { survivors: /^survivors$/i, base: /^base$/i, materials: /^materials$/i } as const;
+
+/**
+ * Presses Next or a Skip, and answers "Go on to …?" or "Skip to …?" when the
+ * walk asks: it does when the move would leave a step owed (#234), and none of
+ * these journeys is about that question. The one that is asks it itself.
+ */
+async function moveOn(page: Page, button: Locator) {
+  await button.click();
+  const asking = page.getByRole('dialog', { name: /^(go on to|skip to) .*\?$/i });
+  if (await asking.isVisible()) {
+    await asking.getByRole('button', { name: /^(go on to|skip to) /i }).click();
+    await expect(asking).toBeHidden();
+  }
+}
 
 async function closePanel(page: Page) {
   const done = page.getByRole('button', { name: /^done$/i });
@@ -124,7 +138,7 @@ const PHASE_ORDER = ['Mission', 'Advancement', 'Planning', 'Management'] as cons
 async function skipToPhase(page: Page, phase: (typeof PHASE_ORDER)[number]) {
   await closePanel(page);
   for (const next of PHASE_ORDER.slice(1, PHASE_ORDER.indexOf(phase) + 1)) {
-    await page.getByRole('button', { name: `Skip to ${next}` }).click();
+    await moveOn(page, page.getByRole('button', { name: `Skip to ${next}` }));
   }
 }
 
@@ -184,7 +198,7 @@ async function planTheTurn(page: Page) {
     const button = page.getByRole('button', { name: label, exact: true });
 
     if (await button.isVisible()) {
-      await button.click();
+      await moveOn(page, button);
       await expect(button).toBeHidden();
     }
   }
@@ -202,7 +216,7 @@ async function planTheTurn(page: Page) {
  */
 async function assignProjectTeam(page: Page) {
   await closePanel(page);
-  await page.getByRole('button', { name: 'Next: Assign Project Team' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Next: Assign Project Team' }));
 
   const team = page.getByRole('group', { name: /on the project team/i });
   for (const box of await team.getByRole('checkbox').all()) {
@@ -225,14 +239,14 @@ async function assignProjectTeam(page: Page) {
 async function finishProjects(page: Page, turn: number) {
   await endTheTurn(page, turn);
 
-  await page.getByRole('button', { name: 'Skip to Advancement' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Skip to Advancement' }));
   for (const step of [
     'Create New Survivors',
     'Add Materials to Storage',
     'Heal Wounds',
     'Add Facilities and Upgrades',
   ]) {
-    await page.getByRole('button', { name: `Next: ${step}` }).click();
+    await moveOn(page, page.getByRole('button', { name: `Next: ${step}` }));
   }
 
   await page.getByRole('button', { name: /^finish (the project|\d+ projects)$/i }).click();
@@ -300,7 +314,7 @@ async function endTheTurn(page: Page, turn: number) {
   const STEPS_IN_A_TURN = 19;
 
   for (let step = 0; step < STEPS_IN_A_TURN && (await end.count()) === 0; step += 1) {
-    await page.getByRole('button', { name: /^next: /i }).click();
+    await moveOn(page, page.getByRole('button', { name: /^next: /i }));
   }
 
   await end.click();
@@ -992,8 +1006,8 @@ test('an upgrade waits for the turn after its facility went up', async ({ page }
    * one move that cannot be walked back.
    */
   await closePanel(page);
-  await page.getByRole('button', { name: 'Next: Assign Facility Staff' }).click();
-  await page.getByRole('button', { name: 'Skip to Management' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Next: Assign Facility Staff' }));
+  await moveOn(page, page.getByRole('button', { name: 'Skip to Management' }));
   await page.getByRole('button', { name: 'End turn 2' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'End turn 2' }).click();
 
@@ -1152,7 +1166,7 @@ test('a point of Power covers a facility and its upgrades, and survives the roun
 
   // Turn 3's Planning Phase staffs the Station, because turn 2's staffing
   // expired with turn 2.
-  await page.getByRole('button', { name: 'Next: Assign Facility Staff' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Next: Assign Facility Staff' }));
   await staffTheUtilityStation(page, 'front yard');
 
   await page.getByRole('button', { name: /upgrade garage/i }).click();
@@ -1241,7 +1255,7 @@ test('the base sheet totals the base, and staffing it is written down', async ({
 
   await finishProjects(page, 1);
 
-  await page.getByRole('button', { name: 'Next: Assign Facility Staff' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Next: Assign Facility Staff' }));
   await staffTheUtilityStation(page, 'parking lot 1');
 
   await page.getByRole('button', { name: /upgrade storage area/i }).click();
@@ -1300,9 +1314,9 @@ test('a turn’s XP and materials are taken in the steps that award them', async
 
   // Turn 1's Planning Phase: Earl goes out next turn, Ruby stays behind.
   await skipToPhase(page, 'Planning');
-  await page.getByRole('button', { name: 'Next: Assign Project Team' }).click();
-  await page.getByRole('button', { name: 'Next: Assign Rest and Healing' }).click();
-  await page.getByRole('button', { name: 'Next: Assign Mission Team' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Next: Assign Project Team' }));
+  await moveOn(page, page.getByRole('button', { name: 'Next: Assign Rest and Healing' }));
+  await moveOn(page, page.getByRole('button', { name: 'Next: Assign Mission Team' }));
   await page
     .getByRole('group', { name: /on the mission team/i })
     .getByRole('checkbox', { name: /earl/i })
@@ -1310,12 +1324,12 @@ test('a turn’s XP and materials are taken in the steps that award them', async
 
   // The last step of Planning, so the next step is already the next phase and
   // the walk offers one button rather than two that do the same thing.
-  await page.getByRole('button', { name: 'Next: Check for Rot' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Next: Check for Rot' }));
   await page.getByRole('button', { name: 'End turn 1' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'End turn 1' }).click();
 
   // Turn 2's Advancement Phase, where the team that just went is read back.
-  await page.getByRole('button', { name: 'Skip to Advancement' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Skip to Advancement' }));
 
   const walk = page.getByRole('region', { name: 'Turn 2' });
 
@@ -1328,8 +1342,8 @@ test('a turn’s XP and materials are taken in the steps that award them', async
     .click();
   await expect(walk.getByText(/for going on the mission/i)).toContainText('0 of 1');
 
-  await page.getByRole('button', { name: 'Next: Create New Survivors' }).click();
-  await page.getByRole('button', { name: 'Next: Add Materials to Storage' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Next: Create New Survivors' }));
+  await moveOn(page, page.getByRole('button', { name: 'Next: Add Materials to Storage' }));
 
   // Two materials recovered: a 4 is Food, and a 10 is a roll on the Rare Item
   // Table instead (pp. 19, 43; Z5-7).
@@ -1404,7 +1418,7 @@ test('turn 1 knows who went, and a step out to Planning does not forget', async 
     .check();
 
   await closePanel(page);
-  await page.getByRole('button', { name: 'Skip to Advancement' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Skip to Advancement' }));
   await expect(walk.getByText(/for going on the mission/i)).toContainText('1 of 1');
 
   await walk
@@ -1415,7 +1429,7 @@ test('turn 1 knows who went, and a step out to Planning does not forget', async 
 
   // Forward into Planning — which really does clear the board, and must — then
   // back through the phase it was read in.
-  await page.getByRole('button', { name: 'Skip to Planning' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Skip to Planning' }));
   await expect(walk.getByText(/with nothing to do/i)).toBeVisible();
 
   for (const step of [
@@ -1472,21 +1486,21 @@ test('material rolls survive a reload, and storing nothing asks first', async ({
   // Turn 1's Planning Phase sends Earl out, so turn 2's Advancement Phase has
   // a mission team to ask about.
   await skipToPhase(page, 'Planning');
-  await page.getByRole('button', { name: 'Next: Assign Project Team' }).click();
-  await page.getByRole('button', { name: 'Next: Assign Rest and Healing' }).click();
-  await page.getByRole('button', { name: 'Next: Assign Mission Team' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Next: Assign Project Team' }));
+  await moveOn(page, page.getByRole('button', { name: 'Next: Assign Rest and Healing' }));
+  await moveOn(page, page.getByRole('button', { name: 'Next: Assign Mission Team' }));
   await page
     .getByRole('group', { name: /on the mission team/i })
     .getByRole('checkbox', { name: /earl/i })
     .check();
 
-  await page.getByRole('button', { name: 'Next: Check for Rot' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Next: Check for Rot' }));
   await page.getByRole('button', { name: 'End turn 1' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'End turn 1' }).click();
 
-  await page.getByRole('button', { name: 'Skip to Advancement' }).click();
-  await page.getByRole('button', { name: 'Next: Create New Survivors' }).click();
-  await page.getByRole('button', { name: 'Next: Add Materials to Storage' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Skip to Advancement' }));
+  await moveOn(page, page.getByRole('button', { name: 'Next: Create New Survivors' }));
+  await moveOn(page, page.getByRole('button', { name: 'Next: Add Materials to Storage' }));
 
   const walk = page.getByRole('region', { name: 'Turn 2' });
   const rolled = walk.getByLabel(/^rolled$/i);
@@ -1557,9 +1571,9 @@ test('a Gas Range turns Fuel into Food, after the haul and not before', async ({
   await finishProjects(page, 1);
   await endTheTurn(page, 2);
 
-  await page.getByRole('button', { name: 'Skip to Advancement' }).click();
-  await page.getByRole('button', { name: 'Next: Create New Survivors' }).click();
-  await page.getByRole('button', { name: 'Next: Add Materials to Storage' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Skip to Advancement' }));
+  await moveOn(page, page.getByRole('button', { name: 'Next: Create New Survivors' }));
+  await moveOn(page, page.getByRole('button', { name: 'Next: Add Materials to Storage' }));
 
   const walk = page.getByRole('region', { name: 'Turn 3' });
 
@@ -1687,26 +1701,26 @@ test('a Clinic’s Health is shared out unequally, because equally means this', 
   );
 
   await closePanel(page);
-  await page.getByRole('button', { name: 'Next: Assign Facility Staff' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Next: Assign Facility Staff' }));
   await page
     .getByRole('group', { name: /medical clinic/i })
     .getByRole('checkbox', { name: /nell/i })
     .check();
 
-  await page.getByRole('button', { name: 'Next: Assign Project Team' }).click();
-  await page.getByRole('button', { name: 'Next: Assign Rest and Healing' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Next: Assign Project Team' }));
+  await moveOn(page, page.getByRole('button', { name: 'Next: Assign Rest and Healing' }));
   const healing = page.getByRole('group', { name: /being healed/i });
   await healing.getByRole('checkbox', { name: /tomas/i }).check();
   await healing.getByRole('checkbox', { name: /ada/i }).check();
 
-  await page.getByRole('button', { name: 'Next: Assign Mission Team' }).click();
-  await page.getByRole('button', { name: 'Next: Check for Rot' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Next: Assign Mission Team' }));
+  await moveOn(page, page.getByRole('button', { name: 'Next: Check for Rot' }));
   await page.getByRole('button', { name: 'End turn 2' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'End turn 2' }).click();
 
-  await page.getByRole('button', { name: 'Skip to Advancement' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Skip to Advancement' }));
   for (const step of ['Create New Survivors', 'Add Materials to Storage', 'Heal Wounds']) {
-    await page.getByRole('button', { name: `Next: ${step}` }).click();
+    await moveOn(page, page.getByRole('button', { name: `Next: ${step}` }));
   }
 
   const walk = page.getByRole('region', { name: 'Turn 3' });
@@ -1790,7 +1804,7 @@ test('a hungry community rolls worse everywhere, and nothing is written down', a
 
   // Walk to the Feed step with nothing in the stores.
   await skipToPhase(page, 'Management');
-  await page.getByRole('button', { name: 'Next: Feed your Survivors' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Next: Feed your Survivors' }));
 
   const walk = page.getByRole('region', { name: 'Turn 1' });
   await expect(walk).toContainText('6 Hunger');
@@ -1871,20 +1885,20 @@ test('a turn ends with the horde called and somebody walking out', async ({ page
 
   // All eight on the project team, which is eight of the Siege Threat.
   await skipToPhase(page, 'Planning');
-  await page.getByRole('button', { name: 'Next: Assign Project Team' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Next: Assign Project Team' }));
   const team = page.getByRole('group', { name: /on the project team/i });
   for (const box of await team.getByRole('checkbox').all()) {
     await box.check();
   }
 
-  await page.getByRole('button', { name: 'Next: Assign Rest and Healing' }).click();
-  await page.getByRole('button', { name: 'Next: Assign Mission Team' }).click();
-  await page.getByRole('button', { name: 'Next: Check for Rot' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Next: Assign Rest and Healing' }));
+  await moveOn(page, page.getByRole('button', { name: 'Next: Assign Mission Team' }));
+  await moveOn(page, page.getByRole('button', { name: 'Next: Check for Rot' }));
 
   const walk = page.getByRole('region', { name: 'Turn 1' });
 
   await expect(walk).toContainText('Nobody is at 0 Health');
-  await page.getByRole('button', { name: 'Next: Feed your Survivors' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Next: Feed your Survivors' }));
 
   // Eight Rookies eat eight and there is nothing, so eight Hunger — and the
   // head count absorbs all of it, so no stat penalty (R1).
@@ -1892,17 +1906,17 @@ test('a turn ends with the horde called and somebody walking out', async ({ page
   await expect(walk).toContainText('large enough to absorb it');
   await walk.getByRole('button', { name: /feed the community/i }).click();
 
-  await page.getByRole('button', { name: 'Next: Assign Beds' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Next: Assign Beds' }));
   await expect(walk).toContainText('8 Exhaustion');
 
-  await page.getByRole('button', { name: 'Next: Calculate Unrest' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Next: Calculate Unrest' }));
   await expect(walk).toContainText('8 Hunger + 8 Exhaustion = 16 Unrest');
 
-  await page.getByRole('button', { name: 'Next: Check Storage' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Next: Check Storage' }));
   await expect(walk).toContainText('Nothing is over the cap');
 
   // Eight on the project team, and turn 1 so no quiet turns yet.
-  await page.getByRole('button', { name: 'Next: Check the Horde' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Next: Check the Horde' }));
   await expect(walk).toContainText('+8 on the project team');
   await expect(walk).toContainText('Siege Threat 8');
 
@@ -1912,7 +1926,7 @@ test('a turn ends with the horde called and somebody walking out', async ({ page
   await expect(walk).toContainText('Next turn’s mission is a Siege Defense');
 
   // Sixteen Unrest and eight Siege Threat is well over ten.
-  await page.getByRole('button', { name: 'Next: Departures' }).click();
+  await moveOn(page, page.getByRole('button', { name: 'Next: Departures' }));
   await expect(walk).toContainText('Unrest plus Siege Threat is 24');
 
   await walk
@@ -1975,8 +1989,8 @@ test('a turn ends with the horde called and somebody walking out', async ({ page
   await turnTwo.getByRole('button', { name: 'Choose for team 1' }).click();
   await expect(turnTwo).toContainText('Mission team 1 chose the Siege Defense');
 
-  await turnTwo.getByRole('button', { name: 'Next: Equip the Mission Team' }).click();
-  await turnTwo.getByRole('button', { name: 'Next: Play the Mission' }).click();
+  await moveOn(page, turnTwo.getByRole('button', { name: 'Next: Equip the Mission Team' }));
+  await moveOn(page, turnTwo.getByRole('button', { name: 'Next: Play the Mission' }));
 
   const record = turnTwo.getByRole('button', { name: 'Record the Siege Defense' });
   await expect(record).toBeDisabled();

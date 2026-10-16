@@ -70,3 +70,21 @@ export function communityRoster(): HTMLElement {
   openPanel('survivors');
   return screen.getByRole('region', { name: /^community$/i });
 }
+
+/**
+ * Answers the turn walk's "Go on to …?" or "Skip to …?" by going on: the
+ * question Next and Skip ask when the move would leave a step owed (#234).
+ * Throws when nothing was asked, so a test that passes an owed step says so.
+ */
+export function goOn(): void {
+  const dialog = screen.getByRole('dialog', { name: /^(go on to|skip to) .*\?$/i });
+  fireEvent.click(within(dialog).getByRole('button', { name: /^(go on to|skip to) /i }));
+}
+
+/**
+ * `goOn` when the walk asked, and nothing when it did not: for a test pressing
+ * Next or Skip through several steps, only some of which owe something.
+ */
+export function goOnIfAsked(): void {
+  if (screen.queryByRole('dialog', { name: /^(go on to|skip to) .*\?$/i }) !== null) goOn();
+}

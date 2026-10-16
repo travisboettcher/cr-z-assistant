@@ -47,6 +47,7 @@ import { anythingOverCap, storageChecked } from './storage';
 import { someoneDeparted, someoneIsLeaving } from './departures';
 import { broughtHomeOwed } from './missionVehicles';
 import { spentOwed } from './spent';
+import { advance, positionOf, type AdvanceBy } from './turn';
 import { dueTrades } from './trading';
 import { returnedWaiting, strangersWaiting } from './strangers';
 
@@ -252,4 +253,27 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
   }
 
   return owed;
+}
+
+/**
+ * What moving on would leave owed behind: everything owed from this step up to
+ * the one the move lands on, that one not included.
+ *
+ * Next passes this step only; skipping to the next phase passes the rest of
+ * this one. Both ask first when this is not empty (#234), from the same
+ * `outstanding` the End-turn dialog reads, so a step that is not owed there
+ * is never asked about here. Owed steps already behind are not asked about
+ * again: the progress list marks them, and End turn names them.
+ *
+ * Empty when the move ends the turn, because the End-turn dialog asks about
+ * the whole turn instead. That needs no test of its own: a move that ends the
+ * turn lands on its first step, so nothing is at or after here and before it.
+ */
+export function owedOnLeaving(campaign: Campaign, by: AdvanceBy): readonly Outstanding[] {
+  const from = positionOf(campaign.step);
+  const to = positionOf(advance(campaign.step, by).step);
+  return outstanding(campaign).filter((entry) => {
+    const at = positionOf(entry.step);
+    return at >= from && at < to;
+  });
 }

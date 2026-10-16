@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { TURN_SEQUENCE } from '../engine/turn';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
+import { goOn, goOnIfAsked } from '../test/screens';
 
 /**
  * Driven through `App` and the real provider, like the roster and slot-map
@@ -54,6 +55,8 @@ describe('walking the turn', () => {
 
     expect(skip()).toHaveTextContent('Skip to Advancement');
     await user.click(skip());
+    // Turn 1's Mission Phase owes the base, so skipping past it asks first.
+    goOn();
 
     expect(within(header()).getByText('Character Advancement')).toBeInTheDocument();
     expect(within(header()).getByText('Advancement')).toBeInTheDocument();
@@ -89,6 +92,7 @@ describe('walking the turn', () => {
 
     for (let move = 0; move < TURN_SEQUENCE.length - 1; move += 1) {
       await user.click(next());
+      goOnIfAsked();
     }
 
     const end = screen.getByRole('button', { name: 'End turn 1' });
@@ -106,6 +110,7 @@ describe('walking the turn', () => {
     // Four skips is a whole turn: the Management Phase's skip is what ends it.
     for (let phase = 0; phase < 3; phase += 1) {
       await user.click(skip());
+      goOnIfAsked();
     }
 
     await user.click(screen.getByRole('button', { name: 'End turn 1' }));
@@ -127,8 +132,10 @@ describe('walking the turn', () => {
   describe('a step the walk went past without resolving', () => {
     async function pastAddMaterials(user: ReturnType<typeof userEvent.setup>) {
       await user.click(skip());
+      goOnIfAsked();
       for (let step = 0; step < 3; step += 1) {
         await user.click(next());
+        goOnIfAsked();
       }
     }
 
@@ -150,6 +157,7 @@ describe('walking the turn', () => {
 
       for (let phase = 0; phase < 2; phase += 1) {
         await user.click(skip());
+        goOnIfAsked();
       }
       await user.click(screen.getByRole('button', { name: 'End turn 1' }));
 
@@ -176,5 +184,90 @@ describe('walking the turn', () => {
     // are "where you are", at different grains.
     expect(current).toHaveLength(2);
     expect(current[1]).toHaveTextContent('Equip the Mission Team');
+  });
+
+  /**
+   * #234. Feed your Survivors was passed with Next and nothing was said: the
+   * End-turn dialog named it, five steps later. Moving on now asks when it
+   * would leave a step owed, and lets the table go on anyway.
+   */
+  describe('leaving a step that still owes something', () => {
+    /** Turn 1, at Feed your Survivors, with nobody fed. */
+    async function atFeed() {
+      const user = await openCampaign();
+      for (let phase = 0; phase < 3; phase += 1) {
+        await user.click(skip());
+        goOnIfAsked();
+      }
+      await user.click(next());
+      expect(within(header()).getByText('Feed your Survivors')).toBeInTheDocument();
+      return user;
+    }
+
+    const asking = () => screen.getByRole('dialog', { name: 'Go on to Assign Beds?' });
+
+    it('asks before Next leaves it, and names what is owed', async () => {
+      const user = await atFeed();
+
+      await user.click(next());
+
+      expect(asking()).toHaveTextContent('Feed your Survivors: The community hasn’t eaten.');
+      expect(within(header()).getByText('Feed your Survivors')).toBeInTheDocument();
+    });
+
+    it('stays on the step when told to', async () => {
+      const user = await atFeed();
+
+      await user.click(next());
+      await user.click(
+        within(asking()).getByRole('button', { name: 'Stay on Feed your Survivors' }),
+      );
+
+      expect(screen.queryByRole('dialog', { name: 'Go on to Assign Beds?' })).toBeNull();
+      expect(within(header()).getByText('Feed your Survivors')).toBeInTheDocument();
+    });
+
+    it('goes on when told to, because it guides rather than blocks', async () => {
+      const user = await atFeed();
+
+      await user.click(next());
+      await user.click(within(asking()).getByRole('button', { name: 'Go on to Assign Beds' }));
+
+      expect(within(header()).getByText('Assign Beds')).toBeInTheDocument();
+    });
+
+    it('does not ask once the step is done', async () => {
+      const user = await atFeed();
+
+      await user.click(screen.getByRole('button', { name: 'Feed the community' }));
+      await user.click(next());
+
+      expect(screen.queryByRole('dialog', { name: 'Go on to Assign Beds?' })).toBeNull();
+      expect(within(header()).getByText('Assign Beds')).toBeInTheDocument();
+    });
+
+    it('does not ask when the step owes nothing', async () => {
+      const user = await openCampaign();
+
+      // Nobody is on a team on a new campaign's turn 1, so Select Mission owes
+      // nothing and Next simply moves.
+      await user.click(next());
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(within(header()).getByText('Equip the Mission Team')).toBeInTheDocument();
+    });
+
+    it('asks before a skip passes an owed step later in the phase', async () => {
+      const user = await openCampaign();
+      await user.click(skip());
+      goOn();
+
+      // At Character Advancement: the skip to Planning passes Add Materials.
+      await user.click(skip());
+
+      expect(screen.getByRole('dialog', { name: 'Skip to Planning?' })).toHaveTextContent(
+        'Add Materials to Storage: This turn’s haul hasn’t gone into storage.',
+      );
+    });
   });
 });

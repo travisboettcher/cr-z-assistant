@@ -39,8 +39,8 @@ costs a player their community.
 | Move | Control | Asks first |
 |---|---|---|
 | Back one step | A quiet secondary control | No |
-| Forward one step | The primary button, or secondary while this step owes something | Only when it ends the turn |
-| Forward to the next phase | A secondary control named for the phase it opens | Only when it ends the turn |
+| Forward one step | The primary button, or secondary while this step owes something | When it ends the turn, or leaves this step owed |
+| Forward to the next phase | A secondary control named for the phase it opens | When it ends the turn, or passes a step that is owed |
 
 **Back exists because tables correct themselves.** Somebody presses Next twice mid-conversation
 and needs to be where they were. It stops at the first step of the turn and deliberately does not
@@ -48,9 +48,17 @@ reach into the turn before: that turn took materials, Health and sometimes survi
 "back" cannot put those back. Undo is Phase 8's, and it will be something the log records rather
 than something the walk does quietly.
 
-**Ending the turn is the one move that asks**, because it is the one that is awkward to walk back
-— see above. Every other move is one press away from being undone by the press next to it, and a
-confirmation on those would be a dialog that trains people to dismiss dialogs.
+**Ending the turn always asks**, because it is the one move that is awkward to walk back — see
+above. Every other move is one press away from being undone by the press next to it, and a
+confirmation on all of them would be a dialog that trains people to dismiss dialogs.
+
+**Moving forward asks only when it would leave something owed** (#234). Next past Feed your
+Survivors used to say nothing, and the End-turn dialog named the unfed community five steps
+later. Now Next or a skip that passes a step `outstanding` owes names it and offers to stay; going
+on is always allowed, because the walk guides rather than blocks. It asks no more often than the
+End-turn dialog warns: `outstanding` counts a step only when there is something at it to resolve
+and nothing recording that it was, so a table that does each step never sees the question. A step
+already behind is not asked about again: the progress list marks it, and End turn names it.
 
 **Skipping to the next phase is forward, not sideways.** A table that settles its whole Planning
 Phase in one conversation should not press Next four times to say so. It cannot reach a phase out

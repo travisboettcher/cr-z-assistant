@@ -5,6 +5,7 @@ import { createNewCampaign, type Assignment, type Campaign } from '../engine/cam
 import { createSurvivor } from '../engine/survivor';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
+import { goOn } from '../test/screens';
 
 const EARL = 'earl';
 const CARLA = 'carla';
@@ -91,6 +92,7 @@ describe('the First Mission team', () => {
 
     await user.click(within(team()).getByRole('checkbox', { name: /earl/i }));
     await user.click(screen.getByRole('button', { name: /^skip to advancement$/i }));
+    goOn();
 
     expect(within(walk()).getByText(/for going on the mission/i)).toHaveTextContent('1 of 1');
     expect(within(walk()).queryByText(/nobody is on a mission team/i)).toBeNull();
@@ -112,6 +114,7 @@ describe('the First Mission team', () => {
 
     await user.click(within(team()).getByRole('checkbox', { name: /earl/i }));
     await user.click(screen.getByRole('button', { name: /^skip to advancement$/i }));
+    goOn();
     await user.click(missionAward(/earl/i));
 
     expect(within(walk()).getByText(/for going on the mission/i)).toHaveTextContent('0 of 1');
@@ -139,6 +142,7 @@ describe('the First Mission team', () => {
 
     await user.click(within(team()).getByRole('checkbox', { name: /earl/i }));
     await user.click(screen.getByRole('button', { name: /^skip to advancement$/i }));
+    goOn();
     await user.click(screen.getByRole('button', { name: /^next: create new survivors$/i }));
     await user.click(screen.getByRole('button', { name: /^next: add materials to storage$/i }));
     await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '4');
@@ -151,6 +155,7 @@ describe('the First Mission team', () => {
 
     await user.click(within(team()).getByRole('checkbox', { name: /carla/i }));
     await user.click(screen.getByRole('button', { name: /^skip to advancement$/i }));
+    goOn();
     await user.click(screen.getByRole('button', { name: /^next: create new survivors$/i }));
     await user.click(screen.getByRole('button', { name: /^next: add materials to storage$/i }));
     await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '4');
@@ -168,7 +173,9 @@ describe('the First Mission team', () => {
 
     await user.click(within(team()).getByRole('checkbox', { name: /earl/i }));
     await user.click(screen.getByRole('button', { name: /^skip to advancement$/i }));
+    goOn();
     await user.click(screen.getByRole('button', { name: /^skip to planning$/i }));
+    goOn();
     for (const step of [
       /^back to add facilities and upgrades$/i,
       /^back to heal wounds$/i,
@@ -224,6 +231,7 @@ describe('the First Mission team', () => {
       expect(walk().textContent).toContain('Earl Rhodes went on the First Mission');
 
       await user.click(screen.getByRole('button', { name: /^skip to advancement$/i }));
+      goOn();
 
       // The same record, read by the pool that awards for it.
       expect(within(walk()).getByText(/for going on the mission/i)).toHaveTextContent('1 of 1');
