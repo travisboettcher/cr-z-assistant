@@ -35,7 +35,7 @@ import { laborShortfall } from '../engine/projects';
 import { materialsAdded } from '../engine/materials';
 import { clearPendingRolls, readPendingRolls } from '../persistence/pendingRolls';
 import { PHASE_LABELS, STEP_LABELS } from './turnLabels';
-import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
+import { FOCUS_RING, PRIMARY_FILL, SECONDARY_FILL, TOUCH_TARGET } from './styles';
 
 export interface TurnWalkProps {
   readonly campaign: Campaign;
@@ -177,9 +177,15 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
 
       {/* Band three: this step, and the moves. */}
       <div className="mt-6 flex flex-wrap items-center gap-3">
+        {/*
+         * Amber only when moving on is the thing to do. While this step still
+         * owes something, its own action is the area's one primary and Next
+         * stands back beside it (#231). The same `owed` the progress list and
+         * the End-turn dialog read, so the three cannot disagree.
+         */}
         <button
           type="button"
-          className={`${BUTTON} ${PRIMARY_FILL} disabled:opacity-50`}
+          className={`${BUTTON} ${owedHere(campaign.step).length > 0 ? SECONDARY_FILL : PRIMARY_FILL} disabled:opacity-50`}
           onClick={() => {
             if (byStep.endsTurn) endTurnRef.current?.showModal();
             else move('step');

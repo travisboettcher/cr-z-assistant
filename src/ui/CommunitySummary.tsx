@@ -20,9 +20,10 @@ import type { Campaign } from '../engine/campaign';
 import { firstBaseOwed, layoutOf } from '../engine/base';
 import { communityTierLevels, maxHp } from '../engine/survivor';
 import { emptySlotCount } from '../engine/utilities';
+import { firstTurnChecklist } from '../engine/firstTurn';
 import { BASE_LABELS, MATERIAL_LABELS } from './baseLabels';
 import { ITEM_KIND_LABELS } from './equipmentLabels';
-import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
+import { FOCUS_RING, PRIMARY_FILL, SECONDARY_FILL, TOUCH_TARGET } from './styles';
 
 /** What a card opens. */
 export type CommunityPanel = 'survivors' | 'base' | 'materials' | 'inventory';
@@ -41,6 +42,13 @@ const NEEDED = 'border-2 border-dashed border-amber-500 dark:border-amber-400';
 
 const OPEN = `${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 px-3 text-sm font-medium hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800`;
 const PRIMARY = `${TOUCH_TARGET} ${FOCUS_RING} w-full rounded-lg ${PRIMARY_FILL} px-4 font-semibold`;
+/**
+ * An empty card's button while turn 1's checklist is on screen: the checklist
+ * holds the area's primary action, and the same press in amber twice is how a
+ * new campaign opened onto four of them (#231). The dashed amber border still
+ * says the card needs doing.
+ */
+const GUIDED = `${TOUCH_TARGET} ${FOCUS_RING} w-full rounded-lg ${SECONDARY_FILL} px-4 font-semibold`;
 
 export function CommunitySummary({ campaign, onOpen }: CommunitySummaryProps) {
   return (
@@ -87,7 +95,11 @@ function Survivors({
       {empty ? (
         <div className="mt-3 flex flex-col gap-3">
           <p className="text-sm text-stone-600 dark:text-stone-400">No survivors yet.</p>
-          <button type="button" onClick={onOpen} className={PRIMARY}>
+          <button
+            type="button"
+            onClick={onOpen}
+            className={firstTurnChecklist(campaign) === null ? PRIMARY : GUIDED}
+          >
             Add survivors
           </button>
         </div>
@@ -151,7 +163,11 @@ function BaseCard({
       {base === null ? (
         <div className="mt-2 flex flex-col gap-3">
           <p className="text-sm text-stone-600 dark:text-stone-400">No base claimed yet.</p>
-          <button type="button" onClick={onOpen} className={PRIMARY}>
+          <button
+            type="button"
+            onClick={onOpen}
+            className={firstTurnChecklist(campaign) === null ? PRIMARY : GUIDED}
+          >
             Claim a base
           </button>
         </div>

@@ -39,7 +39,7 @@ costs a player their community.
 | Move | Control | Asks first |
 |---|---|---|
 | Back one step | A quiet secondary control | No |
-| Forward one step | The primary button | Only when it ends the turn |
+| Forward one step | The primary button, or secondary while this step owes something | Only when it ends the turn |
 | Forward to the next phase | A secondary control named for the phase it opens | Only when it ends the turn |
 
 **Back exists because tables correct themselves.** Somebody presses Next twice mid-conversation
