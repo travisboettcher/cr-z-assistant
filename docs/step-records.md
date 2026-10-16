@@ -111,7 +111,7 @@ Each is one pull request, and each changes one step:
 | | Step | Engine | Screen |
 |---|---|---|---|
 | **R1** | Select Mission | `turnMissions` keeps the entry's `names` | the record reads them; Change replaces the live `<select>`. *Built (#236).* |
-| **R2** | First Mission team | a question for "the First Mission's outcome is recorded" (it may already exist in `missions.ts`) | the team locks into a record there; Change warns what reads it |
+| **R2** | First Mission team | `missionPlayed`, which `selectionProblem` now asks too | the team locks into a record there; Change warns what reads it. *Built with B2 (#236).* |
 | **R3** | Play the Mission | none, or a composite form if one press must record the outcome and a death together | deaths move into the outcome form; what was used records once; the stale line goes |
 | **R4** | Add Materials | none | the roll pad |
 | **R5** | Survivor sheet | none | stats behind Edit |

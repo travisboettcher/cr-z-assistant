@@ -35,6 +35,7 @@ import {
 } from '../engine/missions';
 import { rareTradeBinds } from '../engine/rareTrade';
 import { claimWarning } from '../engine/claim';
+import { FIRST_TURN } from '../engine/siege';
 import { useCampaign } from '../state/useCampaign';
 import { BASE_LABELS, MATERIAL_LABELS } from './baseLabels';
 import { describeSelection, MISSION_LABELS } from './missionLabels';
@@ -69,7 +70,12 @@ const listed = (mission: MissionId): string => {
   return label.charAt(0).toUpperCase() + label.slice(1);
 };
 
-function TeamChoice({
+/**
+ * One team's choice of mission: a form until it is recorded, then a record.
+ * Exported for turn 1, where it sits in the First Mission's lane beside the
+ * team it is for (`FirstMission`; B2).
+ */
+export function TeamChoice({
   campaign,
   team,
 }: {
@@ -266,16 +272,25 @@ function TeamChoice({
 
 export function SelectMission({ campaign }: { readonly campaign: Campaign }) {
   const { dispatch } = useCampaign();
-  const teams = missionTeams(campaign);
+  /*
+   * On turn 1 the team and its mission are one place, the First Mission's
+   * lane (`FirstMission`; B2), so this draws neither the team nor the sentence
+   * about the Planning Phase that assigned it, which on turn 1 has not
+   * happened (#238).
+   */
+  const firstTurn = campaign.turn === FIRST_TURN;
+  const teams = firstTurn ? [] : missionTeams(campaign);
   const { skipped } = turnMissions(campaign);
   const canSkip = skipProblem(campaign) === null;
 
   return (
     <section aria-label="Select Mission" className="mt-4">
-      <p className={HINT}>
-        Each mission team plays its own mission this turn. The teams are the ones the Planning Phase
-        assigned <PageRef pages="17, 21" />
-      </p>
+      {!firstTurn && (
+        <p className={HINT}>
+          Each mission team plays its own mission this turn. The teams are the ones the Planning
+          Phase assigned <PageRef pages="17, 21" />
+        </p>
+      )}
 
       {/* The trade made last turn binds this turn's first choice (R60; Z5-10). */}
       {rareTradeBinds(campaign) && (
@@ -292,7 +307,7 @@ export function SelectMission({ campaign }: { readonly campaign: Campaign }) {
         </p>
       )}
 
-      {teams.length === 0 ? (
+      {firstTurn ? null : teams.length === 0 ? (
         <p className={`mt-3 ${HINT}`}>Nobody is on a mission team this turn.</p>
       ) : (
         teams.map((team) => (
@@ -306,7 +321,7 @@ export function SelectMission({ campaign }: { readonly campaign: Campaign }) {
         ))
       )}
 
-      {canSkip && teams.length > 0 && (
+      {canSkip && missionTeams(campaign).length > 0 && (
         <button
           type="button"
           className={`mt-3 ${SECONDARY}`}

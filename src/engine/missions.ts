@@ -297,11 +297,7 @@ export function selectionProblem(campaign: Campaign, choice: MissionChoice): str
   // and an overrun's continuation (R27, R28). The continuation is team 1's
   // without asking which team: a siege turn has no other (pg. 85), and the
   // check above has already refused one.
-  if (
-    teamOutcomes(campaign).has(choice.team) &&
-    !retryOwed(campaign, choice.team) &&
-    !continuationOpen(campaign)
-  ) {
+  if (missionPlayed(campaign, choice.team) && !continuationOpen(campaign)) {
     return `Mission team ${String(choice.team)} has already played its mission.`;
   }
 
@@ -467,6 +463,18 @@ export function unresolvedTeams(campaign: Campaign): readonly number[] {
   return turnMissions(campaign)
     .choices.map((choice) => choice.team)
     .filter((team) => !outcomes.has(team));
+}
+
+/**
+ * Whether this team has played its mission this turn: its outcome is recorded,
+ * and no retry has reopened it (R21).
+ *
+ * What closes a team's choice of mission (`selectionProblem`), and what turns
+ * turn 1's First Mission team from a form into a record (#236, R2): the team
+ * and what it played are on the record together, and one question says when.
+ */
+export function missionPlayed(campaign: Campaign, team: number): boolean {
+  return teamOutcomes(campaign).has(team) && !retryOwed(campaign, team);
 }
 
 /**

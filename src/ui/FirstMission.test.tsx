@@ -5,7 +5,7 @@ import { createNewCampaign, type Assignment, type Campaign } from '../engine/cam
 import { createSurvivor } from '../engine/survivor';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
-import { goOn } from '../test/screens';
+import { goOn, lane, moveTo } from '../test/screens';
 
 const EARL = 'earl';
 const CARLA = 'carla';
@@ -48,7 +48,7 @@ function open(campaign: Campaign) {
 }
 
 const walk = () => screen.getByRole('region', { name: /^turn \d+$/i });
-const team = () => within(walk()).getByRole('group', { name: /on the first mission/i });
+const team = () => lane('On the First Mission');
 
 /** The +1 XP button on the mission pool's row for this survivor. */
 function missionAward(survivor: RegExp) {
@@ -76,7 +76,7 @@ describe('the First Mission team', () => {
   it('is not asked for again on a later turn', () => {
     open(turnOne({ turn: 2 }));
 
-    expect(within(walk()).queryByRole('group', { name: /on the first mission/i })).toBeNull();
+    expect(within(walk()).queryByRole('region', { name: 'On the First Mission' })).toBeNull();
   });
 
   it('stays on offer across the phase’s steps', async () => {
@@ -90,7 +90,7 @@ describe('the First Mission team', () => {
   it('gives turn 1 the mission XP the book owes it', async () => {
     const user = open(turnOne());
 
-    await user.click(within(team()).getByRole('checkbox', { name: /earl/i }));
+    moveTo(/^earl rhodes/i, 'On the First Mission');
     await user.click(screen.getByRole('button', { name: /^skip to advancement$/i }));
     goOn();
 
@@ -112,7 +112,7 @@ describe('the First Mission team', () => {
   it('says why an award cannot be made after the team changed under it', async () => {
     const user = open(turnOne());
 
-    await user.click(within(team()).getByRole('checkbox', { name: /earl/i }));
+    moveTo(/^earl rhodes/i, 'On the First Mission');
     await user.click(screen.getByRole('button', { name: /^skip to advancement$/i }));
     goOn();
     await user.click(missionAward(/earl/i));
@@ -122,8 +122,8 @@ describe('the First Mission team', () => {
     // Back to the Mission Phase and swap the team: Earl off, Carla on. Earl
     // keeps the point he was given, so there is none left for Carla.
     await user.click(screen.getByRole('button', { name: /^back to play the mission$/i }));
-    await user.click(within(team()).getByRole('checkbox', { name: /earl/i }));
-    await user.click(within(team()).getByRole('checkbox', { name: /carla/i }));
+    moveTo(/^earl rhodes/i, 'Nothing to do');
+    moveTo(/^carla proust/i, 'On the First Mission');
     await user.click(screen.getByRole('button', { name: /^next: character advancement$/i }));
 
     const carla = missionAward(/carla/i);
@@ -140,7 +140,7 @@ describe('the First Mission team', () => {
   it('gives turn 1 the substitutions that team’s skills allow', async () => {
     const user = open(turnOne());
 
-    await user.click(within(team()).getByRole('checkbox', { name: /earl/i }));
+    moveTo(/^earl rhodes/i, 'On the First Mission');
     await user.click(screen.getByRole('button', { name: /^skip to advancement$/i }));
     goOn();
     await user.click(screen.getByRole('button', { name: /^next: create new survivors$/i }));
@@ -153,7 +153,7 @@ describe('the First Mission team', () => {
   it('offers nothing to force when the one who can stayed home', async () => {
     const user = open(turnOne());
 
-    await user.click(within(team()).getByRole('checkbox', { name: /carla/i }));
+    moveTo(/^carla proust/i, 'On the First Mission');
     await user.click(screen.getByRole('button', { name: /^skip to advancement$/i }));
     goOn();
     await user.click(screen.getByRole('button', { name: /^next: create new survivors$/i }));
@@ -171,7 +171,7 @@ describe('the First Mission team', () => {
   it('survives a step out to Planning and back', async () => {
     const user = open(turnOne());
 
-    await user.click(within(team()).getByRole('checkbox', { name: /earl/i }));
+    moveTo(/^earl rhodes/i, 'On the First Mission');
     await user.click(screen.getByRole('button', { name: /^skip to advancement$/i }));
     goOn();
     await user.click(screen.getByRole('button', { name: /^skip to planning$/i }));
@@ -221,7 +221,7 @@ describe('the First Mission team', () => {
     it('says who went, and stops being a control', () => {
       open(steppedBack({ [EARL]: { task: 'mission', team: 1 } }));
 
-      expect(within(walk()).queryByRole('group', { name: /on the first mission/i })).toBeNull();
+      expect(within(walk()).queryByRole('region', { name: 'On the First Mission' })).toBeNull();
       expect(walk().textContent).toContain('Earl Rhodes went on the First Mission');
     });
 
@@ -241,6 +241,78 @@ describe('the First Mission team', () => {
       open(steppedBack({}));
 
       expect(walk().textContent).toContain('Nobody went on the First Mission');
+    });
+  });
+
+  /**
+   * #236 (R2) and #237 (B2). The team's checkboxes stayed live after the
+   * mission was played, and unticking somebody rewrote who went; and the team
+   * and the mission it played were two boxes with nothing joining them.
+   */
+  describe('as a board, and a record once played', () => {
+    const selected = {
+      turn: 1,
+      phase: 'mission' as const,
+      at: '2026-08-30T00:00:00.000Z',
+      event: {
+        kind: 'mission-selected' as const,
+        team: 1,
+        mission: 'first-mission' as const,
+        names: ['Earl Rhodes'],
+      },
+    };
+    const ended = (endCondition: number | null) => ({
+      turn: 1,
+      phase: 'mission' as const,
+      at: '2026-08-30T00:00:00.000Z',
+      event: { kind: 'first-mission-resolved' as const, team: 1, endCondition, strangers: [] },
+    });
+    const played = (endCondition: number | null) =>
+      turnOne({
+        step: 'tactical-mission',
+        assignments: { [EARL]: { task: 'mission', team: 1 } },
+        log: [selected, ended(endCondition)],
+      });
+
+    it('chooses the team’s mission in the team’s own lane, and nowhere else', async () => {
+      const user = open(turnOne());
+
+      moveTo(/^earl rhodes/i, 'On the First Mission');
+      await user.click(within(team()).getByRole('button', { name: 'Choose for team 1' }));
+
+      expect(within(team()).getByText(/Mission team 1 chose the First Mission/)).toBeTruthy();
+      expect(within(walk()).getAllByRole('group', { name: 'Mission team 1' })).toHaveLength(1);
+      // No Planning Phase has assigned turn 1's team, so nothing says one did.
+      expect(within(walk()).queryByText(/the planning phase assigned/i)).toBeNull();
+    });
+
+    it('is a record once the mission is played, with no board', () => {
+      open(played(2));
+
+      expect(walk().textContent).toContain('Earl Rhodes went on the First Mission');
+      expect(within(walk()).queryByRole('region', { name: 'On the First Mission' })).toBeNull();
+      expect(within(walk()).getByRole('button', { name: 'Change who went' })).toBeTruthy();
+    });
+
+    it('changes who went behind a warning, and goes back to the record', async () => {
+      const user = open(played(2));
+
+      await user.click(within(walk()).getByRole('button', { name: 'Change who went' }));
+
+      expect(
+        within(walk()).getByText(/the first mission is played\. who went/i).textContent,
+      ).toMatch(/stay handed out/);
+      moveTo(/^carla proust/i, 'On the First Mission');
+      await user.click(within(walk()).getByRole('button', { name: 'Keep this team' }));
+
+      expect(walk().textContent).toContain('Earl Rhodes, Carla Proust went on the First Mission');
+    });
+
+    it('stays a form after a failed First Mission, which turn 1 plays again (R21)', () => {
+      open(played(null));
+
+      expect(team()).toBeTruthy();
+      expect(within(walk()).queryByRole('button', { name: 'Change who went' })).toBeNull();
     });
   });
 });

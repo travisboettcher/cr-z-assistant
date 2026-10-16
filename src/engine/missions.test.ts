@@ -22,6 +22,7 @@ import {
   missionTeams,
   selectionProblem,
   skipProblem,
+  missionPlayed,
   turnMissions,
   withWounds,
   woundsAsTheyStand,
@@ -1277,5 +1278,39 @@ describe('survivors brought back by Rescue Strangers', () => {
     });
     expect(outcomeOf(choice, { ...counts, returned: [] })).not.toHaveProperty('returned');
     expect(outcomeOf(choice, counts)).not.toHaveProperty('returned');
+  });
+});
+
+/**
+ * #236, R2. The First Mission's team is a record once the mission is played,
+ * and the question is the one Select Mission already asked of a team's choice.
+ */
+describe('missionPlayed', () => {
+  const firstTurn = (log: readonly LogEntry[] = []) =>
+    playing({
+      turn: 1,
+      step: 'tactical-mission',
+      log: [
+        at(1, { kind: 'mission-selected', team: 1, mission: 'first-mission', names: [] }),
+        ...log,
+      ],
+    });
+  const ended = (endCondition: number | null) =>
+    at(1, { kind: 'first-mission-resolved', team: 1, endCondition, strangers: [] });
+
+  it('is false before the outcome is recorded', () => {
+    expect(missionPlayed(firstTurn(), 1)).toBe(false);
+  });
+
+  it('is true once it is', () => {
+    expect(missionPlayed(firstTurn([ended(2)]), 1)).toBe(true);
+  });
+
+  it('is false for a failed First Mission, which turn 1 plays again (R21)', () => {
+    expect(missionPlayed(firstTurn([ended(null)]), 1)).toBe(false);
+  });
+
+  it('asks about the team it names', () => {
+    expect(missionPlayed(firstTurn([ended(2)]), 2)).toBe(false);
   });
 });
