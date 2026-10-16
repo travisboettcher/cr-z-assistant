@@ -145,7 +145,7 @@ describe('the First Mission team', () => {
     goOn();
     await user.click(screen.getByRole('button', { name: /^next: create new survivors$/i }));
     await user.click(screen.getByRole('button', { name: /^next: add materials to storage$/i }));
-    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '4');
+    await user.click(within(walk()).getByRole('button', { name: 'Add a roll of 4' }));
 
     expect(within(walk()).getByLabelText(/force the result of this roll/i)).toBeTruthy();
   });
@@ -158,7 +158,7 @@ describe('the First Mission team', () => {
     goOn();
     await user.click(screen.getByRole('button', { name: /^next: create new survivors$/i }));
     await user.click(screen.getByRole('button', { name: /^next: add materials to storage$/i }));
-    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '4');
+    await user.click(within(walk()).getByRole('button', { name: 'Add a roll of 4' }));
 
     expect(within(walk()).queryByLabelText(/force the result of this roll/i)).toBeNull();
   });

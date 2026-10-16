@@ -322,7 +322,7 @@ describe('Add Materials to Storage', () => {
   it('turns a roll into the material the table gives', async () => {
     const user = open(onTheStep());
 
-    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '4');
+    await user.click(within(walk()).getByRole('button', { name: 'Add a roll of 4' }));
 
     expect(within(walk()).getByText(/\+1 Food/)).toBeTruthy();
     expect(within(walk()).getByText(/rolled 4/i)).toBeTruthy();
@@ -346,9 +346,10 @@ describe('Add Materials to Storage', () => {
       }),
     );
 
-    const rolled = within(walk()).getByLabelText(/^rolled$/i);
-    await user.selectOptions(rolled, '4');
-    await user.selectOptions(rolled, '5');
+    const rolled = (face: string) =>
+      within(walk()).getByRole('button', { name: `Add a roll of ${face}` });
+    await user.click(rolled('4'));
+    await user.click(rolled('5'));
 
     expect(within(walk()).getByText(/\+2 Food/)).toBeTruthy();
 
@@ -359,10 +360,34 @@ describe('Add Materials to Storage', () => {
     expect(within(walk()).getByText(/\+1 Hardware/)).toBeTruthy();
   });
 
+  /** R4 (#236): the d10's faces, a press for each roll. */
+  it('adds a roll for each press of a face, the same face as often as it came up', async () => {
+    const user = open(onTheStep());
+    const pad = within(within(walk()).getByRole('group', { name: 'Add a roll' }));
+
+    expect(pad.getAllByRole('button').map((face) => face.textContent)).toEqual([
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+      '6',
+      '7',
+      '8',
+      '9',
+      '10',
+    ]);
+
+    await user.click(pad.getByRole('button', { name: 'Add a roll of 7' }));
+    await user.click(pad.getByRole('button', { name: 'Add a roll of 7' }));
+
+    expect(within(walk()).getAllByText(/^rolled 7$/i)).toHaveLength(2);
+  });
+
   it('offers no way to force a result when nobody who went can', async () => {
     const user = open(onTheStep());
 
-    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '4');
+    await user.click(within(walk()).getByRole('button', { name: 'Add a roll of 4' }));
 
     expect(within(walk()).queryByLabelText(/force the result of this roll/i)).toBeNull();
   });
@@ -386,9 +411,10 @@ describe('Add Materials to Storage', () => {
       }),
     );
 
-    const rolled = within(walk()).getByLabelText(/^rolled$/i);
-    await user.selectOptions(rolled, '4');
-    await user.selectOptions(rolled, '5');
+    const rolled = (face: string) =>
+      within(walk()).getByRole('button', { name: `Add a roll of ${face}` });
+    await user.click(rolled('4'));
+    await user.click(rolled('5'));
 
     const forcers = within(walk()).getAllByLabelText(/force the result of this roll/i);
     await user.selectOptions(forcers[0] as HTMLElement, 'mechanics:hardware');
@@ -404,7 +430,7 @@ describe('Add Materials to Storage', () => {
   it('puts the haul in storage once, and refuses to do it twice', async () => {
     const user = open(onTheStep());
 
-    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '10');
+    await user.click(within(walk()).getByRole('button', { name: 'Add a roll of 10' }));
     await rollRare(user, 3, 1);
     await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
 
@@ -419,7 +445,7 @@ describe('Add Materials to Storage', () => {
   it('asks for the Rare Item Table’s dice for a 10, and names what they find', async () => {
     const user = open(onTheStep());
 
-    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '10');
+    await user.click(within(walk()).getByRole('button', { name: 'Add a roll of 10' }));
 
     expect(within(walk()).getByRole('button', { name: /add to storage/i })).toBeDisabled();
     expect(within(walk()).getByText(/needs its two dice/i)).toBeTruthy();
@@ -445,7 +471,7 @@ describe('Add Materials to Storage', () => {
   it('takes a roll back off the list', async () => {
     const user = open(onTheStep());
 
-    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '4');
+    await user.click(within(walk()).getByRole('button', { name: 'Add a roll of 4' }));
     await user.click(within(walk()).getByRole('button', { name: /remove/i }));
 
     expect(within(walk()).queryByText(/rolled 4/i)).toBeNull();
@@ -463,9 +489,10 @@ describe('Add Materials to Storage', () => {
     const campaign = onTheStep();
     const user = open(campaign);
 
-    const rolled = within(walk()).getByLabelText(/^rolled$/i);
-    await user.selectOptions(rolled, '7');
-    await user.selectOptions(rolled, '8');
+    const rolled = (face: string) =>
+      within(walk()).getByRole('button', { name: `Add a roll of ${face}` });
+    await user.click(rolled('7'));
+    await user.click(rolled('8'));
 
     expect(within(walk()).getByText(/\+2 Hardware/)).toBeTruthy();
 
@@ -487,9 +514,10 @@ describe('Add Materials to Storage', () => {
   it('drops rolls entered for another campaign when one is imported over it', async () => {
     const user = open(onTheStep());
 
-    const rolled = within(walk()).getByLabelText(/^rolled$/i);
-    await user.selectOptions(rolled, '7');
-    await user.selectOptions(rolled, '8');
+    const rolled = (face: string) =>
+      within(walk()).getByRole('button', { name: `Add a roll of ${face}` });
+    await user.click(rolled('7'));
+    await user.click(rolled('8'));
 
     expect(within(walk()).getByText(/\+2 Hardware/)).toBeTruthy();
 
@@ -526,7 +554,7 @@ describe('Add Materials to Storage', () => {
     });
     const user = open(campaign);
 
-    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '4');
+    await user.click(within(walk()).getByRole('button', { name: 'Add a roll of 4' }));
     const [forcer] = within(walk()).getAllByLabelText(/force the result of this roll/i);
     await user.selectOptions(forcer as HTMLElement, 'mechanics:hardware');
 
@@ -545,7 +573,7 @@ describe('Add Materials to Storage', () => {
   it('does not offer input left behind by another turn', async () => {
     const user = open(onTheStep());
 
-    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '7');
+    await user.click(within(walk()).getByRole('button', { name: 'Add a roll of 7' }));
 
     cleanup();
     open(onTheStep({ turn: 4 }));
@@ -557,7 +585,7 @@ describe('Add Materials to Storage', () => {
   it('has nothing left over once the haul is in storage', async () => {
     const user = open(onTheStep());
 
-    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '7');
+    await user.click(within(walk()).getByRole('button', { name: 'Add a roll of 7' }));
     await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
 
     expect(localStorage.getItem(PENDING_ROLLS_KEY)).toBeNull();
@@ -587,7 +615,7 @@ describe('Add Materials to Storage', () => {
     await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
     await user.click(screen.getByRole('button', { name: /enter the rolls/i }));
 
-    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '10');
+    await user.click(within(walk()).getByRole('button', { name: 'Add a roll of 10' }));
     await rollRare(user, 3, 1);
     await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
 
@@ -624,7 +652,7 @@ describe('Add Materials to Storage', () => {
       }),
     );
 
-    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '4');
+    await user.click(within(walk()).getByRole('button', { name: 'Add a roll of 4' }));
 
     expect(within(walk()).getByText(/is over this base’s/i)).toBeTruthy();
 

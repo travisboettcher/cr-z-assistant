@@ -1379,9 +1379,10 @@ test('a turn’s XP and materials are taken in the steps that award them', async
 
   // Two materials recovered: a 4 is Food, and a 10 is a roll on the Rare Item
   // Table instead (pp. 19, 43; Z5-7).
-  const rolled = walk.getByLabel(/^rolled$/i);
-  await rolled.selectOption('4');
-  await rolled.selectOption('10');
+  const rolled = (face: string) =>
+    walk.getByRole('button', { name: `Add a roll of ${face}`, exact: true });
+  await rolled('4').click();
+  await rolled('10').click();
   await expect(walk.getByText(/\+1 Food/)).toBeVisible();
   await walk.getByLabel('Rare Item Table roll 1, first d10').selectOption('3');
   await walk.getByLabel('Rare Item Table roll 1, second d10').selectOption('1');
@@ -1533,9 +1534,10 @@ test('material rolls survive a reload, and storing nothing asks first', async ({
   await moveOn(page, page.getByRole('button', { name: 'Next: Add Materials to Storage' }));
 
   const walk = page.getByRole('region', { name: 'Turn 2' });
-  const rolled = walk.getByLabel(/^rolled$/i);
-  await rolled.selectOption('7');
-  await rolled.selectOption('8');
+  const rolled = (face: string) =>
+    walk.getByRole('button', { name: `Add a roll of ${face}`, exact: true });
+  await rolled('7').click();
+  await rolled('8').click();
   await expect(walk.getByText(/\+2 Hardware/)).toBeVisible();
 
   await waitForAutosave(page, 'Cedar Hollow');
@@ -1563,7 +1565,7 @@ test('material rolls survive a reload, and storing nothing asks first', async ({
   await expect(asking).toBeHidden();
 
   // Declining left the step armed, which is the point of asking at all.
-  await rolled.selectOption('9');
+  await rolled('9').click();
   await walk.getByRole('button', { name: /add to storage/i }).click();
 
   await expect(walk.getByText(/already in storage/i)).toBeVisible();
