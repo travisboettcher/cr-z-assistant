@@ -570,29 +570,30 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
         </>
       ) : (
         <>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <label className="text-sm font-medium" htmlFor="material-roll">
-              Rolled
-            </label>
-            <select
-              id="material-roll"
-              defaultValue=""
-              className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 px-3 dark:border-stone-600 dark:bg-stone-800`}
-              onChange={(changed) => {
-                const roll = Number(changed.target.value) as D10Result;
-                remember([...rolls, { roll }]);
-                changed.target.value = '';
-              }}
-            >
-              <option value="" disabled>
-                Add a roll
-              </option>
+          {/*
+           * The d10's faces as buttons, a press for each roll (docs/step-records.md,
+           * R4; #236). A `<select>` that appended a row and reset itself was a
+           * draft control that wasn't one; ten buttons say what a press does.
+           */}
+          <div role="group" aria-labelledby="material-roll" className="mt-3 flex flex-col gap-2">
+            <p id="material-roll" className="text-sm font-medium">
+              Add a roll
+            </p>
+            <div className="grid grid-cols-5 gap-2 sm:max-w-md">
               {D10_RESULTS.map((result) => (
-                <option key={result} value={result}>
+                <button
+                  key={result}
+                  type="button"
+                  aria-label={`Add a roll of ${String(result)}`}
+                  className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 font-medium tabular-nums hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800`}
+                  onClick={() => {
+                    remember([...rolls, { roll: result }]);
+                  }}
+                >
                   {result}
-                </option>
+                </button>
               ))}
-            </select>
+            </div>
           </div>
 
           {rolls.length > 0 && (

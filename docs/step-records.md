@@ -113,7 +113,7 @@ Each is one pull request, and each changes one step:
 | **R1** | Select Mission | `turnMissions` keeps the entry's `names` | the record reads them; Change replaces the live `<select>`. *Built (#236).* |
 | **R2** | First Mission team | `missionPlayed`, which `selectionProblem` now asks too | the team locks into a record there; Change warns what reads it. *Built with B2 (#236).* |
 | **R3** | Play the Mission | `submitMissionEnded`, recording the outcome and its deaths together; `spentRecorded`, and nothing used is an answer | deaths move into the outcome form; what was used records once; the stale line goes. *Built (#236).* |
-| **R4** | Add Materials | none | the roll pad |
+| **R4** | Add Materials | none | the roll pad. *Built (#236).* |
 | **R5** | Survivor sheet | none | stats behind Edit |
 
 R1 and R4 stand alone. R3 is the largest and is the one to read most carefully in review.
