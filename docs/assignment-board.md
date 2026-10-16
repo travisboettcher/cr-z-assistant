@@ -77,12 +77,15 @@ button, so a screen reader hears "Tom, Tier 2, 2 of 2 Health, working the Kitche
 ## The steps stay, and focus their lanes
 
 The book's order (pp. 20–21) stays the walk's: Assign Facility Staff, Assign Project Team, Assign
-Rest and Healing, Assign Mission Team. Each step draws **the same board**, with its own lanes open
-first and every other lane folded into one line ("Elsewhere: Kitchen, Tom. Project team, Dick").
-"Nothing to do" is always open, because every step draws from it.
+Rest and Healing, Assign Mission Team. Each step draws **the same board**: its own lanes, which are
+where a card can go; **Elsewhere**, holding everybody with a task from another step, each card
+saying what it is ("working the Kitchen"); and **Nothing to do**. A card in Elsewhere can be picked
+up and moved into this step's lanes, but nothing is moved into Elsewhere: a task from another step
+is given at that step. "Nothing to do" is always there, because every step draws from it.
 
-- **"N with nothing to do"** stops being a line on every step. It is the Nothing to do lane, and it
-  is owed only at the last step. Whether it is owed at all is an open question, below.
+- **"N with nothing to do"** stops being a line on every step. It is the Nothing to do lane. Whether
+  it is owed at the last step is an open question, below; until it is decided it is shown and not
+  owed.
 - **Utilities** (Power and Water, assigned at the end of Assign Facility Staff) stay where they are,
   on the base's slot cards. The facility lanes show whether each is supplied, as the step does now.
 - **The base's slot cards keep their staffing control** (Z3-6 kept it on purpose, because a
@@ -126,7 +129,7 @@ each team, a vehicle card in one of them.
 
 | | Adds | Engine |
 |---|---|---|
-| **B1** | The board, used by the four Planning steps; `AssignTask` removed from them | none: the same two actions |
+| **B1** | The board, used by the four Planning steps; `AssignTask` removed from them. *Built (#237).* | none: the same two actions |
 | **B2** | Turn 1's First Mission on the board | none |
 | **B3** | Equip the Mission Team on the board, items as cards | none: the same `EquipMove`s |
 | **B4** | Vehicles on the board | none |

@@ -6,13 +6,12 @@
  * two — see `docs/rulebook-edition.md` — and this follows the section body
  * rather than the turn summary, as `src/data/turn.ts` does.
  *
- * **Every step is the same control over the same roster**, which is why they
- * share one: `AssignTask` from Z3-5, already used by the base screen. What
- * differs between steps is which task a tick gives and what the screen says
- * about it, not how assigning works.
+ * **Every step is the same board over the same roster** (`AssignmentBoard`,
+ * `docs/assignment-board.md`; #237). What differs between steps is which lanes
+ * it opens and what the screen says about them, not how assigning works.
  *
- * Staffing is the exception, and has to be: it is a task *per slot*, so the
- * step shows one control per built facility rather than one for the phase.
+ * Staffing is a lane *per slot*, so its step opens one lane per built facility
+ * that takes staff.
  */
 
 import type { Campaign } from '../engine/campaign';
@@ -26,12 +25,12 @@ import {
   siegeLaborBonus,
   utilitiesScore,
 } from '../engine/assignments';
-import { unassigned } from '../engine/planning';
 import { laborAvailable, laborThisTurn, projectTeamIdle } from '../engine/projects';
-import { AssignTask } from './AssignTask';
-import { FACILITY_LABELS, slotLabel } from './baseLabels';
+import { AssignmentBoard } from './AssignmentBoard';
+import { facilityInSlot } from './baseLabels';
 import { OpenPanel } from './OpenPanel';
 import { PageRef } from './PageRef';
+import { laneLabel } from './taskLabels';
 
 export interface PlanningPhaseProps {
   readonly campaign: Campaign;
@@ -57,8 +56,6 @@ function missionTeamsToOffer(campaign: Campaign): readonly number[] {
 }
 
 export function PlanningPhase({ campaign, step }: PlanningPhaseProps) {
-  const idle = unassigned(campaign);
-
   return (
     <div className="mt-4 border-t border-stone-200 pt-4 dark:border-stone-800">
       {step === 'assign-facility-staff' && <FacilityStaff campaign={campaign} />}
@@ -83,38 +80,18 @@ export function PlanningPhase({ campaign, step }: PlanningPhaseProps) {
             )}
             . Whatever is left at the end of the turn is lost <PageRef pages={20} />
           </p>
-          <AssignTask
+          <AssignmentBoard
+            key={step}
             campaign={campaign}
-            task={{ task: 'project' }}
-            legend="On the project team"
-            pages={20}
+            lanes={[
+              {
+                task: { task: 'project' },
+                name: laneLabel({ task: 'project' }),
+                pages: 20,
+                detail: laborThisTurn(campaign) > 0 && <ProjectLabor campaign={campaign} />,
+              },
+            ]}
           />
-          {/*
-           * What the team has to spend, and where. Ordering is this step's
-           * action once there is Labor, and the primary one while nothing is
-           * ordered: a team assigned and nothing built is a turn's building
-           * lost, and the two places it is spent were words in a sentence
-           * (#235). `projectTeamIdle` is what `outstanding` owes here too.
-           */}
-          {laborThisTurn(campaign) > 0 && (
-            <div className="mt-3 flex flex-col gap-2">
-              <p
-                className={`text-sm font-medium ${projectTeamIdle(campaign) ? 'text-amber-800 dark:text-amber-300' : ''}`}
-              >
-                <span className="tabular-nums">{Math.max(0, laborAvailable(campaign))}</span> of{' '}
-                <span className="tabular-nums">{laborThisTurn(campaign)}</span> Labor left to spend
-                this turn.
-              </p>
-              <div className="flex flex-wrap gap-3">
-                <OpenPanel panel="base" look={projectTeamIdle(campaign) ? 'primary' : 'secondary'}>
-                  Order on the base
-                </OpenPanel>
-                <OpenPanel panel="inventory" look="secondary">
-                  Build from the Inventory
-                </OpenPanel>
-              </div>
-            </div>
-          )}
           {/*
            * The team's Labor builds equipment as well as facilities, from the
            * same pool, and an item is ready at once (Z5-6). Built from the
@@ -136,12 +113,13 @@ export function PlanningPhase({ campaign, step }: PlanningPhaseProps) {
             <strong>only one survivor may rest a turn</strong>. Healing shares out what a Medical
             Clinic makes, between everybody assigned to it <PageRef pages={21} />
           </p>
-          <AssignTask campaign={campaign} task={{ task: 'rest' }} legend="Resting" pages={21} />
-          <AssignTask
+          <AssignmentBoard
+            key={step}
             campaign={campaign}
-            task={{ task: 'healing' }}
-            legend="Being healed"
-            pages={21}
+            lanes={[
+              { task: { task: 'rest' }, name: laneLabel({ task: 'rest' }), pages: 21 },
+              { task: { task: 'healing' }, name: laneLabel({ task: 'healing' }), pages: 21 },
+            ]}
           />
         </>
       )}
@@ -149,64 +127,71 @@ export function PlanningPhase({ campaign, step }: PlanningPhaseProps) {
       {step === 'assign-mission-team' && (
         <>
           <p className="text-sm text-stone-600 dark:text-stone-400">
-            For next turn’s mission. Injured survivors can’t go <PageRef pages={21} />
+            For next turn’s mission. Injured survivors can’t go. Split them between teams and each
+            team plays its own mission next turn <PageRef pages={21} />
           </p>
-          {missionTeamsToOffer(campaign).map((team) => (
-            <AssignTask
-              key={team}
-              campaign={campaign}
-              task={{ task: 'mission', team }}
-              legend={team === 1 ? 'On the mission team' : `On mission team ${String(team)}`}
-              pages={21}
-            />
-          ))}
-          <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">
-            Split them between teams and each team plays its own mission next turn{' '}
-            <PageRef pages={21} />
-          </p>
-          <AssignTask
+          <AssignmentBoard
+            key={step}
             campaign={campaign}
-            task={{ task: 'scavenging' }}
-            legend="Scavenging instead of the mission"
-            pages={17}
+            lanes={[
+              ...missionTeamsToOffer(campaign).map((team) => ({
+                task: { task: 'mission', team } as const,
+                name: laneLabel({ task: 'mission', team }),
+                pages: 21,
+              })),
+              {
+                task: { task: 'scavenging' },
+                name: laneLabel({ task: 'scavenging' }),
+                pages: 17,
+              },
+            ]}
           />
         </>
       )}
-
-      {/*
-       * On every step of the phase, because leaving somebody idle by accident
-       * is the mistake this screen exists to prevent — and the step where it
-       * becomes visible is not the step where it happened.
-       */}
-      <p className="mt-4 text-sm">
-        {idle.length === 0 ? (
-          <span className="text-stone-600 dark:text-stone-400">Everybody has something to do.</span>
-        ) : (
-          <>
-            <span className="font-medium">
-              {idle.length} with nothing to do
-              {': '}
-            </span>
-            <span className="text-stone-600 dark:text-stone-400">
-              {idle.map((survivor) => survivor.name).join(', ')}
-            </span>
-          </>
-        )}
-      </p>
     </div>
   );
 }
 
 /**
- * One slot's staffing control, and what it does with more people than it takes.
+ * What the project team has to spend, and where. Ordering is the step's action
+ * once there is Labor, and the primary one while nothing is ordered: a team
+ * assigned and nothing built is a turn's building lost, and the two places it
+ * is spent were words in a sentence (#235). `projectTeamIdle` is what
+ * `outstanding` owes here too. On the project team's lane, beside the team.
+ */
+function ProjectLabor({ campaign }: { readonly campaign: Campaign }) {
+  return (
+    <div className="mt-2 flex flex-col gap-2">
+      <p
+        className={`text-sm font-medium ${projectTeamIdle(campaign) ? 'text-amber-800 dark:text-amber-300' : ''}`}
+      >
+        <span className="tabular-nums">{Math.max(0, laborAvailable(campaign))}</span> of{' '}
+        <span className="tabular-nums">{laborThisTurn(campaign)}</span> Labor left to spend this
+        turn.
+      </p>
+      <div className="flex flex-wrap gap-3">
+        <OpenPanel panel="base" look={projectTeamIdle(campaign) ? 'primary' : 'secondary'}>
+          Order on the base
+        </OpenPanel>
+        <OpenPanel panel="inventory" look="secondary">
+          Build from the Inventory
+        </OpenPanel>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * What a facility's lane says about itself: how many it takes, and who is
+ * over that.
  *
  * A facility takes one survivor unless an upgrade widens it (pg. 54, 72–73).
- * The control does not refuse the extra — this phase warns rather than blocks,
- * and a save can arrive over capacity — but silently ignoring somebody is how a
+ * The board does not refuse the extra (this phase warns rather than blocks, and
+ * a save can arrive over capacity), but silently ignoring somebody is how a
  * player ends up with a Clinic they think is double-staffed. So it says who is
  * actually working and who is standing about.
  */
-function FacilitySlotStaff({
+function StaffRoom({
   campaign,
   occupant,
 }: {
@@ -214,26 +199,18 @@ function FacilitySlotStaff({
   readonly occupant: Occupant;
 }) {
   const room = staffCapacity(occupant);
-  const assigned = assignedTo(campaign, occupant.slotId);
-  const spare = assigned.slice(room);
+  const spare = assignedTo(campaign, occupant.slotId).slice(room);
 
-  return (
-    <>
-      <AssignTask
-        campaign={campaign}
-        task={{ task: 'staff', slot: occupant.slotId }}
-        legend={`${FACILITY_LABELS[occupant.facility.id]} — ${slotLabel(occupant.slotId)}`}
-        pages="72–73"
-      />
-
-      {spare.length > 0 && (
-        <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-          Takes <span className="tabular-nums">{room}</span>, so{' '}
-          {spare.map((survivor) => survivor.name).join(', ')} {spare.length === 1 ? 'is' : 'are'}{' '}
-          assigned here and not working <PageRef pages={54} />
-        </p>
-      )}
-    </>
+  return spare.length === 0 ? (
+    <p className="text-xs text-stone-600 dark:text-stone-400">
+      Takes <span className="tabular-nums">{room}</span>
+    </p>
+  ) : (
+    <p className="text-xs text-amber-700 dark:text-amber-300">
+      Takes <span className="tabular-nums">{room}</span>, so{' '}
+      {spare.map((survivor) => survivor.name).join(', ')} {spare.length === 1 ? 'is' : 'are'}{' '}
+      assigned here and not working <PageRef pages={54} />
+    </p>
   );
 }
 
@@ -258,9 +235,12 @@ function FacilityStaff({ campaign }: { readonly campaign: Campaign }) {
 
   if (base === null) {
     return (
-      <p className="text-sm text-stone-600 dark:text-stone-400">
-        This community has no base, so there is nothing to staff <PageRef pages={54} />
-      </p>
+      <>
+        <p className="text-sm text-stone-600 dark:text-stone-400">
+          This community has no base, so there is nothing to staff <PageRef pages={54} />
+        </p>
+        <AssignmentBoard campaign={campaign} lanes={[]} />
+      </>
     );
   }
 
@@ -284,13 +264,18 @@ function FacilityStaff({ campaign }: { readonly campaign: Campaign }) {
         assign it on the <OpenPanel panel="base">base</OpenPanel> <PageRef pages={20} />
       </p>
 
-      {built.length === 0 ? (
+      {built.length === 0 && (
         <p className="mt-3 text-sm text-stone-600 dark:text-stone-400">Nothing is built yet.</p>
-      ) : (
-        built.map((occupant) => (
-          <FacilitySlotStaff key={occupant.slotId} campaign={campaign} occupant={occupant} />
-        ))
       )}
+      <AssignmentBoard
+        campaign={campaign}
+        lanes={built.map((occupant) => ({
+          task: { task: 'staff', slot: occupant.slotId } as const,
+          name: facilityInSlot(occupant.facility.id, occupant.slotId),
+          pages: '72–73',
+          detail: <StaffRoom campaign={campaign} occupant={occupant} />,
+        }))}
+      />
     </>
   );
 }

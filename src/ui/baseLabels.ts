@@ -186,3 +186,14 @@ export function builtThingLabel(id: string): string {
 
   return id;
 }
+
+/**
+ * A built facility named with its slot, the slot only when it says something
+ * the facility's name doesn't: "Kitchen", not "Kitchen — Kitchen", but
+ * "Bunk Room (Bunk Room 2)" where there are two (#240).
+ */
+export function facilityInSlot(facility: FacilityId, slot: string): string {
+  const name = FACILITY_LABELS[facility];
+  const where = slotLabel(slot);
+  return where === name ? name : `${name} (${where})`;
+}

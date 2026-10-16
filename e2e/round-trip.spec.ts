@@ -45,6 +45,34 @@ async function moveOn(page: Page, button: Locator) {
   }
 }
 
+/**
+ * Moves a survivor on the Planning Phase's assignment board, the way a player
+ * does: their card, then the lane's Move button (#237).
+ */
+async function assignTo(page: Page, survivor: RegExp, lane: string | RegExp) {
+  const walk = page.locator('#turn');
+  await walk.getByRole('button', { name: survivor }).click();
+  await walk
+    .getByRole('region', typeof lane === 'string' ? { name: lane, exact: true } : { name: lane })
+    .getByRole('button', { name: /^move .* here$/i })
+    .click();
+}
+
+/** Everybody with nothing to do, or a task from another step, onto one lane. */
+async function assignEverybody(page: Page, lane: string) {
+  const walk = page.locator('#turn');
+  const waiting = walk.locator(
+    'section[aria-label="Nothing to do"] button[aria-pressed], section[aria-label="Elsewhere"] button[aria-pressed]',
+  );
+  while ((await waiting.count()) > 0) {
+    await waiting.first().click();
+    await walk
+      .getByRole('region', { name: lane, exact: true })
+      .getByRole('button', { name: /^move .* here$/i })
+      .click();
+  }
+}
+
 async function closePanel(page: Page) {
   const done = page.getByRole('button', { name: /^done$/i });
   if (await done.isVisible()) {
@@ -218,10 +246,7 @@ async function assignProjectTeam(page: Page) {
   await closePanel(page);
   await moveOn(page, page.getByRole('button', { name: 'Next: Assign Project Team' }));
 
-  const team = page.getByRole('group', { name: /on the project team/i });
-  for (const box of await team.getByRole('checkbox').all()) {
-    await box.check();
-  }
+  await assignEverybody(page, 'Project team');
 }
 
 /**
@@ -1327,10 +1352,7 @@ test('a turn’s XP and materials are taken in the steps that award them', async
   await moveOn(page, page.getByRole('button', { name: 'Next: Assign Project Team' }));
   await moveOn(page, page.getByRole('button', { name: 'Next: Assign Rest and Healing' }));
   await moveOn(page, page.getByRole('button', { name: 'Next: Assign Mission Team' }));
-  await page
-    .getByRole('group', { name: /on the mission team/i })
-    .getByRole('checkbox', { name: /earl/i })
-    .check();
+  await assignTo(page, /^earl/i, 'Mission team 1');
 
   // The last step of Planning, so the next step is already the next phase and
   // the walk offers one button rather than two that do the same thing.
@@ -1440,7 +1462,11 @@ test('turn 1 knows who went, and a step out to Planning does not forget', async 
   // Forward into Planning — which really does clear the board, and must — then
   // back through the phase it was read in.
   await moveOn(page, page.getByRole('button', { name: 'Skip to Planning' }));
-  await expect(walk.getByText(/with nothing to do/i)).toBeVisible();
+  await expect(
+    walk
+      .getByRole('region', { name: 'Nothing to do', exact: true })
+      .getByRole('button', { name: /^earl/i }),
+  ).toBeVisible();
 
   for (const step of [
     'Back to Add Facilities and Upgrades',
@@ -1499,10 +1525,7 @@ test('material rolls survive a reload, and storing nothing asks first', async ({
   await moveOn(page, page.getByRole('button', { name: 'Next: Assign Project Team' }));
   await moveOn(page, page.getByRole('button', { name: 'Next: Assign Rest and Healing' }));
   await moveOn(page, page.getByRole('button', { name: 'Next: Assign Mission Team' }));
-  await page
-    .getByRole('group', { name: /on the mission team/i })
-    .getByRole('checkbox', { name: /earl/i })
-    .check();
+  await assignTo(page, /^earl/i, 'Mission team 1');
 
   await moveOn(page, page.getByRole('button', { name: 'Next: Check for Rot' }));
   await page.getByRole('button', { name: 'End turn 1' }).click();
@@ -1712,16 +1735,12 @@ test('a Clinic’s Health is shared out unequally, because equally means this', 
 
   await closePanel(page);
   await moveOn(page, page.getByRole('button', { name: 'Next: Assign Facility Staff' }));
-  await page
-    .getByRole('group', { name: /medical clinic/i })
-    .getByRole('checkbox', { name: /nell/i })
-    .check();
+  await assignTo(page, /^nell/i, /^medical clinic/i);
 
   await moveOn(page, page.getByRole('button', { name: 'Next: Assign Project Team' }));
   await moveOn(page, page.getByRole('button', { name: 'Next: Assign Rest and Healing' }));
-  const healing = page.getByRole('group', { name: /being healed/i });
-  await healing.getByRole('checkbox', { name: /tomas/i }).check();
-  await healing.getByRole('checkbox', { name: /ada/i }).check();
+  await assignTo(page, /^tomas/i, 'Being healed');
+  await assignTo(page, /^ada/i, 'Being healed');
 
   await moveOn(page, page.getByRole('button', { name: 'Next: Assign Mission Team' }));
   await moveOn(page, page.getByRole('button', { name: 'Next: Check for Rot' }));
@@ -1896,10 +1915,7 @@ test('a turn ends with the horde called and somebody walking out', async ({ page
   // All eight on the project team, which is eight of the Siege Threat.
   await skipToPhase(page, 'Planning');
   await moveOn(page, page.getByRole('button', { name: 'Next: Assign Project Team' }));
-  const team = page.getByRole('group', { name: /on the project team/i });
-  for (const box of await team.getByRole('checkbox').all()) {
-    await box.check();
-  }
+  await assignEverybody(page, 'Project team');
 
   await moveOn(page, page.getByRole('button', { name: 'Next: Assign Rest and Healing' }));
   await moveOn(page, page.getByRole('button', { name: 'Next: Assign Mission Team' }));
