@@ -2,7 +2,7 @@
  * Vehicles on a mission (pp. 18, 32, 49, 52, 71; R64–R66, R70; Z5-12).
  *
  * Three parts, each where the walk reaches it: at Equip Mission Team a team
- * takes vehicles (`TeamVehicles`) and the step says how many go protected
+ * takes vehicles (`VehicleBoard`) and the step says how many go protected
  * (`AutoShopNote`); once the mission is played, each team with vehicles says
  * which it drove off (`MissionVehicles`). What may be taken, and what a record
  * loses, are `missionVehicles.ts`'s answers: this screen renders them.
@@ -26,11 +26,12 @@ import { useCampaign } from '../state/useCampaign';
 import { ITEM_LABELS } from './equipmentLabels';
 import { describeEvent } from './logLabels';
 import { PageRef } from './PageRef';
-import { FOCUS_RING, TOUCH_TARGET } from './styles';
+import { LaneFrame } from './AssignmentBoard';
+import { BOARD_MOVE, boardCard, FOCUS_RING, TOUCH_TARGET } from './styles';
 
 const HINT = 'text-sm text-stone-600 dark:text-stone-400';
 
-const SELECT = `${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 px-2 py-1 text-sm dark:border-stone-600 dark:bg-stone-800`;
+const WARNING = 'text-sm text-amber-800 dark:text-amber-300';
 
 const BUTTON = `${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 px-3 py-1 text-sm font-medium hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-stone-600 dark:hover:bg-stone-800`;
 
@@ -44,109 +45,132 @@ function summary(vehicle: Vehicle): string {
   return `Tier ${String(vehicle.tier)}${vehicle.water ? ' boat' : ''} · ${String(slots.inventory)} Inventory, ${String(slots.passengers)} Passenger Slots${upgrade} · ${fuel === 0 ? 'no Fuel' : `${String(fuel)} Fuel`}`;
 }
 
-/** The vehicles a team takes at Equip Mission Team, and the picker for another. */
-export function TeamVehicles({
+/**
+ * The vehicles each team takes at Equip Mission Team, as a board
+ * (`docs/assignment-board.md`, B4; #237): a lane for the base's vehicles and
+ * one for each team going out, a card per vehicle in one of them. Press a
+ * vehicle, then where it goes. Taking one burns its Fuel and leaving it home
+ * gives the Fuel back, the same `mission/vehicleTaken` and
+ * `mission/vehicleLeftHome` as before, and a lane that would refuse says
+ * `takeProblem`'s or `leaveProblem`'s reason instead of offering a button.
+ */
+export function VehicleBoard({
   campaign,
-  team,
+  teams,
 }: {
   readonly campaign: Campaign;
-  readonly team: number;
+  /** The teams going out, in team order. */
+  readonly teams: readonly number[];
 }) {
   const { dispatch } = useCampaign();
-  const taken = teamVehicles(campaign, team);
-  const elsewhere = new Set(vehiclesTaken(campaign).map((one) => one.vehicle));
-  const free = campaign.vehicles.filter((vehicle) => !elsewhere.has(vehicle.id));
-  const [chosen, setChosen] = useState('');
-  const id = `vehicle-${String(team)}`;
+  const [picked, setPicked] = useState<string | null>(null);
 
-  if (campaign.vehicles.length === 0) return null;
+  if (campaign.vehicles.length === 0 || teams.length === 0) return null;
 
-  const pick = free.some((vehicle) => vehicle.id === chosen) ? chosen : free[0]?.id;
-  const problem = pick === undefined ? null : takeProblem(campaign, team, pick);
+  const taken = vehiclesTaken(campaign);
+  const teamOf = (id: string) => taken.find((one) => one.vehicle === id)?.team;
+  const atBase = campaign.vehicles.filter((vehicle) => teamOf(vehicle.id) === undefined);
+  const mover = campaign.vehicles.find((vehicle) => vehicle.id === picked);
+
+  const card = (vehicle: Vehicle) => {
+    const isPicked = vehicle.id === mover?.id;
+
+    return (
+      <li key={vehicle.id}>
+        <button
+          type="button"
+          aria-pressed={isPicked}
+          className={boardCard(isPicked)}
+          onClick={() => {
+            setPicked(isPicked ? null : vehicle.id);
+          }}
+        >
+          <span className="font-medium">{vehicle.label}</span>
+          <span className="text-xs text-stone-600 tabular-nums dark:text-stone-400">
+            {summary(vehicle)}
+          </span>
+        </button>
+      </li>
+    );
+  };
+
+  /** What a lane offers the picked vehicle: a button, or why not. */
+  const target = (team: number | null) => {
+    if (mover === undefined) return null;
+    const from = teamOf(mover.id) ?? null;
+    if (from === team) return null;
+
+    const problem =
+      team === null ? leaveProblem(campaign, mover.id) : takeProblem(campaign, team, mover.id);
+    if (problem !== null) return <p className={`mt-2 ${WARNING}`}>{problem}</p>;
+
+    return (
+      <div className="mt-2">
+        <button
+          type="button"
+          className={BOARD_MOVE}
+          onClick={() => {
+            dispatch(
+              team === null
+                ? {
+                    type: 'mission/vehicleLeftHome',
+                    vehicle: mover.id,
+                    at: new Date().toISOString(),
+                  }
+                : {
+                    type: 'mission/vehicleTaken',
+                    team,
+                    vehicle: mover.id,
+                    at: new Date().toISOString(),
+                  },
+            );
+            setPicked(null);
+          }}
+        >
+          {team === null
+            ? `Leave ${mover.label} home`
+            : `Take ${mover.label} for team ${String(team)}`}
+        </button>
+      </div>
+    );
+  };
 
   return (
-    <section aria-label={`Mission team ${String(team)}’s vehicles`} className="flex flex-col gap-2">
-      <h4 className="font-semibold">
+    <fieldset className="flex flex-col gap-3 rounded-lg border border-stone-200 p-3 dark:border-stone-700">
+      <legend className="px-1 text-sm font-semibold">
         Vehicles <PageRef pages={52} />
-      </h4>
+      </legend>
 
-      {taken.length === 0 ? (
-        <p className={HINT}>Going on foot</p>
-      ) : (
-        <ul className="flex flex-col gap-1">
-          {taken.map((one) => {
-            const vehicle = campaign.vehicles.find((held) => held.id === one.vehicle);
-
-            return (
-              <li key={one.vehicle} className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="grow">
-                  {one.label}{' '}
-                  {vehicle !== undefined && <span className={HINT}>· {summary(vehicle)}</span>}
-                </span>
-                <button
-                  type="button"
-                  className={BUTTON}
-                  disabled={leaveProblem(campaign, one.vehicle) !== null}
-                  onClick={() => {
-                    dispatch({
-                      type: 'mission/vehicleLeftHome',
-                      vehicle: one.vehicle,
-                      at: new Date().toISOString(),
-                    });
-                  }}
-                >
-                  Leave home <span className="sr-only">{one.label}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+      {mover !== undefined && (
+        <p role="status" className="text-sm font-medium">
+          Choose where {mover.label} goes, or press it again to cancel.
+        </p>
       )}
 
-      {pick !== undefined && (
-        <div className="flex flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="text-sm" htmlFor={id}>
-              Take for team {team}
-            </label>
-            <select
-              id={id}
-              className={SELECT}
-              value={pick}
-              onChange={(changed) => {
-                setChosen(changed.target.value);
-              }}
-            >
-              {free.map((vehicle) => (
-                <option key={vehicle.id} value={vehicle.id}>
-                  {vehicle.label} · {summary(vehicle)}
-                </option>
-              ))}
-            </select>
-          </div>
-          {problem !== null && (
-            <p className="text-sm text-amber-800 dark:text-amber-300">{problem}</p>
-          )}
-          <div>
-            <button
-              type="button"
-              className={BUTTON}
-              disabled={problem !== null}
-              onClick={() => {
-                dispatch({
-                  type: 'mission/vehicleTaken',
-                  team,
-                  vehicle: pick,
-                  at: new Date().toISOString(),
-                });
-              }}
-            >
-              Take <span className="sr-only">a vehicle for team {team}</span>
-            </button>
-          </div>
-        </div>
-      )}
-    </section>
+      {teams.map((team) => {
+        const own = campaign.vehicles.filter((vehicle) => teamOf(vehicle.id) === team);
+
+        return (
+          <LaneFrame key={team} name={`Mission team ${String(team)}’s vehicles`}>
+            {own.length === 0 ? (
+              <p className={`mt-1 ${HINT}`}>Going on foot</p>
+            ) : (
+              <ul className="mt-2 flex flex-wrap gap-2">{own.map(card)}</ul>
+            )}
+            {target(team)}
+          </LaneFrame>
+        );
+      })}
+
+      <LaneFrame name="At the base">
+        {atBase.length === 0 ? (
+          <p className={`mt-1 ${HINT}`}>Every vehicle is going out.</p>
+        ) : (
+          <ul className="mt-2 flex flex-wrap gap-2">{atBase.map(card)}</ul>
+        )}
+        {target(null)}
+      </LaneFrame>
+    </fieldset>
   );
 }
 

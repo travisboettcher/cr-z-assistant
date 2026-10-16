@@ -16,8 +16,8 @@
  * of offering a Move button; a lane that would only warn shows the warning and
  * asks once before it moves (the override is never stored, as before).
  *
- * The vehicles each team takes are still a list under its lanes (R65; Z5-12),
- * until B4. The Inventory and the roster stay in their modals, opened from
+ * The vehicles each team takes are a second, smaller board after it
+ * (`VehicleBoard`, B4; R65; Z5-12). The Inventory and the roster stay in their modals, opened from
  * here with `OpenPanel`.
  */
 
@@ -32,7 +32,7 @@ import { inventorySlots } from '../engine/survivor';
 import { useCampaign } from '../state/useCampaign';
 import { LaneFrame } from './AssignmentBoard';
 import { describeItem, ITEM_LABELS } from './equipmentLabels';
-import { AutoShopNote, TeamVehicles } from './MissionVehicles';
+import { AutoShopNote, VehicleBoard } from './MissionVehicles';
 import { OpenPanel } from './OpenPanel';
 import { PageRef } from './PageRef';
 import { BOARD_MOVE, boardCard, FOCUS_RING, TOUCH_TARGET } from './styles';
@@ -250,7 +250,6 @@ export function EquipMissionTeam({ campaign }: { readonly campaign: Campaign }) 
                   {target(survivor.id, { survivor }, 'Move')}
                 </LaneFrame>
               ))}
-              <TeamVehicles campaign={campaign} team={team.team} />
             </fieldset>
           ))}
 
@@ -280,6 +279,8 @@ export function EquipMissionTeam({ campaign }: { readonly campaign: Campaign }) 
             )}
             {target('free', 'free', 'Set')}
           </LaneFrame>
+
+          <VehicleBoard campaign={campaign} teams={teams.map((team) => team.team)} />
         </>
       )}
 
