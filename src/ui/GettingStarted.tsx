@@ -1,5 +1,5 @@
 /**
- * The three things a new campaign's first turn needs, above the turn walk.
+ * The four things a new campaign's first turn needs, above the turn walk.
  *
  * A new campaign opened onto a turn walk at Select Mission with nobody in the
  * community and no base, and nothing said that either was wrong: the roster
@@ -7,7 +7,8 @@
  * walked without them. This says what to do first, in order, and goes away
  * once it is done or the first turn is over.
  *
- * What is done and what is next is `firstTurnChecklist`'s answer, which the
+ * Four items, in the order turn 1 needs them, with an action wherever there is
+ * one to take (#238). What is done and what is next is `firstTurnChecklist`'s answer, which the
  * summary cards read too: while this is on screen it holds turn 1's primary
  * action, and their empty states stand back (#231). It is guidance, never a
  * gate: nothing here stops the walk (R33).
@@ -16,6 +17,8 @@
 import { STARTING_COMMUNITY_TIER_LEVELS } from '../data/tiers';
 import type { Campaign } from '../engine/campaign';
 import { firstTurnChecklist } from '../engine/firstTurn';
+import { phaseOf } from '../engine/turn';
+import { FIRST_MISSION_LANE } from './FirstMission';
 import { communityTierLevels } from '../engine/survivor';
 import type { ReactNode } from 'react';
 import { PageRef } from './PageRef';
@@ -27,13 +30,16 @@ export interface GettingStartedProps {
   readonly onClaimBase: () => void;
 }
 
-const ACT = `${TOUCH_TARGET} ${FOCUS_RING} shrink-0 rounded-lg ${PRIMARY_FILL} px-4 font-semibold`;
+const ACT = `${TOUCH_TARGET} ${FOCUS_RING} inline-flex shrink-0 items-center rounded-lg ${PRIMARY_FILL} px-4 font-semibold`;
 
 export function GettingStarted({ campaign, onAddSurvivors, onClaimBase }: GettingStartedProps) {
   const checklist = firstTurnChecklist(campaign);
   if (checklist === null) return null;
 
-  const { community, team, base, next } = checklist;
+  const { community, unfinished, team, mission, base, next } = checklist;
+  // The team's lane is on the walk only in the Mission Phase, so the link to
+  // it is too (#238).
+  const teamOnScreen = phaseOf(campaign.step) === 'mission';
 
   return (
     <section
@@ -44,7 +50,7 @@ export function GettingStarted({ campaign, onAddSurvivors, onClaimBase }: Gettin
         Getting started
       </h2>
       <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-        Three things to do on your first turn. This list goes away when they are done.
+        Four things to do on your first turn, in order. This list goes away when they are done.
       </p>
 
       <ol className="mt-4 flex flex-col gap-2">
@@ -58,6 +64,16 @@ export function GettingStarted({ campaign, onAddSurvivors, onClaimBase }: Gettin
               <span className="tabular-nums">{communityTierLevels(campaign.survivors)}</span> of{' '}
               {STARTING_COMMUNITY_TIER_LEVELS} Tier levels so far. When it is complete, mark it
               built in the roster <PageRef pages={48} />
+              {/*
+               * Who still owes their build, by name: a community ticked built
+               * while every survivor still owed their skills read as done, and
+               * only each survivor's own sheet said otherwise (#238).
+               */}
+              {unfinished.length > 0 && (
+                <span className="mt-1 block font-medium text-amber-800 dark:text-amber-300">
+                  Not finished yet: {unfinished.map((survivor) => survivor.name).join(', ')}.
+                </span>
+              )}
             </>
           }
           action={
@@ -76,9 +92,27 @@ export function GettingStarted({ campaign, onAddSurvivors, onClaimBase }: Gettin
               In this turn’s Mission Phase <PageRef pages={75} />
             </>
           }
+          action={
+            teamOnScreen && (
+              <a href={`#${FIRST_MISSION_LANE}`} className={ACT}>
+                Choose the team
+              </a>
+            )
+          }
         />
         <Item
           number={3}
+          done={mission}
+          current={next === 'mission'}
+          title="Play the First Mission"
+          detail={
+            <>
+              On the table, then record how it ended at Play the Mission <PageRef pages="76–77" />
+            </>
+          }
+        />
+        <Item
+          number={4}
           done={base}
           current={next === 'base'}
           title="Claim your base"
@@ -89,7 +123,7 @@ export function GettingStarted({ campaign, onAddSurvivors, onClaimBase }: Gettin
           }
           action={
             <button type="button" onClick={onClaimBase} className={ACT}>
-              Claim a base
+              Claim your base
             </button>
           }
         />

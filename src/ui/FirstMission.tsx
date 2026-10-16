@@ -32,12 +32,17 @@
 import { useState } from 'react';
 import type { Campaign } from '../engine/campaign';
 import { beforePlanning, missionTeam } from '../engine/assignments';
+import { firstBaseOwed } from '../engine/base';
 import { missionPlayed, missionTeams } from '../engine/missions';
 import { planningHasBegun } from '../engine/planning';
 import { AssignmentBoard } from './AssignmentBoard';
+import { OpenPanel } from './OpenPanel';
 import { PageRef } from './PageRef';
 import { TeamChoice } from './SelectMission';
 import { FOCUS_RING, SECONDARY_FILL, TOUCH_TARGET } from './styles';
+
+/** The lane's anchor, for Getting started's link to it (#238). */
+export const FIRST_MISSION_LANE = 'first-mission-team';
 
 /** The First Mission is team 1's: turn 1 has no Planning Phase to split it. */
 const TEAM = 1;
@@ -115,6 +120,24 @@ export function FirstMission({ campaign }: { readonly campaign: Campaign }) {
           >
             Change who went
           </button>
+          {/*
+           * The claim, offered where the mission that wins it was played. It
+           * was offered in amber from the start of turn 1 and never once it
+           * was due, so a won First Mission left the walk owing a base with
+           * nothing on the step to claim it (#238). The same `firstBaseOwed`
+           * that `outstanding` owes here.
+           */}
+          {firstBaseOwed(campaign) && (
+            <div className="mt-2 flex flex-col items-start gap-2">
+              <p className="text-sm font-medium">
+                The First Mission is played, so claim your base. It arrives stocked to its caps{' '}
+                <PageRef pages="19, 54, 76–77" />
+              </p>
+              <OpenPanel panel="base" look="primary">
+                Claim your base
+              </OpenPanel>
+            </div>
+          )}
         </div>
       ) : (
         <>
@@ -142,6 +165,7 @@ export function FirstMission({ campaign }: { readonly campaign: Campaign }) {
               {
                 task: { task: 'mission', team: TEAM },
                 name: 'On the First Mission',
+                id: FIRST_MISSION_LANE,
                 pages: 75,
                 /*
                  * What the team plays, with the team: Select Mission's choice,

@@ -17,7 +17,7 @@ import { App } from './App';
 function renderApp(initialState?: CampaignState) {
   // `exactOptionalPropertyTypes` means passing `initialState={undefined}` is
   // not the same as omitting the prop, hence the branch rather than a spread.
-  render(
+  return render(
     initialState === undefined ? (
       <CampaignProvider>
         <App />
@@ -243,19 +243,89 @@ describe('getting started', () => {
     expect(screen.getByRole('dialog', { name: /^survivors$/i })).toBeVisible();
   });
 
-  it('is gone once the community, the team and the base are in place', () => {
+  /** Earl, finished: a Tier 2 with both skills chosen (pg. 7). */
+  const earl = () => ({
+    ...createSurvivor('Earl Rhodes', 2, { id: 'earl' }),
+    skills: { tactics: 0, carry: 0 },
+  });
+  const firstMissionWon = {
+    turn: 1,
+    phase: 'mission' as const,
+    at: '2026-08-30T00:00:00.000Z',
+    event: { kind: 'first-mission-resolved' as const, team: 1, endCondition: 2, strangers: [] },
+  };
+  const current = () =>
+    within(checklist() as HTMLElement)
+      .getAllByRole('listitem')
+      .find((item) => item.getAttribute('aria-current') === 'step');
+
+  it('is gone once the community, the team, the mission and the base are done', () => {
     renderApp({
       status: 'open',
       campaign: {
         ...createNewCampaign('Cedar Hollow'),
         startingCommunityBuilt: true,
-        survivors: [createSurvivor('Earl Rhodes', 4, { id: 'earl' })],
+        survivors: [earl()],
         assignments: { earl: { task: 'mission', team: 1 } },
         base: { id: 'small-town-home', slots: {} },
+        log: [firstMissionWon],
       },
     });
 
     expect(checklist()).toBeNull();
+  });
+
+  /** #238. A community ticked built with every survivor still owing their skills read as done. */
+  it('names who is not finished, and keeps the community current until they are', () => {
+    renderApp({
+      status: 'open',
+      campaign: {
+        ...createNewCampaign('Cedar Hollow'),
+        startingCommunityBuilt: true,
+        survivors: [createSurvivor('Earl Rhodes', 2, { id: 'earl' })],
+      },
+    });
+
+    expect(current()).toHaveTextContent(/build your starting community/i);
+    expect(current()).toHaveTextContent('Not finished yet: Earl Rhodes.');
+  });
+
+  it('jumps to the First Mission’s team when that is next', () => {
+    renderApp({
+      status: 'open',
+      campaign: {
+        ...createNewCampaign('Cedar Hollow'),
+        startingCommunityBuilt: true,
+        survivors: [earl()],
+      },
+    });
+
+    const link = within(current() as HTMLElement).getByRole('link', { name: 'Choose the team' });
+    expect(link).toHaveAttribute('href', '#first-mission-team');
+    expect(document.getElementById('first-mission-team')).toHaveAccessibleName(
+      'On the First Mission',
+    );
+  });
+
+  /** #238. The claim was amber from the start of turn 1 and never offered once it was due. */
+  it('offers the claim once the First Mission is played, and not before', () => {
+    const turnOne = {
+      ...createNewCampaign('Cedar Hollow'),
+      step: 'tactical-mission' as const,
+      startingCommunityBuilt: true,
+      survivors: [earl()],
+      assignments: { earl: { task: 'mission' as const, team: 1 } },
+    };
+
+    const { unmount } = renderApp({ status: 'open', campaign: turnOne });
+    expect(current()).toHaveTextContent(/play the first mission/i);
+    expect(screen.queryByRole('button', { name: 'Claim your base' })).toBeNull();
+    unmount();
+
+    renderApp({ status: 'open', campaign: { ...turnOne, log: [firstMissionWon] } });
+    expect(current()).toHaveTextContent(/claim your base/i);
+    // On the checklist and on the step that won it.
+    expect(screen.getAllByRole('button', { name: 'Claim your base' })).toHaveLength(2);
   });
 
   it('is gone after the first turn, whatever is missing', () => {

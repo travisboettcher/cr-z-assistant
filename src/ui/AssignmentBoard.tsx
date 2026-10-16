@@ -43,6 +43,8 @@ export interface Lane {
   readonly pages: number | string;
   /** What the lane says about itself, under its name: capacity, Labor. */
   readonly detail?: ReactNode;
+  /** An anchor for a link that jumps to this lane, such as Getting started's (#238). */
+  readonly id?: string;
 }
 
 export interface AssignmentBoardProps {
@@ -159,6 +161,7 @@ export function AssignmentBoard({ campaign, lanes }: AssignmentBoardProps) {
             key={`${lane.task.task}:${'slot' in lane.task ? lane.task.slot : ''}:${'team' in lane.task ? String(lane.task.team) : ''}`}
             name={lane.name}
             pages={lane.pages}
+            {...(lane.id === undefined ? {} : { id: lane.id })}
           >
             {lane.detail}
             {members.length === 0 ? (
@@ -205,14 +208,19 @@ export function AssignmentBoard({ campaign, lanes }: AssignmentBoardProps) {
 function LaneFrame({
   name,
   pages,
+  id,
   children,
 }: {
   readonly name: string;
   readonly pages?: number | string;
+  readonly id?: string;
   readonly children: ReactNode;
 }) {
   return (
     <section
+      id={id}
+      // Focusable from a link to it, so the jump moves the keyboard too.
+      tabIndex={id === undefined ? undefined : -1}
       aria-label={name}
       className="rounded-lg border border-stone-200 p-3 dark:border-stone-700"
     >

@@ -205,7 +205,19 @@ function TakeItem({
   const [fresh, setFresh] = useState(() => crypto.randomUUID());
   const id = `take-${survivor.id}`;
 
-  if (options.length === 0) return null;
+  /*
+   * Say why, rather than draw nothing. On turn 1 the base is empty and a
+   * survivor still owing their skills has no shoddy gear to take, and a missing
+   * control read as a step with nothing to do (#238).
+   */
+  if (options.length === 0) {
+    return (
+      <p className="text-sm text-stone-600 dark:text-stone-400">
+        Nothing for {survivor.name} to take: the base’s Inventory is empty, and no skill of{' '}
+        {survivor.name}’s uses free shoddy gear <PageRef pages="18, 37" />
+      </p>
+    );
+  }
 
   const pick = options.includes(chosen) ? chosen : (options[0] as string);
   const [source, value] = pick.split(/:(.*)/s) as [string, string];

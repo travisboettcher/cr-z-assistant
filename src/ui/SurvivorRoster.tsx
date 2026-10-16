@@ -24,6 +24,7 @@ import type { Campaign, Survivor } from '../engine/campaign';
 import { communityViolations } from '../engine/legality';
 import { slotsInUse } from '../engine/equipment';
 import { communityTierLevels, inventorySlots, maxHp } from '../engine/survivor';
+import { STARTING_COMMUNITY_TIER_LEVELS } from '../data/tiers';
 import { hungerPenalty } from '../engine/feeding';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
@@ -415,6 +416,19 @@ function CommunityBudget({ campaign }: { readonly campaign: Campaign }) {
         </p>
       ))}
 
+      {/*
+       * Progress where the box is, while it is still a question: the count was
+       * small grey text at the top of the card, and the modal's Done button
+       * read as the way to say the building was finished (#238).
+       */}
+      {!campaign.startingCommunityBuilt && (
+        <p className="text-sm font-medium">
+          <span className="tabular-nums">{communityTierLevels(campaign.survivors)}</span> of{' '}
+          {STARTING_COMMUNITY_TIER_LEVELS} Tier levels so far. Once it’s complete, tick “The
+          starting community is built” <PageRef pages={48} />
+        </p>
+      )}
+
       <label htmlFor={checkboxId} className="flex items-center gap-3 text-sm">
         <input
           id={checkboxId}
@@ -429,8 +443,11 @@ function CommunityBudget({ campaign }: { readonly campaign: Campaign }) {
           }}
           className={`${FOCUS_RING} size-5 rounded border-stone-300 dark:border-stone-600`}
         />
-        <span className="text-stone-600 dark:text-stone-400">
-          The starting community is built — stop checking it against the ten-Tier-level budget.
+        <span>
+          <span className="font-medium">The starting community is built.</span>{' '}
+          <span className="text-stone-600 dark:text-stone-400">
+            It stops being checked against the ten Tier levels.
+          </span>
         </span>
       </label>
     </div>

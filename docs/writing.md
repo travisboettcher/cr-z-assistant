@@ -151,7 +151,7 @@ From the first pass over the first-run screens:
 | Before | After |
 |---|---|
 | Name it now — you can rename it later. | Choose a name. It can’t be changed later. |
-| What the first turn needs. This goes away once they are done. | Three things to do on your first turn. This list goes away when they are done. |
+| What the first turn needs. This goes away once they are done. | Four things to do on your first turn, in order. This list goes away when they are done. |
 | In the Mission Phase of the turn below | In this turn's Mission Phase |
 | This step is not built yet — work it on paper and move on when the table has. | The app doesn’t cover this step yet. Play it on paper, then move on. |
 | This turn has not finished with: | Still to do this turn: |
