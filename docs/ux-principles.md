@@ -85,11 +85,14 @@ rule, and the app must not be the reason a game stops.
   as a zero. On turn 1, while Getting started is on screen, the checklist holds that primary
   action and the empty cards' buttons are secondary: the dashed border still says what needs
   doing, and the same press is not offered in amber twice.
-- **Turn 1 says what it needs.** The Getting started checklist above the turn lists the three
+- **Turn 1 says what it needs.** The Getting started checklist above the turn lists the four
   things a new campaign needs, in order: build the starting community, choose the First Mission
-  team, claim the base. It shows the action for the first one not done, and it goes away once all
-  three are done or turn 1 is over. Each tick reads a question the rest of the app already asks,
-  so the checklist cannot disagree with the screens it points to.
+  team, play the First Mission, claim the base it wins. The community counts as built only once
+  nobody in it is still being built, and the checklist names who is not. It shows the action for
+  the first one not done, and it goes away once all four are done or turn 1 is over. The base is
+  offered once the First Mission is played, there and on the checklist, not before. Each tick
+  reads a question the rest of the app already asks, so the checklist cannot disagree with the
+  screens it points to.
 - **The End-turn dialog names what is owed** (`src/engine/outstanding.ts`), and still ends the
   turn. A turn ending with no base claimed is one of those warnings (R33), and so is a project
   team with Labor and nothing ordered. Next and a skip ask the same question before they pass a
