@@ -20,7 +20,7 @@ import type { Check } from '../engine/checks';
 import { permitted } from '../engine/checks';
 import { PageRef } from './PageRef';
 import { STEP_LABELS } from './turnLabels';
-import { FOCUS_RING, TOUCH_TARGET } from './styles';
+import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 
 export interface SlotActionProps<Code extends string> {
   /** The picker, or nothing where the verb has nothing to choose. */
@@ -125,7 +125,7 @@ export function SlotAction<Code extends string>({
           type="button"
           disabled={refused || !permitted(check, overridden)}
           onClick={onCommit}
-          className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg bg-amber-600 px-4 font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-600 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400 dark:disabled:bg-stone-700 dark:disabled:text-stone-400`}
+          className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg ${PRIMARY_FILL} px-4 font-semibold disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-600 dark:disabled:bg-stone-700 dark:disabled:text-stone-400`}
         >
           {label}
         </button>

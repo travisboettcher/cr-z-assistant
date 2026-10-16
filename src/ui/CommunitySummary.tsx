@@ -22,7 +22,7 @@ import { communityTierLevels, maxHp } from '../engine/survivor';
 import { emptySlotCount } from '../engine/utilities';
 import { BASE_LABELS, MATERIAL_LABELS } from './baseLabels';
 import { ITEM_KIND_LABELS } from './equipmentLabels';
-import { FOCUS_RING, TOUCH_TARGET } from './styles';
+import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 
 /** What a card opens. */
 export type CommunityPanel = 'survivors' | 'base' | 'materials' | 'inventory';
@@ -40,7 +40,7 @@ const QUIET = 'border-stone-200 dark:border-stone-800';
 const NEEDED = 'border-2 border-dashed border-amber-500 dark:border-amber-400';
 
 const OPEN = `${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 px-3 text-sm font-medium hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800`;
-const PRIMARY = `${TOUCH_TARGET} ${FOCUS_RING} w-full rounded-lg bg-amber-600 px-4 font-semibold text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`;
+const PRIMARY = `${TOUCH_TARGET} ${FOCUS_RING} w-full rounded-lg ${PRIMARY_FILL} px-4 font-semibold`;
 
 export function CommunitySummary({ campaign, onOpen }: CommunitySummaryProps) {
   return (

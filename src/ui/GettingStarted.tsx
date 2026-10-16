@@ -21,7 +21,7 @@ import { FIRST_TURN } from '../engine/siege';
 import { communityTierLevels } from '../engine/survivor';
 import type { ReactNode } from 'react';
 import { PageRef } from './PageRef';
-import { FOCUS_RING, TOUCH_TARGET } from './styles';
+import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 
 export interface GettingStartedProps {
   readonly campaign: Campaign;
@@ -29,7 +29,7 @@ export interface GettingStartedProps {
   readonly onClaimBase: () => void;
 }
 
-const ACT = `${TOUCH_TARGET} ${FOCUS_RING} shrink-0 rounded-lg bg-amber-600 px-4 font-semibold text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`;
+const ACT = `${TOUCH_TARGET} ${FOCUS_RING} shrink-0 rounded-lg ${PRIMARY_FILL} px-4 font-semibold`;
 
 export function GettingStarted({ campaign, onAddSurvivors, onClaimBase }: GettingStartedProps) {
   if (campaign.turn !== FIRST_TURN) return null;
@@ -132,7 +132,7 @@ function Item({ number, done, current, title, detail, action }: ItemProps) {
           done
             ? 'bg-stone-200 text-stone-600 dark:bg-stone-700 dark:text-stone-300'
             : current
-              ? 'bg-amber-600 text-white dark:bg-amber-500 dark:text-stone-950'
+              ? PRIMARY_FILL
               : 'border-2 border-stone-400 text-stone-600 dark:text-stone-400'
         }`}
       >

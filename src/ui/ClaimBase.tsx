@@ -17,7 +17,7 @@ import { BASES, BASE_IDS, maxHeroes, type BaseId } from '../data/bases';
 import { useCampaign } from '../state/useCampaign';
 import { BASE_LABELS } from './baseLabels';
 import { PageRef } from './PageRef';
-import { FOCUS_RING, TOUCH_TARGET } from './styles';
+import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 
 export function ClaimBase() {
   const { dispatch } = useCampaign();
@@ -115,7 +115,7 @@ export function ClaimBase() {
             onClick={() => {
               dispatch({ type: 'base/claimed', base: choice, at: new Date().toISOString() });
             }}
-            className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg bg-amber-600 px-5 font-semibold text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+            className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg ${PRIMARY_FILL} px-5 font-semibold`}
           >
             Claim this base
           </button>

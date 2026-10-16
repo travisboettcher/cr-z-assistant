@@ -17,3 +17,14 @@ export const FOCUS_RING =
  * target the same size as a long one.
  */
 export const TOUCH_TARGET = 'min-h-touch min-w-touch';
+
+/**
+ * Amber, which means act here (`docs/ux-principles.md`): the fill of the one
+ * primary action in an area, and of the turn-1 step that is current.
+ *
+ * amber-700 because the text on it is white and has to clear 4.5:1 in a lit
+ * room; amber-600 gave 3.2:1 (#230). The dark theme keeps dark text on
+ * amber-500. The hover is `enabled:` so a disabled button doesn't react.
+ */
+export const PRIMARY_FILL =
+  'bg-amber-700 text-white enabled:hover:bg-amber-800 dark:bg-amber-500 dark:text-stone-950 dark:enabled:hover:bg-amber-400';

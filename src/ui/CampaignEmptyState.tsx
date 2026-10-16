@@ -10,7 +10,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useCampaign } from '../state/useCampaign';
 import { ImportCampaign } from './ImportCampaign';
-import { FOCUS_RING, TOUCH_TARGET } from './styles';
+import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 
 export function CampaignEmptyState() {
   const { dispatch } = useCampaign();
@@ -79,7 +79,7 @@ export function CampaignEmptyState() {
           <button
             type="submit"
             disabled={trimmed === ''}
-            className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg bg-amber-600 px-6 py-2 text-lg font-semibold text-white enabled:hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500 dark:bg-amber-500 dark:text-stone-950 dark:enabled:hover:bg-amber-400 dark:disabled:bg-stone-700 dark:disabled:text-stone-400`}
+            className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg ${PRIMARY_FILL} px-6 py-2 text-lg font-semibold disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500 dark:disabled:bg-stone-700 dark:disabled:text-stone-400`}
           >
             New campaign
           </button>

@@ -34,7 +34,7 @@ import { useCampaign } from '../state/useCampaign';
 import { BASE_LABELS, MATERIAL_LABELS } from './baseLabels';
 import { describeSelection, MISSION_LABELS } from './missionLabels';
 import { PageRef } from './PageRef';
-import { FOCUS_RING, TOUCH_TARGET } from './styles';
+import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 
 const HINT = 'text-sm text-stone-600 dark:text-stone-400';
 
@@ -42,7 +42,7 @@ const WARNING = 'text-sm font-medium text-amber-800 dark:text-amber-300';
 
 const SELECT = `${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 px-2 py-1 text-sm dark:border-stone-600 dark:bg-stone-800`;
 
-const PRIMARY = `${FOCUS_RING} ${TOUCH_TARGET} rounded-lg bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`;
+const PRIMARY = `${FOCUS_RING} ${TOUCH_TARGET} rounded-lg ${PRIMARY_FILL} px-4 py-2 font-medium disabled:cursor-not-allowed disabled:opacity-50`;
 
 const SECONDARY = `${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800`;
 

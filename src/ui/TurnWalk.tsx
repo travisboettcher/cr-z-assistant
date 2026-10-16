@@ -35,7 +35,7 @@ import { laborShortfall } from '../engine/projects';
 import { materialsAdded } from '../engine/materials';
 import { clearPendingRolls, readPendingRolls } from '../persistence/pendingRolls';
 import { PHASE_LABELS, STEP_LABELS } from './turnLabels';
-import { FOCUS_RING, TOUCH_TARGET } from './styles';
+import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 
 export interface TurnWalkProps {
   readonly campaign: Campaign;
@@ -144,8 +144,8 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
                 current
                   ? 'bg-stone-100 font-semibold dark:bg-stone-800'
                   : done
-                    ? 'text-stone-400 dark:text-stone-500'
-                    : 'text-stone-600 dark:text-stone-400'
+                    ? 'text-stone-500 dark:text-stone-400'
+                    : 'text-stone-600 dark:text-stone-300'
               }`}
             >
               {/*
@@ -178,7 +178,7 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <button
           type="button"
-          className={`${BUTTON} bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+          className={`${BUTTON} ${PRIMARY_FILL} disabled:opacity-50`}
           onClick={() => {
             if (byStep.endsTurn) endTurnRef.current?.showModal();
             else move('step');
@@ -388,7 +388,7 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
         <div className="mt-5 flex flex-wrap gap-3">
           <button
             type="button"
-            className={`${BUTTON} bg-amber-600 text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-stone-950 dark:hover:bg-amber-400`}
+            className={`${BUTTON} ${PRIMARY_FILL}`}
             onClick={() => {
               endTurn(byStep.endsTurn ? 'step' : 'phase');
             }}
