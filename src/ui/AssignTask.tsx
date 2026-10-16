@@ -2,10 +2,10 @@
  * Give this task to some of the community, and see what everyone else is doing.
  *
  * Used where a task is one list rather than a step of its own: who works a
- * facility, on the base's slot card, and turn 1's First Mission team until B2
- * moves it. The Planning Phase's steps use `AssignmentBoard` instead
- * (`docs/assignment-board.md`; #237), whose moves restore a task where an
- * untick here clears it.
+ * facility, on the base's slot card, which keeps its list on purpose (Z3-6).
+ * The Planning Phase's steps and turn 1's First Mission use `AssignmentBoard`
+ * instead (`docs/assignment-board.md`; #237), whose moves restore a task where
+ * an untick here clears it.
  *
  * **Checkboxes rather than a picker**, because more than one survivor can hold
  * the same task — a Med Lab sums its staff's Medicine (pg. 73) and the project

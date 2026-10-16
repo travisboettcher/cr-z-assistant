@@ -1444,10 +1444,7 @@ test('turn 1 knows who went, and a step out to Planning does not forget', async 
   // turn that asks, because every later one was answered in Planning.
   await closePanel(page);
   const walk = page.getByRole('region', { name: 'Turn 1' });
-  await walk
-    .getByRole('group', { name: /on the first mission/i })
-    .getByRole('checkbox', { name: /earl/i })
-    .check();
+  await assignTo(page, /^earl/i, 'On the First Mission');
 
   await closePanel(page);
   await moveOn(page, page.getByRole('button', { name: 'Skip to Advancement' }));

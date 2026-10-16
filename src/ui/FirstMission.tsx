@@ -19,17 +19,37 @@
  * which is what makes the rest of Phase 3 work unchanged: XP pools,
  * substitutions and the Teaching pool are all reading the same field they read
  * on every other turn.
+ *
+ * **The team is a board, and a form until the mission is played**
+ * (`docs/assignment-board.md`, B2; `docs/step-records.md`, R2; #236, #237).
+ * Two lanes, the First Mission and Nothing to do, with the team's choice of
+ * mission inside the First Mission's lane, so the team and what it plays are
+ * in one place. Once its outcome is recorded (`missionPlayed`) the team is a
+ * record, and changing it is a deliberate press behind a warning: mission XP
+ * and the haul's substitutions read who went.
  */
 
+import { useState } from 'react';
 import type { Campaign } from '../engine/campaign';
 import { beforePlanning, missionTeam } from '../engine/assignments';
+import { missionPlayed, missionTeams } from '../engine/missions';
 import { planningHasBegun } from '../engine/planning';
-import { AssignTask } from './AssignTask';
+import { AssignmentBoard } from './AssignmentBoard';
 import { PageRef } from './PageRef';
+import { TeamChoice } from './SelectMission';
+import { FOCUS_RING, SECONDARY_FILL, TOUCH_TARGET } from './styles';
+
+/** The First Mission is team 1's: turn 1 has no Planning Phase to split it. */
+const TEAM = 1;
+
+const BUTTON = `${FOCUS_RING} ${TOUCH_TARGET} rounded-lg px-4 py-2 text-sm font-medium`;
+const HINT = 'text-sm text-stone-600 dark:text-stone-400';
 
 export function FirstMission({ campaign }: { readonly campaign: Campaign }) {
+  const [changing, setChanging] = useState(false);
+
   /*
-   * A record once turn 1's Planning Phase has begun, and a control before it.
+   * A record once turn 1's Planning Phase has begun, whatever else.
    *
    * The walk lets a player step back within a turn, so this panel outlived the
    * phase it belongs to — and by then it was wrong twice over. It showed
@@ -44,42 +64,102 @@ export function FirstMission({ campaign }: { readonly campaign: Campaign }) {
    * this shows and what that awards XP for are one answer.
    */
   const recorded = missionTeam(beforePlanning(campaign));
-  const chosen = planningHasBegun(campaign);
+  const planned = planningHasBegun(campaign);
+  const played = missionPlayed(campaign, TEAM);
+  const team = missionTeams(campaign).find((candidate) => candidate.team === TEAM);
+
+  const went = (
+    <>
+      {recorded.length === 0 ? (
+        <span className="text-stone-600 dark:text-stone-400">
+          Nobody went on the First Mission.
+        </span>
+      ) : (
+        <>
+          <span className="font-medium">
+            {recorded.map((survivor) => survivor.name).join(', ')}
+          </span>{' '}
+          <span className="text-stone-600 dark:text-stone-400">went on the First Mission.</span>
+        </>
+      )}
+    </>
+  );
 
   return (
     <>
-      <p className="mt-4 text-sm text-stone-600 dark:text-stone-400">
+      <p className={`mt-4 ${HINT}`}>
         The First Mission is played on turn 1, so its team is chosen here rather than in a Planning
         Phase that hasn’t happened yet. Everyone who goes earns a point of XP, and their skills are
         what this turn’s haul can be forced with <PageRef pages="12, 18" />
       </p>
 
-      {chosen ? (
+      {planned ? (
         <p className="mt-3 text-sm">
-          {recorded.length === 0 ? (
-            <span className="text-stone-600 dark:text-stone-400">
-              Nobody went on the First Mission.
-            </span>
-          ) : (
-            <>
-              <span className="font-medium">
-                {recorded.map((survivor) => survivor.name).join(', ')}
-              </span>{' '}
-              <span className="text-stone-600 dark:text-stone-400">went on the First Mission.</span>
-            </>
-          )}{' '}
+          {went}{' '}
           <span className="text-stone-600 dark:text-stone-400">
             This turn’s Planning Phase has begun, so the team is on the record and what is assigned
             now belongs to turn 2 <PageRef pages={20} />
           </span>
         </p>
+      ) : played && !changing ? (
+        <div className="mt-3 flex flex-col items-start gap-2">
+          <p className="text-sm">
+            {went} <PageRef pages={75} />
+          </p>
+          <button
+            type="button"
+            className={`${BUTTON} ${SECONDARY_FILL}`}
+            onClick={() => {
+              setChanging(true);
+            }}
+          >
+            Change who went
+          </button>
+        </div>
       ) : (
-        <AssignTask
-          campaign={campaign}
-          task={{ task: 'mission', team: 1 }}
-          legend="On the First Mission"
-          pages={75}
-        />
+        <>
+          {played && (
+            <div className="mt-3 flex flex-col items-start gap-2">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                The First Mission is played. Who went is what its mission XP and this turn’s
+                substitutions read, and points already handed out stay handed out{' '}
+                <PageRef pages="12, 18" />
+              </p>
+              <button
+                type="button"
+                className={`${BUTTON} ${SECONDARY_FILL}`}
+                onClick={() => {
+                  setChanging(false);
+                }}
+              >
+                Keep this team
+              </button>
+            </div>
+          )}
+          <AssignmentBoard
+            campaign={campaign}
+            lanes={[
+              {
+                task: { task: 'mission', team: TEAM },
+                name: 'On the First Mission',
+                pages: 75,
+                /*
+                 * What the team plays, with the team: Select Mission's choice,
+                 * a form until it is recorded and then a record (R1). Only at
+                 * Select Mission, the step that chooses it.
+                 */
+                detail:
+                  campaign.step === 'select-mission' && team !== undefined ? (
+                    <TeamChoice
+                      key={`${String(campaign.turn)}-${String(TEAM)}`}
+                      campaign={campaign}
+                      team={team}
+                    />
+                  ) : undefined,
+              },
+            ]}
+          />
+        </>
       )}
     </>
   );

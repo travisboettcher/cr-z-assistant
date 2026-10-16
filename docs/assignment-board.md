@@ -130,7 +130,7 @@ each team, a vehicle card in one of them.
 | | Adds | Engine |
 |---|---|---|
 | **B1** | The board, used by the four Planning steps; `AssignTask` removed from them. *Built (#237).* | none: the same two actions |
-| **B2** | Turn 1's First Mission on the board | none |
+| **B2** | Turn 1's First Mission on the board, the team's mission choice in its lane. *Built with R2 (#237).* | none |
 | **B3** | Equip the Mission Team on the board, items as cards | none: the same `EquipMove`s |
 | **B4** | Vehicles on the board | none |
 
