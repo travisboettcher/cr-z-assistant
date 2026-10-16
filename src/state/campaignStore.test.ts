@@ -4248,6 +4248,23 @@ describe('mission/resolved', () => {
 
     expect(campaignReducer(once, resolve(0))).toEqual(once);
   });
+
+  it('records whoever died with the outcome, in the same press (#236, R3)', () => {
+    const after = expectOpen(
+      campaignReducer(besieged(), {
+        type: 'mission/resolved',
+        at: AT,
+        outcome: { kind: 'siege-defense-resolved', zombiesLeft: 0, survivorsExited: 1, wounds },
+        deaths: [{ team: 1, survivor: 'earl', taken: {} }],
+      }),
+    );
+
+    expect(after.log.map((one) => one.event.kind).slice(-2)).toEqual([
+      'siege-defense-resolved',
+      'survivor-left',
+    ]);
+    expect(after.survivors).toEqual([]);
+  });
 });
 
 /**

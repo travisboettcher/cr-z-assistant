@@ -22,7 +22,6 @@ import { AdvancementPhase } from './AdvancementPhase';
 import { EquipMissionTeam } from './EquipMissionTeam';
 import { FirstMission } from './FirstMission';
 import { MissionOutcome } from './MissionOutcome';
-import { MissionDeaths } from './MissionDeaths';
 import { MissionSpent } from './MissionSpent';
 import { MissionVehicles } from './MissionVehicles';
 import { SelectMission } from './SelectMission';
@@ -330,15 +329,9 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
             {campaign.step === 'tactical-mission' && <MissionOutcome campaign={campaign} />}
 
             {/*
-             * Who died on a team's mission (Z5-13), first of what follows the
-             * outcome: their gear is lost or taken there, and is then no
-             * longer the team's to record as used.
-             */}
-            {campaign.step === 'tactical-mission' && <MissionDeaths campaign={campaign} />}
-
-            {/*
-             * What each team's mission used up or lost (Z5-5), beside its
-             * outcome, because the table has the cards in front of it now.
+             * What each team's mission used up or lost (Z5-5), once its
+             * outcome is in, with who died on it (#236, R3): their gear is lost
+             * or taken there, and is then no longer the team's to record.
              */}
             {campaign.step === 'tactical-mission' && <MissionSpent campaign={campaign} />}
 
@@ -355,13 +348,6 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
              * table now, and their places are filled before anything lands.
              */}
             {campaign.step === 'tactical-mission' && <SiegeWork campaign={campaign} />}
-
-            {campaign.step === 'tactical-mission' && (
-              <p className="mt-4 text-sm text-stone-600 dark:text-stone-400">
-                The app doesn’t cover this step yet. Play it on paper, then move on.{' '}
-                <PageRef pages={step.pages} />
-              </p>
-            )}
           </>
         )
       )}

@@ -733,7 +733,9 @@ it home (pp. 18, 32, 52, 71).
   most missions lose nobody: who died, and for each item they carried whether it stayed on the map
   or which teammate took it home (R71). The survivor leaves with the cause `killed`, beside #201's
   three, and the entry names the team and what was lost; each item taken is an `item-moved` to its
-  taker. It is never owed: the tracker cannot know somebody died.
+  taker. It is never owed: the tracker cannot know somebody died. *Since #236 (R3 in
+  [`step-records.md`](step-records.md)) it is part of the outcome's own form, recorded by the same
+  press.*
 - **A departure takes what the survivor carried** (R73), and its entry names it. Nothing of theirs
   goes to the base now, and the turned, the bitten and the removed still leave theirs there (R72,
   R74, R75).

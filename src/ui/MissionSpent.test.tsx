@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign, type Item } from '../engine/campaign';
+import type { CampaignEvent, LogEntry } from '../engine/log';
 import { createSurvivor } from '../engine/survivor';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { App } from './App';
@@ -10,7 +11,24 @@ const grenade: Item = { id: 'grenade-1', item: 'grenade', grade: 'standard' };
 const riot: Item = { id: 'riot-1', item: 'riot-shield', grade: 'standard' };
 const shield: Item = { id: 'shield-1', item: 'improvised-shield', grade: 'standard' };
 
-/** Turn 4 at Play the Mission: Earl and Carla on team 1, carrying gear. */
+const AT = '2026-10-16T09:00:00.000Z';
+
+const on4 = (event: CampaignEvent): LogEntry => ({ turn: 4, phase: 'mission', at: AT, event });
+
+/** Team 1's Thin the Herd, chosen and played. */
+const PLAYED = [
+  on4({ kind: 'mission-selected', team: 1, mission: 'thin-the-herd', names: [] }),
+  on4({
+    kind: 'thin-the-herd-resolved',
+    team: 1,
+    startingZombies: 4,
+    zombiesLeft: 2,
+    survivorsExited: 2,
+    allIncapacitated: false,
+  }),
+];
+
+/** Turn 4 at Play the Mission: Earl and Carla on team 1, carrying gear, their mission played. */
 function playing(overrides: Partial<Campaign> = {}): Campaign {
   return {
     ...createNewCampaign('Cedar Hollow'),
@@ -24,6 +42,7 @@ function playing(overrides: Partial<Campaign> = {}): Campaign {
       earl: { task: 'mission', team: 1 },
       carla: { task: 'mission', team: 1 },
     },
+    log: PLAYED,
     ...overrides,
   };
 }
@@ -64,14 +83,13 @@ describe('What a mission used (pp. 40, 45–48; Z5-5)', () => {
 
     await user.click(used().getByRole('button', { name: 'Record what team 1 used' }));
 
-    expect(walk().queryByRole('group', { name: 'What mission team 1 used' })).toBeInTheDocument();
     expect(
       walk().getByText(
         'Mission team 1 used up or lost: Earl Rhodes’s standard grenade, Carla Proust’s standard improvised shield.',
       ),
     ).toBeInTheDocument();
-    // The riot shield is all that is left to record.
-    expect(used().getAllByRole('checkbox')).toHaveLength(1);
+    // Recorded once (#236, R3): the riot shield stays with Earl, and the form goes.
+    expect(walk().queryByRole('group', { name: 'What mission team 1 used' })).toBeNull();
   });
 
   it('records a riot shield the table says was lost', async () => {
@@ -86,13 +104,20 @@ describe('What a mission used (pp. 40, 45–48; Z5-5)', () => {
     ).toBeInTheDocument();
   });
 
-  it('cannot record nothing at all', async () => {
+  it('records that nothing was used, as an answer like any other', async () => {
     const user = open(playing({ survivors: playing().survivors.slice(0, 1) }));
 
     await user.click(used().getByRole('checkbox', { name: /grenade/ }));
+    await user.click(used().getByRole('button', { name: 'Team 1 used nothing' }));
 
-    expect(used().getByRole('button', { name: 'Record what team 1 used' })).toBeDisabled();
-    expect(used().getByText('Nothing is ticked as used up or lost.')).toBeInTheDocument();
+    expect(walk().getByText('Mission team 1 used up or lost nothing.')).toBeInTheDocument();
+    expect(walk().queryByRole('group', { name: 'What mission team 1 used' })).toBeNull();
+  });
+
+  it('waits for the team’s outcome, which may say who died with it', () => {
+    open(playing({ log: PLAYED.slice(0, 1) }));
+
+    expect(walk().queryByRole('group', { name: 'What mission team 1 used' })).toBeNull();
   });
 
   it('shows nothing when nobody going out carries anything', () => {

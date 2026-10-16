@@ -507,7 +507,10 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
 
     case 'items-spent':
       return {
-        text: `Mission team ${String(event.team)} used up or lost: ${event.items.map((one) => `${one.name}’s ${describeItem(one)}`).join(', ')}.`,
+        text:
+          event.items.length === 0
+            ? `Mission team ${String(event.team)} used up or lost nothing.`
+            : `Mission team ${String(event.team)} used up or lost: ${event.items.map((one) => `${one.name}’s ${describeItem(one)}`).join(', ')}.`,
         pages: '40, 45–48',
       };
 

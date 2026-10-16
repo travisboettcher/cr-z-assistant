@@ -20,6 +20,13 @@
  * needs nothing typed and a correction already made on the sheet is kept.
  * Recording sets the roster to these; the sheet's own Health stays the place
  * to fix a mistake afterwards.
+ *
+ * **Who died is part of the same form** (`docs/step-records.md`, R3; #236),
+ * because a death is part of how the mission ended: a box per member, and for
+ * each one ticked, whether what they carried stayed on the map or somebody who
+ * came home took it (pp. 31, 34; R71). One press records the outcome and the
+ * deaths together, or neither (`submitMissionEnded`). Once recorded, the form
+ * is a record: the outcome's sentence, then each death's.
  */
 
 import { useState } from 'react';
@@ -32,9 +39,10 @@ import {
   type OverrunOption,
 } from '../data/missions';
 import { FIELD_RECRUITABLE_TIERS, type FieldRecruitTier } from '../data/recruitTable';
-import type { Campaign } from '../engine/campaign';
+import type { Campaign, Survivor } from '../engine/campaign';
 import type { MissionWound } from '../engine/log';
 import { claimWarning } from '../engine/claim';
+import { deathsProblem, wentOut, type MissionDeath } from '../engine/missionDeaths';
 import {
   asksSameMap,
   rareTradeDue,
@@ -62,6 +70,7 @@ import { useCampaign } from '../state/useCampaign';
 import { withArticle } from './articles';
 import { BASE_LABELS } from './baseLabels';
 import { describeItem } from './equipmentLabels';
+import { describeEvent } from './logLabels';
 import { VehicleFields, type VehicleDraft } from './VehicleFields';
 import {
   COUNT_LABELS,
@@ -182,21 +191,26 @@ function WoundFields({
   campaign,
   prefix,
   wounds,
+  dead,
   typed,
   onType,
 }: {
   readonly campaign: Campaign;
   readonly prefix: string;
   readonly wounds: readonly MissionWound[];
+  /** Who died, whose Health is not asked: they did not come home. */
+  readonly dead: ReadonlySet<string>;
   readonly typed: Typed;
   readonly onType: (survivor: string, field: 'health' | 'infection', value: string) => void;
 }) {
-  if (wounds.length === 0) return null;
+  const home = wounds.filter((wound) => !dead.has(wound.survivor));
+
+  if (home.length === 0) return null;
 
   // Whether Infection is asked is the engine's answer (`woundsAsTheyStand`
   // gives it to every member of a Viral campaign and nobody else), not a
   // second reading of the origin here.
-  const viral = wounds.some((wound) => wound.infection !== undefined);
+  const viral = home.some((wound) => wound.infection !== undefined);
 
   return (
     <div className="flex flex-col gap-2">
@@ -213,7 +227,7 @@ function WoundFields({
         Everybody starts where the roster has them now. Change anybody the mission left differently;
         recording sets the roster to these.
       </p>
-      {wounds.map((wound) => {
+      {home.map((wound) => {
         const survivor = campaign.survivors.find((one) => one.id === wound.survivor);
         const health = `${prefix}-health-${wound.survivor}`;
         const infection = `${prefix}-infection-${wound.survivor}`;
@@ -266,6 +280,116 @@ function WoundFields({
   );
 }
 
+/** The value a dead survivor's item picker holds while nobody took it. */
+const LOST = '';
+
+/**
+ * Who died on the mission, and for each, who took what they carried (pp. 31,
+ * 34; R71). Most missions lose nobody, so it is a box per member and nothing
+ * more until one is ticked.
+ */
+function DeathFields({
+  prefix,
+  members,
+  dead,
+  taken,
+  onDead,
+  onTaken,
+}: {
+  readonly prefix: string;
+  readonly members: readonly Survivor[];
+  readonly dead: ReadonlySet<string>;
+  readonly taken: Readonly<Record<string, string>>;
+  readonly onDead: (survivor: string, died: boolean) => void;
+  readonly onTaken: (item: string, taker: string) => void;
+}) {
+  if (members.length === 0) return null;
+
+  const home = members.filter((survivor) => !dead.has(survivor.id));
+
+  return (
+    <fieldset className="flex flex-col gap-2">
+      <legend className="text-sm font-medium">
+        Who died <PageRef pages="31, 34" />
+      </legend>
+      {members.map((survivor) => (
+        <div key={survivor.id} className="flex flex-col gap-1">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className={FOCUS_RING}
+              checked={dead.has(survivor.id)}
+              onChange={(changed) => {
+                onDead(survivor.id, changed.target.checked);
+              }}
+            />
+            {survivor.name} died
+          </label>
+
+          {dead.has(survivor.id) && survivor.items.length > 0 && (
+            <div className="ml-6 flex flex-col gap-1">
+              <p className={HINT}>What nobody took stays on the map, and is lost.</p>
+              {survivor.items.map((item) => {
+                const pickerId = `${prefix}-taken-${item.id}`;
+                const taker = taken[item.id] ?? LOST;
+
+                return (
+                  <div key={item.id} className="flex flex-wrap items-center gap-2">
+                    <label className="text-sm" htmlFor={pickerId}>
+                      {survivor.name}’s {describeItem(item)}
+                    </label>
+                    <select
+                      id={pickerId}
+                      className={SELECT}
+                      value={dead.has(taker) ? LOST : taker}
+                      onChange={(changed) => {
+                        onTaken(item.id, changed.target.value);
+                      }}
+                    >
+                      <option value={LOST}>Lost on the map</option>
+                      {home.map((other) => (
+                        <option key={other.id} value={other.id}>
+                          Taken by {other.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+    </fieldset>
+  );
+}
+
+/**
+ * The deaths as the form stands: each member ticked, with what somebody who
+ * came home took from them. A pick naming somebody since ticked as dead counts
+ * as lost, as its picker shows it.
+ */
+function deathsTicked(
+  team: number,
+  members: readonly Survivor[],
+  dead: ReadonlySet<string>,
+  taken: Readonly<Record<string, string>>,
+): readonly MissionDeath[] {
+  return members
+    .filter((survivor) => dead.has(survivor.id))
+    .map((survivor) => ({
+      team,
+      survivor: survivor.id,
+      taken: Object.fromEntries(
+        survivor.items.flatMap((item) => {
+          const taker = taken[item.id];
+
+          return taker === undefined || taker === LOST || dead.has(taker) ? [] : [[item.id, taker]];
+        }),
+      ),
+    }));
+}
+
 function TeamOutcome({
   campaign,
   choice,
@@ -287,6 +411,8 @@ function TeamOutcome({
   const [traded, setTraded] = useState(0);
   const [drafts, setDrafts] = useState<readonly RetrievedDraft[]>([]);
   const [typed, setTyped] = useState<Typed>({});
+  const [dead, setDead] = useState<ReadonlySet<string>>(() => new Set());
+  const [taken, setTaken] = useState<Readonly<Record<string, string>>>({});
 
   // The claim an overrun goes on with places no strangers (pg. 86), and asks
   // whether it was the overrun base's own map when it is that base's type (R29).
@@ -336,8 +462,14 @@ function TeamOutcome({
     returned,
     wounds,
   });
-  const problem = missionOutcomeProblem(campaign, outcome);
+  const members = wentOut(campaign, choice.team);
+  const deaths = deathsTicked(choice.team, members, dead, taken);
+  const problem =
+    missionOutcomeProblem(campaign, outcome) ?? deathsProblem(campaign, choice.team, deaths);
   const warning = problem === null ? strangerWarning(campaign, outcome) : null;
+  // An end condition not chosen yet says so beside its picker, not as a
+  // refusal at the foot of the form (#240).
+  const unchosen = asked.includes('end-condition') && endCondition === '';
   const label = MISSION_LABELS[choice.mission];
   const prefix = `mission-${String(choice.team)}`;
   const hint =
@@ -395,6 +527,7 @@ function TeamOutcome({
                     </option>
                   )}
                 </select>
+                {endCondition === '' && <span className={HINT}>Choose one to record {label}.</span>}
               </div>
             );
 
@@ -547,10 +680,27 @@ function TeamOutcome({
         </div>
       )}
 
+      <DeathFields
+        prefix={prefix}
+        members={members}
+        dead={dead}
+        taken={taken}
+        onDead={(survivor, died) => {
+          const next = new Set(dead);
+          if (died) next.add(survivor);
+          else next.delete(survivor);
+          setDead(next);
+        }}
+        onTaken={(item, taker) => {
+          setTaken({ ...taken, [item]: taker });
+        }}
+      />
+
       <WoundFields
         campaign={campaign}
         prefix={prefix}
         wounds={wounds}
+        dead={dead}
         typed={typed}
         onType={(survivor, field, value) => {
           setTyped({ ...typed, [survivor]: { ...typed[survivor], [field]: value } });
@@ -597,20 +747,48 @@ function TeamOutcome({
       )}
 
       {warning !== null && <p className={WARNING}>{warning}</p>}
-      <p className={HINT}>{problem ?? outcomeConsequences(outcome, campaign.turn).join(' ')}</p>
+      <p className={HINT}>
+        {unchosen ? null : (problem ?? outcomeConsequences(outcome, campaign.turn).join(' '))}
+      </p>
 
       <button
         type="button"
         className={PRIMARY}
         disabled={problem !== null}
         onClick={() => {
-          dispatch({ type: 'mission/resolved', outcome, at: new Date().toISOString() });
+          dispatch({
+            type: 'mission/resolved',
+            outcome,
+            ...(deaths.length === 0 ? {} : { deaths }),
+            at: new Date().toISOString(),
+          });
         }}
       >
         Record {label}
       </button>
     </fieldset>
   );
+}
+
+/**
+ * Who died on the team's mission, as the log says it, since the team last
+ * chose one: a First Mission played again (R21) has deaths of its own.
+ */
+function killedSince(campaign: Campaign, team: number): readonly string[] {
+  let killed: string[] = [];
+
+  for (const entry of campaign.log) {
+    if (entry.turn !== campaign.turn) continue;
+
+    const { event } = entry;
+
+    if (event.kind === 'mission-selected' && event.team === team) killed = [];
+    else if (event.kind === 'survivor-left' && event.cause === 'killed' && event.team === team) {
+      killed = [...killed, describeEvent(event, entry.turn).text];
+    }
+  }
+
+  return killed;
 }
 
 /** How many times a team has chosen a mission this turn — a key, not a rule. */
@@ -804,9 +982,16 @@ export function MissionOutcome({ campaign }: { readonly campaign: Campaign }) {
             named={named}
           />
         ) : (
-          <p key={choice.team} className="mt-4 text-sm font-medium">
-            {describeOutcome(recorded, campaign.turn)} <PageRef pages={outcomePages(recorded)} />
-          </p>
+          <div key={choice.team} className="mt-4 flex flex-col gap-1">
+            <p className="text-sm font-medium">
+              {describeOutcome(recorded, campaign.turn)} <PageRef pages={outcomePages(recorded)} />
+            </p>
+            {killedSince(campaign, choice.team).map((text) => (
+              <p key={text} className="text-sm">
+                {text}
+              </p>
+            ))}
+          </div>
         );
       })}
 

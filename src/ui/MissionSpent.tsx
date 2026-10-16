@@ -6,14 +6,21 @@
  * starts ticked, because carrying one out and back is the exception; anything
  * else starts clear, and ticking it says it was lost. What may be recorded is
  * `spent.ts`'s answer: this screen renders it.
+ *
+ * A form until recorded, then a record (`docs/step-records.md`, R3; #236):
+ * once for each mission a team plays, and offered once its outcome is in,
+ * because a death recorded with the outcome takes the dead's gear first.
+ * Nothing ticked is an answer, recorded the same way.
  */
 
 import { useState } from 'react';
 import type { Campaign } from '../engine/campaign';
-import { missionTeams } from '../engine/missions';
+import { missionTeams, teamOutcomes } from '../engine/missions';
 import {
   alwaysSpent,
+  spentItems,
   spentProblem,
+  spentRecorded,
   teamCarries,
   offeredAsUsed,
   type Carried,
@@ -32,7 +39,9 @@ export function MissionSpent({ campaign }: { readonly campaign: Campaign }) {
   const recorded = campaign.log.filter(
     (entry) => entry.turn === campaign.turn && entry.event.kind === 'items-spent',
   );
+  const outcomes = teamOutcomes(campaign);
   const teams = missionTeams(campaign)
+    .filter((team) => outcomes.has(team.team) && !spentRecorded(campaign, team.team))
     .map((team) => ({ team: team.team, carried: teamCarries(campaign, team.team) }))
     .filter(({ carried }) => carried.length > 0);
 
@@ -67,12 +76,14 @@ function TeamSpent({
   );
   const chosen = carried.map(({ item }) => item.id).filter((id) => ticked.has(id));
   const problem = spentProblem(campaign, team, chosen);
+  const nothing = spentItems(campaign, team, chosen).length === 0;
 
   return (
     <fieldset className="flex flex-col gap-2 rounded-lg border border-stone-200 p-3 dark:border-stone-700">
       <legend className="px-1 text-sm font-semibold">What mission team {team} used</legend>
       <p className={HINT}>
-        Tick what was used up or lost <PageRef pages="40, 45–48" />
+        Tick what was used up or lost. It leaves whoever carried it, and anything left clear stays
+        with them <PageRef pages="40, 45–48" />
       </p>
 
       <ul className="flex flex-col gap-1">
@@ -118,7 +129,7 @@ function TeamSpent({
             });
           }}
         >
-          Record what team {team} used
+          {nothing ? `Team ${String(team)} used nothing` : `Record what team ${String(team)} used`}
         </button>
       </div>
     </fieldset>

@@ -15,6 +15,9 @@
  *   ones that were, and the screen offers each as used to begin with.
  * - **Anything else** the table says was lost or destroyed.
  *
+ * Once per mission played (`spentRecorded`), and "nothing" is an answer
+ * recorded the same way (#236, R3).
+ *
  * Until a team carrying one-mission gear records, the turn owes it
  * (`outstanding`), because that gear would otherwise go into the next mission.
  *
@@ -100,11 +103,33 @@ export function spentProblem(
     return `Only what mission team ${String(team)} carries can be used up on its mission.`;
   }
 
-  if (spentItems(campaign, team, ticked).length === 0) {
-    return 'Nothing is ticked as used up or lost.';
+  if (spentRecorded(campaign, team)) {
+    return `What mission team ${String(team)} used is already recorded.`;
   }
 
+  // Nothing ticked is an answer too: the mission used nothing (#236, R3).
   return null;
+}
+
+/**
+ * Whether this team has recorded what its mission used, since it last chose
+ * one (#236, R3). A record is once per mission played, so the form becomes a
+ * record; a team that chooses again — a First Mission played again (R21), or
+ * an overrun's way on (R27) — plays again, and is asked again.
+ */
+export function spentRecorded(campaign: Campaign, team: number): boolean {
+  let recorded = false;
+
+  for (const entry of campaign.log) {
+    if (entry.turn !== campaign.turn) continue;
+
+    const { event } = entry;
+
+    if (event.kind === 'mission-selected' && event.team === team) recorded = false;
+    else if (event.kind === 'items-spent' && event.team === team) recorded = true;
+  }
+
+  return recorded;
 }
 
 /** The campaign with these items gone from whoever had them. */

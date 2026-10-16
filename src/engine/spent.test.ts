@@ -11,6 +11,7 @@ import {
   spentItems,
   spentOwed,
   spentProblem,
+  spentRecorded,
   teamCarries,
   withItemsLeftBehind,
 } from './spent';
@@ -121,13 +122,48 @@ describe('recording what a mission used (Z5-5)', () => {
     );
   });
 
-  it('refuses a record with nothing in it, or for a team carrying nothing', () => {
+  it('records nothing used as an answer, but not for a team carrying nothing', () => {
     const unshielded = playing({ survivors: [{ ...carla, items: [] }, earl, nell] });
 
-    expect(spentProblem(unshielded, 1, [])).toBe('Nothing is ticked as used up or lost.');
+    expect(spentProblem(unshielded, 1, [])).toBeNull();
+    expect(after(unshielded, 1, []).log.at(-1)?.event).toEqual({
+      kind: 'items-spent',
+      team: 1,
+      items: [],
+    });
     expect(spentProblem(playing(), 2, [])).toBe('Mission team 2 carries nothing to use up.');
-    // One-mission gear alone is something to record.
-    expect(spentProblem(playing(), 1, [])).toBeNull();
+  });
+
+  /** #236, R3: a form until recorded, then a record. */
+  it('is recorded once for each mission the team plays', () => {
+    const chose: LogEntry = {
+      turn: 4,
+      phase: 'mission',
+      at: AT,
+      event: { kind: 'mission-selected', team: 1, mission: 'thin-the-herd', names: [] },
+    };
+    const recorded = after(playing({ log: [chose] }), 1, ['riot-1']);
+
+    expect(spentRecorded(recorded, 1)).toBe(true);
+    expect(spentRecorded(recorded, 2)).toBe(false);
+    expect(spentProblem(recorded, 1, [])).toBe('What mission team 1 used is already recorded.');
+    expect(spentRecorded({ ...recorded, log: [...recorded.log, chose] }, 1)).toBe(false);
+    // Another team choosing, or this one's outcome, is not a record of what it used.
+    const other: LogEntry = { ...chose, event: { ...chose.event, team: 2 } as LogEntry['event'] };
+    const outcome: LogEntry = {
+      ...chose,
+      event: {
+        kind: 'thin-the-herd-resolved',
+        team: 1,
+        startingZombies: 4,
+        zombiesLeft: 2,
+        survivorsExited: 1,
+        allIncapacitated: false,
+      },
+    };
+    expect(spentRecorded({ ...recorded, log: [...recorded.log, other] }, 1)).toBe(true);
+    expect(spentRecorded(playing({ log: [chose, outcome] }), 1)).toBe(false);
+    expect(spentRecorded({ ...recorded, turn: 5 }, 1)).toBe(false);
   });
 
   it('is recorded in the Mission Phase', () => {

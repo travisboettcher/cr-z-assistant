@@ -485,3 +485,78 @@ describe('Retrieve New Vehicles', () => {
     );
   });
 });
+
+/** #236, R3: who died is part of how the mission ended, so it is in the outcome's form. */
+describe('a death on a mission (pp. 31, 34; R71)', () => {
+  const rifle = { id: 'rifle-1', item: 'rifle', grade: 'standard' } as const;
+  const bat = { id: 'bat-1', item: 'blunt', grade: 'standard' } as const;
+
+  /** Earl, carrying a rifle and a bat, and Carla on team 1's Thin the Herd. */
+  const team = (): Campaign =>
+    playing({
+      survivors: [
+        { ...createSurvivor('Earl Rhodes', 3, { id: 'earl' }), items: [rifle, bat] },
+        createSurvivor('Carla Proust', 3, { id: 'carla' }),
+      ],
+      assignments: {
+        earl: { task: 'mission', team: 1 },
+        carla: { task: 'mission', team: 1 },
+      },
+      log: [chose('thin-the-herd')],
+    });
+
+  const counted = async (user: ReturnType<typeof open>) => {
+    await user.type(field(/at the start/i), '4');
+    await user.type(field(/zombies left/i), '2');
+    await user.type(field(/out over the map edge/i), '1');
+  };
+
+  it('records who died, what a teammate took, and what stayed on the map, with the outcome', async () => {
+    const user = open(team());
+
+    await counted(user);
+    await user.click(within(walk()).getByRole('checkbox', { name: 'Earl Rhodes died' }));
+    // The dead are not asked how much Health they came home with.
+    expect(within(walk()).queryByLabelText('Earl Rhodes’s Health')).toBeNull();
+
+    await user.selectOptions(field(/Earl Rhodes’s standard rifle/), 'carla');
+    await user.click(within(walk()).getByRole('button', { name: /record thin the herd/i }));
+
+    expect(
+      within(walk()).getByText(
+        'Earl Rhodes, a Leader, died on mission team 1’s mission, and standard blunt weapon stayed on the map.',
+      ),
+    ).toBeInTheDocument();
+    expect(within(walk()).queryByRole('checkbox', { name: /died$/ })).toBeNull();
+  });
+
+  it('offers what the dead carried only to somebody who came home', async () => {
+    const user = open(team());
+
+    await user.click(within(walk()).getByRole('checkbox', { name: 'Earl Rhodes died' }));
+    await user.click(within(walk()).getByRole('checkbox', { name: 'Carla Proust died' }));
+
+    expect(
+      within(field(/Earl Rhodes’s standard rifle/))
+        .getAllByRole('option')
+        .map((one) => one.textContent),
+    ).toEqual(['Lost on the map']);
+  });
+
+  it('asks nothing about the gear of somebody who carried none', async () => {
+    const user = open(team());
+
+    await user.click(within(walk()).getByRole('checkbox', { name: 'Carla Proust died' }));
+
+    expect(within(walk()).queryByText(/stays on the map/)).toBeNull();
+  });
+});
+
+describe('an end condition not chosen yet (#240)', () => {
+  it('says so beside its picker, rather than as a refusal under the form', () => {
+    open(playing({ log: [teamChose(1, 'first-mission', 4)] }));
+
+    expect(within(walk()).getByText('Choose one to record the First Mission.')).toBeInTheDocument();
+    expect(within(walk()).queryByText(/Choose an end condition from/)).toBeNull();
+  });
+});
