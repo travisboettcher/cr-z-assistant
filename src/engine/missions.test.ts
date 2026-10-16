@@ -151,8 +151,8 @@ describe('turnMissions', () => {
 
     // Strictly: a choice that asked for no material carries no `material` key.
     expect(turnMissions(campaign).choices).toStrictEqual([
-      { team: 1, mission: 'thin-the-herd' },
-      { team: 2, mission: 'rescue-strangers' },
+      { team: 1, mission: 'thin-the-herd', names: [] },
+      { team: 2, mission: 'rescue-strangers', names: [] },
     ]);
   });
 
@@ -163,7 +163,7 @@ describe('turnMissions', () => {
       recorded: true,
     });
     expect(turnMissions(playing({ log: [skipped(), chose(1, 'thin-the-herd')] }))).toEqual({
-      choices: [{ team: 1, mission: 'thin-the-herd' }],
+      choices: [{ team: 1, mission: 'thin-the-herd', names: [] }],
       skipped: false,
       recorded: true,
     });
@@ -171,6 +171,27 @@ describe('turnMissions', () => {
 
   it('reads only this turn', () => {
     expect(turnMissions(playing({ log: [chose(1, 'thin-the-herd', 3)] })).recorded).toBe(false);
+  });
+
+  /**
+   * #236, R1. Select Mission's record named the team as it was *now*, so
+   * taking somebody off it after the choice rewrote who the record said went.
+   * The entry has always stored the names it was recorded with.
+   */
+  it('keeps the names each choice was recorded with, whoever is on the team now', () => {
+    const campaign = playing({
+      assignments: { earl: onTeam(1) },
+      log: [
+        at(4, {
+          kind: 'mission-selected',
+          team: 1,
+          mission: 'thin-the-herd',
+          names: ['Earl Rhodes', 'Carla Proust'],
+        }),
+      ],
+    });
+
+    expect(turnMissions(campaign).choices[0]?.names).toEqual(['Earl Rhodes', 'Carla Proust']);
   });
 
   it('carries a Gather Materials team’s material type', () => {
@@ -187,7 +208,7 @@ describe('turnMissions', () => {
     });
 
     expect(turnMissions(campaign).choices).toEqual([
-      { team: 1, mission: 'gather-materials', material: 'fuel' },
+      { team: 1, mission: 'gather-materials', names: [], material: 'fuel' },
     ]);
   });
 
@@ -202,11 +223,11 @@ describe('turnMissions', () => {
       });
 
     expect(turnMissions(playing({ log: [claim('distillery')] })).choices).toStrictEqual([
-      { team: 1, mission: 'claim-a-new-base', base: 'distillery' },
+      { team: 1, mission: 'claim-a-new-base', names: [], base: 'distillery' },
     ]);
     // A Claim chosen before Z4-7 named no base, and reads as one that did not.
     expect(turnMissions(playing({ log: [claim()] })).choices).toStrictEqual([
-      { team: 1, mission: 'claim-a-new-base' },
+      { team: 1, mission: 'claim-a-new-base', names: [] },
     ]);
   });
 });

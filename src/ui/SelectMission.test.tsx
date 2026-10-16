@@ -219,3 +219,98 @@ describe('a Rare Items trade under way', () => {
     expect(walk().queryByText(/must be the Rare Goods Trader/)).toBeNull();
   });
 });
+
+/**
+ * #236, R1. A recorded choice drew a live mission <select> beside its own
+ * record, and the record named the team as it was now rather than when it was
+ * chosen.
+ */
+describe('a team’s recorded choice', () => {
+  const chose = (names: readonly string[]): LogEntry => ({
+    turn: 4,
+    phase: 'mission',
+    at: AT,
+    event: { kind: 'mission-selected', team: 1, mission: 'thin-the-herd', names },
+  });
+
+  it('is a record once chosen, with no live control beside it', async () => {
+    const user = open(selecting());
+
+    await user.selectOptions(team(1).getByLabelText('Mission'), 'thin-the-herd');
+    await user.click(team(1).getByRole('button', { name: 'Choose for team 1' }));
+
+    expect(team(1).getByText(/Mission team 1 chose Thin the Herd/)).toBeInTheDocument();
+    expect(team(1).queryByLabelText('Mission')).toBeNull();
+    expect(team(1).getByRole('button', { name: 'Change team 1’s mission' })).toBeInTheDocument();
+  });
+
+  it('names who was on the team when it was chosen, and says who is now', () => {
+    // Recorded with Earl and Carla; Carla has come off the team since.
+    open(
+      selecting({
+        assignments: { earl: { task: 'mission', team: 1 }, ruby: { task: 'mission', team: 2 } },
+        log: [chose(['Earl Rhodes', 'Carla Proust'])],
+      }),
+    );
+
+    expect(
+      team(1).getByText(/Mission team 1 chose Thin the Herd: Earl Rhodes, Carla Proust\./),
+    ).toBeInTheDocument();
+    expect(team(1).getByText('The team is now Earl Rhodes.')).toBeInTheDocument();
+  });
+
+  it('says nothing more when the team is the one it was recorded with', () => {
+    open(selecting({ log: [chose(['Earl Rhodes', 'Carla Proust'])] }));
+
+    expect(team(1).queryByText(/the team is now/i)).toBeNull();
+  });
+
+  it('opens the form from the record on Change, and records the new choice', async () => {
+    const user = open(selecting({ log: [chose(['Earl Rhodes', 'Carla Proust'])] }));
+
+    await user.click(team(1).getByRole('button', { name: 'Change team 1’s mission' }));
+    expect(team(1).getByLabelText('Mission')).toHaveValue('thin-the-herd');
+
+    await user.selectOptions(team(1).getByLabelText('Mission'), 'rescue-strangers');
+    await user.click(team(1).getByRole('button', { name: 'Choose again for team 1' }));
+
+    expect(team(1).getByText(/Mission team 1 chose Rescue Strangers/)).toBeInTheDocument();
+    expect(team(1).queryByLabelText('Mission')).toBeNull();
+  });
+
+  it('keeps the recorded choice when the change is abandoned', async () => {
+    const user = open(selecting({ log: [chose(['Earl Rhodes', 'Carla Proust'])] }));
+
+    await user.click(team(1).getByRole('button', { name: 'Change team 1’s mission' }));
+    await user.selectOptions(team(1).getByLabelText('Mission'), 'rescue-strangers');
+    await user.click(team(1).getByRole('button', { name: 'Keep Thin the Herd' }));
+
+    expect(team(1).getByText(/Mission team 1 chose Thin the Herd/)).toBeInTheDocument();
+  });
+
+  it('offers no Change once the team’s outcome is recorded', () => {
+    open(
+      selecting({
+        log: [
+          chose(['Earl Rhodes', 'Carla Proust']),
+          {
+            turn: 4,
+            phase: 'mission',
+            at: AT,
+            event: {
+              kind: 'thin-the-herd-resolved',
+              startingZombies: 6,
+              zombiesLeft: 0,
+              survivorsExited: 1,
+              allIncapacitated: false,
+              team: 1,
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(team(1).getByText(/Mission team 1 chose Thin the Herd/)).toBeInTheDocument();
+    expect(team(1).queryByRole('button', { name: /change/i })).toBeNull();
+  });
+});
