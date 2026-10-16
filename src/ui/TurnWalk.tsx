@@ -104,8 +104,9 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
       </h2>
 
       {/* Band one: orientation. A list rather than buttons, because the turn
-          runs in order and there is nothing here to press. */}
-      <ol className="mt-4 flex gap-2 overflow-x-auto text-sm">
+          runs in order and there is nothing here to press. It wraps rather
+          than scrolls, so no phase is ever off the edge of a phone (#232). */}
+      <ol className="mt-4 flex flex-wrap gap-2 text-sm">
         {CAMPAIGN_PHASES.map((candidate) => (
           <li
             key={candidate}

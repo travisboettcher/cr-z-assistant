@@ -43,11 +43,16 @@ export function AppHeader({ campaign, menu }: AppHeaderProps) {
            * The step is here as well as on the walk itself, because this is the
            * line that stays put while the rest of the screen scrolls — and
            * "where are we?" is the question a tablet on a table gets asked most.
+           *
+           * Below `sm` it goes under the name and the menu, with the step on a
+           * row of its own where a long name can wrap, rather than pushing the
+           * page wider than a phone (#232). A fixed grid, so the header is the
+           * same height whichever step it names.
            */
-          <dl className="flex shrink-0 items-stretch gap-2">
+          <dl className="order-last grid w-full grid-cols-[auto_1fr] gap-2 sm:order-none sm:flex sm:w-auto sm:items-stretch">
             <Fact label="Turn" value={String(campaign.turn)} />
             <Fact label="Phase" value={PHASE_LABELS[phaseOf(campaign.step)]} />
-            <Fact label="Step" value={STEP_LABELS[campaign.step]} />
+            <Fact label="Step" value={STEP_LABELS[campaign.step]} className="col-span-2" />
           </dl>
         ) : null}
 
@@ -57,9 +62,19 @@ export function AppHeader({ campaign, menu }: AppHeaderProps) {
   );
 }
 
-function Fact({ label, value }: { readonly label: string; readonly value: string }) {
+function Fact({
+  label,
+  value,
+  className = '',
+}: {
+  readonly label: string;
+  readonly value: string;
+  readonly className?: string;
+}) {
   return (
-    <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-2 text-center dark:border-stone-700 dark:bg-stone-800">
+    <div
+      className={`${className} rounded-lg border border-stone-200 bg-stone-50 px-4 py-2 text-center dark:border-stone-700 dark:bg-stone-800`}
+    >
       <dt className="text-[0.65rem] font-semibold tracking-[0.15em] text-stone-500 uppercase dark:text-stone-400">
         {label}
       </dt>
