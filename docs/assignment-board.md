@@ -117,9 +117,9 @@ refusals are unchanged.
 
 - **A blocker is drawn on the lane** that would refuse the item ("No slot free"), and that lane
   offers no Move button for it. A survivor with no slot free shows what to set down instead of a
-  disabled Take.
+  disabled Take: their lane holds their items as cards, each one a press from going elsewhere.
 - **A warning keeps the never-stored override** Z5-4 gives it today (a rifle handed to somebody
-  without the skill to use it): the lane's Move button asks once.
+  without the skill to use it): the lane's Move button asks once, "Move it anyway" or "Leave it".
 - **Two of the same shoddy weapon** is an open question for the book (#241), not this design.
 
 Vehicles (`TeamVehicles`) are a second, smaller board on the same step: the base's vehicles and
@@ -131,7 +131,7 @@ each team, a vehicle card in one of them.
 |---|---|---|
 | **B1** | The board, used by the four Planning steps; `AssignTask` removed from them. *Built (#237).* | none: the same two actions |
 | **B2** | Turn 1's First Mission on the board, the team's mission choice in its lane. *Built with R2 (#237).* | none |
-| **B3** | Equip the Mission Team on the board, items as cards | none: the same `EquipMove`s |
+| **B3** | Equip the Mission Team on the board, items as cards. *Built (#237).* | none: the same `EquipMove`s |
 | **B4** | Vehicles on the board | none |
 
 B1 is the largest and goes first. B2 needs [`step-records.md`](step-records.md)'s R2 for its

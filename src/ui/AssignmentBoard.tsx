@@ -33,7 +33,7 @@ import { maxHp } from '../engine/survivor';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
 import { taskLabel } from './taskLabels';
-import { FOCUS_RING, SECONDARY_FILL, TOUCH_TARGET } from './styles';
+import { BOARD_MOVE, boardCard } from './styles';
 
 /** A place a card can go on this step. */
 export interface Lane {
@@ -53,8 +53,6 @@ export interface AssignmentBoardProps {
   readonly lanes: readonly Lane[];
 }
 
-const CARD = `${TOUCH_TARGET} ${FOCUS_RING} flex flex-col items-start rounded-lg border px-3 py-1.5 text-left text-sm`;
-const MOVE = `${TOUCH_TARGET} ${FOCUS_RING} rounded-lg px-3 py-1.5 text-sm font-medium ${SECONDARY_FILL}`;
 const HINT = 'text-sm text-stone-600 dark:text-stone-400';
 const WARNING = 'text-xs text-amber-700 dark:text-amber-300';
 
@@ -101,11 +99,7 @@ export function AssignmentBoard({ campaign, lanes }: AssignmentBoardProps) {
           onClick={() => {
             setPicked(isPicked ? null : survivor.id);
           }}
-          className={`${CARD} ${
-            isPicked
-              ? 'border-amber-600 bg-amber-50 ring-2 ring-amber-600 dark:border-amber-400 dark:bg-amber-950/40 dark:ring-amber-400'
-              : 'border-stone-300 bg-white enabled:hover:bg-stone-100 dark:border-stone-600 dark:bg-stone-900 dark:enabled:hover:bg-stone-800'
-          }`}
+          className={boardCard(isPicked)}
         >
           <span className="font-medium">{survivor.name}</span>
           <span className="text-xs text-stone-600 tabular-nums dark:text-stone-400">
@@ -130,7 +124,7 @@ export function AssignmentBoard({ campaign, lanes }: AssignmentBoardProps) {
       <div className="mt-2 flex flex-col items-start gap-1">
         <button
           type="button"
-          className={MOVE}
+          className={BOARD_MOVE}
           onClick={() => {
             move(task);
           }}
@@ -205,7 +199,8 @@ export function AssignmentBoard({ campaign, lanes }: AssignmentBoardProps) {
   );
 }
 
-function LaneFrame({
+/** One lane: a named region holding its cards. Shared with Equip the Mission Team's board. */
+export function LaneFrame({
   name,
   pages,
   id,

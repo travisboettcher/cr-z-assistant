@@ -1,78 +1,286 @@
 /**
  * Equip Mission Team: what each survivor going out carries (pg. 18; Z5-4).
  *
- * One block per mission team, a row per survivor on it: their slots, what
- * they carry and where each item can go, and what they can take — from the
- * base's Inventory, or shoddy gear free (R35) — and the vehicles it takes,
- * each burning its Fuel (R65; Z5-12). Who may be equipped, and why a
- * move is refused or warned about, are `equip.ts`'s answers: this screen
- * renders them. The Inventory and the roster stay in their modals, opened from
+ * **A board, one level down from the Planning Phase's** (`docs/assignment-board.md`,
+ * B3; #237): items are cards and the places they can be are lanes. Each
+ * survivor going out is a lane, grouped by mission team, with their Inventory
+ * Slots in use of their total; the base's Inventory is one; and shoddy gear
+ * taken free (R35) is one more, holding a card for each shoddy item a skill of
+ * somebody going out allows. Taking one of those makes a new item, and setting
+ * one down sends it back there, never to the base.
+ *
+ * **Press an item, then the lane it goes to.** Each move is one
+ * `mission/itemMoved` with the `EquipMove` the pickers it replaces dispatched,
+ * so the log's `item-moved` entries, R38's who-moves-what and the refusals are
+ * `equip.ts`'s, unchanged. A lane that would refuse the item says why instead
+ * of offering a Move button; a lane that would only warn shows the warning and
+ * asks once before it moves (the override is never stored, as before).
+ *
+ * The vehicles each team takes are still a list under its lanes (R65; Z5-12),
+ * until B4. The Inventory and the roster stay in their modals, opened from
  * here with `OpenPanel`.
  */
 
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import type { ItemId } from '../data/equipment';
 import type { Campaign, Item, Survivor } from '../engine/campaign';
-import { permitted, type Check } from '../engine/checks';
-import {
-  equipCheck,
-  equippable,
-  shoddyOffers,
-  type EquipCode,
-  type EquipMove,
-} from '../engine/equip';
+import { equipCheck, equippable, shoddyOffers, type EquipMove } from '../engine/equip';
 import { slotsInUse } from '../engine/equipment';
 import { hungerPenalty } from '../engine/feeding';
 import { missionTeams } from '../engine/missions';
 import { inventorySlots } from '../engine/survivor';
 import { useCampaign } from '../state/useCampaign';
+import { LaneFrame } from './AssignmentBoard';
 import { describeItem, ITEM_LABELS } from './equipmentLabels';
 import { AutoShopNote, TeamVehicles } from './MissionVehicles';
 import { OpenPanel } from './OpenPanel';
 import { PageRef } from './PageRef';
-import { FOCUS_RING, TOUCH_TARGET } from './styles';
+import { BOARD_MOVE, boardCard, FOCUS_RING, TOUCH_TARGET } from './styles';
 
 const HINT = 'text-sm text-stone-600 dark:text-stone-400';
 
-const SELECT = `${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 px-2 py-1 text-sm dark:border-stone-600 dark:bg-stone-800`;
+const WARNING = 'text-sm text-amber-800 dark:text-amber-300';
 
-const BUTTON = `${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 px-3 py-1 text-sm font-medium hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-stone-600 dark:hover:bg-stone-800`;
+const QUIET = `${FOCUS_RING} ${TOUCH_TARGET} rounded-lg px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800`;
+
+/** What is picked up: an item that exists, or a shoddy one not taken yet. */
+type Picked =
+  | { readonly kind: 'item'; readonly item: Item }
+  | { readonly kind: 'shoddy'; readonly item: ItemId };
+
+/** Where a lane sends what is dropped on it. */
+type Place = { readonly survivor: Survivor } | 'base' | 'free';
+
+const pickedName = (picked: Picked): string =>
+  picked.kind === 'item'
+    ? describeItem(picked.item)
+    : `shoddy ${ITEM_LABELS[picked.item].toLowerCase()}`;
+
+/** The move dropping the picked card on this lane makes, or `null` where it makes none. */
+function moveTo(campaign: Campaign, picked: Picked, place: Place, fresh: string): EquipMove | null {
+  if (picked.kind === 'shoddy') {
+    // A shoddy item not taken yet can only be taken, by somebody going out.
+    return typeof place === 'object'
+      ? { kind: 'take-shoddy', id: fresh, item: picked.item, survivor: place.survivor.id }
+      : null;
+  }
+
+  const { item } = picked;
+  const shoddy = item.grade === 'shoddy';
+
+  if (typeof place === 'object') {
+    return place.survivor.items.some((held) => held.id === item.id)
+      ? null
+      : { kind: 'move', id: item.id, to: { survivor: place.survivor.id } };
+  }
+
+  // Shoddy gear set down goes back to the free supply, the rest to the base,
+  // and neither lane takes what is already in it.
+  const held = !campaign.inventory.some((one) => one.id === item.id);
+  return held && (place === 'free') === shoddy ? { kind: 'move', id: item.id, to: 'base' } : null;
+}
 
 export function EquipMissionTeam({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+  const [picked, setPicked] = useState<Picked | null>(null);
+  const [asking, setAsking] = useState<string | null>(null);
+  const [fresh, setFresh] = useState(() => crypto.randomUUID());
+
   const going = equippable(campaign);
   const ids = new Set(going.map((survivor) => survivor.id));
   const teams = missionTeams(campaign)
     .map((team) => ({ ...team, members: team.members.filter((one) => ids.has(one.id)) }))
     .filter((team) => team.members.length > 0);
+  const free = [...new Set(going.flatMap((survivor) => shoddyOffers(survivor)))];
+
+  // An item picked up that has since gone (used, or moved elsewhere) is nothing to move.
+  const holding =
+    picked?.kind === 'item'
+      ? [...campaign.inventory, ...going.flatMap((survivor) => survivor.items)].find(
+          (item) => item.id === picked.item.id,
+        )
+      : undefined;
+  const current: Picked | null =
+    picked?.kind === 'item'
+      ? holding === undefined
+        ? null
+        : { kind: 'item', item: holding }
+      : picked;
+
+  function pick(next: Picked) {
+    const same =
+      current !== null &&
+      current.kind === next.kind &&
+      (next.kind === 'item'
+        ? current.kind === 'item' && current.item.id === next.item.id
+        : current.item === next.item);
+    setPicked(same ? null : next);
+    setAsking(null);
+  }
+
+  function commit(move: EquipMove) {
+    dispatch({ type: 'mission/itemMoved', move, at: new Date().toISOString() });
+    setPicked(null);
+    setAsking(null);
+    setFresh(crypto.randomUUID());
+  }
+
+  const card = (key: string, label: string, next: Picked, isPicked: boolean) => (
+    <li key={key}>
+      <button
+        type="button"
+        aria-pressed={isPicked}
+        className={boardCard(isPicked)}
+        onClick={() => {
+          pick(next);
+        }}
+      >
+        <span className="font-medium">{label}</span>
+      </button>
+    </li>
+  );
+
+  const itemCard = (item: Item) =>
+    card(
+      item.id,
+      describeItem(item),
+      { kind: 'item', item },
+      current?.kind === 'item' && current.item.id === item.id,
+    );
+
+  /** What a lane offers the picked card: a Move button, the reason it can't, or a question. */
+  const target = (key: string, place: Place, verb: string) => {
+    if (current === null) return null;
+    const move = moveTo(campaign, current, place, fresh);
+    if (move === null) return null;
+
+    const check = equipCheck(campaign, move);
+    const name = pickedName(current);
+
+    if (check.blockers.length > 0) {
+      return (
+        <ul className="mt-2 flex flex-col gap-1">
+          {check.blockers.map((blocker) => (
+            <li key={blocker.code} className={WARNING}>
+              {blocker.message} <PageRef pages={blocker.pages} />
+            </li>
+          ))}
+        </ul>
+      );
+    }
+
+    const warned = check.warnings.length > 0;
+
+    return (
+      <div className="mt-2 flex flex-col items-start gap-1">
+        {check.warnings.map((warning) => (
+          <p key={warning.code} className={WARNING}>
+            {warning.message} <PageRef pages={warning.pages} />
+          </p>
+        ))}
+        {asking === key ? (
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className={BOARD_MOVE}
+              onClick={() => {
+                commit(move);
+              }}
+            >
+              {verb} it anyway
+            </button>
+            <button
+              type="button"
+              className={QUIET}
+              onClick={() => {
+                setAsking(null);
+              }}
+            >
+              Leave it
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className={BOARD_MOVE}
+            onClick={() => {
+              if (warned) setAsking(key);
+              else commit(move);
+            }}
+          >
+            {verb} {name} here
+          </button>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="mt-4 flex flex-col gap-3">
       <p className={HINT}>
-        Items move between the <OpenPanel panel="inventory">base’s Inventory</OpenPanel> and the
-        survivors going out, and between them. Anybody staying home keeps what they hold{' '}
-        <PageRef pages={18} />
+        Press an item, then where it goes: to somebody going out, back to the{' '}
+        <OpenPanel panel="inventory">base’s Inventory</OpenPanel>, or set down if it was shoddy and
+        free. Anybody staying home keeps what they hold <PageRef pages={18} />
       </p>
 
       {teams.length === 0 ? (
         <p className={HINT}>Nobody is going out this turn, so nobody is equipped.</p>
       ) : (
-        teams.map((team) => (
-          <fieldset
-            key={team.team}
-            className="flex flex-col gap-3 rounded-lg border border-stone-200 p-3 dark:border-stone-700"
-          >
-            <legend className="px-1 text-sm font-semibold">Mission team {team.team}</legend>
-            {team.members.map((survivor) => (
-              <SurvivorEquipment
-                key={survivor.id}
-                campaign={campaign}
-                survivor={survivor}
-                going={going}
-              />
-            ))}
-            <TeamVehicles campaign={campaign} team={team.team} />
-          </fieldset>
-        ))
+        <>
+          {current !== null && (
+            <p role="status" className="text-sm font-medium">
+              Choose where the {pickedName(current)} goes, or press it again to cancel.
+            </p>
+          )}
+
+          {teams.map((team) => (
+            <fieldset
+              key={team.team}
+              className="flex flex-col gap-3 rounded-lg border border-stone-200 p-3 dark:border-stone-700"
+            >
+              <legend className="px-1 text-sm font-semibold">Mission team {team.team}</legend>
+              {team.members.map((survivor) => (
+                <LaneFrame key={survivor.id} name={survivor.name}>
+                  <Slots campaign={campaign} survivor={survivor} />
+                  {survivor.items.length === 0 ? (
+                    <p className={`mt-1 ${HINT}`}>Carrying nothing</p>
+                  ) : (
+                    <ul className="mt-2 flex flex-wrap gap-2">{survivor.items.map(itemCard)}</ul>
+                  )}
+                  {target(survivor.id, { survivor }, 'Move')}
+                </LaneFrame>
+              ))}
+              <TeamVehicles campaign={campaign} team={team.team} />
+            </fieldset>
+          ))}
+
+          <LaneFrame name="The base’s Inventory" pages={18}>
+            {campaign.inventory.length === 0 ? (
+              <p className={`mt-1 ${HINT}`}>Empty.</p>
+            ) : (
+              <ul className="mt-2 flex flex-wrap gap-2">{campaign.inventory.map(itemCard)}</ul>
+            )}
+            {target('base', 'base', 'Move')}
+          </LaneFrame>
+
+          <LaneFrame name="Shoddy, free" pages="18, 37">
+            {free.length === 0 ? (
+              <p className={`mt-1 ${HINT}`}>No skill of anybody going out uses free shoddy gear.</p>
+            ) : (
+              <ul className="mt-2 flex flex-wrap gap-2">
+                {free.map((item) =>
+                  card(
+                    item,
+                    `Shoddy ${ITEM_LABELS[item].toLowerCase()}`,
+                    { kind: 'shoddy', item },
+                    current?.kind === 'shoddy' && current.item === item,
+                  ),
+                )}
+              </ul>
+            )}
+            {target('free', 'free', 'Set')}
+          </LaneFrame>
+        </>
       )}
 
       <AutoShopNote campaign={campaign} />
@@ -85,253 +293,24 @@ export function EquipMissionTeam({ campaign }: { readonly campaign: Campaign }) 
   );
 }
 
-function SurvivorEquipment({
+/** A survivor's Inventory Slots in use of their total, in amber when over (pg. 14). */
+function Slots({
   campaign,
   survivor,
-  going,
 }: {
   readonly campaign: Campaign;
   readonly survivor: Survivor;
-  readonly going: readonly Survivor[];
 }) {
   const used = slotsInUse(survivor);
   const slots = inventorySlots(survivor, hungerPenalty(campaign));
 
   return (
-    <section aria-label={survivor.name} className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h4 className="font-semibold">{survivor.name}</h4>
-        <p
-          className={used > slots ? 'text-sm font-medium text-amber-800 dark:text-amber-300' : HINT}
-        >
-          Inventory Slots{' '}
-          <span className="tabular-nums">
-            {used} / {slots}
-          </span>
-          {used > slots && ' — more than they can carry'} <PageRef pages={14} />
-        </p>
-      </div>
-
-      {survivor.items.length === 0 ? (
-        <p className={HINT}>Carrying nothing</p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {survivor.items.map((item) => (
-            <li key={item.id}>
-              <MoveItem campaign={campaign} item={item} holder={survivor} going={going} />
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <TakeItem campaign={campaign} survivor={survivor} />
-    </section>
-  );
-}
-
-/** Where a carried item can go: back, set down if shoddy, or to somebody else going out. */
-function MoveItem({
-  campaign,
-  item,
-  holder,
-  going,
-}: {
-  readonly campaign: Campaign;
-  readonly item: Item;
-  readonly holder: Survivor;
-  readonly going: readonly Survivor[];
-}) {
-  const { dispatch } = useCampaign();
-  const others = going.filter((survivor) => survivor.id !== holder.id);
-  const [target, setTarget] = useState('base');
-  const id = `move-${item.id}`;
-
-  const move: EquipMove = {
-    kind: 'move',
-    id: item.id,
-    to: target === 'base' ? 'base' : { survivor: target },
-  };
-
-  return (
-    <EquipAction
-      check={equipCheck(campaign, move)}
-      label="Move"
-      what={describeItem(item)}
-      overrideLabel="Move it anyway"
-      onCommit={() => {
-        dispatch({ type: 'mission/itemMoved', move, at: new Date().toISOString() });
-        setTarget('base');
-      }}
-    >
-      <label className="text-sm" htmlFor={id}>
-        <span className="font-medium">{describeItem(item)}</span> to
-      </label>
-      <select
-        id={id}
-        className={SELECT}
-        value={target}
-        onChange={(changed) => {
-          setTarget(changed.target.value);
-        }}
-      >
-        <option value="base">
-          {item.grade === 'shoddy' ? 'Set it down' : 'The base’s Inventory'}
-        </option>
-        {others.map((survivor) => (
-          <option key={survivor.id} value={survivor.id}>
-            {survivor.name}
-          </option>
-        ))}
-      </select>
-    </EquipAction>
-  );
-}
-
-/** What a survivor can take up: an item in the base's Inventory, or shoddy gear free. */
-function TakeItem({
-  campaign,
-  survivor,
-}: {
-  readonly campaign: Campaign;
-  readonly survivor: Survivor;
-}) {
-  const { dispatch } = useCampaign();
-  const free = shoddyOffers(survivor);
-  const options = [
-    ...campaign.inventory.map((item) => `base:${item.id}`),
-    ...free.map((item) => `shoddy:${item}`),
-  ];
-  const [chosen, setChosen] = useState('');
-  const [fresh, setFresh] = useState(() => crypto.randomUUID());
-  const id = `take-${survivor.id}`;
-
-  /*
-   * Say why, rather than draw nothing. On turn 1 the base is empty and a
-   * survivor still owing their skills has no shoddy gear to take, and a missing
-   * control read as a step with nothing to do (#238).
-   */
-  if (options.length === 0) {
-    return (
-      <p className="text-sm text-stone-600 dark:text-stone-400">
-        Nothing for {survivor.name} to take: the base’s Inventory is empty, and no skill of{' '}
-        {survivor.name}’s uses free shoddy gear <PageRef pages="18, 37" />
-      </p>
-    );
-  }
-
-  const pick = options.includes(chosen) ? chosen : (options[0] as string);
-  const [source, value] = pick.split(/:(.*)/s) as [string, string];
-  const move: EquipMove =
-    source === 'base'
-      ? { kind: 'move', id: value, to: { survivor: survivor.id } }
-      : { kind: 'take-shoddy', id: fresh, item: value as ItemId, survivor: survivor.id };
-
-  return (
-    <EquipAction
-      check={equipCheck(campaign, move)}
-      label="Take"
-      what={`for ${survivor.name}`}
-      overrideLabel="Take it anyway"
-      onCommit={() => {
-        dispatch({ type: 'mission/itemMoved', move, at: new Date().toISOString() });
-        setFresh(crypto.randomUUID());
-      }}
-    >
-      <label className="text-sm" htmlFor={id}>
-        Take for {survivor.name}
-      </label>
-      <select
-        id={id}
-        className={SELECT}
-        value={pick}
-        onChange={(changed) => {
-          setChosen(changed.target.value);
-        }}
-      >
-        {campaign.inventory.length > 0 && (
-          <optgroup label="From the base’s Inventory">
-            {campaign.inventory.map((item) => (
-              <option key={item.id} value={`base:${item.id}`}>
-                {describeItem(item)}
-              </option>
-            ))}
-          </optgroup>
-        )}
-        {free.length > 0 && (
-          <optgroup label="Shoddy, free">
-            {free.map((item) => (
-              <option key={item} value={`shoddy:${item}`}>
-                Shoddy {ITEM_LABELS[item].toLowerCase()}
-              </option>
-            ))}
-          </optgroup>
-        )}
-      </select>
-    </EquipAction>
-  );
-}
-
-/**
- * A picker, then what is wrong with the choice, then the button and its
- * override — the order every verb on a slot card uses too (`SlotAction`).
- */
-function EquipAction({
-  children,
-  check,
-  label,
-  what,
-  overrideLabel,
-  onCommit,
-}: {
-  readonly children: ReactNode;
-  readonly check: Check<EquipCode>;
-  readonly label: string;
-  readonly what: string;
-  readonly overrideLabel: string;
-  readonly onCommit: () => void;
-}) {
-  const [overridden, setOverridden] = useState(false);
-  const violations = [...check.blockers, ...check.warnings];
-
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex flex-wrap items-center gap-2">{children}</div>
-      {/* Before the button, not after it, as on a slot card. */}
-      {violations.length > 0 && (
-        <ul className="flex flex-col gap-1">
-          {violations.map((violation) => (
-            <li key={violation.code} className="text-sm text-amber-800 dark:text-amber-300">
-              {violation.message} <PageRef pages={violation.pages} />
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          className={BUTTON}
-          disabled={!permitted(check, overridden)}
-          onClick={() => {
-            onCommit();
-            setOverridden(false);
-          }}
-        >
-          {label} <span className="sr-only">{what}</span>
-        </button>
-        {check.warnings.length > 0 && check.blockers.length === 0 && (
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={overridden}
-              onChange={(event) => {
-                setOverridden(event.target.checked);
-              }}
-              className={FOCUS_RING}
-            />
-            {overrideLabel}
-          </label>
-        )}
-      </div>
-    </div>
+    <p className={used > slots ? 'text-sm font-medium text-amber-800 dark:text-amber-300' : HINT}>
+      Inventory Slots{' '}
+      <span className="tabular-nums">
+        {used} / {slots}
+      </span>
+      {used > slots && ' — more than they can carry'} <PageRef pages={14} />
+    </p>
   );
 }

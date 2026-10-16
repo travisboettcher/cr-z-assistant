@@ -53,10 +53,24 @@ function open(campaign: Campaign) {
 const walk = () => within(screen.getByRole('region', { name: /^turn \d+$/i }));
 const team = (number: number) =>
   within(walk().getByRole('group', { name: `Mission team ${String(number)}` }));
-const member = (name: string) => within(walk().getByRole('region', { name }));
+const lane = (name: string) => within(walk().getByRole('region', { name }));
+const member = lane;
 
+/** Press an item's card in a lane, then the Move button another lane offers for it. */
+async function move(
+  user: ReturnType<typeof open>,
+  item: string,
+  from: string,
+  to: string,
+  verb = 'Move',
+) {
+  await user.click(lane(from).getByRole('button', { name: item }));
+  await user.click(lane(to).getByRole('button', { name: `${verb} ${item} here` }));
+}
+
+/** B3 (#237): items are cards, and the places they can be are lanes. */
 describe('Equip Mission Team (pg. 18; Z5-4)', () => {
-  it('lists each team going out, with each survivor’s slots, and nobody staying home', () => {
+  it('draws a lane for each survivor going out, by team, and nobody staying home', () => {
     open(equipping());
 
     expect(team(1).getByRole('region', { name: 'Earl Rhodes' })).toBeInTheDocument();
@@ -65,25 +79,39 @@ describe('Equip Mission Team (pg. 18; Z5-4)', () => {
     expect(walk().queryByRole('region', { name: 'Nell Haig' })).toBeNull();
     expect(member('Earl Rhodes').getByText(/Inventory Slots/)).toHaveTextContent('0 / 2');
     expect(member('Earl Rhodes').getByText('Carrying nothing')).toBeInTheDocument();
+    expect(lane('The base’s Inventory').getAllByRole('button')).toHaveLength(2);
+    // Earl's Handguns and Carla's Traps each bring something shoddy and free.
+    expect(lane('Shoddy, free').getByRole('button', { name: 'Shoddy trap' })).toBeInTheDocument();
   });
 
   it('takes an item from the base’s Inventory, and writes it down', async () => {
     const user = open(equipping());
 
-    await user.selectOptions(member('Earl Rhodes').getByLabelText('Take for Earl Rhodes'), [
-      'base:pistol-1',
-    ]);
-    await user.click(member('Earl Rhodes').getByRole('button', { name: 'Take for Earl Rhodes' }));
+    await move(user, 'quality pistol', 'The base’s Inventory', 'Earl Rhodes');
 
     expect(member('Earl Rhodes').getByText(/Inventory Slots/)).toHaveTextContent('1 / 2');
-    expect(member('Earl Rhodes').getByLabelText('quality pistol to')).toBeInTheDocument();
-    // Gone from what anybody else can take out of the base.
     expect(
-      member('Carla Proust').queryByRole('option', { name: 'quality pistol' }),
-    ).not.toBeInTheDocument();
+      member('Earl Rhodes').getByRole('button', { name: 'quality pistol' }),
+    ).toBeInTheDocument();
+    expect(
+      lane('The base’s Inventory').queryByRole('button', { name: 'quality pistol' }),
+    ).toBeNull();
     expect(campaignLog().textContent).toContain(
       'Moved quality pistol from the base’s Inventory to Earl Rhodes.',
     );
+  });
+
+  it('offers a move only where the item is not already, and a second press puts it down', async () => {
+    const user = open(equipping());
+
+    await user.click(lane('The base’s Inventory').getByRole('button', { name: 'quality pistol' }));
+    expect(walk().getByRole('status')).toHaveTextContent('Choose where the quality pistol goes');
+    expect(lane('The base’s Inventory').queryByRole('button', { name: /here$/ })).toBeNull();
+    expect(lane('Shoddy, free').queryByRole('button', { name: /here$/ })).toBeNull();
+
+    await user.click(lane('The base’s Inventory').getByRole('button', { name: 'quality pistol' }));
+    expect(walk().queryByRole('status')).toBeNull();
+    expect(lane('Earl Rhodes').queryByRole('button', { name: /here$/ })).toBeNull();
   });
 
   it('hands an item to somebody else going out, or back to the base', async () => {
@@ -98,31 +126,29 @@ describe('Equip Mission Team (pg. 18; Z5-4)', () => {
     );
     const name = 'quality bladed weapon';
 
-    await user.selectOptions(member('Earl Rhodes').getByLabelText(`${name} to`), 'ruby');
-    await user.click(member('Earl Rhodes').getByRole('button', { name: `Move ${name}` }));
+    await move(user, name, 'Earl Rhodes', 'Ruby Vance');
 
     expect(member('Earl Rhodes').getByText('Carrying nothing')).toBeInTheDocument();
-    expect(member('Ruby Vance').getByLabelText(`${name} to`)).toBeInTheDocument();
+    expect(member('Ruby Vance').getByRole('button', { name })).toBeInTheDocument();
 
-    await user.click(member('Ruby Vance').getByRole('button', { name: `Move ${name}` }));
+    await move(user, name, 'Ruby Vance', 'The base’s Inventory');
 
     expect(member('Ruby Vance').getByText('Carrying nothing')).toBeInTheDocument();
-    expect(member('Earl Rhodes').getByRole('option', { name })).toBeInTheDocument();
+    expect(lane('The base’s Inventory').getByRole('button', { name })).toBeInTheDocument();
   });
 
   it('takes shoddy gear free, and sets it down again', async () => {
     const user = open(equipping({ inventory: [] }));
 
-    await user.selectOptions(
-      member('Carla Proust').getByLabelText('Take for Carla Proust'),
-      'shoddy:trap',
-    );
-    await user.click(member('Carla Proust').getByRole('button', { name: 'Take for Carla Proust' }));
+    await user.click(lane('Shoddy, free').getByRole('button', { name: 'Shoddy trap' }));
+    await user.click(member('Carla Proust').getByRole('button', { name: 'Move shoddy trap here' }));
+    // Still on offer: the free supply never runs out.
+    expect(lane('Shoddy, free').getByRole('button', { name: 'Shoddy trap' })).toBeInTheDocument();
 
-    const select = member('Carla Proust').getByLabelText('shoddy trap to');
-    expect(within(select).getByRole('option', { name: 'Set it down' })).toBeInTheDocument();
-
-    await user.click(member('Carla Proust').getByRole('button', { name: 'Move shoddy trap' }));
+    // Back to the free supply, never to the base.
+    await user.click(member('Carla Proust').getByRole('button', { name: 'shoddy trap' }));
+    expect(lane('The base’s Inventory').queryByRole('button', { name: /here$/ })).toBeNull();
+    await user.click(lane('Shoddy, free').getByRole('button', { name: 'Set shoddy trap here' }));
 
     expect(member('Carla Proust').getByText('Carrying nothing')).toBeInTheDocument();
     expect(campaignLog().textContent).toContain(
@@ -130,7 +156,7 @@ describe('Equip Mission Team (pg. 18; Z5-4)', () => {
     );
   });
 
-  it('refuses past a survivor’s slots, and says why', async () => {
+  it('refuses past a survivor’s slots, on the lane, with no button', async () => {
     const full: Item[] = [
       { id: 'a', item: 'pistol', grade: 'standard' },
       { id: 'b', item: 'revolver', grade: 'standard' },
@@ -143,33 +169,35 @@ describe('Equip Mission Team (pg. 18; Z5-4)', () => {
       }),
     );
 
-    await user.selectOptions(member('Earl Rhodes').getByLabelText('Take for Earl Rhodes'), [
-      'base:pistol-1',
-    ]);
+    await user.click(lane('The base’s Inventory').getByRole('button', { name: 'quality pistol' }));
 
-    expect(
-      member('Earl Rhodes').getByRole('button', { name: 'Take for Earl Rhodes' }),
-    ).toBeDisabled();
+    expect(member('Earl Rhodes').queryByRole('button', { name: /here$/ })).toBeNull();
     expect(
       member('Earl Rhodes').getByText(/Earl Rhodes has no Inventory Slot free for it\./),
     ).toBeInTheDocument();
+    // Carla has room, so she is offered it.
+    expect(
+      member('Carla Proust').getByRole('button', { name: 'Move quality pistol here' }),
+    ).toBeInTheDocument();
   });
 
-  it('warns about a weapon its carrier cannot use, and takes it once told to', async () => {
+  it('warns about a weapon its carrier cannot use, and asks once before moving it', async () => {
     const user = open(equipping());
     const earl = () => member('Earl Rhodes');
 
-    await user.selectOptions(earl().getByLabelText('Take for Earl Rhodes'), 'base:rifle-1');
-
+    await user.click(lane('The base’s Inventory').getByRole('button', { name: 'standard rifle' }));
     expect(
       earl().getByText(/Earl Rhodes can carry it, but has no skill to use it with\./),
     ).toBeInTheDocument();
-    expect(earl().getByRole('button', { name: 'Take for Earl Rhodes' })).toBeDisabled();
 
-    await user.click(earl().getByRole('checkbox', { name: 'Take it anyway' }));
-    await user.click(earl().getByRole('button', { name: 'Take for Earl Rhodes' }));
+    await user.click(earl().getByRole('button', { name: 'Move standard rifle here' }));
+    await user.click(earl().getByRole('button', { name: 'Leave it' }));
+    expect(earl().getByText('Carrying nothing')).toBeInTheDocument();
 
-    expect(earl().getByLabelText('standard rifle to')).toBeInTheDocument();
+    await user.click(earl().getByRole('button', { name: 'Move standard rifle here' }));
+    await user.click(earl().getByRole('button', { name: 'Move it anyway' }));
+
+    expect(earl().getByRole('button', { name: 'standard rifle' })).toBeInTheDocument();
   });
 
   it('says nobody is equipped when the community opted out (pg. 17)', () => {
