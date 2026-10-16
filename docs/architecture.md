@@ -139,6 +139,7 @@ across all of `src/`.
 | [`docs/rulebook-edition.md`](rulebook-edition.md) | which printing the page numbers are, and where each rule lives |
 | [`docs/ux-principles.md`](ux-principles.md) | the one-screen layout, and the rules a new screen follows to fit it |
 | [`docs/base-slot-interaction.md`](base-slot-interaction.md), [`docs/turn-walk-interaction.md`](turn-walk-interaction.md) | the two shared screens |
+| [`docs/step-records.md`](step-records.md), [`docs/assignment-board.md`](assignment-board.md) | what a step shows before and after it records, and how assignments and equipment are moved (proposed) |
 | `src/*/README.md` | what each directory may and may not hold |
 | `eslint.config.js` | the boundaries that are enforced rather than remembered, and the issue behind each |
 | [`src/test/README.md`](../src/test/README.md) | how the tests are arranged |

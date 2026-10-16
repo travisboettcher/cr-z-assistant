@@ -101,5 +101,10 @@ bolted on.
 ## What this sketch does not decide
 
 How the base sheet's summary is laid out, which is Z2-9's to design when it can see all the
-numbers at once. And anything about Phase 3: staffing a facility is an assignment, it belongs to
-the Planning Phase, and it is not a verb on this card.
+numbers at once. And anything about Phase 3: staffing a facility is an assignment, and it belongs
+to the Planning Phase.
+
+*Since written:* [Z3-6](phase-3-stories.md#z3-6--the-planning-phase) kept a staffing control on
+the slot card on purpose, because a facility's staff and what it makes belong together, and it
+reads and writes the same assignment the Planning Phase does. So staffing is on this card after
+all, as a list rather than a fifth verb. [`assignment-board.md`](assignment-board.md) keeps it.
