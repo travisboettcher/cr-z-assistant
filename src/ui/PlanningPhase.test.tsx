@@ -1,11 +1,11 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign } from '../engine/campaign';
 import { createSurvivor } from '../engine/survivor';
 import { withPlanningBegun } from '../test/campaigns';
 import { CampaignProvider } from '../state/CampaignProvider';
-import { openPanel } from '../test/screens';
+import { lane, moveTo, openPanel, pickUp } from '../test/screens';
 import { App } from './App';
 
 const EARL = 'earl';
@@ -55,43 +55,41 @@ const walk = () => screen.getByRole('region', { name: /^turn \d+$/i });
 const next = () => screen.getByRole('button', { name: /^next:/i });
 
 describe('the Planning Phase steps', () => {
-  it('offers a control for each built facility, and none for an empty slot', () => {
+  it('offers a lane for each built facility, and none for an empty slot', () => {
     open(planning());
 
     // The Small Town Home ships two Bunk Rooms and a Kitchen; the garage and
     // front yard are empty and there is nothing in them to work.
-    expect(within(walk()).getByRole('group', { name: /kitchen — kitchen/i })).toBeTruthy();
-    expect(within(walk()).queryByRole('group', { name: /garage/i })).toBeNull();
+    expect(lane('Kitchen')).toBeTruthy();
+    expect(within(walk()).queryByRole('region', { name: /garage/i })).toBeNull();
   });
 
-  it('counts whoever has nothing to do, on every step of the phase', async () => {
+  it('keeps whoever has nothing to do in their own lane, on every step of the phase', async () => {
     const user = open(planning());
 
-    expect(within(walk()).getByText(/2 with nothing to do/i)).toBeTruthy();
+    const idle = () => within(lane('Nothing to do'));
+    expect(idle().getByRole('button', { name: /^earl rhodes/i })).toBeTruthy();
+    expect(idle().getByRole('button', { name: /^carla proust/i })).toBeTruthy();
 
     await user.click(next());
-    expect(within(walk()).getByText(/2 with nothing to do/i)).toBeTruthy();
+    expect(idle().getByRole('button', { name: /^earl rhodes/i })).toBeTruthy();
+    expect(idle().getByRole('button', { name: /^carla proust/i })).toBeTruthy();
   });
 
   it('says so plainly once everybody is busy', async () => {
     const user = open(planning({ assignments: { [EARL]: { task: 'project' } } }));
     await user.click(next());
 
-    await user.click(
-      within(screen.getByRole('group', { name: /on the project team/i })).getByRole('checkbox', {
-        name: /carla/i,
-      }),
-    );
+    moveTo(/^carla proust/i, 'Project team');
 
-    expect(within(walk()).getByText(/everybody has something to do/i)).toBeTruthy();
+    expect(within(lane('Nothing to do')).getByText(/everybody has something to do/i)).toBeTruthy();
   });
 
   it('shows the Labor the project team generates, and follows it', async () => {
     const user = open(planning());
     await user.click(next());
 
-    const team = within(screen.getByRole('group', { name: /on the project team/i }));
-    await user.click(team.getByRole('checkbox', { name: /earl/i }));
+    moveTo(/^earl rhodes/i, 'Project team');
 
     // A Hero is four Labor.
     expect(within(walk()).getByText(/generates/i).textContent).toMatch(/4/);
@@ -102,8 +100,8 @@ describe('the Planning Phase steps', () => {
    * a point each on top of their Tiers (pg. 86, #183) — and the sentence beside
    * the number says so, or a 6 for a Tier 4 and a Tier 1 reads as a bug (#143).
    */
-  it('names the point each a clean siege last turn adds', async () => {
-    const user = open(
+  it('names the point each a clean siege last turn adds', () => {
+    open(
       planning({
         step: 'assign-project-team',
         assignments: { [EARL]: { task: 'project' }, [CARLA]: { task: 'project' } },
@@ -124,28 +122,25 @@ describe('the Planning Phase steps', () => {
     expect(caption).toMatch(/generates 9 Labor/);
     expect(caption).toMatch(/plus 2 — a point each — for last turn’s Siege Defense/);
 
-    await user.click(
-      within(screen.getByRole('group', { name: /on the project team/i })).getByRole('checkbox', {
-        name: /carla/i,
-      }),
-    );
+    moveTo(/^carla proust/i, 'Nothing to do');
 
     expect(within(walk()).getByText(/generates/i).textContent).toMatch(/generates 5 Labor/);
   });
 
-  it('warns about resting at full Health without refusing it', async () => {
-    const user = open(planning({ step: 'assign-rest-and-healing' }));
+  it('warns about resting at full Health before the move, without refusing it', () => {
+    open(planning({ step: 'assign-rest-and-healing' }));
 
-    const resting = within(screen.getByRole('group', { name: /^resting/i }));
-    const earl = resting.getByRole('checkbox', { name: /earl/i });
+    pickUp(/^earl rhodes/i);
+    const resting = within(lane('Resting'));
 
     expect(resting.getByText(/already at full health/i)).toBeTruthy();
-    expect(earl).toBeEnabled();
 
     // Free and reversible, so advice rather than refusal — the lesson Z2-8
     // learned by disabling a checkbox on a warning.
-    await user.click(earl);
-    expect(earl).toBeChecked();
+    const move = resting.getByRole('button', { name: 'Move Earl Rhodes here' });
+    expect(move).toBeEnabled();
+    fireEvent.click(move);
+    expect(resting.getByRole('button', { name: /^earl rhodes/i })).toBeTruthy();
   });
 
   /** Infection earns a survivor at full Health no point (pg. 19, 21; #219). */
@@ -161,73 +156,108 @@ describe('the Planning Phase steps', () => {
       }),
     );
 
-    const resting = within(screen.getByRole('group', { name: /^resting/i }));
+    const warned = /already at full health, so resting would do nothing/i;
 
-    expect(
-      resting.getAllByText(/already at full health, so resting would do nothing/i),
-    ).toHaveLength(1);
+    pickUp(/^earl rhodes/i);
+    expect(within(lane('Resting')).getAllByText(warned)).toHaveLength(1);
+
+    pickUp(/^carla proust/i);
+    expect(within(lane('Resting')).queryByText(warned)).toBeNull();
   });
 
-  it('warns that only one survivor may rest, naming who is', async () => {
-    const user = open(planning({ step: 'assign-rest-and-healing' }));
+  it('warns that only one survivor may rest, naming who is', () => {
+    open(planning({ step: 'assign-rest-and-healing' }));
 
-    const resting = within(screen.getByRole('group', { name: /^resting/i }));
-    await user.click(resting.getByRole('checkbox', { name: /carla/i }));
+    moveTo(/^carla proust/i, 'Resting');
+    pickUp(/^earl rhodes/i);
 
     expect(
-      resting.getByText(/only one survivor may rest a turn, and carla proust is/i),
+      within(lane('Resting')).getByText(/only one survivor may rest a turn, and carla proust is/i),
     ).toBeTruthy();
   });
 
   it('warns that healing needs a Medical Clinic', () => {
     open(planning({ step: 'assign-rest-and-healing' }));
 
-    const healing = within(screen.getByRole('group', { name: /being healed/i }));
-    expect(healing.getAllByText(/needs a medical clinic/i).length).toBeGreaterThan(0);
+    pickUp(/^carla proust/i);
+
+    expect(within(lane('Being healed')).getByText(/needs a medical clinic/i)).toBeTruthy();
   });
 
   it('warns about sending an injured survivor on a mission', () => {
     open(planning({ step: 'assign-mission-team' }));
 
-    const team = within(screen.getByRole('group', { name: /on the mission team/i }));
-    expect(team.getByText(/injured survivors can’t be sent/i)).toBeTruthy();
+    pickUp(/^carla proust/i);
+
+    expect(
+      within(lane('Mission team 1')).getByText(/injured survivors can’t be sent/i),
+    ).toBeTruthy();
   });
 
-  it('offers a second mission team once somebody is on the first (pg. 21; Z4-2)', async () => {
-    const user = open(planning({ step: 'assign-mission-team' }));
+  it('offers a second mission team once somebody is on the first (pg. 21; Z4-2)', () => {
+    open(planning({ step: 'assign-mission-team' }));
 
-    expect(screen.queryByRole('group', { name: /on mission team 2/i })).toBeNull();
+    expect(within(walk()).queryByRole('region', { name: 'Mission team 2' })).toBeNull();
 
-    await user.click(
-      within(screen.getByRole('group', { name: /on the mission team/i })).getByRole('checkbox', {
-        name: /earl/i,
-      }),
-    );
-    const second = within(screen.getByRole('group', { name: /on mission team 2/i }));
-    expect(second.getByRole('checkbox', { name: /earl/i })).not.toBeChecked();
+    moveTo(/^earl rhodes/i, 'Mission team 1');
+    expect(within(lane('Mission team 2')).getByText(/nobody yet/i)).toBeTruthy();
 
     // Moving Earl to team 2 takes him off team 1, rather than putting him on both.
-    await user.click(second.getByRole('checkbox', { name: /earl/i }));
-    expect(second.getByRole('checkbox', { name: /earl/i })).toBeChecked();
+    moveTo(/^earl rhodes/i, 'Mission team 2');
     expect(
-      within(screen.getByRole('group', { name: /on the mission team/i })).getByRole('checkbox', {
-        name: /earl/i,
-      }),
-    ).not.toBeChecked();
+      within(lane('Mission team 2')).getByRole('button', { name: /^earl rhodes/i }),
+    ).toBeTruthy();
+    expect(
+      within(lane('Mission team 1')).queryByRole('button', { name: /^earl rhodes/i }),
+    ).toBeNull();
   });
 
-  it('moves a survivor between tasks rather than giving them two', async () => {
-    const user = open(planning({ step: 'assign-rest-and-healing' }));
+  it('moves a survivor between tasks rather than giving them two', () => {
+    open(planning({ step: 'assign-rest-and-healing' }));
 
-    const resting = within(screen.getByRole('group', { name: /^resting/i }));
-    const healing = within(screen.getByRole('group', { name: /being healed/i }));
+    moveTo(/^carla proust/i, 'Resting');
+    moveTo(/^carla proust/i, 'Being healed');
 
-    await user.click(resting.getByRole('checkbox', { name: /carla/i }));
-    expect(healing.getByText(/currently resting/i)).toBeTruthy();
+    expect(within(lane('Resting')).queryByRole('button', { name: /^carla proust/i })).toBeNull();
+    expect(
+      within(lane('Being healed')).getByRole('button', { name: /^carla proust/i }),
+    ).toBeTruthy();
+  });
 
-    await user.click(healing.getByRole('checkbox', { name: /carla/i }));
-    expect(resting.getByRole('checkbox', { name: /carla/i })).not.toBeChecked();
-    expect(healing.getByRole('checkbox', { name: /carla/i })).toBeChecked();
+  /**
+   * #237. Unticking a checkbox left the survivor with nothing; moving a card
+   * back puts their task back, because the move names where they go.
+   */
+  it('puts a survivor back where they were by moving them back', async () => {
+    const user = open(planning({ assignments: { [EARL]: { task: 'staff', slot: 'kitchen' } } }));
+    await user.click(next());
+
+    // Earl is working the Kitchen, from the step before.
+    expect(
+      within(lane('Elsewhere')).getByRole('button', { name: /^earl rhodes/i }),
+    ).toHaveTextContent('working the Kitchen');
+
+    moveTo(/^earl rhodes/i, 'Project team');
+    expect(
+      within(lane('Project team')).getByRole('button', { name: /^earl rhodes/i }),
+    ).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: /^back to assign facility staff$/i }));
+    moveTo(/^earl rhodes/i, 'Kitchen');
+
+    expect(within(lane('Kitchen')).getByRole('button', { name: /^earl rhodes/i })).toBeTruthy();
+  });
+
+  it('puts a picked card down when it is pressed again', () => {
+    open(planning());
+
+    pickUp(/^earl rhodes/i);
+    expect(
+      within(lane('Kitchen')).getByRole('button', { name: 'Move Earl Rhodes here' }),
+    ).toBeTruthy();
+
+    pickUp(/^earl rhodes/i);
+    expect(within(lane('Kitchen')).queryByRole('button', { name: /^move/i })).toBeNull();
   });
 
   it('does not take the screen down when a staffed slot loses its facility', () => {
@@ -240,14 +270,15 @@ describe('the Planning Phase steps', () => {
       }),
     );
 
-    expect(within(walk()).getByText(/1 with nothing to do/i)).toBeTruthy();
-    expect(within(walk()).getByRole('group', { name: /kitchen — kitchen/i })).toBeTruthy();
+    expect(within(lane('Elsewhere')).getByRole('button', { name: /^earl rhodes/i })).toBeTruthy();
+    expect(lane('Kitchen')).toBeTruthy();
   });
 
   it('says there is nothing to staff before a base is claimed', () => {
     open(planning({ base: null }));
 
     expect(within(walk()).getByText(/no base, so there is nothing to staff/i)).toBeTruthy();
+    expect(lane('Nothing to do')).toBeTruthy();
   });
 });
 
@@ -260,13 +291,13 @@ describe('the Planning Phase steps', () => {
  * "staffed" — doing nothing, and costing a point of Siege Threat for it.
  */
 describe('which facilities can be staffed', () => {
-  it('offers a control only where the facility takes staff', () => {
+  it('offers a lane only where the facility takes staff', () => {
     open(planning());
 
     // The Small Town Home ships two Bunk Rooms and a Kitchen. Only the Kitchen
     // names a skill.
-    expect(within(walk()).getByRole('group', { name: /kitchen — kitchen/i })).toBeTruthy();
-    expect(within(walk()).queryByRole('group', { name: /bunk room/i })).toBeNull();
+    expect(lane('Kitchen')).toBeTruthy();
+    expect(within(walk()).queryByRole('region', { name: /bunk room/i })).toBeNull();
   });
 
   it('says who is assigned to a full facility and not working', () => {
@@ -280,7 +311,7 @@ describe('which facilities can be staffed', () => {
     );
 
     // The capacity is its own element, so the sentence is matched on the region.
-    expect(walk().textContent).toContain(
+    expect(lane('Kitchen').textContent).toContain(
       'Takes 1, so Carla Proust is assigned here and not working',
     );
   });

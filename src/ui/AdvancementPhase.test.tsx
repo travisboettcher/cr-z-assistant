@@ -7,7 +7,15 @@ import { createSurvivor } from '../engine/survivor';
 import { PENDING_ROLLS_KEY } from '../persistence/pendingRolls';
 import { serializeCampaign } from '../persistence/exportFile';
 import { CampaignProvider } from '../state/CampaignProvider';
-import { campaignLog, communityRoster, goOn, openMenu, openPanel, stored } from '../test/screens';
+import {
+  campaignLog,
+  communityRoster,
+  goOn,
+  lane,
+  openMenu,
+  openPanel,
+  stored,
+} from '../test/screens';
 import { App } from './App';
 import { generatingUtilities } from '../test/campaigns';
 import { continued, overrun, wentOn } from '../test/overrun';
@@ -1280,7 +1288,8 @@ describe('stepping out to the Planning Phase and back', () => {
     await user.click(skipToPlanning());
     goOn();
 
-    expect(screen.getByText(/3 with nothing to do/i)).toBeTruthy();
+    // Everybody's task was last turn's: the board starts with all three idle.
+    expect(within(lane('Nothing to do')).getAllByRole('button')).toHaveLength(3);
   });
 });
 

@@ -1,9 +1,11 @@
 /**
  * Give this task to some of the community, and see what everyone else is doing.
  *
- * Used twice, for the two things Z3-5 made derivable: who works a facility, and
- * who is on the project team. Both are the same question asked of the same
- * roster, so they are one control rather than two that drift.
+ * Used where a task is one list rather than a step of its own: who works a
+ * facility, on the base's slot card, and turn 1's First Mission team until B2
+ * moves it. The Planning Phase's steps use `AssignmentBoard` instead
+ * (`docs/assignment-board.md`; #237), whose moves restore a task where an
+ * untick here clears it.
  *
  * **Checkboxes rather than a picker**, because more than one survivor can hold
  * the same task — a Med Lab sums its staff's Medicine (pg. 73) and the project

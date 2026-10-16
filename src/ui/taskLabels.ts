@@ -32,3 +32,23 @@ export function taskLabel(assignment: Assignment): string {
       return 'scavenging';
   }
 }
+
+/**
+ * A lane's name on the assignment board (`AssignmentBoard`), for every task
+ * that is not a facility's. A facility's lane is named for what is built there
+ * (`facilityInSlot`), because the slot alone does not say what it makes.
+ */
+export function laneLabel(assignment: Exclude<Assignment, { task: 'staff' }>): string {
+  switch (assignment.task) {
+    case 'project':
+      return 'Project team';
+    case 'rest':
+      return 'Resting';
+    case 'healing':
+      return 'Being healed';
+    case 'mission':
+      return `Mission team ${String(assignment.team)}`;
+    case 'scavenging':
+      return 'Scavenging instead of the mission';
+  }
+}

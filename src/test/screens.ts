@@ -88,3 +88,23 @@ export function goOn(): void {
 export function goOnIfAsked(): void {
   if (screen.queryByRole('dialog', { name: /^(go on to|skip to) .*\?$/i }) !== null) goOn();
 }
+
+/** A lane of the assignment board, by its name (`AssignmentBoard`; #237). */
+export function lane(name: string | RegExp): HTMLElement {
+  return screen.getByRole('region', { name });
+}
+
+/**
+ * Presses a survivor's card on the assignment board, picking it up (or
+ * putting it down). Anchor the pattern at the start of the name, `/^earl/i`,
+ * because each lane's "Move Earl Rhodes here" button names the survivor too.
+ */
+export function pickUp(survivor: RegExp): void {
+  fireEvent.click(screen.getByRole('button', { name: survivor }));
+}
+
+/** Moves a survivor to a lane, the way a player does: their card, then the lane. */
+export function moveTo(survivor: RegExp, to: string | RegExp): void {
+  pickUp(survivor);
+  fireEvent.click(within(lane(to)).getByRole('button', { name: /^move .* here$/i }));
+}
