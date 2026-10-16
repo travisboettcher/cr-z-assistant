@@ -700,3 +700,64 @@ describe('promoting past what the base allows', () => {
     expect(within(sheet).getByRole('button', { name: /raise their Tier/i })).toBeEnabled();
   });
 });
+
+/** R5 (#236): a finished survivor's stats are values, edited on purpose. */
+describe('the stats of a survivor who is built', () => {
+  /** A Tier 2 with both skills chosen: nothing on the sheet left to settle. */
+  const built = (): Campaign => ({
+    ...createNewCampaign('Cedar Hollow'),
+    survivors: [
+      {
+        ...createSurvivor('Earl Rhodes', 2, { id: 'earl' }),
+        stats: { strength: 2, dexterity: 1, intelligence: 0, cooperation: 0 },
+        skills: { tactics: 0, carry: 0 },
+      },
+    ],
+  });
+
+  async function sheetOf(campaign: Campaign) {
+    const user = open(campaign);
+    await user.click(screen.getByRole('button', { name: /^sheet$/i }));
+
+    return { user, sheet: within(screen.getByRole('region', { name: 'Earl Rhodes' })) };
+  }
+
+  it('shows them as values, with nothing to press by accident', async () => {
+    const { sheet } = await sheetOf(built());
+
+    expect(sheet.queryByLabelText(/^strength$/i)).toBeNull();
+    expect(sheet.getByRole('button', { name: 'Edit stats' })).toBeInTheDocument();
+  });
+
+  it('names what reads them, and changes nothing until saved', async () => {
+    const { user, sheet } = await sheetOf(built());
+
+    await user.click(sheet.getByRole('button', { name: 'Edit stats' }));
+    expect(
+      sheet.getByText('Saving moves the Carry and Tactics Scores, and Inventory Slots with them.'),
+    ).toBeInTheDocument();
+
+    await user.selectOptions(sheet.getByLabelText(/^cooperation$/i), '2');
+    await user.click(sheet.getByRole('button', { name: 'Cancel' }));
+
+    expect(sheet.queryByLabelText(/^cooperation$/i)).toBeNull();
+    await user.click(sheet.getByRole('button', { name: 'Edit stats' }));
+    expect(sheet.getByLabelText(/^cooperation$/i)).toHaveValue('0');
+    expect(sheet.getByLabelText(/^strength$/i)).toHaveValue('2');
+  });
+
+  it('swaps on the draft, and saves the swap in one press', async () => {
+    const { user, sheet } = await sheetOf(built());
+
+    await user.click(sheet.getByRole('button', { name: 'Edit stats' }));
+    await user.selectOptions(sheet.getByLabelText(/^cooperation$/i), '2');
+    expect(sheet.getByLabelText(/^strength$/i)).toHaveValue('0');
+
+    await user.click(sheet.getByRole('button', { name: 'Save stats' }));
+
+    expect(sheet.queryByLabelText(/^cooperation$/i)).toBeNull();
+    expect(sheet.getByRole('button', { name: 'Edit stats' })).toBeInTheDocument();
+    await user.click(sheet.getByRole('button', { name: 'Edit stats' }));
+    expect(sheet.getByLabelText(/^cooperation$/i)).toHaveValue('2');
+  });
+});
