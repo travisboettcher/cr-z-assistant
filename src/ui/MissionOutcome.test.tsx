@@ -353,7 +353,7 @@ describe('the Health a team came home with (Z4-4)', () => {
 
     await user.type(form.getByLabelText('Earl Rhodes’s Health'), '5');
     expect(record).toBeDisabled();
-    expect(form.getByText('Earl Rhodes’s Health is a whole number from 0 to 2.')).toBeTruthy();
+    expect(form.getByText('Earl Rhodes’s Health must be a whole number from 0 to 2.')).toBeTruthy();
 
     await user.clear(form.getByLabelText('Earl Rhodes’s Health'));
     expect(record).toBeDisabled();

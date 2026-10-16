@@ -60,8 +60,8 @@ export function rareRollsProblem(
     if (due === 0) return 'No roll on the Rare Item Table is owed.';
 
     return due === 1
-      ? 'A 10 is a roll on the Rare Item Table: enter its two dice.'
-      : `${String(due)} rolls on the Rare Item Table are owed: enter two dice for each.`;
+      ? 'A 10 is a roll on the Rare Item Table. Enter its two dice.'
+      : `${String(due)} rolls on the Rare Item Table are owed. Enter two dice for each.`;
   }
 
   const ids = rareItems.map((one) => one.id);

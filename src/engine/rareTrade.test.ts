@@ -86,10 +86,10 @@ describe('the trader’s list (pg. 21; R58)', () => {
 describe('making a Rare Items trade (pg. 21; R57, R59)', () => {
   it('is refused outside Planning, twice, or with no team to go', () => {
     expect(messages(planning({ step: 'heal-wounds' }), [shield])).toEqual([
-      'A Rare Items trade is made in the Planning Phase.',
+      'Make Rare Items trades in the Planning Phase.',
     ]);
     expect(messages(planning({ assignments: {} }), [shield])).toEqual([
-      'A mission team goes to trade: assign one first.',
+      'A mission team goes to trade. Assign one first.',
     ]);
     const made = accepted(submitRareTradeMade(planning(), [shield], AT));
     expect(messages(made, [shotgun])).toEqual(['A Rare Items trade is already under way.']);
@@ -110,15 +110,15 @@ describe('making a Rare Items trade (pg. 21; R57, R59)', () => {
       { food: 4.5, fuel: 5.5 },
     ]) {
       expect(messages(planning(), [shotgun, { ...shield, ...wrong }])).toEqual([
-        'Item 2 costs 10, set aside in Food and Fuel.',
+        'Set aside 10 in Food and Fuel for item 2.',
       ]);
     }
     // All of it in one, either one.
     expect(messages(planning(), [{ ...shotgun, food: 6, fuel: 0 }])).toEqual([]);
     expect(messages(planning(), [{ ...shotgun, food: 0, fuel: 6 }])).toEqual([]);
     expect(messages(planning({ materials: { food: 1, fuel: 1, hardware: 0 } }), [shield])).toEqual([
-      'It sets aside 4 Food and the base has 1.',
-      'It sets aside 6 Fuel and the base has 1.',
+      'It sets aside 4 Food, but the base has 1.',
+      'It sets aside 6 Fuel, but the base has 1.',
     ]);
   });
 
@@ -304,7 +304,7 @@ describe('the Rare Goods Trader’s outcome (pg. 84; R22, R61)', () => {
     const problem = (result: FormResult) => (result.ok ? null : result.problem);
 
     expect(problem(resolved(atTheTrader(), 1))).toBe(
-      'Say how many of the trade’s items the trader handed over.',
+      'Enter how many of the trade’s items the trader handed over.',
     );
     expect(problem(resolved(atTheTrader(), 1, 3))).toBe('The trade was for 2 items.');
     expect(problem(resolved(atTheTrader(), 1, 2))).toBeNull();

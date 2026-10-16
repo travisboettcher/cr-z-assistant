@@ -368,7 +368,7 @@ describe('laborRefusal', () => {
 
     expect(laborRefusal(spent, 3, '72–73')).toEqual({
       code: 'not-enough-labor',
-      message: 'Costs 3 Labor and 2 is available.',
+      message: 'Costs 3 Labor, but only 2 is available.',
       pages: '72–73',
     });
   });

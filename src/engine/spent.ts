@@ -90,7 +90,7 @@ export function spentProblem(
   ticked: readonly string[],
 ): string | null {
   if (phaseOf(campaign.step) !== 'mission') {
-    return 'What a mission used is recorded in the Mission Phase.';
+    return 'Record what a mission used in the Mission Phase.';
   }
 
   const carried = teamCarries(campaign, team);

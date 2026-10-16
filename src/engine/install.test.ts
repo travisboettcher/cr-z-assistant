@@ -55,7 +55,7 @@ describe('where a rare upgrade goes (pg. 49; R47)', () => {
     const campaign = installing([item('g', 'gas-grill'), item('p', 'pistol')]);
 
     expect(installProblem({ ...campaign, step: 'heal-wounds' }, 'g', 'kitchen')).toBe(
-      'A rare upgrade is installed at Add Facilities and Upgrades (R47).',
+      'Install rare upgrades at Add Facilities and Upgrades (R47).',
     );
     expect(installProblem(campaign, 'nothing', 'kitchen')).toBe(
       'Only an item in the base’s Inventory can be installed.',
@@ -64,12 +64,12 @@ describe('where a rare upgrade goes (pg. 49; R47)', () => {
       'Only a rare base upgrade is installed in a facility.',
     );
     expect(installProblem(campaign, 'g', 'bunk-room-1')).toBe(
-      'It is installed in a standing facility of the kind it names.',
+      'Install it in a standing facility of the kind it names.',
     );
     expect(installProblem(campaign, 'g', 'kitchen')).toBeNull();
     expect(submitRareUpgradeInstalled(campaign, 'g', 'bunk-room-1', AT)).toEqual({
       ok: false,
-      problem: 'It is installed in a standing facility of the kind it names.',
+      problem: 'Install it in a standing facility of the kind it names.',
     });
   });
 

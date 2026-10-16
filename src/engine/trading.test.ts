@@ -82,7 +82,7 @@ describe('what the Planning trade buys (pp. 21, 37, 41–43; R51, R55)', () => {
 describe('a trade at Planning (pp. 19, 21; R52, R53)', () => {
   it('is refused outside the Planning Phase, and for what is not traded for', () => {
     expect(messages(trading({ step: 'heal-wounds' }), request())).toEqual([
-      'Equipment is traded for in the Planning Phase.',
+      'Trade for equipment in the Planning Phase.',
     ]);
     expect(messages(trading(), request({ item: 'laser' as ItemId }))).toEqual([
       'There is no such item.',
@@ -115,14 +115,14 @@ describe('a trade at Planning (pp. 19, 21; R52, R53)', () => {
       expect(messages(trading(), request(payment))).toEqual(['It costs 6, paid in Food and Fuel.']);
     }
     expect(messages(trading(), request({ food: 6, fuel: 0 }))).toEqual([
-      'It takes 6 Food and the base has 4.',
+      'It takes 6 Food, but the base has 4.',
     ]);
     expect(messages(trading(), request({ food: 0, fuel: 6 }))).toEqual([
-      'It takes 6 Fuel and the base has 4.',
+      'It takes 6 Fuel, but the base has 4.',
     ]);
     expect(messages(trading({ materials: { food: 1, fuel: 1, hardware: 0 } }), request())).toEqual([
-      'It takes 2 Food and the base has 1.',
-      'It takes 4 Fuel and the base has 1.',
+      'It takes 2 Food, but the base has 1.',
+      'It takes 4 Fuel, but the base has 1.',
     ]);
     expect(messages(trading(), request())).toEqual([]);
   });
@@ -248,7 +248,7 @@ describe('selling a rare item (pp. 21, 37, 43; R54, R56)', () => {
       saleCheck(on, id, { food, fuel }).blockers.map((one) => one.message);
 
     expect(refusal({ ...campaign, step: 'heal-wounds' }, 'shield', 8, 0)).toEqual([
-      'A rare item is sold in the Planning Phase.',
+      'Sell rare items in the Planning Phase.',
     ]);
     expect(refusal(campaign, 'nothing', 8, 0)).toEqual([
       'Only an item in the base’s Inventory can be sold.',
@@ -286,7 +286,7 @@ describe('selling a rare item (pp. 21, 37, 43; R54, R56)', () => {
 
     expect(check.blockers).toEqual([]);
     expect(check.warnings.map((one) => one.message)).toEqual([
-      '12 food is over this base’s 7. Check Storage is a Management step, so it keeps until then.',
+      '12 food is over this base’s 7. It stays until Check Storage, in the Management Phase.',
     ]);
     expect(submitItemSold(full, 'shield', { food: 8, fuel: 0 }, AT).ok).toBe(true);
     expect(saleCheck(full, 'shield', { food: 0, fuel: 8 }).warnings).toHaveLength(1);

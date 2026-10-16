@@ -180,7 +180,7 @@ describe('taking a vehicle at Equip Mission Team (pp. 18, 52; R65)', () => {
   it('is refused when the base cannot fuel it', () => {
     expect(
       takeProblem(equipping({ materials: { food: 0, fuel: 2, hardware: 0 } }), 1, 'truck'),
-    ).toBe('Box truck burns 3 Fuel and the base has 2 (R65).');
+    ).toBe('Box truck burns 3 Fuel, but the base has 2 (R65).');
     expect(
       takeProblem(equipping({ materials: { food: 0, fuel: 3, hardware: 0 } }), 1, 'truck'),
     ).toBeNull();
@@ -188,7 +188,7 @@ describe('taking a vehicle at Equip Mission Team (pp. 18, 52; R65)', () => {
 
   it('is refused outside the Mission Phase, off a team going out, or for a vehicle not held', () => {
     expect(takeProblem({ ...equipping(), step: 'heal-wounds' }, 1, 'truck')).toBe(
-      'A vehicle is taken at Equip Mission Team, in the Mission Phase.',
+      'Take vehicles at Equip the Mission Team, in the Mission Phase.',
     );
     expect(takeProblem(equipping(), 3, 'truck')).toBe(
       'Only a team going out this turn takes a vehicle.',
@@ -304,7 +304,7 @@ describe('taking a vehicle at Equip Mission Team (pp. 18, 52; R65)', () => {
 
     expect(leaveProblem(taken, 'pickup')).toBe('That vehicle isn’t taken this turn.');
     expect(refusal(submitVehicleLeftHome({ ...taken, step: 'heal-wounds' }, 'truck', AT))).toBe(
-      'A vehicle is left home at Equip Mission Team, in the Mission Phase.',
+      'Leave vehicles home at Equip the Mission Team, in the Mission Phase.',
     );
     expect(leaveProblem({ ...taken, turn: 5 }, 'truck')).toBe(
       'That vehicle isn’t taken this turn.',
@@ -373,7 +373,7 @@ describe('bringing vehicles home (pg. 32; R64, R65, R70)', () => {
     expect(broughtHomeProblem(taken, 1, [])).toBe('Record mission team 1’s outcome first.');
     expect(broughtHomeProblem(played(taken), 2, [])).toBe('Mission team 2 took no vehicles.');
     expect(broughtHomeProblem({ ...played(taken), step: 'heal-wounds' }, 1, [])).toBe(
-      'Which vehicles came home is recorded in the Mission Phase.',
+      'Record which vehicles came home in the Mission Phase.',
     );
     expect(broughtHomeProblem(played(taken), 1, ['other'])).toBe(
       'Only a vehicle mission team 1 took is driven home.',

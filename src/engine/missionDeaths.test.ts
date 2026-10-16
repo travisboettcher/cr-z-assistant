@@ -137,7 +137,7 @@ describe('a survivor who dies on a mission (pp. 31, 34; R71)', () => {
 
   it('is recorded in the Mission Phase, after the team’s outcome', () => {
     expect(deathProblem({ ...played(), step: 'heal-wounds' }, earl())).toBe(
-      'A death on a mission is recorded in the Mission Phase.',
+      'Record deaths on a mission in the Mission Phase.',
     );
     expect(deathProblem(chosen(), earl())).toBe('Record mission team 1’s outcome first.');
     expect(deathProblem(played(), earl())).toBeNull();

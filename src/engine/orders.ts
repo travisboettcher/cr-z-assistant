@@ -84,7 +84,7 @@ export function checkOrder(
       blockers: [
         {
           code: 'outside-the-planning-phase',
-          message: 'Projects are ordered in the Planning Phase.',
+          message: 'Order projects in the Planning Phase.',
           pages: 20,
         },
       ],

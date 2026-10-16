@@ -95,7 +95,7 @@ export function vehicleProblem(
     return 'A vehicle already has that id.';
   }
   if (!VEHICLE_TIERS.includes(vehicle.tier)) return 'A vehicle is Tier 1 to 4.';
-  if (vehicle.label.trim() === '') return 'Give the vehicle a name to know it by.';
+  if (vehicle.label.trim() === '') return 'Give the vehicle a name.';
 
   const split = vehicle.inventorySlots;
   if (vehicle.tier !== 4) {
@@ -106,7 +106,7 @@ export function vehicleProblem(
     (split as number) >= 0 &&
     (split as number) <= TIER_FOUR_SLOTS
   )) {
-    return `A Tier 4 vehicle splits its ${String(TIER_FOUR_SLOTS)} slots: say how many are Inventory Slots.`;
+    return `A Tier 4 vehicle splits its ${String(TIER_FOUR_SLOTS)} slots. Enter how many are Inventory Slots.`;
   }
 
   return null;
@@ -124,8 +124,8 @@ export function retrievedProblem(
 ): string | null {
   if (retrieved.length !== drivenOff) {
     return drivenOff === 1
-      ? 'Say what the vehicle driven off was.'
-      : `Say what each of the ${String(drivenOff)} vehicles driven off was.`;
+      ? 'Enter the vehicle that was driven off.'
+      : `Enter each of the ${String(drivenOff)} vehicles driven off.`;
   }
 
   for (const [at, vehicle] of retrieved.entries()) {

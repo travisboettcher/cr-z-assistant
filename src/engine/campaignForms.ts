@@ -156,7 +156,7 @@ export function submitAdvance(campaign: Campaign, by: AdvanceBy, at: string): Ac
  */
 export function submitBaseClaim(campaign: Campaign, base: BaseId, at: string): FormResult {
   if (campaign.base !== null) {
-    return refused('This community already has a base; moving is a mission of its own.');
+    return refused('This community already has a base. Moving is a mission of its own.');
   }
 
   const claimed = { ...campaign, base: { id: base, slots: {} } };

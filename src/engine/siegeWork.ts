@@ -323,7 +323,7 @@ export function standInProblem(
   by: string | undefined,
 ): string | null {
   if (phaseOf(campaign.step) !== 'mission') {
-    return 'A stand-in is chosen in the Mission Phase, once the siege is recorded.';
+    return 'Choose stand-ins in the Mission Phase, once the siege is recorded.';
   }
   if (!siegeDefended(campaign))
     return 'Only a recorded Siege Defense leaves anybody to stand in for.';
@@ -333,7 +333,7 @@ export function standInProblem(
 
   const standing = standIns(campaign);
   if (standing.get(place)?.id === by) {
-    return by === undefined ? 'Nobody is standing in already.' : 'They are standing in already.';
+    return by === undefined ? 'Nobody is standing in.' : 'They are standing in already.';
   }
   if (by === undefined) return null;
 

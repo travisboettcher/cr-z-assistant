@@ -171,7 +171,7 @@ export function checkConversion(campaign: Campaign, conversion: Conversion): Con
   if (cap !== undefined && timesConverted(campaign, conversion) >= cap) {
     blockers.push({
       code: 'no-conversions-left',
-      message: `This converts ${String(cap)} a turn, and has.`,
+      message: `This converts ${String(cap)} a turn and has already done so this turn.`,
       pages: 19,
     });
   }

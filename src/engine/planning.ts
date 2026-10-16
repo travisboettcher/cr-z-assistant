@@ -353,7 +353,7 @@ function missionWarnings(
   if (survivor.tier === HERO_TIER && hero !== undefined) {
     warnings.push({
       code: 'a-second-hero-on-one-mission',
-      message: `Only one Hero may go on a mission, and ${hero.name} is.`,
+      message: `Only one Hero may go on a mission, and ${hero.name} already is.`,
       pages: 7,
     });
   }
@@ -377,7 +377,7 @@ function scavengingWarnings(campaign: Campaign, survivor: Survivor): readonly Pl
   if (scavenging !== undefined) {
     warnings.push({
       code: 'someone-else-scavenging',
-      message: `Only one survivor may scavenge, and ${scavenging.name} is.`,
+      message: `Only one survivor may scavenge, and ${scavenging.name} already is.`,
       pages: 17,
     });
   }
@@ -405,7 +405,7 @@ function scavengingWarnings(campaign: Campaign, survivor: Survivor): readonly Pl
   if (team.length > 0) {
     warnings.push({
       code: 'scavenging-needs-the-mission-skipped',
-      message: `Only when the community skips the mission, and ${team.map((member) => member.name).join(' and ')} ${team.length === 1 ? 'is' : 'are'} on the mission team.`,
+      message: `Scavenging is only for a turn the community skips its mission, and ${team.map((member) => member.name).join(' and ')} ${team.length === 1 ? 'is' : 'are'} on the mission team.`,
       pages: 17,
     });
   }

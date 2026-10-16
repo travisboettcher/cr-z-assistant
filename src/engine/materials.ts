@@ -384,7 +384,7 @@ export function checkMaterials(campaign: Campaign, rolls: readonly MaterialRoll[
     if (spent[skill] > uses) {
       warnings.push({
         code: 'not-enough-substitution',
-        message: `${spent[skill]} results forced with ${skill}, and the mission team’s Score is ${uses}.`,
+        message: `${spent[skill]} results forced with ${skill}, but the mission team’s Score is only ${uses}.`,
         pages: 12,
       });
     }
@@ -408,7 +408,7 @@ export function checkMaterials(campaign: Campaign, rolls: readonly MaterialRoll[
       if (after > cap) {
         warnings.push({
           code: 'over-storage-cap',
-          message: `${after} ${material} is over this base’s ${cap}. Check Storage is a Management step, so it keeps until then.`,
+          message: `${after} ${material} is over this base’s ${cap}. It stays until Check Storage, in the Management Phase.`,
           pages: 23,
         });
       }

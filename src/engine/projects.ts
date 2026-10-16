@@ -445,14 +445,14 @@ export function laborRefusal(
   if (pricing === undefined && !planningHasBegun(campaign)) {
     return {
       code: 'not-enough-labor',
-      message: `Costs ${String(labor)} Labor, and this turn’s project team is assigned in the Planning Phase — last turn’s doesn’t pay for this turn’s work.`,
+      message: `Costs ${String(labor)} Labor, and this turn’s project team is assigned in the Planning Phase. Last turn’s team doesn’t pay for this turn’s work.`,
       pages: 20,
     };
   }
 
   return {
     code: 'not-enough-labor',
-    message: `Costs ${String(labor)} Labor and ${String(available)} is available.`,
+    message: `Costs ${String(labor)} Labor, but only ${String(available)} is available.`,
     pages,
   };
 }

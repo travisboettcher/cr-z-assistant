@@ -257,7 +257,7 @@ export function checkUtility(campaign: Campaign, request: UtilityRequest): Utili
   if (wouldSpend > generated) {
     blockers.push({
       code: 'pool-exhausted',
-      message: `Needs ${String(wouldSpend - generated)} more than this base generates.`,
+      message: `Needs ${String(wouldSpend - generated)} more than the base’s Utilities Score.`,
       pages: 67,
     });
   }

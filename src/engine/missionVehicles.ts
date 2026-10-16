@@ -137,7 +137,7 @@ function going(campaign: Campaign, team: number): boolean {
 /** Why this team cannot take this vehicle now, or `null` (pp. 18, 49, 52; R65). */
 export function takeProblem(campaign: Campaign, team: number, id: string): string | null {
   if (phaseOf(campaign.step) !== 'mission') {
-    return 'A vehicle is taken at Equip Mission Team, in the Mission Phase.';
+    return 'Take vehicles at Equip the Mission Team, in the Mission Phase.';
   }
   if (!going(campaign, team)) return 'Only a team going out this turn takes a vehicle.';
   if (broughtHome(campaign, team)) {
@@ -157,7 +157,7 @@ export function takeProblem(campaign: Campaign, team: number, id: string): strin
 
   const fuel = fuelFor(vehicle);
   if (fuel > campaign.materials.fuel) {
-    return `${vehicle.label} burns ${String(fuel)} Fuel and the base has ${String(campaign.materials.fuel)} (R65).`;
+    return `${vehicle.label} burns ${String(fuel)} Fuel, but the base has ${String(campaign.materials.fuel)} (R65).`;
   }
 
   return null;
@@ -174,7 +174,7 @@ export function withVehicleTaken(campaign: Campaign, vehicle: Vehicle): Campaign
 /** Why this vehicle cannot be left home again now, or `null`. */
 export function leaveProblem(campaign: Campaign, id: string): string | null {
   if (phaseOf(campaign.step) !== 'mission') {
-    return 'A vehicle is left home at Equip Mission Team, in the Mission Phase.';
+    return 'Leave vehicles home at Equip the Mission Team, in the Mission Phase.';
   }
 
   const taken = vehiclesTaken(campaign).find((one) => one.vehicle === id);
@@ -204,7 +204,7 @@ export function broughtHomeProblem(
   drivenOff: readonly string[],
 ): string | null {
   if (phaseOf(campaign.step) !== 'mission') {
-    return 'Which vehicles came home is recorded in the Mission Phase.';
+    return 'Record which vehicles came home in the Mission Phase.';
   }
 
   const taken = teamVehicles(campaign, team);

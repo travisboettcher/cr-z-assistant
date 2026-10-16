@@ -38,7 +38,7 @@ export function deathProblem(campaign: Campaign, death: MissionDeath): string | 
   const team = String(death.team);
 
   if (phaseOf(campaign.step) !== 'mission') {
-    return 'A death on a mission is recorded in the Mission Phase.';
+    return 'Record deaths on a mission in the Mission Phase.';
   }
   if (!teamOutcomes(campaign).has(death.team))
     return `Record mission team ${team}’s outcome first.`;

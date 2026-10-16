@@ -103,10 +103,7 @@ export function rareTradeCheck(
   });
 
   if (!orderable(campaign)) {
-    return refuse(
-      'outside-the-planning-phase',
-      'A Rare Items trade is made in the Planning Phase.',
-    );
+    return refuse('outside-the-planning-phase', 'Make Rare Items trades in the Planning Phase.');
   }
   if (campaign.rareTrade !== null) {
     return refuse('trade-under-way', 'A Rare Items trade is already under way.');
@@ -116,7 +113,7 @@ export function rareTradeCheck(
   if (
     !campaign.survivors.some((survivor) => campaign.assignments[survivor.id]?.task === 'mission')
   ) {
-    return refuse('no-mission-team', 'A mission team goes to trade: assign one first.');
+    return refuse('no-mission-team', 'A mission team goes to trade. Assign one first.');
   }
   if (picks.length === 0) {
     return refuse('nothing-chosen', 'Choose an item from the trader’s list.');
@@ -140,7 +137,7 @@ export function rareTradeCheck(
   if (unpaid !== -1) {
     return refuse(
       'wrong-payment',
-      `Item ${String(unpaid + 1)} costs ${String(pickPrice(picks[unpaid] as RareTradePick))}, set aside in Food and Fuel.`,
+      `Set aside ${String(pickPrice(picks[unpaid] as RareTradePick))} in Food and Fuel for item ${String(unpaid + 1)}.`,
       43,
     );
   }
@@ -156,14 +153,14 @@ export function rareTradeCheck(
   if (food > campaign.materials.food) {
     blockers.push({
       code: 'not-enough-food',
-      message: `It sets aside ${String(food)} Food and the base has ${String(campaign.materials.food)}.`,
+      message: `It sets aside ${String(food)} Food, but the base has ${String(campaign.materials.food)}.`,
       pages: 21,
     });
   }
   if (fuel > campaign.materials.fuel) {
     blockers.push({
       code: 'not-enough-fuel',
-      message: `It sets aside ${String(fuel)} Fuel and the base has ${String(campaign.materials.fuel)}.`,
+      message: `It sets aside ${String(fuel)} Fuel, but the base has ${String(campaign.materials.fuel)}.`,
       pages: 21,
     });
   }

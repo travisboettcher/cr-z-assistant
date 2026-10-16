@@ -239,7 +239,7 @@ describe('building into a slot', () => {
     const user = readyToBuild();
     await user.click(garage());
 
-    expect(screen.getByText(/costs 3 hardware and the community has 0/i)).toBeInTheDocument();
+    expect(screen.getByText(/costs 3 hardware, but the community has 0/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /order the build/i })).toBeDisabled();
     expect(screen.queryByLabelText(/order it anyway/i)).not.toBeInTheDocument();
   });
@@ -248,7 +248,7 @@ describe('building into a slot', () => {
     const user = readyToBuild(0);
     await user.click(garage());
 
-    expect(screen.getByText(/costs 2 labor and 0 is available/i)).toBeInTheDocument();
+    expect(screen.getByText(/costs 2 labor, but only 0 is available/i)).toBeInTheDocument();
   });
 
   it('holds a rule-breaking build behind an override, then orders it', async () => {
@@ -586,7 +586,7 @@ describe('upgrading a facility', () => {
 
     await user.click(screen.getByRole('button', { name: /upgrade garage/i }));
 
-    expect(screen.getByText(/went up this turn/i)).toBeInTheDocument();
+    expect(screen.getByText(/was built this turn/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /order the upgrade/i })).toBeDisabled();
     expect(screen.getByLabelText(/order it anyway/i)).toBeInTheDocument();
   });
@@ -597,7 +597,7 @@ describe('upgrading a facility', () => {
 
     // The kitchen came with the base, so it was never built and the rule has
     // nothing to compare against.
-    expect(screen.queryByText(/went up this turn/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/was built this turn/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /order the upgrade/i })).toBeEnabled();
   });
 
@@ -656,7 +656,7 @@ describe('clearing a slot', () => {
     const user = readyToClear(1);
     await user.click(coop());
 
-    expect(screen.getByText(/costs 2 labor and 1 is available/i)).toBeInTheDocument();
+    expect(screen.getByText(/costs 2 labor, but only 1 is available/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /order the clearing/i })).toBeDisabled();
     // Nothing about clearing is a rule a table plays differently.
     expect(screen.queryByLabelText(/anyway/i)).not.toBeInTheDocument();
@@ -748,7 +748,7 @@ describe('assigning Power and Water', () => {
     const user = readyToSupply(0);
     await openKitchen(user);
 
-    expect(screen.getAllByText(/needs 1 more than this base generates/i)).toHaveLength(2);
+    expect(screen.getAllByText(/needs 1 more than the base’s Utilities Score/i)).toHaveLength(2);
     expect(screen.getByRole('checkbox', { name: /water/i })).toBeDisabled();
   });
 

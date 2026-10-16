@@ -161,7 +161,7 @@ export function checkUpgrade(
   if (campaign.materials.hardware < cost.hardware) {
     blockers.push({
       code: 'not-enough-hardware',
-      message: `Costs ${String(cost.hardware)} Hardware and the community has ${String(campaign.materials.hardware)}.`,
+      message: `Costs ${String(cost.hardware)} Hardware, but the community has ${String(campaign.materials.hardware)}.`,
       pages: '72–73',
     });
   }
@@ -211,7 +211,7 @@ export function checkUpgrade(
   if (occupant.builtOnTurn === campaign.turn) {
     warnings.push({
       code: 'built-this-turn',
-      message: 'This facility went up this turn, and an upgrade waits for the next one.',
+      message: 'This facility was built this turn. Upgrade it next turn.',
       pages: 54,
     });
   }

@@ -437,7 +437,7 @@ describe('selectionProblem', () => {
 
   it('asks Gather Materials for a material type, and no other mission (pg. 80)', () => {
     expect(selectionProblem(playing(), { team: 1, mission: 'gather-materials' })).toMatch(
-      /type it takes/,
+      /material type Gather Materials takes/,
     );
     expect(
       selectionProblem(playing(), { team: 1, mission: 'gather-materials', material: 'fuel' }),
@@ -585,10 +585,10 @@ describe('the outcomes of the other standard missions (Z4-3)', () => {
   it('takes strangers of Tiers 1 to 3, and refuses a Hero (pg. 7; R24)', () => {
     expect(outcomeProblem(firstTurn(), first(2, [1, 3]))).toBeNull();
     expect(outcomeProblem(firstTurn(), { ...first(2), strangers: [4 as 3] })).toMatch(
-      /Tier from 1 to 3/,
+      /Tier 1 to 3/,
     );
     expect(outcomeProblem(firstTurn(), { ...first(2), strangers: [0 as 1] })).toMatch(
-      /Tier from 1 to 3/,
+      /Tier 1 to 3/,
     );
   });
 
@@ -687,7 +687,7 @@ describe('the outcomes of the other standard missions (Z4-3)', () => {
     expect(firstMissionFailed(won)).toBe(false);
     expect(
       selectionProblem({ ...won, step: 'select-mission' }, { team: 1, mission: 'first-mission' }),
-    ).toMatch(/outcome recorded/);
+    ).toMatch(/already played its mission/);
   });
 
   it('lets the First Mission played again have its own outcome (R21)', () => {
@@ -864,7 +864,7 @@ describe('woundsProblem', () => {
   ])('refuses Health %s, naming whose and the range', (_, health) => {
     expect(
       missionOutcomeProblem(thinning(), wounded({ ...EARL, health }, { ...CARLA, health: 2 })),
-    ).toBe('Earl Rhodes’s Health is a whole number from 0 to 2.');
+    ).toBe('Earl Rhodes’s Health must be a whole number from 0 to 2.');
   });
 
   it('reads the maximum off each survivor’s own Tier', () => {
@@ -877,11 +877,13 @@ describe('woundsProblem', () => {
 
   it('refuses a team with somebody left out, or with no wounds at all', () => {
     expect(woundsProblem(thinning(), wounded({ ...EARL, health: 2 }))).toBe(
-      'Everybody on mission team 1 has their Health at the end recorded.',
+      'Record the end-of-mission Health of everybody on mission team 1.',
     );
-    expect(woundsProblem(thinning(), thinHerd())).toMatch(/Everybody on mission team 1/);
+    expect(woundsProblem(thinning(), thinHerd())).toMatch(
+      /Record the end-of-mission Health of everybody on mission team 1/,
+    );
     expect(missionOutcomeProblem(thinning(), { ...thinHerd(), team: 1 })).toMatch(
-      /has their Health at the end recorded/,
+      /Record the end-of-mission Health/,
     );
   });
 
@@ -949,7 +951,7 @@ describe('woundsProblem', () => {
             { ...CARLA, health: 2, ...(infection === undefined ? {} : { infection }) },
           ),
         ),
-      ).toBe('Carla Proust’s Infection is a whole number, from zero.');
+      ).toBe('Carla Proust’s Infection must be a whole number, 0 or more.');
     });
   });
 });
@@ -1074,7 +1076,7 @@ describe('the overrun’s continuation', () => {
     const chosen = overrun([at(4, { kind: 'overrun-continued', option: 'claim' })]);
     const claim = { team: 1, mission: 'claim-a-new-base', base: 'distillery' } as const;
 
-    expect(selectionProblem(overrun(), claim)).toMatch(/outcome recorded/);
+    expect(selectionProblem(overrun(), claim)).toMatch(/already played its mission/);
     expect(selectionProblem(chosen, claim)).toBeNull();
     expect(selectionProblem(chosen, { team: 1, mission: 'siege-defense' })).toMatch(
       /mission it chose to go on with/,

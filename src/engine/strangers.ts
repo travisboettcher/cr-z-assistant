@@ -133,7 +133,7 @@ export function strangersWaiting(campaign: Campaign): readonly RescuedStranger[]
  */
 export function strangerProblem(campaign: Campaign, form: StrangerForm): string | null {
   if (phaseOf(campaign.step) !== 'advancement') {
-    return 'A rescued stranger joins in the Advancement Phase.';
+    return 'Rescued strangers join in the Advancement Phase.';
   }
 
   const rescued = rescuedStrangers(campaign).find(
@@ -192,7 +192,7 @@ export function returnedWaiting(campaign: Campaign): readonly Survivor[] {
  */
 export function returnProblem(campaign: Campaign, survivor: string): string | null {
   if (phaseOf(campaign.step) !== 'advancement') {
-    return 'A survivor brought back rejoins in the Advancement Phase.';
+    return 'Survivors brought back rejoin in the Advancement Phase.';
   }
   if (!returnedWaiting(campaign).some((waiting) => waiting.id === survivor)) {
     return 'Nobody set aside by that name was brought back this turn.';

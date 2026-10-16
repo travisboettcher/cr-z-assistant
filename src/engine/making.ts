@@ -199,7 +199,7 @@ export function buildCheck(campaign: Campaign, order: BuildOrder): Check<BuildCo
 
   // R14: an order is placed in the Planning Phase.
   if (!orderable(campaign)) {
-    return refuse('outside-the-planning-phase', 'Equipment is built in the Planning Phase.', 20);
+    return refuse('outside-the-planning-phase', 'Build equipment in the Planning Phase.', 20);
   }
 
   if (!Object.hasOwn(EQUIPMENT, order.item))
@@ -215,7 +215,7 @@ export function buildCheck(campaign: Campaign, order: BuildOrder): Check<BuildCo
   }
 
   if (build.kind === 'as-base-weapon' && order.enchants === undefined) {
-    return refuse('needs-a-weapon', 'It is built on a standard weapon: say which.', 40);
+    return refuse('needs-a-weapon', 'It’s built on a standard weapon. Choose which.', 40);
   }
 
   const cost = buildCost(campaign, order);
@@ -262,7 +262,7 @@ export function buildCheck(campaign: Campaign, order: BuildOrder): Check<BuildCo
   if (cost.hardware > campaign.materials.hardware) {
     blockers.push({
       code: 'not-enough-hardware',
-      message: `Costs ${String(cost.hardware)} Hardware and ${String(campaign.materials.hardware)} is stored.`,
+      message: `Costs ${String(cost.hardware)} Hardware, but only ${String(campaign.materials.hardware)} is stored.`,
       pages: 20,
     });
   }

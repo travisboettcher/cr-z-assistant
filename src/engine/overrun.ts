@@ -140,7 +140,7 @@ export function reclaimedOnSameMap(campaign: Campaign): boolean {
  */
 export function overrunChoiceProblem(campaign: Campaign, option: OverrunOption): string | null {
   if (phaseOf(campaign.step) !== 'mission') {
-    return 'How the community goes on is chosen in the Mission Phase.';
+    return 'Choose how the community goes on in the Mission Phase.';
   }
   if (!Object.hasOwn(OVERRUN_CONTINUATIONS, option)) return 'There is no such way on.';
 
@@ -152,7 +152,7 @@ export function overrunChoiceProblem(campaign: Campaign, option: OverrunOption):
     case 'done':
       return 'The community has already gone on from the overrun.';
     default:
-      return 'The way on is chosen; play it, and choose again only if it fails.';
+      return 'The way on is already chosen. Play it, and choose again only if it fails.';
   }
 }
 
