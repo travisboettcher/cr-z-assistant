@@ -157,7 +157,7 @@ export function takeProblem(campaign: Campaign, team: number, id: string): strin
 
   const fuel = fuelFor(vehicle);
   if (fuel > campaign.materials.fuel) {
-    return `${vehicle.label} burns ${String(fuel)} Fuel, but the base has ${String(campaign.materials.fuel)} (R65).`;
+    return `${vehicle.label} burns ${String(fuel)} Fuel, but the base has ${String(campaign.materials.fuel)}.`;
   }
 
   return null;
@@ -216,7 +216,7 @@ export function broughtHomeProblem(
     return `Record mission team ${String(team)}’s outcome first.`;
   }
   if (claimKeeps(campaign, team)) {
-    return 'A won Claim a New Base keeps every vehicle on the mission area (R64).';
+    return 'A won Claim a New Base keeps every vehicle on the mission area.';
   }
   if (!drivenOff.every((id) => taken.some((one) => one.vehicle === id))) {
     return `Only a vehicle mission team ${String(team)} took is driven home.`;

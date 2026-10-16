@@ -123,7 +123,7 @@ export function rareTradeCheck(
   if (picks.length > rolls) {
     return refuse(
       'too-many',
-      `The trader’s list has ${String(rolls)} rolls, and ${String(picks.length)} are chosen (R58).`,
+      `The trader’s list has ${String(rolls)} rolls, and ${String(picks.length)} are chosen.`,
     );
   }
 

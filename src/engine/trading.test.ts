@@ -88,7 +88,7 @@ describe('a trade at Planning (pp. 19, 21; R52, R53)', () => {
       'There is no such item.',
     ]);
     expect(messages(trading(), request({ item: 'riot-shield' }))).toEqual([
-      'A rare item is bought from the Rare Goods Trader (R51).',
+      'A rare item is bought from the Rare Goods Trader.',
     ]);
     expect(messages(trading(), request({ item: 'disinfectant' }))).toEqual([
       'That item belongs to another Origin of the Rot.',
@@ -253,7 +253,7 @@ describe('selling a rare item (pp. 21, 37, 43; R54, R56)', () => {
     expect(refusal(campaign, 'nothing', 8, 0)).toEqual([
       'Only an item in the base’s Inventory can be sold.',
     ]);
-    expect(refusal(campaign, 'pistol', 4, 0)).toEqual(['Only a rare item can be sold (R54).']);
+    expect(refusal(campaign, 'pistol', 4, 0)).toEqual(['Only a rare item can be sold.']);
     expect(refusal(campaign, 'shield', 5, 4)).toEqual(['It sells for 8, in Food and Fuel.']);
     expect(refusal(campaign, 'shield', 5, 3)).toEqual([]);
     expect(saleCheck(campaign, 'pistol', { food: 4, fuel: 0 }).warnings).toEqual([]);

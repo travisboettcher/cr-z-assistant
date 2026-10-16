@@ -156,7 +156,7 @@ describe('a survivor who dies on a mission (pp. 31, 34; R71)', () => {
       'Only what Earl Rhodes carried can be taken from them.',
     );
 
-    const problem = 'Only somebody else on mission team 1 takes an item from Earl Rhodes (R71).';
+    const problem = 'Only somebody else on mission team 1 takes an item from Earl Rhodes.';
     expect(deathProblem(played(), earl({ 'rifle-1': 'earl' }))).toBe(problem);
     expect(deathProblem(played(), earl({ 'rifle-1': 'ada' }))).toBe(problem);
     expect(deathProblem(played(), earl({ 'rifle-1': 'bo' }))).toBe(problem);

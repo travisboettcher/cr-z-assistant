@@ -239,7 +239,7 @@ describe('installing a rare upgrade', () => {
 
     expect(screen.getByRole('button', { name: 'Install Gas grill in the Kitchen' })).toBeDisabled();
     expect(
-      screen.getByText('Install rare upgrades at Add Facilities and Upgrades (R47).'),
+      screen.getByText('Install rare upgrades at Add Facilities and Upgrades.'),
     ).toBeInTheDocument();
   });
 });

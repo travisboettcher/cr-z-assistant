@@ -131,7 +131,7 @@ function receivingViolations(
   if (rules.kind === 'protective' && survivor.items.some((held) => held.item === item.item)) {
     blockers.push({
       code: 'worn-already',
-      message: `${survivor.name} already wears one (R40).`,
+      message: `${survivor.name} already wears one.`,
       pages: 45,
     });
   }
@@ -218,7 +218,7 @@ export function equipCheck(campaign: Campaign, move: EquipMove): Check<EquipCode
   if (move.kind === 'take-shoddy' && !shoddyOffers(survivor).includes(move.item)) {
     return blocked(
       'not-free',
-      `That isn’t free gear for ${survivor.name}. Shoddy gear comes free with a skill it’s used with (R35).`,
+      `That isn’t free gear for ${survivor.name}. Shoddy gear comes free with a skill it’s used with.`,
       37,
     );
   }

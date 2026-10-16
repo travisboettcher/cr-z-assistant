@@ -130,7 +130,7 @@ export function retrievedProblem(
 
   for (const [at, vehicle] of retrieved.entries()) {
     if (vehicle.tier > tierRolled(vehicle.roll)) {
-      return 'A vehicle may be taken at a lower Tier than it rolled, never a higher one (R63).';
+      return 'A vehicle may be taken at a lower Tier than it rolled, never a higher one.';
     }
 
     const problem = vehicleProblem(campaign, withoutRoll(vehicle), retrieved.slice(0, at));

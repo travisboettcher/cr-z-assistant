@@ -180,7 +180,7 @@ describe('taking a vehicle at Equip Mission Team (pp. 18, 52; R65)', () => {
   it('is refused when the base cannot fuel it', () => {
     expect(
       takeProblem(equipping({ materials: { food: 0, fuel: 2, hardware: 0 } }), 1, 'truck'),
-    ).toBe('Box truck burns 3 Fuel, but the base has 2 (R65).');
+    ).toBe('Box truck burns 3 Fuel, but the base has 2.');
     expect(
       takeProblem(equipping({ materials: { food: 0, fuel: 3, hardware: 0 } }), 1, 'truck'),
     ).toBeNull();
@@ -469,7 +469,7 @@ describe('bringing vehicles home (pg. 32; R64, R65, R70)', () => {
     const won = claim(1);
     expect(broughtHomeOwed(won)).toEqual([]);
     expect(broughtHomeProblem(won, 1, [])).toBe(
-      'A won Claim a New Base keeps every vehicle on the mission area (R64).',
+      'A won Claim a New Base keeps every vehicle on the mission area.',
     );
 
     const lost = claim(null);

@@ -19,7 +19,7 @@ import { orderable } from './projects';
 
 /** Why this item cannot be fitted to this vehicle now, or `null`. */
 export function fitProblem(campaign: Campaign, itemId: string, vehicleId: string): string | null {
-  if (!orderable(campaign)) return 'Fit vehicle upgrades in the Planning Phase (R67).';
+  if (!orderable(campaign)) return 'Fit vehicle upgrades in the Planning Phase.';
 
   const item = campaign.inventory.find((held) => held.id === itemId);
   if (item === undefined) return 'Only an item in the base’s Inventory can be fitted.';

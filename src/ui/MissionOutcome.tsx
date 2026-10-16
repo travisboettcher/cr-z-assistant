@@ -648,8 +648,8 @@ function OverrunChoice({ campaign }: { readonly campaign: Campaign }) {
       </legend>
 
       <p className={HINT}>
-        The way on is played as a further mission this turn, by everybody who fought the siege
-        (R27). If it fails, choose again (R28).
+        The way on is played as a further mission this turn, by everybody who fought the siege . If
+        it fails, choose again.
       </p>
 
       {OVERRUN_OPTIONS.map((way) => (
@@ -670,8 +670,7 @@ function OverrunChoice({ campaign }: { readonly campaign: Campaign }) {
       {option === 'abandon' ? (
         <p className={HINT}>
           Every survivor is set aside, and may come back through a later Rescue Strangers mission.
-          Build the new community on the roster, then choose its base and play its First Mission
-          (R31).
+          Build the new community on the roster, then choose its base and play its First Mission .
         </p>
       ) : (
         <div className="flex flex-wrap items-center gap-2">

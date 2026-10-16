@@ -94,7 +94,7 @@ export interface NewItem {
 export function newItemProblem(campaign: Campaign, item: NewItem): string | null {
   if (!Object.hasOwn(EQUIPMENT, item.item)) return 'There is no such item.';
   if (!GRADES.includes(item.grade)) return 'There is no such grade.';
-  if (item.grade === 'shoddy') return 'Shoddy gear is free, and the Inventory holds none (R35).';
+  if (item.grade === 'shoddy') return 'Shoddy gear is free, and the Inventory holds none.';
   if (!comesIn(item.item, item.grade)) return 'That item doesn’t come in that grade.';
 
   const origin = rulesOf(item).origin;

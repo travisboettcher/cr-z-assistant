@@ -99,7 +99,7 @@ describe('making a Rare Items trade (pg. 21; R57, R59)', () => {
     expect(messages(planning(), [])).toEqual(['Choose an item from the trader’s list.']);
     expect(
       messages(planning({ survivors: [scout('ana', 1)] }), [shield, { ...shotgun, id: 'b' }]),
-    ).toEqual(['The trader’s list has 1 rolls, and 2 are chosen (R58).']);
+    ).toEqual(['The trader’s list has 1 rolls, and 2 are chosen.']);
   });
 
   it('sets aside each item’s whole price, in whole Food and Fuel', () => {

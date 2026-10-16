@@ -53,7 +53,7 @@ export function deathProblem(campaign: Campaign, death: MissionDeath): string | 
       return `Only what ${dead.name} carried can be taken from them.`;
     }
     if (taker === dead.id || !members.some((survivor) => survivor.id === taker)) {
-      return `Only somebody else on mission team ${team} takes an item from ${dead.name} (R71).`;
+      return `Only somebody else on mission team ${team} takes an item from ${dead.name}.`;
     }
   }
 

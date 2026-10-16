@@ -137,7 +137,7 @@ export function tradeCheck(campaign: Campaign, request: TradeRequest): Check<Tra
     return refuse(
       'not-traded',
       RARE_KINDS.includes(rules.kind)
-        ? 'A rare item is bought from the Rare Goods Trader (R51).'
+        ? 'A rare item is bought from the Rare Goods Trader.'
         : 'It has no trade price.',
       37,
     );
@@ -274,7 +274,7 @@ export function saleCheck(campaign: Campaign, id: string, payment: Payment): Che
   }
 
   const price = salePrice(item);
-  if (price === undefined) return refuse('not-rare', 'Only a rare item can be sold (R54).', 37);
+  if (price === undefined) return refuse('not-rare', 'Only a rare item can be sold.', 37);
 
   if (!pays(payment, price)) {
     return refuse('wrong-payment', `It sells for ${String(price)}, in Food and Fuel.`);

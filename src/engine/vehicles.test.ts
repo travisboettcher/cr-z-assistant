@@ -118,7 +118,7 @@ describe('Retrieve New Vehicles (pg. 82; R63)', () => {
       'Enter each of the 2 vehicles driven off.',
     );
     expect(retrievedProblem(here, 1, [retrieved({ roll: 3 })])).toBe(
-      'A vehicle may be taken at a lower Tier than it rolled, never a higher one (R63).',
+      'A vehicle may be taken at a lower Tier than it rolled, never a higher one.',
     );
     expect(retrievedProblem(here, 1, [retrieved({ roll: 3, tier: 1 })])).toBeNull();
     expect(retrievedProblem(here, 2, [retrieved(), retrieved()])).toBe(
@@ -211,7 +211,7 @@ describe('fitting a vehicle upgrade (pg. 49; R67)', () => {
 
   it('is refused outside Planning, for anything but a vehicle upgrade, or twice', () => {
     expect(fitProblem(planning({ step: 'heal-wounds' }), 'rack', 'pickup')).toBe(
-      'Fit vehicle upgrades in the Planning Phase (R67).',
+      'Fit vehicle upgrades in the Planning Phase.',
     );
     expect(fitProblem(planning(), 'nothing', 'pickup')).toBe(
       'Only an item in the base’s Inventory can be fitted.',

@@ -698,7 +698,7 @@ export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcom
     'strangers' in outcome &&
     !outcome.strangers.every((tier) => FIELD_RECRUITABLE_TIERS.includes(tier))
   ) {
-    return 'Every stranger is Tier 1 to 3. A Hero is never rescued (R24).';
+    return 'Every stranger is Tier 1 to 3. A Hero is never rescued.';
   }
 
   // The kind is checked for the typechecker's sake: while an overrun's claim is

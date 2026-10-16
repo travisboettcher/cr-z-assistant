@@ -642,7 +642,7 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
                 A 10 is an item instead of a material: roll two more d10s for each, the first for
                 the subtable and the second for the entry.
                 {campaign.rareRollsOwed > 0 &&
-                  ` ${String(campaign.rareRollsOwed)} more ${campaign.rareRollsOwed === 1 ? 'is' : 'are'} owed for the Rare this campaign held in storage (R49).`}
+                  ` ${String(campaign.rareRollsOwed)} more ${campaign.rareRollsOwed === 1 ? 'is' : 'are'} owed for the Rare this campaign held in storage.`}
               </p>
               <ul className="mt-2 flex flex-col gap-2">
                 {rare.map((dice, at) => (
