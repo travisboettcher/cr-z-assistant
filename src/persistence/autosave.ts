@@ -49,7 +49,7 @@ function storage(): Storage | null {
 export function writeAutosave(campaign: Campaign): AutosaveWrite {
   const store = storage();
   if (store === null) {
-    return { ok: false, reason: 'This browser is not allowing the app to save in the background.' };
+    return { ok: false, reason: 'This browser isn’t allowing the app to save in the background.' };
   }
 
   try {

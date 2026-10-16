@@ -178,7 +178,7 @@ export function leaveProblem(campaign: Campaign, id: string): string | null {
   }
 
   const taken = vehiclesTaken(campaign).find((one) => one.vehicle === id);
-  if (taken === undefined) return 'That vehicle is not taken this turn.';
+  if (taken === undefined) return 'That vehicle isn’t taken this turn.';
   if (broughtHome(campaign, taken.team)) {
     return `Mission team ${String(taken.team)}’s vehicles are recorded home already.`;
   }

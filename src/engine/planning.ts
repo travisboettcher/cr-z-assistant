@@ -229,7 +229,7 @@ function staffingWarnings(campaign: Campaign, slot: string): readonly PlanningVi
     return [
       {
         code: 'utility-unmet',
-        message: 'Needs a utility it does not have, so it produces nothing this turn.',
+        message: 'Needs a utility it doesn’t have, so it produces nothing this turn.',
         pages: 67,
       },
     ];
@@ -240,7 +240,7 @@ function staffingWarnings(campaign: Campaign, slot: string): readonly PlanningVi
       {
         code: 'upgrade-utility-unmet',
         message:
-          'An upgrade here needs a utility it does not have, so that upgrade does nothing this turn. The facility itself still works.',
+          'An upgrade here needs a utility it doesn’t have, so that upgrade does nothing this turn. The facility itself still works.',
         pages: 67,
       },
     ];
@@ -311,7 +311,7 @@ function missionWarnings(
   if (isInjured(survivor)) {
     warnings.push({
       code: 'injured-on-a-mission',
-      message: 'Injured survivors cannot be sent on a mission.',
+      message: 'Injured survivors can’t be sent on a mission.',
       pages: 21,
     });
   }

@@ -129,7 +129,7 @@ describe('the version-bump guard', () => {
     expect(fixtures.map((fixture) => fixture.version)).toEqual(versionsUpToCurrent);
 
     for (const fixture of fixtures) {
-      expect(fixture.contents.schemaVersion, `${fixture.path} is not the version it claims`).toBe(
+      expect(fixture.contents.schemaVersion, `${fixture.path} isn’t the version it claims`).toBe(
         fixture.version,
       );
     }

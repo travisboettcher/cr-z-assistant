@@ -43,7 +43,7 @@ async function openSheetFor(name: string, tier: string) {
   openPanel('survivors');
 
   await user.type(screen.getByLabelText(/survivor name/i), name);
-  await user.selectOptions(screen.getByLabelText(/^tier$/i), tier);
+  await user.selectOptions(screen.getByLabelText(/^Tier$/i), tier);
   await user.click(screen.getByRole('button', { name: /^add survivor$/i }));
   await user.click(screen.getByRole('button', { name: /^sheet$/i }));
 
@@ -59,7 +59,7 @@ describe('SurvivorSheet', () => {
   it('shows the tier, and the health and Inventory Slots derived from it', async () => {
     const { sheet } = await openSheetFor('Earl Rhodes', '4');
 
-    expect(within(sheet).getByText(/tier 4 · hero/i)).toBeInTheDocument();
+    expect(within(sheet).getByText(/Tier 4 · hero/i)).toBeInTheDocument();
     expect(within(sheet).getByText('4 / 4')).toBeInTheDocument();
     // No Carry skill yet, so Inventory Slots are the bare tier.
     // Slots in use of the slots there are: nothing carried yet (Z5-2).
@@ -287,7 +287,7 @@ describe('SurvivorSheet editing', () => {
 
     // Whatever the arrangement, the collection is still the tier's own, so the
     // only violation left is the unfinished build.
-    expect(within(sheet).queryByText(/are not the/i)).not.toBeInTheDocument();
+    expect(within(sheet).queryByText(/aren’t the/i)).not.toBeInTheDocument();
   });
 
   it('takes a skill when there is a slot free', async () => {
@@ -463,7 +463,7 @@ describe('SurvivorSheet advancement', () => {
     // A Rookie caps at level 1 (pg. 7), so the next one is refused with a reason.
     const next = within(sheet).getByRole('button', { name: /raise carry to level 2/i });
     expect(next).toBeDisabled();
-    expect(next).toHaveAccessibleName(/maximum level for their tier/i);
+    expect(next).toHaveAccessibleName(/maximum level for their Tier/i);
   });
 
   it('stops move at a score of eight, and says so', async () => {
@@ -496,9 +496,9 @@ describe('SurvivorSheet advancement', () => {
 
     await user.selectOptions(within(sheet).getByLabelText(/^intelligence$/i), '2');
     await user.selectOptions(within(sheet).getByLabelText(/raise from zero/i), 'strength');
-    await user.click(within(sheet).getByRole('button', { name: /raise their tier/i }));
+    await user.click(within(sheet).getByRole('button', { name: /raise their Tier/i }));
 
-    expect(within(sheet).getByText(/tier 3 · leader/i)).toBeInTheDocument();
+    expect(within(sheet).getByText(/Tier 3 · leader/i)).toBeInTheDocument();
     expect(within(sheet).getByLabelText(/^intelligence$/i)).toHaveValue('3');
     expect(within(sheet).getByLabelText(/^strength$/i)).toHaveValue('1');
     expect(await balance(user, sheet, 'Marcus Webb')).toBe(0);
@@ -513,14 +513,14 @@ describe('SurvivorSheet advancement', () => {
   it('asks which stat comes off zero, and will not promote until it is told', async () => {
     const { user, sheet } = await openWithXp('Marcus Webb', '2', 6);
 
-    const promote = within(sheet).getByRole('button', { name: /raise their tier/i });
+    const promote = within(sheet).getByRole('button', { name: /raise their Tier/i });
     expect(promote).toBeDisabled();
     expect(promote).toHaveAccessibleName(/choose which stat comes off zero/i);
 
     await user.selectOptions(within(sheet).getByLabelText(/raise from zero/i), 'cooperation');
-    await user.click(within(sheet).getByRole('button', { name: /raise their tier/i }));
+    await user.click(within(sheet).getByRole('button', { name: /raise their Tier/i }));
 
-    expect(within(sheet).getByText(/tier 3 · leader/i)).toBeInTheDocument();
+    expect(within(sheet).getByText(/Tier 3 · leader/i)).toBeInTheDocument();
     expect(within(sheet).getByLabelText(/^cooperation$/i)).toHaveValue('1');
     expect(within(sheet).getByLabelText(/^intelligence$/i)).toHaveValue('0');
   });
@@ -531,9 +531,9 @@ describe('SurvivorSheet advancement', () => {
 
     expect(within(sheet).queryByLabelText(/raise from zero/i)).not.toBeInTheDocument();
 
-    await user.click(within(sheet).getByRole('button', { name: /raise their tier/i }));
+    await user.click(within(sheet).getByRole('button', { name: /raise their Tier/i }));
 
-    expect(within(sheet).getByText(/tier 4 · hero/i)).toBeInTheDocument();
+    expect(within(sheet).getByText(/Tier 4 · hero/i)).toBeInTheDocument();
   });
 
   /** A slot, not a skill — so the sheet immediately says one is missing. */
@@ -545,7 +545,7 @@ describe('SurvivorSheet advancement', () => {
     expect(within(sheet).queryByText(/still choosing/i)).not.toBeInTheDocument();
 
     await user.selectOptions(within(sheet).getByLabelText(/raise from zero/i), 'intelligence');
-    await user.click(within(sheet).getByRole('button', { name: /raise their tier/i }));
+    await user.click(within(sheet).getByRole('button', { name: /raise their Tier/i }));
 
     expect(within(sheet).getByText(/still choosing skills: 2 of 3/i)).toBeInTheDocument();
   });
@@ -553,7 +553,7 @@ describe('SurvivorSheet advancement', () => {
   it('has nowhere to promote a hero, and quotes no price for it', async () => {
     const { sheet } = await openWithXp('Earl Rhodes', '4', 40);
 
-    const promote = within(sheet).getByRole('button', { name: /raise their tier/i });
+    const promote = within(sheet).getByRole('button', { name: /raise their Tier/i });
     expect(promote).toBeDisabled();
     expect(promote).toHaveAccessibleName(/top of the table/i);
     expect(promote).not.toHaveAccessibleName(/experience/i);
@@ -661,7 +661,7 @@ describe('promoting past what the base allows', () => {
     const { sheet } = await sheetFor('Earl Rhodes');
 
     expect(sheet.textContent).toContain('This base allows 2 Hero-Tier survivors');
-    expect(within(sheet).getByRole('button', { name: /raise their tier/i })).toBeDisabled();
+    expect(within(sheet).getByRole('button', { name: /raise their Tier/i })).toBeDisabled();
   });
 
   it('carries the same override the other legality checks do', async () => {
@@ -669,7 +669,7 @@ describe('promoting past what the base allows', () => {
 
     await user.click(within(sheet).getByLabelText(/promote anyway/i));
 
-    expect(within(sheet).getByRole('button', { name: /raise their tier/i })).toBeEnabled();
+    expect(within(sheet).getByRole('button', { name: /raise their Tier/i })).toBeEnabled();
   });
 
   /**
@@ -681,7 +681,7 @@ describe('promoting past what the base allows', () => {
     const { user, sheet } = await sheetFor('Earl Rhodes');
 
     await user.click(within(sheet).getByLabelText(/promote anyway/i));
-    await user.click(within(sheet).getByRole('button', { name: /raise their tier/i }));
+    await user.click(within(sheet).getByRole('button', { name: /raise their Tier/i }));
     openPanel('base');
 
     expect(screen.getByText(/over what this base allows/i)).toBeInTheDocument();
@@ -697,6 +697,6 @@ describe('promoting past what the base allows', () => {
     const sheet = screen.getByRole('region', { name: 'Earl Rhodes' });
 
     expect(sheet.textContent).not.toContain('Hero-Tier');
-    expect(within(sheet).getByRole('button', { name: /raise their tier/i })).toBeEnabled();
+    expect(within(sheet).getByRole('button', { name: /raise their Tier/i })).toBeEnabled();
   });
 });

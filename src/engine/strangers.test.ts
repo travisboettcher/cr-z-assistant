@@ -243,7 +243,7 @@ describe('strangerProblem', () => {
   /** pg. 7: a Rookie's one skill is the player's choice, not a roll. */
   it('refuses a roll at a Tier that does not roll for a skill', () => {
     expect(strangerProblem(after(TWO_TEAMS), form({ team: 2, roll: 4 }))).toBe(
-      'A Tier 1 stranger does not roll for a skill.',
+      'A Tier 1 stranger doesn’t roll for a skill.',
     );
   });
 

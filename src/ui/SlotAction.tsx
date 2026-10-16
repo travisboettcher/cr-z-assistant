@@ -108,7 +108,7 @@ export function SlotAction<Code extends string>({
       {refusedByPhase ? (
         <p className="mt-2 text-sm text-amber-800 dark:text-amber-300">
           Projects are ordered in the Planning Phase, and the turn is at{' '}
-          {STEP_LABELS[campaign.step]}. An order placed here could not be cancelled.{' '}
+          {STEP_LABELS[campaign.step]}. An order placed here couldn’t be cancelled.{' '}
           <PageRef pages={20} />
         </p>
       ) : (

@@ -118,7 +118,7 @@ describe('the penalty the Feed step reports', () => {
     // and does not move (R1) — so this line must not move either.
     openPanel('survivors');
     await user.type(screen.getByLabelText(/survivor name/i), 'Gil Moss');
-    await user.selectOptions(screen.getByLabelText(/^tier$/i), '4');
+    await user.selectOptions(screen.getByLabelText(/^Tier$/i), '4');
     await user.click(screen.getByRole('button', { name: /^add survivor$/i }));
 
     expect(walk().textContent).toContain('every survivor’s stats drop by 3');
@@ -572,7 +572,7 @@ describe('a Labor shortfall outstanding', () => {
    * too — so an assertion on "2 Labor short" alone passes without the banner
    * existing, which is how the first draft of this test passed against the bug.
    */
-  const banner = /the choice is in Departures/i;
+  const banner = /you choose which at Departures/i;
 
   it.each(['feed-your-survivors', 'check-storage', 'departures'] as const)(
     'is on screen at the %s step, not only at the one that offers the choice',

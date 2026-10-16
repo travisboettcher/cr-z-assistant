@@ -54,7 +54,7 @@ export function CampaignEmptyState() {
           Start a new campaign
         </h2>
         <p className="mt-1 text-stone-600 dark:text-stone-400">
-          Name it now — you can rename it later.
+          Choose a name. It can’t be changed later.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end">

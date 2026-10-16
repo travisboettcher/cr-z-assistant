@@ -132,7 +132,7 @@ describe('starting a new campaign over an open one', () => {
     expect(dialog).not.toHaveTextContent(/nothing is lost/i);
 
     await user.type(screen.getByLabelText(/new campaign name/i), 'Millbrook');
-    await user.click(screen.getByRole('button', { name: /start it/i }));
+    await user.click(screen.getByRole('button', { name: /start campaign/i }));
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Millbrook');

@@ -149,7 +149,7 @@ export function tradeCheck(campaign: Campaign, request: TradeRequest): Check<Tra
 
   const price = tradePrice(request.item, request.grade);
   if (price === undefined) {
-    return refuse('no-such-grade', 'It is not traded for in that grade.', '41–42');
+    return refuse('no-such-grade', 'It isn’t traded for in that grade.', '41–42');
   }
 
   if (!pays(request, price)) {

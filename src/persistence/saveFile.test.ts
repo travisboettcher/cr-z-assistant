@@ -160,20 +160,20 @@ describe('parseCampaignFile', () => {
    * of these are campaign-shaped enough to migrate and still are not campaigns.
    */
   it.each([
-    ['a step that is not a step', { step: 'harvest' }],
+    ['a step that isn’t a step', { step: 'harvest' }],
     ['a step of the wrong type', { step: 3 }],
     ['materials missing a key', { materials: { food: 4, fuel: 2 } }],
-    ['a material that is not a number', { materials: { food: '4', fuel: 2, hardware: 7 } }],
+    ['a material that isn’t a number', { materials: { food: '4', fuel: 2, hardware: 7 } }],
     ['no materials at all', { materials: undefined }],
     ['a turn of zero', { turn: 0 }],
     ['a fractional turn', { turn: 2.5 }],
     ['a turn that is a string', { turn: '3' }],
     ['no id', { id: '' }],
-    ['a name that is not a string', { name: 42 }],
+    ['a name that isn’t a string', { name: 42 }],
     ['an unreadable creation date', { createdAt: 'last Tuesday' }],
-    ['survivors this version cannot read', { survivors: [{ name: 'Rae' }] }],
-    ['a base this version cannot read', { base: { rooms: [] } }],
-    ['a log this version cannot read', { log: ['turn 1'] }],
+    ['survivors this version can’t read', { survivors: [{ name: 'Rae' }] }],
+    ['a base this version can’t read', { base: { rooms: [] } }],
+    ['a log this version can’t read', { log: ['turn 1'] }],
   ])('rejects a campaign with %s', (_label, overrides) => {
     const result = parseCampaignFile(savedWith(overrides));
 
@@ -205,16 +205,16 @@ describe('parseCampaignFile', () => {
     });
 
     it.each([
-      ['a list that is not one', 'pickup', 'its vehicles: is not a list'],
-      ['a vehicle that is not one', [7], 'vehicle 1 of 1 is not a vehicle'],
+      ['a list that isn’t one', 'pickup', 'its vehicles: isn’t a list'],
+      ['a vehicle that isn’t one', [7], 'vehicle 1 of 1 isn’t a vehicle'],
       ['no id', [{ ...pickup, id: '' }], 'has no id'],
-      ['an id that is not a string', [{ ...pickup, id: 7 }], 'has no id'],
+      ['an id that isn’t a string', [{ ...pickup, id: 7 }], 'has no id'],
       ['no Tier', [{ ...pickup, tier: 5 }], 'has no Tier from 1 to 4'],
       ['no label', [{ ...pickup, label: 3 }], 'has no label'],
       ['no word on the water', [{ ...pickup, water: 'no' }], 'whether it is a boat'],
       ['an unreadable split', [{ ...pickup, inventorySlots: -1 }], 'unreadable split'],
       [
-        'an upgrade that is not an item',
+        'an upgrade that isn’t an item',
         [{ ...pickup, upgrade: { id: 'x', item: 'laser', grade: 'standard' } }],
         'has an upgrade that',
       ],
@@ -261,33 +261,33 @@ describe('parseCampaignFile', () => {
     });
 
     it.each([
-      ['a trade that is not one', 7, 'its Rare Items trade is not a trade'],
-      ['no turn', { items: [item] }, 'does not say which turn it was made on'],
-      ['items that are not a list', { madeOnTurn: 3, items: 'shield' }, 'is not a list'],
+      ['a trade that isn’t one', 7, 'its Rare Items trade isn’t a trade'],
+      ['no turn', { items: [item] }, 'doesn’t say which turn it was made on'],
+      ['items that aren’t a list', { madeOnTurn: 3, items: 'shield' }, 'isn’t a list'],
       [
-        'an item that is not one',
+        'an item that isn’t one',
         { madeOnTurn: 3, items: [item, { ...item, id: 'b', item: 'laser' }] },
         'item 2 of 2',
       ],
       [
-        'a die that is not one',
+        'a die that isn’t one',
         { madeOnTurn: 3, items: [{ ...item, subtable: 11 }] },
-        'item 1 of 1 does not say which roll found it',
+        'item 1 of 1 doesn’t say which roll found it',
       ],
       [
-        'a second die that is not one',
+        'a second die that isn’t one',
         { madeOnTurn: 3, items: [{ ...item, entry: 0 }] },
-        'item 1 of 1 does not say which roll found it',
+        'item 1 of 1 doesn’t say which roll found it',
       ],
       [
         'no Food set aside',
         { madeOnTurn: 3, items: [{ ...item, food: undefined }] },
-        'item 1 of 1 does not say what was set aside for it',
+        'item 1 of 1 doesn’t say what was set aside for it',
       ],
       [
         'a Fuel of half',
         { madeOnTurn: 3, items: [{ ...item, fuel: 0.5 }] },
-        'item 1 of 1 does not say what was set aside for it',
+        'item 1 of 1 doesn’t say what was set aside for it',
       ],
     ])('refuses %s', (_label, rareTrade, expected) => {
       expect(message(rareTrade)).toContain(expected);
@@ -325,14 +325,14 @@ describe('parseCampaignFile', () => {
     });
 
     it.each([
-      ['a list that is not one', 'many', 'its trades on order: is not a list'],
-      ['an item that is not one', [trade, { ...trade, id: 'b', item: 'laser' }], 'trade 2 of 2'],
-      ['no Food', [{ ...trade, food: undefined }], 'trade 1 of 1 does not say what it cost'],
-      ['a Fuel of half', [{ ...trade, fuel: 0.5 }], 'trade 1 of 1 does not say what it cost'],
+      ['a list that isn’t one', 'many', 'its trades on order: isn’t a list'],
+      ['an item that isn’t one', [trade, { ...trade, id: 'b', item: 'laser' }], 'trade 2 of 2'],
+      ['no Food', [{ ...trade, food: undefined }], 'trade 1 of 1 doesn’t say what it cost'],
+      ['a Fuel of half', [{ ...trade, fuel: 0.5 }], 'trade 1 of 1 doesn’t say what it cost'],
       [
         'no turn',
         [{ ...trade, orderedOnTurn: 0 }],
-        'trade 1 of 1 does not say which turn it was ordered on',
+        'trade 1 of 1 doesn’t say which turn it was ordered on',
       ],
       [
         'an id an item already has',
@@ -450,14 +450,14 @@ describe('parseCampaignFile with a roster', () => {
   });
 
   it.each([
-    ['is not an object', 'is not a survivor', null],
+    ['isn’t an object', 'isn’t a survivor', null],
     ['has no name', 'has no name', { ...VALID_SURVIVOR, name: 42 }],
-    ['has an impossible tier', 'tier that is not one', { ...VALID_SURVIVOR, tier: 7 }],
+    ['has an impossible Tier', 'Tier that isn’t one', { ...VALID_SURVIVOR, tier: 7 }],
     // Reports the first stat missing, in the order the rules list them.
     ['is missing a stat', 'no dexterity score', { ...VALID_SURVIVOR, stats: { strength: 1 } }],
     [
-      'knows a skill this version does not',
-      'skill this version does not know',
+      'knows a skill this version doesn’t',
+      'skill this version doesn’t know',
       { ...VALID_SURVIVOR, skills: { whittling: 1 } },
     ],
     ['has unreadable health', 'unreadable health', { ...VALID_SURVIVOR, currentHp: 'hurt' }],
@@ -501,44 +501,40 @@ describe('parseCampaignFile with a roster', () => {
   });
 
   it.each([
-    ['is not an object', 'its base is not a base', 7],
+    ['isn’t an object', 'its base isn’t a base', 7],
     [
-      'names a base this version does not know',
-      'base is one this version does not know',
+      'names a base this version doesn’t know',
+      'base is one this version doesn’t know',
       { id: 'space-station', slots: {} },
     ],
     ['has no slots', 'its base has no slots', { id: 'hobby-farm' }],
     [
-      'has a slot the base does not have',
-      'the hobby-farm does not have',
+      'has a slot the base doesn’t have',
+      'the hobby-farm doesn’t have',
       { id: 'hobby-farm', slots: { 'wine-cellar': {} } },
     ],
-    [
-      'has a slot that is not an object',
-      'is not a slot',
-      { id: 'hobby-farm', slots: { garden: 7 } },
-    ],
+    ['has a slot that isn’t an object', 'isn’t a slot', { id: 'hobby-farm', slots: { garden: 7 } }],
     [
       'has an unreadable facility',
       'has an unreadable facility',
       { id: 'hobby-farm', slots: { 'front-yard': { built: 7 } } },
     ],
     [
-      'holds a facility this version does not know',
-      'facility this version does not know',
+      'holds a facility this version doesn’t know',
+      'facility this version doesn’t know',
       {
         id: 'hobby-farm',
         slots: { 'front-yard': { built: { facility: 'helipad', builtOnTurn: 1 } } },
       },
     ],
     [
-      'does not say when a facility was built',
+      'doesn’t say when a facility was built',
       'which turn it was built on',
       { id: 'hobby-farm', slots: { 'front-yard': { built: { facility: 'garden' } } } },
     ],
     [
-      'holds an upgrade this version does not know',
-      'upgrade this version does not know',
+      'holds an upgrade this version doesn’t know',
+      'upgrade this version doesn’t know',
       { id: 'hobby-farm', slots: { 'front-yard': { upgrades: ['moat'] } } },
     ],
     [
@@ -691,8 +687,8 @@ describe('a survivor whose fields are the wrong type', () => {
     ['a numeric id', { id: 7 }],
     ['an empty id', { id: '' }],
     ['a numeric name', { name: 7 }],
-    ['a string tier', { tier: '4' }],
-    ['stats that are not an object', { stats: 'strong' }],
+    ['a string Tier', { tier: '4' }],
+    ['stats that aren’t an object', { stats: 'strong' }],
     [
       'a string stat value',
       { stats: { strength: '3', dexterity: 2, intelligence: 4, cooperation: 1 } },
@@ -701,7 +697,7 @@ describe('a survivor whose fields are the wrong type', () => {
       'a negative stat value',
       { stats: { strength: -1, dexterity: 2, intelligence: 4, cooperation: 1 } },
     ],
-    ['skills that are not an object', { skills: ['tactics'] }],
+    ['skills that aren’t an object', { skills: ['tactics'] }],
     ['a string skill level', { skills: { tactics: '3' } }],
     ['a negative skill level', { skills: { tactics: -1 } }],
     ['a string move score', { move: '7' }],
@@ -808,16 +804,16 @@ describe('a campaign whose items are damaged', () => {
   });
 
   it.each([
-    ['an Inventory that is not a list', { inventory: 'everything' }, /Inventory is not a list/],
+    ['an Inventory that isn’t a list', { inventory: 'everything' }, /Inventory isn’t a list/],
     [
-      'an item this version does not know',
+      'an item this version doesn’t know',
       { inventory: [{ ...pistol, item: 'chainsaw' }] },
-      /does not know: chainsaw/,
+      /doesn’t know: chainsaw/,
     ],
     [
-      'an item in a grade it does not come in',
+      'an item in a grade it doesn’t come in',
       { inventory: [{ ...pistol, item: 'backpack', grade: 'standard' }] },
-      /backpack in a grade it does not come in/,
+      /backpack in a grade it doesn’t come in/,
     ],
     ['an item with no id', { inventory: [{ ...pistol, id: '' }] }, /item 1 of 1 has no id/],
     [
@@ -833,18 +829,18 @@ describe('a campaign whose items are damaged', () => {
     [
       'a survivor with no list of items',
       { survivors: [{ ...VALID_SURVIVOR, items: undefined }] },
-      /carries a list that is not a list/,
+      /carries a list that isn’t a list/,
     ],
     // Rare upgrades installed in a facility (R47; Z5-8).
     [
-      'installed items that are not a list',
+      'installed items that aren’t a list',
       { base: { id: 'hobby-farm', slots: { kitchen: { installed: 'a grill' } } } },
-      /installed items where is not a list/,
+      /installed items where isn’t a list/,
     ],
     [
-      'an installed item that is not a rare upgrade',
+      'an installed item that isn’t a rare upgrade',
       { base: { id: 'hobby-farm', slots: { kitchen: { installed: [pistol] } } } },
-      /not a rare upgrade/,
+      /isn’t a rare upgrade/,
     ],
     [
       'an installed item that shares an id with one in the Inventory',
@@ -1014,12 +1010,12 @@ describe('a campaign whose log is damaged', () => {
       'unreadable retrieved',
     ],
     [
-      'a vehicle added that is not one',
+      'a vehicle added that isn’t one',
       { kind: 'vehicle-added', vehicle: { id: 'car', tier: 9, label: 'Car', water: false } },
       'unreadable vehicle',
     ],
     [
-      'a trade lost for a reason this version does not know',
+      'a trade lost for a reason this version doesn’t know',
       { kind: 'rare-trade-lost', reason: 'weather', items: [], food: 0, fuel: 0 },
       'unreadable reason',
     ],
@@ -1083,7 +1079,7 @@ describe('a campaign whose log is damaged', () => {
   it.each([
     ['naming why', { cause: 'bitten' }, true],
     ['naming nothing, as one written before #201 does', {}, true],
-    ['naming a cause this version does not know', { cause: 'eaten' }, false],
+    ['naming a cause this version doesn’t know', { cause: 'eaten' }, false],
   ])('reads a survivor’s leaving %s', (_name, cause, ok) => {
     const event = {
       kind: 'survivor-left',
@@ -1100,15 +1096,15 @@ describe('a campaign whose log is damaged', () => {
 
   it.each([
     ['not a list at all', 5, /campaign log is missing/i],
-    ['an entry that is not an object', [7], /is not a log entry/i],
+    ['an entry that isn’t an object', [7], /isn’t a log entry/i],
     ['an entry with no turn', [{ ...good, turn: undefined }], /which turn/i],
     ['an entry from turn zero', [{ ...good, turn: 0 }], /which turn/i],
     ['an entry from half a turn', [{ ...good, turn: 1.5 }], /which turn/i],
     // Both halves of the phase check, which disagree only on these two: a
     // string that is not a phase, and a phase-shaped value that is not a
     // string. One case alone leaves the other half of the `||` untested.
-    ['an entry from a phase that does not exist', [{ ...good, phase: 'brunch' }], /phase/i],
-    ['an entry whose phase is not even a word', [{ ...good, phase: 3 }], /phase/i],
+    ['an entry from a phase that doesn’t exist', [{ ...good, phase: 'brunch' }], /phase/i],
+    ['an entry whose phase isn’t even a word', [{ ...good, phase: 3 }], /phase/i],
     // Likewise for the timestamp: unparseable text, and a value that is not
     // text at all.
     ['an entry timed to nonsense', [{ ...good, at: 'sometime tuesday' }], /time/i],
@@ -1117,19 +1113,15 @@ describe('a campaign whose log is damaged', () => {
     // that check this one is accepted and renders as 1970.
     ['an entry timed to a bare year', [{ ...good, at: 2026 }], /time/i],
     [
-      'an entry that does not say what happened',
+      'an entry that doesn’t say what happened',
       [{ ...good, event: 'something' }],
       /what happened/i,
     ],
-    [
-      'an entry whose kind is not a word',
-      [{ ...good, event: { kind: 12 } }],
-      /does not know about/i,
-    ],
+    ['an entry whose kind isn’t a word', [{ ...good, event: { kind: 12 } }], /doesn’t know about/i],
     [
       'an entry whose kind this version has never heard of',
       [{ ...good, event: { kind: 'survivor-abducted' } }],
-      /does not know about/i,
+      /doesn’t know about/i,
     ],
     // A real kind, wrapped in a list. `Object.hasOwn` coerces its key, so this
     // stringifies to a name the table has and passes the lookup — the `typeof`
@@ -1137,23 +1129,23 @@ describe('a campaign whose log is damaged', () => {
     [
       'an entry whose kind is a real one in a box',
       [{ ...good, event: { kind: ['turn-began'] } }],
-      /does not know about/i,
+      /doesn’t know about/i,
     ],
     // The assignments a `planning-began` entry cleared. An older entry carries
     // nothing, which is accepted below; anything present has to be readable,
     // because the Advancement Phase reads it back as though it were live.
     [
-      'a clearing that is not a set of assignments',
+      'a clearing that isn’t a set of assignments',
       [{ ...good, event: { kind: 'planning-began', cleared: 'everything' } }],
       /unreadable cleared/i,
     ],
     [
-      'a clearing naming a task this version does not know',
+      'a clearing naming a task this version doesn’t know',
       [{ ...good, event: { kind: 'planning-began', cleared: { earl: { task: 'foraging' } } } }],
       /unreadable cleared/i,
     ],
     [
-      'a clearing whose staffing does not say where',
+      'a clearing whose staffing doesn’t say where',
       [{ ...good, event: { kind: 'planning-began', cleared: { earl: { task: 'staff' } } } }],
       /unreadable cleared/i,
     ],
@@ -1170,12 +1162,12 @@ describe('a campaign whose log is damaged', () => {
       /unreadable returned/i,
     ],
     [
-      'a way on from an overrun the book does not give',
+      'a way on from an overrun the book doesn’t give',
       [{ ...good, event: { kind: 'overrun-continued', option: 'surrender' } }],
       /unreadable option/i,
     ],
     [
-      'a move whose stores are not counts',
+      'a move whose stores aren’t counts',
       [
         {
           ...good,
@@ -1191,7 +1183,7 @@ describe('a campaign whose log is damaged', () => {
       /unreadable stores/i,
     ],
     [
-      'a claim aimed at a base that is not on the roster',
+      'a claim aimed at a base that isn’t on the roster',
       [
         {
           ...good,
@@ -1207,9 +1199,9 @@ describe('a campaign whose log is damaged', () => {
       /unreadable base/i,
     ],
     [
-      'an entry about a survivor of no known tier',
+      'an entry about a survivor of no known Tier',
       [{ ...good, event: { ...good.event, tier: 99 } }],
-      /unreadable tier/i,
+      /unreadable Tier/i,
     ],
     [
       'an entry about a survivor with no name',
@@ -1217,7 +1209,7 @@ describe('a campaign whose log is damaged', () => {
       /unreadable name/i,
     ],
     [
-      'an entry naming a skill that does not exist',
+      'an entry naming a skill that doesn’t exist',
       [
         {
           ...good,
@@ -1304,7 +1296,7 @@ describe('a campaign whose log is damaged', () => {
 
     it.each([
       ['not a list', { a: 1 }],
-      ['a wound that is not an object', [3]],
+      ['a wound that isn’t an object', [3]],
       ['a wound naming nobody', [{ name: 'Earl', health: 1 }]],
       ['a wound naming an empty id', [{ survivor: '', name: 'Earl', health: 1 }]],
       ['a wound with no name', [{ survivor: 'a', health: 1 }]],
@@ -1402,33 +1394,33 @@ describe('a campaign whose project queue is damaged', () => {
 
   it.each([
     ['not a list at all', 5, /project queue is missing/i],
-    ['a project that is not an object', [7], /is not a project/i],
+    ['a project that isn’t an object', [7], /isn’t a project/i],
     [
       'a kind this version has never heard of',
       [{ ...good, kind: 'demolition' }],
-      /does not know: demolition/i,
+      /doesn’t know: demolition/i,
     ],
-    ['a kind that is not a word', [{ ...good, kind: 12 }], /does not know: 12/i],
+    ['a kind that isn’t a word', [{ ...good, kind: 12 }], /doesn’t know: 12/i],
     // `in` would accept this: every object has a `toString`. `isKeyOf` does not.
-    ['a kind every object already has', [{ ...good, kind: 'toString' }], /does not know/i],
+    ['a kind every object already has', [{ ...good, kind: 'toString' }], /doesn’t know/i],
     // A real kind, wrapped in a list. `Object.hasOwn` coerces its key, so this
     // stringifies to a name the table has and passes the lookup — the `typeof`
     // half of that check is the only thing between it and being accepted, and
     // a `kind` that is an array is not a project this app can render.
-    ['a kind that is a real one in a box', [{ ...good, kind: ['facility'] }], /does not know/i],
-    ['a project that does not say which slot', [{ ...good, slot: undefined }], /which slot/i],
-    ['a project whose slot is not a word', [{ ...good, slot: 4 }], /which slot/i],
+    ['a kind that is a real one in a box', [{ ...good, kind: ['facility'] }], /doesn’t know/i],
+    ['a project that doesn’t say which slot', [{ ...good, slot: undefined }], /which slot/i],
+    ['a project whose slot isn’t a word', [{ ...good, slot: 4 }], /which slot/i],
     ['a project with no turn on it', [{ ...good, orderedOnTurn: undefined }], /which turn/i],
     ['a project ordered on turn zero', [{ ...good, orderedOnTurn: 0 }], /which turn/i],
     ['a project ordered on half a turn', [{ ...good, orderedOnTurn: 1.5 }], /which turn/i],
     // The per-kind fields: only two kinds have one, and each has its own.
     [
-      'a facility that is not in the catalogue',
+      'a facility that isn’t in the catalogue',
       [{ ...good, facility: 'moon-base' }],
       /unreadable facility/i,
     ],
     [
-      'an upgrade that is not in the catalogue',
+      'an upgrade that isn’t in the catalogue',
       [
         {
           kind: 'upgrade',
@@ -1445,7 +1437,7 @@ describe('a campaign whose project queue is damaged', () => {
     // is an order nothing can honestly cancel (#165).
     ['a project with no charge on it', [{ ...good, charged: undefined }], /what it was charged/i],
     [
-      'a charge that is not a pair of counts',
+      'a charge that isn’t a pair of counts',
       [{ ...good, charged: { hardware: 3 } }],
       /what it was charged/i,
     ],
@@ -1517,18 +1509,18 @@ describe('a campaign whose assignments are damaged', () => {
 
   it.each([
     ['not a record at all', 5, /what its survivors are doing/i],
-    ['an assignment that is not an object', { [EARL]: 'resting' }, /is not an assignment/i],
+    ['an assignment that isn’t an object', { [EARL]: 'resting' }, /isn’t an assignment/i],
     [
       'a task this version has never heard of',
       { [EARL]: { task: 'foraging' } },
-      /does not know: foraging/i,
+      /doesn’t know: foraging/i,
     ],
-    ['a task that is not a word', { [EARL]: { task: 7 } }, /does not know: 7/i],
+    ['a task that isn’t a word', { [EARL]: { task: 7 } }, /doesn’t know: 7/i],
     // `in` would accept this: every object has a `toString`. `isKeyOf` does not.
-    ['a task every object already has', { [EARL]: { task: 'toString' } }, /does not know/i],
-    ['staffing that does not say where', { [EARL]: { task: 'staff' } }, /unreadable slot/i],
+    ['a task every object already has', { [EARL]: { task: 'toString' } }, /doesn’t know/i],
+    ['staffing that doesn’t say where', { [EARL]: { task: 'staff' } }, /unreadable slot/i],
     [
-      'a mission team that is not a team',
+      'a mission team that isn’t a team',
       { [EARL]: { task: 'mission', team: 0 } },
       /unreadable team/i,
     ],
@@ -1536,7 +1528,7 @@ describe('a campaign whose assignments are damaged', () => {
     [
       'a task given to a stranger',
       { 'not-a-survivor': { task: 'rest' } },
-      /not in the community: not-a-survivor/i,
+      /isn’t in the community: not-a-survivor/i,
     ],
   ])('refuses %s', (_label, assignments, expected) => {
     expect(refusalFor(assignments)).toMatch(expected);

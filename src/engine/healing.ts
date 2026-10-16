@@ -337,7 +337,7 @@ export function checkHealing(campaign: Campaign): HealingCheck {
   } else if (spare > 0) {
     warnings.push({
       code: 'health-going-spare',
-      message: `${spare} Health more than the wounded can take. The surplus is not stored.`,
+      message: `${spare} Health more than the wounded can take. The surplus isn’t stored.`,
       pages: 19,
     });
   }

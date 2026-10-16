@@ -181,7 +181,7 @@ export function submitTeamReduction(campaign: Campaign, survivor: string, at: st
     return refused('Exhaustion has already taken somebody off the mission team this turn.');
   }
   if (!overworked(campaign)) {
-    return refused('Exhaustion is not above the mission team’s size this turn.');
+    return refused('Exhaustion isn’t above the mission team’s size this turn.');
   }
 
   const tired = missionTeam(campaign).find((candidate) => candidate.id === survivor);

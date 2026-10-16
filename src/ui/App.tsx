@@ -198,10 +198,10 @@ function Shell({ header, children }: { readonly header: ReactNode; readonly chil
        */}
       <footer className="border-t border-stone-200 px-5 py-4 dark:border-stone-800">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-1 text-sm text-stone-600 dark:text-stone-400">
-          <p>A campaign tracker only — you need the County Road Z rulebook to play.</p>
+          <p>This app tracks a campaign. You need the County Road Z rulebook to play.</p>
           <p>
-            It ships no rule text and cites page numbers instead. County Road Z is copyright Jordan
-            Heckman; this project is unaffiliated.
+            It gives page numbers instead of rule text. County Road Z is copyright Jordan Heckman.
+            This project isn’t affiliated with it.
           </p>
           <AppVersion version={import.meta.env.VITE_APP_VERSION} />
         </div>

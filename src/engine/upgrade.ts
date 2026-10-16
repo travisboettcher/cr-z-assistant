@@ -181,7 +181,7 @@ export function checkUpgrade(
     // never going to reach.
     warnings.push({
       code: 'cap-reached',
-      message: `Already has ${String(upgradesUsed(occupant))}${counting(onOrder)} of its ${String(MAX_UPGRADES_PER_FACILITY)} upgrades. Rare upgrades do not count.`,
+      message: `Already has ${String(upgradesUsed(occupant))}${counting(onOrder)} of its ${String(MAX_UPGRADES_PER_FACILITY)} upgrades. Rare upgrades don’t count.`,
       pages: '49, 54',
     });
   }

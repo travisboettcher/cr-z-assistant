@@ -193,7 +193,7 @@ describe('outstanding', () => {
       expect(outstanding(claiming)).toEqual([
         {
           step: 'add-facilities-and-upgrades',
-          says: 'The community has not moved into the base its claim won.',
+          says: 'The community hasn’t moved into the base its claim won.',
         },
       ]);
 
@@ -212,7 +212,7 @@ describe('outstanding', () => {
   describe('an overrun base', () => {
     const owed = {
       step: 'tactical-mission',
-      says: 'The base is overrun, and how the community goes on is not chosen.',
+      says: 'The base is overrun, and how the community goes on isn’t chosen.',
     };
 
     it('owes the choice after the siege, and again after a way on that failed', () => {
@@ -227,7 +227,7 @@ describe('outstanding', () => {
 
       expect(outstanding(left)).toContainEqual({
         step: 'tactical-mission',
-        says: 'The new community’s First Mission is not chosen.',
+        says: 'The new community’s First Mission isn’t chosen.',
       });
       expect(outstanding(left)).not.toContainEqual(owed);
     });
@@ -238,7 +238,7 @@ describe('outstanding', () => {
       expect(going).not.toContainEqual(owed);
       expect(going).toContainEqual({
         step: 'tactical-mission',
-        says: 'Mission team 1’s outcome is not recorded.',
+        says: 'Mission team 1’s outcome isn’t recorded.',
       });
     });
   });
@@ -261,11 +261,11 @@ describe('outstanding', () => {
     it('owes the step until each has rejoined, and says how many', () => {
       expect(outstanding(backThisTurn(['hera']))).toContainEqual({
         step: 'create-new-survivors',
-        says: 'A survivor brought back has not rejoined the community.',
+        says: 'A survivor brought back hasn’t rejoined the community.',
       });
       expect(outstanding(backThisTurn(['hera', 'june']))).toContainEqual({
         step: 'create-new-survivors',
-        says: '2 survivors brought back have not rejoined the community.',
+        says: '2 survivors brought back haven’t rejoined the community.',
       });
     });
   });
@@ -298,7 +298,7 @@ describe('outstanding', () => {
       expect(outstanding(rescuing)).toEqual([
         {
           step: 'create-new-survivors',
-          says: '2 rescued strangers have not joined the community.',
+          says: '2 rescued strangers haven’t joined the community.',
         },
       ]);
     });
@@ -307,7 +307,7 @@ describe('outstanding', () => {
       const one = settled({ ...rescuing, log: [...rescuing.log, joined(0, 2)] });
 
       expect(outstanding(one)).toEqual([
-        { step: 'create-new-survivors', says: 'A rescued stranger has not joined the community.' },
+        { step: 'create-new-survivors', says: 'A rescued stranger hasn’t joined the community.' },
       ]);
     });
 

@@ -346,10 +346,10 @@ export function selectionProblem(campaign: Campaign, choice: MissionChoice): str
  */
 export function skipProblem(campaign: Campaign): string | null {
   if (phaseOf(campaign.step) !== 'mission') return 'A mission is skipped in the Mission Phase.';
-  if (campaign.turn === FIRST_TURN) return 'Turn 1’s First Mission cannot be skipped.';
-  if (siegeDue(campaign)) return 'A siege the horde called cannot be skipped.';
+  if (campaign.turn === FIRST_TURN) return 'Turn 1’s First Mission can’t be skipped.';
+  if (siegeDue(campaign)) return 'A siege the horde called can’t be skipped.';
   if (turnMissions(campaign).skipped) return 'This turn’s mission is already skipped.';
-  if (teamOutcomes(campaign).size > 0) return 'A mission already played cannot be skipped.';
+  if (teamOutcomes(campaign).size > 0) return 'A mission already played can’t be skipped.';
 
   return null;
 }
@@ -666,10 +666,10 @@ export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcom
   const choice = turnMissions(campaign).choices.find((candidate) => candidate.team === team);
 
   if (choice === undefined) {
-    return `Mission team ${String(team)} has not chosen a mission this turn.`;
+    return `Mission team ${String(team)} hasn’t chosen a mission this turn.`;
   }
   if (outcomeMission(outcome) !== choice.mission) {
-    return `That is not the mission team ${String(team)} chose.`;
+    return `That isn’t the mission team ${String(team)} chose.`;
   }
   if (teamOutcomes(campaign).has(team)) {
     return `Mission team ${String(team)}’s outcome is already recorded.`;

@@ -319,7 +319,7 @@ describe('what the build form offers', () => {
     // Any other grade an item is not built in says only that.
     for (const other of [order('bladed', 'shoddy'), order('bandages', 'quality')]) {
       expect(buildCheck(campaign, other).blockers.map((one) => one.message)).toEqual([
-        'It is not built in that grade.',
+        'It isn’t built in that grade.',
       ]);
     }
   });

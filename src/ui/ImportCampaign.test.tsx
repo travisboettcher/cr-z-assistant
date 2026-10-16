@@ -101,7 +101,7 @@ describe('importing over an open campaign', () => {
 
 describe('when the file is not a usable campaign', () => {
   it.each([
-    ['truncated JSON', '{"schemaVersion": 1, "name": "Ced', /cut short|could not be read/i],
+    ['truncated JSON', '{"schemaVersion": 1, "name": "Ced', /cut short|couldn’t be read/i],
     ['a different JSON file', '{"hello": "world"}', /not a County Road Z campaign|not complete/i],
     [
       'a save from a newer version',

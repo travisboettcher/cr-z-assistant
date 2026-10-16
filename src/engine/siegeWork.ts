@@ -338,7 +338,7 @@ export function standInProblem(
   if (by === undefined) return null;
 
   if (!standInCandidates(campaign).some((candidate) => candidate.id === by)) {
-    return 'Only somebody on the mission team who is not at 0 Health can stand in.';
+    return 'Only somebody on the mission team who isn’t at 0 Health can stand in.';
   }
 
   return [...standing.values()].some((standIn) => standIn.id === by)

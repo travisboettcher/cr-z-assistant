@@ -155,8 +155,8 @@ describe('walking the turn', () => {
 
       const dialog = within(screen.getByRole('dialog'));
 
-      expect(dialog.getByText(/this turn has not finished with/i)).toBeVisible();
-      expect(screen.getByRole('dialog').textContent).toContain('haul has not gone into storage');
+      expect(dialog.getByText(/still to do this turn/i)).toBeVisible();
+      expect(screen.getByRole('dialog').textContent).toContain('haul hasn’t gone into storage');
 
       // It still ends the turn: a table may have done the step on paper, and
       // refusing would be this app overruling the people playing it.

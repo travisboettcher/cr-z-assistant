@@ -122,7 +122,7 @@ export function PlanningPhase({ campaign, step }: PlanningPhaseProps) {
       {step === 'assign-mission-team' && (
         <>
           <p className="text-sm text-stone-600 dark:text-stone-400">
-            For next turn’s mission. Injured survivors cannot go <PageRef pages={21} />
+            For next turn’s mission. Injured survivors can’t go <PageRef pages={21} />
           </p>
           {missionTeamsToOffer(campaign).map((team) => (
             <AssignTask

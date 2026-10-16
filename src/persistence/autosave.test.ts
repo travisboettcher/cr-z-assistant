@@ -135,7 +135,7 @@ describe('a browser with no usable storage', () => {
       expect(write.ok).toBe(false);
       // The reason names the browser refusing, not a full store — the caller
       // shows this to a person, and the two are different problems.
-      if (!write.ok) expect(write.reason).toMatch(/not allowing/i);
+      if (!write.ok) expect(write.reason).toMatch(/isn’t allowing/i);
     });
   });
 
@@ -163,7 +163,7 @@ describe('a browser with no usable storage', () => {
     const write = writeAutosave(createNewCampaign('Cedar Hollow', FIXED));
 
     expect(write.ok).toBe(false);
-    if (!write.ok) expect(write.reason).toMatch(/not allowing/i);
+    if (!write.ok) expect(write.reason).toMatch(/isn’t allowing/i);
     expect(readAutosave()).toBeNull();
     expect(() => clearAutosave()).not.toThrow();
   });

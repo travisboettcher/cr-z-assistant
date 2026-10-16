@@ -80,7 +80,7 @@ describe('checkClearing', () => {
    */
   it.each([
     ['a campaign with no base', campaignWith(null), 'ruined-chicken-coop', 'no-base'],
-    ['a slot this base does not have', campaignWith(farm()), 'wine-cellar', 'no-such-slot'],
+    ['a slot this base doesn’t have', campaignWith(farm()), 'wine-cellar', 'no-such-slot'],
     ['a slot with nothing blocking it', campaignWith(farm()), 'front-yard', 'nothing-to-clear'],
     [
       'a slot already cleared',

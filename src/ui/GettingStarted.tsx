@@ -52,7 +52,7 @@ export function GettingStarted({ campaign, onAddSurvivors, onClaimBase }: Gettin
         Getting started
       </h2>
       <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-        What the first turn needs. This goes away once they are done.
+        Three things to do on your first turn. This list goes away when they are done.
       </p>
 
       <ol className="mt-4 flex flex-col gap-2">
@@ -64,8 +64,8 @@ export function GettingStarted({ campaign, onAddSurvivors, onClaimBase }: Gettin
           detail={
             <>
               <span className="tabular-nums">{communityTierLevels(campaign.survivors)}</span> of{' '}
-              {STARTING_COMMUNITY_TIER_LEVELS} tier levels; mark it built in the roster when it is{' '}
-              <PageRef pages={48} />
+              {STARTING_COMMUNITY_TIER_LEVELS} Tier levels so far. When it is complete, mark it
+              built in the roster <PageRef pages={48} />
             </>
           }
           action={
@@ -81,7 +81,7 @@ export function GettingStarted({ campaign, onAddSurvivors, onClaimBase }: Gettin
           title="Choose who plays the First Mission"
           detail={
             <>
-              In the Mission Phase of the turn below <PageRef pages={75} />
+              In this turn’s Mission Phase <PageRef pages={75} />
             </>
           }
         />
@@ -92,7 +92,7 @@ export function GettingStarted({ campaign, onAddSurvivors, onClaimBase }: Gettin
           title="Claim your base"
           detail={
             <>
-              The First Mission is what claims it <PageRef pages="54, 76–77" />
+              Playing the First Mission claims it <PageRef pages="54, 76–77" />
             </>
           }
           action={

@@ -100,22 +100,22 @@ function isCountFromZero(value: unknown): boolean {
  * catalogue, and a grade that entry exists in (pg. 37).
  */
 function describeItemProblem(value: unknown): string | null {
-  if (!isRecord(value)) return 'is not an item';
+  if (!isRecord(value)) return 'isn’t an item';
   if (typeof value.id !== 'string' || value.id === '') return 'has no id';
   if (typeof value.item !== 'string' || !isKeyOf(EQUIPMENT, value.item)) {
-    return `is an item this version does not know: ${String(value.item)}`;
+    return `is an item this version doesn’t know: ${String(value.item)}`;
   }
 
   const grades: readonly unknown[] = EQUIPMENT[value.item as ItemId].grades;
   if (!grades.includes(value.grade))
-    return `is ${String(value.item)} in a grade it does not come in`;
+    return `is ${String(value.item)} in a grade it doesn’t come in`;
 
   return null;
 }
 
 /** The first problem with a list of items, naming which, or `null`. */
 function describeItemsProblem(value: unknown): string | null {
-  if (!Array.isArray(value)) return 'is not a list';
+  if (!Array.isArray(value)) return 'isn’t a list';
 
   for (const [index, item] of value.entries()) {
     const problem = describeItemProblem(item);
@@ -130,7 +130,7 @@ function describeItemsProblem(value: unknown): string | null {
  * paid and the turn it was ordered on.
  */
 function describeTradesProblem(value: unknown): string | null {
-  if (!Array.isArray(value)) return 'is not a list';
+  if (!Array.isArray(value)) return 'isn’t a list';
 
   for (const [index, trade] of value.entries()) {
     const which = `trade ${String(index + 1)} of ${String(value.length)}`;
@@ -139,8 +139,8 @@ function describeTradesProblem(value: unknown): string | null {
 
     const { food, fuel, orderedOnTurn } = trade as Record<string, unknown>;
     if (!isCountFromZero(food) || !isCountFromZero(fuel))
-      return `${which} does not say what it cost`;
-    if (!isCountFromOne(orderedOnTurn)) return `${which} does not say which turn it was ordered on`;
+      return `${which} doesn’t say what it cost`;
+    if (!isCountFromOne(orderedOnTurn)) return `${which} doesn’t say which turn it was ordered on`;
   }
 
   return null;
@@ -151,7 +151,7 @@ function describeTradesProblem(value: unknown): string | null {
  * are, with the two dice that found it and the Food and Fuel set aside for it.
  */
 function describeRareTradeItemsProblem(value: unknown): string | null {
-  if (!Array.isArray(value)) return 'is not a list';
+  if (!Array.isArray(value)) return 'isn’t a list';
 
   for (const [index, item] of value.entries()) {
     const which = `item ${String(index + 1)} of ${String(value.length)}`;
@@ -160,10 +160,10 @@ function describeRareTradeItemsProblem(value: unknown): string | null {
 
     const { subtable, entry, food, fuel } = item as Record<string, unknown>;
     if (!EVENT_FIELD_CHECKS.roll(subtable) || !EVENT_FIELD_CHECKS.roll(entry)) {
-      return `${which} does not say which roll found it`;
+      return `${which} doesn’t say which roll found it`;
     }
     if (!isCountFromZero(food) || !isCountFromZero(fuel)) {
-      return `${which} does not say what was set aside for it`;
+      return `${which} doesn’t say what was set aside for it`;
     }
   }
 
@@ -176,11 +176,11 @@ function describeRareTradeItemsProblem(value: unknown): string | null {
  * split suits the Tier is the engine's, as everywhere here.
  */
 function describeVehicleProblem(value: unknown): string | null {
-  if (!isRecord(value)) return 'is not a vehicle';
+  if (!isRecord(value)) return 'isn’t a vehicle';
   if (typeof value.id !== 'string' || value.id === '') return 'has no id';
   if (!VEHICLE_TIERS.some((tier) => tier === value.tier)) return 'has no Tier from 1 to 4';
   if (typeof value.label !== 'string') return 'has no label';
-  if (typeof value.water !== 'boolean') return 'does not say whether it is a boat';
+  if (typeof value.water !== 'boolean') return 'doesn’t say whether it is a boat';
   if (value.inventorySlots !== undefined && !isCountFromZero(value.inventorySlots)) {
     return 'has an unreadable split of its slots';
   }
@@ -194,14 +194,14 @@ function describeVehicleProblem(value: unknown): string | null {
 
 /** Vehicles, each as `describeVehicleProblem` reads one, and its setup roll where `rolled`. */
 function describeVehiclesProblem(value: unknown, rolled = false): string | null {
-  if (!Array.isArray(value)) return 'is not a list';
+  if (!Array.isArray(value)) return 'isn’t a list';
 
   for (const [index, vehicle] of value.entries()) {
     const which = `vehicle ${String(index + 1)} of ${String(value.length)}`;
     const problem = describeVehicleProblem(vehicle);
     if (problem !== null) return `${which} ${problem}`;
     if (rolled && !EVENT_FIELD_CHECKS.roll((vehicle as Record<string, unknown>).roll)) {
-      return `${which} does not say what its Tier rolled`;
+      return `${which} doesn’t say what its Tier rolled`;
     }
   }
 
@@ -211,19 +211,19 @@ function describeVehiclesProblem(value: unknown, rolled = false): string | null 
 /** A Rare Items trade under way (Z5-10), or `null` for none. */
 function describeRareTradeProblem(value: unknown): string | null {
   if (value === null) return null;
-  if (!isRecord(value)) return 'is not a trade';
-  if (!isCountFromOne(value.madeOnTurn)) return 'does not say which turn it was made on';
+  if (!isRecord(value)) return 'isn’t a trade';
+  if (!isCountFromOne(value.madeOnTurn)) return 'doesn’t say which turn it was made on';
 
   return describeRareTradeItemsProblem(value.items);
 }
 
 function describeSurvivorProblem(value: unknown): string | null {
-  if (!isRecord(value)) return 'is not a survivor';
+  if (!isRecord(value)) return 'isn’t a survivor';
 
   if (typeof value.id !== 'string' || value.id === '') return 'has no id';
   if (typeof value.name !== 'string') return 'has no name';
   if (!TIERS.some((tier) => tier === value.tier)) {
-    return `has a tier that is not one of ${TIERS.join(', ')}`;
+    return `has a Tier that isn’t one of ${TIERS.join(', ')}`;
   }
 
   const stats: unknown = value.stats;
@@ -235,7 +235,7 @@ function describeSurvivorProblem(value: unknown): string | null {
   const skills: unknown = value.skills;
   if (!isRecord(skills)) return 'has no skill list';
   for (const [skill, level] of Object.entries(skills)) {
-    if (!isKeyOf(SKILL_STATS, skill)) return `has a skill this version does not know: ${skill}`;
+    if (!isKeyOf(SKILL_STATS, skill)) return `has a skill this version doesn’t know: ${skill}`;
     if (!isCountFromZero(level)) return `has an unreadable level for ${skill}`;
   }
 
@@ -269,7 +269,7 @@ function describeSurvivorProblem(value: unknown): string | null {
  * is any of it a legal base.
  */
 function describeSlotProblem(value: unknown): string | null {
-  if (!isRecord(value)) return 'is not a slot';
+  if (!isRecord(value)) return 'isn’t a slot';
 
   if (value.cleared !== undefined && value.cleared !== true) {
     return 'records something other than cleared for its clearing project';
@@ -279,9 +279,9 @@ function describeSlotProblem(value: unknown): string | null {
   if (built !== undefined) {
     if (!isRecord(built)) return 'has an unreadable facility';
     if (typeof built.facility !== 'string' || !isKeyOf(FACILITIES, built.facility)) {
-      return `holds a facility this version does not know: ${String(built.facility)}`;
+      return `holds a facility this version doesn’t know: ${String(built.facility)}`;
     }
-    if (!isCountFromOne(built.builtOnTurn)) return 'does not say which turn it was built on';
+    if (!isCountFromOne(built.builtOnTurn)) return 'doesn’t say which turn it was built on';
   }
 
   const upgrades: unknown = value.upgrades;
@@ -289,7 +289,7 @@ function describeSlotProblem(value: unknown): string | null {
     if (!Array.isArray(upgrades)) return 'has an unreadable upgrade list';
     for (const upgrade of upgrades) {
       if (typeof upgrade !== 'string' || facilityOfUpgrade(upgrade as UpgradeId) === undefined) {
-        return `has an upgrade this version does not know: ${String(upgrade)}`;
+        return `has an upgrade this version doesn’t know: ${String(upgrade)}`;
       }
     }
   }
@@ -309,7 +309,7 @@ function describeSlotProblem(value: unknown): string | null {
         (item) => EQUIPMENT[item.item].kind !== 'rare-upgrade',
       )
     ) {
-      return 'has an item installed that is not a rare upgrade';
+      return 'has an item installed that isn’t a rare upgrade';
     }
   }
 
@@ -325,10 +325,10 @@ function describeSlotProblem(value: unknown): string | null {
  * could render or reason about it.
  */
 function describeBaseProblem(value: unknown): string | null {
-  if (!isRecord(value)) return 'its base is not a base';
+  if (!isRecord(value)) return 'its base isn’t a base';
 
   if (typeof value.id !== 'string' || !isKeyOf(BASES, value.id)) {
-    return `its base is one this version does not know: ${String(value.id)}`;
+    return `its base is one this version doesn’t know: ${String(value.id)}`;
   }
 
   const slots: unknown = value.slots;
@@ -338,7 +338,7 @@ function describeBaseProblem(value: unknown): string | null {
 
   for (const [id, state] of Object.entries(slots)) {
     if (!layout.some((slot) => slot.id === id)) {
-      return `its base has a slot the ${value.id} does not have: ${id}`;
+      return `its base has a slot the ${value.id} doesn’t have: ${id}`;
     }
 
     const problem = describeSlotProblem(state);
@@ -954,16 +954,16 @@ const EVENT_FIELDS: Record<
  * `migrate` has already ruled out the second by the time this runs.
  */
 function describeLogEntryProblem(value: unknown): string | null {
-  if (!isRecord(value)) return 'is not a log entry';
+  if (!isRecord(value)) return 'isn’t a log entry';
 
-  if (!isCountFromOne(value.turn)) return 'does not say which turn it happened in';
+  if (!isCountFromOne(value.turn)) return 'doesn’t say which turn it happened in';
   // No `typeof` guard, unlike the timestamp below. Strict equality against a
   // list of four strings already rejects everything that is not one of them,
   // and JSON has no value that is `===` a string without being one. A mutation
   // run said so first: the guard's mutant was equivalent, which is another way
   // of saying the guard did nothing.
   if (!CAMPAIGN_PHASES.some((phase) => phase === value.phase)) {
-    return `happened in a phase that is not one of ${CAMPAIGN_PHASES.join(', ')}`;
+    return `happened in a phase that isn’t one of ${CAMPAIGN_PHASES.join(', ')}`;
   }
   // Here the `typeof` half *is* load-bearing: `Date.parse` coerces, so a bare
   // `2026` in a file parses as a perfectly good date and would sail through on
@@ -973,14 +973,14 @@ function describeLogEntryProblem(value: unknown): string | null {
   }
 
   const event: unknown = value.event;
-  if (!isRecord(event)) return 'does not say what happened';
+  if (!isRecord(event)) return 'doesn’t say what happened';
 
   const kind = event.kind;
   // `typeof` again load-bearing, and for a stranger reason: `Object.hasOwn`
   // coerces its key, so `["turn-began"]` — which JSON can express — stringifies
   // to a name this table has.
   if (typeof kind !== 'string' || !isKeyOf(EVENT_FIELDS, kind)) {
-    return `records something this version does not know about: ${String(kind)}`;
+    return `records something this version doesn’t know about: ${String(kind)}`;
   }
 
   for (const [field, check] of EVENT_FIELDS[kind as CampaignEventKind]) {
@@ -1020,11 +1020,11 @@ const ASSIGNMENT_FIELDS: Record<Assignment['task'], readonly [string, EventField
  * version has never heard of, or a Staff assignment that does not say where.
  */
 function describeAssignmentProblem(value: unknown): string | null {
-  if (!isRecord(value)) return 'is not an assignment';
+  if (!isRecord(value)) return 'isn’t an assignment';
 
   const task = value.task;
   if (typeof task !== 'string' || !isKeyOf(ASSIGNMENT_FIELDS, task)) {
-    return `is a task this version does not know: ${String(task)}`;
+    return `is a task this version doesn’t know: ${String(task)}`;
   }
 
   const field = ASSIGNMENT_FIELDS[task as Assignment['task']];
@@ -1074,19 +1074,19 @@ function isCost(value: unknown): boolean {
 }
 
 function describeProjectProblem(value: unknown): string | null {
-  if (!isRecord(value)) return 'is not a project';
+  if (!isRecord(value)) return 'isn’t a project';
 
   const kind = value.kind;
   if (typeof kind !== 'string' || !isKeyOf(PROJECT_FIELDS, kind)) {
-    return `is a kind of project this version does not know: ${String(kind)}`;
+    return `is a kind of project this version doesn’t know: ${String(kind)}`;
   }
 
-  if (!EVENT_FIELD_CHECKS.id(value.slot)) return 'does not say which slot it is for';
-  if (!isCountFromOne(value.orderedOnTurn)) return 'does not say which turn it was ordered on';
+  if (!EVENT_FIELD_CHECKS.id(value.slot)) return 'doesn’t say which slot it is for';
+  if (!isCountFromOne(value.orderedOnTurn)) return 'doesn’t say which turn it was ordered on';
   // From v12. Required rather than optional, because the migration fills it in
   // for every older save: a queued project with no charge on it would be one
   // the refund has to guess at, which is the whole of #165.
-  if (!isCost(value.charged)) return 'does not say what it was charged';
+  if (!isCost(value.charged)) return 'doesn’t say what it was charged';
 
   for (const [field, check] of PROJECT_FIELDS[kind as Project['kind']]) {
     if (!EVENT_FIELD_CHECKS[check](value[field])) return `has an unreadable ${field}`;
@@ -1110,7 +1110,7 @@ function describeProjectProblem(value: unknown): string | null {
  * test in `migrations.test.ts` is watching for.
  */
 function describeCampaignProblem(value: unknown): string | null {
-  if (!isRecord(value)) return 'it is not a campaign object';
+  if (!isRecord(value)) return 'it isn’t a campaign object';
 
   if (!isCountFromOne(value.schemaVersion)) return 'its save-format version is missing or invalid';
   if (typeof value.id !== 'string' || value.id === '') return 'it has no campaign id';
@@ -1118,12 +1118,12 @@ function describeCampaignProblem(value: unknown): string | null {
   if (typeof value.createdAt !== 'string' || Number.isNaN(Date.parse(value.createdAt))) {
     return 'its creation date is missing or unreadable';
   }
-  if (!isCountFromOne(value.turn)) return 'its turn number is missing or is not a whole turn';
+  if (!isCountFromOne(value.turn)) return 'its turn number is missing or isn’t a whole turn';
   // The step, not the phase: a campaign records where in the turn it is and the
   // phase is derived from that. Named rather than listed in the message —
   // nineteen step ids is not a sentence anyone reads.
   if (!TURN_SEQUENCE.some((step) => step === value.step)) {
-    return 'it does not say where in the turn it is, or names a step this version does not know';
+    return 'it doesn’t say where in the turn it is, or names a step this version doesn’t know';
   }
 
   // Absent is legal and means a campaign not using an origin, so only a present
@@ -1131,7 +1131,7 @@ function describeCampaignProblem(value: unknown): string | null {
   // because Phase 2 gates facilities on it and an unknown origin would quietly
   // hide them.
   if (value.origin !== undefined && !CAMPAIGN_ORIGINS.some((origin) => origin === value.origin)) {
-    return `its origin is not one of ${CAMPAIGN_ORIGINS.join(', ')}`;
+    return `its origin isn’t one of ${CAMPAIGN_ORIGINS.join(', ')}`;
   }
 
   const materials: unknown = value.materials;
@@ -1141,7 +1141,7 @@ function describeCampaignProblem(value: unknown): string | null {
     // Finite, but deliberately not bounded or forced to a whole number: how
     // many of a material a campaign may hold is a rule, and Phase 0 ships none.
     if (typeof count !== 'number' || !Number.isFinite(count)) {
-      return `its ${material} count is missing or is not a number`;
+      return `its ${material} count is missing or isn’t a number`;
     }
   }
 
@@ -1169,7 +1169,7 @@ function describeCampaignProblem(value: unknown): string | null {
   }
 
   // The Rare Item Table rolls a v16 save's Rare became (R49; Z5-7).
-  if (!isCountFromZero(value.rareRollsOwed)) return 'it does not say how many Rare rolls it owes';
+  if (!isCountFromZero(value.rareRollsOwed)) return 'it doesn’t say how many Rare rolls it owes';
 
   // The base's Inventory (Z5-2), which never holds a shoddy item: shoddy gear
   // is free and unlimited, so nobody owns one (R35).
@@ -1197,7 +1197,7 @@ function describeCampaignProblem(value: unknown): string | null {
   if (twice !== undefined) return `it holds two vehicles with one id: ${twice}`;
 
   if (typeof value.startingCommunityBuilt !== 'boolean') {
-    return 'it does not say whether its starting community is finished';
+    return 'it doesn’t say whether its starting community is finished';
   }
 
   // Null is a campaign that has not claimed a base, which is a real state and
@@ -1239,13 +1239,13 @@ function describeCampaignProblem(value: unknown): string | null {
   if (repeated !== undefined) return `it holds two items with one id: ${repeated}`;
 
   const assignments: unknown = value.assignments;
-  if (!isRecord(assignments)) return 'it does not say what its survivors are doing';
+  if (!isRecord(assignments)) return 'it doesn’t say what its survivors are doing';
   for (const [id, assignment] of Object.entries(assignments)) {
     // An assignment keyed by an id nobody on the roster has refers to nothing —
     // the same reasoning that makes a slot id outside the base's layout a
     // damaged save rather than a slot this version has not heard of.
     if (!value.survivors.some((survivor) => isRecord(survivor) && survivor.id === id)) {
-      return `it assigns a task to somebody who is not in the community: ${id}`;
+      return `it assigns a task to somebody who isn’t in the community: ${id}`;
     }
 
     const problem = describeAssignmentProblem(assignment);
@@ -1307,7 +1307,7 @@ export function parseCampaignFile(text: string): SaveFileResult {
     // on purpose: it describes a byte offset, and the reader needs a file.
     return failure(
       'invalid-json',
-      'This file could not be read. It may have been cut short while saving, or edited by ' +
+      'This file couldn’t be read. It may have been cut short while saving, or edited by ' +
         'hand — try exporting the campaign again, or open a different file.',
     );
   }
@@ -1315,7 +1315,7 @@ export function parseCampaignFile(text: string): SaveFileResult {
   if (!isRecord(parsed)) {
     return failure(
       'not-a-campaign',
-      'This file is not a County Road Z campaign. Campaign saves are the .json files this ' +
+      'This file isn’t a County Road Z campaign. Campaign saves are the .json files this ' +
         'app exports — check you picked the right one.',
     );
   }
@@ -1334,7 +1334,7 @@ export function parseCampaignFile(text: string): SaveFileResult {
   if (problem !== null) {
     return failure(
       'damaged-campaign',
-      `This file says it is a County Road Z campaign, but it is not complete: ${problem}. ` +
+      `This file says it is a County Road Z campaign, but it isn’t complete: ${problem}. ` +
         'It may have been edited or damaged since it was saved.',
     );
   }
@@ -1370,7 +1370,7 @@ export async function readCampaignFile(file: Blob): Promise<SaveFileResult> {
   } catch {
     return failure(
       'unreadable-file',
-      'This file could not be read. If it is on a drive or a phone, check it is still ' +
+      'This file couldn’t be read. If it is on a drive or a phone, check it is still ' +
         'connected, then pick it again.',
     );
   }

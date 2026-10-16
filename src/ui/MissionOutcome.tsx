@@ -343,7 +343,7 @@ function TeamOutcome({
   const hint =
     HINTS[choice.mission] ??
     (asked.length === 0
-      ? 'Its rewards are not tracked yet. Recording it marks the mission played.'
+      ? 'Its rewards aren’t tracked yet. Recording it marks the mission played.'
       : 'Record what the table counted when the mission ended.');
 
   return (

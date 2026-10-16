@@ -153,7 +153,7 @@ export function strangerProblem(campaign: Campaign, form: StrangerForm): string 
   if (form.name.trim() === '') return 'A new survivor needs a name.';
 
   if (form.roll !== undefined && !rollsForSkill(rescued.tier)) {
-    return `A Tier ${String(rescued.tier)} stranger does not roll for a skill.`;
+    return `A Tier ${String(rescued.tier)} stranger doesn’t roll for a skill.`;
   }
 
   return null;

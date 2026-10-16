@@ -333,7 +333,7 @@ describe('the three purchases', () => {
     it('refuses a skill that has not been taken', () => {
       expect(
         expectRefused(submitSkillLevel(citizen(20), { survivor: EARL, skill: 'archery' }, AT)),
-      ).toMatch(/not taken/);
+      ).toMatch(/haven’t taken/);
     });
   });
 
