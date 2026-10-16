@@ -560,62 +560,153 @@ function Starving({ penalty }: { readonly penalty: number }) {
   );
 }
 
+/**
+ * The four stats: values to read, and `<select>`s only while they are being
+ * set (`docs/step-records.md`, R5; #236).
+ *
+ * A survivor still being built has them open, because choosing them is part
+ * of building one. Once nothing on the sheet is left to settle
+ * (`survivorViolations`), they are values behind "Edit stats": every Skill
+ * Score reads a stat, so a stray press on a live `<select>` moved numbers all
+ * over the sheet. Editing is a draft, saved once or let go, and says which of
+ * this survivor's Scores read the stats before anything moves.
+ */
 function Stats({ survivor, penalty }: { readonly survivor: Survivor; readonly penalty: number }) {
   const { dispatch } = useCampaign();
   const groupId = useId();
+  const [draft, setDraft] = useState<Survivor['stats'] | null>(null);
+
+  const building = survivorViolations(survivor).length > 0;
+  const editing = building || draft !== null;
+  const shown = draft ?? survivor.stats;
+
+  function choose(stat: Stat, value: number) {
+    const stats = withStatValue({ ...survivor, stats: shown }, stat, value);
+
+    if (building) {
+      dispatch({ type: 'survivor/statsSet', id: survivor.id, stats });
+    } else {
+      setDraft(stats);
+    }
+  }
 
   return (
     <div className="mt-6 border-t border-stone-200 pt-6 dark:border-stone-800">
-      <h3 className="text-sm font-semibold tracking-[0.15em] text-stone-500 uppercase dark:text-stone-400">
-        Stats <PageRef pages={8} />
-      </h3>
-      <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-        A Tier hands out a fixed set of values and lets you choose which stat gets which. Moving a
-        value here swaps it with the stat that had it, so the four always stay that set.
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold tracking-[0.15em] text-stone-500 uppercase dark:text-stone-400">
+          Stats <PageRef pages={8} />
+        </h3>
+        {!editing && (
+          <button
+            type="button"
+            className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 px-3 py-1 text-sm font-medium hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800`}
+            onClick={() => {
+              setDraft(survivor.stats);
+            }}
+          >
+            Edit stats
+          </button>
+        )}
+      </div>
+      {editing && (
+        <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+          A Tier hands out a fixed set of values and lets you choose which stat gets which. Moving a
+          value here swaps it with the stat that had it, so the four always stay that set.
+        </p>
+      )}
+      {draft !== null && <p className="mt-1 text-sm font-medium">{readers(survivor)}</p>}
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {STATS.map((stat) => (
           <div
             key={stat}
             className="rounded-lg border border-stone-200 px-4 py-3 dark:border-stone-700"
           >
-            <label
-              htmlFor={`${groupId}-${stat}`}
-              className="block text-sm text-stone-600 dark:text-stone-400"
-            >
-              {STAT_LABELS[stat]}
-            </label>
+            {editing ? (
+              <label
+                htmlFor={`${groupId}-${stat}`}
+                className="block text-sm text-stone-600 dark:text-stone-400"
+              >
+                {STAT_LABELS[stat]}
+              </label>
+            ) : (
+              <p className="text-sm text-stone-600 dark:text-stone-400">{STAT_LABELS[stat]}</p>
+            )}
             {penalty > 0 && (
-              // The select holds the stored stat, because that is what it
+              // The value holds the stored stat, because that is what it
               // edits. What the rest of the sheet computes with is this.
               <p className="text-xs text-amber-700 dark:text-amber-300">
                 <span className="tabular-nums">{statValue(survivor, stat, penalty)}</span> while the
                 community is hungry
               </p>
             )}
-            <select
-              id={`${groupId}-${stat}`}
-              value={survivor.stats[stat]}
-              onChange={(event) => {
-                dispatch({
-                  type: 'survivor/statsSet',
-                  id: survivor.id,
-                  stats: withStatValue(survivor, stat, Number(event.target.value)),
-                });
-              }}
-              className={`${FOCUS_RING} mt-1 w-full rounded-lg border border-stone-300 bg-transparent px-2 py-1 text-2xl font-semibold tabular-nums dark:border-stone-600`}
-            >
-              {statOptions(survivor, stat).map((value) => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ))}
-            </select>
+            {editing ? (
+              <select
+                id={`${groupId}-${stat}`}
+                value={shown[stat]}
+                onChange={(event) => {
+                  choose(stat, Number(event.target.value));
+                }}
+                className={`${FOCUS_RING} mt-1 w-full rounded-lg border border-stone-300 bg-transparent px-2 py-1 text-2xl font-semibold tabular-nums dark:border-stone-600`}
+              >
+                {statOptions(survivor, stat).map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="mt-1 text-2xl font-semibold tabular-nums">{survivor.stats[stat]}</p>
+            )}
           </div>
         ))}
       </div>
+      {draft !== null && (
+        <div className="mt-3 flex flex-wrap gap-3">
+          <button
+            type="button"
+            className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg ${PRIMARY_FILL} px-4 py-2 font-medium`}
+            onClick={() => {
+              dispatch({ type: 'survivor/statsSet', id: survivor.id, stats: draft });
+              setDraft(null);
+            }}
+          >
+            Save stats
+          </button>
+          <button
+            type="button"
+            className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg px-4 py-2 font-medium text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800`}
+            onClick={() => {
+              setDraft(null);
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
     </div>
   );
+}
+
+/**
+ * Which of this survivor's numbers read their stats, named before one moves:
+ * each Score of a skill they have, and Inventory Slots through Carry's.
+ */
+function readers(survivor: Survivor): string {
+  const learned = SKILLS.filter((skill) => survivor.skills[skill] !== undefined);
+
+  if (learned.length === 0) return 'No skill of theirs reads these yet.';
+
+  const named = learned.map((skill) => SKILL_LABELS[skill]);
+  const list =
+    named.length === 1
+      ? (named[0] as string)
+      : `${named.slice(0, -1).join(', ')} and ${named.at(-1) as string}`;
+  const scores = named.length === 1 ? `the ${list} Score` : `the ${list} Scores`;
+  const slots = learned.includes('carry')
+    ? `, and Inventory Slots with ${named.length === 1 ? 'it' : 'them'}`
+    : '';
+
+  return `Saving moves ${scores}${slots}.`;
 }
 
 /**
