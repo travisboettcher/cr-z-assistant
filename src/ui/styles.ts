@@ -36,3 +36,18 @@ export const PRIMARY_FILL =
  */
 export const SECONDARY_FILL =
   'border border-stone-300 enabled:hover:bg-stone-100 dark:border-stone-600 dark:enabled:hover:bg-stone-800';
+
+/**
+ * A card on a board, picked up or not: the Planning Phase's survivors and
+ * Equip the Mission Team's items (`docs/assignment-board.md`, B1 and B3).
+ */
+export function boardCard(picked: boolean): string {
+  return `${TOUCH_TARGET} ${FOCUS_RING} flex flex-col items-start rounded-lg border px-3 py-1.5 text-left text-sm ${
+    picked
+      ? 'border-amber-600 bg-amber-50 ring-2 ring-amber-600 dark:border-amber-400 dark:bg-amber-950/40 dark:ring-amber-400'
+      : 'border-stone-300 bg-white enabled:hover:bg-stone-100 dark:border-stone-600 dark:bg-stone-900 dark:enabled:hover:bg-stone-800'
+  }`;
+}
+
+/** A board lane's "Move … here" button. */
+export const BOARD_MOVE = `${TOUCH_TARGET} ${FOCUS_RING} rounded-lg px-3 py-1.5 text-sm font-medium ${SECONDARY_FILL}`;
