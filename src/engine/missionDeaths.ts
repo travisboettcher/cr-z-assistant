@@ -2,7 +2,9 @@
  * A survivor who dies on a mission (pp. 31, 34; R71; Z5-13).
  *
  * The tracker does not play the mission, so a death is the table's to record,
- * once the team's outcome is in. What the survivor carried stays on the map
+ * with the team's outcome (#236, R3), because it is part of how the mission
+ * ended: `deathsProblem` asks it of the outcome form before anything is
+ * recorded. One recorded later, once the outcome is in, is `deathProblem`'s. What the survivor carried stays on the map
  * with them, and is lost, unless somebody else on the team took it before the
  * map was left: then that survivor carries it home (R71). The survivor leaves
  * the roster with a cause of their own, beside a Rot death's and a removal's
@@ -35,14 +37,57 @@ export function wentOut(campaign: Campaign, team: number): readonly Survivor[] {
 
 /** Why this death cannot be recorded, or `null`. */
 export function deathProblem(campaign: Campaign, death: MissionDeath): string | null {
-  const team = String(death.team);
-
   if (phaseOf(campaign.step) !== 'mission') {
     return 'Record deaths on a mission in the Mission Phase.';
   }
   if (!teamOutcomes(campaign).has(death.team))
-    return `Record mission team ${team}’s outcome first.`;
+    return `Record mission team ${String(death.team)}’s outcome first.`;
 
+  return memberProblem(campaign, death);
+}
+
+/**
+ * Why these deaths cannot be recorded with this team's outcome, or `null`
+ * (#236, R3): asked before the outcome is in, because one press records both.
+ *
+ * Each is a death `deathProblem` would take once the outcome is recorded, and
+ * between them nobody dies twice and nothing is taken home by somebody who
+ * did not come home. That last is what lets them be recorded one after
+ * another in any order: no death moves an item to a survivor a later one
+ * takes off the roster.
+ */
+export function deathsProblem(
+  campaign: Campaign,
+  team: number,
+  deaths: readonly MissionDeath[],
+): string | null {
+  const dead = new Set(deaths.map((death) => death.survivor));
+
+  if (deaths.some((death) => death.team !== team)) {
+    return `Only somebody who went out with mission team ${String(team)} dies on its mission.`;
+  }
+  if (dead.size !== deaths.length) return 'Each survivor dies once.';
+
+  for (const death of deaths) {
+    const problem = memberProblem(campaign, death);
+    if (problem !== null) return problem;
+
+    if (Object.values(death.taken).some((taker) => dead.has(taker))) {
+      // Present: `memberProblem` found them on the team.
+      const name = (
+        campaign.survivors.find((survivor) => survivor.id === death.survivor) as Survivor
+      ).name;
+
+      return `Only somebody who came home takes an item from ${name}.`;
+    }
+  }
+
+  return null;
+}
+
+/** Why this death is not one of the team's, or takes what is not theirs to take, or `null`. */
+function memberProblem(campaign: Campaign, death: MissionDeath): string | null {
+  const team = String(death.team);
   const members = wentOut(campaign, death.team);
   const dead = members.find((survivor) => survivor.id === death.survivor);
   if (dead === undefined)

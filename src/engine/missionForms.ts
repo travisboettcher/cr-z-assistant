@@ -54,7 +54,7 @@ import {
   type TakenVehicle,
 } from './missionVehicles';
 import { spentItems, spentProblem, withItemsSpent } from './spent';
-import { deathProblem, withMissionDeath, type MissionDeath } from './missionDeaths';
+import { deathProblem, deathsProblem, withMissionDeath, type MissionDeath } from './missionDeaths';
 
 /**
  * A team's mission, chosen at Select Mission (pg. 17; Z4-2).
@@ -181,36 +181,64 @@ export function submitMissionOutcome(
   outcome: MissionOutcome,
   at: string,
 ): FormResult {
-  const problem = missionOutcomeProblem(campaign, outcome);
+  return submitMissionEnded(campaign, outcome, [], at);
+}
+
+/**
+ * Record how a team's mission ended together with whoever died on it, as one
+ * press (#236, R3): the outcome as `submitMissionOutcome` records it, then
+ * each death as `submitMissionDeath` does. Everything about one outcome is one
+ * form, so it is all recorded or none of it is.
+ *
+ * Refused for whatever `missionOutcomeProblem` refuses, or `deathsProblem`.
+ * The outcome's wounds name only who came home: the screen still sends a wound
+ * for everybody, which `woundsProblem` asks for, and the dead's are dropped
+ * from the entry so it does not say they came back with any Health at all.
+ */
+export function submitMissionEnded(
+  campaign: Campaign,
+  outcome: MissionOutcome,
+  deaths: readonly MissionDeath[],
+  at: string,
+): FormResult {
+  const problem =
+    missionOutcomeProblem(campaign, outcome) ??
+    deathsProblem(campaign, outcomeTeam(outcome), deaths);
   if (problem !== null) return refused(problem);
 
-  // Every wound names a team member exactly once by now: `woundsProblem`
-  // refuses anything else, so this reorders and renames and never drops one.
-  const wounds = woundsAsTheyStand(campaign, outcomeTeam(outcome)).map((member) => {
-    const { health, infection } = (outcome.wounds as readonly MissionWound[]).find(
-      (wound) => wound.survivor === member.survivor,
-    ) as MissionWound;
+  const dead = new Set(deaths.map((death) => death.survivor));
 
-    return {
-      survivor: member.survivor,
-      name: member.name,
-      health,
-      ...(infection === undefined ? {} : { infection }),
-    };
-  });
+  // Every wound names a team member exactly once by now: `woundsProblem`
+  // refuses anything else, so this reorders and renames and never drops one
+  // but the dead's.
+  const wounds = woundsAsTheyStand(campaign, outcomeTeam(outcome))
+    .filter((member) => !dead.has(member.survivor))
+    .map((member) => {
+      const { health, infection } = (outcome.wounds as readonly MissionWound[]).find(
+        (wound) => wound.survivor === member.survivor,
+      ) as MissionWound;
+
+      return {
+        survivor: member.survivor,
+        name: member.name,
+        health,
+        ...(infection === undefined ? {} : { infection }),
+      };
+    });
 
   const recorded = logged(withWounds(campaign, wounds), at, { ...outcome, wounds });
 
-  // The vehicles driven off join the community at once (pg. 82; R63; Z5-11).
-  if (outcome.kind === 'retrieve-new-vehicles-resolved') {
-    return accepted(withVehiclesAdded(recorded, (outcome.retrieved ?? []).map(withoutRoll)));
-  }
+  const rewarded =
+    // The vehicles driven off join the community at once (pg. 82; R63; Z5-11).
+    outcome.kind === 'retrieve-new-vehicles-resolved'
+      ? withVehiclesAdded(recorded, (outcome.retrieved ?? []).map(withoutRoll))
+      : // The Rare Goods Trader settles the trade it was forced for (pg. 84; R61).
+        outcome.kind === 'rare-goods-trader-resolved' && outcome.itemsTraded !== undefined
+        ? withRareTradeSettled(recorded, outcome.itemsTraded, outcome.survivorsExited, at)
+        : recorded;
 
-  // The Rare Goods Trader settles the trade it was forced for (pg. 84; R61).
   return accepted(
-    outcome.kind === 'rare-goods-trader-resolved' && outcome.itemsTraded !== undefined
-      ? withRareTradeSettled(recorded, outcome.itemsTraded, outcome.survivorsExited, at)
-      : recorded,
+    deaths.reduce((current, death) => withMissionDeath(current, death, at), rewarded),
   );
 }
 

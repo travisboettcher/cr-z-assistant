@@ -112,7 +112,7 @@ Each is one pull request, and each changes one step:
 |---|---|---|---|
 | **R1** | Select Mission | `turnMissions` keeps the entry's `names` | the record reads them; Change replaces the live `<select>`. *Built (#236).* |
 | **R2** | First Mission team | `missionPlayed`, which `selectionProblem` now asks too | the team locks into a record there; Change warns what reads it. *Built with B2 (#236).* |
-| **R3** | Play the Mission | none, or a composite form if one press must record the outcome and a death together | deaths move into the outcome form; what was used records once; the stale line goes |
+| **R3** | Play the Mission | `submitMissionEnded`, recording the outcome and its deaths together; `spentRecorded`, and nothing used is an answer | deaths move into the outcome form; what was used records once; the stale line goes. *Built (#236).* |
 | **R4** | Add Materials | none | the roll pad |
 | **R5** | Survivor sheet | none | stats behind Edit |
 
@@ -123,10 +123,12 @@ R1 and R4 stand alone. R3 is the largest and is the one to read most carefully i
 - **A mis-pressed "+1 XP".** *Decided 2026-10-16: not yet.* R7 says a point handed out stays
   handed out when the team changes later, which is a ruling about the team. A mis-tap is a
   different thing, and taking it back is undo, which stays Phase 8's.
-- **R3's one press.** If recording a death has to follow the outcome in the engine, the outcome
-  form either submits twice in order (and shows the death form again if the second is refused) or
-  needs one composite engine form. Which is decided when R3 is written, with the engine in front of
-  it.
+- **R3's one press.** *Decided 2026-10-16: one composite engine form.* `submitMissionEnded` records
+  the outcome and then each death, and refuses all of it if any part is refused (`deathsProblem`
+  asks the deaths before the outcome is in). Two dispatches in a row could leave the outcome
+  recorded and a death refused, and the outcome cannot be recorded twice. The outcome's wounds
+  name only who came home. `mission/survivorKilled` stays in the engine for a death recorded once
+  the outcome is in, and no screen offers it.
 
 ## What this design does not decide
 

@@ -74,7 +74,7 @@ import { withTradesArrived, type Payment, type TradeRequest } from '../engine/tr
 import type { RareTradePick } from '../engine/rareTrade';
 import type { NewVehicle } from '../engine/vehicles';
 import {
-  submitMissionOutcome,
+  submitMissionEnded,
   submitMissionSelection,
   submitOverrunContinuation,
   submitMissionSkip,
@@ -568,9 +568,16 @@ export type CampaignAction =
    * The counts the table made at the end of the mission, and nothing worked
    * out from them: what they do to the turns since the last siege is
    * `siege.ts`'s, read back from the entry this writes. The wounds are set on
-   * the roster as well. Refused for whatever `submitMissionOutcome` refuses.
+   * the roster as well. With it, whoever died on the mission (R71; #236, R3),
+   * because a death is part of how it ended: all of it is recorded, or none.
+   * Refused for whatever `submitMissionEnded` refuses.
    */
-  | { readonly type: 'mission/resolved'; readonly outcome: MissionOutcome; readonly at: string }
+  | {
+      readonly type: 'mission/resolved';
+      readonly outcome: MissionOutcome;
+      readonly deaths?: readonly MissionDeath[];
+      readonly at: string;
+    }
   /**
    * Fill a place this turn's siege emptied with a fit mission-team survivor,
    * or leave it empty again with `by: null` (pg. 23, the FAQ's "Siege Defense
@@ -943,7 +950,7 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
     case 'mission/resolved':
       return submitted(state, (campaign) =>
-        submitMissionOutcome(campaign, action.outcome, action.at),
+        submitMissionEnded(campaign, action.outcome, action.deaths ?? [], action.at),
       );
 
     case 'mission/stoodIn':

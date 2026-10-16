@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign, type Item } from './campaign';
 import type { FormResult } from './forms';
-import { deathProblem, wentOut, type MissionDeath } from './missionDeaths';
-import { submitMissionDeath, submitMissionOutcome, submitMissionSelection } from './missionForms';
+import { deathProblem, deathsProblem, wentOut, type MissionDeath } from './missionDeaths';
+import {
+  submitMissionDeath,
+  submitMissionEnded,
+  submitMissionOutcome,
+  submitMissionSelection,
+} from './missionForms';
+import type { MissionOutcome } from './missions';
 import { outcomeOf, woundsAsTheyStand } from './missions';
 import { createSurvivor } from './survivor';
 
@@ -47,31 +53,30 @@ function chosen(): Campaign {
   );
 }
 
+/** Team 1's Thin the Herd, everybody coming home as they went. */
+function thinned(campaign: Campaign): MissionOutcome {
+  return outcomeOf(
+    { team: 1, mission: 'thin-the-herd' },
+    {
+      endCondition: null,
+      strangers: [],
+      vehiclesOnArea: 0,
+      materialsCarriedOut: 0,
+      startingZombies: 4,
+      zombiesLeft: 2,
+      survivorsExited: 1,
+      allIncapacitated: false,
+      vehiclesDrivenOff: 0,
+      wounds: woundsAsTheyStand(campaign, 1),
+    },
+  );
+}
+
 /** `chosen()` with team 1's outcome recorded. */
 function played(): Campaign {
   const campaign = chosen();
 
-  return accepted(
-    submitMissionOutcome(
-      campaign,
-      outcomeOf(
-        { team: 1, mission: 'thin-the-herd' },
-        {
-          endCondition: null,
-          strangers: [],
-          vehiclesOnArea: 0,
-          materialsCarriedOut: 0,
-          startingZombies: 4,
-          zombiesLeft: 2,
-          survivorsExited: 1,
-          allIncapacitated: false,
-          vehiclesDrivenOff: 0,
-          wounds: woundsAsTheyStand(campaign, 1),
-        },
-      ),
-      AT,
-    ),
-  );
+  return accepted(submitMissionOutcome(campaign, thinned(campaign), AT));
 }
 
 const earl = (taken: Record<string, string> = {}): MissionDeath => ({
@@ -167,5 +172,79 @@ describe('a survivor who dies on a mission (pp. 31, 34; R71)', () => {
     expect(wentOut(played(), 1).map((survivor) => survivor.id)).toEqual(['earl', 'carla']);
     expect(wentOut(played(), 2)).toEqual([]);
     expect(wentOut(played(), 3)).toEqual([]);
+  });
+});
+
+/** #236, R3: a death is part of how the mission ended, so it is recorded with the outcome. */
+describe('deaths recorded with the outcome', () => {
+  const carla = (taken: Record<string, string> = {}): MissionDeath => ({
+    team: 1,
+    survivor: 'carla',
+    taken,
+  });
+
+  it('records the outcome, then each death, in one press', () => {
+    const campaign = chosen();
+    const after = accepted(
+      submitMissionEnded(campaign, thinned(campaign), [earl({ 'rifle-1': 'carla' })], AT),
+    );
+
+    expect(after.log.slice(-3).map((entry) => entry.event.kind)).toEqual([
+      'thin-the-herd-resolved',
+      'item-moved',
+      'survivor-left',
+    ]);
+    expect(after.survivors.map((survivor) => survivor.id)).toEqual(['carla', 'ada', 'bo']);
+    expect(after.survivors[0]?.items).toEqual([rifle]);
+  });
+
+  it('leaves the dead out of the Health the team came home with', () => {
+    const campaign = chosen();
+    const after = accepted(submitMissionEnded(campaign, thinned(campaign), [earl()], AT));
+    const outcome = after.log.find((entry) => entry.event.kind === 'thin-the-herd-resolved');
+
+    expect(outcome?.event).toHaveProperty('wounds', [
+      { survivor: 'carla', name: 'Carla Proust', health: 2 },
+    ]);
+  });
+
+  it('records everybody who died, whoever is listed first', () => {
+    const campaign = chosen();
+    const after = accepted(submitMissionEnded(campaign, thinned(campaign), [carla(), earl()], AT));
+
+    expect(after.survivors.map((survivor) => survivor.id)).toEqual(['ada', 'bo']);
+  });
+
+  it('records nothing at all when a death is refused', () => {
+    const campaign = chosen();
+    const result = submitMissionEnded(campaign, thinned(campaign), [earl({ 'rifle-1': 'bo' })], AT);
+
+    expect(result).toEqual({
+      ok: false,
+      problem: 'Only somebody else on mission team 1 takes an item from Earl Rhodes.',
+    });
+  });
+
+  it('refuses a death on another team, twice over, or a taker who died too', () => {
+    const campaign = chosen();
+
+    expect(deathsProblem(campaign, 1, [])).toBeNull();
+    expect(deathsProblem(campaign, 1, [earl()])).toBeNull();
+    expect(deathsProblem(campaign, 2, [earl()])).toBe(
+      'Only somebody who went out with mission team 2 dies on its mission.',
+    );
+    expect(deathsProblem(campaign, 1, [earl(), earl()])).toBe('Each survivor dies once.');
+    expect(deathsProblem(campaign, 1, [earl({ 'rifle-1': 'carla' }), carla()])).toBe(
+      'Only somebody who came home takes an item from Earl Rhodes.',
+    );
+    expect(deathsProblem(campaign, 1, [{ ...earl(), survivor: 'bo' }])).toBe(
+      'Only somebody who went out with mission team 1 dies on its mission.',
+    );
+  });
+
+  it('refuses what the outcome alone refuses', () => {
+    const campaign = played();
+
+    expect(submitMissionEnded(campaign, thinned(chosen()), [earl()], AT).ok).toBe(false);
   });
 });
