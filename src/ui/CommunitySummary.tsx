@@ -186,13 +186,19 @@ function Materials({
           Edit
         </button>
       </div>
-      <dl className="mt-2 grid grid-cols-4 gap-1.5">
+      {/*
+       * Side by side, except at `md`: there the cards are four across a
+       * portrait tablet, too narrow for "Hardware" over its number, so each
+       * material is a row with its label beside it. The label never truncates
+       * (#233); it is what says which number is which.
+       */}
+      <dl className="mt-2 grid grid-cols-3 gap-1.5 md:grid-cols-1 lg:grid-cols-3">
         {MATERIALS.map((material) => (
           <div
             key={material}
-            className="rounded-lg bg-stone-100 px-1 py-1.5 text-center dark:bg-stone-800"
+            className="rounded-lg bg-stone-100 px-1 py-1.5 text-center md:flex md:items-baseline md:justify-between md:px-3 md:py-1 lg:block lg:px-1 lg:py-1.5 dark:bg-stone-800"
           >
-            <dt className="truncate text-xs text-stone-600 dark:text-stone-400">
+            <dt className="text-xs text-stone-600 dark:text-stone-400">
               {MATERIAL_LABELS[material]}
             </dt>
             <dd className="text-lg font-semibold tabular-nums">{campaign.materials[material]}</dd>
