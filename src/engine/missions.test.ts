@@ -174,6 +174,44 @@ describe('turnMissions', () => {
     expect(turnMissions(playing({ log: [chose(1, 'thin-the-herd', 3)] })).recorded).toBe(false);
   });
 
+  /** #237: turn 1 offers one mission, so team 1 plays it without choosing it. */
+  describe('on turn 1', () => {
+    const turnOne = (overrides: Partial<Campaign> = {}) =>
+      playing({ turn: 1, assignments: { earl: onTeam(1), carla: onTeam(1) }, ...overrides });
+
+    it('has team 1 playing the First Mission with nothing chosen, named as the team is now', () => {
+      expect(turnMissions(turnOne())).toEqual({
+        choices: [{ team: 1, mission: 'first-mission', names: [earl.name, carla.name] }],
+        skipped: false,
+        recorded: true,
+      });
+      expect(missionsChosen(turnOne())).toBe(true);
+      expect(unresolvedTeams(turnOne())).toEqual([1]);
+    });
+
+    it('has no First Mission while nobody is on team 1', () => {
+      expect(turnMissions(turnOne({ assignments: {} })).choices).toEqual([]);
+      // Team 1's, and nobody else's.
+      expect(turnMissions(turnOne({ assignments: { ruby: onTeam(2) } })).choices).toEqual([]);
+    });
+
+    it('keeps an entry when there is one: choosing again is how a failed one is replayed (R21)', () => {
+      const replay = turnOne({
+        log: [
+          at(1, { kind: 'mission-selected', team: 1, mission: 'first-mission', names: ['Earl'] }),
+        ],
+      });
+
+      expect(turnMissions(replay).choices).toEqual([
+        { team: 1, mission: 'first-mission', names: ['Earl'] },
+      ]);
+    });
+
+    it('is turn 1 alone', () => {
+      expect(turnMissions(turnOne({ turn: 2 })).choices).toEqual([]);
+    });
+  });
+
   /**
    * #236, R1. Select Mission's record named the team as it was *now*, so
    * taking somebody off it after the choice rewrote who the record said went.

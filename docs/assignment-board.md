@@ -109,9 +109,11 @@ is given at that step. "Nothing to do" is always there, because every step draws
 ## Turn 1's First Mission
 
 The First Mission's team is the same board with two lanes, the First Mission and Nothing to do.
-The lane is the team, and its mission (Select Mission's choice) is shown on it, so the team and
-what it plays are in one place rather than two boxes. Once the outcome is recorded, the lane
-becomes a record ([`step-records.md`](step-records.md), R2).
+There is no choice of mission beside it (#237): turn 1 offers the First Mission and nothing else,
+so team 1 plays it without anybody choosing it (`turnMissions`). Its outcome is owed from the
+moment somebody is on the team. A First Mission that met no end condition is played again with one
+press, "Play the First Mission again", which is the one place the choice is still made (R21). Once
+the outcome is recorded, the lane becomes a record ([`step-records.md`](step-records.md), R2).
 
 ## Equipping on the same board
 
@@ -143,7 +145,7 @@ each team, a vehicle card in one of them.
 | | Adds | Engine |
 |---|---|---|
 | **B1** | The board, used by the four Planning steps; `AssignTask` removed from them. *Built (#237).* | none: the same two actions |
-| **B2** | Turn 1's First Mission on the board, the team's mission choice in its lane. *Built with R2 (#237).* | none |
+| **B2** | Turn 1's First Mission on the board. *Built with R2 (#237); its mission choice since removed, turn 1 having one mission.* | none |
 | **B3** | Equip the Mission Team on the board, items as cards. *Built (#237).* | none: the same `EquipMove`s |
 | **B4** | Vehicles on the board. *Built (#237).* | none |
 

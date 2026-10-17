@@ -70,12 +70,8 @@ const listed = (mission: MissionId): string => {
   return label.charAt(0).toUpperCase() + label.slice(1);
 };
 
-/**
- * One team's choice of mission: a form until it is recorded, then a record.
- * Exported for turn 1, where it sits in the First Mission's lane beside the
- * team it is for (`FirstMission`; B2).
- */
-export function TeamChoice({
+/** One team's choice of mission: a form until it is recorded, then a record. */
+function TeamChoice({
   campaign,
   team,
 }: {
@@ -273,10 +269,10 @@ export function TeamChoice({
 export function SelectMission({ campaign }: { readonly campaign: Campaign }) {
   const { dispatch } = useCampaign();
   /*
-   * On turn 1 the team and its mission are one place, the First Mission's
-   * lane (`FirstMission`; B2), so this draws neither the team nor the sentence
-   * about the Planning Phase that assigned it, which on turn 1 has not
-   * happened (#238).
+   * Turn 1 plays the First Mission and nothing else, so there is nothing to
+   * choose (`turnMissions`; #237): this draws neither the team, which is on
+   * the First Mission's board, nor the sentence about the Planning Phase that
+   * assigned it, which on turn 1 has not happened (#238).
    */
   const firstTurn = campaign.turn === FIRST_TURN;
   const teams = firstTurn ? [] : missionTeams(campaign);

@@ -22,9 +22,9 @@
  *
  * **The team is a board, and a form until the mission is played**
  * (`docs/assignment-board.md`, B2; `docs/step-records.md`, R2; #236, #237).
- * Two lanes, the First Mission and Nothing to do, with the team's choice of
- * mission inside the First Mission's lane, so the team and what it plays are
- * in one place. Once its outcome is recorded (`missionPlayed`) the team is a
+ * Two lanes, the First Mission and Nothing to do. There is no choice of
+ * mission beside them: turn 1 offers the First Mission and nothing else, so the
+ * team plays it without anybody choosing it (`turnMissions`; #237). Once its outcome is recorded (`missionPlayed`) the team is a
  * record, and changing it is a deliberate press behind a warning: mission XP
  * and the haul's substitutions read who went.
  */
@@ -33,24 +33,31 @@ import { useState } from 'react';
 import type { Campaign } from '../engine/campaign';
 import { beforePlanning, missionTeam } from '../engine/assignments';
 import { firstBaseOwed } from '../engine/base';
-import { missionPlayed, missionTeams } from '../engine/missions';
+import {
+  FIRST_MISSION_TEAM,
+  missionPlayed,
+  retryOwed,
+  selectionProblem,
+  type MissionChoice,
+} from '../engine/missions';
 import { planningHasBegun } from '../engine/planning';
 import { AssignmentBoard } from './AssignmentBoard';
 import { OpenPanel } from './OpenPanel';
 import { PageRef } from './PageRef';
-import { TeamChoice } from './SelectMission';
-import { FOCUS_RING, SECONDARY_FILL, TOUCH_TARGET } from './styles';
+import { useCampaign } from '../state/useCampaign';
+import { FOCUS_RING, PRIMARY_FILL, SECONDARY_FILL, TOUCH_TARGET } from './styles';
 
 /** The lane's anchor, for Getting started's link to it (#238). */
 export const FIRST_MISSION_LANE = 'first-mission-team';
 
-/** The First Mission is team 1's: turn 1 has no Planning Phase to split it. */
-const TEAM = 1;
+/** Playing a failed First Mission again (R21): the same choice, made again. */
+const replay: MissionChoice = { team: FIRST_MISSION_TEAM, mission: 'first-mission' };
 
 const BUTTON = `${FOCUS_RING} ${TOUCH_TARGET} rounded-lg px-4 py-2 text-sm font-medium`;
 const HINT = 'text-sm text-stone-600 dark:text-stone-400';
 
 export function FirstMission({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
   const [changing, setChanging] = useState(false);
 
   /*
@@ -70,8 +77,7 @@ export function FirstMission({ campaign }: { readonly campaign: Campaign }) {
    */
   const recorded = missionTeam(beforePlanning(campaign));
   const planned = planningHasBegun(campaign);
-  const played = missionPlayed(campaign, TEAM);
-  const team = missionTeams(campaign).find((candidate) => candidate.team === TEAM);
+  const played = missionPlayed(campaign, FIRST_MISSION_TEAM);
 
   const went = (
     <>
@@ -159,27 +165,38 @@ export function FirstMission({ campaign }: { readonly campaign: Campaign }) {
               </button>
             </div>
           )}
+          {/*
+           * A First Mission that met no end condition is played again on turn
+           * 1 (R21). Choosing it again is what reopens its outcome, so this is
+           * the one place the choice is still pressed, now that turn 1 plays
+           * the First Mission without anybody choosing it (#237).
+           */}
+          {retryOwed(campaign, FIRST_MISSION_TEAM) && (
+            <div className="mt-3 flex flex-col items-start gap-2">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                The First Mission met no end condition, so turn 1 plays it again{' '}
+                <PageRef pages={77} />
+              </p>
+              <button
+                type="button"
+                className={`${BUTTON} ${PRIMARY_FILL}`}
+                disabled={selectionProblem(campaign, replay) !== null}
+                onClick={() => {
+                  dispatch({ type: 'mission/selected', ...replay, at: new Date().toISOString() });
+                }}
+              >
+                Play the First Mission again
+              </button>
+            </div>
+          )}
           <AssignmentBoard
             campaign={campaign}
             lanes={[
               {
-                task: { task: 'mission', team: TEAM },
+                task: { task: 'mission', team: FIRST_MISSION_TEAM },
                 name: 'On the First Mission',
                 id: FIRST_MISSION_LANE,
                 pages: 75,
-                /*
-                 * What the team plays, with the team: Select Mission's choice,
-                 * a form until it is recorded and then a record (R1). Only at
-                 * Select Mission, the step that chooses it.
-                 */
-                detail:
-                  campaign.step === 'select-mission' && team !== undefined ? (
-                    <TeamChoice
-                      key={`${String(campaign.turn)}-${String(TEAM)}`}
-                      campaign={campaign}
-                      team={team}
-                    />
-                  ) : undefined,
               },
             ]}
           />
