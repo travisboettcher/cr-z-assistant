@@ -3061,6 +3061,16 @@ describe('what earns a line in the log', () => {
       },
       entry: null,
     },
+    // A correction on the sheet, like the stats above: a trait a story gives is
+    // the story's own entry (Z7-1).
+    'survivor/traitsSet': {
+      action: {
+        type: 'survivor/traitsSet',
+        id: LOGGED_SURVIVOR,
+        traits: { storyTrait: 'jaded', veteran: false, bondGroup: null },
+      },
+      entry: null,
+    },
     'survivor/skillAdded': {
       action: { type: 'survivor/skillAdded', id: LOGGED_SURVIVOR, skill: 'stealth' },
       entry: null,

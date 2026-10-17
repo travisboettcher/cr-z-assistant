@@ -27,6 +27,7 @@ import { FIELD_RECRUITABLE_TIERS } from '../data/recruitTable';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { CAMPAIGN_PHASES, HEALTH_SOURCES, XP_SOURCES } from '../data/turn';
 import type { Assignment, Campaign, Project } from '../engine/campaign';
+import { STORY_TRAITS } from '../data/traits';
 import { LEAVING_CAUSES, RARE_TRADE_LOSSES, type CampaignEventKind } from '../engine/log';
 import { TURN_SEQUENCE } from '../engine/turn';
 import { migrate, type MigrationErrorReason } from './migrations';
@@ -251,6 +252,21 @@ function describeSurvivorProblem(value: unknown): string | null {
   // rather than old: the v15 → v16 step is what fills it in.
   const items = describeItemsProblem(value.items);
   if (items !== null) return `carries a list that ${items}`;
+
+  // Their Story Trait, Veteran and bond group (Z7-1). A bond group only on a
+  // Bonded survivor, since nobody else can be bonded (R84).
+  if (value.storyTrait !== null && !STORY_TRAITS.some((trait) => trait === value.storyTrait)) {
+    return 'has a story trait that isn’t one of the five';
+  }
+  if (typeof value.veteran !== 'boolean') return 'doesn’t say whether they are a Veteran';
+  if (value.bondGroup !== null && !isCountFromOne(value.bondGroup)) {
+    return 'has an unreadable bond group';
+  }
+  if ((value.bondGroup !== null) !== (value.storyTrait === 'bonded')) {
+    return value.bondGroup === null
+      ? 'is Bonded with no bond group'
+      : 'has a bond group without being Bonded';
+  }
 
   return null;
 }

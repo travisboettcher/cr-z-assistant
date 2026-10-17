@@ -26,6 +26,9 @@ const SAMPLE_SURVIVOR = {
   infection: 0,
   xp: 5,
   items: [],
+  storyTrait: null,
+  veteran: false,
+  bondGroup: null,
 } satisfies Survivor;
 
 /**
@@ -721,5 +724,59 @@ describe('the v17 to v18 trades', () => {
 
     expect(ordered.ok && ordered.campaign.trades.map((one) => one.item)).toEqual(['pistol']);
     expect(kept.ok && kept.campaign.trades).toEqual([trade]);
+  });
+});
+
+describe('the v18 to v19 Story Traits', () => {
+  it('brings every earlier survivor forward with no trait, no Veteran and no bond', () => {
+    for (const fixture of fixtures.filter((f) => f.version < 19)) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok) continue;
+
+      for (const survivor of [...result.campaign.survivors, ...result.campaign.setAside]) {
+        expect(
+          {
+            storyTrait: survivor.storyTrait,
+            veteran: survivor.veteran,
+            bondGroup: survivor.bondGroup,
+          },
+          `${fixture.path} ${survivor.name}`,
+        ).toEqual({ storyTrait: null, veteran: false, bondGroup: null });
+      }
+    }
+  });
+
+  it('keeps a v19 save’s own traits', () => {
+    const v19 = fixtures.find((fixture) => fixture.version === 19);
+    const result = migrate(v19?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(
+      result.campaign.survivors.map((one) => [one.storyTrait, one.veteran, one.bondGroup]),
+    ).toEqual([
+      ['driven', true, null],
+      ['bonded', false, 1],
+      ['jaded', false, null],
+      ['bonded', false, 1],
+    ]);
+  });
+
+  it('hands a survivor that is not an object, or a list that is not a list, on untouched', () => {
+    const v18 = fixtures.find((fixture) => fixture.version === 18);
+    const result = migrate({
+      ...(v18?.contents as object),
+      survivors: [null, 7],
+      setAside: 'nobody',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.survivors).toEqual([null, 7]);
+    expect(result.campaign.setAside).toBe('nobody');
   });
 });

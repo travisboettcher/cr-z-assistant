@@ -30,11 +30,12 @@
  */
 
 import { BASES } from '../data/bases';
+import { TIER_RULES } from '../data/tiers';
 import { occupants, staffCapacity, type Occupant } from './base';
 import { exhaustion, planningPenalty } from './feeding';
 import type { Assignment, Campaign, Survivor } from './campaign';
 import { facilityProduction, type ProductionLine } from './production';
-import { labor } from './survivor';
+import { survivorLabor } from './traits';
 
 /**
  * Whether two assignments are the same job.
@@ -239,6 +240,23 @@ export function siegeLaborBonus(campaign: Campaign): number {
 }
 
 /**
+ * What the project team's Story Traits change its Labor by, up or down, for a
+ * caption to name (pg. 88; R89).
+ *
+ * `baseLaborBonus`'s sibling, for the same reason (#143): the captions say "the
+ * summed Tier levels of the project team", and a Bonded pair's doubling or a
+ * Jaded survivor's half is a term the sentence has to account for.
+ */
+export function traitLaborChange(campaign: Campaign): number {
+  const team = projectTeam(campaign);
+
+  return team.reduce(
+    (total, survivor) => total + survivorLabor(survivor, team) - TIER_RULES[survivor.tier].labor,
+    0,
+  );
+}
+
+/**
  * The Labor the project team on the campaign generates (pg. 20).
  *
  * The sum of their Tier levels, plus whatever the base adds, plus a point each
@@ -263,7 +281,9 @@ export function laborPool(campaign: Campaign): number {
  * siege two turns ago included (`siegeLaborShortfall` in `projects.ts`).
  */
 export function laborOf(campaign: Campaign, team: readonly Survivor[], turn: number): number {
-  const generated = team.reduce((total, survivor) => total + labor(survivor), 0);
+  // Each survivor's Labor with their Story Trait applied, which asks who else
+  // is on the team (R89, R134).
+  const generated = team.reduce((total, survivor) => total + survivorLabor(survivor, team), 0);
 
   return generated + siegeReward(campaign, team, turn) + baseLabor(campaign, team.length > 0);
 }

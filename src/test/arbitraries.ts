@@ -25,6 +25,7 @@ import { COMMON_SKILLS, SKILLS, STATS, type Skill } from '../data/skills';
 import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS, type Materials } from '../data/materials';
+import { STORY_TRAITS } from '../data/traits';
 import { EQUIPMENT, GRADES, ITEM_IDS, VEHICLE_TIERS } from '../data/equipment';
 import { OVERRUN_OPTIONS } from '../data/missions';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
@@ -174,19 +175,29 @@ function skillsArbitrary(): fc.Arbitrary<SkillLevels> {
 }
 
 export function survivorArbitrary(): fc.Arbitrary<Survivor> {
-  return fc.record({
-    id: anyId,
-    name: anyName,
-    tier: fc.constantFrom(...TIERS),
-    stats: statsArbitrary(),
-    skills: skillsArbitrary(),
-    move: anyCount,
-    defense: anyCount,
-    currentHp: anyCount,
-    infection: anyCount,
-    xp: anyCount,
-    items: fc.array(itemArbitrary(), { maxLength: 2 }),
-  });
+  return fc
+    .record({
+      id: anyId,
+      name: anyName,
+      tier: fc.constantFrom(...TIERS),
+      stats: statsArbitrary(),
+      skills: skillsArbitrary(),
+      move: anyCount,
+      defense: anyCount,
+      currentHp: anyCount,
+      infection: anyCount,
+      xp: anyCount,
+      items: fc.array(itemArbitrary(), { maxLength: 2 }),
+      storyTrait: fc.constantFrom<Survivor['storyTrait']>(null, ...STORY_TRAITS),
+      veteran: fc.boolean(),
+    })
+    .chain((survivor) =>
+      // A bond group only on a Bonded survivor (R84), so every pairing the file
+      // allows is generated and none it refuses.
+      (survivor.storyTrait === 'bonded' ? fc.integer({ min: 1, max: 3 }) : fc.constant(null)).map(
+        (bondGroup) => ({ ...survivor, bondGroup }),
+      ),
+    );
 }
 
 /** An item in a grade it comes in (Z5-2). */

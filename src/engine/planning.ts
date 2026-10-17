@@ -1,15 +1,19 @@
 /**
  * The Planning Phase — one task each, and the reset that starts it (pg. 20–21).
  *
- * ## Every violation here is a warning, and none is a blocker
+ * ## Every violation here is a warning, but one
  *
  * A blocker is the app having nothing to do: a slot that does not exist, Labor
- * that is not there to spend. Nothing in this module is like that. Resting at
- * full Health, healing with no Clinic, sending an injured survivor on a
- * mission — every one of them is a *rule*, the app can record it perfectly
+ * that is not there to spend. Almost nothing in this module is like that.
+ * Resting at full Health, healing with no Clinic, sending an injured survivor
+ * on a mission — every one of them is a *rule*, the app can record it perfectly
  * well, and a table may be playing it differently or may be part-way through
  * fixing it. So they go behind Z1-7's visible override, which is never stored:
  * the assignment keeps reporting the violation for exactly as long as it holds.
+ *
+ * **The one blocker is a task a survivor's Story Trait forbids** (R93): the
+ * ruling is that the assignment is never offered, so the board's lane refuses
+ * the card and the store refuses the move (`submitAssignment`).
  *
  * ## Whether the reset has run is read off the log
  *
@@ -35,6 +39,8 @@ import type { Check, Violation } from './checks';
 import { missionTeam, survivorsDoing } from './assignments';
 import { incapacitatedByInfection, maxHp } from './survivor';
 import { need } from './healing';
+import { STORY_TRAIT_RULES, type StoryTrait } from '../data/traits';
+import { forbiddenBy, missionWhileWounded } from './traits';
 
 export type PlanningViolationCode =
   | 'nothing-in-slot'
@@ -47,7 +53,8 @@ export type PlanningViolationCode =
   | 'incapacitated-on-a-mission'
   | 'a-second-hero-on-one-mission'
   | 'someone-else-scavenging'
-  | 'scavenging-needs-the-mission-skipped';
+  | 'scavenging-needs-the-mission-skipped'
+  | 'forbidden-by-trait';
 
 export type PlanningViolation = Violation<PlanningViolationCode>;
 
@@ -154,7 +161,29 @@ export function checkAssignment(
 
   if (survivor === undefined) return { blockers: [], warnings: [] };
 
-  return { blockers: [], warnings: warningsFor(campaign, survivor, assignment) };
+  return {
+    blockers: blockersFor(survivor, assignment),
+    warnings: warningsFor(campaign, survivor, assignment),
+  };
+}
+
+/** What each trait that forbids tasks says about them (R93). */
+const FORBIDDEN_BY: Partial<Record<StoryTrait, string>> = {
+  berserk: 'A Berserk survivor only rests, heals or goes on a mission.',
+};
+
+/** A task the survivor's Story Trait forbids, the one blocker (R93). */
+function blockersFor(survivor: Survivor, assignment: Assignment): readonly PlanningViolation[] {
+  const trait = forbiddenBy(survivor, assignment.task);
+  if (trait === undefined) return [];
+
+  return [
+    {
+      code: 'forbidden-by-trait',
+      message: FORBIDDEN_BY[trait] ?? 'Their Story Trait forbids this task.',
+      pages: STORY_TRAIT_RULES[trait].pages,
+    },
+  ];
 }
 
 /**
@@ -308,7 +337,8 @@ function missionWarnings(
 ): readonly PlanningViolation[] {
   const warnings: PlanningViolation[] = [];
 
-  if (isInjured(survivor)) {
+  // Jaded may go out wounded, R12's one exception (R93).
+  if (isInjured(survivor) && !missionWhileWounded(survivor)) {
     warnings.push({
       code: 'injured-on-a-mission',
       message: 'Injured survivors can’t be sent on a mission.',

@@ -61,7 +61,11 @@ export function AssignTask({ campaign, task, legend, pages }: AssignTaskProps) {
             const current = campaign.assignments[survivor.id];
             const here = current !== undefined && sameTask(current, task);
             const elsewhere = current !== undefined && !here ? taskLabel(current) : null;
-            const { warnings } = checkAssignment(campaign, survivor.id, task);
+            // A task their Story Trait forbids is refused (R93): the box can't
+            // be ticked, and the reason is said like a warning.
+            const { blockers, warnings: cautions } = checkAssignment(campaign, survivor.id, task);
+            const warnings = [...blockers, ...cautions];
+            const refused = blockers.length > 0 && !here;
 
             return (
               <li key={survivor.id}>
@@ -69,6 +73,7 @@ export function AssignTask({ campaign, task, legend, pages }: AssignTaskProps) {
                   <input
                     type="checkbox"
                     checked={here}
+                    disabled={refused}
                     onChange={() => {
                       dispatch(
                         here

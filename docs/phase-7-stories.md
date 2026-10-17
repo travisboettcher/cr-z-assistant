@@ -141,6 +141,28 @@ nothing records one.
 - A Berserk survivor's card shows a grey zone, naming Berserk, on every facility lane and the
   project team's, and nothing to press there.
 
+**What this story turned out to include.**
+- **Three more rulings, decided 2026-10-17**: Berserk's point is maximum Health while held, and
+  Health above the new maximum drops when it goes (R133); Bonded doubles only with a bondmate of the
+  same group (R134); Driven leaves every stat tied for the highest alone (R135).
+- **Schema v19 adds `storyTrait`, `veteran` and `bondGroup` to every survivor**, set aside ones
+  included. The save refuses a bond group on anybody but a Bonded survivor, and a Bonded survivor
+  without one. Attached stories join v19 with Z7-2.
+- **Each effect is applied where its number is worked out** (`traits.ts`): `survivorLabor` in
+  `laborOf`, `need` in Heal Wounds, `maxHp`, and `statValue`. Every screen reading those reads the
+  trait too, and the two Labor captions name what the traits add or take (`traitLaborChange`), as
+  they already named the base's and a clean siege's share (#143).
+- **Jaded's cap is in `need`**, which the Clinic's share and resting both measure against. A
+  survivor rests or is healed, never both (one task each), so in Z7-1 a turn's Health reaches them
+  from one place. The Veteran's points (Z7-2) are the next source R90 has to count.
+- **The Planning Phase's first blocker.** A task a trait forbids is refused by
+  `checkAssignment` and by `assignment/set` itself (`submitAssignment`), so no screen can put a
+  Berserk survivor on a facility, the project team or scavenging. The board shows the grey zone, and
+  the slot card's checkbox is disabled with the same reason. Jaded's wounded mission team member
+  gets no warning.
+- **A hand edit is not logged**, as no other correction on the sheet is (stats, Health, XP). A
+  trait a story gives is the story's own entry, in Z7-3.
+
 ### Z7-2 — Promotion attaches a story, or makes a Veteran
 
 **Why:** Promotion is where a survivor's story begins (pg. 87).

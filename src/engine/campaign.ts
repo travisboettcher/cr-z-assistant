@@ -18,6 +18,7 @@ import type { BaseId } from '../data/bases';
 import type { Grade, ItemId, VehicleTier } from '../data/equipment';
 import type { Cost, FacilityId, UpgradeId } from '../data/facilities';
 import type { Materials } from '../data/materials';
+import type { StoryTrait } from '../data/traits';
 import type { CampaignOrigin } from '../data/origins';
 import type { D10Result } from '../data/dice';
 import type { Skill, Stat } from '../data/skills';
@@ -34,7 +35,7 @@ import type { LogEntry } from './log';
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 18;
+export const CURRENT_SCHEMA_VERSION = 19;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -112,6 +113,27 @@ export interface Survivor {
    * Empty for every survivor in a save from before v16.
    */
   items: readonly Item[];
+
+  /**
+   * The Story Trait held, or `null` (pg. 88; R84; Z7-1). One at a time: a new
+   * one replaces it (R85). `null` for every survivor in a save from before
+   * v19, and for anybody a story has not reached.
+   */
+  storyTrait: StoryTrait | null;
+
+  /**
+   * A Veteran, which a Tier 3 becomes on promotion to Hero and keeps beside any
+   * story trait (pp. 87–88; R85). Apart from `storyTrait` for that reason.
+   */
+  veteran: boolean;
+
+  /**
+   * The bond group a Bonded survivor belongs to, counted from 1, or `null`
+   * (pp. 88, 90–91; R84). Bondmates share a group, and only a Bonded survivor
+   * has one: losing the trait loses the bond, since the book bonds nobody who
+   * lacks it.
+   */
+  bondGroup: number | null;
 }
 
 /**

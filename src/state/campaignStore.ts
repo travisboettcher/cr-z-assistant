@@ -67,6 +67,7 @@ import {
 import type { MissionOutcome } from '../engine/missions';
 import type { EquipMove } from '../engine/equip';
 import type { MissionDeath } from '../engine/missionDeaths';
+import type { SurvivorTraits } from '../engine/traits';
 import type { BuildOrder } from '../engine/making';
 import type { RareItemRoll } from '../engine/finding';
 import { withEquipmentHandedOver } from '../engine/handover';
@@ -105,6 +106,8 @@ import {
   submitReturn,
   submitStartingCommunity,
   submitStrangerJoined,
+  submitAssignment,
+  submitTraitsSet,
 } from '../engine/campaignForms';
 import { withoutAssignment } from '../engine/assignments';
 import type { FormResult } from '../engine/forms';
@@ -298,6 +301,8 @@ export type CampaignAction =
    * between the halves with a stat array the Tier never hands out.
    */
   | { readonly type: 'survivor/statsSet'; readonly id: string; readonly stats: Stats }
+  /** A survivor's Story Trait, Veteran and bond group, set on their sheet (R84; Z7-1). */
+  | { readonly type: 'survivor/traitsSet'; readonly id: string; readonly traits: SurvivorTraits }
   /** Take a skill, at level 0 — skills all start there (pg. 8). */
   | { readonly type: 'survivor/skillAdded'; readonly id: string; readonly skill: Skill }
   | { readonly type: 'survivor/skillRemoved'; readonly id: string; readonly skill: Skill }
@@ -847,6 +852,9 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
     case 'survivor/statsSet':
       return editSurvivor(state, action.id, (survivor) => ({ ...survivor, stats: action.stats }));
 
+    case 'survivor/traitsSet':
+      return submitted(state, (campaign) => submitTraitsSet(campaign, action.id, action.traits));
+
     case 'survivor/skillAdded':
       return submitted(state, (campaign) =>
         submitNewSkill(campaign, { survivor: action.id, skill: action.skill }),
@@ -1232,10 +1240,9 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       });
 
     case 'assignment/set':
-      return withCampaign(state, (campaign) => ({
-        ...campaign,
-        assignments: { ...campaign.assignments, [action.survivor]: action.assignment },
-      }));
+      return submitted(state, (campaign) =>
+        submitAssignment(campaign, action.survivor, action.assignment),
+      );
 
     case 'assignment/cleared':
       return withCampaign(state, (campaign) => ({

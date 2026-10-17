@@ -111,9 +111,13 @@ describe('Survivor', () => {
       infection: 0,
       xp: 5,
       items: [],
+      storyTrait: null,
+      veteran: false,
+      bondGroup: null,
     } satisfies Survivor;
 
     expect(Object.keys(survivor).sort()).toEqual([
+      'bondGroup',
       'currentHp',
       'defense',
       'id',
@@ -123,7 +127,9 @@ describe('Survivor', () => {
       'name',
       'skills',
       'stats',
+      'storyTrait',
       'tier',
+      'veteran',
       'xp',
     ]);
   });
@@ -146,6 +152,9 @@ describe('Survivor', () => {
       infection: 0,
       xp: 0,
       items: [],
+      storyTrait: null,
+      veteran: false,
+      bondGroup: null,
     } satisfies Survivor;
 
     expect(Object.keys(rookie.skills)).toEqual(['handguns']);

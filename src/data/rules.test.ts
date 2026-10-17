@@ -35,6 +35,7 @@ import {
   type UpgradeId,
 } from './facilities';
 import { CAMPAIGN_ORIGINS } from './origins';
+import { STORY_TRAITS, STORY_TRAIT_RULES } from './traits';
 import { MATERIALS } from './materials';
 import {
   CAMPAIGN_PHASES,
@@ -1129,5 +1130,24 @@ describe('the equipment catalogue (pp. 37–53)', () => {
       3: { inventory: 10, passengers: 6 },
       4: { total: 20 },
     });
+  });
+});
+
+describe('the Story Traits (pg. 88)', () => {
+  it('lists the five a survivor holds one of, Veteran apart', () => {
+    expect(STORY_TRAITS).toEqual(['bonded', 'jaded', 'berserk', 'lone-wolf', 'driven']);
+    expect(Object.keys(STORY_TRAIT_RULES)).toEqual([...STORY_TRAITS]);
+  });
+
+  it('keeps Berserk to resting, healing and missions (R93)', () => {
+    expect(STORY_TRAIT_RULES.berserk.onlyTasks).toEqual(['rest', 'healing', 'mission']);
+  });
+
+  it('carries the numbers pg. 88 prints', () => {
+    expect(STORY_TRAIT_RULES.bonded.laborMultiplier).toBe(2);
+    expect(STORY_TRAIT_RULES.jaded).toMatchObject({ laborMultiplier: 0.5, healthPerTurn: 1 });
+    expect(STORY_TRAIT_RULES.berserk.maxHealth).toBe(1);
+    expect(STORY_TRAIT_RULES['lone-wolf'].laborAlone).toBe(2);
+    expect(STORY_TRAIT_RULES.driven.belowHighestStats).toBe(1);
   });
 });

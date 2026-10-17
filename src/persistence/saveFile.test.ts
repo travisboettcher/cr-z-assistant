@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import currentFixture from './__fixtures__/campaign-v18.json';
+import currentFixture from './__fixtures__/campaign-v19.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -20,6 +20,9 @@ const VALID_SURVIVOR = {
   infection: 0,
   xp: 5,
   items: [],
+  storyTrait: null,
+  veteran: false,
+  bondGroup: null,
 };
 
 /**
@@ -706,6 +709,14 @@ describe('a survivor whose fields are the wrong type', () => {
     ['a fractional health', { currentHp: 1.5 }],
     ['a fractional infection', { infection: 0.5 }],
     ['a negative experience balance', { xp: -5 }],
+    // Story Traits (Z7-1): one of the five, a yes-or-no Veteran, and a bond
+    // group on a Bonded survivor and nobody else (R84).
+    ['a story trait that isn’t one of the five', { storyTrait: 'veteran' }],
+    ['a missing story trait', { storyTrait: undefined }],
+    ['a Veteran that isn’t yes or no', { veteran: 'yes' }],
+    ['a bond group of 0', { storyTrait: 'bonded', bondGroup: 0 }],
+    ['a Bonded survivor with no bond group', { storyTrait: 'bonded', bondGroup: null }],
+    ['a bond group without the trait', { storyTrait: 'jaded', bondGroup: 1 }],
   ])('refuses %s', (_label, overrides) => {
     const result = withSurvivor(overrides);
 
@@ -728,6 +739,13 @@ describe('a survivor whose fields are the wrong type', () => {
     });
 
     expect(result.ok).toBe(true);
+  });
+
+  it('accepts every story trait, a Veteran, and a Bonded survivor’s group', () => {
+    for (const storyTrait of ['jaded', 'berserk', 'lone-wolf', 'driven']) {
+      expect(withSurvivor({ storyTrait, veteran: true }).ok, storyTrait).toBe(true);
+    }
+    expect(withSurvivor({ storyTrait: 'bonded', bondGroup: 2 }).ok).toBe(true);
   });
 });
 
@@ -1476,6 +1494,9 @@ describe('a campaign whose assignments are damaged', () => {
       infection: 0,
       xp: 0,
       items: [],
+      storyTrait: null,
+      veteran: false,
+      bondGroup: null,
     },
   ];
 

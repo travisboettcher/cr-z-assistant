@@ -488,6 +488,36 @@ const tradesRecorded: MigrationStep = {
   }),
 };
 
+/**
+ * v18 → v19: a survivor's Story Trait, Veteran and bond group (pg. 88; R84;
+ * Z7-1).
+ *
+ * **None, everywhere, and that is the truth.** A v18 build had no traits, so
+ * no v18 survivor holds one it could lose: a table that kept them on paper
+ * sets them on each survivor's sheet once. Both lists, as v15 → v16 reached
+ * both, and defensive about what it reads in the same way.
+ */
+const storyTraitsRecorded: MigrationStep = {
+  from: 18,
+  to: 19,
+  up: (previous) => {
+    const withTraits = (list: unknown): unknown =>
+      Array.isArray(list)
+        ? (list as unknown[]).map((survivor) =>
+            typeof survivor === 'object' && survivor !== null && !('storyTrait' in survivor)
+              ? { ...survivor, storyTrait: null, veteran: false, bondGroup: null }
+              : survivor,
+          )
+        : list;
+
+    return {
+      ...previous,
+      survivors: withTraits(previous.survivors),
+      setAside: withTraits(previous.setAside),
+    };
+  },
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -507,6 +537,7 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   itemsRecorded,
   rareBecameRolls,
   tradesRecorded,
+  storyTraitsRecorded,
 ];
 
 /** Why a save could not be brought forward. */

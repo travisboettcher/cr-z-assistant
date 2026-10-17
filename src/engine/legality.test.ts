@@ -29,6 +29,9 @@ const EARL = {
   infection: 0,
   xp: 0,
   items: [],
+  storyTrait: null,
+  veteran: false,
+  bondGroup: null,
 } satisfies Survivor;
 
 const codes = (survivor: Survivor) => survivorViolations(survivor).map((v) => v.code);

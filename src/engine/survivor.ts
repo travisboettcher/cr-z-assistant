@@ -28,6 +28,7 @@ import {
 import { TIER_RULES, type Tier } from '../data/tiers';
 import type { Stats, Survivor } from './campaign';
 import { itemCap, itemInventorySlots, itemTerm } from './equipment';
+import { traitMaxHealth, traitStatBonus } from './traits';
 
 /**
  * A skill's level added to its governing stat (pg. 8), or **null when the
@@ -75,12 +76,15 @@ export function skillScore(survivor: Survivor, skill: Skill, penalty: number): n
  * contemplates. See R1 in `docs/rulings.md`.
  */
 export function statValue(survivor: Survivor, stat: Stat, penalty: number): number {
-  return Math.max(0, survivor.stats[stat] - penalty);
+  // Driven's +1 before the penalty, since it is part of the stat the hunger
+  // takes from (R135).
+  return Math.max(0, survivor.stats[stat] + traitStatBonus(survivor, stat) - penalty);
 }
 
 /** Health points (pg. 7). */
 export function maxHp(survivor: Survivor): number {
-  return TIER_RULES[survivor.tier].maxHp;
+  // And Berserk's 1 while it is held (R133).
+  return TIER_RULES[survivor.tier].maxHp + traitMaxHealth(survivor);
 }
 
 /**
@@ -126,7 +130,11 @@ export function isDown(survivor: Survivor): boolean {
   return outOfHealth(survivor) || incapacitatedByInfection(survivor);
 }
 
-/** Labor contributed to a project team (pg. 7); the pool is its total (pg. 20). */
+/**
+ * A Tier's Labor (pg. 7), before any Story Trait. What a survivor gives a
+ * project team is `survivorLabor`'s, which applies R89; the pool is its total
+ * (pg. 20).
+ */
 export function labor(survivor: Survivor): number {
   return TIER_RULES[survivor.tier].labor;
 }
@@ -260,5 +268,8 @@ export function createSurvivor(
     // Nothing carried: a new survivor's shoddy gear is chosen when they are
     // first equipped for a mission (pp. 13–14, 18; R35).
     items: [],
+    storyTrait: null,
+    veteran: false,
+    bondGroup: null,
   };
 }

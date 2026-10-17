@@ -2358,3 +2358,46 @@ after, Viral Mission 2 repeats with one held zombie each time
 team member has 4 or more Madness, and the Magic missions repeat as printed.**
 
 *Decided 2026-10-17 from the batch-20 extract.*
+
+---
+
+## R133 — Berserk's Health is one more maximum while it is held
+
+**pg. 88; Phase 7, Z7-1.** Berserk gives a survivor one more Health point between missions (pg. 88).
+The book does not say whether that is a lasting point of maximum Health or a single point healed.
+
+**The ruling is that a Berserk survivor's maximum Health is their Tier plus 1 for as long as they hold
+the trait.** When it is replaced, Health above the new maximum drops to it.
+
+**What it costs.** Read as one point healed, a Berserk survivor is no harder to bring down than
+anybody else of their Tier.
+
+*Decided 2026-10-17 with Z7-1.*
+
+---
+
+## R134 — Bonded doubles Labor with a bondmate on the team
+
+**pp. 88, 90–91; Phase 7, Z7-1.** Bonded doubles Labor when two or more bonded survivors are on the
+project team (pg. 88), and bonds are groups of bondmates (pp. 90–91;
+[R84](#r84--what-a-survivors-sheet-records-for-traits)). The book does not say whether two Bonded
+survivors of different groups count.
+
+**The ruling is that a Bonded survivor's Labor doubles when somebody of their own bond group is on
+the team with them.** Two Bonded survivors of different groups double nothing. This is the
+"two or more bonded" of [R89](#r89--the-order-a-survivors-labor-is-worked-out-in)'s fourth step.
+
+*Decided 2026-10-17 with Z7-1.*
+
+---
+
+## R135 — Driven leaves every stat tied for the highest alone
+
+**pg. 88; Phase 7, Z7-1.** Driven raises every stat but the highest by 1 (pg. 88). Every Tier's stat
+array has a single highest value (pg. 7), so a tie at the top arises only on a survivor whose stats
+were edited past the rules, and the book does not cover it.
+
+**The ruling is that every stat tied for the highest stays as it is**, and the rest rise by 1.
+Nothing is chosen or stored: Driven is worked out from the stats each time they are read.
+
+*Decided 2026-10-17 with Z7-1.*

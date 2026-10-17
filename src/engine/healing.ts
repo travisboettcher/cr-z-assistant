@@ -49,6 +49,7 @@ import type { Check, Violation } from './checks';
 import { facilityProduction } from './production';
 import { hungerPenalty } from './feeding';
 import { maxHp } from './survivor';
+import { healthPerTurn } from './traits';
 
 export type HealingViolationCode =
   'health-going-spare' | 'nothing-to-share' | 'more-than-one-resting';
@@ -108,11 +109,17 @@ export function room(survivor: Survivor): number {
  * 3 of 4 with the same Infection may put every point they take on it, which is
  * how the Clinic helps somebody down on Infection with Health left (R18).
  * Everywhere else Infection is 0 and this is `room`.
+ *
+ * **Never past a trait's cap for the turn**: a Jaded survivor takes 1 Health a
+ * turn from every source together (R90), and a point spent on Infection is one
+ * of them (R102).
  */
 export function need(survivor: Survivor): number {
   const wound = room(survivor);
+  const wanted = wound > 0 ? wound + Math.max(0, survivor.infection) : 0;
+  const cap = healthPerTurn(survivor);
 
-  return wound > 0 ? wound + Math.max(0, survivor.infection) : 0;
+  return cap === undefined ? wanted : Math.min(wanted, cap);
 }
 
 /**
@@ -250,15 +257,16 @@ export function sharedEqually(
   survivors: readonly Survivor[],
   pool: number,
 ): readonly HealthAward[] {
-  const filling = survivors.map((survivor) => ({ survivor, health: 0 }));
-  const rounds = filling.reduce((deepest, each) => Math.max(deepest, need(each.survivor)), 0);
+  // What each can take, a Jaded survivor 1 of it (R90).
+  const filling = survivors.map((survivor) => ({ survivor, health: 0, wants: need(survivor) }));
+  const rounds = filling.reduce((deepest, each) => Math.max(deepest, each.wants), 0);
 
   let left = pool;
 
   for (let round = 0; round < rounds; round += 1) {
     for (const each of filling) {
       if (left <= 0) break;
-      if (each.health >= need(each.survivor)) continue;
+      if (each.health >= each.wants) continue;
 
       each.health += 1;
       left -= 1;
@@ -278,6 +286,8 @@ export function sharedEqually(
  * telling half the turn.
  */
 export function healthAwards(campaign: Campaign): readonly HealthAward[] {
+  // A survivor rests or is healed, never both (one task each, pg. 20), so a
+  // Jaded survivor's 1 a turn (R90) holds within whichever it is, through `need`.
   const shared = sharedEqually(beingHealed(campaign), healingPool(campaign));
 
   // A rested point is a Health point the survivor receives like any other: it

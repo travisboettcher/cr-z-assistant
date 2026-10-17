@@ -55,6 +55,10 @@ function playableSurvivorArbitrary(): fc.Arbitrary<Survivor> {
     infection: fc.integer({ min: 0, max: 10 }),
     xp: fc.integer({ min: 0, max: 40 }),
     items: fc.constant([]),
+    // Nothing in advancement reads a story trait yet.
+    storyTrait: fc.constant(null),
+    veteran: fc.constant(false),
+    bondGroup: fc.constant(null),
   });
 }
 

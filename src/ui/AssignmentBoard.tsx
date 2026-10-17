@@ -34,7 +34,7 @@ import { maxHp } from '../engine/survivor';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
 import { taskLabel } from './taskLabels';
-import { BoardCard, BoardColumns, CardRow, DropZone, LaneFrame } from './Board';
+import { BoardCard, BoardColumns, CardRow, DropZone, LaneFrame, RefusedZone } from './Board';
 import { BOARD_DROP } from './styles';
 
 /** A place a card can go on this step. */
@@ -111,8 +111,10 @@ export function AssignmentBoard({ campaign, lanes }: AssignmentBoardProps) {
 
   /**
    * Where the picked card can go, and what moving it there would warn about.
-   * The Planning Phase refuses nothing (Z3-6), so every lane but its own offers
-   * the move, and a warning shows in the zone before the press.
+   * The Planning Phase refuses one thing, a task the survivor's Story Trait
+   * forbids (R93): that lane is grey, with the reason. Every other lane but the
+   * card's own offers the move, and a warning shows in the zone before the
+   * press.
    */
   const target = (task: Assignment | null) => {
     if (mover === undefined) return null;
@@ -121,7 +123,21 @@ export function AssignmentBoard({ campaign, lanes }: AssignmentBoardProps) {
       task === null ? current === undefined : current !== undefined && sameTask(current, task);
     if (here) return null;
 
-    const warnings = task === null ? [] : checkAssignment(campaign, mover.id, task).warnings;
+    const check =
+      task === null ? { blockers: [], warnings: [] } : checkAssignment(campaign, mover.id, task);
+    if (check.blockers.length > 0) {
+      return (
+        <RefusedZone
+          reasons={check.blockers.map((blocker) => ({
+            key: blocker.code,
+            message: blocker.message,
+            pages: blocker.pages,
+          }))}
+        />
+      );
+    }
+
+    const warnings = check.warnings;
     return (
       <DropZone
         warnings={warnings.map((warning) => ({
@@ -187,13 +203,16 @@ export function AssignmentBoard({ campaign, lanes }: AssignmentBoardProps) {
               {lane.detail}
               <CardRow empty="Nobody yet.">{members.map((member) => card(member))}</CardRow>
               {/* What is wrong with whoever is here now, from the same check. */}
-              {members.flatMap((member) =>
-                checkAssignment(campaign, member.id, lane.task).warnings.map((warning) => (
+              {members.flatMap((member) => {
+                // A survivor already here whom a trait now forbids it (R93)
+                // is said about too, though nothing moves them out.
+                const check = checkAssignment(campaign, member.id, lane.task);
+                return [...check.blockers, ...check.warnings].map((warning) => (
                   <p key={`${member.id}:${warning.code}`} className={`mt-1 ${WARNING}`}>
                     {member.name}: {warning.message} <PageRef pages={warning.pages} />
                   </p>
-                )),
-              )}
+                ));
+              })}
               {target(lane.task)}
             </LaneFrame>
           );

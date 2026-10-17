@@ -26,6 +26,9 @@ const CARLA = {
   infection: 0,
   xp: 20,
   items: [],
+  storyTrait: null,
+  veteran: false,
+  bondGroup: null,
 } satisfies Survivor;
 
 /** A Tier 2 Citizen with the 2 deliberately not in the first stat. */
@@ -41,6 +44,9 @@ const MARCUS = {
   infection: 0,
   xp: 20,
   items: [],
+  storyTrait: null,
+  veteran: false,
+  bondGroup: null,
 } satisfies Survivor;
 
 /** A Rookie's 1/0/0/0, with the point on Intelligence: three zeros to choose from. */

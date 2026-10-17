@@ -18,14 +18,19 @@ import type { FieldRecruitTier } from '../data/recruitTable';
 import type { Tier } from '../data/tiers';
 import { withoutAssignment } from './assignments';
 import { storageCaps } from './base';
-import type { Campaign, Item, RareTrade, Survivor, Vehicle } from './campaign';
+import type { Assignment, Campaign, Item, RareTrade, Survivor, Vehicle } from './campaign';
 import { idTaken, newItemProblem, removalProblem, type NewItem } from './equipment';
 import { rareItemFor, type RareItemRoll } from './finding';
 import { turnoutGear, withEquipmentHandedOver } from './handover';
 import { accepted, blockedBy, refused, type Accepted, type FormResult } from './forms';
 import { logged } from './log';
 import { buildCheck, buildCost, withItemBuilt, type BuildCost, type BuildOrder } from './making';
-import { FIRST_PLANNING_STEP, planningHasBegun, withPlanningReset } from './planning';
+import {
+  checkAssignment,
+  FIRST_PLANNING_STEP,
+  planningHasBegun,
+  withPlanningReset,
+} from './planning';
 import { deployed } from './missions';
 import { siegeDue } from './siege';
 import { rareTradeCheck, withRareTradeMade, type RareTradePick } from './rareTrade';
@@ -50,6 +55,7 @@ import {
   type StrangerForm,
 } from './strangers';
 import { createSurvivor, recruitSurvivor } from './survivor';
+import { traitsProblem, withTraits, type SurvivorTraits } from './traits';
 import { advance, type AdvanceBy } from './turn';
 import { suppliedOccupants } from './utilities';
 
@@ -668,4 +674,51 @@ export function submitRareItemRolled(
       entry: roll.entry,
     }),
   );
+}
+
+/**
+ * Give a survivor a task (pp. 20–21; Z3-4). No entry: what is worth recording
+ * is the Planning Phase the table settled on, not each move on the way there.
+ *
+ * Refused only for a task the survivor's Story Trait forbids (R93), the
+ * Planning Phase's one blocker. Its warnings are on the screen and the move is
+ * the override, as they always were.
+ */
+export function submitAssignment(
+  campaign: Campaign,
+  survivor: string,
+  assignment: Assignment,
+): FormResult {
+  const problem = blockedBy(checkAssignment(campaign, survivor, assignment));
+  if (problem !== null) return refused(problem);
+
+  return accepted({
+    ...campaign,
+    assignments: { ...campaign.assignments, [survivor]: assignment },
+  });
+}
+
+/**
+ * Set a survivor's Story Trait, Veteran and bond group by hand, on their sheet
+ * (pg. 88; R84, R85; Z7-1): for a campaign brought in part-way, or a
+ * correction. No entry, as no other edit on the sheet has one; a trait a story
+ * gives is the story's to record.
+ */
+export function submitTraitsSet(
+  campaign: Campaign,
+  survivor: string,
+  traits: SurvivorTraits,
+): FormResult {
+  const held = campaign.survivors.find((candidate) => candidate.id === survivor);
+  if (held === undefined) return refused('Only somebody in the community has traits set.');
+
+  const problem = traitsProblem(traits);
+  if (problem !== null) return refused(problem);
+
+  return accepted({
+    ...campaign,
+    survivors: campaign.survivors.map((candidate) =>
+      candidate.id === survivor ? withTraits(candidate, traits) : candidate,
+    ),
+  });
 }

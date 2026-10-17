@@ -94,6 +94,9 @@ function orderedSurvivor(survivor: Survivor): Record<keyof Survivor, unknown> {
     infection: survivor.infection,
     xp: survivor.xp,
     items: survivor.items.map(orderedItem),
+    storyTrait: survivor.storyTrait,
+    veteran: survivor.veteran,
+    bondGroup: survivor.bondGroup,
   };
 }
 
