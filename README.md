@@ -24,7 +24,8 @@ edition renamed, and the rules recorded for later phases.
 
 ## What works today
 
-Phases 0 to 3 — a campaign you can actually play the Community Layer of, turn by turn.
+Phases 0 to 5 — a campaign you can play the Community Layer of, turn by turn, with its missions'
+outcomes and the community's equipment.
 
 - **Saving** (Phase 0). Export writes a readable, stably-ordered `.json`; that is the durable
   save. Import reads one back with a real message for every way a file can be wrong. Autosave
@@ -40,9 +41,21 @@ Phases 0 to 3 — a campaign you can actually play the Community Layer of, turn 
   assignments, projects and Labor, XP, materials and substitutions, healing, feeding, Unrest, the
   horde and departures.
 
-Missions and equipment are later phases. Each phase's breakdown is in `docs/` —
-[Phase 0](docs/phase-0-stories.md), [Phase 1](docs/phase-1-stories.md),
-[Phase 2](docs/phase-2-stories.md), [Phase 3](docs/phase-3-stories.md).
+- **Missions** (Phase 4). Each team chooses from the catalogue at Select Mission, and records how
+  its mission ended, its wounds, the strangers it found and the materials it carried off. The
+  tracker does not play the mission itself.
+- **Equipment** (Phase 5). The book's items as a catalogue, the base's Inventory, what each survivor
+  carries, building, the Rare Item Table, trading, and vehicles taken on missions.
+
+Still to come: **Phase 7**, traits and origins
+([scoped](docs/phase-7-stories.md)), and **Phase 8**, undo and a markdown export of the log.
+**Phase 6**, a mission companion (a round counter, an activation checklist, a zombie count, a Noise
+reference and the mission's end conditions as a checklist), is deferred.
+
+Each phase's breakdown is in `docs/`: [Phase 0](docs/phase-0-stories.md),
+[Phase 1](docs/phase-1-stories.md), [Phase 2](docs/phase-2-stories.md),
+[Phase 3](docs/phase-3-stories.md), [Phase 4](docs/phase-4-stories.md),
+[Phase 5](docs/phase-5-stories.md), [Phase 7](docs/phase-7-stories.md).
 
 ## Running it
 

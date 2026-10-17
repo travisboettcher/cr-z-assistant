@@ -66,9 +66,9 @@ Phase 5 explicitly does **not** include:
 - **The optional Apocalypse Toolkit** (pp. 169–176): weapon parts, ammunition, attachments' costs,
   and the Gunsmith producing Ammunition. A later module if ever.
 - **The optional Road Trip chapter** (pp. 155–167), whose storage is its vehicles' slots.
-- **Spells and the Veil** (pp. 44, 48, 128), which are the Magic origin's and Phase 7's. Magic and
+- **Spells and the Veil** (pp. 44, 48, 126), which are the Magic origin's and Phase 7's. Magic and
   Cosmic items are in the catalogue, tagged by origin; what their effects do is Phase 7's.
-- **Inoculation's** campaign-level effect (pp. 48, 142), which is Phase 7's Rot Resistant trait.
+- **Inoculation's** campaign-level effect (pp. 48, 140), which is Phase 7's Rot Resistant trait.
 
 ## What the book settles
 
