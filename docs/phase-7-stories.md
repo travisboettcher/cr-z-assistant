@@ -55,8 +55,9 @@ book, cited by page.
    What is stored is the trait, the counter and the story attached.
 4. **The log only grows.** Every trait given, story attached and counter changed is an entry.
 5. **A step is a form until it is recorded** ([`step-records.md`](step-records.md)), and assignment
-   is the board's ([`assignment-board.md`](assignment-board.md)). A trait that forbids an assignment
-   keeps the card out of the lane rather than warning after it lands.
+   is the board's ([`assignment-board.md`](assignment-board.md)). A lane a survivor's traits forbid
+   is a lane that refuses the card: it shows the grey zone with the reason, never a warning after
+   the card lands.
 
 ## Scope boundary
 
@@ -130,13 +131,15 @@ nothing records one.
 - Their effects where the numbers are worked out: Labor in R89's order (Bonded, Jaded, Lone Wolf);
   Jaded's 1 Health a turn from every source (R90); Berserk's +1 Health; Driven's +1 to every stat
   but the highest.
-- Assignments a trait forbids are never offered (R93): Berserk only resting, healing or a mission
-  team; Jaded may join a mission team while wounded.
+- Assignments a trait forbids are never offered (R93): the lanes refuse the card, with the trait
+  as the reason. Berserk only rests, heals or joins a mission team; Jaded may join a mission team
+  while wounded.
 
 **Acceptance**
 - Two Bonded survivors on a project team produce twice their Labor; a Jaded one half, rounded up.
 - A Jaded survivor in a Clinic takes 1 point, and the next point goes to somebody else.
-- A Berserk survivor's card cannot be put on a facility or the project team.
+- A Berserk survivor's card shows a grey zone, naming Berserk, on every facility lane and the
+  project team's, and nothing to press there.
 
 ### Z7-2 — Promotion attaches a story, or makes a Veteran
 
@@ -159,7 +162,8 @@ nothing records one.
 
 **Scope**
 - Select Mission offers a story only to a team its survivor is on (R116), and the next part of an
-  arc once the last is done (Left Behind 2a or 2b, Prepper's Stash 2, Warehouse).
+  arc once the last is done (Left Behind 2a or 2b, Prepper's Stash 2, Warehouse). Turn 1 is
+  unchanged: it plays the First Mission without a choice (`turnMissions`).
 - Each story's outcome as its own record, replacing `mission-played` for stories: the end it met and
   what it gave, in the shapes the rewards need (a trait, XP, an item, a survivor, a story attached
   to somebody).
