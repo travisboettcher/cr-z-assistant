@@ -122,7 +122,7 @@ refusals are unchanged.
   without the skill to use it): the lane's Move button asks once, "Move it anyway" or "Leave it".
 - **Two of the same shoddy weapon** is an open question for the book (#241), not this design.
 
-Vehicles (`TeamVehicles`) are a second, smaller board on the same step: the base's vehicles and
+Vehicles (`VehicleBoard`) are a second, smaller board on the same step: the base's vehicles and
 each team, a vehicle card in one of them.
 
 ## Work, in order
@@ -132,7 +132,7 @@ each team, a vehicle card in one of them.
 | **B1** | The board, used by the four Planning steps; `AssignTask` removed from them. *Built (#237).* | none: the same two actions |
 | **B2** | Turn 1's First Mission on the board, the team's mission choice in its lane. *Built with R2 (#237).* | none |
 | **B3** | Equip the Mission Team on the board, items as cards. *Built (#237).* | none: the same `EquipMove`s |
-| **B4** | Vehicles on the board | none |
+| **B4** | Vehicles on the board. *Built (#237).* | none |
 
 B1 is the largest and goes first. B2 needs [`step-records.md`](step-records.md)'s R2 for its
 record. The base's slot card keeps its list throughout.

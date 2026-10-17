@@ -51,33 +51,40 @@ function open(campaign: Campaign) {
 const walk = () => within(screen.getByRole('region', { name: /^turn \d+$/i }));
 const teamVehicles = () =>
   within(walk().getByRole('region', { name: 'Mission team 1’s vehicles' }));
+const atBase = () => within(walk().getByRole('region', { name: 'At the base' }));
 
+/** B4 (#237): a vehicle is a card, in the base's lane or a team's. */
 describe('taking vehicles at Equip Mission Team (pp. 18, 52; R65, R66; Z5-12)', () => {
   it('takes a vehicle for its Fuel, and leaves it home again', async () => {
     const user = open(equipping());
 
     expect(teamVehicles().getByText('Going on foot')).toBeInTheDocument();
-    await user.selectOptions(teamVehicles().getByLabelText('Take for team 1'), 'truck');
-    await user.click(teamVehicles().getByRole('button', { name: 'Take a vehicle for team 1' }));
+    await user.click(atBase().getByRole('button', { name: /^Box truck/ }));
+    await user.click(teamVehicles().getByRole('button', { name: 'Take Box truck for team 1' }));
 
-    expect(
-      teamVehicles().getByText(/· Tier 3 · 10 Inventory, 6 Passenger Slots · 3 Fuel/),
-    ).toBeInTheDocument();
+    expect(teamVehicles().getByRole('button', { name: /^Box truck/ })).toHaveTextContent(
+      'Tier 3 · 10 Inventory, 6 Passenger Slots · 3 Fuel',
+    );
     expect(
       walk().getByText('No Auto Shop protects it, so the vehicle going out arrives broken.'),
     ).toBeInTheDocument();
+
     // The Box truck burned 3 of the 4 Fuel, so the pickup's 2 is more than is left.
+    await user.click(atBase().getByRole('button', { name: /^Red pickup/ }));
     expect(
       teamVehicles().getByText('Red pickup burns 2 Fuel, but the base has 1.'),
     ).toBeInTheDocument();
-    expect(
-      teamVehicles().getByRole('button', { name: 'Take a vehicle for team 1' }),
-    ).toBeDisabled();
+    expect(teamVehicles().queryByRole('button', { name: /^Take/ })).toBeNull();
+    await user.click(atBase().getByRole('button', { name: /^Red pickup/ }));
 
-    await user.click(teamVehicles().getByRole('button', { name: 'Leave home Box truck' }));
+    await user.click(teamVehicles().getByRole('button', { name: /^Box truck/ }));
+    await user.click(atBase().getByRole('button', { name: 'Leave Box truck home' }));
 
     expect(teamVehicles().getByText('Going on foot')).toBeInTheDocument();
-    expect(teamVehicles().getByRole('button', { name: 'Take a vehicle for team 1' })).toBeEnabled();
+    await user.click(atBase().getByRole('button', { name: /^Red pickup/ }));
+    expect(
+      teamVehicles().getByRole('button', { name: 'Take Red pickup for team 1' }),
+    ).toBeInTheDocument();
   });
 
   it('says nothing of vehicles when the community holds none', () => {
