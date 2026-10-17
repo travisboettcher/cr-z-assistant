@@ -47,14 +47,27 @@ Nothing about the data changes.
 ## Lanes, not columns
 
 Seven or more columns do not fit a portrait tablet, and do not fit a phone at all. **A lane is a
-row**: its name and what it shows, then its survivors as cards that wrap. Lanes stack down the
-step. That is the same reading direction as everything else in the walk, and it scrolls the way a
-phone already does.
+row**: its name and what it shows, then its cards, which wrap. Lanes stack down the step. That is
+the same reading direction as everything else in the walk, and it scrolls the way a phone already
+does.
+
+**On a tablet the lanes sit in two columns** (`Board.tsx`; decided 2026-10-17). What can be picked
+up is on the left: "Nothing to do" and "Elsewhere" in the Planning Phase, and the base's
+Inventory, the free shoddy gear and the vehicles at the base at Equip the Mission Team. Where it
+goes is on the right, and scrolls on its own, so a long roster does not push the card being moved
+off the screen. Narrower than a tablet the two stack, the left one first; a phone gets its own way
+of choosing where a card goes, a sheet of destinations, as the next piece of work.
+
+**Every card is the same shape**: one width, a name that wraps rather than being cut off, and a line
+or two about it (Tier and Health, slots, Fuel). The name is what the card is called to a screen
+reader, and the lines describe it.
 
 ## Moving a card
 
 **Press a card, then press the lane it goes to.** The card shows it is picked up, and every lane
-offers a "Move Tom here" button. Pressing one assigns Tom there, and pressing the card again puts
+offers a "Move Tom here" button, in a dashed amber zone across the lane's width so it cannot be
+mistaken for one more card. A lane that would refuse the card shows a grey zone with the reason
+and nothing to press. Pressing one assigns Tom there, and pressing the card again puts
 him down where he was. "Nothing to do" is a lane like the others: moving a card there clears the
 assignment.
 
@@ -96,9 +109,11 @@ is given at that step. "Nothing to do" is always there, because every step draws
 ## Turn 1's First Mission
 
 The First Mission's team is the same board with two lanes, the First Mission and Nothing to do.
-The lane is the team, and its mission (Select Mission's choice) is shown on it, so the team and
-what it plays are in one place rather than two boxes. Once the outcome is recorded, the lane
-becomes a record ([`step-records.md`](step-records.md), R2).
+There is no choice of mission beside it (#237): turn 1 offers the First Mission and nothing else,
+so team 1 plays it without anybody choosing it (`turnMissions`). Its outcome is owed from the
+moment somebody is on the team. A First Mission that met no end condition is played again with one
+press, "Play the First Mission again", which is the one place the choice is still made (R21). Once
+the outcome is recorded, the lane becomes a record ([`step-records.md`](step-records.md), R2).
 
 ## Equipping on the same board
 
@@ -130,7 +145,7 @@ each team, a vehicle card in one of them.
 | | Adds | Engine |
 |---|---|---|
 | **B1** | The board, used by the four Planning steps; `AssignTask` removed from them. *Built (#237).* | none: the same two actions |
-| **B2** | Turn 1's First Mission on the board, the team's mission choice in its lane. *Built with R2 (#237).* | none |
+| **B2** | Turn 1's First Mission on the board. *Built with R2 (#237); its mission choice since removed, turn 1 having one mission.* | none |
 | **B3** | Equip the Mission Team on the board, items as cards. *Built (#237).* | none: the same `EquipMove`s |
 | **B4** | Vehicles on the board. *Built (#237).* | none |
 

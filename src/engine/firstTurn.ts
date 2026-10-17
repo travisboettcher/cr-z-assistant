@@ -21,14 +21,11 @@ import { beforePlanning, missionTeam } from './assignments';
 import { firstBaseOwed } from './base';
 import type { Campaign, Survivor } from './campaign';
 import { survivorViolations } from './legality';
-import { missionPlayed } from './missions';
+import { FIRST_MISSION_TEAM, missionPlayed } from './missions';
 import { FIRST_TURN } from './siege';
 
 /** One of the checklist's four items, in the order it lists them. */
 export type FirstTurnItem = 'community' | 'team' | 'mission' | 'base';
-
-/** The First Mission is team 1's: turn 1 has no Planning Phase to split it. */
-const FIRST_MISSION_TEAM = 1;
 
 export interface FirstTurnChecklist {
   /**
