@@ -175,14 +175,12 @@ describe('Select Mission (pg. 17; Z4-2)', () => {
     expect(walk().queryByRole('button', { name: 'Skip this turn’s mission' })).toBeNull();
   });
 
-  it('offers only the First Mission on turn 1 (pg. 76)', () => {
+  /** #237: one mission on offer is nothing to choose, so turn 1 asks nothing here. */
+  it('asks nothing on turn 1, which plays the First Mission (pg. 76)', () => {
     open(selecting({ turn: 1, assignments: { earl: { task: 'mission', team: 1 } } }));
 
-    expect(
-      team(1)
-        .getAllByRole('option')
-        .map((option) => option.textContent),
-    ).toEqual(['The First Mission']);
+    expect(walk().queryByRole('combobox', { name: /mission/i })).toBeNull();
+    expect(walk().queryByRole('button', { name: /choose for team/i })).toBeNull();
   });
 });
 

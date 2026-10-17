@@ -96,6 +96,9 @@ export interface TurnMissions {
 /** The team the whole community forms when the horde calls a siege (pg. 85). */
 const SIEGE_TEAM = 1;
 
+/** The team that plays turn 1's First Mission: turn 1 has no Planning Phase to split one. */
+export const FIRST_MISSION_TEAM = 1;
+
 /**
  * This turn's mission teams, in team order (pp. 21, 85).
  *
@@ -135,7 +138,8 @@ export function missionTeams(campaign: Campaign): readonly MissionTeam[] {
 
 /**
  * What Select Mission has recorded this turn: the latest choice for each team,
- * unless an opt-out came after it.
+ * unless an opt-out came after it. On turn 1, team 1's First Mission whether
+ * or not it was chosen.
  */
 export function turnMissions(campaign: Campaign): TurnMissions {
   let choices = new Map<number, RecordedChoice>();
@@ -160,6 +164,24 @@ export function turnMissions(campaign: Campaign): TurnMissions {
     } else if (event.kind === 'mission-skipped') {
       choices = new Map();
       skipped = true;
+      recorded = true;
+    }
+  }
+
+  // Turn 1 offers the First Mission and nothing else (pg. 76; `missionsOnOffer`),
+  // so team 1 plays it without anybody choosing it (#237): a choice with one
+  // answer was a control with nothing to decide. An entry still counts when
+  // there is one, because a failed First Mission is played again by choosing
+  // it again (R21), and the names are whoever is on the team now.
+  if (campaign.turn === FIRST_TURN && !skipped && !choices.has(FIRST_MISSION_TEAM)) {
+    const team = missionTeams(campaign).find((one) => one.team === FIRST_MISSION_TEAM);
+
+    if (team !== undefined) {
+      choices.set(FIRST_MISSION_TEAM, {
+        team: FIRST_MISSION_TEAM,
+        mission: 'first-mission',
+        names: team.members.map((survivor) => survivor.name),
+      });
       recorded = true;
     }
   }

@@ -125,6 +125,8 @@ describe('the First Mission team', () => {
     moveTo(/^earl rhodes/i, 'Nothing to do');
     moveTo(/^carla proust/i, 'On the First Mission');
     await user.click(screen.getByRole('button', { name: /^next: character advancement$/i }));
+    // Turn 1's First Mission owes its outcome now that nobody has to choose it (#237).
+    goOn();
 
     const carla = missionAward(/carla/i);
 
@@ -274,16 +276,34 @@ describe('the First Mission team', () => {
         log: [selected, ended(endCondition)],
       });
 
-    it('chooses the team’s mission in the team’s own lane, and nowhere else', async () => {
+    /** #237: turn 1 offers one mission, so there is nothing to choose. */
+    it('plays the First Mission without a choice of mission, and owes its outcome', async () => {
       const user = open(turnOne());
 
       moveTo(/^earl rhodes/i, 'On the First Mission');
-      await user.click(within(team()).getByRole('button', { name: 'Choose for team 1' }));
 
-      expect(within(team()).getByText(/Mission team 1 chose the First Mission/)).toBeTruthy();
-      expect(within(walk()).getAllByRole('group', { name: 'Mission team 1' })).toHaveLength(1);
+      expect(within(walk()).queryByRole('button', { name: /choose for team 1/i })).toBeNull();
+      expect(within(walk()).queryByRole('combobox', { name: /mission/i })).toBeNull();
       // No Planning Phase has assigned turn 1's team, so nothing says one did.
       expect(within(walk()).queryByText(/the planning phase assigned/i)).toBeNull();
+
+      await user.click(screen.getByRole('button', { name: /^skip to advancement$/i }));
+      expect(screen.getByRole('dialog')).toHaveTextContent(
+        /Mission team 1’s outcome isn’t recorded/,
+      );
+    });
+
+    it('plays a failed First Mission again with one press (R21)', async () => {
+      const user = open(played(null));
+
+      await user.click(
+        within(walk()).getByRole('button', { name: 'Play the First Mission again' }),
+      );
+
+      expect(
+        within(walk()).queryByRole('button', { name: 'Play the First Mission again' }),
+      ).toBeNull();
+      expect(within(walk()).getByRole('region', { name: 'On the First Mission' })).toBeTruthy();
     });
 
     it('is a record once the mission is played, with no board', () => {
