@@ -38,16 +38,24 @@ export const SECONDARY_FILL =
   'border border-stone-300 enabled:hover:bg-stone-100 dark:border-stone-600 dark:enabled:hover:bg-stone-800';
 
 /**
- * A card on a board, picked up or not: the Planning Phase's survivors and
- * Equip the Mission Team's items (`docs/assignment-board.md`, B1 and B3).
+ * A card on a board, picked up or not: the Planning Phase's survivors, and
+ * Equip the Mission Team's items and vehicles (`docs/assignment-board.md`).
+ * One width and at least one height, so a lane reads as a row of like things;
+ * a row's cards stretch to its tallest.
  */
 export function boardCard(picked: boolean): string {
-  return `${TOUCH_TARGET} ${FOCUS_RING} flex flex-col items-start rounded-lg border px-3 py-1.5 text-left text-sm ${
+  return `${FOCUS_RING} flex min-h-[88px] w-[152px] flex-col justify-between gap-1 rounded-xl border px-3 py-2 text-left shadow-sm transition ${
     picked
-      ? 'border-amber-600 bg-amber-50 ring-2 ring-amber-600 dark:border-amber-400 dark:bg-amber-950/40 dark:ring-amber-400'
-      : 'border-stone-300 bg-white enabled:hover:bg-stone-100 dark:border-stone-600 dark:bg-stone-900 dark:enabled:hover:bg-stone-800'
+      ? '-translate-y-0.5 border-amber-600 bg-amber-50 shadow-md ring-2 ring-amber-600 dark:border-amber-400 dark:bg-amber-950/40 dark:ring-amber-400'
+      : 'border-stone-300 bg-white hover:bg-stone-50 dark:border-stone-600 dark:bg-stone-900 dark:hover:bg-stone-800'
   }`;
 }
 
-/** A board lane's "Move … here" button. */
-export const BOARD_MOVE = `${TOUCH_TARGET} ${FOCUS_RING} rounded-lg px-3 py-1.5 text-sm font-medium ${SECONDARY_FILL}`;
+/**
+ * The press inside a lane's drop zone: the whole width of the lane, so it
+ * reads as a place to put something rather than one more card.
+ */
+export const BOARD_DROP = `${TOUCH_TARGET} ${FOCUS_RING} w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-amber-900 hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-900/40`;
+
+/** A quieter press beside it, such as "Leave it" when a move asks first. */
+export const BOARD_QUIET = `${TOUCH_TARGET} ${FOCUS_RING} rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800`;

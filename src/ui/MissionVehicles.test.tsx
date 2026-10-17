@@ -51,7 +51,7 @@ function open(campaign: Campaign) {
 const walk = () => within(screen.getByRole('region', { name: /^turn \d+$/i }));
 const teamVehicles = () =>
   within(walk().getByRole('region', { name: 'Mission team 1’s vehicles' }));
-const atBase = () => within(walk().getByRole('region', { name: 'At the base' }));
+const atBase = () => within(walk().getByRole('region', { name: 'Vehicles at the base' }));
 
 /** B4 (#237): a vehicle is a card, in the base's lane or a team's. */
 describe('taking vehicles at Equip Mission Team (pp. 18, 52; R65, R66; Z5-12)', () => {
@@ -62,8 +62,8 @@ describe('taking vehicles at Equip Mission Team (pp. 18, 52; R65, R66; Z5-12)', 
     await user.click(atBase().getByRole('button', { name: /^Box truck/ }));
     await user.click(teamVehicles().getByRole('button', { name: 'Take Box truck for team 1' }));
 
-    expect(teamVehicles().getByRole('button', { name: /^Box truck/ })).toHaveTextContent(
-      'Tier 3 · 10 Inventory, 6 Passenger Slots · 3 Fuel',
+    expect(teamVehicles().getByRole('button', { name: 'Box truck' })).toHaveAccessibleDescription(
+      /^Tier 3 · 3 Fuel,\s*10 Inventory, 6 Passenger Slots$/,
     );
     expect(
       walk().getByText('No Auto Shop protects it, so the vehicle going out arrives broken.'),

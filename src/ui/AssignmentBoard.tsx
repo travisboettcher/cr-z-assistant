@@ -15,10 +15,11 @@
  * no override now holds: a warned move is undone by the move next to it.
  *
  * **Each step focuses its own lanes.** The four Planning steps stay, in the
- * book's order. A step draws its lanes as places a card can go; survivors with
- * a task from another step sit in "Elsewhere", where their cards can be picked
- * up and moved here but nothing can be moved in; and "Nothing to do" is always
- * there, because every step draws from it.
+ * book's order. A step draws its lanes as places a card can go, on the right;
+ * on the left are "Nothing to do", always there because every step draws from
+ * it, and "Elsewhere", holding survivors with a task from another step, whose
+ * cards can be picked up and moved here but which nothing can be moved into
+ * (`Board.tsx` draws the two columns).
  *
  * **Warnings stay warnings** (Z3-6: no blockers). A lane says what is wrong
  * with the cards in it, and a picked card's warnings for a lane are shown at
@@ -33,7 +34,8 @@ import { maxHp } from '../engine/survivor';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
 import { taskLabel } from './taskLabels';
-import { BOARD_MOVE, boardCard } from './styles';
+import { BoardCard, BoardColumns, CardRow, DropZone, LaneFrame } from './Board';
+import { BOARD_DROP } from './styles';
 
 /** A place a card can go on this step. */
 export interface Lane {
@@ -92,26 +94,26 @@ export function AssignmentBoard({ campaign, lanes }: AssignmentBoardProps) {
   const card = (survivor: Survivor, label?: string) => {
     const isPicked = survivor.id === mover?.id;
     return (
-      <li key={survivor.id}>
-        <button
-          type="button"
-          aria-pressed={isPicked}
-          onClick={() => {
-            setPicked(isPicked ? null : survivor.id);
-          }}
-          className={boardCard(isPicked)}
-        >
-          <span className="font-medium">{survivor.name}</span>
-          <span className="text-xs text-stone-600 tabular-nums dark:text-stone-400">
-            Tier {survivor.tier} · {survivor.currentHp}/{maxHp(survivor)} Health
-            {label !== undefined && <> · {label}</>}
-          </span>
-        </button>
-      </li>
+      <BoardCard
+        key={survivor.id}
+        title={survivor.name}
+        lines={[
+          `Tier ${String(survivor.tier)} · ${String(survivor.currentHp)}/${String(maxHp(survivor))} Health`,
+          ...(label === undefined ? [] : [label]),
+        ]}
+        picked={isPicked}
+        onPress={() => {
+          setPicked(isPicked ? null : survivor.id);
+        }}
+      />
     );
   };
 
-  /** Where the picked card can go, and what moving it there would break. */
+  /**
+   * Where the picked card can go, and what moving it there would warn about.
+   * The Planning Phase refuses nothing (Z3-6), so every lane but its own offers
+   * the move, and a warning shows in the zone before the press.
+   */
   const target = (task: Assignment | null) => {
     if (mover === undefined) return null;
     const current = taskOf(mover);
@@ -121,22 +123,23 @@ export function AssignmentBoard({ campaign, lanes }: AssignmentBoardProps) {
 
     const warnings = task === null ? [] : checkAssignment(campaign, mover.id, task).warnings;
     return (
-      <div className="mt-2 flex flex-col items-start gap-1">
+      <DropZone
+        warnings={warnings.map((warning) => ({
+          key: warning.code,
+          message: warning.message,
+          pages: warning.pages,
+        }))}
+      >
         <button
           type="button"
-          className={BOARD_MOVE}
+          className={BOARD_DROP}
           onClick={() => {
             move(task);
           }}
         >
           Move {mover.name} here
         </button>
-        {warnings.map((warning) => (
-          <p key={warning.code} className={WARNING}>
-            {warning.message} <PageRef pages={warning.pages} />
-          </p>
-        ))}
-      </div>
+      </DropZone>
     );
   };
 
@@ -148,81 +151,54 @@ export function AssignmentBoard({ campaign, lanes }: AssignmentBoardProps) {
         </p>
       )}
 
-      {lanes.map((lane) => {
-        const members = inLane(lane);
-        return (
-          <LaneFrame
-            key={`${lane.task.task}:${'slot' in lane.task ? lane.task.slot : ''}:${'team' in lane.task ? String(lane.task.team) : ''}`}
-            name={lane.name}
-            pages={lane.pages}
-            {...(lane.id === undefined ? {} : { id: lane.id })}
-          >
-            {lane.detail}
-            {members.length === 0 ? (
-              <p className={`mt-1 ${HINT}`}>Nobody yet.</p>
-            ) : (
-              <ul className="mt-2 flex flex-wrap gap-2">{members.map((member) => card(member))}</ul>
-            )}
-            {/* What is wrong with whoever is here now, from the same check. */}
-            {members.flatMap((member) =>
-              checkAssignment(campaign, member.id, lane.task).warnings.map((warning) => (
-                <p key={`${member.id}:${warning.code}`} className={`mt-1 ${WARNING}`}>
-                  {member.name}: {warning.message} <PageRef pages={warning.pages} />
-                </p>
-              )),
-            )}
-            {target(lane.task)}
-          </LaneFrame>
-        );
-      })}
+      <BoardColumns
+        sourceTitle="Who’s free"
+        targetTitle="This step"
+        sources={
+          <>
+            <LaneFrame name="Nothing to do">
+              <CardRow empty="Everybody has something to do.">
+                {idle.map((survivor) => card(survivor))}
+              </CardRow>
+              {target(null)}
+            </LaneFrame>
 
-      {elsewhere.length > 0 && (
-        <LaneFrame name="Elsewhere">
-          <ul className="mt-2 flex flex-wrap gap-2">
-            {elsewhere.map((survivor) => {
-              const task = taskOf(survivor);
-              return card(survivor, task === undefined ? undefined : taskLabel(task));
-            })}
-          </ul>
-        </LaneFrame>
-      )}
-
-      <LaneFrame name="Nothing to do">
-        {idle.length === 0 ? (
-          <p className={`mt-1 ${HINT}`}>Everybody has something to do.</p>
-        ) : (
-          <ul className="mt-2 flex flex-wrap gap-2">{idle.map((survivor) => card(survivor))}</ul>
-        )}
-        {target(null)}
-      </LaneFrame>
+            {elsewhere.length > 0 && (
+              <LaneFrame name="Elsewhere">
+                <CardRow empty="">
+                  {elsewhere.map((survivor) => {
+                    const task = taskOf(survivor);
+                    return card(survivor, task === undefined ? undefined : taskLabel(task));
+                  })}
+                </CardRow>
+              </LaneFrame>
+            )}
+          </>
+        }
+        targets={lanes.map((lane) => {
+          const members = inLane(lane);
+          return (
+            <LaneFrame
+              key={`${lane.task.task}:${'slot' in lane.task ? lane.task.slot : ''}:${'team' in lane.task ? String(lane.task.team) : ''}`}
+              name={lane.name}
+              pages={lane.pages}
+              {...(lane.id === undefined ? {} : { id: lane.id })}
+            >
+              {lane.detail}
+              <CardRow empty="Nobody yet.">{members.map((member) => card(member))}</CardRow>
+              {/* What is wrong with whoever is here now, from the same check. */}
+              {members.flatMap((member) =>
+                checkAssignment(campaign, member.id, lane.task).warnings.map((warning) => (
+                  <p key={`${member.id}:${warning.code}`} className={`mt-1 ${WARNING}`}>
+                    {member.name}: {warning.message} <PageRef pages={warning.pages} />
+                  </p>
+                )),
+              )}
+              {target(lane.task)}
+            </LaneFrame>
+          );
+        })}
+      />
     </div>
-  );
-}
-
-/** One lane: a named region holding its cards. Shared with Equip the Mission Team's board. */
-export function LaneFrame({
-  name,
-  pages,
-  id,
-  children,
-}: {
-  readonly name: string;
-  readonly pages?: number | string;
-  readonly id?: string;
-  readonly children: ReactNode;
-}) {
-  return (
-    <section
-      id={id}
-      // Focusable from a link to it, so the jump moves the keyboard too.
-      tabIndex={id === undefined ? undefined : -1}
-      aria-label={name}
-      className="rounded-lg border border-stone-200 p-3 dark:border-stone-700"
-    >
-      <h3 className="text-sm font-semibold">
-        {name} {pages !== undefined && <PageRef pages={pages} />}
-      </h3>
-      {children}
-    </section>
   );
 }

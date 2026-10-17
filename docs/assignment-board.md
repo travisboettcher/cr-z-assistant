@@ -47,14 +47,27 @@ Nothing about the data changes.
 ## Lanes, not columns
 
 Seven or more columns do not fit a portrait tablet, and do not fit a phone at all. **A lane is a
-row**: its name and what it shows, then its survivors as cards that wrap. Lanes stack down the
-step. That is the same reading direction as everything else in the walk, and it scrolls the way a
-phone already does.
+row**: its name and what it shows, then its cards, which wrap. Lanes stack down the step. That is
+the same reading direction as everything else in the walk, and it scrolls the way a phone already
+does.
+
+**On a tablet the lanes sit in two columns** (`Board.tsx`; decided 2026-10-17). What can be picked
+up is on the left: "Nothing to do" and "Elsewhere" in the Planning Phase, and the base's
+Inventory, the free shoddy gear and the vehicles at the base at Equip the Mission Team. Where it
+goes is on the right, and scrolls on its own, so a long roster does not push the card being moved
+off the screen. Narrower than a tablet the two stack, the left one first; a phone gets its own way
+of choosing where a card goes, a sheet of destinations, as the next piece of work.
+
+**Every card is the same shape**: one width, a name that wraps rather than being cut off, and a line
+or two about it (Tier and Health, slots, Fuel). The name is what the card is called to a screen
+reader, and the lines describe it.
 
 ## Moving a card
 
 **Press a card, then press the lane it goes to.** The card shows it is picked up, and every lane
-offers a "Move Tom here" button. Pressing one assigns Tom there, and pressing the card again puts
+offers a "Move Tom here" button, in a dashed amber zone across the lane's width so it cannot be
+mistaken for one more card. A lane that would refuse the card shows a grey zone with the reason
+and nothing to press. Pressing one assigns Tom there, and pressing the card again puts
 him down where he was. "Nothing to do" is a lane like the others: moving a card there clears the
 assignment.
 
