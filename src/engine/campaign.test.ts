@@ -114,6 +114,7 @@ describe('Survivor', () => {
       storyTrait: null,
       veteran: false,
       bondGroup: null,
+      stories: [],
     } satisfies Survivor;
 
     expect(Object.keys(survivor).sort()).toEqual([
@@ -127,6 +128,7 @@ describe('Survivor', () => {
       'name',
       'skills',
       'stats',
+      'stories',
       'storyTrait',
       'tier',
       'veteran',
@@ -155,6 +157,7 @@ describe('Survivor', () => {
       storyTrait: null,
       veteran: false,
       bondGroup: null,
+      stories: [],
     } satisfies Survivor;
 
     expect(Object.keys(rookie.skills)).toEqual(['handguns']);

@@ -27,7 +27,7 @@ import { TIERS } from '../data/tiers';
 import { MATERIALS, type Materials } from '../data/materials';
 import { STORY_TRAITS } from '../data/traits';
 import { EQUIPMENT, GRADES, ITEM_IDS, VEHICLE_TIERS } from '../data/equipment';
-import { OVERRUN_OPTIONS } from '../data/missions';
+import { OVERRUN_OPTIONS, PROMOTION_STORIES, STORY_MISSION_IDS } from '../data/missions';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { MISSIONS, type MissionId } from '../data/missions';
 import { FIELD_RECRUITABLE_TIERS } from '../data/recruitTable';
@@ -190,6 +190,13 @@ export function survivorArbitrary(): fc.Arbitrary<Survivor> {
       items: fc.array(itemArbitrary(), { maxLength: 2 }),
       storyTrait: fc.constantFrom<Survivor['storyTrait']>(null, ...STORY_TRAITS),
       veteran: fc.boolean(),
+      stories: fc.array(
+        fc.record({
+          mission: fc.constantFrom(...STORY_MISSION_IDS),
+          attachedOnTurn: fc.integer({ min: 1, max: 40 }),
+        }),
+        { maxLength: 2 },
+      ),
     })
     .chain((survivor) =>
       // A bond group only on a Bonded survivor (R84), so every pairing the file
@@ -624,6 +631,24 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       tier: fc.constantFrom(...TIERS),
     }),
     fc.record({
+      kind: fc.constant('veteran-healed' as const),
+      veteran: anyId,
+      veteranName: anyName,
+      survivor: anyId,
+      name: anyName,
+    }),
+    // What a promotion gave (Z7-2), each absent as often as present.
+    fc.record(
+      {
+        kind: fc.constant('survivor-promoted' as const),
+        ...survivor,
+        tier: fc.constantFrom(...TIERS),
+        story: fc.constantFrom(...PROMOTION_STORIES),
+        veteran: fc.constant(true as const),
+      },
+      { requiredKeys: ['kind', 'survivor', 'name', 'tier'] },
+    ),
+    fc.record({
       kind: fc.constant('skill-level-bought' as const),
       ...survivor,
       skill: fc.constantFrom(...SKILLS),
@@ -1029,7 +1054,31 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
           itemIdsDistinct(campaign) &&
           new Set(campaign.vehicles.map((vehicle) => vehicle.id)).size === campaign.vehicles.length,
       )
+      // And a story on one survivor only (R136): nine stories over eight people
+      // collide too often to filter, so a repeat is dropped instead.
+      .map(withStoriesDistinct)
   );
+}
+
+/** The campaign with each story kept on the first survivor who holds it. */
+function withStoriesDistinct<Shape extends Pick<Campaign, 'survivors' | 'setAside'>>(
+  campaign: Shape,
+): Shape {
+  const seen = new Set<string>();
+  const keep = (survivor: Survivor): Survivor => ({
+    ...survivor,
+    stories: survivor.stories.filter((story) => {
+      if (seen.has(story.mission)) return false;
+      seen.add(story.mission);
+      return true;
+    }),
+  });
+
+  return {
+    ...campaign,
+    survivors: campaign.survivors.map(keep),
+    setAside: campaign.setAside.map(keep),
+  };
 }
 
 /**

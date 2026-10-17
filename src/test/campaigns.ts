@@ -116,6 +116,7 @@ export function utilityWorker(score: number): Survivor {
     storyTrait: null,
     veteran: false,
     bondGroup: null,
+    stories: [],
   };
 }
 

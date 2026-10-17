@@ -265,6 +265,28 @@ export type StandardMissionId = {
   [Id in MissionId]: (typeof MISSIONS)[Id]['family'] extends 'standard' ? Id : never;
 }[MissionId];
 
+/** The story missions (pp. 87–102), played only by the team of the survivor they are attached to. */
+export type StoryMissionId = {
+  [Id in MissionId]: (typeof MISSIONS)[Id]['family'] extends 'story' ? Id : never;
+}[MissionId];
+
+/** Every story mission, in the catalogue's order (pp. 89–102). */
+export const STORY_MISSION_IDS = (Object.keys(MISSIONS) as MissionId[]).filter(
+  (id): id is StoryMissionId => MISSIONS[id].family === 'story',
+);
+
+/**
+ * The five stories a promotion from Tier 1 or 2 attaches one of (pg. 87; R117).
+ * The rest of the nine are attached by other stories' rewards.
+ */
+export const PROMOTION_STORIES = [
+  'left-behind-1',
+  'preppers-stash-1',
+  'sentimental-value',
+  'neighbors-rifle',
+  'crashed-convoy',
+] as const satisfies readonly StoryMissionId[];
+
 /**
  * The types a Gather Materials team takes one of each of, and may take its
  * remainder in (pg. 80; Z4-6): the three stored materials. Rare is not one of

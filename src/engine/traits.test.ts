@@ -235,7 +235,7 @@ describe('the trait catalogue against the engine', () => {
 });
 
 describe('setting traits by hand (R84, R85, R133)', () => {
-  const none = { storyTrait: null, veteran: false, bondGroup: null } as const;
+  const none = { storyTrait: null, veteran: false, bondGroup: null, stories: [] } as const;
 
   it('needs a bond group on a Bonded survivor, and only there', () => {
     expect(traitsProblem({ ...none, storyTrait: 'bonded', bondGroup: 2 })).toBeNull();
@@ -259,9 +259,9 @@ describe('setting traits by hand (R84, R85, R133)', () => {
     const al = holding('Al', 2, null);
     const campaign = campaignOf([al, holding('Bo', 1, null)]);
     const result = submitTraitsSet(campaign, 'al', {
+      ...none,
       storyTrait: 'driven',
       veteran: true,
-      bondGroup: null,
     });
 
     expect(

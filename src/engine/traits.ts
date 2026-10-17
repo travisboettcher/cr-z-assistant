@@ -16,7 +16,8 @@
 import { STATS, type Stat } from '../data/skills';
 import { STORY_TRAIT_RULES, type StoryTrait, type StoryTraitRules } from '../data/traits';
 import { TIER_RULES } from '../data/tiers';
-import type { Assignment, Survivor } from './campaign';
+import { PROMOTION_STORIES, type StoryMissionId } from '../data/missions';
+import type { Assignment, Campaign, Survivor } from './campaign';
 
 /** The rules of the Story Trait a survivor holds, or `undefined` for none. */
 export function storyTraitRules(survivor: Survivor): StoryTraitRules | undefined {
@@ -102,8 +103,11 @@ export function missionWhileWounded(survivor: Survivor): boolean {
   return storyTraitRules(survivor)?.missionWhileWounded === true;
 }
 
-/** A survivor's Story Trait, Veteran and bond group together, as the sheet sets them (R84). */
-export type SurvivorTraits = Pick<Survivor, 'storyTrait' | 'veteran' | 'bondGroup'>;
+/**
+ * A survivor's Story Trait, Veteran, bond group and attached stories together,
+ * as the sheet sets them (R84, R116).
+ */
+export type SurvivorTraits = Pick<Survivor, 'storyTrait' | 'veteran' | 'bondGroup' | 'stories'>;
 
 /**
  * Why these traits cannot be a survivor's, or `null`: a bond group, counted
@@ -130,4 +134,34 @@ export function withTraits(survivor: Survivor, traits: SurvivorTraits): Survivor
   const maximum = TIER_RULES[changed.tier].maxHp + traitMaxHealth(changed);
 
   return lost > 0 && changed.currentHp > maximum ? { ...changed, currentHp: maximum } : changed;
+}
+
+/** Promoting from below this Tier attaches a story; from it, makes a Veteran (pg. 87). */
+const STORY_TIERS_BELOW = 3;
+
+/** Every story attached to somebody, in the community or set aside (R136). */
+export function storiesHeld(campaign: Campaign): ReadonlySet<StoryMissionId> {
+  return new Set(
+    [...campaign.survivors, ...campaign.setAside].flatMap((survivor) =>
+      survivor.stories.map((story) => story.mission),
+    ),
+  );
+}
+
+/**
+ * The stories promoting this survivor attaches one of (pg. 87; R117, R136):
+ * the five, for a survivor leaving Tier 1 or 2, less any attached to somebody
+ * already. None for anybody else: Tier 3 becomes a Veteran instead.
+ */
+export function storiesOnOffer(campaign: Campaign, survivor: Survivor): readonly StoryMissionId[] {
+  if (survivor.tier >= STORY_TIERS_BELOW) return [];
+
+  const held = storiesHeld(campaign);
+
+  return PROMOTION_STORIES.filter((story) => !held.has(story));
+}
+
+/** Whether promoting this survivor makes them a Veteran: a Tier 3 becoming a Hero (pg. 87). */
+export function becomesVeteran(survivor: Survivor): boolean {
+  return survivor.tier === STORY_TIERS_BELOW;
 }

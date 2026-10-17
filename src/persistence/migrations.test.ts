@@ -29,6 +29,7 @@ const SAMPLE_SURVIVOR = {
   storyTrait: null,
   veteran: false,
   bondGroup: null,
+  stories: [],
 } satisfies Survivor;
 
 /**

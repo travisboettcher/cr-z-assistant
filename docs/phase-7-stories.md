@@ -178,6 +178,24 @@ nothing records one.
 - A Tier 2 promoted to Tier 3 gets a story attached; a Tier 3 promoted to Hero becomes a Veteran.
 - A Veteran with 2 XP lifts two survivors from 0 to 1 Health, and neither makes a Rot check.
 
+**What this story turned out to include.**
+- **Two more rulings, decided 2026-10-17**: a story is attached to one survivor at a time, so a
+  promotion offers only the five nobody holds, set-aside survivors included (R136); and a Veteran
+  may bring themselves up (R137).
+- **The story is chosen, never rolled by the app.** R117 lets the player roll, and the book names no
+  die, so the sheet asks which of the five, as it asks which stat comes off 0, and Promote waits for
+  both. A table that rolls does so on its own dice.
+- **`stories` joins v19**, a list of `{ mission, attachedOnTurn }` on every survivor, and the save
+  refuses one story on two survivors. The `survivor-promoted` entry says what a promotion gave: its
+  story, or `veteran` for a Leader become a Hero.
+- **A Veteran's point is its own entry, `veteran-healed`**, not a `health-restored`: Heal Wounds
+  reads any `health-restored` this turn as already done, and the Veteran heals later in the turn.
+  Jaded's 1 a turn counts both (`healthThisTurn`), so a Jaded survivor healed at Heal Wounds is
+  passed over by a Veteran, and Heal Wounds, walked back to, passes over one a Veteran reached.
+- **The Rot check needed nothing**: it reads Health, and a survivor brought up has 1.
+- **Stories are set by hand on the sheet** beside the traits, for a campaign brought in part-way.
+  A story attached by hand counts from the turn it is set.
+
 ### Z7-3 — Story missions from the stories attached
 
 **Why:** A story mission belongs to its survivor (pp. 75, 87), and its rewards are the point of it.

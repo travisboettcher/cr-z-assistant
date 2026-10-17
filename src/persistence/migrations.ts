@@ -490,7 +490,7 @@ const tradesRecorded: MigrationStep = {
 
 /**
  * v18 → v19: a survivor's Story Trait, Veteran and bond group (pg. 88; R84;
- * Z7-1).
+ * Z7-1), and the stories attached to them (pg. 87; R116; Z7-2).
  *
  * **None, everywhere, and that is the truth.** A v18 build had no traits, so
  * no v18 survivor holds one it could lose: a table that kept them on paper
@@ -505,7 +505,7 @@ const storyTraitsRecorded: MigrationStep = {
       Array.isArray(list)
         ? (list as unknown[]).map((survivor) =>
             typeof survivor === 'object' && survivor !== null && !('storyTrait' in survivor)
-              ? { ...survivor, storyTrait: null, veteran: false, bondGroup: null }
+              ? { ...survivor, storyTrait: null, veteran: false, bondGroup: null, stories: [] }
               : survivor,
           )
         : list;

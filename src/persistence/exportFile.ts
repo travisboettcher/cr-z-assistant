@@ -97,6 +97,7 @@ function orderedSurvivor(survivor: Survivor): Record<keyof Survivor, unknown> {
     storyTrait: survivor.storyTrait,
     veteran: survivor.veteran,
     bondGroup: survivor.bondGroup,
+    stories: survivor.stories.map(({ mission, attachedOnTurn }) => ({ mission, attachedOnTurn })),
   };
 }
 

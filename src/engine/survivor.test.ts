@@ -40,6 +40,7 @@ const EARL = {
   storyTrait: null,
   veteran: false,
   bondGroup: null,
+  stories: [],
 } satisfies Survivor;
 
 /** pg. 15. Tier 3, stats 3/2/1/0, three skills — and no Carry. */
@@ -58,6 +59,7 @@ const CARLA = {
   storyTrait: null,
   veteran: false,
   bondGroup: null,
+  stories: [],
 } satisfies Survivor;
 
 /**

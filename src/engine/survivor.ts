@@ -271,5 +271,6 @@ export function createSurvivor(
     storyTrait: null,
     veteran: false,
     bondGroup: null,
+    stories: [],
   };
 }

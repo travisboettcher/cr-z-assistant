@@ -132,3 +132,62 @@ describe('the project team’s Labor, with traits (pg. 88; R89)', () => {
     expect(caption).toMatch(/plus 6 from their Story Traits/);
   });
 });
+
+describe('a Veteran’s healing at Rest and Healing (pg. 88; R91; Z7-2)', () => {
+  it('lifts a survivor at 0 Health for 1 of the Veteran’s XP, and says so', async () => {
+    const veteran: Survivor = {
+      ...createSurvivor('Earl Rhodes', 4, { id: 'earl' }),
+      veteran: true,
+      xp: 1,
+    };
+    const user = open(
+      withPlanningBegun(
+        community([veteran, { ...createSurvivor('Ada Moss', 2, { id: 'ada' }), currentHp: 0 }], {
+          step: 'assign-rest-and-healing',
+        }),
+      ),
+    );
+    const section = within(screen.getByRole('region', { name: 'A Veteran’s healing' }));
+
+    expect(section.getByText(/Earl Rhodes has 1 XP/)).toBeInTheDocument();
+    await user.click(section.getByRole('button', { name: /Bring Ada Moss up/ }));
+
+    expect(
+      section.getByText('Earl Rhodes spent 1 XP as a Veteran to bring Ada Moss up to 1 Health.'),
+    ).toBeInTheDocument();
+    expect(section.queryByRole('button', { name: /Bring/ })).toBeNull();
+  });
+
+  it('shows nothing with no Veteran, or nobody at 0 Health', () => {
+    open(
+      withPlanningBegun(
+        community([createSurvivor('Earl Rhodes', 4, { id: 'earl' })], {
+          step: 'assign-rest-and-healing',
+        }),
+      ),
+    );
+
+    expect(screen.queryByRole('region', { name: 'A Veteran’s healing' })).toBeNull();
+  });
+});
+
+describe('stories on the sheet (pg. 87; R116, R136; Z7-2)', () => {
+  it('attaches a story by hand on this turn, and removes one', async () => {
+    const user = open(community([createSurvivor('Earl Rhodes', 4, { id: 'earl' })]));
+    const sheet = await sheetFor(user, 'Earl Rhodes');
+
+    expect(sheet.getByText(/No story attached/)).toBeInTheDocument();
+
+    await user.click(sheet.getByRole('button', { name: 'Edit traits' }));
+    await user.selectOptions(sheet.getByLabelText('Attach a story'), 'warehouse');
+    await user.click(sheet.getByRole('button', { name: 'Save traits' }));
+
+    expect(sheet.getByText(/Stories: Warehouse, since turn 3/)).toBeInTheDocument();
+
+    await user.click(sheet.getByRole('button', { name: 'Edit traits' }));
+    await user.click(sheet.getByRole('button', { name: 'Remove Warehouse' }));
+    await user.click(sheet.getByRole('button', { name: 'Save traits' }));
+
+    expect(sheet.getByText(/No story attached/)).toBeInTheDocument();
+  });
+});

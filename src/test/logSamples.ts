@@ -219,6 +219,24 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   },
   { kind: 'mission-team-reduced', ...SURVIVOR },
   { kind: 'survivor-promoted', ...SURVIVOR, tier: 4 },
+  // A Veteran's healing (pg. 88; Z7-2), of somebody else and of themselves.
+  {
+    kind: 'veteran-healed',
+    veteran: 'earl',
+    veteranName: 'Earl Rhodes',
+    survivor: 'ruby',
+    name: 'Ruby Vance',
+  },
+  {
+    kind: 'veteran-healed',
+    veteran: 'earl',
+    veteranName: 'Earl Rhodes',
+    survivor: 'earl',
+    name: 'Earl Rhodes',
+  },
+  // What a promotion gives (pg. 87; Z7-2): a story, or Veteran at Hero.
+  { kind: 'survivor-promoted', ...SURVIVOR, tier: 3, story: 'crashed-convoy' },
+  { kind: 'survivor-promoted', ...SURVIVOR, tier: 4, veteran: true },
   { kind: 'skill-level-bought', ...SURVIVOR, skill: 'archery', level: 2 },
   { kind: 'common-skill-bought', ...SURVIVOR, skill: 'move', score: 7 },
   { kind: 'base-claimed', base: 'hobby-farm' },

@@ -55,7 +55,8 @@ import {
   type StrangerForm,
 } from './strangers';
 import { createSurvivor, recruitSurvivor } from './survivor';
-import { traitsProblem, withTraits, type SurvivorTraits } from './traits';
+import { storiesHeld, traitsProblem, withTraits, type SurvivorTraits } from './traits';
+import { veteranHealingProblem, withVeteranHealing } from './veteran';
 import { advance, type AdvanceBy } from './turn';
 import { suppliedOccupants } from './utilities';
 
@@ -715,10 +716,47 @@ export function submitTraitsSet(
   const problem = traitsProblem(traits);
   if (problem !== null) return refused(problem);
 
+  // Each story on one survivor at a time (R136), this one's own list included.
+  const elsewhere = storiesHeld({
+    ...campaign,
+    survivors: campaign.survivors.filter((candidate) => candidate.id !== survivor),
+  });
+  const missions = traits.stories.map((story) => story.mission);
+  if (missions.some((mission, at) => elsewhere.has(mission) || missions.indexOf(mission) !== at)) {
+    return refused('A story is attached to one survivor at a time.');
+  }
+
   return accepted({
     ...campaign,
     survivors: campaign.survivors.map((candidate) =>
       candidate.id === survivor ? withTraits(candidate, traits) : candidate,
     ),
   });
+}
+
+/**
+ * A Veteran spends 1 XP of their own to bring a survivor at 0 Health up to 1,
+ * in the Planning Phase (pg. 88; R91; Z7-2). Themselves included (R137).
+ */
+export function submitVeteranHealing(
+  campaign: Campaign,
+  veteran: string,
+  survivor: string,
+  at: string,
+): FormResult {
+  const problem = veteranHealingProblem(campaign, veteran, survivor);
+  if (problem !== null) return refused(problem);
+
+  // Both present by now: the check found the Veteran and the survivor on the roster.
+  const named = (id: string) => (campaign.survivors.find((one) => one.id === id) as Survivor).name;
+
+  return accepted(
+    logged(withVeteranHealing(campaign, veteran, survivor), at, {
+      kind: 'veteran-healed',
+      veteran,
+      veteranName: named(veteran),
+      survivor,
+      name: named(survivor),
+    }),
+  );
 }

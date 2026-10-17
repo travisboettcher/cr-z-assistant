@@ -32,6 +32,7 @@ const EARL = {
   storyTrait: null,
   veteran: false,
   bondGroup: null,
+  stories: [],
 } satisfies Survivor;
 
 const codes = (survivor: Survivor) => survivorViolations(survivor).map((v) => v.code);

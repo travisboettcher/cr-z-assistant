@@ -796,6 +796,9 @@ test('experience buys a level and a promotion, and both survive the round trip',
   // button stays refused until the sheet is told.
   await expect(sheet.getByRole('button', { name: /raise their tier/i })).toBeDisabled();
   await sheet.getByLabel(/raise from zero/i).selectOption('cooperation');
+  // And the story the promotion attaches, asked the same way (pg. 87; R117).
+  await expect(sheet.getByRole('button', { name: /raise their tier/i })).toBeDisabled();
+  await sheet.getByLabel(/story it attaches/i).selectOption('neighbors-rifle');
   await sheet.getByRole('button', { name: /raise their tier/i }).click();
   await expect(sheet).toContainText('Tier 3 · Leader');
   await expect(sheet).toContainText('Still choosing skills: 1 of 3');
@@ -808,6 +811,7 @@ test('experience buys a level and a promotion, and both survive the round trip',
     xp: 13,
     // The zero the player raised, and the one they left alone.
     stats: { strength: 3, dexterity: 2, cooperation: 1, intelligence: 0 },
+    stories: [{ mission: 'neighbors-rifle', attachedOnTurn: 1 }],
   });
 
   await startFreshCampaign(page, 'Millbrook');

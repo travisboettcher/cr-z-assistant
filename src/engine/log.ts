@@ -43,7 +43,7 @@ import type { D10Result } from '../data/dice';
 import type { Grade, ItemId, VehicleTier } from '../data/equipment';
 import type { FacilityId, UpgradeId } from '../data/facilities';
 import type { Material, Materials } from '../data/materials';
-import type { MissionId, OverrunOption } from '../data/missions';
+import type { MissionId, OverrunOption, StoryMissionId } from '../data/missions';
 import type { CommonSkill, Skill } from '../data/skills';
 import type { FieldRecruitTier } from '../data/recruitTable';
 import type { Tier } from '../data/tiers';
@@ -768,12 +768,27 @@ export type CampaignEvent =
       /** What a `killed` survivor carried that nobody took, lost on the map (R71). */
       readonly lost?: readonly Item[];
     }
+  /**
+   * A Veteran's 1 XP spent bringing a survivor at 0 Health up to 1, in the
+   * Planning Phase (pg. 88; R91; Z7-2). The Veteran may be the survivor (R137).
+   */
+  | {
+      readonly kind: 'veteran-healed';
+      readonly veteran: string;
+      readonly veteranName: string;
+      readonly survivor: string;
+      readonly name: string;
+    }
   | {
       readonly kind: 'survivor-promoted';
       readonly survivor: string;
       readonly name: string;
       /** The Tier reached, not the one left. */
       readonly tier: Tier;
+      /** The story the promotion attached (pg. 87; R117; Z7-2), absent when none. */
+      readonly story?: StoryMissionId;
+      /** A Tier 3 become a Hero, and so a Veteran (pg. 87); absent otherwise and before Z7-2. */
+      readonly veteran?: true;
     }
   | {
       readonly kind: 'skill-level-bought';

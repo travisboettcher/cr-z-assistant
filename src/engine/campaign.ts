@@ -19,6 +19,7 @@ import type { Grade, ItemId, VehicleTier } from '../data/equipment';
 import type { Cost, FacilityId, UpgradeId } from '../data/facilities';
 import type { Materials } from '../data/materials';
 import type { StoryTrait } from '../data/traits';
+import type { StoryMissionId } from '../data/missions';
 import type { CampaignOrigin } from '../data/origins';
 import type { D10Result } from '../data/dice';
 import type { Skill, Stat } from '../data/skills';
@@ -134,6 +135,20 @@ export interface Survivor {
    * lacks it.
    */
   bondGroup: number | null;
+
+  /**
+   * The story missions attached to the survivor, each with the turn it was
+   * attached, in that order (pp. 87, 90, 96; R116; Z7-2). Any number at once,
+   * and each story attached to one survivor at a time (R136). Empty for every
+   * survivor in a save from before v19.
+   */
+  stories: readonly AttachedStory[];
+}
+
+/** A story mission attached to a survivor, and when (pg. 87; R116, R118). */
+export interface AttachedStory {
+  readonly mission: StoryMissionId;
+  readonly attachedOnTurn: number;
 }
 
 /**

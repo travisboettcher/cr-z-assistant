@@ -51,7 +51,9 @@ import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 import { TIER_LABELS } from './tierLabels';
 import { describeTraits, STORY_TRAIT_LABELS } from './traitLabels';
 import { STORY_TRAITS, type StoryTrait } from '../data/traits';
-import { traitStatBonus, type SurvivorTraits } from '../engine/traits';
+import { storiesHeld, storiesOnOffer, traitStatBonus, type SurvivorTraits } from '../engine/traits';
+import { STORY_MISSION_IDS, type StoryMissionId } from '../data/missions';
+import { MISSION_LABELS } from './missionLabels';
 
 export interface SurvivorSheetProps {
   readonly survivor: Survivor;
@@ -263,10 +265,25 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
     ...new Set(roster.flatMap((one) => (one.bondGroup === null ? [] : [one.bondGroup]))),
   ].sort((one, other) => one - other);
   const offered = [...groups, (groups.at(-1) ?? 0) + 1];
+  const campaign = state.status === 'open' ? state.campaign : null;
+  const turn = campaign?.turn ?? 1;
+  // Stories nobody else holds and this draft doesn't have yet (R136).
+  const elsewhere =
+    campaign === null
+      ? new Set<StoryMissionId>()
+      : storiesHeld({
+          ...campaign,
+          survivors: campaign.survivors.filter((one) => one.id !== survivor.id),
+        });
+  const attachable = STORY_MISSION_IDS.filter(
+    (mission) =>
+      !elsewhere.has(mission) && !(draft?.stories ?? []).some((one) => one.mission === mission),
+  );
   const current: SurvivorTraits = {
     storyTrait: survivor.storyTrait,
     veteran: survivor.veteran,
     bondGroup: survivor.bondGroup,
+    stories: survivor.stories,
   };
 
   return (
@@ -289,7 +306,20 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
       </div>
 
       {draft === null ? (
-        <p className="mt-2 text-lg font-semibold">{describeTraits(current)}</p>
+        <>
+          <p className="mt-2 text-lg font-semibold">{describeTraits(current)}</p>
+          <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+            {survivor.stories.length === 0
+              ? 'No story attached'
+              : `Stories: ${survivor.stories
+                  .map(
+                    (story) =>
+                      `${MISSION_LABELS[story.mission]}, since turn ${String(story.attachedOnTurn)}`,
+                  )
+                  .join('; ')}`}{' '}
+            <PageRef pages={87} />
+          </p>
+        </>
       ) : (
         <div className="mt-3 flex flex-col gap-3">
           <div className="flex flex-wrap items-end gap-4">
@@ -358,9 +388,66 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
             </label>
           </div>
 
+          <div className="flex flex-col gap-1">
+            <p className="text-sm">
+              Stories attached <PageRef pages={87} />
+            </p>
+            {draft.stories.length === 0 ? (
+              <p className="text-sm text-stone-600 dark:text-stone-400">None</p>
+            ) : (
+              <ul className="flex flex-col gap-1">
+                {draft.stories.map((story) => (
+                  <li key={story.mission} className="flex flex-wrap items-center gap-2 text-sm">
+                    <span>
+                      {MISSION_LABELS[story.mission]}, since turn {story.attachedOnTurn}
+                    </span>
+                    <button
+                      type="button"
+                      className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 px-3 py-1 text-sm hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800`}
+                      onClick={() => {
+                        setDraft({
+                          ...draft,
+                          stories: draft.stories.filter((one) => one.mission !== story.mission),
+                        });
+                      }}
+                    >
+                      Remove <span className="sr-only">{MISSION_LABELS[story.mission]}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {attachable.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <label htmlFor={`${groupId}-story`} className="text-sm">
+                  Attach a story
+                </label>
+                <select
+                  id={`${groupId}-story`}
+                  className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 bg-transparent px-3 dark:border-stone-600`}
+                  value=""
+                  onChange={(event) => {
+                    const mission = event.target.value as StoryMissionId;
+                    setDraft({
+                      ...draft,
+                      stories: [...draft.stories, { mission, attachedOnTurn: turn }],
+                    });
+                  }}
+                >
+                  <option value="">Choose…</option>
+                  {attachable.map((mission) => (
+                    <option key={mission} value={mission}>
+                      {MISSION_LABELS[mission]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
           <p className="text-sm text-stone-600 dark:text-stone-400">
             A survivor holds one Story Trait at a time, and Veteran beside it. Bondmates share a
-            group.
+            group. A story is attached to one survivor at a time.
           </p>
 
           <div className="flex flex-wrap gap-3">
@@ -581,7 +668,9 @@ function Promote({ survivor }: { readonly survivor: Survivor }) {
   const { state, dispatch } = useCampaign();
   const choiceId = useId();
   const overrideId = useId();
+  const storyId = useId();
   const [picked, setPicked] = useState<Stat | ''>('');
+  const [pickedStory, setPickedStory] = useState<StoryMissionId | ''>('');
   const [allowed, setAllowed] = useState(false);
   const choices = promotionStatChoices(survivor);
 
@@ -606,7 +695,16 @@ function Promote({ survivor }: { readonly survivor: Survivor }) {
   // Z1-7's override, and never stored: it gates this purchase once, and the
   // base sheet goes on reporting the community as over the cap for as long as
   // it is — which is the agreement the issue asks for between the two screens.
-  const held = over.length > 0 && !allowed ? over[0]?.message : undefined;
+  // The story a Tier 1 or 2 takes on (R117), from those nobody holds (R136).
+  // Chosen, never defaulted: a promotion's story is the player's, as the stat is.
+  const stories = campaign === null ? [] : storiesOnOffer(campaign, survivor);
+  const story = stories.some((one) => one === pickedStory) ? (pickedStory as StoryMissionId) : null;
+  const held =
+    over.length > 0 && !allowed
+      ? over[0]?.message
+      : stories.length > 0 && story === null
+        ? 'choose the story it attaches'
+        : undefined;
   // Re-derived from the current choices rather than reset by an effect: a
   // promotion changes the stats under this control, and a stale pick left over
   // from the previous Tier must not count as an answer to the new question.
@@ -624,9 +722,11 @@ function Promote({ survivor }: { readonly survivor: Survivor }) {
             type: 'survivor/tierBought',
             id: survivor.id,
             raise,
+            ...(story === null ? {} : { story }),
             at: new Date().toISOString(),
           });
           setPicked('');
+          setPickedStory('');
           setAllowed(false);
         }}
       />
@@ -650,6 +750,32 @@ function Promote({ survivor }: { readonly survivor: Survivor }) {
           </select>
         </span>
       ) : null}
+
+      {stories.length > 0 && (
+        <span className="flex items-center gap-2 text-sm">
+          <label htmlFor={storyId} className="text-stone-600 dark:text-stone-400">
+            Story it attaches <PageRef pages={87} />
+          </label>
+          <select
+            id={storyId}
+            value={pickedStory}
+            onChange={(event) => setPickedStory(event.target.value as StoryMissionId | '')}
+            className={`${FOCUS_RING} rounded-lg border border-stone-300 bg-transparent px-2 py-1 dark:border-stone-600`}
+          >
+            <option value="">Choose…</option>
+            {stories.map((one) => (
+              <option key={one} value={one}>
+                {MISSION_LABELS[one]}
+              </option>
+            ))}
+          </select>
+        </span>
+      )}
+      {survivor.tier === 3 && (
+        <span className="text-sm text-stone-600 dark:text-stone-400">
+          Becomes a Veteran <PageRef pages={87} />
+        </span>
+      )}
 
       {/*
        * R15, said where it happens. Promotion raises maximum Health through the

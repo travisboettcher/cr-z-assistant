@@ -15,6 +15,8 @@
  * caller's.
  */
 
+import type { StoryMissionId } from '../data/missions';
+import { becomesVeteran, storiesOnOffer } from './traits';
 import type { Material } from '../data/materials';
 import { MIN_SKILL_LEVEL, type CommonSkill, type Skill, type Stat } from '../data/skills';
 import { XP_AWARD, type XpSource } from '../data/turn';
@@ -313,6 +315,13 @@ export interface PromotionForm {
    * to choose — which `tierPurchase` re-checks, and blocks if there was.
    */
   readonly raise: Stat | null;
+
+  /**
+   * The story this promotion attaches, from `storiesOnOffer` (pg. 87; R117).
+   * Needed whenever one is on offer, as the stat choice is: a block, not a
+   * default.
+   */
+  readonly story?: StoryMissionId;
 }
 
 /** Spend XP on promoting a survivor one Tier, rebuilding their stats (pg. 18). */
@@ -321,7 +330,27 @@ export function submitPromotion(campaign: Campaign, form: PromotionForm, at: str
     const { blocked } = tierPurchase(survivor, form.raise);
     if (blocked !== null) return refused(PURCHASE_BLOCKED[blocked]);
 
-    const promoted = withTierBought(survivor, form.raise);
+    // A Tier 1 or 2 takes a story on (R117), one nobody else holds (R136); a
+    // Tier 3 becomes a Veteran (pg. 87).
+    const offered = storiesOnOffer(campaign, survivor);
+    const story = form.story;
+    if (offered.length > 0 && !offered.some((one) => one === story)) {
+      return refused('Choose the story this promotion attaches.');
+    }
+    if (offered.length === 0 && story !== undefined) {
+      return refused('This promotion attaches no story.');
+    }
+
+    const veteran = becomesVeteran(survivor);
+    const bought = withTierBought(survivor, form.raise);
+    const promoted = {
+      ...bought,
+      ...(veteran ? { veteran: true } : {}),
+      stories:
+        story === undefined
+          ? bought.stories
+          : [...bought.stories, { mission: story, attachedOnTurn: campaign.turn }],
+    };
 
     return {
       survivor: promoted,
@@ -330,6 +359,8 @@ export function submitPromotion(campaign: Campaign, form: PromotionForm, at: str
         survivor: survivor.id,
         name: survivor.name,
         tier: promoted.tier,
+        ...(story === undefined ? {} : { story }),
+        ...(veteran ? { veteran: true as const } : {}),
       },
     };
   });

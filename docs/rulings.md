@@ -2401,3 +2401,30 @@ were edited past the rules, and the book does not cover it.
 Nothing is chosen or stored: Driven is worked out from the stats each time they are read.
 
 *Decided 2026-10-17 with Z7-1.*
+
+---
+
+## R136 — A story is attached to one survivor at a time
+
+**pp. 87, 90; Phase 7, Z7-2.** A promotion offers five stories (pg. 87), and Left Behind attaches
+Prepper's Stash only if nobody holds it already (pg. 90). The book does not say whether a promotion
+may offer a story somebody else holds.
+
+**The ruling is that a story is attached to one survivor at a time**, set-aside survivors included:
+a promotion offers only the five nobody holds, and attaches none when all five are held. The save
+refuses two survivors holding one story.
+
+*Decided 2026-10-17 with Z7-2.*
+
+---
+
+## R137 — A Veteran may bring themselves up
+
+**pg. 88; Phase 7, Z7-2.** A Veteran spends XP to bring any survivor at 0 Health up to 1 in the
+Planning Phase (pg. 88). The book does not say whether the Veteran is one of them.
+
+**The ruling is that they are**: a Veteran at 0 Health may spend 1 XP of their own on themselves,
+and makes no Rot check that turn
+([R91](#r91--a-veterans-healing-comes-before-the-rot-check)).
+
+*Decided 2026-10-17 with Z7-2.*

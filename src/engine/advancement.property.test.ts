@@ -59,6 +59,7 @@ function playableSurvivorArbitrary(): fc.Arbitrary<Survivor> {
     storyTrait: fc.constant(null),
     veteran: fc.constant(false),
     bondGroup: fc.constant(null),
+    stories: fc.constant([]),
   });
 }
 

@@ -47,7 +47,8 @@
       ],
       "storyTrait": "driven",
       "veteran": true,
-      "bondGroup": null
+      "bondGroup": null,
+      "stories": []
     },
     {
       "id": "d2c93a75-1e48-4f60-b8d7-5a3e0c96f41b",
@@ -72,7 +73,13 @@
       "items": [],
       "storyTrait": "bonded",
       "veteran": false,
-      "bondGroup": 1
+      "bondGroup": 1,
+      "stories": [
+        {
+          "mission": "left-behind-1",
+          "attachedOnTurn": 2
+        }
+      ]
     },
     {
       "id": "f60b2d84-9a17-4c3e-85d0-2b7f1e6a9c48",
@@ -95,7 +102,8 @@
       "items": [],
       "storyTrait": "jaded",
       "veteran": false,
-      "bondGroup": null
+      "bondGroup": null,
+      "stories": []
     },
     {
       "id": "1a5c7e93-2d64-4b08-a7f1-9c30e5b284d7",
@@ -120,7 +128,8 @@
       "items": [],
       "storyTrait": "bonded",
       "veteran": false,
-      "bondGroup": 1
+      "bondGroup": 1,
+      "stories": []
     }
   ],
   "setAside": [],

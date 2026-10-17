@@ -22,7 +22,7 @@ import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS } from '../data/materials';
 import { EQUIPMENT, GRADES, VEHICLE_TIERS, type ItemId } from '../data/equipment';
-import { MISSIONS, OVERRUN_OPTIONS } from '../data/missions';
+import { MISSIONS, OVERRUN_OPTIONS, STORY_MISSION_IDS } from '../data/missions';
 import { FIELD_RECRUITABLE_TIERS } from '../data/recruitTable';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { CAMPAIGN_PHASES, HEALTH_SOURCES, XP_SOURCES } from '../data/turn';
@@ -266,6 +266,16 @@ function describeSurvivorProblem(value: unknown): string | null {
     return value.bondGroup === null
       ? 'is Bonded with no bond group'
       : 'has a bond group without being Bonded';
+  }
+
+  // The stories attached to them (Z7-2), each a story mission and its turn.
+  if (!Array.isArray(value.stories)) return 'has no list of stories';
+  for (const story of value.stories as unknown[]) {
+    if (!isRecord(story)) return 'has a story that isn’t a story';
+    if (!STORY_MISSION_IDS.some((id) => id === story.mission)) {
+      return 'has a story that isn’t a story mission';
+    }
+    if (!isCountFromOne(story.attachedOnTurn)) return 'has a story with no turn it was attached';
   }
 
   return null;
@@ -555,6 +565,9 @@ const EVENT_FIELD_CHECKS = {
       value.survivor !== '' &&
       typeof value.name === 'string'),
   optionalFlag: (value: unknown) => value === undefined || typeof value === 'boolean',
+  optionalTrue: (value: unknown) => value === undefined || value === true,
+  optionalStoryMission: (value: unknown) =>
+    value === undefined || STORY_MISSION_IDS.some((id) => id === value),
   // Why a survivor left (#201), absent on an entry from before it was recorded.
   optionalLeavingCause: (value: unknown) =>
     value === undefined || LEAVING_CAUSES.some((cause) => cause === value),
@@ -792,10 +805,19 @@ const EVENT_FIELDS: Record<
     ['survivor', 'id'],
     ['name', 'name'],
   ],
+  'veteran-healed': [
+    ['veteran', 'id'],
+    ['veteranName', 'name'],
+    ['survivor', 'id'],
+    ['name', 'name'],
+  ],
   'survivor-promoted': [
     ['survivor', 'id'],
     ['name', 'name'],
     ['tier', 'tier'],
+    // What a promotion gave (Z7-2), absent on an entry from before it did.
+    ['story', 'optionalStoryMission'],
+    ['veteran', 'optionalTrue'],
   ],
   'skill-level-bought': [
     ['survivor', 'id'],
@@ -1253,6 +1275,16 @@ function describeCampaignProblem(value: unknown): string | null {
   const ids = held.map((item) => item.id);
   const repeated = ids.find((id, at) => ids.indexOf(id) !== at);
   if (repeated !== undefined) return `it holds two items with one id: ${repeated}`;
+
+  // A story is attached to one survivor at a time (R136), the set-aside included.
+  const stories = [
+    ...(value.survivors as readonly {
+      readonly stories: readonly { readonly mission: string }[];
+    }[]),
+    ...(value.setAside as readonly { readonly stories: readonly { readonly mission: string }[] }[]),
+  ].flatMap((survivor) => survivor.stories.map((story) => story.mission));
+  const shared = stories.find((mission, at) => stories.indexOf(mission) !== at);
+  if (shared !== undefined) return `two survivors hold one story: ${shared}`;
 
   const assignments: unknown = value.assignments;
   if (!isRecord(assignments)) return 'it doesn’t say what its survivors are doing';

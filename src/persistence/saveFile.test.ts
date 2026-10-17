@@ -23,6 +23,7 @@ const VALID_SURVIVOR = {
   storyTrait: null,
   veteran: false,
   bondGroup: null,
+  stories: [],
 };
 
 /**
@@ -717,6 +718,14 @@ describe('a survivor whose fields are the wrong type', () => {
     ['a bond group of 0', { storyTrait: 'bonded', bondGroup: 0 }],
     ['a Bonded survivor with no bond group', { storyTrait: 'bonded', bondGroup: null }],
     ['a bond group without the trait', { storyTrait: 'jaded', bondGroup: 1 }],
+    // Attached stories (Z7-2): a list of story missions, each with its turn.
+    ['stories that aren’t a list', { stories: 'warehouse' }],
+    ['a story that isn’t an object', { stories: ['warehouse'] }],
+    [
+      'a story that isn’t a story mission',
+      { stories: [{ mission: 'scavenge', attachedOnTurn: 1 }] },
+    ],
+    ['a story with no turn', { stories: [{ mission: 'warehouse', attachedOnTurn: 0 }] }],
   ])('refuses %s', (_label, overrides) => {
     const result = withSurvivor(overrides);
 
@@ -739,6 +748,26 @@ describe('a survivor whose fields are the wrong type', () => {
     });
 
     expect(result.ok).toBe(true);
+  });
+
+  it('accepts a survivor’s attached stories', () => {
+    expect(withSurvivor({ stories: [{ mission: 'crashed-convoy', attachedOnTurn: 3 }] }).ok).toBe(
+      true,
+    );
+  });
+
+  it('refuses one story held by two survivors, one of them set aside (R136)', () => {
+    const story = { stories: [{ mission: 'warehouse', attachedOnTurn: 2 }] };
+    const result = parseCampaignFile(
+      savedWith({
+        survivors: [{ ...VALID_SURVIVOR, ...story }],
+        setAside: [{ ...VALID_SURVIVOR, id: 'someone-else', ...story }],
+      }),
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toMatch(/two survivors hold one story: warehouse/);
   });
 
   it('accepts every story trait, a Veteran, and a Bonded survivor’s group', () => {
@@ -1497,6 +1526,7 @@ describe('a campaign whose assignments are damaged', () => {
       storyTrait: null,
       veteran: false,
       bondGroup: null,
+      stories: [],
     },
   ];
 

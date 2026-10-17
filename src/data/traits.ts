@@ -59,3 +59,9 @@ export const STORY_TRAIT_RULES = {
 
 /** Veteran's page: gained on promotion to Hero, and kept beside any story trait (pp. 87–88). */
 export const VETERAN_PAGES = '87–88';
+
+/**
+ * What a Veteran spends in the Planning Phase, and what it gives: 1 XP of
+ * theirs for 1 Health to a survivor at 0 Health (pg. 88; R91).
+ */
+export const VETERAN_HEALING = { xp: 1, health: 1 } as const;

@@ -884,11 +884,13 @@ describe('spending experience', () => {
       at: AT,
       id: SURVIVOR_ID,
       // A Citizen is 2/1/0/0, so which zero becomes the Leader's 1 is the
-      // player's (pg. 18) and rides on the action.
+      // player's (pg. 18) and rides on the action, as the story does (R117).
       raise: 'intelligence',
+      story: 'neighbors-rifle',
     });
 
     expect(survivor(after)?.tier).toBe(3);
+    expect(survivor(after)?.stories.map((one) => one.mission)).toEqual(['neighbors-rifle']);
     expect(survivor(after)?.xp).toBe(0);
     expect(survivor(after)?.stats.intelligence).toBe(1);
     expect(Object.values(survivor(after)?.stats ?? {}).sort()).toEqual([0, 1, 2, 3]);
@@ -2456,9 +2458,20 @@ describe('what earns a line in the log', () => {
       entry: entry(3, 'mission', { kind: 'survivor-left', ...WEBB, tier: 2, cause: 'removed' }),
     },
     'survivor/tierBought': {
-      action: { type: 'survivor/tierBought', at: AT, id: LOGGED_SURVIVOR, raise: 'intelligence' },
-      // The Tier reached, not the one left behind.
-      entry: entry(3, 'mission', { kind: 'survivor-promoted', ...WEBB, tier: 3 }),
+      action: {
+        type: 'survivor/tierBought',
+        at: AT,
+        id: LOGGED_SURVIVOR,
+        raise: 'intelligence',
+        story: 'crashed-convoy',
+      },
+      // The Tier reached, not the one left behind, and the story it attached.
+      entry: entry(3, 'mission', {
+        kind: 'survivor-promoted',
+        ...WEBB,
+        tier: 3,
+        story: 'crashed-convoy',
+      }),
     },
     'survivor/skillLevelBought': {
       action: { type: 'survivor/skillLevelBought', at: AT, id: LOGGED_SURVIVOR, skill: 'archery' },
@@ -3061,13 +3074,35 @@ describe('what earns a line in the log', () => {
       },
       entry: null,
     },
+    'planning/veteranHealed': {
+      // Marcus, a Veteran, spends 1 XP to bring Ruby up from 0 (pg. 88; R91; Z7-2).
+      state: openState({
+        ...expectOpen(rich()),
+        step: 'assign-rest-and-healing',
+        survivors: expectOpen(rich()).survivors.map((survivor) =>
+          survivor.id === LOGGED_SURVIVOR
+            ? { ...survivor, veteran: true }
+            : survivor.id === DECOY
+              ? { ...survivor, currentHp: 0 }
+              : survivor,
+        ),
+      }),
+      action: { type: 'planning/veteranHealed', veteran: LOGGED_SURVIVOR, survivor: DECOY, at: AT },
+      entry: entry(3, 'planning', {
+        kind: 'veteran-healed',
+        veteran: LOGGED_SURVIVOR,
+        veteranName: 'Marcus Webb',
+        survivor: DECOY,
+        name: 'Ruby Vance',
+      }),
+    },
     // A correction on the sheet, like the stats above: a trait a story gives is
     // the story's own entry (Z7-1).
     'survivor/traitsSet': {
       action: {
         type: 'survivor/traitsSet',
         id: LOGGED_SURVIVOR,
-        traits: { storyTrait: 'jaded', veteran: false, bondGroup: null },
+        traits: { storyTrait: 'jaded', veteran: false, bondGroup: null, stories: [] },
       },
       entry: null,
     },
