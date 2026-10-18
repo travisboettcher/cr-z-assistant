@@ -52,7 +52,7 @@ export function containmentStands(campaign: Campaign): boolean {
 
 /** Whether a count is a whole number from 0. */
 const isCount = (value: number | undefined): boolean =>
-  value !== undefined && Number.isSafeInteger(value) && value >= 0;
+  Number.isSafeInteger(value) && (value as number) >= 0;
 
 /**
  * Why this Viral mission's record cannot be recorded, or `null` if it can:

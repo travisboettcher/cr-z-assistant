@@ -16,7 +16,7 @@
  */
 
 import type { BaseId } from '../data/bases';
-import type { OverrunOption, StoryMissionId } from '../data/missions';
+import type { OverrunOption, StoryMissionId, ViralMissionId } from '../data/missions';
 import type { Campaign, Survivor, Vehicle } from './campaign';
 import { equipCheck, withEquipMove, type EquipMove } from './equip';
 import { accepted, blockedBy, refused, type FormResult } from './forms';
@@ -57,7 +57,7 @@ import {
 import { spentItems, spentProblem, withItemsSpent } from './spent';
 import { isStory, partNow, storyHolder, storyRecord, withStoryRecorded } from './storyMissions';
 import { extrasOf } from './storyRewards';
-import { isViralMission, viralRecord, withViralRecorded } from './viralMissions';
+import { viralRecord, withViralRecorded } from './viralMissions';
 import { deathProblem, deathsProblem, withMissionDeath, type MissionDeath } from './missionDeaths';
 
 /**
@@ -290,15 +290,12 @@ function withStoryRebuilt(campaign: Campaign, outcome: MissionOutcome): MissionO
 
 /** The outcome with its Viral record as `viralRecord` builds it, from the base as it stands (Z7-6). */
 function withViralRebuilt(campaign: Campaign, outcome: MissionOutcome): MissionOutcome {
-  if (
-    outcome.kind !== 'mission-played' ||
-    outcome.viral === undefined ||
-    !isViralMission(outcome.mission)
-  ) {
-    return outcome;
-  }
+  if (outcome.kind !== 'mission-played' || outcome.viral === undefined) return outcome;
 
-  return { ...outcome, viral: viralRecord(campaign, outcome.mission, outcome.viral) };
+  // A Viral mission's by now: `viralProblem` refuses a record on any other.
+  const mission = outcome.mission as ViralMissionId;
+
+  return { ...outcome, viral: viralRecord(campaign, mission, outcome.viral) };
 }
 
 /**

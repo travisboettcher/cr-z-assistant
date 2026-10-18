@@ -430,13 +430,10 @@ export function containmentDraws(
   awards: readonly HealthAward[],
 ): readonly ContainmentDraw[] {
   const each = campaign.heldZombies * PER_HELD_ZOMBIE.infectionRemoved;
-  if (each === 0) return [];
+  const healing = new Set(beingHealed(campaign).map((survivor) => survivor.id));
 
-  const healed = withWoundsHealed(campaign, awards).survivors;
-
-  return beingHealed(campaign).flatMap((survivor) => {
-    const carried = healed.find((one) => one.id === survivor.id)?.infection ?? 0;
-    const infection = Math.min(each, carried);
+  return withWoundsHealed(campaign, awards).survivors.flatMap((survivor) => {
+    const infection = healing.has(survivor.id) ? Math.min(each, survivor.infection) : 0;
 
     return infection === 0 ? [] : [{ survivor, infection }];
   });

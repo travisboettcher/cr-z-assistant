@@ -1091,6 +1091,16 @@ describe('a campaign whose log is damaged', () => {
       'unreadable viral',
     ],
     [
+      'a Viral record with a field it doesn’t have beside one it does',
+      {
+        kind: 'mission-played',
+        team: 1,
+        mission: 'medical-salvage',
+        viral: { supplies: 1, tokens: 4 },
+      },
+      'unreadable viral',
+    ],
+    [
       'a Viral record with a negative count',
       { kind: 'mission-played', team: 1, mission: 'medical-salvage', viral: { supplies: -1 } },
       'unreadable viral',

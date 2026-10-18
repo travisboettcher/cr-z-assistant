@@ -83,6 +83,8 @@ describe('Medical Supply tokens toward a build (pg. 107; R131)', () => {
       'The base keeps 0 Medical Supply tokens.',
     ]);
     expect(refusal(planning(5, 4), bandages(2))).toEqual(['It takes only 1 Labor.']);
+    // Every token the base keeps may go.
+    expect(refusal(planning(1, 4), bandages(1))).toEqual([]);
     expect(refusal(planning(5, 4), bandages(-1))).toEqual([
       'Spend a whole number of Medical Supply tokens.',
     ]);

@@ -138,6 +138,21 @@ describe('a held zombie (R104, R146)', () => {
     expect(containmentStands(playing('bring-it-on-home'))).toBe(true);
     expect(containmentStands(playing('bring-it-on-home', { base: clinic(false) }))).toBe(false);
     expect(containmentStands(playing('bring-it-on-home', { base: null }))).toBe(false);
+    expect(
+      containmentStands(
+        playing('bring-it-on-home', {
+          base: {
+            id: 'small-town-home',
+            slots: {
+              garage: {
+                built: { facility: 'medical-clinic', builtOnTurn: 1 },
+                upgrades: ['restraints'],
+              },
+            },
+          },
+        }),
+      ),
+    ).toBe(false);
   });
 
   it('goes into Containment when any ensnared zombie left, however many', () => {
@@ -235,6 +250,13 @@ describe('Containment’s unlock (R122, R144)', () => {
             team: 1,
             mission: 'medical-salvage',
             viral: { supplies: 1 },
+          }),
+          // Only an Experimental Data's points of interest unlock it.
+          entry({
+            kind: 'mission-played',
+            team: 1,
+            mission: 'bring-it-on-home',
+            viral: { investigated: 1, brokenCage: false },
           }),
           played({ investigated: 0, brokenCage: false }, 3),
           played({ investigated: 2, brokenCage: true }, 4),
