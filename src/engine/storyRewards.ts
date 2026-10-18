@@ -87,25 +87,27 @@ export function extrasOf(record: StoryRecord): StoryExtras {
   };
 }
 
+/** What an ending asks for, none for most. */
+const asksOf = (result: StoryResult): readonly StoryAsk[] => result.asks ?? [];
+
 /** The ask of this kind an ending has, or `undefined`. */
 function askOf<Kind extends StoryAsk['kind']>(
   result: StoryResult,
   kind: Kind,
 ): Extract<StoryAsk, { kind: Kind }> | undefined {
-  return (result.asks ?? []).find(
-    (ask): ask is Extract<StoryAsk, { kind: Kind }> => ask.kind === kind,
-  );
+  return asksOf(result).find((ask): ask is Extract<StoryAsk, { kind: Kind }> => ask.kind === kind);
 }
 
-/** Which item sources an ending's asks can give. */
-const SOURCES_OF: Record<
-  Exclude<StoryAsk['kind'], 'attaches' | 'vehicle' | 'jaded' | 'resources'>,
-  readonly StoryItemSource[]
-> = {
+/** Which item sources each ask can give: none, for an ask that gives no item. */
+const SOURCES_OF: Record<StoryAsk['kind'], readonly StoryItemSource[]> = {
   'skilled-weapon': ['skilled-weapon'],
   'found-item': ['found-item'],
   'quality-roll': ['quality-roll'],
   'rare-rolls-or-picks': ['rare-roll', 'rare-pick'],
+  attaches: [],
+  vehicle: [],
+  jaded: [],
+  resources: [],
 };
 
 const isD10 = (value: unknown): value is D10Result =>
@@ -138,9 +140,7 @@ export function extrasProblem(
   extras: StoryExtras,
 ): string | null {
   const items = extras.items ?? [];
-  const asked = (result.asks ?? []).flatMap((ask) =>
-    ask.kind in SOURCES_OF ? SOURCES_OF[ask.kind as keyof typeof SOURCES_OF] : [],
-  );
+  const asked = asksOf(result).flatMap((ask) => SOURCES_OF[ask.kind]);
   const onTeam = (id: string | undefined) => members.some((member) => member.id === id);
   const fromThe = (source: StoryItemSource) => items.filter((item) => item.from === source);
 
@@ -181,9 +181,9 @@ export function extrasProblem(
   }
 
   if (askOf(result, 'quality-roll') !== undefined) {
-    const rolled = fromThe('quality-roll');
+    const [rolled, ...more] = fromThe('quality-roll');
 
-    if (rolled.length !== 1 || !isD10(rolled[0]?.entry)) {
+    if (rolled === undefined || more.length > 0 || !isD10(rolled.entry)) {
       return 'Enter the Quality Items roll.';
     }
   }
@@ -213,10 +213,9 @@ export function extrasProblem(
 
   const attaching = extras.alsoAttached ?? [];
   if (
-    !attaching.every(
-      (one, at) =>
-        (result.asks ?? []).some((ask) => ask.kind === 'attaches' && ask.story === one.mission) &&
-        attaching.findIndex((other) => other.mission === one.mission) === at,
+    new Set(attaching.map((one) => one.mission)).size !== attaching.length ||
+    !attaching.every((one) =>
+      asksOf(result).some((ask) => ask.kind === 'attaches' && ask.story === one.mission),
     )
   ) {
     return 'That ending attaches no such story.';
@@ -225,10 +224,11 @@ export function extrasProblem(
     return 'A story the ending attaches goes to somebody on the team.';
   }
 
-  if (extras.vehicle !== undefined) {
+  const vehicle = extras.vehicle;
+  if (vehicle !== undefined) {
     if (askOf(result, 'vehicle') === undefined) return 'That ending gives no vehicle.';
-    if (extras.vehicle.label.trim() === '') return 'Name the vehicle.';
-    if (campaign.vehicles.some((vehicle) => vehicle.id === extras.vehicle?.id)) {
+    if (vehicle.label.trim() === '') return 'Name the vehicle.';
+    if (campaign.vehicles.some((held) => held.id === vehicle.id)) {
       return 'A vehicle already has that id.';
     }
   }

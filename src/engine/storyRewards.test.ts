@@ -5,7 +5,7 @@ import { storyResult, type StoryResult } from '../data/stories';
 import { submitHaul } from './advancementForms';
 import { createNewCampaign, type Campaign, type Survivor } from './campaign';
 import { submitStrangerJoined } from './campaignForms';
-import { xpPool } from './experience';
+import { checkXpAward, xpPool } from './experience';
 import { exhaustion, unrest, unrestLocked } from './feeding';
 import type { CampaignEvent, LogEntry, StoryRecord } from './log';
 import { submitMissionEnded } from './missionForms';
@@ -116,6 +116,22 @@ describe('the loved one’s weapon (pg. 90)', () => {
     );
   });
 
+  it('is a weapon, named, and not equipment a skill uses', () => {
+    const tinker = playing('left-behind-1', [
+      earl({ ...holding('left-behind-1'), skills: { tinker: 0 } }),
+      carla,
+    ]);
+
+    expect(
+      problem(tinker, 'left-behind-1', 'not-rescued', weapon('tool-belt') as StoryExtras),
+    ).toMatch(/Choose the quality weapon/);
+    expect(
+      problem(lost, 'left-behind-1', 'not-rescued', {
+        items: [{ id: 'w', from: 'skilled-weapon', grade: 'quality', survivor: 'earl' }],
+      }),
+    ).toMatch(/Choose the quality weapon/);
+  });
+
   it('goes into the survivor’s own hands', () => {
     expect(
       problem(lost, 'left-behind-1', 'not-rescued', {
@@ -147,6 +163,13 @@ describe('Neighbor’s Rifle’s rifle (pp. 98–99)', () => {
     expect(problem(rifle, 'neighbors-rifle', 'seating-failed', taken('carla', 'shotgun'))).toBe(
       'What was found goes to one survivor on the team.',
     );
+    expect(
+      problem(rifle, 'neighbors-rifle', 'seating-failed', {
+        items: [
+          { id: 'r', from: 'found-item', item: 'rifle', grade: 'standard', survivor: 'carla' },
+        ],
+      }),
+    ).toBe('What was found goes to one survivor on the team.');
     expect(
       problem(rifle, 'neighbors-rifle', 'seating-failed', {
         items: [
@@ -184,6 +207,19 @@ describe('Prepper’s Stash’s rolls (pp. 43, 94, 96; R127)', () => {
         items: [{ id: 'q', from: 'quality-roll', entry: 4 }],
       }),
     ).toBeNull();
+    expect(
+      problem(one, 'preppers-stash-1', 'duffel-recovered', {
+        items: [
+          { id: 'q', from: 'quality-roll', entry: 4 },
+          { id: 'r', from: 'quality-roll', entry: 5 },
+        ],
+      }),
+    ).toBe('Enter the Quality Items roll.');
+    expect(
+      problem(one, 'preppers-stash-1', 'duffel-recovered', {
+        items: [{ id: 'q', from: 'quality-roll', entry: 11 as 1 }],
+      }),
+    ).toBe('Enter the Quality Items roll.');
   });
 
   it('asks Part 2’s trap door for six rolls on the table, or three items from any of it', () => {
@@ -217,6 +253,29 @@ describe('Prepper’s Stash’s rolls (pp. 43, 94, 96; R127)', () => {
       }),
     ).toBe(expected);
     expect(problem(two, 'preppers-stash-2', 'trap-door-opened', {})).toBe(expected);
+    // A roll short of a die, either one.
+    const [, ...rest] = rolls(6);
+    expect(
+      problem(two, 'preppers-stash-2', 'trap-door-opened', {
+        items: [{ id: 'x', from: 'rare-roll', subtable: 3 }, ...rest],
+      }),
+    ).toBe(expected);
+    expect(
+      problem(two, 'preppers-stash-2', 'trap-door-opened', {
+        items: [{ id: 'x', from: 'rare-roll', entry: 1 }, ...rest],
+      }),
+    ).toBe(expected);
+    // Three picks are three picks alone.
+    expect(
+      problem(two, 'preppers-stash-2', 'trap-door-opened', {
+        items: [
+          pick('fully-automatic-rifle', 'standard'),
+          pick('tool-belt', 'quality'),
+          pick('gas-grill', 'standard'),
+          ...rolls(1),
+        ],
+      }),
+    ).toBe(expected);
   });
 
   it('refuses an item id somebody has, one used twice, or none', () => {
@@ -275,6 +334,17 @@ describe('other stories an ending attaches (pp. 90, 120; R139, R141)', () => {
     ).toBe('A story the ending attaches goes to somebody on the team.');
   });
 
+  it('sit beside the ending’s other asks', () => {
+    expect(
+      problem(lb1, 'left-behind-1', 'not-rescued', {
+        items: [
+          { id: 'w', from: 'skilled-weapon', item: 'rifle', grade: 'quality', survivor: 'earl' },
+        ],
+        alsoAttached: [{ mission: 'preppers-stash-1', survivor: 'carla' }],
+      }),
+    ).toBeNull();
+  });
+
   it('are attached only when nobody holds them and nobody has done them', () => {
     const held = playing('left-behind-1', [
       earl(holding('left-behind-1')),
@@ -311,8 +381,20 @@ describe('Part 2b’s boat and who becomes Jaded (pg. 93; R128)', () => {
       ),
     ).toBe('A vehicle already has that id.');
     expect(
-      extrasRecord(lb2b, team(lb2b), result('left-behind-2b', 'body-left'), boat).vehicle,
+      extrasRecord(lb2b, team(lb2b), result('left-behind-2b', 'body-left'), {
+        vehicle: { id: 'boat', label: ' Mabel ' },
+      }).vehicle,
     ).toEqual({ id: 'boat', tier: 2, label: 'Mabel', water: true });
+    expect(
+      problem(
+        { ...lb2b, vehicles: [{ id: 'truck', tier: 1, label: 'Truck', water: false }] },
+        'left-behind-2b',
+        'body-left',
+        boat,
+      ),
+    ).toBeNull();
+    // An ending without the ask gives no vehicle, whatever is sent.
+    expect(extrasRecord(lb2b, team(lb2b), result('warehouse', 'played'), boat)).toStrictEqual({});
     expect(problem(playing('warehouse'), 'warehouse', 'played', { ...boat, resources: 0 })).toBe(
       'That ending gives no vehicle.',
     );
@@ -374,6 +456,26 @@ describe('the Warehouse’s count (pg. 102; R125)', () => {
     expect(exhaustion(managing([ended(11)]))).toBe(3);
     expect(unrest(managing([ended(10)]))).toBe(3);
     expect(warehouseQuiet(managing([ended(11, 3)]))).toBe(false);
+
+    // Other endings, a mission with no story, and an ending the rules do not know, read past.
+    const others: LogEntry[] = [
+      entry({
+        kind: 'mission-played',
+        team: 2,
+        mission: 'crashed-convoy',
+        story: { survivor: 'carla', name: 'Carla Proust', result: 'search-failed', xp: 1 },
+      }),
+      entry({ kind: 'mission-played', team: 3, mission: 'chased' }),
+      entry({
+        kind: 'mission-played',
+        team: 4,
+        mission: 'warehouse',
+        story: { survivor: 'ruby', name: 'Ruby Vance', result: 'bogus', resources: 20 },
+      }),
+    ];
+    expect(warehouseQuiet(managing(others))).toBe(false);
+    expect(warehouseQuiet(managing([...others, ended(11)]))).toBe(true);
+    expect(convoyTensDue(managing(others))).toBe(2);
   });
 });
 
@@ -450,6 +552,20 @@ describe('extras, written and handed over (Z7-4)', () => {
       items: [{ id: 'a', from: 'rare-roll', subtable: 3 }],
       jaded: { survivor: 'nobody', name: '' },
     });
+    expect(
+      extrasRecord(two, team(two), result('crashed-convoy', 'search-failed'), {
+        items: [
+          { id: 'a', from: 'rare-roll', subtable: 3 },
+          { id: 'b', from: 'rare-roll', entry: 2 },
+        ],
+      }).items,
+    ).toStrictEqual([
+      { id: 'a', item: undefined, grade: undefined, from: 'rare-roll', subtable: 3 },
+      { id: 'b', item: undefined, grade: undefined, from: 'rare-roll', entry: 2 },
+    ]);
+    expect(
+      extrasRecord(two, team(two), result('crashed-convoy', 'search-failed'), { items: [] }),
+    ).toStrictEqual({});
   });
 
   it('reads back as the form entered it', () => {
@@ -544,6 +660,33 @@ describe('extras, written and handed over (Z7-4)', () => {
     expect(
       withExtrasTaken(campaign, { survivor: 'earl', name: 'Earl', result: 'body-left' }),
     ).toEqual(campaign);
+
+    // Each by itself still reaches its survivor.
+    const item = withExtrasTaken(campaign, {
+      survivor: 'earl',
+      name: 'Earl Rhodes',
+      result: 'body-left',
+      items: [
+        {
+          id: 'r',
+          item: 'rifle',
+          grade: 'quality',
+          from: 'found-item',
+          survivor: 'carla',
+          name: 'Carla Proust',
+        },
+      ],
+    });
+    const story = withExtrasTaken(campaign, {
+      survivor: 'earl',
+      name: 'Earl Rhodes',
+      result: 'body-left',
+      alsoAttached: [{ mission: 'crashed-convoy', survivor: 'carla', name: 'Carla Proust' }],
+    });
+    expect(named(item, 'carla').items).toHaveLength(1);
+    expect(named(item, 'carla').storyTrait).toBe('bonded');
+    expect(named(story, 'carla').stories).toHaveLength(1);
+    expect(named(story, 'carla').items).toEqual([]);
   });
 
   it('are what a recorded ending gives, end to end', () => {
@@ -692,12 +835,36 @@ describe('Part 2a’s XP to the survivor and every bondmate (pg. 91; R140)', () 
     expect(pool.capPerSurvivor).toBe(1);
     expect(pool.eligible.map((survivor) => survivor.id)).toEqual(['earl', 'carla']);
     expect(pool.sentBy).toBe('left-behind-2a');
+    expect(xpPool(campaign, 'mission').sentBy).toBeUndefined();
+    expect(checkXpAward(campaign, 'ruby', 'discretionary').blockers[0]?.message).toBe(
+      'Left Behind Part 2a sends this point to its survivor and their bondmates.',
+    );
+    expect(checkXpAward(playing('warehouse'), 'nobody', 'discretionary').blockers[0]?.message).toBe(
+      'Anybody may be given the discretionary point.',
+    );
   });
 
   it('is the usual point on any other turn, and nothing when the survivor is gone', () => {
     const gone = advancing([carla, ruby]);
 
     expect(bondmateXpRecipients(playing('warehouse'))).toBeUndefined();
+    expect(
+      bondmateXpRecipients({
+        ...playing('warehouse'),
+        log: [
+          entry({
+            kind: 'mission-played',
+            team: 1,
+            mission: 'warehouse',
+            story: { survivor: 'earl', name: 'Earl Rhodes', result: 'played', resources: 0 },
+          }),
+        ],
+      }),
+    ).toBeUndefined();
+    // A survivor who has lost Bonded still takes their own point.
+    expect(bondmateXpRecipients(advancing([earl(), bonded(carla)]))?.map((one) => one.id)).toEqual([
+      'earl',
+    ]);
     expect(xpPool(playing('warehouse'), 'discretionary').sentBy).toBeUndefined();
     expect(bondmateXpRecipients(gone)).toEqual([]);
     expect(xpPool(gone, 'discretionary')).toMatchObject({
@@ -723,6 +890,18 @@ describe('Neighbor’s Rifle’s Tier 3 (pg. 99; R142)', () => {
     expect([...Object.values(built.stats)].sort()).toEqual([0, 1, 2, 3]);
     expect(built.skills).toEqual({ archery: 0, 'long-guns': 0 });
     expect(built.items).toEqual([{ id: buildItemId('dale'), item: 'rifle', grade: 'quality' }]);
+    expect(buildItemId('dale')).toBe('dale-arrived-with');
+  });
+
+  it('leaves the stats alone where the Tier’s array has no such value', () => {
+    const recruit = strangerSurvivor('Dale Hart', { team: 1, stranger: 0, tier: 2 }, 6, {
+      id: 'dale',
+    });
+    const built = strangerSurvivor('Dale Hart', { team: 1, stranger: 0, tier: 2, build }, 6, {
+      id: 'dale',
+    });
+
+    expect(built.stats).toEqual(recruit.stats);
   });
 
   it('is built at Create New Survivors from the record, and the history says so', () => {

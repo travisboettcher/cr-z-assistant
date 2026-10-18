@@ -246,7 +246,8 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
         ? canTeach
           ? 0
           : DISCRETIONARY_MISSION_XP
-        : bondmateXp.length * DISCRETIONARY_MISSION_XP,
+        : // 1 each (pg. 91), however many the community's point would be.
+          bondmateXp.length,
     'mission-teaching': teaching,
     'training-room': trainingRoomXp(campaign),
   };

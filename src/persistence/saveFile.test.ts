@@ -1405,6 +1405,7 @@ describe('a campaign whose log is damaged', () => {
       'bringing a survivor carrying no item',
       { joins: { tier: 3, build: { skill: 'long-guns', stat: { dexterity: 3 } } } },
     ],
+    ['bringing a survivor with a build of nothing', { joins: { tier: 3, build: null } }],
   ] as const)('refuses a story ending %s', (_label, story) => {
     expect(
       refusalFor([
