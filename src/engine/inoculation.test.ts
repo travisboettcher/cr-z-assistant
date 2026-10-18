@@ -26,6 +26,7 @@ const clinic = (): Base => ({
 });
 
 const SHOT = { id: 'shot', item: 'inoculation' as const, grade: 'standard' as const };
+const SECOND = { ...SHOT, id: 'second' };
 
 const earl = (overrides: Partial<Survivor> = {}): Survivor => ({
   ...createSurvivor('Earl Rhodes', 2, { id: 'earl' }),
@@ -65,6 +66,7 @@ describe('choosing an Inoculation in the Planning Phase (pg. 48; R97, R143)', ()
     expect(chosen.assignments.earl).toEqual({ task: 'healing', inoculation: 'shot' });
     expect(inoculationFor(chosen, 'earl')).toBe('shot');
     expect(inoculationFor(chosen, 'carla')).toBeUndefined();
+    expect(inoculationFor(chosen, 'nobody')).toBeUndefined();
     // Taken back, it is healing again.
     expect(accepted(submitInoculationChosen(chosen, 'earl', null)).assignments.earl).toEqual({
       task: 'healing',
@@ -98,6 +100,37 @@ describe('choosing an Inoculation in the Planning Phase (pg. 48; R97, R143)', ()
       ),
     ).toBe('Earl Rhodes is Rot Resistant already.');
     expect(inoculationProblem(viral({ base: null }), 'earl', null)).toBeNull();
+  });
+
+  it('refuses somebody unassigned, a base whose Clinic is gone, and asks of the right survivor', () => {
+    expect(
+      inoculationProblem(viral({ assignments: { earl: { task: 'healing' } } }), 'carla', 'shot'),
+    ).toBe('Only a survivor assigned to healing is given an Inoculation.');
+    expect(inoculationProblem(viral({ survivors: [carla] }), 'earl', 'shot')).toBe(
+      'Only a survivor assigned to healing is given an Inoculation.',
+    );
+    expect(
+      inoculationProblem(viral({ base: { id: 'small-town-home', slots: {} } }), 'earl', 'shot'),
+    ).toMatch(/Medical Clinic, and this base has none/);
+    expect(
+      inoculationProblem(
+        viral({ survivors: [earl(), { ...carla, rotResistant: true }] }),
+        'carla',
+        'shot',
+      ),
+    ).toBe('Carla Proust is Rot Resistant already.');
+    expect(submitInoculationChosen(viral({ step: 'heal-wounds' }), 'earl', 'shot')).toEqual({
+      ok: false,
+      problem: 'Choose Inoculations in the Planning Phase.',
+    });
+  });
+
+  it('chooses any one of several held, each for one survivor', () => {
+    const two = viral({ inventory: [SHOT, SECOND] });
+    const chosen = accepted(submitInoculationChosen(two, 'earl', 'shot'));
+
+    expect(inoculationProblem(two, 'earl', 'second')).toBeNull();
+    expect(inoculationProblem(chosen, 'carla', 'second')).toBeNull();
   });
 
   /** R143: being inoculated is reason enough to be at the Clinic at full Health. */
@@ -139,6 +172,7 @@ describe('giving it at Heal Wounds (R97)', () => {
     const after = accepted(submitInoculated(healing(), 'earl', AT));
 
     expect(named(after, 'earl').rotResistant).toBe(true);
+    expect(named(after, 'carla').rotResistant).toBe(false);
     expect(after.inventory.map((item) => item.id)).toEqual(['pistol']);
     expect(after.log.at(-1)?.event).toEqual({
       kind: 'survivor-inoculated',
@@ -162,6 +196,9 @@ describe('giving it at Heal Wounds (R97)', () => {
     expect(inoculateProblem(healing({ inventory: [] }), 'earl')).toBe(
       'The Inoculation chosen for them is no longer in the base’s Inventory.',
     );
+    expect(inoculateProblem(healing({ inventory: [SECOND] }), 'earl')).toBe(
+      'The Inoculation chosen for them is no longer in the base’s Inventory.',
+    );
     expect(
       inoculateProblem(healing({ survivors: [earl({ rotResistant: true }), carla] }), 'earl'),
     ).toBe('Earl Rhodes is Rot Resistant already.');
@@ -171,6 +208,30 @@ describe('giving it at Heal Wounds (R97)', () => {
         problem: 'Nobody by that name is owed an Inoculation this turn.',
       },
     );
+  });
+
+  it('is still owed after somebody else’s Inoculation, last turn’s, or another entry', () => {
+    const entry = (turn: number, event: LogEntry['event']): LogEntry => ({
+      turn,
+      phase: 'advancement',
+      at: AT,
+      event,
+    });
+    const owed = (log: readonly LogEntry[]) =>
+      inoculationsDue(healing({ log })).map(({ survivor }) => survivor.id);
+
+    expect(
+      owed([
+        entry(3, {
+          kind: 'survivor-inoculated',
+          survivor: 'carla',
+          name: 'Carla Proust',
+          item: 'x',
+        }),
+        entry(2, { kind: 'survivor-inoculated', survivor: 'earl', name: 'Earl Rhodes', item: 'x' }),
+        entry(3, { kind: 'infection-resisted', survivor: 'earl', name: 'Earl Rhodes' }),
+      ]),
+    ).toEqual(['earl']);
   });
 
   it('reads last turn’s choice once this turn’s Planning has cleared it', () => {
@@ -223,6 +284,19 @@ describe('Rot Resistant’s 1 Infection off (pg. 140; R96)', () => {
     expect(outstanding(campaign).map((one) => one.says)).toContain(
       'Rot Resistant hasn’t taken this turn’s Infection off.',
     );
+    expect(
+      rotResistanceDue({
+        ...campaign,
+        log: [
+          {
+            turn: 3,
+            phase: 'advancement',
+            at: AT,
+            event: { kind: 'survivor-inoculated', survivor: 'carla', name: 'Carla', item: 'x' },
+          },
+        ],
+      }).map((survivor) => survivor.id),
+    ).toEqual(['earl']);
     expect(rotResistanceProblem({ ...campaign, step: 'check-for-rot' })).toMatch(
       /Advancement Phase/,
     );

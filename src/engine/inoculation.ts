@@ -58,13 +58,13 @@ export function inoculationProblem(
   item: string | null,
 ): string | null {
   if (phaseOf(campaign.step) !== 'planning') return 'Choose Inoculations in the Planning Phase.';
-  if (campaign.assignments[survivorId]?.task !== 'healing') {
+
+  const survivor = campaign.survivors.find((candidate) => candidate.id === survivorId);
+  if (survivor === undefined || campaign.assignments[survivorId]?.task !== 'healing') {
     return 'Only a survivor assigned to healing is given an Inoculation.';
   }
   if (item === null) return null;
-
-  const survivor = campaign.survivors.find((candidate) => candidate.id === survivorId);
-  if (survivor?.rotResistant === true) return `${survivor.name} is Rot Resistant already.`;
+  if (survivor.rotResistant) return `${survivor.name} is Rot Resistant already.`;
   if (!suppliedOccupants(campaign).some(({ facility }) => facility.id === 'medical-clinic')) {
     return 'An Inoculation is given at a Medical Clinic, and this base has none.';
   }
@@ -72,9 +72,8 @@ export function inoculationProblem(
     return 'That isn’t an Inoculation in the base’s Inventory.';
   }
 
-  const elsewhere = Object.entries(campaign.assignments).some(
-    ([id, assignment]) =>
-      id !== survivorId && assignment.task === 'healing' && assignment.inoculation === item,
+  const elsewhere = Object.keys(campaign.assignments).some(
+    (id) => id !== survivorId && inoculationFor(campaign, id) === item,
   );
 
   return elsewhere ? 'That Inoculation is given to somebody else already.' : null;

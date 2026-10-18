@@ -10,6 +10,7 @@ import {
   infectionMustCheck,
   infectionOutcome,
   infectionStillToCheck,
+  rotCheckResolved,
 } from './rot';
 import { createSurvivor } from './survivor';
 
@@ -84,8 +85,33 @@ describe('who makes the Infection check (pg. 123; R99, R101)', () => {
     });
 
     expect(infectionCheckResolved(campaign, 'a')).toBe(true);
+    expect(rotCheckResolved(campaign, 'a')).toBe(false);
     expect(infectionCheckResolved({ ...campaign, turn: 4 }, 'a')).toBe(false);
     expect(ids(infectionStillToCheck(campaign))).toEqual(['c']);
+  });
+
+  it('is a check of its own, neither resolving nor resolved by the Rot check (R100)', () => {
+    const rotChecked = viral([carrying('a', 'A', 2)], {
+      log: [
+        {
+          turn: 3,
+          phase: 'management',
+          at: AT,
+          event: {
+            kind: 'rot-checked',
+            survivor: 'a',
+            name: 'A',
+            roll: 5,
+            target: 4,
+            passed: true,
+          },
+        },
+      ],
+    });
+
+    expect(rotCheckResolved(rotChecked, 'a')).toBe(true);
+    expect(infectionCheckResolved(rotChecked, 'a')).toBe(false);
+    expect(rotCheckResolved(viral([carrying('a', 'A', 2)], { log: [] }), 'a')).toBe(false);
   });
 });
 
