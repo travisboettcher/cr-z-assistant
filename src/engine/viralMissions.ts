@@ -20,6 +20,7 @@
  * Pure, like the rest of `src/engine`.
  */
 
+import { FACILITIES, type Effects, type Facility } from '../data/facilities';
 import type { MissionId, ViralMissionId } from '../data/missions';
 import type { Campaign } from './campaign';
 import type { ViralRecord } from './log';
@@ -147,3 +148,12 @@ export function containmentUnlock(campaign: Campaign): { readonly hardware: numb
 
   return null;
 }
+
+/**
+ * What each held zombie does (pp. 69, 72; R103): the Siege Threat it adds a
+ * turn, and the Infection it takes from each survivor being healed. Read off
+ * the Medical Clinic's Containment, so the catalogue stays the one copy.
+ */
+export const PER_HELD_ZOMBIE = (FACILITIES['medical-clinic'] as Facility).upgrades.find(
+  (upgrade) => upgrade.id === 'containment',
+)?.effects.perHeldZombie as NonNullable<Effects['perHeldZombie']>;

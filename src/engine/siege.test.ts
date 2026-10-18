@@ -272,9 +272,17 @@ describe('siegeThreatTerms', () => {
     expect(siegeThreatTerms(community({ base: walled }))['base-features']).toBeLessThan(0);
   });
 
+  /** Each zombie held in Containment adds 1 a turn (pg. 69; R103; Z7-6). */
+  it('adds 1 for each zombie held in Containment', () => {
+    expect(siegeThreatTerms(community())['held-zombies']).toBe(0);
+    expect(siegeThreatTerms(community({ heldZombies: 3 }))['held-zombies']).toBe(3);
+    expect(siegeThreat(community({ heldZombies: 3 }))).toBe(siegeThreat(community()) + 3);
+  });
+
   it('has an entry for every term there is', () => {
     expect(Object.keys(siegeThreatTerms(community())).sort()).toEqual([
       'base-features',
+      'held-zombies',
       'project-team',
       'staffed-facilities',
       'turns-since-last-siege',

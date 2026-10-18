@@ -49,6 +49,7 @@ import { planningHasBegun } from './planning';
 import { projectTeamThatWorked, siegeDefended } from './siegeWork';
 import { freeRebuild } from './rebuild';
 import { phaseOf } from './turn';
+import { containmentUnlock } from './viralMissions';
 
 /**
  * Whether one of these is already on order for this slot.
@@ -202,7 +203,16 @@ function costOf(campaign: Campaign, project: ProjectOrder): Cost {
     );
     if (upgrade === undefined) return NOTHING;
 
-    return upgradeCost(occupant, upgrade);
+    const cost = upgradeCost(occupant, upgrade);
+
+    // Containment's Hardware, changed by the Experimental Data that unlocked it
+    // (R122, R144). Never below nothing, as a replacement discount isn't.
+    return upgrade.id === 'containment'
+      ? {
+          ...cost,
+          hardware: Math.max(0, cost.hardware + (containmentUnlock(campaign)?.hardware ?? 0)),
+        }
+      : cost;
   }
 
   const clearing = clearingProject(campaign, project.slot);

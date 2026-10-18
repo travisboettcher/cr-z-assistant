@@ -764,6 +764,11 @@ const EVENT_FIELDS: Record<
     ['survivor', 'id'],
     ['name', 'name'],
   ],
+  'infection-contained': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['infection', 'countFromOne'],
+  ],
   'bite-restrained': [
     ['survivor', 'id'],
     ['name', 'name'],

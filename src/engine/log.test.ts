@@ -106,6 +106,7 @@ describe('the event samples', () => {
     'infection-checked': true,
     'survivor-inoculated': true,
     'infection-resisted': true,
+    'infection-contained': true,
     'bite-restrained': true,
     'survivor-bitten': true,
     'storage-checked': true,

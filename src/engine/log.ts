@@ -455,6 +455,17 @@ export type CampaignEvent =
    * knows Rot Resistant has worked.
    */
   | { readonly kind: 'infection-resisted'; readonly survivor: string; readonly name: string }
+  /**
+   * Containment's held zombies took Infection off a survivor being healed, at
+   * Heal Wounds after their points were split (pg. 69; R103, R148; Z7-6).
+   * Load-bearing, as `health-restored` is: either says Heal Wounds is done.
+   */
+  | {
+      readonly kind: 'infection-contained';
+      readonly survivor: string;
+      readonly name: string;
+      readonly infection: number;
+    }
   /** A turning survivor bit somebody being healed beside them (pg. 22). */
   | {
       readonly kind: 'survivor-bitten';

@@ -450,6 +450,12 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       name: anyName,
     }),
     fc.record({
+      kind: fc.constant('infection-contained' as const),
+      survivor: anyId,
+      name: anyName,
+      infection: fc.integer({ min: 1, max: 10 }),
+    }),
+    fc.record({
       kind: fc.constant('infection-checked' as const),
       survivor: anyId,
       name: anyName,

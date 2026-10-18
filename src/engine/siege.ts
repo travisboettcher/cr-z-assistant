@@ -33,6 +33,7 @@ import { suppliedOccupants } from './utilities';
 import type { D10Result } from '../data/dice';
 import { projectTeam, staffOf, staffedFacilityCount } from './assignments';
 import { siegeThreatFromBase, siegeThreatReduction } from './base';
+import { PER_HELD_ZOMBIE } from './viralMissions';
 import { hungerPenalty } from './feeding';
 import { facilityProduction } from './production';
 import type { Campaign } from './campaign';
@@ -221,6 +222,7 @@ export function siegeThreatTerms(campaign: Campaign): Record<SiegeThreatTerm, nu
     'base-features': base === null ? 0 : siegeThreatFromBase(base, suppliedOccupants(campaign)),
     'turns-since-last-siege': turnsSinceLastSiege(campaign),
     'watched-from-above': watchedFromAbove(campaign),
+    'held-zombies': campaign.heldZombies * PER_HELD_ZOMBIE.siegeThreat,
   };
 }
 

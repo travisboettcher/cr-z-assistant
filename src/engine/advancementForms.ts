@@ -34,7 +34,14 @@ import { claimedBase } from './claim';
 import { checkConversion, conversions, withConversion } from './conversions';
 import { checkXpAward, withXpAwarded } from './experience';
 import { accepted, blockedBy, refused, type FormResult, type Refused } from './forms';
-import { healthAwards, withInfectionSpent, withWoundsHealed, woundsHealed } from './healing';
+import {
+  containmentDraws,
+  healthAwards,
+  withInfectionContained,
+  withInfectionSpent,
+  withWoundsHealed,
+  woundsHealed,
+} from './healing';
 import { logged, type CampaignEvent } from './log';
 import {
   baseProduction,
@@ -210,19 +217,31 @@ export function submitHealing(
   if (woundsHealed(campaign)) return refused('This turn’s Health has already been shared out.');
 
   const awards = withInfectionSpent(healthAwards(campaign), infection);
+  const healed = awards.reduce(
+    (healing, award) =>
+      logged(healing, at, {
+        kind: 'health-restored',
+        survivor: award.survivor.id,
+        name: award.survivor.name,
+        health: award.health,
+        source: award.source,
+        ...(award.infection > 0 ? { infection: award.infection } : {}),
+      }),
+    withWoundsHealed(campaign, awards),
+  );
+  // Then Containment, on what the points left (R103).
+  const draws = containmentDraws(campaign, awards);
 
   return accepted(
-    awards.reduce(
-      (healing, award) =>
-        logged(healing, at, {
-          kind: 'health-restored',
-          survivor: award.survivor.id,
-          name: award.survivor.name,
-          health: award.health,
-          source: award.source,
-          ...(award.infection > 0 ? { infection: award.infection } : {}),
+    draws.reduce(
+      (contained, draw) =>
+        logged(contained, at, {
+          kind: 'infection-contained',
+          survivor: draw.survivor.id,
+          name: draw.survivor.name,
+          infection: draw.infection,
         }),
-      withWoundsHealed(campaign, awards),
+      withInfectionContained(healed, draws),
     ),
   );
 }

@@ -77,6 +77,7 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   // Inoculation and Rot Resistant (Z7-5).
   { kind: 'survivor-inoculated', ...SURVIVOR, item: 'inoculation-1' },
   { kind: 'infection-resisted', ...SURVIVOR },
+  { kind: 'infection-contained', ...SURVIVOR, infection: 2 },
   { kind: 'bite-restrained', ...SURVIVOR },
   { kind: 'survivor-bitten', ...SURVIVOR, damage: 1 },
   { kind: 'storage-checked', food: 2, fuel: 0, hardware: 0 },

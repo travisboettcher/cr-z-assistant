@@ -36,7 +36,7 @@ import { firstBaseOwed } from './base';
 import type { Campaign } from './campaign';
 import { moveOwed } from './claim';
 import { survivorsFed } from './feeding';
-import { healthAwards, woundsHealed } from './healing';
+import { containmentDraws, healthAwards, woundsHealed } from './healing';
 import { materialsAdded } from './materials';
 import { firstMissionFailed, missionsChosen, unresolvedTeams } from './missions';
 import {
@@ -236,7 +236,12 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
     });
   }
 
-  if (!woundsHealed(campaign) && healthAwards(campaign).length > 0) {
+  // Containment's draw is owed with the Health, even when there is none (R103).
+  const awards = healthAwards(campaign);
+  if (
+    !woundsHealed(campaign) &&
+    (awards.length > 0 || containmentDraws(campaign, awards).length > 0)
+  ) {
     owed.push({ step: 'heal-wounds', says: 'This turn’s Health hasn’t been handed out.' });
   }
 

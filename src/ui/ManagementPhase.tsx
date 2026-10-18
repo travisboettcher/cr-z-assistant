@@ -691,12 +691,15 @@ function CheckTheHorde({ campaign }: { readonly campaign: Campaign }) {
       </p>
 
       <ul className="mt-3 flex flex-col gap-0.5">
-        {SIEGE_THREAT_TERMS.map((term) => (
-          <li key={term} className={`${HINT} tabular-nums`}>
-            {terms[term] >= 0 ? '+' : ''}
-            {terms[term]} {SIEGE_TERM_LABELS[term]}
-          </li>
-        ))}
+        {/* Held zombies only where there are some: a Viral campaign's term alone. */}
+        {SIEGE_THREAT_TERMS.filter((term) => term !== 'held-zombies' || terms[term] !== 0).map(
+          (term) => (
+            <li key={term} className={`${HINT} tabular-nums`}>
+              {terms[term] >= 0 ? '+' : ''}
+              {terms[term]} {SIEGE_TERM_LABELS[term]}
+            </li>
+          ),
+        )}
       </ul>
 
       {/*
@@ -930,4 +933,5 @@ const SIEGE_TERM_LABELS: Record<SiegeThreatTerm, string> = {
   'base-features': 'from the base itself',
   'turns-since-last-siege': 'turns since the last siege',
   'watched-from-above': 'watched from a staffed Watchtower',
+  'held-zombies': 'held in Containment',
 };

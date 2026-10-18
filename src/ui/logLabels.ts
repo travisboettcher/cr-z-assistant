@@ -276,6 +276,12 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
     case 'infection-resisted':
       return { text: `${event.name} lost 1 Infection, being Rot Resistant.`, pages: 140 };
 
+    case 'infection-contained':
+      return {
+        text: `Containment took ${String(event.infection)} Infection off ${event.name}.`,
+        pages: 69,
+      };
+
     case 'bite-restrained':
       return {
         text: `The Restraints held ${event.name}, and nobody was bitten.`,

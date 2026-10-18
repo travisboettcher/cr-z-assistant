@@ -358,6 +358,8 @@ export const SIEGE_THREAT_TERMS = [
   // facility's whole purpose, and unread by anything until the September
   // playtest found that staffing one *raised* the threat by 1.
   'watched-from-above',
+  // Each zombie held in Containment (pg. 69; R103; Z7-6), a Viral campaign's only.
+  'held-zombies',
 ] as const;
 
 export type SiegeThreatTerm = (typeof SIEGE_THREAT_TERMS)[number];

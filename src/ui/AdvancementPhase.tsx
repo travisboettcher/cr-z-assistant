@@ -67,6 +67,7 @@ import { checkXpAward, xpPools, type XpPoolEmptiness } from '../engine/experienc
 import {
   awardKey,
   checkHealing,
+  containmentDraws,
   healingPool,
   healthAwards,
   infectionRange,
@@ -1026,6 +1027,8 @@ function HealWounds({ campaign }: { readonly campaign: Campaign }) {
 
   const done = woundsHealed(campaign);
   const awards = withInfectionSpent(healthAwards(campaign), onInfection);
+  // What Containment takes after the points, as the press will (R103).
+  const draws = containmentDraws(campaign, awards);
   const pool = healingPool(campaign);
   const { warnings } = checkHealing(campaign);
 
@@ -1079,6 +1082,15 @@ function HealWounds({ campaign }: { readonly campaign: Campaign }) {
             </ul>
           )}
 
+          {draws.length > 0 && (
+            <p className={`mt-2 ${HINT}`}>
+              Then Containment takes Infection off everybody being healed, 1 for each zombie it
+              holds:{' '}
+              {draws.map((draw) => `${draw.survivor.name} −${String(draw.infection)}`).join(', ')}{' '}
+              <PageRef pages={69} />
+            </p>
+          )}
+
           {warnings.map((warning) => (
             <p key={warning.code} className="mt-2 text-xs text-amber-700 dark:text-amber-300">
               {warning.message} <PageRef pages={warning.pages} />
@@ -1091,7 +1103,7 @@ function HealWounds({ campaign }: { readonly campaign: Campaign }) {
            */}
           <button
             type="button"
-            className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg ${awards.length === 0 ? SECONDARY_FILL : PRIMARY_FILL} px-4 py-2 font-medium`}
+            className={`${FOCUS_RING} ${TOUCH_TARGET} mt-3 rounded-lg ${awards.length === 0 && draws.length === 0 ? SECONDARY_FILL : PRIMARY_FILL} px-4 py-2 font-medium`}
             onClick={() => {
               dispatch({
                 type: 'advancement/woundsHealed',
@@ -1533,6 +1545,14 @@ function MoveIn({ campaign }: { readonly campaign: Campaign }) {
                   ? '1 order on its way'
                   : `${String(lost.trades.length)} orders on their way`,
               ]),
+          // They go where the Inventory goes (R147).
+          ...(campaign.medicalSupplies === 0
+            ? []
+            : [
+                campaign.medicalSupplies === 1
+                  ? '1 Medical Supply token'
+                  : `${String(campaign.medicalSupplies)} Medical Supply tokens`,
+              ]),
         ];
 
   return (
@@ -1564,6 +1584,14 @@ function MoveIn({ campaign }: { readonly campaign: Campaign }) {
         <p className={`mt-1 ${HINT}`}>
           Lost with the overrun base: {losing.join(', ')}. Survivors keep what they carry{' '}
           <PageRef pages="85–86" />
+        </p>
+      )}
+      {campaign.heldZombies > 0 && (
+        <p className={`mt-1 ${HINT}`}>
+          {campaign.heldZombies === 1
+            ? 'The zombie held in Containment stays'
+            : `The ${String(campaign.heldZombies)} zombies held in Containment stay`}{' '}
+          behind with it <PageRef pages={69} />
         </p>
       )}
 

@@ -128,6 +128,25 @@ describe('withBaseMoved', () => {
     expect(withBaseMoved(moving(), []).base).toEqual({ id: 'distillery', slots: {} });
   });
 
+  /** Containment stays with its Clinic (R105); the tokens go with the Inventory (R147). */
+  it('leaves the held zombies behind, and takes the Medical Supply tokens', () => {
+    const moved = withBaseMoved(moving({ heldZombies: 2, medicalSupplies: 3 }), []);
+
+    expect(moved.heldZombies).toBe(0);
+    expect(moved.medicalSupplies).toBe(3);
+  });
+
+  it('loses the Medical Supply tokens with the Inventory in an overrun (R147)', () => {
+    const campaign = overrun([...wentOn('claim', 'hobby-farm'), continued('claim', true, true)], {
+      step: 'add-facilities-and-upgrades',
+      heldZombies: 1,
+      medicalSupplies: 4,
+    });
+    const moved = withBaseMoved(campaign, []);
+
+    expect([moved.heldZombies, moved.medicalSupplies]).toEqual([0, 0]);
+  });
+
   it('carries every material over, uncapped (pg. 54)', () => {
     expect(withBaseMoved(moving(), []).materials).toEqual({
       food: 9,
