@@ -2589,3 +2589,31 @@ survivor's healing ([R97](#r97--inoculation-is-built-then-given-at-the-clinic)).
 the Inoculation replaces their healing, Containment's included.
 
 *Decided 2026-10-18 with Z7-6.*
+
+---
+
+## R149 — XP spent is counted from Z7-8 on
+
+**pp. 18, 124; Phase 7, Z7-8.** The Lost roll adds the survivor's XP spent
+([R108](#r108--the-lost-roll-is-once-a-turn-before-the-first-mission)), and a survivor's sheet does
+not say what they bought: one created at Tier 3 paid nothing for it.
+
+**The ruling is that every survivor keeps a count of the XP they have spent, from 0**, raised by
+every purchase the Advancement Phase makes and by a Veteran's healing, which is XP spent too
+(pg. 88). It starts at 0 for everybody already playing, and the sheet corrects it by hand.
+
+*Decided 2026-10-18 with Z7-8.*
+
+---
+
+## R150 — No Lost roll on a turn without a mission
+
+**pp. 25, 124; Phase 7, Z7-8.** The Lost roll is made once a turn, before the first mission, and a
+success is placed on a mission
+([R108](#r108--the-lost-roll-is-once-a-turn-before-the-first-mission)). The book does not say what
+happens on a turn the community skips its mission.
+
+**The ruling is that nobody rolls that turn**: with no mission to be placed on there is no roll, and
+nobody gains its 1 XP.
+
+*Decided 2026-10-18 with Z7-8.*

@@ -22,6 +22,8 @@ export function describeTraits(traits: {
   readonly veteran: boolean;
   readonly bondGroup: number | null;
   readonly rotResistant?: boolean;
+  readonly found?: boolean;
+  readonly foundCheckPassed?: boolean;
 }): string {
   const named = [
     ...(traits.storyTrait === null
@@ -33,6 +35,9 @@ export function describeTraits(traits: {
         ]),
     ...(traits.veteran ? ['Veteran'] : []),
     ...(traits.rotResistant === true ? ['Rot Resistant'] : []),
+    ...(traits.found === true
+      ? [traits.foundCheckPassed === true ? 'Found, Madness capped at 6' : 'Found']
+      : []),
   ];
 
   return named.length === 0 ? 'None' : named.join(', ');

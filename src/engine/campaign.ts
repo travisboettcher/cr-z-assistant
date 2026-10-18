@@ -36,7 +36,7 @@ import type { LogEntry } from './log';
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 22;
+export const CURRENT_SCHEMA_VERSION = 23;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -111,6 +111,24 @@ export interface Survivor {
   madness: number;
 
   xp: number;
+
+  /**
+   * The XP the survivor has spent, counted from Z7-8 on (pg. 124; R149): every
+   * purchase in the Advancement Phase and a Veteran's healing add to it. The
+   * Lost roll adds it to the die (R108). Zero for everybody in a save from
+   * before v23, which the sheet corrects by hand.
+   */
+  xpSpent: number;
+
+  /**
+   * Found: a Lost survivor rescued and taken back (pg. 124; R109; Z7-8). Their
+   * next Madness gain calls for a Tier check against 8, and passing it
+   * (`foundCheckPassed`) caps their Madness at 6 for good (pg. 130; R111).
+   */
+  found: boolean;
+
+  /** A Found survivor who has passed the Tier check against 8 (R111). */
+  foundCheckPassed: boolean;
 
   /**
    * What the survivor carries, each item in an Inventory Slot (pp. 14, 18;

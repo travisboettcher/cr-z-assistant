@@ -43,6 +43,9 @@ const EARL = {
   stories: [],
   rotResistant: false,
   madness: 0,
+  xpSpent: 0,
+  found: false,
+  foundCheckPassed: false,
 } satisfies Survivor;
 
 /** pg. 15. Tier 3, stats 3/2/1/0, three skills — and no Carry. */
@@ -64,6 +67,9 @@ const CARLA = {
   stories: [],
   rotResistant: false,
   madness: 0,
+  xpSpent: 0,
+  found: false,
+  foundCheckPassed: false,
 } satisfies Survivor;
 
 /**

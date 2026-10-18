@@ -210,6 +210,9 @@ export function survivorArbitrary(): fc.Arbitrary<Survivor> {
       ),
       rotResistant: fc.boolean(),
       madness: anyCount,
+      xpSpent: anyCount,
+      found: fc.boolean(),
+      foundCheckPassed: fc.boolean(),
     })
     .chain((survivor) =>
       // A bond group only on a Bonded survivor (R84), so every pairing the file

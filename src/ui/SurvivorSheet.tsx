@@ -279,6 +279,26 @@ function Vitals({ survivor, penalty }: { readonly survivor: Survivor; readonly p
         fieldLabel={`Experience for ${survivor.name}`}
         onSave={(xp) => dispatch({ type: 'survivor/xpSet', id: survivor.id, xp })}
       />
+
+      {/*
+       * Counted from Z7-8 on (R149): every purchase adds to it, and the Lost
+       * roll reads it (R108). Shown where it has a reader, and corrected here
+       * for what was spent before the app counted.
+       */}
+      {cosmic && (
+        <EditableNumber
+          heading={
+            <>
+              XP spent <PageRef pages={124} />
+            </>
+          }
+          display={survivor.xpSpent}
+          value={survivor.xpSpent}
+          what="XP spent"
+          fieldLabel={`XP spent by ${survivor.name}`}
+          onSave={(xpSpent) => dispatch({ type: 'survivor/xpSpentSet', id: survivor.id, xpSpent })}
+        />
+      )}
     </div>
   );
 }
@@ -319,6 +339,8 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
     bondGroup: survivor.bondGroup,
     stories: survivor.stories,
     rotResistant: survivor.rotResistant,
+    found: survivor.found,
+    foundCheckPassed: survivor.foundCheckPassed,
   };
 
   return (
@@ -435,6 +457,41 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
                 />
                 Rot Resistant <PageRef pages="48, 140" />
               </label>
+            )}
+
+            {/* A rescue sets them (R109, R111); here for a correction, in a Cosmic Horror campaign. */}
+            {(campaign?.origin === 'cosmic-horror' || survivor.found) && (
+              <>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className={FOCUS_RING}
+                    checked={draft.found === true}
+                    onChange={(event) => {
+                      setDraft({
+                        ...draft,
+                        found: event.target.checked,
+                        ...(event.target.checked ? {} : { foundCheckPassed: false }),
+                      });
+                    }}
+                  />
+                  Found <PageRef pages={124} />
+                </label>
+                {draft.found === true && (
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className={FOCUS_RING}
+                      checked={draft.foundCheckPassed === true}
+                      onChange={(event) => {
+                        setDraft({ ...draft, foundCheckPassed: event.target.checked });
+                      }}
+                    />
+                    Passed the Tier check against 8, so Madness stays at 6 or less{' '}
+                    <PageRef pages={130} />
+                  </label>
+                )}
+              </>
             )}
           </div>
 

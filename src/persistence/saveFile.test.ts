@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import currentFixture from './__fixtures__/campaign-v22.json';
+import currentFixture from './__fixtures__/campaign-v23.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -19,6 +19,9 @@ const VALID_SURVIVOR = {
   currentHp: 3,
   infection: 0,
   madness: 0,
+  xpSpent: 0,
+  found: false,
+  foundCheckPassed: false,
   xp: 5,
   items: [],
   storyTrait: null,
@@ -735,6 +738,10 @@ describe('a survivor whose fields are the wrong type', () => {
     // Madness (Z7-7), any count from 0.
     ['a fractional madness', { madness: 1.5 }],
     ['a missing madness', { madness: undefined }],
+    // XP spent (R149) and the Found marks (R109, R111; Z7-8).
+    ['a negative XP spent', { xpSpent: -1 }],
+    ['a Found that isn’t yes or no', { found: 'yes' }],
+    ['a missing Found check', { foundCheckPassed: undefined }],
     // Attached stories (Z7-2): a list of story missions, each with its turn.
     ['stories that aren’t a list', { stories: 'warehouse' }],
     ['a story that isn’t an object', { stories: ['warehouse'] }],
@@ -761,6 +768,9 @@ describe('a survivor whose fields are the wrong type', () => {
       currentHp: 0,
       infection: 0,
       madness: 0,
+      xpSpent: 0,
+      found: false,
+      foundCheckPassed: false,
       xp: 0,
       items: [],
     });
@@ -1747,6 +1757,9 @@ describe('a campaign whose assignments are damaged', () => {
       currentHp: 4,
       infection: 0,
       madness: 0,
+      xpSpent: 0,
+      found: false,
+      foundCheckPassed: false,
       xp: 0,
       items: [],
       storyTrait: null,

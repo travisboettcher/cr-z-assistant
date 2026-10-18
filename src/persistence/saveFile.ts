@@ -346,6 +346,12 @@ function describeSurvivorProblem(value: unknown): string | null {
   // Any count too: at 13 a survivor goes Lost at Departures (R106), and what is
   // above it is the table's count until then.
   if (!isCountFromZero(value.madness)) return 'has unreadable madness';
+  // The XP spent (R149) and the Found marks (R109, R111; Z7-8).
+  if (!isCountFromZero(value.xpSpent)) return 'doesn’t say how much XP they have spent';
+  if (typeof value.found !== 'boolean') return 'doesn’t say whether they are Found';
+  if (typeof value.foundCheckPassed !== 'boolean') {
+    return 'doesn’t say whether they have passed the Found check';
+  }
   if (!isCountFromZero(value.xp)) return 'has unreadable experience';
 
   // What they carry (Z5-2). A current-version survivor with no list is damaged

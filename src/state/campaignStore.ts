@@ -302,6 +302,8 @@ export type CampaignAction =
   | { readonly type: 'survivor/infectionSet'; readonly id: string; readonly infection: number }
   /** Set a survivor's Madness by hand, under the Cosmic Horror origin (pg. 124; Z7-7). */
   | { readonly type: 'survivor/madnessSet'; readonly id: string; readonly madness: number }
+  /** Correct a survivor's XP spent by hand (R149; Z7-8). */
+  | { readonly type: 'survivor/xpSpentSet'; readonly id: string; readonly xpSpent: number }
   /**
    * Replace a survivor's four stat values wholesale.
    *
@@ -902,6 +904,12 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return editSurvivor(state, action.id, (survivor) => ({
         ...survivor,
         madness: action.madness,
+      }));
+
+    case 'survivor/xpSpentSet':
+      return editSurvivor(state, action.id, (survivor) => ({
+        ...survivor,
+        xpSpent: action.xpSpent,
       }));
 
     case 'survivor/statsSet':

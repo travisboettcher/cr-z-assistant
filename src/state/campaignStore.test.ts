@@ -3079,6 +3079,10 @@ describe('what earns a line in the log', () => {
       action: { type: 'survivor/madnessSet', id: LOGGED_SURVIVOR, madness: 3 },
       entry: null,
     },
+    'survivor/xpSpentSet': {
+      action: { type: 'survivor/xpSpentSet', id: LOGGED_SURVIVOR, xpSpent: 12 },
+      entry: null,
+    },
     'survivor/statsSet': {
       action: {
         type: 'survivor/statsSet',

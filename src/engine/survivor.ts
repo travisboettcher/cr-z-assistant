@@ -265,6 +265,9 @@ export function createSurvivor(
     // a mission (pg. 123), and nobody joins a community having taken any.
     infection: 0,
     madness: 0,
+    xpSpent: 0,
+    found: false,
+    foundCheckPassed: false,
     xp: 0,
     // Nothing carried: a new survivor's shoddy gear is chosen when they are
     // first equipped for a mission (pp. 13–14, 18; R35).
@@ -275,4 +278,12 @@ export function createSurvivor(
     stories: [],
     rotResistant: false,
   };
+}
+
+/**
+ * The survivor with this much XP spent: taken off what they have and added to
+ * what they have spent (R149), which the Lost roll reads (R108).
+ */
+export function withXpSpent(survivor: Survivor, cost: number): Survivor {
+  return { ...survivor, xp: survivor.xp - cost, xpSpent: survivor.xpSpent + cost };
 }

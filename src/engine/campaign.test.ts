@@ -120,12 +120,17 @@ describe('Survivor', () => {
       stories: [],
       rotResistant: false,
       madness: 0,
+      xpSpent: 0,
+      found: false,
+      foundCheckPassed: false,
     } satisfies Survivor;
 
     expect(Object.keys(survivor).sort()).toEqual([
       'bondGroup',
       'currentHp',
       'defense',
+      'found',
+      'foundCheckPassed',
       'id',
       'infection',
       'items',
@@ -140,6 +145,7 @@ describe('Survivor', () => {
       'tier',
       'veteran',
       'xp',
+      'xpSpent',
     ]);
   });
 
@@ -167,6 +173,9 @@ describe('Survivor', () => {
       stories: [],
       rotResistant: false,
       madness: 0,
+      xpSpent: 0,
+      found: false,
+      foundCheckPassed: false,
     } satisfies Survivor;
 
     expect(Object.keys(rookie.skills)).toEqual(['handguns']);

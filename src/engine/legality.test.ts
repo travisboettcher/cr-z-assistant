@@ -35,6 +35,9 @@ const EARL = {
   stories: [],
   rotResistant: false,
   madness: 0,
+  xpSpent: 0,
+  found: false,
+  foundCheckPassed: false,
 } satisfies Survivor;
 
 const codes = (survivor: Survivor) => survivorViolations(survivor).map((v) => v.code);

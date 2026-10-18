@@ -15,7 +15,7 @@
 
 import { VETERAN_HEALING } from '../data/traits';
 import type { Campaign, Survivor } from './campaign';
-import { outOfHealth } from './survivor';
+import { outOfHealth, withXpSpent } from './survivor';
 import { healthPerTurn } from './traits';
 import { phaseOf } from './turn';
 
@@ -83,7 +83,8 @@ export function withVeteranHealing(
   return {
     ...campaign,
     survivors: campaign.survivors.map((one) => {
-      const paid = one.id === veteran ? { ...one, xp: one.xp - VETERAN_HEALING.xp } : one;
+      // XP spent, as any purchase is (R149).
+      const paid = one.id === veteran ? withXpSpent(one, VETERAN_HEALING.xp) : one;
 
       return one.id === survivor
         ? { ...paid, currentHp: Math.max(0, paid.currentHp) + VETERAN_HEALING.health }

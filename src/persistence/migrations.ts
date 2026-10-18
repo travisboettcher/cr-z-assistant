@@ -591,6 +591,36 @@ const madnessRecorded: MigrationStep = {
   },
 };
 
+/**
+ * v22 → v23: the XP each survivor has spent, and the Found marks (R109, R111,
+ * R149; Z7-8).
+ *
+ * **Zero, and nobody Found.** What a v22 survivor had spent is nowhere in the
+ * save (R149), so it starts at 0 for the sheet to correct, and nobody could
+ * have come back Found through a build with no Lost roll. All three lists.
+ */
+const xpSpentRecorded: MigrationStep = {
+  from: 22,
+  to: 23,
+  up: (previous) => {
+    const withSpent = (list: unknown): unknown =>
+      Array.isArray(list)
+        ? (list as unknown[]).map((survivor) =>
+            typeof survivor === 'object' && survivor !== null && !('xpSpent' in survivor)
+              ? { ...survivor, xpSpent: 0, found: false, foundCheckPassed: false }
+              : survivor,
+          )
+        : list;
+
+    return {
+      ...previous,
+      survivors: withSpent(previous.survivors),
+      setAside: withSpent(previous.setAside),
+      lost: withSpent(previous.lost),
+    };
+  },
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -614,6 +644,7 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   rotResistanceRecorded,
   containmentRecorded,
   madnessRecorded,
+  xpSpentRecorded,
 ];
 
 /** Why a save could not be brought forward. */

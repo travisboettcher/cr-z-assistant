@@ -32,6 +32,9 @@ const SAMPLE_SURVIVOR = {
   stories: [],
   rotResistant: false,
   madness: 0,
+  xpSpent: 0,
+  found: false,
+  foundCheckPassed: false,
 } satisfies Survivor;
 
 /**
@@ -889,6 +892,58 @@ describe('the v21 to v22 Madness and the Lost', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
+    expect(result.campaign.survivors).toEqual([null, 7]);
+    expect(result.campaign.setAside).toBe('nobody');
+  });
+});
+
+describe('the v22 to v23 XP spent and Found', () => {
+  it('brings every earlier survivor forward having spent nothing, and nobody Found', () => {
+    for (const fixture of fixtures.filter((f) => f.version < 23)) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok) continue;
+
+      for (const survivor of [...result.campaign.survivors, ...result.campaign.setAside]) {
+        expect(
+          [survivor.xpSpent, survivor.found, survivor.foundCheckPassed],
+          `${fixture.path} ${survivor.name}`,
+        ).toEqual([0, false, false]);
+      }
+    }
+  });
+
+  it('keeps a v23 save’s own', () => {
+    const v23 = fixtures.find((fixture) => fixture.version === 23);
+    const result = migrate(v23?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.survivors.map((one) => [one.xpSpent, one.found])).toEqual([
+      [6, false],
+      [0, true],
+      [0, false],
+      [0, false],
+    ]);
+  });
+
+  it('brings a Lost survivor forward too, and hands anything else on untouched', () => {
+    const v22 = fixtures.find((fixture) => fixture.version === 22);
+    const lost = { ...((v22?.contents as { survivors: object[] }).survivors[0] as object) };
+    delete (lost as { xpSpent?: unknown }).xpSpent;
+    const result = migrate({
+      ...(v22?.contents as object),
+      lost: [{ ...lost, id: 'gone' }],
+      survivors: [null, 7],
+      setAside: 'nobody',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.lost[0]?.xpSpent).toBe(0);
     expect(result.campaign.survivors).toEqual([null, 7]);
     expect(result.campaign.setAside).toBe('nobody');
   });

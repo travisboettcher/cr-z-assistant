@@ -49,6 +49,16 @@ describe('Madness on the sheet (pg. 124; Z7-7)', () => {
     expect(sheet.getByText(/^Madness/)).toBeTruthy();
   });
 
+  it('shows XP spent and Found beside it (R149, R109)', async () => {
+    const user = open(cosmic({ survivors: [earl({ xpSpent: 7, found: true })] }));
+    openPanel('survivors');
+    await user.click(screen.getByRole('button', { name: /^sheet$/i }));
+    const sheet = within(screen.getByRole('region', { name: 'Earl Rhodes' }));
+
+    expect(sheet.getByText(/^XP spent/)).toBeTruthy();
+    expect(sheet.getByText('Found')).toBeTruthy();
+  });
+
   it('is not there in any other campaign', async () => {
     const user = open(cosmic({ origin: 'viral' }));
     openPanel('survivors');
