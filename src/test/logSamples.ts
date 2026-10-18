@@ -404,6 +404,15 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   },
   // An item the project team built (Z5-6).
   { kind: 'item-built', id: 'item-5', item: 'blunt', grade: 'standard', hardware: 1, labor: 1 },
+  {
+    kind: 'item-built',
+    id: 'item-6',
+    item: 'bandages',
+    grade: 'standard',
+    hardware: 1,
+    labor: 0,
+    supplies: 2,
+  },
   // Vehicles (Z5-11): added by hand, taken out, and an upgrade fitted.
   { kind: 'vehicle-added', vehicle: { id: 'car', tier: 2, label: 'Red pickup', water: false } },
   { kind: 'vehicle-removed', id: 'car', label: 'Red pickup', tier: 2 },

@@ -847,14 +847,18 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       subtable: fc.constantFrom(...D10_RESULTS),
       entry: fc.constantFrom(...D10_RESULTS),
     }),
-    fc.record({
-      kind: fc.constant('item-built' as const),
-      id: anyId,
-      item: fc.constantFrom(...ITEM_IDS),
-      grade: fc.constantFrom(...GRADES),
-      hardware: anyCount,
-      labor: anyCount,
-    }),
+    fc.record(
+      {
+        kind: fc.constant('item-built' as const),
+        id: anyId,
+        item: fc.constantFrom(...ITEM_IDS),
+        grade: fc.constantFrom(...GRADES),
+        hardware: anyCount,
+        labor: anyCount,
+        supplies: fc.integer({ min: 1, max: 5 }),
+      },
+      { requiredKeys: ['kind', 'id', 'item', 'grade', 'hardware', 'labor'] },
+    ),
     fc.record({
       kind: fc.constant('vehicle-added' as const),
       vehicle: vehicleArbitrary().map((vehicle) => {

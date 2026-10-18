@@ -1020,6 +1020,8 @@ const EVENT_FIELDS: Record<
     ['grade', 'grade'],
     ['hardware', 'count'],
     ['labor', 'count'],
+    // Medical Supply tokens that paid some of it (R131; Z7-6), absent for none.
+    ['supplies', 'optionalCountFromOne'],
   ],
   // Vehicles (Z5-11).
   'vehicle-added': [['vehicle', 'vehicle']],

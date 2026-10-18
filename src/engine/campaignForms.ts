@@ -568,6 +568,8 @@ export function submitItemBuilt(campaign: Campaign, order: BuildOrder, at: strin
   // Present: `buildCheck` refuses an order it cannot price.
   const cost = buildCost(campaign, order) as BuildCost;
 
+  const supplies = order.supplies ?? 0;
+
   return accepted(
     logged(withItemBuilt(campaign, order, cost), at, {
       kind: 'item-built',
@@ -575,7 +577,8 @@ export function submitItemBuilt(campaign: Campaign, order: BuildOrder, at: strin
       item: order.item,
       grade: order.grade,
       hardware: cost.hardware,
-      labor: cost.labor,
+      labor: cost.labor - supplies,
+      ...(supplies === 0 ? {} : { supplies }),
     }),
   );
 }

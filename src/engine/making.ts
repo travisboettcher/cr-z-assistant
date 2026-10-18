@@ -20,6 +20,7 @@ import { BASES } from '../data/bases';
 import {
   EQUIPMENT,
   ITEM_IDS,
+  MEDICAL_SUPPLY_BUILDS,
   type BuildRequirement,
   type Grade,
   type ItemId,
@@ -49,6 +50,9 @@ export interface BuildOrder {
 
   /** For the enchanted melee weapon: the standard weapon it is built on (pg. 40). */
   readonly enchants?: Enchantable;
+
+  /** Medical Supply tokens spent on its Labor, 1 each (pg. 107; R131; Z7-6). */
+  readonly supplies?: number;
 }
 
 export type BuildCode =
@@ -63,7 +67,8 @@ export type BuildCode =
   | 'utility-missing'
   | 'not-enough-hardware'
   | 'not-enough-labor'
-  | 'id-taken';
+  | 'id-taken'
+  | 'supplies-refused';
 
 /** What an item costs to build, in Hardware and Labor. */
 export interface BuildCost {
@@ -229,6 +234,9 @@ export function buildCheck(campaign: Campaign, order: BuildOrder): Check<BuildCo
     return refuse('id-taken', 'An item already has that id.', 18);
   }
 
+  const supplies = suppliesProblem(campaign, order, cost);
+  if (supplies !== null) return refuse('supplies-refused', supplies, 107);
+
   const blockers: Violation<BuildCode>[] = [];
   const { named, missingFacilities, missingUpgrades } = standing(
     suppliedOccupants(campaign),
@@ -267,21 +275,47 @@ export function buildCheck(campaign: Campaign, order: BuildOrder): Check<BuildCo
     });
   }
 
-  const labor = laborRefusal(campaign, cost.labor, 20);
+  // The project team pays what the tokens don't (R131).
+  const labor = laborRefusal(campaign, cost.labor - (order.supplies ?? 0), 20);
   if (labor !== undefined) blockers.push(labor);
 
   return { blockers, warnings: [] };
 }
 
 /**
+ * Why these Medical Supply tokens cannot go into this build, or `null` (pg. 107;
+ * R131): a whole number, only for one of the medical builds, no more than the
+ * base keeps, and no more than its Labor.
+ */
+function suppliesProblem(campaign: Campaign, order: BuildOrder, cost: BuildCost): string | null {
+  const supplies = order.supplies ?? 0;
+
+  if (!Number.isSafeInteger(supplies) || supplies < 0) {
+    return 'Spend a whole number of Medical Supply tokens.';
+  }
+  if (supplies === 0) return null;
+  if (!(MEDICAL_SUPPLY_BUILDS as readonly ItemId[]).includes(order.item)) {
+    return 'Medical Supply tokens pay only for bandages, disinfectant, medicated wraps and inoculations.';
+  }
+  if (supplies > campaign.medicalSupplies) {
+    return `The base keeps ${String(campaign.medicalSupplies)} Medical Supply ${campaign.medicalSupplies === 1 ? 'token' : 'tokens'}.`;
+  }
+  if (supplies > cost.labor) return `It takes only ${String(cost.labor)} Labor.`;
+
+  return null;
+}
+
+/**
  * The campaign with an order built: its Hardware spent and the item in the
- * base's Inventory (pp. 20–21). Assumes `buildCheck` passed; its Labor is
- * counted from the entry the form writes.
+ * base's Inventory (pp. 20–21), and any Medical Supply tokens it took used up
+ * (R131). Assumes `buildCheck` passed; its Labor is counted from the entry the
+ * form writes.
  */
 export function withItemBuilt(campaign: Campaign, order: BuildOrder, cost: BuildCost): Campaign {
   return {
     ...campaign,
     materials: { ...campaign.materials, hardware: campaign.materials.hardware - cost.hardware },
+    medicalSupplies: campaign.medicalSupplies - (order.supplies ?? 0),
     inventory: [...campaign.inventory, { id: order.id, item: order.item, grade: order.grade }],
   };
 }

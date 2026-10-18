@@ -1179,3 +1179,14 @@ export const VEHICLE_TIER_BY_ROLL = {
 
 /** Fuel a deployed vehicle burns per mission, per Tier (pg. 52). */
 export const VEHICLE_FUEL_PER_TIER = 1;
+
+/**
+ * The builds a Medical Supply token pays 1 Labor of (pg. 107; R131; Z7-6):
+ * bandages, disinfectant, medicated wraps and inoculations.
+ */
+export const MEDICAL_SUPPLY_BUILDS = [
+  'bandages',
+  'disinfectant',
+  'medicated-wrap',
+  'inoculation',
+] as const satisfies readonly ItemId[];

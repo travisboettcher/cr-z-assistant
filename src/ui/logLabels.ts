@@ -596,8 +596,12 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
 
     case 'item-built':
       return {
-        text: `Built into the base’s Inventory: ${describeItem(event)}, for ${String(event.hardware)} Hardware and ${String(event.labor)} Labor.`,
-        pages: '20, 41–42',
+        text: `Built into the base’s Inventory: ${describeItem(event)}, for ${String(event.hardware)} Hardware and ${String(event.labor)} Labor${
+          event.supplies === undefined
+            ? ''
+            : `, and ${String(event.supplies)} Medical Supply ${event.supplies === 1 ? 'token' : 'tokens'}`
+        }.`,
+        pages: event.supplies === undefined ? '20, 41–42' : '20, 41–42, 107',
       };
 
     case 'vehicle-added':

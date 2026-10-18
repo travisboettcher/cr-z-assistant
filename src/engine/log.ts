@@ -1035,7 +1035,10 @@ export type CampaignEvent =
       readonly item: ItemId;
       readonly grade: Grade;
       readonly hardware: number;
+      /** The project team's Labor, after any Medical Supply tokens. */
       readonly labor: number;
+      /** Medical Supply tokens that paid the rest (R131; Z7-6); absent for none, and before. */
+      readonly supplies?: number;
     }
   /**
    * An item traded for in the Planning Phase (pg. 21; R51–R53; Z5-9): the id it

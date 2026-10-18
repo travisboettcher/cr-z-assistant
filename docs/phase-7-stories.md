@@ -329,6 +329,36 @@ nothing records one.
 - **Building one is unchanged**: an Inoculation is equipment already built at a Clinic with Water
   (pg. 42). The Medical Supply tokens that pay its Labor are Z7-6's (R131).
 
+### Z7-6 — What this story turned out to include
+
+- **Five more rulings, decided 2026-10-18**: one point of interest and a passed Broken Cage check add
+  up to Containment's usual Hardware (R144); Bring It On Home and Medical Salvage are offered on
+  every Viral turn (R145); Bring It On Home's extras are the player's, and only a standing
+  Containment holds its zombie (R146); Medical Supply tokens go where the Inventory goes (R147);
+  and a survivor given an Inoculation loses no Infection to Containment (R148).
+- **A Viral mission records what the table counted** (`ViralRecord` on `mission-played`,
+  `src/engine/viralMissions.ts`): the points of interest and the Broken Cage check, the ensnared
+  zombies that left, or the Medical Supply tokens. The form rebuilds it before it is logged, so
+  whether a zombie was held is the base's answer, not the screen's.
+- **Containment's unlock is read off the log**, from the first Experimental Data that investigated
+  a point of interest, as the campaign's own (R122). Experimental Data is not offered after it.
+  Building Containment before then is a warning, not a refusal, and its Hardware is changed by
+  −2, 0 or +2.
+- **Schema v21 counts the held zombies and the Medical Supply tokens** (`heldZombies`,
+  `medicalSupplies`), zero for every earlier save. The base and Inventory cards show them when
+  there are any.
+- **Each held zombie adds a Siege Threat term of its own** and takes 1 Infection off each survivor
+  being healed at Heal Wounds, after the points are split, as an `infection-contained` entry. That
+  entry counts as Heal Wounds done, as Health does.
+- **A move leaves the held zombies behind** with Containment (R105). An overrun loses the tokens
+  with the Inventory.
+- **A token pays 1 Labor of a medical build**, entered on the build form: the `item-built` entry
+  keeps the project team's Labor and the tokens apart.
+- **Fixed on the way**: an upgrade of another origin, Containment or the Lounge, is no longer
+  offered in a campaign that is not running it, as its facilities never were.
+- **Not tracked**: Bring It On Home's XP for the other zombies and the special zombies' items, added
+  by hand (R146).
+
 ## Part 3 — The Toolkit's survivor traits (outline)
 
 - **Z7-10 — The switch, Advantages and experience debt.** A campaign setting, off by default (R84);
