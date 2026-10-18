@@ -104,6 +104,12 @@ describe('Cosmic Horror missions on offer (R132)', () => {
     expect(cosmicOn(cosmic(), 2)).toEqual(['invisible-light', 'from-the-deep', 'friend-or-foe']);
     expect(cosmicOn(cosmic({ survivors: [earl({ madness: 4 }), carla()] }), 1)).toHaveLength(3);
     expect(cosmicOn(cosmic({ survivors: [earl({ madness: 3 }), carla()] }), 1)).toEqual([]);
+    // One member is enough.
+    const together = cosmic({
+      survivors: [earl({ madness: 0 }), carla({ madness: 4 })],
+      assignments: { earl: { task: 'mission', team: 1 }, carla: { task: 'mission', team: 1 } },
+    });
+    expect(cosmicOn(together, 1)).toHaveLength(3);
   });
 });
 

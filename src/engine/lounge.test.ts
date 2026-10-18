@@ -80,6 +80,23 @@ describe('the Lounge’s points (pg. 68; R110)', () => {
     ]);
     expect(shares(recovering({ survivors: [earl(0), carla(5)] }))).toEqual([['carla', 2]]);
     expect(shares(recovering({ survivors: [earl(0), carla(0)] }))).toEqual([]);
+    // Two points for three: the third waits for another turn.
+    const three = recovering({
+      survivors: [
+        earl(3),
+        carla(1),
+        { ...createSurvivor('Ruby Vance', 2, { id: 'ruby' }), madness: 2 },
+      ],
+      assignments: {
+        earl: { task: 'madness-recovery' },
+        carla: { task: 'madness-recovery' },
+        ruby: { task: 'madness-recovery' },
+      },
+    });
+    expect(shares(three)).toEqual([
+      ['earl', 1],
+      ['carla', 1],
+    ]);
   });
 
   it('reach only those assigned to Madness Recovery, from last turn’s Planning', () => {
@@ -120,6 +137,12 @@ describe('handing it out at Heal Wounds (R110)', () => {
       { kind: 'madness-recovered', survivor: 'carla', name: 'Carla Proust', madness: 1 },
     ]);
     expect(madnessRecovered(after)).toBe(true);
+    expect(
+      madnessRecovered({
+        ...after,
+        log: [{ ...(after.log[0] as LogEntry), event: { kind: 'mission-skipped' } }],
+      }),
+    ).toBe(false);
     expect(madnessRecovered({ ...after, turn: 4 })).toBe(false);
     expect(outstanding(after).map((one) => one.says)).not.toContain(
       'The Lounge’s Madness Recovery hasn’t been handed out.',
@@ -128,6 +151,23 @@ describe('handing it out at Heal Wounds (R110)', () => {
       ok: false,
       problem: 'This turn’s Madness Recovery is done.',
     });
+  });
+
+  it('takes each their own share, and nothing off anybody else', () => {
+    const result = submitMadnessRecovered(
+      recovering({
+        base: lounges(['bunk-room-1', 'bunk-room-2']),
+        survivors: [
+          earl(3),
+          carla(1),
+          { ...createSurvivor('Ruby Vance', 2, { id: 'ruby' }), madness: 4 },
+        ],
+      }),
+      AT,
+    );
+    if (!result.ok) throw new Error(result.problem);
+
+    expect(result.campaign.survivors.map((survivor) => survivor.madness)).toEqual([0, 0, 4]);
   });
 
   it('is refused outside the Advancement Phase, and with nothing to hand out', () => {
