@@ -3385,6 +3385,21 @@ describe('what earns a line in the log', () => {
         tier: 1,
       }),
     },
+    // Marcus at 13 Madness in a Cosmic Horror campaign goes Lost (R106; Z7-7).
+    'management/goneLost': {
+      state: openState({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        turn: 3,
+        step: 'departures',
+        origin: 'cosmic-horror',
+        survivors: [
+          createSurvivor('Ruby Vance', 4, { id: DECOY }),
+          { ...createSurvivor('Marcus Webb', 1, { id: LOGGED_SURVIVOR }), madness: 13 },
+        ],
+      }),
+      action: { type: 'management/goneLost', at: AT },
+      entry: entry(3, 'management', { kind: 'survivor-lost', ...WEBB, madness: 13 }),
+    },
     'management/teamReduced': {
       // Marcus is on the mission team, and there are no beds anywhere, so
       // Exhaustion is the whole head count and comfortably above the team's one.

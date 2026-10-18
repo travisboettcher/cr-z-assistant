@@ -491,6 +491,12 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
         pages: 23,
       };
 
+    case 'survivor-lost':
+      return {
+        text: `${event.name} went Lost at ${String(event.madness)} Madness${event.items === undefined ? '' : `, taking ${counted(event.items)}`}.`,
+        pages: '23, 124',
+      };
+
     case 'mission-team-reduced':
       return {
         text: `${event.name} was too exhausted to go out, and came off the mission team.`,

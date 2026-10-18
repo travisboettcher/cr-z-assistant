@@ -20,7 +20,13 @@ import type { D10Result } from '../data/dice';
 import { ROT_BITE_DAMAGE } from '../data/turn';
 import { missionTeam, missionTeamReduced, overworked, withoutAssignment } from './assignments';
 import type { Campaign } from './campaign';
-import { departureCandidates, someoneDeparted, withDeparture } from './departures';
+import {
+  departureCandidates,
+  goingLost,
+  someoneDeparted,
+  withDeparture,
+  withLost,
+} from './departures';
 import { foodRequired, hungerIfFedNow, survivorsFed, withSurvivorsFed } from './feeding';
 import { accepted, blockedBy, refused, type FormResult } from './forms';
 import { logged } from './log';
@@ -310,6 +316,8 @@ export function submitHordeCheck(campaign: Campaign, roll: D10Result, at: string
  */
 export function submitDeparture(campaign: Campaign, survivor: string, at: string): FormResult {
   if (someoneDeparted(campaign)) return refused('Somebody has already left this turn.');
+  // The Madness departures come first, and the Unrest check reads what they leave (R106).
+  if (goingLost(campaign).length > 0) return refused('Those going Lost to Madness leave first.');
 
   const leaving = departureCandidates(campaign).find((candidate) => candidate.id === survivor);
   if (leaving === undefined) return refused('Only somebody the rule sends away can leave.');
@@ -323,5 +331,31 @@ export function submitDeparture(campaign: Campaign, survivor: string, at: string
       tier: leaving.tier,
       ...(leaving.items.length === 0 ? {} : { items: leaving.items }),
     }),
+  );
+}
+
+/**
+ * Send everybody at 13 or more Madness away Lost, at Departures and before
+ * the Unrest check (pp. 23, 124; R106, R107; Z7-7): onto the list of the Lost
+ * with what they carry, a `survivor-lost` entry each.
+ */
+export function submitGoneLost(campaign: Campaign, at: string): FormResult {
+  if (campaign.step !== 'departures') return refused('Survivors go Lost at Departures.');
+
+  const lost = goingLost(campaign);
+  if (lost.length === 0) return refused('Nobody here is going Lost to Madness.');
+
+  return accepted(
+    lost.reduce(
+      (going, survivor) =>
+        logged(going, at, {
+          kind: 'survivor-lost',
+          survivor: survivor.id,
+          name: survivor.name,
+          madness: survivor.madness,
+          ...(survivor.items.length === 0 ? {} : { items: survivor.items }),
+        }),
+      withLost(campaign, lost),
+    ),
   );
 }

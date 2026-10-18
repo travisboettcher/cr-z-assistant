@@ -322,7 +322,10 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
     };
   }
 
-  if (event.kind === 'survivor-departed' && event.items !== undefined) {
+  if (
+    (event.kind === 'survivor-departed' || event.kind === 'survivor-lost') &&
+    event.items !== undefined
+  ) {
     return { ...taggedFirst(event, 'kind'), items: event.items.map(orderedItem) };
   }
   if (event.kind === 'survivor-left' && event.lost !== undefined) {

@@ -508,6 +508,20 @@ export type CampaignEvent =
       readonly items?: readonly Item[];
     }
   /**
+   * A survivor gone Lost to Madness at Departures, before the Unrest check
+   * (pp. 23, 124; R106, R107; Z7-7). Off the roster onto the list of the Lost,
+   * whole, with what they carried.
+   */
+  | {
+      readonly kind: 'survivor-lost';
+      readonly survivor: string;
+      readonly name: string;
+      /** The Madness they went at, 13 or more (R106). */
+      readonly madness: number;
+      /** What they took with them (R106, R73); absent when they carried nothing. */
+      readonly items?: readonly Item[];
+    }
+  /**
    * Exhaustion took a survivor off the mission team at Assign Beds (pg. 23).
    *
    * Recorded because it is the only thing that stops the step offering the

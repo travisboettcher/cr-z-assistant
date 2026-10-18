@@ -953,6 +953,12 @@ const EVENT_FIELDS: Record<
     ['tier', 'tier'],
     ['items', 'optionalItems'],
   ],
+  'survivor-lost': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['madness', 'countFromOne'],
+    ['items', 'optionalItems'],
+  ],
   'mission-team-reduced': [
     ['survivor', 'id'],
     ['name', 'name'],

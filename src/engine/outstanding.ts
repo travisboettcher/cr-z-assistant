@@ -52,7 +52,7 @@ import { infectionStillToCheck, mustCheck, rotCheckResolved } from './rot';
 import { inoculationsDue, rotResistanceDue } from './inoculation';
 import { hordeChecked } from './siege';
 import { anythingOverCap, storageChecked } from './storage';
-import { someoneDeparted, someoneIsLeaving } from './departures';
+import { goingLost, someoneDeparted, someoneIsLeaving } from './departures';
 import { broughtHomeOwed } from './missionVehicles';
 import { spentOwed } from './spent';
 import { advance, positionOf, type AdvanceBy } from './turn';
@@ -290,6 +290,11 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
 
   if (!hordeChecked(campaign)) {
     owed.push({ step: 'check-the-horde', says: 'The horde hasn’t been checked.' });
+  }
+
+  // The Lost first, then the Unrest check (R106; Z7-7).
+  if (goingLost(campaign).length > 0) {
+    owed.push({ step: 'departures', says: 'Somebody at 13 or more Madness hasn’t gone Lost.' });
   }
 
   if (someoneIsLeaving(campaign) && !someoneDeparted(campaign)) {

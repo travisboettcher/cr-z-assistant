@@ -52,11 +52,13 @@ import { anythingOverCap, overCap, storageChecked } from '../engine/storage';
 import {
   departureCalled,
   departureCandidates,
+  goingLost,
   departurePressure,
   someoneDeparted,
 } from '../engine/departures';
 import { MATERIAL_LABELS, slotLabel } from './baseLabels';
 import { STORED_MATERIALS } from '../data/materials';
+import { MADNESS_GOES_LOST } from '../data/origins';
 import {
   biteCandidates,
   mustCheck,
@@ -72,6 +74,7 @@ import {
 import { laborShortfall, orderedThisTurn, queuedCost } from '../engine/projects';
 import { describeProject } from './projectLabels';
 import { useCampaign } from '../state/useCampaign';
+import { describeEvent } from './logLabels';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 
@@ -798,16 +801,58 @@ function Departures({ campaign }: { readonly campaign: Campaign }) {
   const pressure = departurePressure(campaign);
   const candidates = departureCandidates(campaign);
   const departed = someoneDeparted(campaign);
+  const lost = goingLost(campaign);
+  const wentLost = campaign.log.filter(
+    (entry) => entry.turn === campaign.turn && entry.event.kind === 'survivor-lost',
+  );
 
   return (
     <>
+      {/* The Lost first, before the Unrest check (pp. 23, 124; R106, R107; Z7-7). */}
+      {(lost.length > 0 || wentLost.length > 0) && (
+        <section aria-label="Lost to Madness" className="mb-4 flex flex-col gap-2">
+          <h4 className="text-sm font-semibold">
+            Lost to Madness <PageRef pages="23, 124" />
+          </h4>
+          {wentLost.map((entry, index) => (
+            <p key={index} className={HINT}>
+              {describeEvent(entry.event, entry.turn).text}
+            </p>
+          ))}
+          {lost.length > 0 && (
+            <>
+              <p className={HINT}>
+                Everybody at <span className="tabular-nums">{MADNESS_GOES_LOST}</span> or more
+                Madness goes Lost before the Unrest check, taking what they carry, unless they’re
+                down. Going: {lost.map((survivor) => survivor.name).join(', ')}.
+              </p>
+              <div>
+                <button
+                  type="button"
+                  className={SMALL_BUTTON}
+                  onClick={() => {
+                    dispatch({ type: 'management/goneLost', at: new Date().toISOString() });
+                  }}
+                >
+                  They go Lost
+                </button>
+              </div>
+            </>
+          )}
+        </section>
+      )}
+
       <p className={HINT}>
         Unrest plus Siege Threat is <span className="tabular-nums">{pressure}</span>. At{' '}
         <span className="tabular-nums">{DEPARTURE_THRESHOLD}</span> or over, the lowest-Tier
         survivor leaves — and a tie is yours to break <PageRef pages={23} />
       </p>
 
-      {departed ? (
+      {lost.length > 0 ? (
+        <p className="mt-3 text-sm font-medium">
+          The Unrest check follows once the Lost have gone, against what they leave behind.
+        </p>
+      ) : departed ? (
         <p className="mt-3 text-sm font-medium">
           Somebody has already left this turn. The rules send one survivor away, however far over
           the threshold the pressure is.

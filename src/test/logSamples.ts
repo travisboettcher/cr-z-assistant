@@ -313,6 +313,13 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
     tier: 2,
     items: [{ id: 'rifle-1', item: 'rifle', grade: 'standard' }],
   },
+  { kind: 'survivor-lost', ...SURVIVOR, madness: 13 },
+  {
+    kind: 'survivor-lost',
+    ...SURVIVOR,
+    madness: 15,
+    items: [{ id: 'rifle-2', item: 'rifle', grade: 'standard' }],
+  },
   { kind: 'mission-team-reduced', ...SURVIVOR },
   { kind: 'survivor-promoted', ...SURVIVOR, tier: 4 },
   // A Veteran's healing (pg. 88; Z7-2), of somebody else and of themselves.

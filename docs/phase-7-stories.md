@@ -359,6 +359,28 @@ nothing records one.
 - **Not tracked**: Bring It On Home's XP for the other zombies and the special zombies' items, added
   by hand (R146).
 
+### Z7-7 — What this story turned out to include
+
+- **No new rulings**: R106, R107, R110 and R132 covered it.
+- **Madness is a survivor field** (`madness`, schema v22), stored on everybody as Infection is, zero
+  for everybody already playing. A Cosmic Horror campaign's mission outcome records each member's
+  Madness at the end, beside their Health, and the sheet shows and edits it, saying when it reaches
+  13.
+- **The list of the Lost** (`lost` on the campaign) is new with v22, kept whole like the set-aside,
+  so a Lost survivor's items and stories still count as held (`keptSurvivors`). Z7-8 brings them
+  back.
+- **A Cosmic Horror mission is offered to a team** with somebody at 4 or more Madness (R132), read
+  per team as story missions are.
+- **Madness Recovery is an assignment** at Rest and Healing, in place of resting or healing, in a
+  Cosmic Horror campaign only. It's warned about without a working Lounge or any Madness to lose.
+  At the next Heal Wounds the Lounges' points (2 each, 4 with Power) are shared equally among
+  those assigned, one at a time, never past 0 (`src/engine/lounge.ts`), with a press of their
+  own beside the Health.
+- **At Departures, everybody at 13 or more goes Lost first** unless they're down, on one press,
+  each with a `survivor-lost` entry and what they carry. The Unrest departure is refused until they
+  have gone, so it reads the community they leave (R106).
+- **The Survivors card counts the Lost.** Who they are, and the Lost roll, are Z7-8's.
+
 ## Part 3 — The Toolkit's survivor traits (outline)
 
 - **Z7-10 — The switch, Advantages and experience debt.** A campaign setting, off by default (R84);

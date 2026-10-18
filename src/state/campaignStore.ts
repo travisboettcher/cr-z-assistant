@@ -119,6 +119,7 @@ import { withoutAssignment } from '../engine/assignments';
 import type { FormResult } from '../engine/forms';
 import {
   submitDeparture,
+  submitGoneLost,
   submitFeeding,
   submitHordeCheck,
   submitInfectionCheck,
@@ -639,6 +640,8 @@ export type CampaignAction =
    * still over the threshold with somebody still to lose genuinely loses them.
    */
   | { readonly type: 'management/departed'; readonly survivor: string; readonly at: string }
+  /** Everybody at 13 or more Madness goes Lost, before the Unrest check (R106; Z7-7). */
+  | { readonly type: 'management/goneLost'; readonly at: string }
   /**
    * Take one survivor off the mission team, because Exhaustion is above its
    * size (pg. 23).
@@ -1047,6 +1050,9 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
     case 'management/departed':
       return submitted(state, (campaign) => submitDeparture(campaign, action.survivor, action.at));
+
+    case 'management/goneLost':
+      return submitted(state, (campaign) => submitGoneLost(campaign, action.at));
 
     case 'management/teamReduced':
       return submitted(state, (campaign) =>

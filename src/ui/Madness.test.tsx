@@ -130,3 +130,25 @@ describe('Madness Recovery in the Lounge (pp. 21, 68; R110; Z7-7)', () => {
     expect(section.queryByRole('button')).toBeNull();
   });
 });
+
+describe('going Lost at Departures (pp. 23, 124; R106; Z7-7)', () => {
+  it('sends them first, then the Unrest check, and counts the Lost on the card', async () => {
+    const user = open(
+      cosmic({
+        step: 'departures',
+        survivors: [earl({ madness: 13 }), createSurvivor('Ruby Vance', 2, { id: 'ruby' })],
+      }),
+    );
+    const region = within(walk()).getByRole('region', { name: 'Lost to Madness' });
+
+    expect(region.textContent).toContain('Going: Earl Rhodes.');
+    expect(walk().textContent).toContain('The Unrest check follows once the Lost have gone');
+    await user.click(within(region).getByRole('button', { name: 'They go Lost' }));
+
+    expect(within(region).getByText('Earl Rhodes went Lost at 13 Madness.')).toBeTruthy();
+    expect(walk().textContent).toContain('Nobody is leaving. The community holds together.');
+    expect(
+      within(screen.getByRole('region', { name: 'Survivors' })).getByText(/Lost$/).textContent,
+    ).toBe('1 Lost');
+  });
+});

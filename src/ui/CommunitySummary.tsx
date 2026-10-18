@@ -91,6 +91,12 @@ function Survivors({
         {survivors.length === 1 ? '' : 's'} ·{' '}
         <span className="tabular-nums">{communityTierLevels(survivors)}</span> Tier levels
       </p>
+      {/* Gone Lost to Madness, kept for their return (R106, R109; Z7-7). */}
+      {campaign.lost.length > 0 && (
+        <p className="text-sm text-stone-600 dark:text-stone-400">
+          <span className="tabular-nums">{campaign.lost.length}</span> Lost
+        </p>
+      )}
 
       {empty ? (
         <div className="mt-3 flex flex-col gap-3">

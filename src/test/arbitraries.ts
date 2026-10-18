@@ -752,6 +752,16 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       },
       { requiredKeys: ['kind', 'survivor', 'name', 'tier'] },
     ),
+    // Gone Lost to Madness (R106; Z7-7), with what they carried or nothing.
+    fc.record(
+      {
+        kind: fc.constant('survivor-lost' as const),
+        ...survivor,
+        madness: fc.integer({ min: 13, max: 20 }),
+        items: fc.array(itemArbitrary(), { minLength: 1, maxLength: 2 }),
+      },
+      { requiredKeys: ['kind', 'survivor', 'name', 'madness'] },
+    ),
     fc.record({
       kind: fc.constant('survivor-promoted' as const),
       ...survivor,
