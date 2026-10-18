@@ -42,7 +42,12 @@ import {
   type StandardMissionId,
 } from '../data/missions';
 import { FIELD_RECRUITABLE_TIERS, type FieldRecruitTier } from '../data/recruitTable';
-import { MADNESS_FOR_COSMIC_MISSIONS } from '../data/origins';
+import {
+  FOUND_CHECK_TARGET,
+  FOUND_MADNESS_CAP,
+  MADNESS_FOR_COSMIC_MISSIONS,
+} from '../data/origins';
+import { D10_RESULTS } from '../data/dice';
 import { beforePlanning } from './assignments';
 import { continuationMission, continuationOpen, overrunChoice, overrunClaim } from './overrun';
 import type { Campaign, RareTrade, Survivor } from './campaign';
@@ -50,7 +55,7 @@ import type { CampaignEvent, MissionWound, RetrievedVehicle } from './log';
 import { FIRST_TURN, siegeDue } from './siege';
 import { storyProblem } from './storyMissions';
 import { containmentUnlock, viralProblem } from './viralMissions';
-import { maxHp } from './survivor';
+import { maxHp, tierCheckPasses } from './survivor';
 import { phaseOf } from './turn';
 import { retrievedProblem } from './vehicles';
 
@@ -965,6 +970,18 @@ export function woundsProblem(campaign: Campaign, outcome: MissionOutcome): stri
     } else if (!Number.isSafeInteger(wound.madness) || (wound.madness as number) < 0) {
       return `${survivor.name}’s Madness must be a whole number, 0 or more.`;
     }
+
+    // A Found survivor's Tier check at their next gain (pg. 130; R111; Z7-8).
+    const owed = foundCheckOwed(survivor, wound.madness);
+    if (owed && wound.foundCheck === undefined) {
+      return `${survivor.name} is Found and their Madness went up: enter the d10 for their Tier check against 8.`;
+    }
+    if (!owed && wound.foundCheck !== undefined) {
+      return 'Only a Found survivor whose Madness went up makes the Tier check against 8.';
+    }
+    if (wound.foundCheck !== undefined && !D10_RESULTS.includes(wound.foundCheck)) {
+      return 'The Tier check is a d10, from 1 to 10.';
+    }
   }
 
   return recorded.size === members.length
@@ -992,9 +1009,44 @@ export function withWounds(campaign: Campaign, wounds: readonly MissionWound[]):
             ...survivor,
             currentHp: wound.health,
             ...(wound.infection === undefined ? {} : { infection: wound.infection }),
-            ...(wound.madness === undefined ? {} : { madness: wound.madness }),
+            ...(wound.madness === undefined ? {} : madnessAfter(survivor, wound)),
           };
     }),
+  };
+}
+
+/**
+ * Whether a Found survivor owes the Tier check against 8 for this Madness: it
+ * went up, and the check has not yet been passed (pg. 130; R111). A failed
+ * check caps nothing and is asked again at the next gain (R111's open part).
+ */
+export function foundCheckOwed(survivor: Survivor, madness: number | undefined): boolean {
+  return (
+    survivor.found &&
+    !survivor.foundCheckPassed &&
+    madness !== undefined &&
+    madness > survivor.madness
+  );
+}
+
+/**
+ * The Madness a wound leaves a survivor with, and whether they have passed
+ * the Found check (R111): capped at 6 once it is passed, this check included,
+ * and as recorded otherwise.
+ */
+export function madnessAfter(
+  survivor: Survivor,
+  wound: MissionWound,
+): Pick<Survivor, 'madness' | 'foundCheckPassed'> {
+  const madness = wound.madness ?? survivor.madness;
+  const passed =
+    survivor.foundCheckPassed ||
+    (wound.foundCheck !== undefined &&
+      tierCheckPasses(survivor, wound.foundCheck, FOUND_CHECK_TARGET));
+
+  return {
+    madness: passed ? Math.min(madness, FOUND_MADNESS_CAP) : madness,
+    foundCheckPassed: passed,
   };
 }
 

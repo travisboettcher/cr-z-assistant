@@ -49,3 +49,9 @@ export const LOST_ROLL_TARGET = 18;
 
 /** The XP a Lost survivor gains from a Lost roll that does not place them (pg. 124). */
 export const LOST_ROLL_XP = 1;
+
+/** The Tier check a Found survivor makes at their next Madness gain (pg. 130; R111). */
+export const FOUND_CHECK_TARGET = 8;
+
+/** The Madness a Found survivor who passed that check never goes above (pg. 130; R111). */
+export const FOUND_MADNESS_CAP = 6;

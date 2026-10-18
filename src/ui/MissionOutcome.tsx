@@ -53,6 +53,7 @@ import {
   strangerWarning,
   teamOutcomes,
   turnMissions,
+  foundCheckOwed,
   woundsAsTheyStand,
   type MissionChoice,
 } from '../engine/missions';
@@ -180,7 +181,12 @@ function CountField({
 type Typed = Partial<
   Record<
     string,
-    { readonly health?: string; readonly infection?: string; readonly madness?: string }
+    {
+      readonly health?: string;
+      readonly infection?: string;
+      readonly madness?: string;
+      readonly foundCheck?: string;
+    }
   >
 >;
 
@@ -198,6 +204,9 @@ function woundsTyped(standing: readonly MissionWound[], typed: Typed): readonly 
       ...(over?.health === undefined ? {} : { health: count(over.health) }),
       ...(over?.infection === undefined ? {} : { infection: count(over.infection) }),
       ...(over?.madness === undefined ? {} : { madness: count(over.madness) }),
+      ...(over?.foundCheck === undefined || over.foundCheck === ''
+        ? {}
+        : { foundCheck: Number(over.foundCheck) as D10Result }),
     };
   });
 }
@@ -219,7 +228,7 @@ function WoundFields({
   readonly typed: Typed;
   readonly onType: (
     survivor: string,
-    field: 'health' | 'infection' | 'madness',
+    field: 'health' | 'infection' | 'madness' | 'foundCheck',
     value: string,
   ) => void;
 }) {
@@ -259,6 +268,16 @@ function WoundFields({
         const health = `${prefix}-health-${wound.survivor}`;
         const infection = `${prefix}-infection-${wound.survivor}`;
         const madness = `${prefix}-madness-${wound.survivor}`;
+        const foundCheck = `${prefix}-found-${wound.survivor}`;
+        // A Found survivor whose Madness goes up makes the check (R111).
+        const checking =
+          survivor !== undefined &&
+          foundCheckOwed(
+            survivor,
+            typed[wound.survivor]?.madness === undefined
+              ? wound.madness
+              : count(typed[wound.survivor]?.madness ?? ''),
+          );
         const most = survivor === undefined ? undefined : maxHp(survivor);
 
         return (
@@ -318,6 +337,31 @@ function WoundFields({
                     onType(wound.survivor, 'madness', changed.target.value);
                   }}
                 />
+              </>
+            )}
+            {checking && (
+              <>
+                <label className="ml-2 text-sm" htmlFor={foundCheck}>
+                  {wound.name} is Found: the d10 for their Tier check against 8
+                </label>
+                <select
+                  id={foundCheck}
+                  className={SELECT}
+                  value={typed[wound.survivor]?.foundCheck ?? ''}
+                  onChange={(changed) => {
+                    onType(wound.survivor, 'foundCheck', changed.target.value);
+                  }}
+                >
+                  <option value="" disabled>
+                    Choose…
+                  </option>
+                  {D10_RESULTS.map((result) => (
+                    <option key={result} value={result}>
+                      {result}
+                    </option>
+                  ))}
+                </select>
+                <PageRef pages={130} />
               </>
             )}
           </div>
@@ -790,7 +834,13 @@ function TeamOutcome({
         dead={dead}
         typed={typed}
         onType={(survivor, field, value) => {
-          setTyped({ ...typed, [survivor]: { ...typed[survivor], [field]: value } });
+          // A new Madness asks the Found check afresh, if it asks at all (R111).
+          const { foundCheck, ...rest } = typed[survivor] ?? {};
+          const kept =
+            field === 'madness'
+              ? rest
+              : { ...rest, ...(foundCheck === undefined ? {} : { foundCheck }) };
+          setTyped({ ...typed, [survivor]: { ...kept, [field]: value } });
         }}
       />
 

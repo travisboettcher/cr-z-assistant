@@ -58,14 +58,14 @@
  * Pure, like the rest of `src/engine`.
  */
 
-import { NATURAL_FAILURE, NATURAL_SUCCESS, type D10Result } from '../data/dice';
+import type { D10Result } from '../data/dice';
 import { ROT_CHECK_TARGET, ROT_BITE_DAMAGE } from '../data/turn';
 import { staffOf, survivorsDoing } from './assignments';
 import { suppliedOccupants } from './utilities';
 import type { Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
 import { hungerPenalty } from './feeding';
-import { outOfHealth, skillScore } from './survivor';
+import { outOfHealth, skillScore, tierCheckPasses } from './survivor';
 
 export type BiteViolationCode = 'bite-required';
 
@@ -189,10 +189,7 @@ export function biteCandidates(campaign: Campaign, turning: string): readonly Su
  * two natural results overriding it in both directions.
  */
 export function rotCheckPasses(survivor: Survivor, roll: D10Result, target: number): boolean {
-  if (roll === NATURAL_FAILURE) return false;
-  if (roll === NATURAL_SUCCESS) return true;
-
-  return roll + survivor.tier >= target;
+  return tierCheckPasses(survivor, roll, target);
 }
 
 /** What a failed check costs, beyond the survivor who turned. */

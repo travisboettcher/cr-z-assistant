@@ -384,6 +384,7 @@ const anyWounds = fc.array(
       health: fc.integer({ min: 0, max: 20 }),
       infection: fc.integer({ min: 0, max: 20 }),
       madness: fc.integer({ min: 0, max: 20 }),
+      foundCheck: fc.constantFrom(...D10_RESULTS),
     },
     { requiredKeys: ['survivor', 'name', 'health'] },
   ),

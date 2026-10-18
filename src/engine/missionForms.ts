@@ -23,6 +23,7 @@ import { equipCheck, withEquipMove, type EquipMove } from './equip';
 import { accepted, blockedBy, refused, type FormResult } from './forms';
 import { logged, type MissionWound, type StoryRecord } from './log';
 import {
+  madnessAfter,
   membersOf,
   missionOutcomeProblem,
   missionTeams,
@@ -228,16 +229,20 @@ export function submitMissionEnded(
   const wounds = woundsAsTheyStand(campaign, outcomeTeam(outcome))
     .filter((member) => !dead.has(member.survivor))
     .map((member) => {
-      const { health, infection, madness } = (outcome.wounds as readonly MissionWound[]).find(
-        (wound) => wound.survivor === member.survivor,
+      const wound = (outcome.wounds as readonly MissionWound[]).find(
+        (one) => one.survivor === member.survivor,
       ) as MissionWound;
+      const { health, infection, madness, foundCheck } = wound;
+      const survivor = campaign.survivors.find((one) => one.id === member.survivor) as Survivor;
 
       return {
         survivor: member.survivor,
         name: member.name,
         health,
         ...(infection === undefined ? {} : { infection }),
-        ...(madness === undefined ? {} : { madness }),
+        // Capped at 6 for a Found survivor who has passed their check (R111).
+        ...(madness === undefined ? {} : { madness: madnessAfter(survivor, wound).madness }),
+        ...(foundCheck === undefined ? {} : { foundCheck }),
       };
     });
 

@@ -580,7 +580,9 @@ const EVENT_FIELD_CHECKS = {
           typeof wound.name === 'string' &&
           isCountFromZero(wound.health) &&
           (wound.infection === undefined || isCountFromZero(wound.infection)) &&
-          (wound.madness === undefined || isCountFromZero(wound.madness)),
+          (wound.madness === undefined || isCountFromZero(wound.madness)) &&
+          (wound.foundCheck === undefined ||
+            D10_RESULTS.some((result) => result === wound.foundCheck)),
       )),
   // Which numbered end condition was met, or `null` for none (pp. 77, 79).
   // Which numbers a mission has is the engine's to check, not a file's.

@@ -17,7 +17,7 @@ import {
   type Skill,
   type Stat,
 } from '../data/skills';
-import type { D10Result } from '../data/dice';
+import { NATURAL_FAILURE, NATURAL_SUCCESS, type D10Result } from '../data/dice';
 import { INFECTION_INCAPACITATES } from '../data/origins';
 import {
   PLAYERS_CHOICE,
@@ -286,4 +286,16 @@ export function createSurvivor(
  */
 export function withXpSpent(survivor: Survivor, cost: number): Survivor {
   return { ...survivor, xp: survivor.xp - cost, xpSpent: survivor.xpSpent + cost };
+}
+
+/**
+ * Whether a Tier check passes (pg. 8): the d10 and the survivor's Tier
+ * against the target, a natural 1 always failing and a natural 10 always
+ * succeeding.
+ */
+export function tierCheckPasses(survivor: Survivor, roll: D10Result, target: number): boolean {
+  if (roll === NATURAL_FAILURE) return false;
+  if (roll === NATURAL_SUCCESS) return true;
+
+  return roll + survivor.tier >= target;
 }

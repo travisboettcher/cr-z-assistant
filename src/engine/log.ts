@@ -83,6 +83,11 @@ export interface MissionWound {
   readonly infection?: number;
   /** In a Cosmic Horror campaign, as Infection is in a Viral one (Z7-7). */
   readonly madness?: number;
+  /**
+   * A Found survivor's Tier check against 8, the d10, when their Madness went
+   * up (pg. 130; R111; Z7-8). Absent for anybody else.
+   */
+  readonly foundCheck?: D10Result;
 }
 
 /**

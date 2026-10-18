@@ -381,6 +381,28 @@ nothing records one.
   have gone, so it reads the community they leave (R106).
 - **The Survivors card counts the Lost.** Who they are, and the Lost roll, are Z7-8's.
 
+### Z7-8 — What this story turned out to include
+
+- **Two more rulings, decided 2026-10-18**: XP spent is counted from now on, by every purchase and a
+  Veteran's healing, and corrected by hand for what came before (R149); and nobody makes the Lost
+  roll on a turn with no mission (R150). The Found check is asked on the mission outcome, at the
+  gain R111 names.
+- **Schema v23 adds `xpSpent`, `found` and `foundCheckPassed`** to every survivor, 0 and false for
+  everybody already playing. `withXpSpent` is the one place XP is spent, so the count can't miss a
+  purchase. A Cosmic Horror sheet shows and corrects XP spent, and Found reads with the traits.
+- **The Lost roll is made in the Mission Phase before any outcome is recorded**, a `lost-rolled`
+  entry each, once a turn (`src/engine/lostRoll.ts`). The d10 and the XP spent against 18 is a
+  check by the book's convention (pg. 8), so a natural 1 fails and a natural 10 succeeds. A pass
+  names the mission team they join; a fail gives the Lost survivor 1 XP.
+- **A placed survivor's rescue is recorded beside the outcome**: Found, back in the community as
+  themselves at full Health with no Infection or Madness; exiled, back on the list with their items
+  left to the base (R75); or not rescued, still Lost (R109's open part).
+- **The Found check is a Tier check against 8**, asked on the outcome when a Found survivor's
+  Madness goes up. A pass caps them at 6 for good, the entry included. A fail caps nothing and is
+  asked again at the next gain (R111's open part). `tierCheckPasses` is now the one Tier check, and
+  the Rot check reads it.
+- **The roster lists the Lost**, with their XP spent.
+
 ## Part 3 — The Toolkit's survivor traits (outline)
 
 - **Z7-10 — The switch, Advantages and experience debt.** A campaign setting, off by default (R84);

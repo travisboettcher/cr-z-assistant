@@ -251,3 +251,35 @@ describe('a Lost survivor on a mission (pg. 124; R109; Z7-8)', () => {
     ).toBe('June Park, Citizen, 4 XP spent');
   });
 });
+
+describe('the Found check on the outcome (pg. 130; R111; Z7-8)', () => {
+  it('asks a Found survivor’s d10 when their Madness goes up, and caps a pass at 6', async () => {
+    const user = open(
+      cosmic({
+        turn: 4,
+        step: 'tactical-mission',
+        survivors: [earl({ madness: 2, found: true, tier: 3 })],
+        assignments: { earl: { task: 'mission', team: 1 } },
+        log: [
+          {
+            turn: 4,
+            phase: 'mission',
+            at: AT,
+            event: { kind: 'mission-selected', team: 1, mission: 'rescue-strangers', names: [] },
+          },
+        ],
+      }),
+    );
+    const madness = within(walk()).getByLabelText('Earl Rhodes’s Madness');
+
+    expect(within(walk()).queryByLabelText(/Tier check against 8/)).toBeNull();
+    await user.clear(madness);
+    await user.type(madness, '9');
+    await user.selectOptions(within(walk()).getByLabelText(/Tier check against 8/), '7');
+    await user.click(within(walk()).getByRole('button', { name: 'Record Rescue Strangers' }));
+
+    expect(walk().textContent).toContain(
+      'Earl Rhodes at 2 Health and 6 Madness, rolling 7 for the Found check',
+    );
+  });
+});

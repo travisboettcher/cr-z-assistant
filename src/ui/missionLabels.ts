@@ -273,7 +273,11 @@ function woundsOf(wounds: readonly MissionWound[] | undefined): readonly string[
     (wound) =>
       `${wound.name} at ${String(wound.health)} Health${
         wound.infection === undefined ? '' : ` and ${String(wound.infection)} Infection`
-      }${wound.madness === undefined ? '' : ` and ${String(wound.madness)} Madness`}`,
+      }${wound.madness === undefined ? '' : ` and ${String(wound.madness)} Madness`}${
+        wound.foundCheck === undefined
+          ? ''
+          : `, rolling ${String(wound.foundCheck)} for the Found check`
+      }`,
   );
 
   return [`At the end: ${each.join(', ')}.`];

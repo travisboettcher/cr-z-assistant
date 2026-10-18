@@ -496,6 +496,7 @@ function orderedWound(wound: MissionWound): Record<keyof MissionWound, unknown> 
     health: wound.health,
     infection: wound.infection,
     madness: wound.madness,
+    foundCheck: wound.foundCheck,
   };
 }
 
