@@ -2428,3 +2428,37 @@ and makes no Rot check that turn
 ([R91](#r91--a-veterans-healing-comes-before-the-rot-check)).
 
 *Decided 2026-10-17 with Z7-2.*
+
+---
+
+## R138 — Part 2a's family member joins unbonded once Bonded is lost
+
+**pp. 90–91; Phase 7, Z7-3.** Left Behind Part 1 bonds the rescued loved one to the attached
+survivor (pg. 90), and Part 2a bonds the rescued family member to the attached survivor and all
+their bondmates (pg. 91). Between the two the attached survivor can take another Story Trait,
+which replaces Bonded ([R85](#r85--a-new-story-trait-replaces-the-old-one-and-veteran-stays)), and the book does not say
+what the family member is bonded to then.
+
+**The ruling is that the family member joins unbonded** when the attached survivor no longer holds
+Bonded, and into their bond group when they do. Part 1's loved one joins the attached survivor's
+group when they are Bonded already, and starts a new group with them otherwise.
+
+*Decided 2026-10-18 with Z7-3.*
+
+---
+
+## R139 — A story done, or held, is not attached again
+
+**pp. 87, 90, 99, 101; Phase 7, Z7-3.** Left Behind Part 1 attaches Prepper's Stash only if it is
+not done or attached to someone else (pg. 90), and a story is complete once its rewards are taken
+([R121](#r121--a-story-is-played-once-for-each-time-it-is-attached)). The book does not say whether
+the other attachments, a promotion's or the next part of an arc (the Warehouse comes from both
+Neighbor's Rifle and Crashed Convoy, pp. 99, 101), follow the same rule.
+
+**The ruling is that every attachment does**: a story already attached to somebody, or done, is not
+attached again, by a promotion or by another story's ending. A story is done once played to an
+ending that neither keeps it attached nor attaches it again, so Sentimental Value not found and
+Prepper's Stash Part 2 with its trap door shut are not done. A story attached by hand on the sheet
+is a correction and is not held to it.
+
+*Decided 2026-10-18 with Z7-3.*

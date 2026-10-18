@@ -34,6 +34,7 @@ import type {
   ItemHolder,
   LogEntry,
   MissionWound,
+  StoryRecord,
   RetrievedVehicle,
 } from '../engine/log';
 import { isMissionOutcome } from '../engine/missions';
@@ -379,10 +380,44 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
       ? taggedFirst(event, 'kind')
       : { ...taggedFirst(event, 'kind'), wounds: event.wounds.map(orderedWound) };
 
+  // A story's ending and what it gave (Z7-3).
+  if (event.kind === 'mission-played' && event.story !== undefined) {
+    return { ...outcome, story: orderedStory(event.story) };
+  }
+
   // The vehicles a Retrieve New Vehicles team drove off (Z5-11).
   return event.kind === 'retrieve-new-vehicles-resolved' && event.retrieved !== undefined
     ? { ...outcome, retrieved: event.retrieved.map(orderedRetrieved) }
     : outcome;
+}
+
+/**
+ * A story's record with its keys, and those of what it attached and who
+ * joins, in a fixed order. What it did not give is `undefined`, which the file
+ * drops, as a wound's Infection is.
+ */
+function orderedStory(story: StoryRecord): Record<keyof StoryRecord, unknown> {
+  return {
+    survivor: story.survivor,
+    name: story.name,
+    result: story.result,
+    xp: story.xp,
+    trait: story.trait,
+    bondGroup: story.bondGroup,
+    stays: story.stays,
+    attached:
+      story.attached === undefined
+        ? undefined
+        : {
+            mission: story.attached.mission,
+            survivor: story.attached.survivor,
+            name: story.attached.name,
+          },
+    joins:
+      story.joins === undefined
+        ? undefined
+        : { tier: story.joins.tier, bondGroup: story.joins.bondGroup, xp: story.joins.xp },
+  };
 }
 
 /**

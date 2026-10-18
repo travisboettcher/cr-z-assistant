@@ -291,21 +291,115 @@ describe('an outcome for every mission a team chose (Z4-3)', () => {
     ).toBeInTheDocument();
   });
 
-  it('records a story mission as played, with nothing to count', async () => {
+  it('records how a story ended, and says what it gave (Z7-3)', async () => {
     const user = open(
       playing({
-        survivors: [createSurvivor('Earl Rhodes', 2, { id: 'earl' })],
+        survivors: [
+          {
+            ...createSurvivor('Earl Rhodes', 2, { id: 'earl' }),
+            stories: [{ mission: 'sentimental-value', attachedOnTurn: 2 }],
+          },
+        ],
         assignments: { earl: { task: 'mission', team: 1 } },
         log: [teamChose(1, 'sentimental-value')],
       }),
     );
+    const form = group(/how sentimental value ended/i);
+    const record = form.getByRole('button', { name: 'Record Sentimental Value' });
 
-    await user.click(
-      group(/how sentimental value ended/i).getByRole('button', {
-        name: 'Record Sentimental Value',
+    expect(form.getByText('Choose one to record the story.')).toBeInTheDocument();
+    expect(record).toBeDisabled();
+
+    await user.click(form.getByLabelText(/The heirloom was recovered/));
+    expect(
+      form.getByText(/Earl Rhodes is now Driven, in place of any other Story Trait\./),
+    ).toBeInTheDocument();
+    await user.click(record);
+
+    expect(walk().textContent).toContain('Sentimental Value: the heirloom was recovered.');
+    expect(walk().textContent).toContain(
+      'Earl Rhodes is now Driven, in place of any other Story Trait. Sentimental Value is done.',
+    );
+  });
+});
+
+describe('a story’s next part, attached to whom the player chooses (pp. 99, 101; Z7-3)', () => {
+  it('asks which Tier 2 or 3 on the team takes the Warehouse, and records it', async () => {
+    const user = open(
+      playing({
+        survivors: [
+          {
+            ...createSurvivor('Earl Rhodes', 2, { id: 'earl' }),
+            stories: [{ mission: 'crashed-convoy', attachedOnTurn: 2 }],
+          },
+          createSurvivor('Ruby Vance', 3, { id: 'ruby' }),
+          createSurvivor('Nell Haig', 1, { id: 'nell' }),
+        ],
+        assignments: {
+          earl: { task: 'mission', team: 1 },
+          ruby: { task: 'mission', team: 1 },
+          nell: { task: 'mission', team: 1 },
+        },
+        log: [teamChose(1, 'crashed-convoy')],
       }),
     );
-    expect(walk().textContent).toContain('Sentimental Value: played.');
+    const form = group(/how crashed convoy ended/i);
+    const record = form.getByRole('button', { name: 'Record Crashed Convoy' });
+
+    await user.click(form.getByLabelText(/The search check passed/));
+    expect(form.getByText('Choose who the next part is attached to.')).toBeInTheDocument();
+    expect(record).toBeDisabled();
+
+    const to = form.getByLabelText('Attach Warehouse to');
+    expect(within(to).queryByRole('option', { name: /Nell Haig/ })).toBeNull();
+    await user.selectOptions(to, 'ruby');
+    await user.click(record);
+
+    expect(walk().textContent).toContain(
+      'Earl Rhodes gains 1 XP. Crashed Convoy is done. Warehouse is attached to Ruby Vance.',
+    );
+  });
+
+  it('goes straight on to Left Behind Part 2b when the loved one is lost (R119)', async () => {
+    const user = open(
+      playing({
+        survivors: [
+          {
+            ...createSurvivor('Earl Rhodes', 2, { id: 'earl' }),
+            stories: [{ mission: 'left-behind-1', attachedOnTurn: 2 }],
+          },
+        ],
+        assignments: { earl: { task: 'mission', team: 1 } },
+        log: [teamChose(1, 'left-behind-1')],
+      }),
+    );
+    const first = group(/how left behind \(part 1\) ended/i);
+
+    // Attached on turn 2, played on turn 4 (R118).
+    expect(
+      first.getByText(/Attached 2 turns ago, which is inside its window of 3 turns/),
+    ).toBeInTheDocument();
+
+    await user.click(first.getByLabelText(/The loved one was not rescued/));
+    await user.click(first.getByRole('button', { name: 'Record Left Behind (Part 1)' }));
+
+    const second = group(/how left behind \(part 2b\) ended/i);
+    expect(second.getByText(/straight after Part 1/)).toBeInTheDocument();
+    expect(second.getByText('How Earl Rhodes’s story ended')).toBeInTheDocument();
+  });
+
+  it('says so when nobody on the team has the story attached', () => {
+    open(
+      playing({
+        survivors: [createSurvivor('Earl Rhodes', 2, { id: 'earl' })],
+        assignments: { earl: { task: 'mission', team: 1 } },
+        log: [teamChose(1, 'warehouse')],
+      }),
+    );
+
+    expect(
+      group(/how warehouse ended/i).getByText('Nobody on this team has Warehouse attached.'),
+    ).toBeInTheDocument();
   });
 });
 

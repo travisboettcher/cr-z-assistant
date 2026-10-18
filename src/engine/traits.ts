@@ -149,16 +149,36 @@ export function storiesHeld(campaign: Campaign): ReadonlySet<StoryMissionId> {
 }
 
 /**
- * The stories promoting this survivor attaches one of (pg. 87; R117, R136):
- * the five, for a survivor leaving Tier 1 or 2, less any attached to somebody
- * already. None for anybody else: Tier 3 becomes a Veteran instead.
+ * Every story the campaign has finished (R116, R121, R139): played to a result
+ * that neither kept it attached nor attached it again, as Prepper's Stash Part
+ * 2 does when its trap door stays shut.
+ */
+export function storiesDone(campaign: Campaign): ReadonlySet<StoryMissionId> {
+  return new Set(
+    campaign.log.flatMap(({ event }) =>
+      event.kind === 'mission-played' &&
+      event.story !== undefined &&
+      event.story.stays !== true &&
+      event.story.attached?.mission !== event.mission
+        ? [event.mission as StoryMissionId]
+        : [],
+    ),
+  );
+}
+
+/**
+ * The stories promoting this survivor attaches one of (pg. 87; R117, R136,
+ * R139): the five, for a survivor leaving Tier 1 or 2, less any attached to
+ * somebody already or done. None for anybody else: Tier 3 becomes a Veteran
+ * instead.
  */
 export function storiesOnOffer(campaign: Campaign, survivor: Survivor): readonly StoryMissionId[] {
   if (survivor.tier >= STORY_TIERS_BELOW) return [];
 
   const held = storiesHeld(campaign);
+  const done = storiesDone(campaign);
 
-  return PROMOTION_STORIES.filter((story) => !held.has(story));
+  return PROMOTION_STORIES.filter((story) => !held.has(story) && !done.has(story));
 }
 
 /** Whether promoting this survivor makes them a Veteran: a Tier 3 becoming a Hero (pg. 87). */

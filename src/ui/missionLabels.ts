@@ -15,6 +15,8 @@ import { withArticle } from './articles';
 import { BASE_LABELS, MATERIAL_LABELS } from './baseLabels';
 import type { MissionWound } from '../engine/log';
 import { outcomeMission, outcomeTeam, type MissionOutcome } from '../engine/missions';
+import { isStory } from '../engine/storyMissions';
+import { storyConsequences, storyResultLabel } from './storyLabels';
 import {
   baseOverrun,
   FIRST_TURN,
@@ -187,8 +189,15 @@ function counted(outcome: MissionOutcome): string {
           : `, ${plural(outcome.itemsTraded, 'item', 'items')} traded`
       }${anyStrangers(outcome.strangers)}`;
     case 'mission-played':
-      return 'played';
+      return outcome.story === undefined || !isStory(outcome.mission)
+        ? 'played'
+        : lowerFirst(storyResultLabel(outcome.mission, outcome.story.result));
   }
+}
+
+/** A label as it reads after a colon. */
+function lowerFirst(text: string): string {
+  return `${text.charAt(0).toLowerCase()}${text.slice(1)}`;
 }
 
 function isCounterOutcome(outcome: MissionOutcome): outcome is CounterOutcome {
@@ -209,6 +218,14 @@ export function outcomeConsequences(outcome: MissionOutcome, turn: number): read
         ? 'The First Mission failed, so turn 1 plays it again.'
         : 'The First Mission failed, so the community chooses again how it goes on.',
     ];
+  }
+
+  if (
+    outcome.kind === 'mission-played' &&
+    outcome.story !== undefined &&
+    isStory(outcome.mission)
+  ) {
+    return storyConsequences(outcome.mission, outcome.story, missionTitle);
   }
 
   if (!isCounterOutcome(outcome)) return [];

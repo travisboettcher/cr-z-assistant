@@ -16,6 +16,7 @@
 import { useId, useRef, useState } from 'react';
 import { MATERIALS, type Material, type Materials } from '../data/materials';
 import { D10_RESULTS, type D10Result } from '../data/dice';
+import { MISSIONS } from '../data/missions';
 import { rollsForSkill } from '../data/recruitTable';
 import {
   SUBSTITUTION_SKILLS,
@@ -98,6 +99,7 @@ import { OpenPanel } from './OpenPanel';
 import { PageRef } from './PageRef';
 import { SKILL_LABELS } from './skillLabels';
 import { TIER_LABELS } from './tierLabels';
+import { missionTitle } from './missionLabels';
 import { withArticle } from './articles';
 import { FOCUS_RING, PRIMARY_FILL, SECONDARY_FILL, TOUCH_TARGET } from './styles';
 
@@ -266,7 +268,17 @@ function StrangerJoining({
   const problem = strangerProblem(campaign, form);
   // The position as well as the team, because two Citizens rescued by one
   // team are two strangers and each needs a name of its own on screen.
-  const label = `Mission team ${String(stranger.team)}, stranger ${String(stranger.stranger + 1)}: ${withArticle(TIER_LABELS[stranger.tier])}`;
+  // A survivor a story brought is named by the story, with what it gave them (Z7-3).
+  const label =
+    stranger.story === undefined
+      ? `Mission team ${String(stranger.team)}, stranger ${String(stranger.stranger + 1)}: ${withArticle(TIER_LABELS[stranger.tier])}`
+      : `Mission team ${String(stranger.team)}, from ${missionTitle(stranger.story)}: ${withArticle(TIER_LABELS[stranger.tier])}`;
+  const given = [
+    ...(stranger.bondGroup === undefined
+      ? []
+      : [`Bonded in bond group ${String(stranger.bondGroup)}`]),
+    ...(stranger.xp === undefined ? [] : [`${String(stranger.xp)} XP`]),
+  ];
 
   return (
     <li
@@ -277,6 +289,11 @@ function StrangerJoining({
       <p className="text-sm font-medium">
         {label} <span className="font-normal tabular-nums">(Tier {stranger.tier})</span>
       </p>
+      {stranger.story !== undefined && given.length > 0 && (
+        <p className={HINT}>
+          Joins with {given.join(' and ')} <PageRef pages={MISSIONS[stranger.story].pages} />
+        </p>
+      )}
 
       <div className="mt-2 flex flex-wrap items-end gap-2">
         <div className="grow basis-40">

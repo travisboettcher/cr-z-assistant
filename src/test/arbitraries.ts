@@ -565,11 +565,40 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       ),
     ),
     withWounds(
-      fc.record({
-        kind: fc.constant('mission-played' as const),
-        team: anyTeam,
-        mission: fc.constantFrom(...MISSION_IDS),
-      }),
+      fc.record(
+        {
+          kind: fc.constant('mission-played' as const),
+          team: anyTeam,
+          mission: fc.constantFrom(...MISSION_IDS),
+          // A story's ending (Z7-3), each part of it given or not.
+          story: fc.record(
+            {
+              survivor: anyId,
+              name: anyName,
+              result: fc.constantFrom('rescued', 'fire-lit', 'played'),
+              xp: fc.integer({ min: 1, max: 3 }),
+              trait: fc.constantFrom(...STORY_TRAITS),
+              bondGroup: fc.integer({ min: 1, max: 3 }),
+              stays: fc.constant(true as const),
+              attached: fc.record({
+                mission: fc.constantFrom(...STORY_MISSION_IDS),
+                survivor: anyId,
+                name: anyName,
+              }),
+              joins: fc.record(
+                {
+                  tier: fc.constantFrom(...TIERS),
+                  bondGroup: fc.integer({ min: 1, max: 3 }),
+                  xp: fc.integer({ min: 1, max: 3 }),
+                },
+                { requiredKeys: ['tier'] },
+              ),
+            },
+            { requiredKeys: ['survivor', 'name', 'result'] },
+          ),
+        },
+        { requiredKeys: ['kind', 'team', 'mission'] },
+      ),
     ),
     // The Infection count is optional, and a round trip has to keep it absent
     // where it was absent as well as keep it where it was written (#176).

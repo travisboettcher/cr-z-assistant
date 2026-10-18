@@ -217,6 +217,31 @@ nothing records one.
   Survivors, gives both 1 XP and attaches Part 2a.
 - A story attached to Earl is not offered to a team Earl is not on.
 
+**What this story turned out to include.**
+- **Two more rulings, decided 2026-10-18**: Part 2a's family member joins unbonded once the attached
+  survivor has lost Bonded, and Part 1's loved one joins a group the survivor already holds (R138);
+  and a story done, or held, is not attached again, by a promotion or by another story's ending
+  (R139), which is pg. 90's own rule for the Computer made general.
+- **A story's ending rides on `mission-played`**, as `story`, rather than a new outcome kind: the
+  result by id, and everything it gave written out (XP, trait, a new bond group, kept, the part
+  attached and to whom, who joins). `STORY_RESULTS` in `src/data/stories.ts` is the structure; the
+  form rebuilds the record from the result and the recipient, so the entry says what the rules
+  gave. `missionOutcomeProblem` asks `storyProblem` for every outcome, and a story with no ending
+  is refused.
+- **Done is read off the log** (`storiesDone`): an ending that neither keeps the story nor attaches
+  it again. A promotion no longer offers a story done.
+- **The survivor a story brings is a stranger of its team** at Create New Survivors, built at the
+  Tier the record sets, Bonded into its group and with its XP; the `stranger-joined` entry says
+  both. A Tier 4 joins with slots waiting, since no field recruit is a Hero.
+- **Part 2b is chosen for the team at once** (R119): recording Part 1 with the loved one lost
+  writes the team's `mission-selected` for 2b, which reopens its outcome, unless the survivor
+  died on Part 1 and took the story with them (R116).
+- **Left Behind's windows (R118) are a line on the form**, the turns since the story was attached
+  and whether that is inside: which ending applies is the table's to say.
+- **Left to Z7-4**, as rewards that are things rather than records: Part 1's quality weapon, the
+  Computer used twice, Part 2a's XP sent to the bondmates and its Guard House safe, 2b's boat and
+  who becomes Jaded (R128), Neighbor's Rifle's rifle and its Tier 3's Long Guns build.
+
 ### Z7-4 — Rewards that act outside the mission
 
 **Why:** Some stories change a later step rather than the mission's own record (pp. 94, 96, 101–102).
@@ -227,6 +252,10 @@ nothing records one.
   (R127).
 - The Warehouse's Unrest of 0 at the same turn's Management Phase (R125).
 - Who becomes Jaded in Left Behind 2b, the player's choice (R128).
+- What Z7-3 left: Left Behind Part 1's quality weapon and the Computer used twice (Prepper's Stash
+  Part 1 on whoever used it, R139); Part 2a's XP sent to the attached survivor and their bondmates,
+  and the Guard House safe's Crashed Convoy; Part 2b's boat; Neighbor's Rifle's quality rifle, and
+  its Tier 3's Long Guns and Dexterity.
 
 **Acceptance**
 - After the Warehouse with 11 resources home, Calculate Unrest is 0 that turn, and Hunger and

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { Tier } from '../data/tiers';
 import type { TurnStepId } from '../data/turn';
 import { createNewCampaign, type Campaign } from './campaign';
 import type { CampaignEvent, LogEntry } from './log';
@@ -10,6 +11,7 @@ import {
   strangerSurvivor,
   strangersWaiting,
   withReturned,
+  type RescuedStranger,
   type StrangerForm,
 } from './strangers';
 import { createSurvivor, recruitSurvivor } from './survivor';
@@ -255,16 +257,46 @@ describe('strangerProblem', () => {
 });
 
 describe('strangerSurvivor', () => {
+  const rescued = (tier: Tier, given: Partial<RescuedStranger> = {}): RescuedStranger => ({
+    team: 1,
+    stranger: 0,
+    tier,
+    ...given,
+  });
+
   /** pg. 15: a six on the recruit table is Archery. */
   it('builds a Citizen or a Leader as a field recruit, with the rolled skill', () => {
-    expect(strangerSurvivor('Carla Proust', 3, 6, { id: 'carla' })).toEqual(
+    expect(strangerSurvivor('Carla Proust', rescued(3), 6, { id: 'carla' })).toEqual(
       recruitSurvivor('Carla Proust', 3, 6, { id: 'carla' }),
     );
-    expect(strangerSurvivor('Carla Proust', 2, 6, { id: 'carla' }).skills).toEqual({ archery: 0 });
+    expect(strangerSurvivor('Carla Proust', rescued(2), 6, { id: 'carla' }).skills).toEqual({
+      archery: 0,
+    });
+  });
+
+  it('builds a story’s survivor Bonded into their group, with their XP (R120, R138)', () => {
+    const built = strangerSurvivor('Ada Moss', rescued(2, { bondGroup: 3, xp: 1 }), 6, {
+      id: 'ada',
+    });
+
+    expect(built.storyTrait).toBe('bonded');
+    expect(built.bondGroup).toBe(3);
+    expect(built.xp).toBe(1);
+    expect(built.skills).toEqual({ archery: 0 });
+    expect(strangerSurvivor('Ada Moss', rescued(2, { xp: 2 }), undefined, { id: 'ada' })).toEqual({
+      ...createSurvivor('Ada Moss', 2, { id: 'ada' }),
+      xp: 2,
+    });
+  });
+
+  it('builds a Hero a story brought with their slots waiting, as no recruit is (pg. 7)', () => {
+    expect(strangerSurvivor('Hal', rescued(4), 6, { id: 'hal' })).toEqual(
+      createSurvivor('Hal', 4, { id: 'hal' }),
+    );
   });
 
   it('builds a Rookie with a slot to fill', () => {
-    expect(strangerSurvivor('Pip', 1, undefined, { id: 'pip' })).toEqual(
+    expect(strangerSurvivor('Pip', rescued(1), undefined, { id: 'pip' })).toEqual(
       createSurvivor('Pip', 1, { id: 'pip' }),
     );
   });

@@ -968,6 +968,45 @@ describe('Create New Survivors', () => {
     ).toBeNull();
   });
 
+  it('offers a survivor a story brought, named by the story, with what it gave them (Z7-3)', async () => {
+    const user = open(
+      advancement({
+        step: 'create-new-survivors',
+        startingCommunityBuilt: true,
+        assignments: { [EARL]: { task: 'mission', team: 1 } },
+        log: [
+          {
+            ...rescuedBy(1, []),
+            event: {
+              kind: 'mission-played',
+              team: 1,
+              mission: 'left-behind-1',
+              story: {
+                survivor: EARL,
+                name: 'Earl Rhodes',
+                result: 'rescued',
+                xp: 1,
+                trait: 'bonded',
+                bondGroup: 1,
+                joins: { tier: 2, bondGroup: 1, xp: 1 },
+              },
+            },
+          },
+        ],
+      }),
+    );
+    const joining = stranger(/mission team 1, from left behind \(part 1\): a citizen/i);
+
+    expect(joining.getByText(/Joins with Bonded in bond group 1 and 1 XP/)).toBeTruthy();
+
+    await user.type(joining.getByLabelText('Name'), 'June Rhodes');
+    await user.click(joining.getByRole('button', { name: 'Join the community' }));
+
+    expect(campaignLog().textContent).toContain(
+      'June Rhodes joined as a Citizen, rescued by mission team 1, Bonded in bond group 1, with 1 XP.',
+    );
+  });
+
   it('waits for a name before it lets anybody join', async () => {
     const user = open(twoRescues());
     const citizen = stranger(/mission team 1/i);

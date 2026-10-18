@@ -1309,8 +1309,49 @@ describe('a campaign whose log is damaged', () => {
       ],
       /unreadable team/i,
     ],
+    // What a story gave a survivor it brought (Z7-3).
+    [
+      'a stranger who joined into bond group 0',
+      [
+        {
+          ...good,
+          event: { ...good.event, kind: 'stranger-joined', team: 1, stranger: 0, bondGroup: 0 },
+        },
+      ],
+      /unreadable bondGroup/i,
+    ],
   ])('refuses %s', (_label, log, expected) => {
     expect(refusalFor(log)).toMatch(expected);
+  });
+
+  // A story's ending (Z7-3), shape only.
+  it.each([
+    ['with no result', { result: '' }],
+    ['with a trait nobody has', { trait: 'brave' }],
+    ['with XP of 0', { xp: 0 }],
+    ['kept with anything but true', { stays: false }],
+    [
+      'attaching a mission that is no story',
+      { attached: { mission: 'thin-the-herd', survivor: 'a', name: 'Earl' } },
+    ],
+    ['attaching to nobody', { attached: { mission: 'warehouse', survivor: '', name: 'Earl' } }],
+    ['bringing a Tier 5', { joins: { tier: 5 } }],
+    ['bringing a survivor into bond group 0', { joins: { tier: 2, bondGroup: 0 } }],
+    ['naming nobody', { survivor: '' }],
+  ] as const)('refuses a story ending %s', (_label, story) => {
+    expect(
+      refusalFor([
+        {
+          ...good,
+          event: {
+            kind: 'mission-played',
+            team: 1,
+            mission: 'left-behind-1',
+            story: { survivor: 'a', name: 'Earl', result: 'rescued', ...story },
+          },
+        },
+      ]),
+    ).toMatch(/unreadable story/i);
   });
 
   /**

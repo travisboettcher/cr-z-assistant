@@ -158,6 +158,28 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
       { survivor: 'ruby', name: 'Ruby Vance', health: 3 },
     ],
   },
+  // A story's ending and everything it gave (Z7-3).
+  {
+    kind: 'mission-played',
+    team: 1,
+    mission: 'left-behind-1',
+    wounds: [{ ...SURVIVOR, health: 2 }],
+    story: {
+      ...SURVIVOR,
+      result: 'rescued',
+      xp: 1,
+      trait: 'bonded',
+      bondGroup: 1,
+      attached: { mission: 'left-behind-2a', ...SURVIVOR },
+      joins: { tier: 2, bondGroup: 1, xp: 1 },
+    },
+  },
+  {
+    kind: 'mission-played',
+    team: 1,
+    mission: 'sentimental-value',
+    story: { ...SURVIVOR, result: 'heirloom-not-recovered', trait: 'jaded', stays: true },
+  },
   {
     kind: 'mission-played',
     team: 2,
@@ -194,6 +216,8 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'stranger-joined', ...SURVIVOR, tier: 2, team: 2, stranger: 0, roll: 6 },
   // A Rookie, who does not roll (pg. 7), and the second stranger on a team.
   { kind: 'stranger-joined', ...SURVIVOR, tier: 1, team: 1, stranger: 1 },
+  // A survivor a story brought, Bonded and with XP (Z7-3).
+  { kind: 'stranger-joined', ...SURVIVOR, tier: 3, team: 1, stranger: 0, bondGroup: 2, xp: 1 },
   // Each cause (#201), and an entry from before the cause was recorded.
   { kind: 'survivor-left', ...SURVIVOR, tier: 1, cause: 'turned' },
   { kind: 'survivor-left', ...SURVIVOR, tier: 2, cause: 'bitten' },

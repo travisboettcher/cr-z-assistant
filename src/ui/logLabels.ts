@@ -416,7 +416,10 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
     case 'stranger-joined': {
       // Which team brought them out, because a turn of two rescues reads as
       // two arrivals with nothing to tell them apart otherwise (Z4-5).
-      const joined = `${event.name} joined as ${withArticle(TIER_LABELS[event.tier])}, rescued by mission team ${String(event.team)}`;
+      // What a story gave a survivor it brought (Z7-3).
+      const joined = `${event.name} joined as ${withArticle(TIER_LABELS[event.tier])}, rescued by mission team ${String(event.team)}${
+        event.bondGroup === undefined ? '' : `, Bonded in bond group ${String(event.bondGroup)}`
+      }${event.xp === undefined ? '' : `, with ${String(event.xp)} XP`}`;
 
       return event.roll === undefined
         ? { text: `${joined}.`, pages: 19 }

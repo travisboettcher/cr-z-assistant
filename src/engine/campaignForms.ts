@@ -370,7 +370,7 @@ export function submitStrangerJoined(
           ...campaign,
           survivors: [
             ...campaign.survivors,
-            strangerSurvivor(form.name, rescued.tier, form.roll, { id: form.id }),
+            strangerSurvivor(form.name, rescued, form.roll, { id: form.id }),
           ],
         },
         at,
@@ -384,6 +384,9 @@ export function submitStrangerJoined(
           // Spread, as `submitRecruit` does: only an absent roll is true of a
           // stranger nobody rolled for.
           ...(form.roll === undefined ? {} : { roll: form.roll }),
+          // What a story gave them (R120, R138; Z7-3).
+          ...(rescued.bondGroup === undefined ? {} : { bondGroup: rescued.bondGroup }),
+          ...(rescued.xp === undefined ? {} : { xp: rescued.xp }),
         },
       ),
       at,

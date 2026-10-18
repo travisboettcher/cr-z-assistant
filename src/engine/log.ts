@@ -47,6 +47,7 @@ import type { MissionId, OverrunOption, StoryMissionId } from '../data/missions'
 import type { CommonSkill, Skill } from '../data/skills';
 import type { FieldRecruitTier } from '../data/recruitTable';
 import type { Tier } from '../data/tiers';
+import type { StoryTrait } from '../data/traits';
 import type { CampaignPhase, HealthSource, XpSource } from '../data/turn';
 import { phaseOf } from './turn';
 // Type-only, and the other half of a deliberate pair: `campaign.ts` imports
@@ -80,6 +81,40 @@ export interface MissionWound {
   readonly name: string;
   readonly health: number;
   readonly infection?: number;
+}
+
+/**
+ * How a story mission ended and what it gave, as the outcome recorded it
+ * (pp. 87–102; R85, R116–R121, R138; Z7-3). Written out in full rather than
+ * read back from the result, so the history says what happened whatever the
+ * rules data later says.
+ */
+export interface StoryRecord {
+  /** The survivor the story was attached to. */
+  readonly survivor: string;
+  readonly name: string;
+  /** Which of the story's results, by `STORY_RESULTS` id. */
+  readonly result: string;
+  /** XP the attached survivor gained. */
+  readonly xp?: number;
+  /** The Story Trait they took, replacing theirs (R85). */
+  readonly trait?: StoryTrait;
+  /** Their new bond group, where the result bonded them to a new survivor. */
+  readonly bondGroup?: number;
+  /** The story stays attached to them, to be tried again (R121). */
+  readonly stays?: true;
+  /** The story it attached next, and to whom (R116). */
+  readonly attached?: {
+    readonly mission: StoryMissionId;
+    readonly survivor: string;
+    readonly name: string;
+  };
+  /** A survivor who joins at the next Create New Survivors (R120). */
+  readonly joins?: {
+    readonly tier: Tier;
+    readonly bondGroup?: number;
+    readonly xp?: number;
+  };
 }
 
 /** What the player had added to one slot of a base an overrun destroyed (Z4-10). */
@@ -638,6 +673,8 @@ export type CampaignEvent =
       readonly mission: MissionId;
       /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
       readonly wounds?: readonly MissionWound[];
+      /** A story mission's result and what it gave (Z7-3); absent before, and for any other. */
+      readonly story?: StoryRecord;
     }
   /**
    * A mission-team survivor took the place of a worker this turn's Siege
@@ -749,6 +786,10 @@ export type CampaignEvent =
       readonly team: number;
       readonly stranger: number;
       readonly roll?: D10Result;
+      /** The bond group a survivor a story brought joined, Bonded (R138; Z7-3). */
+      readonly bondGroup?: number;
+      /** The XP a survivor a story brought arrived with (Z7-3). */
+      readonly xp?: number;
     }
   /**
    * A survivor gone from the roster, and why (#201): `turned` at a Rot check,

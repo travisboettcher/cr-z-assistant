@@ -76,6 +76,42 @@ function isKeyOf(catalogue: object, key: string): boolean {
   return Object.hasOwn(catalogue, key);
 }
 
+/** A story's record, as `StoryRecord` shapes it. */
+function isStoryRecord(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+
+  const { attached, joins } = value;
+  const optional = (field: unknown, check: (one: unknown) => boolean) =>
+    field === undefined || check(field);
+  const isRef = (one: unknown) =>
+    isRecord(one) &&
+    typeof one.survivor === 'string' &&
+    one.survivor !== '' &&
+    typeof one.name === 'string';
+
+  return (
+    isRef(value) &&
+    typeof value.result === 'string' &&
+    value.result !== '' &&
+    optional(value.xp, isCountFromOne) &&
+    optional(value.trait, (trait) => STORY_TRAITS.some((each) => each === trait)) &&
+    optional(value.bondGroup, isCountFromOne) &&
+    optional(value.stays, (stays) => stays === true) &&
+    optional(
+      attached,
+      (one) => isRef(one) && isRecord(one) && STORY_MISSION_IDS.some((id) => id === one.mission),
+    ) &&
+    optional(
+      joins,
+      (one) =>
+        isRecord(one) &&
+        TIERS.some((tier) => tier === one.tier) &&
+        optional(one.bondGroup, isCountFromOne) &&
+        optional(one.xp, isCountFromOne),
+    )
+  );
+}
+
 function isCountFromOne(value: unknown): boolean {
   return typeof value === 'number' && Number.isInteger(value) && value >= 1;
 }
@@ -566,8 +602,13 @@ const EVENT_FIELD_CHECKS = {
       typeof value.name === 'string'),
   optionalFlag: (value: unknown) => value === undefined || typeof value === 'boolean',
   optionalTrue: (value: unknown) => value === undefined || value === true,
+  optionalCountFromOne: (value: unknown) => value === undefined || isCountFromOne(value),
   optionalStoryMission: (value: unknown) =>
     value === undefined || STORY_MISSION_IDS.some((id) => id === value),
+  // A story's ending and what it gave (Z7-3), absent on any other mission and
+  // before. Shape only, as the wounds are: history, not held to the roster or
+  // to the story's own endings, which the rules data may later change.
+  optionalStoryRecord: (value: unknown) => value === undefined || isStoryRecord(value),
   // Why a survivor left (#201), absent on an entry from before it was recorded.
   optionalLeavingCause: (value: unknown) =>
     value === undefined || LEAVING_CAUSES.some((cause) => cause === value),
@@ -748,6 +789,7 @@ const EVENT_FIELDS: Record<
     ['team', 'countFromOne'],
     ['mission', 'mission'],
     ['wounds', 'optionalWounds'],
+    ['story', 'optionalStoryRecord'],
   ],
   'health-restored': [
     ['survivor', 'id'],
@@ -786,6 +828,9 @@ const EVENT_FIELDS: Record<
     ['team', 'countFromOne'],
     ['stranger', 'count'],
     ['roll', 'optionalRoll'],
+    // What a story gave a survivor it brought (Z7-3), absent for any other.
+    ['bondGroup', 'optionalCountFromOne'],
+    ['xp', 'optionalCountFromOne'],
   ],
   'survivor-left': [
     ['survivor', 'id'],
