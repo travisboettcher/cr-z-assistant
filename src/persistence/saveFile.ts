@@ -959,6 +959,13 @@ const EVENT_FIELDS: Record<
     ['tier', 'tier'],
     ['items', 'optionalItems'],
   ],
+  'lost-rolled': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['roll', 'roll'],
+    ['xpSpent', 'count'],
+    ['team', 'optionalTeam'],
+  ],
   'survivor-lost': [
     ['survivor', 'id'],
     ['name', 'name'],

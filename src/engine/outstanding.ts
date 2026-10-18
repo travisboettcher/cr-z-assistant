@@ -38,6 +38,7 @@ import { moveOwed } from './claim';
 import { survivorsFed } from './feeding';
 import { containmentDraws, healthAwards, woundsHealed } from './healing';
 import { madnessAwards, madnessRecovered } from './lounge';
+import { lostRollsDue } from './lostRoll';
 import { materialsAdded } from './materials';
 import { firstMissionFailed, missionsChosen, unresolvedTeams } from './missions';
 import {
@@ -95,6 +96,11 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
   // opted out (pg. 17; Z4-2). A turn with nobody on a team owes nothing.
   if (!missionsChosen(campaign)) {
     owed.push({ step: 'select-mission', says: 'A mission team has no mission chosen.' });
+  }
+
+  // The Lost roll, before the first mission (R108; Z7-8).
+  if (lostRollsDue(campaign).length > 0) {
+    owed.push({ step: 'select-mission', says: 'A Lost survivor hasn’t made the Lost roll.' });
   }
 
   // Every team that chose a mission owes its outcome (Z4-3): what it counted

@@ -755,6 +755,17 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       },
       { requiredKeys: ['kind', 'survivor', 'name', 'tier'] },
     ),
+    // The Lost roll (R108; Z7-8), placing them with a team or not.
+    fc.record(
+      {
+        kind: fc.constant('lost-rolled' as const),
+        ...survivor,
+        roll: fc.constantFrom(...D10_RESULTS),
+        xpSpent: anyCount,
+        team: fc.integer({ min: 1, max: 4 }),
+      },
+      { requiredKeys: ['kind', 'survivor', 'name', 'roll', 'xpSpent'] },
+    ),
     // Gone Lost to Madness (R106; Z7-7), with what they carried or nothing.
     fc.record(
       {

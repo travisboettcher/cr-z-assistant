@@ -162,3 +162,44 @@ describe('going Lost at Departures (pp. 23, 124; R106; Z7-7)', () => {
     ).toBe('1 Lost');
   });
 });
+
+describe('the Lost roll at Select Mission (pp. 25, 124; R108; Z7-8)', () => {
+  const selecting = () =>
+    cosmic({
+      turn: 4,
+      step: 'select-mission',
+      survivors: [earl()],
+      lost: [{ ...createSurvivor('June Park', 2, { id: 'june' }), xpSpent: 10 }],
+      assignments: { earl: { task: 'mission', team: 1 } },
+    });
+
+  it('places a pass on the team chosen', async () => {
+    const user = open(selecting());
+    const region = within(walk()).getByRole('region', { name: 'The Lost roll' });
+
+    await user.selectOptions(
+      within(region).getByLabelText('June Park’s d10, with 10 XP spent'),
+      '9',
+    );
+    expect(within(region).getByLabelText('joins')).toHaveDisplayValue('Mission team 1');
+    await user.click(within(region).getByRole('button', { name: 'Record June Park’s roll' }));
+
+    expect(region.textContent).toContain(
+      'June Park, Lost, rolled a 9 with 10 XP spent, and is on mission team 1’s area as a stranger.',
+    );
+  });
+
+  it('gives a fail its 1 XP, with no team asked', async () => {
+    const user = open(selecting());
+    const region = within(walk()).getByRole('region', { name: 'The Lost roll' });
+
+    await user.selectOptions(
+      within(region).getByLabelText('June Park’s d10, with 10 XP spent'),
+      '3',
+    );
+    expect(within(region).queryByLabelText('joins')).toBeNull();
+    await user.click(within(region).getByRole('button', { name: 'Record June Park’s roll' }));
+
+    expect(region.textContent).toContain('and gained 1 XP.');
+  });
+});

@@ -82,6 +82,7 @@ import {
   submitMissionEnded,
   submitMissionSelection,
   submitOverrunContinuation,
+  submitLostRolled,
   submitMissionSkip,
   submitStandIn,
   submitEquipMove,
@@ -602,6 +603,14 @@ export type CampaignAction =
     }
   /** The community opts out of this turn's mission (pg. 17). */
   | { readonly type: 'mission/skipped'; readonly at: string }
+  /** A Lost survivor's roll, before the first mission (R108; Z7-8). */
+  | {
+      readonly type: 'mission/lostRolled';
+      readonly survivor: string;
+      readonly roll: D10Result;
+      readonly team: number | null;
+      readonly at: string;
+    }
   /**
    * Record how a team's mission ended (pp. 77–86; Z4-3), and the Health — and
    * in a Viral campaign the Infection — its members came home with (Z4-4).
@@ -1041,6 +1050,11 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
           },
           action.at,
         ),
+      );
+
+    case 'mission/lostRolled':
+      return submitted(state, (campaign) =>
+        submitLostRolled(campaign, action.survivor, action.roll, action.team, action.at),
       );
 
     case 'mission/skipped':

@@ -39,3 +39,13 @@ export const MADNESS_GOES_LOST = 13;
  * to their team (pp. 108–111; R132).
  */
 export const MADNESS_FOR_COSMIC_MISSIONS = 4;
+
+/**
+ * What the Lost roll, d10 plus the survivor's XP spent, must reach to place
+ * them on a mission as a stranger (pp. 25, 124; R108). Anything less gives
+ * them 1 XP.
+ */
+export const LOST_ROLL_TARGET = 18;
+
+/** The XP a Lost survivor gains from a Lost roll that does not place them (pg. 124). */
+export const LOST_ROLL_XP = 1;

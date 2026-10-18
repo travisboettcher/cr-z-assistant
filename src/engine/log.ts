@@ -508,6 +508,19 @@ export type CampaignEvent =
       readonly items?: readonly Item[];
     }
   /**
+   * A Lost survivor's roll at Select Mission (pp. 25, 124; R108; Z7-8): the
+   * d10, the XP spent it was added to, and the mission team a pass placed
+   * them with. Load-bearing: one a turn each.
+   */
+  | {
+      readonly kind: 'lost-rolled';
+      readonly survivor: string;
+      readonly name: string;
+      readonly roll: D10Result;
+      readonly xpSpent: number;
+      readonly team?: number;
+    }
+  /**
    * A survivor gone Lost to Madness at Departures, before the Unrest check
    * (pp. 23, 124; R106, R107; Z7-7). Off the roster onto the list of the Lost,
    * whole, with what they carried.

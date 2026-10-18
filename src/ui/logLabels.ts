@@ -491,6 +491,15 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
         pages: 23,
       };
 
+    case 'lost-rolled':
+      return {
+        text:
+          event.team === undefined
+            ? `${event.name}, Lost, rolled a ${String(event.roll)} with ${String(event.xpSpent)} XP spent, and gained 1 XP.`
+            : `${event.name}, Lost, rolled a ${String(event.roll)} with ${String(event.xpSpent)} XP spent, and is on mission team ${String(event.team)}’s area as a stranger.`,
+        pages: '25, 124',
+      };
+
     case 'survivor-lost':
       return {
         text: `${event.name} went Lost at ${String(event.madness)} Madness${event.items === undefined ? '' : `, taking ${counted(event.items)}`}.`,

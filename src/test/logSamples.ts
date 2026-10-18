@@ -313,6 +313,8 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
     tier: 2,
     items: [{ id: 'rifle-1', item: 'rifle', grade: 'standard' }],
   },
+  { kind: 'lost-rolled', ...SURVIVOR, roll: 4, xpSpent: 6 },
+  { kind: 'lost-rolled', ...SURVIVOR, roll: 9, xpSpent: 12, team: 2 },
   { kind: 'survivor-lost', ...SURVIVOR, madness: 13 },
   {
     kind: 'survivor-lost',

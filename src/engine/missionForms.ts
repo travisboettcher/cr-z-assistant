@@ -16,6 +16,7 @@
  */
 
 import type { BaseId } from '../data/bases';
+import type { D10Result } from '../data/dice';
 import type { OverrunOption, StoryMissionId, ViralMissionId } from '../data/missions';
 import type { Campaign, Survivor, Vehicle } from './campaign';
 import { equipCheck, withEquipMove, type EquipMove } from './equip';
@@ -56,6 +57,7 @@ import {
 } from './missionVehicles';
 import { spentItems, spentProblem, withItemsSpent } from './spent';
 import { isStory, partNow, storyHolder, storyRecord, withStoryRecorded } from './storyMissions';
+import { lostRollProblem, withLostRolled } from './lostRoll';
 import { extrasOf } from './storyRewards';
 import { viralRecord, withViralRecorded } from './viralMissions';
 import { deathProblem, deathsProblem, withMissionDeath, type MissionDeath } from './missionDeaths';
@@ -493,4 +495,22 @@ export function submitMissionDeath(
   if (problem !== null) return refused(problem);
 
   return accepted(withMissionDeath(campaign, death, at));
+}
+
+/**
+ * A Lost survivor's roll, before the first mission (pp. 25, 124; R108, R150;
+ * Z7-8): on a pass, the mission team they join as a stranger; on a fail, 1 XP.
+ * Refused for whatever `lostRollProblem` says.
+ */
+export function submitLostRolled(
+  campaign: Campaign,
+  survivor: string,
+  roll: D10Result,
+  team: number | null,
+  at: string,
+): FormResult {
+  const problem = lostRollProblem(campaign, survivor, roll, team);
+  if (problem !== null) return refused(problem);
+
+  return accepted(withLostRolled(campaign, survivor, roll, team, at));
 }

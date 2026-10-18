@@ -3298,6 +3298,21 @@ describe('what earns a line in the log', () => {
         base: 'distillery',
       }),
     },
+    // June, Lost with nothing spent, rolls a 4 and gains 1 XP (R108; Z7-8).
+    'mission/lostRolled': {
+      state: openState({
+        ...expectOpen(marcusOnTeamOne()),
+        lost: [createSurvivor('June Park', 2, { id: 'june' })],
+      }),
+      action: { type: 'mission/lostRolled', survivor: 'june', roll: 4, team: null, at: AT },
+      entry: entry(3, 'mission', {
+        kind: 'lost-rolled',
+        survivor: 'june',
+        name: 'June Park',
+        roll: 4,
+        xpSpent: 0,
+      }),
+    },
     'mission/skipped': {
       action: { type: 'mission/skipped', at: AT },
       entry: entry(3, 'mission', { kind: 'mission-skipped' }),

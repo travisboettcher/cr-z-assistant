@@ -41,6 +41,7 @@ import { BASE_LABELS, MATERIAL_LABELS } from './baseLabels';
 import { describeSelection, MISSION_LABELS } from './missionLabels';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, PRIMARY_FILL, SECONDARY_FILL, TOUCH_TARGET } from './styles';
+import { LostRolls } from './LostRoll';
 
 const HINT = 'text-sm text-stone-600 dark:text-stone-400';
 
@@ -316,6 +317,8 @@ export function SelectMission({ campaign }: { readonly campaign: Campaign }) {
           />
         ))
       )}
+
+      <LostRolls campaign={campaign} />
 
       {canSkip && missionTeams(campaign).length > 0 && (
         <button
