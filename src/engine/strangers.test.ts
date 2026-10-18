@@ -305,6 +305,27 @@ describe('strangerSurvivor', () => {
     };
 
     expect(rescuedStrangers(campaign)).toEqual([]);
+    expect(
+      rescuedStrangers({
+        ...campaign,
+        log: [
+          {
+            ...(campaign.log[0] as LogEntry),
+            event: {
+              kind: 'mission-played',
+              team: 1,
+              mission: 'left-behind-2a',
+              story: {
+                survivor: 'earl',
+                name: 'Earl',
+                result: 'stranger-rescued',
+                joins: { tier: 2 },
+              },
+            },
+          },
+        ],
+      }),
+    ).toStrictEqual([{ team: 1, stranger: 0, tier: 2, story: 'left-behind-2a' }]);
   });
 
   it('builds a Hero a story brought with their slots waiting, as no recruit is (pg. 7)', () => {
