@@ -225,3 +225,93 @@ describe('a placed Lost survivor’s rescue (pg. 124; R109)', () => {
     expect(after.log.at(-1)?.event).not.toHaveProperty('items');
   });
 });
+
+describe('two Lost, over two turns', () => {
+  const ruby = createSurvivor('Ruby Vance', 2, { id: 'ruby' });
+  const two = (log: readonly LogEntry[] = []) => selecting({ lost: [june(10), ruby], log });
+  const rolledEntry = (who: Survivor, team: number | undefined, turn = 4): LogEntry =>
+    entry(
+      {
+        kind: 'lost-rolled',
+        survivor: who.id,
+        name: who.name,
+        roll: 9,
+        xpSpent: who.xpSpent,
+        ...(team === undefined ? {} : { team }),
+      },
+      turn,
+    );
+  const rescuedEntry = (who: Survivor, team: number, turn = 4): LogEntry =>
+    entry(
+      { kind: 'lost-rescued', survivor: who.id, name: who.name, team, result: 'not-rescued' },
+      turn,
+    );
+  const ids = (survivors: readonly Survivor[]) => survivors.map((one) => one.id);
+
+  it('rolls each once, gives only the one who failed the XP, and reads only this turn', () => {
+    const after = accepted(submitLostRolled(two(), 'june', 3, null, AT));
+
+    expect(after.lost.map((one) => one.xp)).toEqual([4, 0]);
+    expect(ids(lostRollsDue(after))).toEqual(['ruby']);
+    // Another entry this turn, or last turn's outcome, is not this turn's outcome.
+    expect(
+      ids(
+        lostRollsDue(
+          two([
+            entry({ kind: 'mission-selected', team: 1, mission: 'rescue-strangers', names: [] }),
+          ]),
+        ),
+      ),
+    ).toEqual(['june', 'ruby']);
+    expect(
+      ids(
+        lostRollsDue(
+          two([entry({ kind: 'rescue-strangers-resolved', team: 1, strangers: [] }, 3)]),
+        ),
+      ),
+    ).toEqual(['june', 'ruby']);
+    // A rescue entry is not a roll.
+    expect(ids(lostRollsDue(two([rescuedEntry(june(10), 1)])))).toEqual(['june', 'ruby']);
+  });
+
+  it('counts only this turn’s placements, by roll, as placed and owed a rescue', () => {
+    expect(placedLost(two([rescuedEntry(june(10), 2)]), 2)).toEqual([]);
+    expect(rescuesDue(two([rolledEntry(june(10), 1, 3)]))).toEqual([]);
+    expect(rescuesDue(two([rolledEntry(june(10), undefined)]))).toEqual([]);
+
+    const both = two([rolledEntry(june(10), 1), rolledEntry(ruby, 2)]);
+    expect(ids(rescuesDue(both))).toEqual(['june', 'ruby']);
+
+    const juneDone = {
+      ...both,
+      step: 'tactical-mission' as const,
+      log: [...both.log, rescuedEntry(june(10), 1)],
+    };
+    expect(ids(rescuesDue(juneDone))).toEqual(['ruby']);
+    expect(lostRescueProblem(juneDone, 'june')).not.toBeNull();
+    expect(lostRescueProblem(juneDone, 'ruby')).toBeNull();
+    expect(ids(rescuesDue({ ...both, log: [rescuedEntry(june(10), 1, 3), ...both.log] }))).toEqual([
+      'june',
+      'ruby',
+    ]);
+  });
+
+  it('keeps the other Lost on the list when one is Found, and refuses one not owed', () => {
+    const both = two([rolledEntry(june(10), 1), rolledEntry(ruby, 2)]);
+    const found = submitLostRescued(both, 'june', 'found', AT);
+    if (!found.ok) throw new Error(found.problem);
+
+    expect(ids(found.campaign.lost)).toEqual(['ruby']);
+    expect(submitLostRescued(found.campaign, 'june', 'found', AT)).toEqual({
+      ok: false,
+      problem: 'Nobody placed on a mission this turn is waiting to be rescued.',
+    });
+  });
+
+  it('writes no items for an exile who carried none', () => {
+    const exiled = submitLostRescued(two([rolledEntry(ruby, 1)]), 'ruby', 'exiled', AT);
+    if (!exiled.ok) throw new Error(exiled.problem);
+
+    expect(exiled.campaign.log.at(-1)?.event).not.toHaveProperty('items');
+  });
+});
