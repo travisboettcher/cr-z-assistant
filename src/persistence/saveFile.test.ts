@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import currentFixture from './__fixtures__/campaign-v19.json';
+import currentFixture from './__fixtures__/campaign-v20.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -24,6 +24,7 @@ const VALID_SURVIVOR = {
   veteran: false,
   bondGroup: null,
   stories: [],
+  rotResistant: false,
 };
 
 /**
@@ -718,6 +719,9 @@ describe('a survivor whose fields are the wrong type', () => {
     ['a bond group of 0', { storyTrait: 'bonded', bondGroup: 0 }],
     ['a Bonded survivor with no bond group', { storyTrait: 'bonded', bondGroup: null }],
     ['a bond group without the trait', { storyTrait: 'jaded', bondGroup: 1 }],
+    // Rot Resistant (Z7-5), yes or no.
+    ['a Rot Resistant that isn’t yes or no', { rotResistant: 'yes' }],
+    ['a missing Rot Resistant', { rotResistant: undefined }],
     // Attached stories (Z7-2): a list of story missions, each with its turn.
     ['stories that aren’t a list', { stories: 'warehouse' }],
     ['a story that isn’t an object', { stories: ['warehouse'] }],
@@ -1636,6 +1640,7 @@ describe('a campaign whose assignments are damaged', () => {
       veteran: false,
       bondGroup: null,
       stories: [],
+      rotResistant: false,
     },
   ];
 
@@ -1654,6 +1659,7 @@ describe('a campaign whose assignments are damaged', () => {
     ['project', { task: 'project' }],
     ['rest', { task: 'rest' }],
     ['healing', { task: 'healing' }],
+    ['healing with an Inoculation (Z7-5)', { task: 'healing', inoculation: 'shot' }],
     ['mission', { task: 'mission', team: 1 }],
     ['scavenging', { task: 'scavenging' }],
   ])('accepts %s, so the refusals below mean something', (_label, assignment) => {
@@ -1683,6 +1689,11 @@ describe('a campaign whose assignments are damaged', () => {
       'a mission team that isn’t a team',
       { [EARL]: { task: 'mission', team: 0 } },
       /unreadable team/i,
+    ],
+    [
+      'an Inoculation that names no item',
+      { [EARL]: { task: 'healing', inoculation: '' } },
+      /unreadable inoculation/i,
     ],
     // The orphan: a task given to somebody the roster does not hold.
     [

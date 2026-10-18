@@ -57,6 +57,8 @@ import {
   submitCommonSkill,
   submitConversion,
   submitHaul,
+  submitInoculated,
+  submitRotResisted,
   submitRareUpgradeInstalled,
   submitHealing,
   submitNewSkill,
@@ -109,6 +111,7 @@ import {
   submitStrangerJoined,
   submitAssignment,
   submitTraitsSet,
+  submitInoculationChosen,
   submitVeteranHealing,
 } from '../engine/campaignForms';
 import { withoutAssignment } from '../engine/assignments';
@@ -311,6 +314,19 @@ export type CampaignAction =
       readonly survivor: string;
       readonly at: string;
     }
+  /**
+   * Choose an Inoculation for a survivor assigned to healing, or `null` to
+   * take it back (pg. 48; R97, R143; Z7-5).
+   */
+  | {
+      readonly type: 'planning/inoculationChosen';
+      readonly survivor: string;
+      readonly item: string | null;
+    }
+  /** Give a survivor their Inoculation, at Heal Wounds (pg. 48; R97; Z7-5). */
+  | { readonly type: 'advancement/inoculated'; readonly survivor: string; readonly at: string }
+  /** Rot Resistant's 1 Infection off, at the start of the Advancement Phase (R96; Z7-5). */
+  | { readonly type: 'advancement/rotResisted'; readonly at: string }
   /** A survivor's Story Trait, Veteran and bond group, set on their sheet (R84; Z7-1). */
   | { readonly type: 'survivor/traitsSet'; readonly id: string; readonly traits: SurvivorTraits }
   /** Take a skill, at level 0 — skills all start there (pg. 8). */
@@ -881,6 +897,17 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return submitted(state, (campaign) =>
         submitVeteranHealing(campaign, action.veteran, action.survivor, action.at),
       );
+
+    case 'planning/inoculationChosen':
+      return submitted(state, (campaign) =>
+        submitInoculationChosen(campaign, action.survivor, action.item),
+      );
+
+    case 'advancement/inoculated':
+      return submitted(state, (campaign) => submitInoculated(campaign, action.survivor, action.at));
+
+    case 'advancement/rotResisted':
+      return submitted(state, (campaign) => submitRotResisted(campaign, action.at));
 
     case 'survivor/traitsSet':
       return submitted(state, (campaign) => submitTraitsSet(campaign, action.id, action.traits));

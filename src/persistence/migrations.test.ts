@@ -30,6 +30,7 @@ const SAMPLE_SURVIVOR = {
   veteran: false,
   bondGroup: null,
   stories: [],
+  rotResistant: false,
 } satisfies Survivor;
 
 /**
@@ -770,6 +771,51 @@ describe('the v18 to v19 Story Traits', () => {
     const v18 = fixtures.find((fixture) => fixture.version === 18);
     const result = migrate({
       ...(v18?.contents as object),
+      survivors: [null, 7],
+      setAside: 'nobody',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.survivors).toEqual([null, 7]);
+    expect(result.campaign.setAside).toBe('nobody');
+  });
+});
+
+describe('the v19 to v20 Rot Resistant', () => {
+  it('brings every earlier survivor forward not Rot Resistant', () => {
+    for (const fixture of fixtures.filter((f) => f.version < 20)) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok) continue;
+
+      for (const survivor of [...result.campaign.survivors, ...result.campaign.setAside]) {
+        expect(survivor.rotResistant, `${fixture.path} ${survivor.name}`).toBe(false);
+      }
+    }
+  });
+
+  it('keeps a v20 save’s own', () => {
+    const v20 = fixtures.find((fixture) => fixture.version === 20);
+    const result = migrate(v20?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.survivors.map((one) => one.rotResistant)).toEqual([
+      true,
+      false,
+      false,
+      false,
+    ]);
+  });
+
+  it('hands a survivor that is not an object, or a list that is not a list, on untouched', () => {
+    const v19 = fixtures.find((fixture) => fixture.version === 19);
+    const result = migrate({
+      ...(v19?.contents as object),
       survivors: [null, 7],
       setAside: 'nobody',
     });

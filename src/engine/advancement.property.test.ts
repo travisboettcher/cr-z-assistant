@@ -60,6 +60,7 @@ function playableSurvivorArbitrary(): fc.Arbitrary<Survivor> {
     veteran: fc.constant(false),
     bondGroup: fc.constant(null),
     stories: fc.constant([]),
+    rotResistant: fc.constant(false),
   });
 }
 

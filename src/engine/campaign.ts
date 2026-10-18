@@ -36,7 +36,7 @@ import type { LogEntry } from './log';
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 19;
+export const CURRENT_SCHEMA_VERSION = 20;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -143,6 +143,15 @@ export interface Survivor {
    * survivor in a save from before v19.
    */
   stories: readonly AttachedStory[];
+
+  /**
+   * Rot Resistant, which an Inoculation gives at a Medical Clinic and which
+   * takes 1 Infection off at the start of every Advancement Phase (pp. 48,
+   * 140; R96, R97; Z7-5). Core, whether or not the Toolkit's traits are in
+   * use: it is how the equipment works. `false` for every survivor in a save
+   * from before v20.
+   */
+  rotResistant: boolean;
 }
 
 /** A story mission attached to a survivor, and when (pg. 87; R116, R118). */
@@ -367,8 +376,12 @@ export type Assignment =
    * survivor may rest per turn, and any number may be healed.
    */
   | { readonly task: 'rest' }
-  /** Being healed from the pool the Medical Clinic's staff generates (pg. 21). */
-  | { readonly task: 'healing' }
+  /**
+   * Being healed from the pool the Medical Clinic's staff generates (pg. 21),
+   * or, under the Viral origin, given an Inoculation from the base's
+   * Inventory there instead, by its id (pg. 48; R97, R143; Z7-5).
+   */
+  | { readonly task: 'healing'; readonly inoculation?: string }
   /**
    * On a mission team, for the mission next turn (pg. 21).
    *

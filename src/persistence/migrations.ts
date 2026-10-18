@@ -518,6 +518,36 @@ const storyTraitsRecorded: MigrationStep = {
   },
 };
 
+/**
+ * v19 → v20: whether a survivor is Rot Resistant (pp. 48, 140; R96, R97;
+ * Z7-5).
+ *
+ * **Nobody, and that is the truth.** A v19 build had no Inoculation to give,
+ * so no v19 survivor was made Rot Resistant by it: a table that kept one on
+ * paper ticks it on the sheet once. Both lists, and defensive about what it
+ * reads, as v18 → v19 is.
+ */
+const rotResistanceRecorded: MigrationStep = {
+  from: 19,
+  to: 20,
+  up: (previous) => {
+    const withResistance = (list: unknown): unknown =>
+      Array.isArray(list)
+        ? (list as unknown[]).map((survivor) =>
+            typeof survivor === 'object' && survivor !== null && !('rotResistant' in survivor)
+              ? { ...survivor, rotResistant: false }
+              : survivor,
+          )
+        : list;
+
+    return {
+      ...previous,
+      survivors: withResistance(previous.survivors),
+      setAside: withResistance(previous.setAside),
+    };
+  },
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -538,6 +568,7 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   rareBecameRolls,
   tradesRecorded,
   storyTraitsRecorded,
+  rotResistanceRecorded,
 ];
 
 /** Why a save could not be brought forward. */

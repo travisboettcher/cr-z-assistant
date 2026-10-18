@@ -284,6 +284,7 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
     veteran: survivor.veteran,
     bondGroup: survivor.bondGroup,
     stories: survivor.stories,
+    rotResistant: survivor.rotResistant,
   };
 
   return (
@@ -386,6 +387,21 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
               />
               Veteran <PageRef pages="87–88" />
             </label>
+
+            {/* An Inoculation gives it (R97); set here for a correction, in a Viral campaign. */}
+            {(campaign?.origin === 'viral' || survivor.rotResistant) && (
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className={FOCUS_RING}
+                  checked={draft.rotResistant === true}
+                  onChange={(event) => {
+                    setDraft({ ...draft, rotResistant: event.target.checked });
+                  }}
+                />
+                Rot Resistant <PageRef pages="48, 140" />
+              </label>
+            )}
           </div>
 
           <div className="flex flex-col gap-1">

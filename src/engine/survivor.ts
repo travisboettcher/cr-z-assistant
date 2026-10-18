@@ -272,5 +272,6 @@ export function createSurvivor(
     veteran: false,
     bondGroup: null,
     stories: [],
+    rotResistant: false,
   };
 }

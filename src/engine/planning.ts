@@ -207,7 +207,7 @@ function warningsFor(
     case 'rest':
       return restWarnings(campaign, survivor);
     case 'healing':
-      return healingWarnings(campaign, survivor);
+      return healingWarnings(campaign, survivor, assignment.inoculation !== undefined);
     case 'mission':
       return missionWarnings(campaign, survivor, assignment.team);
     case 'scavenging':
@@ -308,10 +308,15 @@ function restWarnings(campaign: Campaign, survivor: Survivor): readonly Planning
   return warnings;
 }
 
-function healingWarnings(campaign: Campaign, survivor: Survivor): readonly PlanningViolation[] {
+function healingWarnings(
+  campaign: Campaign,
+  survivor: Survivor,
+  inoculating: boolean,
+): readonly PlanningViolation[] {
   const warnings: PlanningViolation[] = [];
 
-  if (nothingToHeal(survivor)) {
+  // Being inoculated is reason enough to be there at full Health (R143).
+  if (nothingToHeal(survivor) && !inoculating) {
     warnings.push({
       code: 'already-at-full-health',
       message: 'Already at full Health, so healing would do nothing.',

@@ -21,6 +21,7 @@ export function describeTraits(traits: {
   readonly storyTrait: StoryTrait | null;
   readonly veteran: boolean;
   readonly bondGroup: number | null;
+  readonly rotResistant?: boolean;
 }): string {
   const named = [
     ...(traits.storyTrait === null
@@ -31,6 +32,7 @@ export function describeTraits(traits: {
             : `${STORY_TRAIT_LABELS[traits.storyTrait]} (bond group ${String(traits.bondGroup)})`,
         ]),
     ...(traits.veteran ? ['Veteran'] : []),
+    ...(traits.rotResistant === true ? ['Rot Resistant'] : []),
   ];
 
   return named.length === 0 ? 'None' : named.join(', ');

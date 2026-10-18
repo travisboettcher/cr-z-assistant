@@ -74,6 +74,9 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   // The Viral origin's Infection check (Z7-5), with and without a Clinic's Medicine.
   { kind: 'infection-checked', ...SURVIVOR, roll: 4, infection: 6, bonus: 3, passed: true },
   { kind: 'infection-checked', ...SURVIVOR, roll: 1, infection: 10, bonus: 0, passed: false },
+  // Inoculation and Rot Resistant (Z7-5).
+  { kind: 'survivor-inoculated', ...SURVIVOR, item: 'inoculation-1' },
+  { kind: 'infection-resisted', ...SURVIVOR },
   { kind: 'bite-restrained', ...SURVIVOR },
   { kind: 'survivor-bitten', ...SURVIVOR, damage: 1 },
   { kind: 'storage-checked', food: 2, fuel: 0, hardware: 0 },

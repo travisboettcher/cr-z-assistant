@@ -2504,3 +2504,17 @@ survivor is built as any Tier 3 stranger is, with Long Guns added at its first l
 swapped to 3 within the Tier's stat array, and the quality rifle in their hands.
 
 *Decided 2026-10-18 with Z7-4.*
+
+---
+
+## R143 — A survivor at full Health can be assigned to the Clinic to be inoculated
+
+**pp. 21, 48; Phase 7, Z7-5.** An Inoculation is given to a survivor assigned to a Medical Clinic in
+place of their healing ([R97](#r97--inoculation-is-built-then-given-at-the-clinic)), and the app
+warns when somebody at full Health is assigned to healing (pg. 21). The book does not say whether a
+survivor who has no Health to gain may take a Clinic place to be inoculated.
+
+**The ruling is that they may, with no warning**: an Inoculation chosen for a survivor assigned to
+healing is reason enough for them to be there, and the full-Health warning is not raised for them.
+
+*Decided 2026-10-18 with Z7-5.*

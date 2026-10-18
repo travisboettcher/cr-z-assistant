@@ -14,6 +14,7 @@
  * that takes staff.
  */
 
+import { InoculationChoices } from './Inoculations';
 import { VeteranHealing } from './VeteranHealing';
 import type { Campaign } from '../engine/campaign';
 import type { TurnStepId } from '../data/turn';
@@ -124,6 +125,7 @@ export function PlanningPhase({ campaign, step }: PlanningPhaseProps) {
               { task: { task: 'healing' }, name: laneLabel({ task: 'healing' }), pages: 21 },
             ]}
           />
+          <InoculationChoices campaign={campaign} />
           <VeteranHealing campaign={campaign} />
         </>
       )}

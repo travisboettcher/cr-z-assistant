@@ -50,6 +50,12 @@ import {
 } from './materials';
 import { convoyTensDue } from './storyRewards';
 import { rareRollsProblem, withItemsFound, type RareItemRoll } from './finding';
+import {
+  inoculateProblem,
+  rotResistanceProblem,
+  withInoculated,
+  withRotResisted,
+} from './inoculation';
 import { installProblem, withRareUpgradeInstalled } from './install';
 import { turnoutGear, withEquipmentHandedOver } from './handover';
 import {
@@ -538,4 +544,28 @@ export function submitRareUpgradeInstalled(
       slot,
     }),
   );
+}
+
+/**
+ * Give a survivor the Inoculation chosen for them, at Heal Wounds in place of
+ * their healing (pg. 48; R97; Z7-5): the item used up, and the survivor Rot
+ * Resistant. Refused for whatever `inoculateProblem` refuses.
+ */
+export function submitInoculated(campaign: Campaign, survivor: string, at: string): FormResult {
+  const problem = inoculateProblem(campaign, survivor);
+  if (problem !== null) return refused(problem);
+
+  return accepted(withInoculated(campaign, survivor, at));
+}
+
+/**
+ * Rot Resistant takes 1 Infection off everybody who has it, at the start of
+ * the Advancement Phase (pg. 140; R96; Z7-5), once a turn. Refused for
+ * whatever `rotResistanceProblem` refuses.
+ */
+export function submitRotResisted(campaign: Campaign, at: string): FormResult {
+  const problem = rotResistanceProblem(campaign);
+  if (problem !== null) return refused(problem);
+
+  return accepted(withRotResisted(campaign, at));
 }

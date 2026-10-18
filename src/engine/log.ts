@@ -422,6 +422,23 @@ export type CampaignEvent =
    * gone either way and the only difference is a bite that did not happen.
    */
   | { readonly kind: 'bite-restrained'; readonly survivor: string; readonly name: string }
+  /**
+   * A survivor was given an Inoculation at the Medical Clinic, in place of
+   * their healing, and is Rot Resistant from now on (pg. 48; R97; Z7-5). The
+   * item, by id, is used up.
+   */
+  | {
+      readonly kind: 'survivor-inoculated';
+      readonly survivor: string;
+      readonly name: string;
+      readonly item: string;
+    }
+  /**
+   * Rot Resistant took 1 Infection off a survivor at the start of the
+   * Advancement Phase (pg. 140; R96; Z7-5). Load-bearing: it is how the turn
+   * knows Rot Resistant has worked.
+   */
+  | { readonly kind: 'infection-resisted'; readonly survivor: string; readonly name: string }
   /** A turning survivor bit somebody being healed beside them (pg. 22). */
   | {
       readonly kind: 'survivor-bitten';

@@ -361,6 +361,11 @@ function describeSurvivorProblem(value: unknown): string | null {
     if (!isCountFromOne(story.attachedOnTurn)) return 'has a story with no turn it was attached';
   }
 
+  // Rot Resistant (Z7-5), yes or no.
+  if (typeof value.rotResistant !== 'boolean') {
+    return 'doesn’t say whether they are Rot Resistant';
+  }
+
   return null;
 }
 
@@ -649,6 +654,8 @@ const EVENT_FIELD_CHECKS = {
       typeof value.name === 'string'),
   optionalFlag: (value: unknown) => value === undefined || typeof value === 'boolean',
   optionalTrue: (value: unknown) => value === undefined || value === true,
+  optionalItemId: (value: unknown) =>
+    value === undefined || (typeof value === 'string' && value !== ''),
   optionalCountFromOne: (value: unknown) => value === undefined || isCountFromOne(value),
   optionalStoryMission: (value: unknown) =>
     value === undefined || STORY_MISSION_IDS.some((id) => id === value),
@@ -731,6 +738,15 @@ const EVENT_FIELDS: Record<
     ['infection', 'countFromOne'],
     ['bonus', 'amount'],
     ['passed', 'flag'],
+  ],
+  'survivor-inoculated': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['item', 'id'],
+  ],
+  'infection-resisted': [
+    ['survivor', 'id'],
+    ['name', 'name'],
   ],
   'bite-restrained': [
     ['survivor', 'id'],
@@ -1145,7 +1161,8 @@ const ASSIGNMENT_FIELDS: Record<Assignment['task'], readonly [string, EventField
   staff: ['slot', 'id'],
   project: null,
   rest: null,
-  healing: null,
+  // The Inoculation given there instead, by id (Z7-5), or none.
+  healing: ['inoculation', 'optionalItemId'],
   mission: ['team', 'countFromOne'],
   scavenging: null,
 };

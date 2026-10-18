@@ -101,6 +101,7 @@ import { OpenPanel } from './OpenPanel';
 import { PageRef } from './PageRef';
 import { SKILL_LABELS } from './skillLabels';
 import { TIER_LABELS } from './tierLabels';
+import { InoculationsGiven, RotResistance } from './Inoculations';
 import { missionTitle } from './missionLabels';
 import { describeBuild } from './storyLabels';
 import { withArticle } from './articles';
@@ -389,6 +390,7 @@ function CharacterAdvancement({ campaign }: { readonly campaign: Campaign }) {
 
   return (
     <>
+      <RotResistance campaign={campaign} />
       <p className={HINT}>
         XP arrives in the order the book awards it, and every point is a press. Spending it is on
         each survivor’s sheet <PageRef pages={18} />
@@ -1110,6 +1112,7 @@ function HealWounds({ campaign }: { readonly campaign: Campaign }) {
           </button>
         </>
       )}
+      <InoculationsGiven campaign={campaign} />
     </>
   );
 }

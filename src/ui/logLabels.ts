@@ -267,6 +267,15 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
       };
     }
 
+    case 'survivor-inoculated':
+      return {
+        text: `${event.name} was given an Inoculation at the Medical Clinic, and is Rot Resistant.`,
+        pages: 48,
+      };
+
+    case 'infection-resisted':
+      return { text: `${event.name} lost 1 Infection, being Rot Resistant.`, pages: 140 };
+
     case 'bite-restrained':
       return {
         text: `The Restraints held ${event.name}, and nobody was bitten.`,

@@ -100,6 +100,7 @@ function orderedSurvivor(survivor: Survivor): Record<keyof Survivor, unknown> {
     veteran: survivor.veteran,
     bondGroup: survivor.bondGroup,
     stories: survivor.stories.map(({ mission, attachedOnTurn }) => ({ mission, attachedOnTurn })),
+    rotResistant: survivor.rotResistant,
   };
 }
 

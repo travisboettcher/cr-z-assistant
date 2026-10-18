@@ -208,6 +208,7 @@ export function survivorArbitrary(): fc.Arbitrary<Survivor> {
         }),
         { maxLength: 2 },
       ),
+      rotResistant: fc.boolean(),
     })
     .chain((survivor) =>
       // A bond group only on a Bonded survivor (R84), so every pairing the file
@@ -436,6 +437,17 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       roll: fc.constantFrom(...D10_RESULTS),
       target: anyAmount,
       passed: fc.boolean(),
+    }),
+    fc.record({
+      kind: fc.constant('survivor-inoculated' as const),
+      survivor: anyId,
+      name: anyName,
+      item: anyId,
+    }),
+    fc.record({
+      kind: fc.constant('infection-resisted' as const),
+      survivor: anyId,
+      name: anyName,
     }),
     fc.record({
       kind: fc.constant('infection-checked' as const),
@@ -971,7 +983,10 @@ function assignmentArbitrary(): fc.Arbitrary<Assignment> {
     fc.record({ task: fc.constant('staff' as const), slot: anyId }),
     fc.record({ task: fc.constant('project' as const) }),
     fc.record({ task: fc.constant('rest' as const) }),
-    fc.record({ task: fc.constant('healing' as const) }),
+    fc.record(
+      { task: fc.constant('healing' as const), inoculation: anyId },
+      { requiredKeys: ['task'] },
+    ),
     fc.record({ task: fc.constant('mission' as const), team: fc.integer({ min: 1, max: 4 }) }),
     fc.record({ task: fc.constant('scavenging' as const) }),
   );

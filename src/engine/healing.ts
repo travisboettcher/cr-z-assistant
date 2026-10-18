@@ -227,7 +227,11 @@ export function healingPool(campaign: Campaign): number {
  * #95).
  */
 export function beingHealed(campaign: Campaign): readonly Survivor[] {
-  return survivorsDoing(beforePlanning(campaign), (assignment) => assignment.task === 'healing');
+  // A survivor given an Inoculation there takes it in place of their healing (R97).
+  return survivorsDoing(
+    beforePlanning(campaign),
+    (assignment) => assignment.task === 'healing' && assignment.inoculation === undefined,
+  );
 }
 
 /** Whoever is resting, and takes a point nobody else can use (pg. 21). */

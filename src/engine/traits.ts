@@ -104,10 +104,12 @@ export function missionWhileWounded(survivor: Survivor): boolean {
 }
 
 /**
- * A survivor's Story Trait, Veteran, bond group and attached stories together,
- * as the sheet sets them (R84, R116).
+ * A survivor's Story Trait, Veteran, bond group, attached stories and Rot
+ * Resistant together, as the sheet sets them (R84, R97, R116). Rot Resistant
+ * is optional here: the stories and traits a story sets leave it as it is.
  */
-export type SurvivorTraits = Pick<Survivor, 'storyTrait' | 'veteran' | 'bondGroup' | 'stories'>;
+export type SurvivorTraits = Pick<Survivor, 'storyTrait' | 'veteran' | 'bondGroup' | 'stories'> &
+  Partial<Pick<Survivor, 'rotResistant'>>;
 
 /**
  * Why these traits cannot be a survivor's, or `null`: a bond group, counted

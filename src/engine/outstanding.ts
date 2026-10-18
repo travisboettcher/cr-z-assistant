@@ -48,6 +48,7 @@ import {
 } from './projects';
 import { continuationOpen, overrunChoiceOwed } from './overrun';
 import { infectionStillToCheck, mustCheck, rotCheckResolved } from './rot';
+import { inoculationsDue, rotResistanceDue } from './inoculation';
 import { hordeChecked } from './siege';
 import { anythingOverCap, storageChecked } from './storage';
 import { someoneDeparted, someoneIsLeaving } from './departures';
@@ -159,6 +160,14 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
     });
   }
 
+  // Rot Resistant works at the start of the Advancement Phase (R96; Z7-5).
+  if (rotResistanceDue(campaign).length > 0) {
+    owed.push({
+      step: 'character-advancement',
+      says: 'Rot Resistant hasn’t taken this turn’s Infection off.',
+    });
+  }
+
   // Every stranger this turn's outcomes counted joins at Advancement Step 2
   // (pg. 19; Z4-5), and one nobody has added is gone with the turn: the step
   // offers this turn's rescues only.
@@ -229,6 +238,11 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
 
   if (!woundsHealed(campaign) && healthAwards(campaign).length > 0) {
     owed.push({ step: 'heal-wounds', says: 'This turn’s Health hasn’t been handed out.' });
+  }
+
+  // An Inoculation chosen last Planning Phase is given here (R97; Z7-5).
+  if (inoculationsDue(campaign).length > 0) {
+    owed.push({ step: 'heal-wounds', says: 'An Inoculation hasn’t been given.' });
   }
 
   // A project team with Labor and nothing ordered from it, owed at the step

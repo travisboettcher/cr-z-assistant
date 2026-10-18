@@ -56,6 +56,7 @@ import {
   type StrangerForm,
 } from './strangers';
 import { createSurvivor, recruitSurvivor } from './survivor';
+import { inoculationProblem, withInoculationChosen } from './inoculation';
 import { storiesHeld, traitsProblem, withTraits, type SurvivorTraits } from './traits';
 import { veteranHealingProblem, withVeteranHealing } from './veteran';
 import { advance, type AdvanceBy } from './turn';
@@ -767,4 +768,22 @@ export function submitVeteranHealing(
       name: named(survivor),
     }),
   );
+}
+
+/**
+ * Choose an Inoculation from the base's Inventory for a survivor assigned to
+ * healing, or take it back, in the Planning Phase (pg. 48; R97, R143; Z7-5).
+ * Refused for whatever `inoculationProblem` refuses. The assignment carries
+ * it, as it carries every Planning choice, and nothing is logged until it is
+ * given at Heal Wounds.
+ */
+export function submitInoculationChosen(
+  campaign: Campaign,
+  survivor: string,
+  item: string | null,
+): FormResult {
+  const problem = inoculationProblem(campaign, survivor, item);
+  if (problem !== null) return refused(problem);
+
+  return accepted(withInoculationChosen(campaign, survivor, item));
 }

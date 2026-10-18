@@ -3096,6 +3096,53 @@ describe('what earns a line in the log', () => {
         name: 'Ruby Vance',
       }),
     },
+    // A Planning choice the assignment carries, logged only when it is given (Z7-5).
+    'planning/inoculationChosen': {
+      state: openState({
+        ...expectOpen(rich()),
+        step: 'assign-rest-and-healing',
+        origin: 'viral',
+        base: {
+          id: 'small-town-home',
+          slots: { garage: { built: { facility: 'medical-clinic', builtOnTurn: 1 } } },
+        },
+        inventory: [{ id: 'shot', item: 'inoculation', grade: 'standard' }],
+        assignments: { [LOGGED_SURVIVOR]: { task: 'healing' } },
+      }),
+      action: { type: 'planning/inoculationChosen', survivor: LOGGED_SURVIVOR, item: 'shot' },
+      entry: null,
+    },
+    // Marcus, assigned to be inoculated last Planning Phase, is given it (R97; Z7-5).
+    'advancement/inoculated': {
+      state: openState({
+        ...expectOpen(rich()),
+        step: 'heal-wounds',
+        origin: 'viral',
+        inventory: [{ id: 'shot', item: 'inoculation', grade: 'standard' }],
+        assignments: { [LOGGED_SURVIVOR]: { task: 'healing', inoculation: 'shot' } },
+      }),
+      action: { type: 'advancement/inoculated', survivor: LOGGED_SURVIVOR, at: AT },
+      entry: entry(3, 'advancement', {
+        kind: 'survivor-inoculated',
+        ...WEBB,
+        item: 'shot',
+      }),
+    },
+    // Marcus, Rot Resistant with 2 Infection, loses 1 (pg. 140; R96; Z7-5).
+    'advancement/rotResisted': {
+      state: openState({
+        ...expectOpen(rich()),
+        step: 'character-advancement',
+        origin: 'viral',
+        survivors: expectOpen(rich()).survivors.map((survivor) =>
+          survivor.id === LOGGED_SURVIVOR
+            ? { ...survivor, rotResistant: true, infection: 2 }
+            : survivor,
+        ),
+      }),
+      action: { type: 'advancement/rotResisted', at: AT },
+      entry: entry(3, 'advancement', { kind: 'infection-resisted', ...WEBB }),
+    },
     // A correction on the sheet, like the stats above: a trait a story gives is
     // the story's own entry (Z7-1).
     'survivor/traitsSet': {

@@ -308,6 +308,27 @@ nothing records one.
   by The Graveyard (R123); The Necromancer's discounts (R124); The Graveyard's Humanity choice
   (R130).
 
+### Z7-5 — What this story turned out to include
+
+- **One more ruling, decided 2026-10-18**: a survivor at full Health can be assigned to the Clinic
+  to be inoculated, with no warning (R143).
+- **The Infection check sits beside the Rot check** at Check for Rot, for everybody carrying
+  Infection in a Viral campaign (`infectionMustCheck` in `src/engine/rot.ts`). The roll, the Tier
+  and the community's Medicine with a supplied Clinic, under the Hunger penalty, against the
+  survivor's Infection, with no natural results (R99). A failure turns the survivor through the
+  same bite and turning the Rot check uses (R100), logged once by `withTurningLogged`.
+- **Rot Resistant is a survivor field** (`rotResistant`, schema v20), false for everybody already
+  playing. The sheet shows it with the traits and edits it in a Viral campaign, or for a survivor
+  who already has it.
+- **An Inoculation is chosen in the Planning Phase and given at Heal Wounds** (R97): the healing
+  assignment carries the item, read back off last turn's Planning once this turn's has cleared it. Giving it uses the item up and takes the survivor out of the Clinic's
+  healing share that turn.
+- **Rot Resistant's first Infection off comes the turn after**, being pressed at Character
+  Advancement, which comes before Heal Wounds (R96). One press takes 1 off everybody owed it, an
+  entry each, once a turn.
+- **Building one is unchanged**: an Inoculation is equipment already built at a Clinic with Water
+  (pg. 42). The Medical Supply tokens that pay its Labor are Z7-6's (R131).
+
 ## Part 3 — The Toolkit's survivor traits (outline)
 
 - **Z7-10 — The switch, Advantages and experience debt.** A campaign setting, off by default (R84);

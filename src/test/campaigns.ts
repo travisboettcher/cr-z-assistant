@@ -117,6 +117,7 @@ export function utilityWorker(score: number): Survivor {
     veteran: false,
     bondGroup: null,
     stories: [],
+    rotResistant: false,
   };
 }
 
