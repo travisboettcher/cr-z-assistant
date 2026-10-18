@@ -79,7 +79,7 @@ function TeamChoice({
   readonly team: MissionTeam;
 }) {
   const { dispatch } = useCampaign();
-  const offered = missionsOnOffer(campaign);
+  const offered = missionsOnOffer(campaign, team.team);
   const current = turnMissions(campaign).choices.find((choice) => choice.team === team.team);
 
   const [mission, setMission] = useState<MissionId>(

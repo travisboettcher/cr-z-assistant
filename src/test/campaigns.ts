@@ -113,6 +113,10 @@ export function utilityWorker(score: number): Survivor {
     infection: 0,
     xp: 0,
     items: [],
+    storyTrait: null,
+    veteran: false,
+    bondGroup: null,
+    stories: [],
   };
 }
 

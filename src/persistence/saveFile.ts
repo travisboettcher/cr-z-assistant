@@ -22,12 +22,18 @@ import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS } from '../data/materials';
 import { EQUIPMENT, GRADES, VEHICLE_TIERS, type ItemId } from '../data/equipment';
-import { MISSIONS, OVERRUN_OPTIONS } from '../data/missions';
+import { MISSIONS, OVERRUN_OPTIONS, STORY_MISSION_IDS } from '../data/missions';
 import { FIELD_RECRUITABLE_TIERS } from '../data/recruitTable';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { CAMPAIGN_PHASES, HEALTH_SOURCES, XP_SOURCES } from '../data/turn';
 import type { Assignment, Campaign, Project } from '../engine/campaign';
-import { LEAVING_CAUSES, RARE_TRADE_LOSSES, type CampaignEventKind } from '../engine/log';
+import { STORY_TRAITS } from '../data/traits';
+import {
+  LEAVING_CAUSES,
+  RARE_TRADE_LOSSES,
+  STORY_ITEM_SOURCES,
+  type CampaignEventKind,
+} from '../engine/log';
 import { TURN_SEQUENCE } from '../engine/turn';
 import { migrate, type MigrationErrorReason } from './migrations';
 
@@ -73,6 +79,84 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  */
 function isKeyOf(catalogue: object, key: string): boolean {
   return Object.hasOwn(catalogue, key);
+}
+
+/** Whether a value names a survivor by id and by the name they had, as every reference does. */
+function isRef(one: unknown): one is Record<string, unknown> {
+  return (
+    isRecord(one) &&
+    typeof one.survivor === 'string' &&
+    one.survivor !== '' &&
+    typeof one.name === 'string'
+  );
+}
+
+/** Whether a field is absent, or passes its check. */
+function optional(field: unknown, check: (one: unknown) => boolean): boolean {
+  return field === undefined || check(field);
+}
+
+const isD10 = (one: unknown) => D10_RESULTS.some((result) => result === one);
+
+/** A story's attachment: a story mission, and who it went to. */
+const isAttachment = (one: unknown) =>
+  isRef(one) && STORY_MISSION_IDS.some((id) => id === one.mission);
+
+/** What a story gave a new survivor's build (Z7-4): a skill, Dexterity, and an item. */
+function isStoryBuild(one: unknown): boolean {
+  return (
+    isRecord(one) &&
+    typeof one.skill === 'string' &&
+    isKeyOf(SKILL_STATS, one.skill) &&
+    isRecord(one.stat) &&
+    isCountFromZero(one.stat.dexterity) &&
+    describeItemProblem({ id: 'build', ...(isRecord(one.item) ? one.item : {}) }) === null
+  );
+}
+
+/** One item a story gave (Z7-4): an item, how it came, and who holds it if anybody. */
+function isStoryItem(one: unknown): boolean {
+  return (
+    describeItemProblem(one) === null &&
+    isRecord(one) &&
+    STORY_ITEM_SOURCES.some((source) => source === one.from) &&
+    (one.survivor === undefined || isRef(one)) &&
+    optional(one.subtable, isD10) &&
+    optional(one.entry, isD10)
+  );
+}
+
+/** A story's record, as `StoryRecord` shapes it. */
+function isStoryRecord(value: unknown): boolean {
+  if (!isRef(value)) return false;
+
+  const { attached, joins } = value;
+
+  return (
+    typeof value.result === 'string' &&
+    value.result !== '' &&
+    optional(value.xp, isCountFromOne) &&
+    optional(value.trait, (trait) => STORY_TRAITS.some((each) => each === trait)) &&
+    optional(value.bondGroup, isCountFromOne) &&
+    optional(value.stays, (stays) => stays === true) &&
+    optional(attached, isAttachment) &&
+    optional(
+      joins,
+      (one) =>
+        isRecord(one) &&
+        TIERS.some((tier) => tier === one.tier) &&
+        optional(one.bondGroup, isCountFromOne) &&
+        optional(one.xp, isCountFromOne) &&
+        optional(one.build, isStoryBuild),
+    ) &&
+    // What Z7-4 added: the things an ending gives.
+    optional(value.alsoAttached, (list) => Array.isArray(list) && list.every(isAttachment)) &&
+    optional(value.items, (list) => Array.isArray(list) && list.every(isStoryItem)) &&
+    optional(value.food, isCountFromOne) &&
+    optional(value.vehicle, (one) => describeVehicleProblem(one) === null) &&
+    optional(value.jaded, isRef) &&
+    optional(value.resources, isCountFromZero)
+  );
 }
 
 function isCountFromOne(value: unknown): boolean {
@@ -251,6 +335,31 @@ function describeSurvivorProblem(value: unknown): string | null {
   // rather than old: the v15 → v16 step is what fills it in.
   const items = describeItemsProblem(value.items);
   if (items !== null) return `carries a list that ${items}`;
+
+  // Their Story Trait, Veteran and bond group (Z7-1). A bond group only on a
+  // Bonded survivor, since nobody else can be bonded (R84).
+  if (value.storyTrait !== null && !STORY_TRAITS.some((trait) => trait === value.storyTrait)) {
+    return 'has a story trait that isn’t one of the five';
+  }
+  if (typeof value.veteran !== 'boolean') return 'doesn’t say whether they are a Veteran';
+  if (value.bondGroup !== null && !isCountFromOne(value.bondGroup)) {
+    return 'has an unreadable bond group';
+  }
+  if ((value.bondGroup !== null) !== (value.storyTrait === 'bonded')) {
+    return value.bondGroup === null
+      ? 'is Bonded with no bond group'
+      : 'has a bond group without being Bonded';
+  }
+
+  // The stories attached to them (Z7-2), each a story mission and its turn.
+  if (!Array.isArray(value.stories)) return 'has no list of stories';
+  for (const story of value.stories as unknown[]) {
+    if (!isRecord(story)) return 'has a story that isn’t a story';
+    if (!STORY_MISSION_IDS.some((id) => id === story.mission)) {
+      return 'has a story that isn’t a story mission';
+    }
+    if (!isCountFromOne(story.attachedOnTurn)) return 'has a story with no turn it was attached';
+  }
 
   return null;
 }
@@ -539,6 +648,15 @@ const EVENT_FIELD_CHECKS = {
       value.survivor !== '' &&
       typeof value.name === 'string'),
   optionalFlag: (value: unknown) => value === undefined || typeof value === 'boolean',
+  optionalTrue: (value: unknown) => value === undefined || value === true,
+  optionalCountFromOne: (value: unknown) => value === undefined || isCountFromOne(value),
+  optionalStoryMission: (value: unknown) =>
+    value === undefined || STORY_MISSION_IDS.some((id) => id === value),
+  // A story's ending and what it gave (Z7-3), absent on any other mission and
+  // before. Shape only, as the wounds are: history, not held to the roster or
+  // to the story's own endings, which the rules data may later change.
+  optionalStoryRecord: (value: unknown) => value === undefined || isStoryRecord(value),
+  optionalStoryBuild: (value: unknown) => value === undefined || isStoryBuild(value),
   // Why a survivor left (#201), absent on an entry from before it was recorded.
   optionalLeavingCause: (value: unknown) =>
     value === undefined || LEAVING_CAUSES.some((cause) => cause === value),
@@ -719,6 +837,7 @@ const EVENT_FIELDS: Record<
     ['team', 'countFromOne'],
     ['mission', 'mission'],
     ['wounds', 'optionalWounds'],
+    ['story', 'optionalStoryRecord'],
   ],
   'health-restored': [
     ['survivor', 'id'],
@@ -757,6 +876,10 @@ const EVENT_FIELDS: Record<
     ['team', 'countFromOne'],
     ['stranger', 'count'],
     ['roll', 'optionalRoll'],
+    // What a story gave a survivor it brought (Z7-3), absent for any other.
+    ['bondGroup', 'optionalCountFromOne'],
+    ['xp', 'optionalCountFromOne'],
+    ['build', 'optionalStoryBuild'],
   ],
   'survivor-left': [
     ['survivor', 'id'],
@@ -776,10 +899,19 @@ const EVENT_FIELDS: Record<
     ['survivor', 'id'],
     ['name', 'name'],
   ],
+  'veteran-healed': [
+    ['veteran', 'id'],
+    ['veteranName', 'name'],
+    ['survivor', 'id'],
+    ['name', 'name'],
+  ],
   'survivor-promoted': [
     ['survivor', 'id'],
     ['name', 'name'],
     ['tier', 'tier'],
+    // What a promotion gave (Z7-2), absent on an entry from before it did.
+    ['story', 'optionalStoryMission'],
+    ['veteran', 'optionalTrue'],
   ],
   'skill-level-bought': [
     ['survivor', 'id'],
@@ -1237,6 +1369,16 @@ function describeCampaignProblem(value: unknown): string | null {
   const ids = held.map((item) => item.id);
   const repeated = ids.find((id, at) => ids.indexOf(id) !== at);
   if (repeated !== undefined) return `it holds two items with one id: ${repeated}`;
+
+  // A story is attached to one survivor at a time (R136), the set-aside included.
+  const stories = [
+    ...(value.survivors as readonly {
+      readonly stories: readonly { readonly mission: string }[];
+    }[]),
+    ...(value.setAside as readonly { readonly stories: readonly { readonly mission: string }[] }[]),
+  ].flatMap((survivor) => survivor.stories.map((story) => story.mission));
+  const shared = stories.find((mission, at) => stories.indexOf(mission) !== at);
+  if (shared !== undefined) return `two survivors hold one story: ${shared}`;
 
   const assignments: unknown = value.assignments;
   if (!isRecord(assignments)) return 'it doesn’t say what its survivors are doing';

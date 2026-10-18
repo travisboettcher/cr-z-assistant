@@ -41,6 +41,13 @@ Phase 5 (equipment):
 |---|---|
 | `equipment.ts` | every item in the equipment chapter — kind, grades, slots, the skill it is used with or needs, build and trade costs, what it adds between missions, and how long it lasts — with the Rare Item Table and vehicle Tiers |
 
+Phase 7 (traits and origins):
+
+| | |
+|---|---|
+| `traits.ts` | the five Story Traits a survivor holds one of, and Veteran beside them, with what each changes between missions: Labor, Health, stats and the tasks allowed |
+| `stories.ts` | each story mission's endings and what each gives: XP, a Story Trait, the story kept, the next part and who takes it, a survivor who joins, Food, and what else it asks the table for (an item, a roll, a vehicle, a count); and Left Behind's time windows |
+
 ## Three things have moved down here, for one reason
 
 `materials.ts` and `origins.ts` came out of `src/engine/campaign.ts` in Phase 2, and the campaign

@@ -18,14 +18,19 @@ import type { FieldRecruitTier } from '../data/recruitTable';
 import type { Tier } from '../data/tiers';
 import { withoutAssignment } from './assignments';
 import { storageCaps } from './base';
-import type { Campaign, Item, RareTrade, Survivor, Vehicle } from './campaign';
+import type { Assignment, Campaign, Item, RareTrade, Survivor, Vehicle } from './campaign';
 import { idTaken, newItemProblem, removalProblem, type NewItem } from './equipment';
 import { rareItemFor, type RareItemRoll } from './finding';
 import { turnoutGear, withEquipmentHandedOver } from './handover';
 import { accepted, blockedBy, refused, type Accepted, type FormResult } from './forms';
 import { logged } from './log';
 import { buildCheck, buildCost, withItemBuilt, type BuildCost, type BuildOrder } from './making';
-import { FIRST_PLANNING_STEP, planningHasBegun, withPlanningReset } from './planning';
+import {
+  checkAssignment,
+  FIRST_PLANNING_STEP,
+  planningHasBegun,
+  withPlanningReset,
+} from './planning';
 import { deployed } from './missions';
 import { siegeDue } from './siege';
 import { rareTradeCheck, withRareTradeMade, type RareTradePick } from './rareTrade';
@@ -41,6 +46,7 @@ import {
   type TradeRequest,
 } from './trading';
 import {
+  buildItemId,
   rescuedStrangers,
   returnProblem,
   strangerProblem,
@@ -50,6 +56,8 @@ import {
   type StrangerForm,
 } from './strangers';
 import { createSurvivor, recruitSurvivor } from './survivor';
+import { storiesHeld, traitsProblem, withTraits, type SurvivorTraits } from './traits';
+import { veteranHealingProblem, withVeteranHealing } from './veteran';
 import { advance, type AdvanceBy } from './turn';
 import { suppliedOccupants } from './utilities';
 
@@ -355,6 +363,9 @@ export function submitStrangerJoined(
   const rescued = rescuedStrangers(campaign).find(
     (candidate) => candidate.team === form.team && candidate.stranger === form.stranger,
   ) as RescuedStranger;
+  if (rescued.build !== undefined && idTaken(campaign, buildItemId(form.id))) {
+    return refused('An item already has that id.');
+  }
 
   return accepted(
     settled(
@@ -363,7 +374,7 @@ export function submitStrangerJoined(
           ...campaign,
           survivors: [
             ...campaign.survivors,
-            strangerSurvivor(form.name, rescued.tier, form.roll, { id: form.id }),
+            strangerSurvivor(form.name, rescued, form.roll, { id: form.id }),
           ],
         },
         at,
@@ -377,6 +388,10 @@ export function submitStrangerJoined(
           // Spread, as `submitRecruit` does: only an absent roll is true of a
           // stranger nobody rolled for.
           ...(form.roll === undefined ? {} : { roll: form.roll }),
+          // What a story gave them (R120, R138; Z7-3).
+          ...(rescued.bondGroup === undefined ? {} : { bondGroup: rescued.bondGroup }),
+          ...(rescued.xp === undefined ? {} : { xp: rescued.xp }),
+          ...(rescued.build === undefined ? {} : { build: rescued.build }),
         },
       ),
       at,
@@ -666,6 +681,90 @@ export function submitRareItemRolled(
       ...item,
       subtable: roll.subtable,
       entry: roll.entry,
+    }),
+  );
+}
+
+/**
+ * Give a survivor a task (pp. 20–21; Z3-4). No entry: what is worth recording
+ * is the Planning Phase the table settled on, not each move on the way there.
+ *
+ * Refused only for a task the survivor's Story Trait forbids (R93), the
+ * Planning Phase's one blocker. Its warnings are on the screen and the move is
+ * the override, as they always were.
+ */
+export function submitAssignment(
+  campaign: Campaign,
+  survivor: string,
+  assignment: Assignment,
+): FormResult {
+  const problem = blockedBy(checkAssignment(campaign, survivor, assignment));
+  if (problem !== null) return refused(problem);
+
+  return accepted({
+    ...campaign,
+    assignments: { ...campaign.assignments, [survivor]: assignment },
+  });
+}
+
+/**
+ * Set a survivor's Story Trait, Veteran and bond group by hand, on their sheet
+ * (pg. 88; R84, R85; Z7-1): for a campaign brought in part-way, or a
+ * correction. No entry, as no other edit on the sheet has one; a trait a story
+ * gives is the story's to record.
+ */
+export function submitTraitsSet(
+  campaign: Campaign,
+  survivor: string,
+  traits: SurvivorTraits,
+): FormResult {
+  const held = campaign.survivors.find((candidate) => candidate.id === survivor);
+  if (held === undefined) return refused('Only somebody in the community has traits set.');
+
+  const problem = traitsProblem(traits);
+  if (problem !== null) return refused(problem);
+
+  // Each story on one survivor at a time (R136), this one's own list included.
+  const elsewhere = storiesHeld({
+    ...campaign,
+    survivors: campaign.survivors.filter((candidate) => candidate.id !== survivor),
+  });
+  const missions = traits.stories.map((story) => story.mission);
+  if (missions.some((mission, at) => elsewhere.has(mission) || missions.indexOf(mission) !== at)) {
+    return refused('A story is attached to one survivor at a time.');
+  }
+
+  return accepted({
+    ...campaign,
+    survivors: campaign.survivors.map((candidate) =>
+      candidate.id === survivor ? withTraits(candidate, traits) : candidate,
+    ),
+  });
+}
+
+/**
+ * A Veteran spends 1 XP of their own to bring a survivor at 0 Health up to 1,
+ * in the Planning Phase (pg. 88; R91; Z7-2). Themselves included (R137).
+ */
+export function submitVeteranHealing(
+  campaign: Campaign,
+  veteran: string,
+  survivor: string,
+  at: string,
+): FormResult {
+  const problem = veteranHealingProblem(campaign, veteran, survivor);
+  if (problem !== null) return refused(problem);
+
+  // Both present by now: the check found the Veteran and the survivor on the roster.
+  const named = (id: string) => (campaign.survivors.find((one) => one.id === id) as Survivor).name;
+
+  return accepted(
+    logged(withVeteranHealing(campaign, veteran, survivor), at, {
+      kind: 'veteran-healed',
+      veteran,
+      veteranName: named(veteran),
+      survivor,
+      name: named(survivor),
     }),
   );
 }

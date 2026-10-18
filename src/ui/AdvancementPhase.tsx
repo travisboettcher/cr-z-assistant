@@ -16,6 +16,7 @@
 import { useId, useRef, useState } from 'react';
 import { MATERIALS, type Material, type Materials } from '../data/materials';
 import { D10_RESULTS, type D10Result } from '../data/dice';
+import { MISSIONS } from '../data/missions';
 import { rollsForSkill } from '../data/recruitTable';
 import {
   SUBSTITUTION_SKILLS,
@@ -32,6 +33,7 @@ import {
   combined,
   gathered,
   gatheredToRoll,
+  madeTens,
   materialsAdded,
   recovered,
   scavengeNeedsAChoice,
@@ -82,6 +84,7 @@ import {
 } from '../engine/projects';
 import { fellInTheSiege } from '../engine/siegeWork';
 import { rareItemFor, rareRollsDue } from '../engine/finding';
+import { convoyTensDue } from '../engine/storyRewards';
 import { describeItem, ITEM_LABELS } from './equipmentLabels';
 import { dueTrades } from '../engine/trading';
 import { CORE_WEAPONS, EQUIPMENT, type ItemId } from '../data/equipment';
@@ -98,6 +101,8 @@ import { OpenPanel } from './OpenPanel';
 import { PageRef } from './PageRef';
 import { SKILL_LABELS } from './skillLabels';
 import { TIER_LABELS } from './tierLabels';
+import { missionTitle } from './missionLabels';
+import { describeBuild } from './storyLabels';
 import { withArticle } from './articles';
 import { FOCUS_RING, PRIMARY_FILL, SECONDARY_FILL, TOUCH_TARGET } from './styles';
 
@@ -266,7 +271,19 @@ function StrangerJoining({
   const problem = strangerProblem(campaign, form);
   // The position as well as the team, because two Citizens rescued by one
   // team are two strangers and each needs a name of its own on screen.
-  const label = `Mission team ${String(stranger.team)}, stranger ${String(stranger.stranger + 1)}: ${withArticle(TIER_LABELS[stranger.tier])}`;
+  // A survivor a story brought is named by the story, with what it gave them (Z7-3).
+  const label =
+    stranger.story === undefined
+      ? `Mission team ${String(stranger.team)}, stranger ${String(stranger.stranger + 1)}: ${withArticle(TIER_LABELS[stranger.tier])}`
+      : `Mission team ${String(stranger.team)}, from ${missionTitle(stranger.story)}: ${withArticle(TIER_LABELS[stranger.tier])}`;
+  const given = [
+    ...(stranger.bondGroup === undefined
+      ? []
+      : [`Bonded in bond group ${String(stranger.bondGroup)}`]),
+    ...(stranger.xp === undefined ? [] : [`${String(stranger.xp)} XP`]),
+  ];
+  // What the story gives their build, said whole (pg. 99; R142).
+  const build = stranger.build === undefined ? '' : ` ${describeBuild(stranger.build)}`;
 
   return (
     <li
@@ -277,6 +294,12 @@ function StrangerJoining({
       <p className="text-sm font-medium">
         {label} <span className="font-normal tabular-nums">(Tier {stranger.tier})</span>
       </p>
+      {stranger.story !== undefined && (given.length > 0 || build !== '') && (
+        <p className={HINT}>
+          Joins{given.length === 0 ? '' : ` with ${given.join(' and ')}`}
+          {build} <PageRef pages={MISSIONS[stranger.story].pages} />
+        </p>
+      )}
 
       <div className="mt-2 flex flex-wrap items-end gap-2">
         <div className="grow basis-40">
@@ -396,6 +419,13 @@ function CharacterAdvancement({ campaign }: { readonly campaign: Campaign }) {
                 </span>
               </p>
 
+              {pool.sentBy !== undefined && pool.total > 0 && (
+                <p className={`mt-1 ${HINT}`}>
+                  Left Behind Part 2a sends it to its survivor and each bondmate, 1 each, a Teacher
+                  on the mission or not <PageRef pages={91} />
+                </p>
+              )}
+
               {pool.total === 0 ? (
                 <p className={`mt-1 ${HINT}`}>
                   {pool.emptyBecause === undefined ? null : XP_POOL_EMPTY[pool.emptyBecause]}
@@ -507,6 +537,7 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
    */
   const [rareDice, setRareDice] = useState<readonly RareDice[]>([]);
   const due = rareRollsDue(campaign, rolls);
+  const tensDue = convoyTensDue(campaign);
   const rare = Array.from({ length: due }, (_, at) => rareDice[at] ?? {});
   const rareReady = rare.every((dice) => dice.subtable !== undefined && dice.entry !== undefined);
 
@@ -575,6 +606,13 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
            * R4; #236). A `<select>` that appended a row and reset itself was a
            * draft control that wasn't one; ten buttons say what a press does.
            */}
+          {tensDue > 0 && (
+            <p className={`${HINT} mt-3`}>
+              Crashed Convoy makes {tensDue} of this turn’s rolls 10s, each a roll on the Rare Item
+              Table. Tick the ones it makes <PageRef pages="19, 101" />
+            </p>
+          )}
+
           <div role="group" aria-labelledby="material-roll" className="mt-3 flex flex-col gap-2">
             <p id="material-roll" className="text-sm font-medium">
               Add a roll
@@ -604,22 +642,48 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
                 // their own — the same reason production lines are.
                 <li key={index} className="flex flex-wrap items-center gap-2 text-sm">
                   <span className="tabular-nums">Rolled {entry.roll}</span>
-                  <ForceResult
-                    campaign={campaign}
-                    entry={entry}
-                    spent={spent}
-                    onChange={(forced) => {
-                      remember(
-                        rolls.map((candidate, at) =>
-                          at === index
-                            ? forced === null
-                              ? { roll: candidate.roll }
-                              : { roll: candidate.roll, forced }
-                            : candidate,
-                        ),
-                      );
-                    }}
-                  />
+                  {entry.madeTen !== true && (
+                    <ForceResult
+                      campaign={campaign}
+                      entry={entry}
+                      spent={spent}
+                      onChange={(forced) => {
+                        remember(
+                          rolls.map((candidate, at) =>
+                            at === index
+                              ? forced === null
+                                ? { roll: candidate.roll }
+                                : { roll: candidate.roll, forced }
+                              : candidate,
+                          ),
+                        );
+                      }}
+                    />
+                  )}
+                  {/* Crashed Convoy's 10s, on rolls nothing forced (R126). */}
+                  {tensDue > 0 &&
+                    entry.forced === undefined &&
+                    (entry.madeTen === true || madeTens(rolls) < tensDue) && (
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          className={FOCUS_RING}
+                          checked={entry.madeTen === true}
+                          onChange={(changed) => {
+                            remember(
+                              rolls.map((candidate, at) =>
+                                at === index
+                                  ? changed.target.checked
+                                    ? { roll: candidate.roll, madeTen: true }
+                                    : { roll: candidate.roll }
+                                  : candidate,
+                              ),
+                            );
+                          }}
+                        />
+                        Make it a 10
+                      </label>
+                    )}
                   <button
                     type="button"
                     className={SMALL_BUTTON}
@@ -1223,6 +1287,8 @@ const XP_SOURCE_LABELS: Record<XpSource, string> = {
 const XP_POOL_EMPTY: Record<XpPoolEmptiness, string> = {
   'nobody-went': 'Nobody is on a mission team, so there is no mission XP this turn.',
   'replaced-by-teaching': 'A Teacher on the mission takes this point and hands it out instead.',
+  'sent-to-the-gone':
+    'Left Behind Part 2a sends this point to its survivor and their bondmates, and none of them is in the community now.',
   'nobody-qualifies': 'Nobody on the mission team has Teaching.',
   'score-is-nothing':
     'Somebody on the mission team has Teaching, but their combined Score comes to nothing — so this replaces the discretionary point and hands out none.',

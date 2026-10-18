@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { overrun, wentOn } from '../test/overrun';
 import type { BaseId } from '../data/bases';
 import type { Material } from '../data/materials';
+import type { StoryMissionId } from '../data/missions';
 import { createNewCampaign, type Assignment, type Campaign, type Survivor } from './campaign';
 import type { CampaignEvent, LogEntry, MissionWound } from './log';
 import {
@@ -40,6 +41,12 @@ const ruby = createSurvivor('Ruby Vance', 3, { id: 'ruby' });
 const nell = createSurvivor('Nell Haig', 1, { id: 'nell' });
 
 const onTeam = (team: number): Assignment => ({ task: 'mission', team });
+
+/** The survivor with this story attached, since turn 2. */
+const withStory = (survivor: Survivor, mission: StoryMissionId): Survivor => ({
+  ...survivor,
+  stories: [{ mission, attachedOnTurn: 2 }],
+});
 
 /** Turn 4, at Select Mission: Earl and Carla on team 1, Ruby on team 2, Nell at home. */
 function playing(overrides: Partial<Campaign> = {}): Campaign {
@@ -320,15 +327,15 @@ describe('missionsChosen', () => {
 
 describe('missionsOnOffer', () => {
   it('offers only the First Mission on turn 1 (pg. 76)', () => {
-    expect(missionsOnOffer(playing({ turn: 1 }))).toEqual(['first-mission']);
+    expect(missionsOnOffer(playing({ turn: 1 }), 1)).toEqual(['first-mission']);
   });
 
   it('offers only the Siege Defense when the horde called one (pg. 23)', () => {
-    expect(missionsOnOffer(playing({ log: [calledForTurn4] }))).toEqual(['siege-defense']);
+    expect(missionsOnOffer(playing({ log: [calledForTurn4] }), 1)).toEqual(['siege-defense']);
   });
 
   it('offers the six other standard missions any other turn (pg. 75)', () => {
-    const offered = missionsOnOffer(playing());
+    const offered = missionsOnOffer(playing(), 1);
 
     expect(offered).not.toContain('first-mission');
     expect(offered).not.toContain('siege-defense');
@@ -344,15 +351,24 @@ describe('missionsOnOffer', () => {
     );
   });
 
-  it('offers story and Road Trip missions, and only the campaign’s own origin missions', () => {
-    const plain = missionsOnOffer(playing());
-    const viral = missionsOnOffer(playing({ origin: 'viral' }));
+  it('offers Road Trip missions, and only the campaign’s own origin missions', () => {
+    const plain = missionsOnOffer(playing(), 1);
+    const viral = missionsOnOffer(playing({ origin: 'viral' }), 1);
 
-    expect(plain).toContain('left-behind-1');
     expect(plain).toContain('chased');
     expect(plain).not.toContain('experimental-data');
     expect(viral).toContain('experimental-data');
     expect(viral).not.toContain('the-graveyard');
+  });
+
+  /** The acceptance. */
+  it('offers a story only to the team its survivor is on (pg. 87; R116)', () => {
+    const storied = playing({ survivors: [withStory(earl, 'left-behind-1'), carla, ruby, nell] });
+
+    expect(missionsOnOffer(storied, 1)).toContain('left-behind-1');
+    expect(missionsOnOffer(storied, 1)).not.toContain('warehouse');
+    expect(missionsOnOffer(storied, 2)).not.toContain('left-behind-1');
+    expect(missionsOnOffer(playing(), 1)).not.toContain('left-behind-1');
   });
 });
 
@@ -387,10 +403,23 @@ describe('selectionProblem', () => {
   });
 
   it('takes a story mission, which asks for nothing more', () => {
-    expect(selectionProblem(playing(), { team: 1, mission: 'left-behind-1' })).toBeNull();
+    const storied = playing({ survivors: [withStory(earl, 'left-behind-1'), carla, ruby, nell] });
+
+    expect(selectionProblem(storied, { team: 1, mission: 'left-behind-1' })).toBeNull();
     expect(
-      selectionProblem(playing(), { team: 1, mission: 'left-behind-1', material: 'fuel' }),
+      selectionProblem(storied, { team: 1, mission: 'left-behind-1', material: 'fuel' }),
     ).toMatch(/Only Gather Materials/);
+  });
+
+  it('refuses a story to a team its survivor is not on (R116)', () => {
+    const storied = playing({ survivors: [withStory(earl, 'left-behind-1'), carla, ruby, nell] });
+
+    expect(selectionProblem(storied, { team: 2, mission: 'left-behind-1' })).toBe(
+      'A story is played by the team its survivor is on.',
+    );
+    expect(selectionProblem(playing(), { team: 1, mission: 'warehouse' })).toBe(
+      'A story is played by the team its survivor is on.',
+    );
   });
 
   it('refuses a team nobody is on', () => {
@@ -712,21 +741,17 @@ describe('the outcomes of the other standard missions (Z4-3)', () => {
     expect(outcomeProblem(campaign, { ...outcome, ...bad })).toMatch(/whole number/);
   });
 
-  it('takes a story, origin or Road Trip mission as played, and only the one chosen', () => {
+  it('takes an origin or Road Trip mission as played, and only the one chosen', () => {
     const campaign = playing({
       step: 'tactical-mission',
-      log: [at(4, { kind: 'mission-selected', team: 1, mission: 'left-behind-1', names: [] })],
+      log: [at(4, { kind: 'mission-selected', team: 1, mission: 'chased', names: [] })],
     });
 
     expect(
-      outcomeProblem(campaign, {
-        kind: 'mission-played',
-        team: 1,
-        mission: 'left-behind-1',
-      }),
+      outcomeProblem(campaign, { kind: 'mission-played', team: 1, mission: 'chased' }),
     ).toBeNull();
     expect(
-      outcomeProblem(campaign, { kind: 'mission-played', team: 1, mission: 'chased' }),
+      outcomeProblem(campaign, { kind: 'mission-played', team: 1, mission: 'left-behind-1' }),
     ).toMatch(/isn’t the mission/);
   });
 
@@ -1123,12 +1148,12 @@ describe('strangerWarning, at its edges', () => {
 /** The further mission an overrun base goes on with (pg. 86; R27, R28; Z4-9). */
 describe('the overrun’s continuation', () => {
   it('offers only the mission the way on plays, once one is chosen', () => {
-    expect(missionsOnOffer(overrun())).toEqual(['siege-defense']);
+    expect(missionsOnOffer(overrun(), 1)).toEqual(['siege-defense']);
     expect(
-      missionsOnOffer(overrun([at(4, { kind: 'overrun-continued', option: 'claim' })])),
+      missionsOnOffer(overrun([at(4, { kind: 'overrun-continued', option: 'claim' })]), 1),
     ).toEqual(['claim-a-new-base']);
     expect(
-      missionsOnOffer(overrun([at(4, { kind: 'overrun-continued', option: 'start-over' })])),
+      missionsOnOffer(overrun([at(4, { kind: 'overrun-continued', option: 'start-over' })]), 1),
     ).toEqual(['first-mission']);
   });
 

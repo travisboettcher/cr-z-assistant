@@ -47,6 +47,7 @@ import { continuationMission, continuationOpen, overrunChoice, overrunClaim } fr
 import type { Campaign, RareTrade, Survivor } from './campaign';
 import type { CampaignEvent, MissionWound, RetrievedVehicle } from './log';
 import { FIRST_TURN, siegeDue } from './siege';
+import { storyProblem } from './storyMissions';
 import { maxHp } from './survivor';
 import { phaseOf } from './turn';
 import { retrievedProblem } from './vehicles';
@@ -232,18 +233,19 @@ export function missionsChosen(campaign: Campaign): boolean {
 }
 
 /**
- * The missions a team may choose this turn, in the catalogue's order.
+ * The missions this team may choose this turn, in the catalogue's order.
  *
  * The First Mission on turn 1 (pg. 76), the Siege Defense on a siege turn
  * (pg. 23), and otherwise every mission but those two — the standard ones,
- * which may be chosen on any turn (pg. 75), the story and Road Trip ones,
- * and the origin missions of the campaign's own Origin of the Rot. Their
- * prerequisites inside an origin or a story are Phase 7's.
+ * which may be chosen on any turn (pg. 75), the Road Trip ones, the origin
+ * missions of the campaign's own Origin of the Rot, and **the stories attached
+ * to somebody on this team**, a story being its survivor's to play (pp. 75, 87;
+ * R116). The prerequisites inside an origin are Phase 7's.
  *
  * What it does not narrow is R20's: a second Claim a New Base is refused when
  * it is chosen, because which team may have it depends on who asks.
  */
-export function missionsOnOffer(campaign: Campaign): readonly MissionId[] {
+export function missionsOnOffer(campaign: Campaign, team: number): readonly MissionId[] {
   if (campaign.turn === FIRST_TURN) return ['first-mission'];
   if (siegeDue(campaign)) {
     // After an overrun, the way on the player chose (R27).
@@ -260,10 +262,19 @@ export function missionsOnOffer(campaign: Campaign): readonly MissionId[] {
         return mission.availability === 'any-time';
       case 'origin':
         return mission.origin === campaign.origin;
+      case 'story':
+        return storiesOn(campaign, team).has(id);
       default:
         return true;
     }
   });
+}
+
+/** The stories attached to somebody on this mission team (R116). */
+function storiesOn(campaign: Campaign, team: number): ReadonlySet<MissionId> {
+  return new Set(
+    membersOf(campaign, team).flatMap((survivor) => survivor.stories.map((story) => story.mission)),
+  );
 }
 
 /** Whether a mission asks Select Mission for this (`SelectionChoice`). */
@@ -323,7 +334,7 @@ export function selectionProblem(campaign: Campaign, choice: MissionChoice): str
     return `Mission team ${String(choice.team)} has already played its mission.`;
   }
 
-  if (!missionsOnOffer(campaign).includes(choice.mission)) {
+  if (!missionsOnOffer(campaign, choice.team).includes(choice.mission)) {
     if (campaign.turn === FIRST_TURN) return 'Turn 1’s mission is the First Mission.';
     if (siegeDue(campaign) && overrunChoice(campaign) !== null) {
       return 'After the overrun, the community plays the mission it chose to go on with.';
@@ -332,6 +343,9 @@ export function selectionProblem(campaign: Campaign, choice: MissionChoice): str
     if (choice.mission === 'siege-defense')
       return 'A Siege Defense is only played when the horde calls one.';
     if (choice.mission === 'first-mission') return 'The First Mission is only played on turn 1.';
+    if (MISSIONS[choice.mission].family === 'story') {
+      return 'A story is played by the team its survivor is on.';
+    }
 
     return 'That mission belongs to another Origin of the Rot.';
   }
@@ -405,8 +419,9 @@ const OUTCOME_KINDS = [
  * the siege counter: the counts its rewards read, and never a verdict. Success
  * and failure are read back from the counts — which is also why the missions
  * that name no failure at all need nothing here to say what one would be. A
- * story, origin or Road Trip mission records only that it was played
- * (`mission-played`); its rewards are Phase 7's.
+ * story, origin or Road Trip mission records that it was played
+ * (`mission-played`), and a story how it ended and what that gave (`story`;
+ * Z7-3); an origin's rewards are Phase 7's still.
  *
  * Every kind, `mission-played` included, also carries the team's wounds since
  * Z4-4: each member's Health at the end, and Infection in a Viral campaign
@@ -700,7 +715,8 @@ function countsOf(outcome: MissionOutcome): readonly number[] {
  * table counted, and the book gives no rule that two of them must agree — so a
  * Thin the Herd's "every survivor incapacitated" is not compared with the
  * Health its wounds record either. Whether a rescuer could carry a stranger is
- * a warning, not this (`strangerWarning`).
+ * a warning, not this (`strangerWarning`). A story's ending is `storyProblem`'s
+ * to check, against the team that played it (Z7-3).
  */
 export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcome): string | null {
   if (phaseOf(campaign.step) !== 'mission') return 'Record missions in the Mission Phase.';
@@ -797,6 +813,15 @@ export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcom
     }
   }
 
+  // A story's ending, from the team its survivor is on (Z7-3).
+  const story = storyProblem(
+    campaign,
+    membersOf(campaign, team),
+    choice.mission,
+    outcome.kind === 'mission-played' ? outcome.story : undefined,
+  );
+  if (story !== null) return story;
+
   return woundsProblem(campaign, outcome);
 }
 
@@ -824,7 +849,7 @@ export function asksSameMap(campaign: Campaign, choice: MissionChoice): boolean 
 }
 
 /** Who is on a team this turn, or nobody for a team that does not exist. */
-function membersOf(campaign: Campaign, team: number): readonly Survivor[] {
+export function membersOf(campaign: Campaign, team: number): readonly Survivor[] {
   return missionTeams(campaign).find((candidate) => candidate.team === team)?.members ?? [];
 }
 

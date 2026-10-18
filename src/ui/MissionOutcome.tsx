@@ -46,6 +46,7 @@ import { deathsProblem, wentOut, type MissionDeath } from '../engine/missionDeat
 import {
   asksSameMap,
   rareTradeDue,
+  membersOf,
   missionOutcomeProblem,
   outcomeOf,
   selectionProblem,
@@ -63,6 +64,7 @@ import {
   overrunChoiceProblem,
   overrunClaim,
 } from '../engine/overrun';
+import { isStory, storyEnding, type StoryChoice } from '../engine/storyMissions';
 import { maxHp } from '../engine/survivor';
 import { atTier, tierRolled } from '../engine/vehicles';
 import { D10_RESULTS, type D10Result } from '../data/dice';
@@ -81,6 +83,7 @@ import {
   outcomePages,
 } from './missionLabels';
 import { PageRef } from './PageRef';
+import { StoryEnding } from './StoryEnding';
 import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 
 const HINT = 'text-sm text-stone-600 dark:text-stone-400';
@@ -132,6 +135,9 @@ const HINTS: Partial<Record<MissionId, string>> = {
     'Count what was on the mission area when it ended, and who got out over the map edge. Whether the turns since the last siege go back to 0 depends on it.',
   'thin-the-herd':
     'Count what was on the mission area at the start and at the end, and who got out over the map edge. It can reset or halve the turns since the last siege.',
+  // Chosen for the team when Part 1's ending sends it straight on (R119).
+  'left-behind-2b':
+    'The team plays Part 2b straight after Part 1, with the wounds and gear Part 1 left it. Anyone at 0 Health gets a second wind. Record how the story ended.',
 };
 
 function CountField({
@@ -413,6 +419,7 @@ function TeamOutcome({
   const [typed, setTyped] = useState<Typed>({});
   const [dead, setDead] = useState<ReadonlySet<string>>(() => new Set());
   const [taken, setTaken] = useState<Readonly<Record<string, string>>>({});
+  const [ending, setEnding] = useState<StoryChoice>({ result: '' });
 
   // The claim an overrun goes on with places no strangers (pg. 86), and asks
   // whether it was the overrun base's own map when it is that base's type (R29).
@@ -444,7 +451,7 @@ function TeamOutcome({
     setDrafts(rows.map((one, other) => (other === at ? row : one)));
   };
   const wounds = woundsTyped(woundsAsTheyStand(campaign, choice.team), typed);
-  const outcome = outcomeOf(choice, {
+  const played = outcomeOf(choice, {
     endCondition: endCondition === 'none' ? null : count(endCondition),
     strangers,
     vehiclesOnArea: number('vehicles-on-area'),
@@ -462,6 +469,14 @@ function TeamOutcome({
     returned,
     wounds,
   });
+  // A story's ending, from the team that played it (Z7-3).
+  const story = isStory(choice.mission) ? choice.mission : undefined;
+  const team = membersOf(campaign, choice.team);
+  const record = story === undefined ? undefined : storyEnding(campaign, team, story, ending);
+  const outcome =
+    played.kind === 'mission-played' && record !== undefined
+      ? { ...played, story: record }
+      : played;
   const members = wentOut(campaign, choice.team);
   const deaths = deathsTicked(choice.team, members, dead, taken);
   const problem =
@@ -469,14 +484,18 @@ function TeamOutcome({
   const warning = problem === null ? strangerWarning(campaign, outcome) : null;
   // An end condition not chosen yet says so beside its picker, not as a
   // refusal at the foot of the form (#240).
-  const unchosen = asked.includes('end-condition') && endCondition === '';
+  const unchosen =
+    (asked.includes('end-condition') && endCondition === '') ||
+    (story !== undefined && ending.result === '');
   const label = MISSION_LABELS[choice.mission];
   const prefix = `mission-${String(choice.team)}`;
   const hint =
     HINTS[choice.mission] ??
-    (asked.length === 0
-      ? 'Its rewards aren’t tracked yet. Recording it marks the mission played.'
-      : 'Record what the table counted when the mission ended.');
+    (story !== undefined
+      ? 'Record how the story ended. What the map held, an item or a roll, isn’t tracked yet.'
+      : asked.length === 0
+        ? 'Its rewards aren’t tracked yet. Recording it marks the mission played.'
+        : 'Record what the table counted when the mission ended.');
 
   return (
     <fieldset className="mt-4 flex flex-col gap-2 rounded-lg border border-stone-200 p-3 dark:border-stone-700">
@@ -612,6 +631,17 @@ function TeamOutcome({
             );
         }
       })}
+
+      {story !== undefined && (
+        <StoryEnding
+          campaign={campaign}
+          members={team}
+          story={story}
+          prefix={prefix}
+          choice={ending}
+          onChange={setEnding}
+        />
+      )}
 
       {rows.map((row, at) => (
         <div key={row.id} className="flex flex-col gap-2">

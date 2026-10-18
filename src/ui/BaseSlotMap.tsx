@@ -32,7 +32,7 @@ import { FacilityWork } from './FacilityWork';
 import { cancellable, laborAvailable, laborShortfall, queuedFor } from '../engine/projects';
 import { planningHasBegun } from '../engine/planning';
 import { rebuildsOpen } from '../engine/rebuild';
-import { baseLaborBonus, siegeLaborBonus } from '../engine/assignments';
+import { baseLaborBonus, siegeLaborBonus, traitLaborChange } from '../engine/assignments';
 import { describeProject } from './projectLabels';
 import { useCampaign } from '../state/useCampaign';
 import { BuildFacility } from './BuildFacility';
@@ -424,6 +424,14 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
                   {' '}
                   plus <span className="tabular-nums">{siegeLaborBonus(campaign)}</span> for last
                   turn&rsquo;s clean Siege Defense, a point for each of them
+                </>
+              )}
+              {traitLaborChange(campaign) !== 0 && (
+                <>
+                  {' '}
+                  {traitLaborChange(campaign) > 0 ? 'plus' : 'less'}{' '}
+                  <span className="tabular-nums">{Math.abs(traitLaborChange(campaign))}</span> from
+                  their Story Traits
                 </>
               )}
               , less what this turn has already ordered. Whatever is left at the end of the turn is

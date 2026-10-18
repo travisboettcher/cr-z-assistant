@@ -25,8 +25,9 @@ import { COMMON_SKILLS, SKILLS, STATS, type Skill } from '../data/skills';
 import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS, type Materials } from '../data/materials';
+import { STORY_TRAITS } from '../data/traits';
 import { EQUIPMENT, GRADES, ITEM_IDS, VEHICLE_TIERS } from '../data/equipment';
-import { OVERRUN_OPTIONS } from '../data/missions';
+import { OVERRUN_OPTIONS, PROMOTION_STORIES, STORY_MISSION_IDS } from '../data/missions';
 import { CAMPAIGN_ORIGINS } from '../data/origins';
 import { MISSIONS, type MissionId } from '../data/missions';
 import { FIELD_RECRUITABLE_TIERS } from '../data/recruitTable';
@@ -50,6 +51,7 @@ import type {
 import {
   LEAVING_CAUSES,
   RARE_TRADE_LOSSES,
+  STORY_ITEM_SOURCES,
   type CampaignEvent,
   type LogEntry,
 } from '../engine/log';
@@ -100,6 +102,16 @@ const anyHolder = fc.oneof(
  * feature that silently destroys the save that used it.
  */
 const anyCount = fc.integer({ min: 0, max: 999 });
+
+/** What a story gives a new survivor's build (Z7-4). */
+const anyStoryBuild = fc.record({
+  skill: fc.constantFrom('long-guns' as const, 'archery' as const),
+  stat: fc.record({ dexterity: fc.integer({ min: 0, max: 4 }) }),
+  item: fc.record({
+    item: fc.constant('rifle' as const),
+    grade: fc.constantFrom('standard' as const, 'quality' as const),
+  }),
+});
 
 /**
  * A material count.
@@ -174,19 +186,36 @@ function skillsArbitrary(): fc.Arbitrary<SkillLevels> {
 }
 
 export function survivorArbitrary(): fc.Arbitrary<Survivor> {
-  return fc.record({
-    id: anyId,
-    name: anyName,
-    tier: fc.constantFrom(...TIERS),
-    stats: statsArbitrary(),
-    skills: skillsArbitrary(),
-    move: anyCount,
-    defense: anyCount,
-    currentHp: anyCount,
-    infection: anyCount,
-    xp: anyCount,
-    items: fc.array(itemArbitrary(), { maxLength: 2 }),
-  });
+  return fc
+    .record({
+      id: anyId,
+      name: anyName,
+      tier: fc.constantFrom(...TIERS),
+      stats: statsArbitrary(),
+      skills: skillsArbitrary(),
+      move: anyCount,
+      defense: anyCount,
+      currentHp: anyCount,
+      infection: anyCount,
+      xp: anyCount,
+      items: fc.array(itemArbitrary(), { maxLength: 2 }),
+      storyTrait: fc.constantFrom<Survivor['storyTrait']>(null, ...STORY_TRAITS),
+      veteran: fc.boolean(),
+      stories: fc.array(
+        fc.record({
+          mission: fc.constantFrom(...STORY_MISSION_IDS),
+          attachedOnTurn: fc.integer({ min: 1, max: 40 }),
+        }),
+        { maxLength: 2 },
+      ),
+    })
+    .chain((survivor) =>
+      // A bond group only on a Bonded survivor (R84), so every pairing the file
+      // allows is generated and none it refuses.
+      (survivor.storyTrait === 'bonded' ? fc.integer({ min: 1, max: 3 }) : fc.constant(null)).map(
+        (bondGroup) => ({ ...survivor, bondGroup }),
+      ),
+    );
 }
 
 /** An item in a grade it comes in (Z5-2). */
@@ -547,11 +576,79 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       ),
     ),
     withWounds(
-      fc.record({
-        kind: fc.constant('mission-played' as const),
-        team: anyTeam,
-        mission: fc.constantFrom(...MISSION_IDS),
-      }),
+      fc.record(
+        {
+          kind: fc.constant('mission-played' as const),
+          team: anyTeam,
+          mission: fc.constantFrom(...MISSION_IDS),
+          // A story's ending (Z7-3), each part of it given or not.
+          story: fc.record(
+            {
+              survivor: anyId,
+              name: anyName,
+              result: fc.constantFrom('rescued', 'fire-lit', 'played'),
+              xp: fc.integer({ min: 1, max: 3 }),
+              trait: fc.constantFrom(...STORY_TRAITS),
+              bondGroup: fc.integer({ min: 1, max: 3 }),
+              stays: fc.constant(true as const),
+              attached: fc.record({
+                mission: fc.constantFrom(...STORY_MISSION_IDS),
+                survivor: anyId,
+                name: anyName,
+              }),
+              joins: fc.record(
+                {
+                  tier: fc.constantFrom(...TIERS),
+                  bondGroup: fc.integer({ min: 1, max: 3 }),
+                  xp: fc.integer({ min: 1, max: 3 }),
+                  build: anyStoryBuild,
+                },
+                { requiredKeys: ['tier'] },
+              ),
+              // The things an ending gives (Z7-4), each given or not.
+              alsoAttached: fc.array(
+                fc.record({
+                  mission: fc.constantFrom(...STORY_MISSION_IDS),
+                  survivor: anyId,
+                  name: anyName,
+                }),
+                { maxLength: 2 },
+              ),
+              items: fc.array(
+                fc
+                  .tuple(
+                    fc.record(
+                      {
+                        id: anyId,
+                        item: fc.constantFrom('rifle' as const, 'tool-belt' as const),
+                        grade: fc.constant('quality' as const),
+                        from: fc.constantFrom(...STORY_ITEM_SOURCES),
+                        subtable: fc.constantFrom(...D10_RESULTS),
+                        entry: fc.constantFrom(...D10_RESULTS),
+                      },
+                      { requiredKeys: ['id', 'item', 'grade', 'from'] },
+                    ),
+                    // A holder is named whole or not at all.
+                    fc.option(fc.record({ survivor: anyId, name: anyName }), { nil: undefined }),
+                  )
+                  .map(([item, holder]) => ({ ...item, ...holder })),
+                { maxLength: 3 },
+              ),
+              food: fc.integer({ min: 1, max: 6 }),
+              vehicle: fc.record({
+                id: anyId,
+                tier: fc.constantFrom(...VEHICLE_TIERS),
+                label: anyName,
+                water: fc.boolean(),
+              }),
+              jaded: fc.record({ survivor: anyId, name: anyName }),
+              resources: anyCount,
+            },
+            { requiredKeys: ['survivor', 'name', 'result'] },
+          ),
+        },
+        { requiredKeys: ['kind', 'team', 'mission'] },
+      ),
     ),
     // The Infection count is optional, and a round trip has to keep it absent
     // where it was absent as well as keep it where it was written (#176).
@@ -612,6 +709,24 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       ...survivor,
       tier: fc.constantFrom(...TIERS),
     }),
+    fc.record({
+      kind: fc.constant('veteran-healed' as const),
+      veteran: anyId,
+      veteranName: anyName,
+      survivor: anyId,
+      name: anyName,
+    }),
+    // What a promotion gave (Z7-2), each absent as often as present.
+    fc.record(
+      {
+        kind: fc.constant('survivor-promoted' as const),
+        ...survivor,
+        tier: fc.constantFrom(...TIERS),
+        story: fc.constantFrom(...PROMOTION_STORIES),
+        veteran: fc.constant(true as const),
+      },
+      { requiredKeys: ['kind', 'survivor', 'name', 'tier'] },
+    ),
     fc.record({
       kind: fc.constant('skill-level-bought' as const),
       ...survivor,
@@ -1018,7 +1133,31 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
           itemIdsDistinct(campaign) &&
           new Set(campaign.vehicles.map((vehicle) => vehicle.id)).size === campaign.vehicles.length,
       )
+      // And a story on one survivor only (R136): nine stories over eight people
+      // collide too often to filter, so a repeat is dropped instead.
+      .map(withStoriesDistinct)
   );
+}
+
+/** The campaign with each story kept on the first survivor who holds it. */
+function withStoriesDistinct<Shape extends Pick<Campaign, 'survivors' | 'setAside'>>(
+  campaign: Shape,
+): Shape {
+  const seen = new Set<string>();
+  const keep = (survivor: Survivor): Survivor => ({
+    ...survivor,
+    stories: survivor.stories.filter((story) => {
+      if (seen.has(story.mission)) return false;
+      seen.add(story.mission);
+      return true;
+    }),
+  });
+
+  return {
+    ...campaign,
+    survivors: campaign.survivors.map(keep),
+    setAside: campaign.setAside.map(keep),
+  };
 }
 
 /**

@@ -158,6 +158,60 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
       { survivor: 'ruby', name: 'Ruby Vance', health: 3 },
     ],
   },
+  // A story's ending and everything it gave (Z7-3).
+  {
+    kind: 'mission-played',
+    team: 1,
+    mission: 'left-behind-1',
+    wounds: [{ ...SURVIVOR, health: 2 }],
+    story: {
+      ...SURVIVOR,
+      result: 'rescued',
+      xp: 1,
+      trait: 'bonded',
+      bondGroup: 1,
+      attached: { mission: 'left-behind-2a', ...SURVIVOR },
+      joins: { tier: 2, bondGroup: 1, xp: 1 },
+    },
+  },
+  // Everything a story's ending can give as things (Z7-4).
+  {
+    kind: 'mission-played',
+    team: 1,
+    mission: 'left-behind-2b',
+    story: {
+      ...SURVIVOR,
+      result: 'body-left',
+      items: [
+        {
+          id: 'found-1',
+          item: 'rifle',
+          grade: 'quality',
+          from: 'found-item',
+          ...SURVIVOR,
+        },
+        {
+          id: 'found-2',
+          item: 'riot-shield',
+          grade: 'standard',
+          from: 'rare-roll',
+          subtable: 3,
+          entry: 1,
+        },
+      ],
+      food: 6,
+      vehicle: { id: 'boat', tier: 2, label: 'Boat', water: true },
+      jaded: { survivor: 'ruby', name: 'Ruby Vance' },
+      resources: 12,
+      alsoAttached: [{ mission: 'crashed-convoy', ...SURVIVOR }],
+    },
+  },
+  {
+    kind: 'mission-played',
+    team: 1,
+    mission: 'sentimental-value',
+    story: { ...SURVIVOR, result: 'heirloom-not-recovered', trait: 'jaded', stays: true },
+  },
   {
     kind: 'mission-played',
     team: 2,
@@ -194,6 +248,21 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'stranger-joined', ...SURVIVOR, tier: 2, team: 2, stranger: 0, roll: 6 },
   // A Rookie, who does not roll (pg. 7), and the second stranger on a team.
   { kind: 'stranger-joined', ...SURVIVOR, tier: 1, team: 1, stranger: 1 },
+  // A survivor a story brought, Bonded and with XP (Z7-3).
+  { kind: 'stranger-joined', ...SURVIVOR, tier: 3, team: 1, stranger: 0, bondGroup: 2, xp: 1 },
+  // And one whose build the story gave (Z7-4).
+  {
+    kind: 'stranger-joined',
+    ...SURVIVOR,
+    tier: 3,
+    team: 1,
+    stranger: 0,
+    build: {
+      skill: 'long-guns',
+      stat: { dexterity: 3 },
+      item: { item: 'rifle', grade: 'quality' },
+    },
+  },
   // Each cause (#201), and an entry from before the cause was recorded.
   { kind: 'survivor-left', ...SURVIVOR, tier: 1, cause: 'turned' },
   { kind: 'survivor-left', ...SURVIVOR, tier: 2, cause: 'bitten' },
@@ -219,6 +288,24 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   },
   { kind: 'mission-team-reduced', ...SURVIVOR },
   { kind: 'survivor-promoted', ...SURVIVOR, tier: 4 },
+  // A Veteran's healing (pg. 88; Z7-2), of somebody else and of themselves.
+  {
+    kind: 'veteran-healed',
+    veteran: 'earl',
+    veteranName: 'Earl Rhodes',
+    survivor: 'ruby',
+    name: 'Ruby Vance',
+  },
+  {
+    kind: 'veteran-healed',
+    veteran: 'earl',
+    veteranName: 'Earl Rhodes',
+    survivor: 'earl',
+    name: 'Earl Rhodes',
+  },
+  // What a promotion gives (pg. 87; Z7-2): a story, or Veteran at Hero.
+  { kind: 'survivor-promoted', ...SURVIVOR, tier: 3, story: 'crashed-convoy' },
+  { kind: 'survivor-promoted', ...SURVIVOR, tier: 4, veteran: true },
   { kind: 'skill-level-bought', ...SURVIVOR, skill: 'archery', level: 2 },
   { kind: 'common-skill-bought', ...SURVIVOR, skill: 'move', score: 7 },
   { kind: 'base-claimed', base: 'hobby-farm' },

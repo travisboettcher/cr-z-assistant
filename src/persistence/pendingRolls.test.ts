@@ -26,6 +26,12 @@ describe('writePendingRolls', () => {
     ]);
   });
 
+  it('keeps a roll Crashed Convoy made a 10 (Z7-4)', () => {
+    writePendingRolls('cedar', 3, [{ roll: 4, madeTen: true }]);
+
+    expect(readPendingRolls('cedar', 3)).toEqual([{ roll: 4, madeTen: true }]);
+  });
+
   /**
    * Silent, unlike the autosave's reported failure: there is nothing useful to
    * tell a player whose rolls are on the screen in front of them, and a warning
@@ -137,6 +143,11 @@ describe('readPendingRolls', () => {
     ['a roll outside the d10', { roll: 0 }],
     ['a forced result that isn’t an object', { roll: 7, forced: 'rationing' }],
     ['a forced result that is null', { roll: 7, forced: null }],
+    ['a 10 made of anything but true', { roll: 7, madeTen: 'yes' }],
+    [
+      'a 10 made of a forced roll',
+      { roll: 7, madeTen: true, forced: { skill: 'rationing', material: 'food' } },
+    ],
     [
       'a skill nothing in the catalogue matches',
       { roll: 7, forced: { skill: 'haggling', material: 'food' } },

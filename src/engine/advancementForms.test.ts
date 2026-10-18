@@ -366,11 +366,19 @@ describe('the three purchases', () => {
     it('promotes one Tier and records the Tier reached', () => {
       const before = citizen(20);
       const [raise = null] = promotionStatChoices(before.survivors[0] as Survivor);
-      const after = expectAccepted(submitPromotion(before, { survivor: EARL, raise }, AT));
+      const after = expectAccepted(
+        submitPromotion(before, { survivor: EARL, raise, story: 'sentimental-value' }, AT),
+      );
 
       expect(earl(after)?.tier).toBe(3);
       expect(events(after)).toEqual([
-        { kind: 'survivor-promoted', survivor: EARL, name: 'Marcus Webb', tier: 3 },
+        {
+          kind: 'survivor-promoted',
+          survivor: EARL,
+          name: 'Marcus Webb',
+          tier: 3,
+          story: 'sentimental-value',
+        },
       ]);
     });
 

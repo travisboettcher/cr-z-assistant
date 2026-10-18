@@ -17,6 +17,7 @@
  */
 
 import { MATERIALS, type Material } from '../data/materials';
+import { describeBuild } from './storyLabels';
 import { articleForNumber, withArticle } from './articles';
 import { FIRST_TURN } from '../engine/siege';
 import { SIEGE_TRIGGER, XP_SOURCE_PAGES, type HealthSource, type XpSource } from '../data/turn';
@@ -40,7 +41,13 @@ import {
 } from './baseLabels';
 import { MISSIONS } from '../data/missions';
 import { describeItem, holderLabel } from './equipmentLabels';
-import { describeOutcome, describeSelection, OVERRUN_LABELS, outcomePages } from './missionLabels';
+import {
+  describeOutcome,
+  describeSelection,
+  MISSION_LABELS,
+  OVERRUN_LABELS,
+  outcomePages,
+} from './missionLabels';
 import { PHASE_LABELS } from './turnLabels';
 import { COMMON_SKILL_LABELS, SKILL_LABELS } from './skillLabels';
 import { TIER_LABELS } from './tierLabels';
@@ -410,7 +417,12 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
     case 'stranger-joined': {
       // Which team brought them out, because a turn of two rescues reads as
       // two arrivals with nothing to tell them apart otherwise (Z4-5).
-      const joined = `${event.name} joined as ${withArticle(TIER_LABELS[event.tier])}, rescued by mission team ${String(event.team)}`;
+      // What a story gave a survivor it brought (Z7-3).
+      const joined = `${event.name} joined as ${withArticle(TIER_LABELS[event.tier])}, rescued by mission team ${String(event.team)}${
+        event.bondGroup === undefined ? '' : `, Bonded in bond group ${String(event.bondGroup)}`
+      }${event.xp === undefined ? '' : `, with ${String(event.xp)} XP`}${
+        event.build === undefined ? '' : `, ${describeBuild(event.build)}`
+      }`;
 
       return event.roll === undefined
         ? { text: `${joined}.`, pages: 19 }
@@ -450,8 +462,29 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
         pages: 23,
       };
 
-    case 'survivor-promoted':
-      return { text: `${event.name} was promoted to ${TIER_LABELS[event.tier]}.`, pages: 18 };
+    case 'veteran-healed':
+      return {
+        text:
+          event.veteran === event.survivor
+            ? `${event.name} spent 1 XP as a Veteran to bring themselves up to 1 Health.`
+            : `${event.veteranName} spent 1 XP as a Veteran to bring ${event.name} up to 1 Health.`,
+        pages: 88,
+      };
+
+    case 'survivor-promoted': {
+      // What the promotion gave, where it gave something (pg. 87; Z7-2).
+      const gave =
+        event.story !== undefined
+          ? `, and took on ${MISSION_LABELS[event.story]}`
+          : event.veteran === true
+            ? ', and became a Veteran'
+            : '';
+
+      return {
+        text: `${event.name} was promoted to ${TIER_LABELS[event.tier]}${gave}.`,
+        pages: gave === '' ? 18 : '18, 87',
+      };
+    }
 
     case 'skill-level-bought':
       return {

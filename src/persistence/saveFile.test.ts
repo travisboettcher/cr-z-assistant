@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import currentFixture from './__fixtures__/campaign-v18.json';
+import currentFixture from './__fixtures__/campaign-v19.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -20,6 +20,10 @@ const VALID_SURVIVOR = {
   infection: 0,
   xp: 5,
   items: [],
+  storyTrait: null,
+  veteran: false,
+  bondGroup: null,
+  stories: [],
 };
 
 /**
@@ -706,6 +710,22 @@ describe('a survivor whose fields are the wrong type', () => {
     ['a fractional health', { currentHp: 1.5 }],
     ['a fractional infection', { infection: 0.5 }],
     ['a negative experience balance', { xp: -5 }],
+    // Story Traits (Z7-1): one of the five, a yes-or-no Veteran, and a bond
+    // group on a Bonded survivor and nobody else (R84).
+    ['a story trait that isn’t one of the five', { storyTrait: 'veteran' }],
+    ['a missing story trait', { storyTrait: undefined }],
+    ['a Veteran that isn’t yes or no', { veteran: 'yes' }],
+    ['a bond group of 0', { storyTrait: 'bonded', bondGroup: 0 }],
+    ['a Bonded survivor with no bond group', { storyTrait: 'bonded', bondGroup: null }],
+    ['a bond group without the trait', { storyTrait: 'jaded', bondGroup: 1 }],
+    // Attached stories (Z7-2): a list of story missions, each with its turn.
+    ['stories that aren’t a list', { stories: 'warehouse' }],
+    ['a story that isn’t an object', { stories: ['warehouse'] }],
+    [
+      'a story that isn’t a story mission',
+      { stories: [{ mission: 'scavenge', attachedOnTurn: 1 }] },
+    ],
+    ['a story with no turn', { stories: [{ mission: 'warehouse', attachedOnTurn: 0 }] }],
   ])('refuses %s', (_label, overrides) => {
     const result = withSurvivor(overrides);
 
@@ -728,6 +748,33 @@ describe('a survivor whose fields are the wrong type', () => {
     });
 
     expect(result.ok).toBe(true);
+  });
+
+  it('accepts a survivor’s attached stories', () => {
+    expect(withSurvivor({ stories: [{ mission: 'crashed-convoy', attachedOnTurn: 3 }] }).ok).toBe(
+      true,
+    );
+  });
+
+  it('refuses one story held by two survivors, one of them set aside (R136)', () => {
+    const story = { stories: [{ mission: 'warehouse', attachedOnTurn: 2 }] };
+    const result = parseCampaignFile(
+      savedWith({
+        survivors: [{ ...VALID_SURVIVOR, ...story }],
+        setAside: [{ ...VALID_SURVIVOR, id: 'someone-else', ...story }],
+      }),
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toMatch(/two survivors hold one story: warehouse/);
+  });
+
+  it('accepts every story trait, a Veteran, and a Bonded survivor’s group', () => {
+    for (const storyTrait of ['jaded', 'berserk', 'lone-wolf', 'driven']) {
+      expect(withSurvivor({ storyTrait, veteran: true }).ok, storyTrait).toBe(true);
+    }
+    expect(withSurvivor({ storyTrait: 'bonded', bondGroup: 2 }).ok).toBe(true);
   });
 });
 
@@ -1262,8 +1309,117 @@ describe('a campaign whose log is damaged', () => {
       ],
       /unreadable team/i,
     ],
+    // What a story gave a survivor it brought (Z7-3, Z7-4).
+    [
+      'a stranger who joined with a build of nothing',
+      [
+        {
+          ...good,
+          event: { ...good.event, kind: 'stranger-joined', team: 1, stranger: 0, build: {} },
+        },
+      ],
+      /unreadable build/i,
+    ],
+    [
+      'a stranger who joined into bond group 0',
+      [
+        {
+          ...good,
+          event: { ...good.event, kind: 'stranger-joined', team: 1, stranger: 0, bondGroup: 0 },
+        },
+      ],
+      /unreadable bondGroup/i,
+    ],
   ])('refuses %s', (_label, log, expected) => {
     expect(refusalFor(log)).toMatch(expected);
+  });
+
+  // A story's ending (Z7-3), shape only.
+  it.each([
+    ['with no result', { result: '' }],
+    ['with a trait nobody has', { trait: 'brave' }],
+    ['with XP of 0', { xp: 0 }],
+    ['kept with anything but true', { stays: false }],
+    [
+      'attaching a mission that is no story',
+      { attached: { mission: 'thin-the-herd', survivor: 'a', name: 'Earl' } },
+    ],
+    ['attaching to nobody', { attached: { mission: 'warehouse', survivor: '', name: 'Earl' } }],
+    ['bringing a Tier 5', { joins: { tier: 5 } }],
+    ['bringing a survivor into bond group 0', { joins: { tier: 2, bondGroup: 0 } }],
+    ['naming nobody', { survivor: '' }],
+    ['naming somebody by a number', { survivor: 5 }],
+    ['with a name that is a number', { name: 5 }],
+    ['with a result that is a number', { result: 5 }],
+    ['attaching by a bare name', { attached: 'warehouse' }],
+    // What Z7-4 added.
+    [
+      'also attaching a mission that is no story',
+      { alsoAttached: [{ mission: 'chased', survivor: 'a', name: 'Earl' }] },
+    ],
+    ['also attaching something not a list', { alsoAttached: { mission: 'warehouse' } }],
+    [
+      'giving an item of no known source',
+      { items: [{ id: 'i', item: 'rifle', grade: 'quality', from: 'gift' }] },
+    ],
+    [
+      'giving an item to a survivor unnamed',
+      { items: [{ id: 'i', item: 'rifle', grade: 'quality', from: 'found-item', survivor: 'a' }] },
+    ],
+    [
+      'giving an item rolled off the d10',
+      { items: [{ id: 'i', item: 'rifle', grade: 'quality', from: 'quality-roll', entry: 11 }] },
+    ],
+    [
+      'giving an item in a grade it lacks',
+      { items: [{ id: 'i', item: 'rifle', grade: 'mythic', from: 'found-item' }] },
+    ],
+    ['giving items that are not a list', { items: 'rifle' }],
+    ['giving no Food', { food: 0 }],
+    ['giving a vehicle with no Tier', { vehicle: { id: 'boat', label: 'Boat', water: true } }],
+    ['making somebody unnamed Jaded', { jaded: { survivor: 'a' } }],
+    ['counting resources below 0', { resources: -1 }],
+    [
+      'bringing a survivor with a skill nobody knows',
+      {
+        joins: {
+          tier: 3,
+          build: {
+            skill: 'juggling',
+            stat: { dexterity: 3 },
+            item: { item: 'rifle', grade: 'quality' },
+          },
+        },
+      },
+    ],
+    [
+      'bringing a survivor with no Dexterity',
+      {
+        joins: {
+          tier: 3,
+          build: { skill: 'long-guns', stat: {}, item: { item: 'rifle', grade: 'quality' } },
+        },
+      },
+    ],
+    [
+      'bringing a survivor carrying no item',
+      { joins: { tier: 3, build: { skill: 'long-guns', stat: { dexterity: 3 } } } },
+    ],
+    ['bringing a survivor with a build of nothing', { joins: { tier: 3, build: null } }],
+  ] as const)('refuses a story ending %s', (_label, story) => {
+    expect(
+      refusalFor([
+        {
+          ...good,
+          event: {
+            kind: 'mission-played',
+            team: 1,
+            mission: 'left-behind-1',
+            story: { survivor: 'a', name: 'Earl', result: 'rescued', ...story },
+          },
+        },
+      ]),
+    ).toMatch(/unreadable story/i);
   });
 
   /**
@@ -1476,6 +1632,10 @@ describe('a campaign whose assignments are damaged', () => {
       infection: 0,
       xp: 0,
       items: [],
+      storyTrait: null,
+      veteran: false,
+      bondGroup: null,
+      stories: [],
     },
   ];
 

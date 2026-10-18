@@ -131,6 +131,7 @@ describe('the event samples', () => {
     'survivor-departed': true,
     'mission-team-reduced': true,
     'survivor-promoted': true,
+    'veteran-healed': true,
     'skill-level-bought': true,
     'common-skill-bought': true,
     'base-claimed': true,

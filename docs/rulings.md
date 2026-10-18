@@ -27,6 +27,9 @@ cut before this registry existed, and took the next free number when the two met
 R51–R81 are the batch-17 extract's R50–R80, one number up: the October 2026 check against the
 book took R50 for the ultralight backpack while the extract was being recorded.
 
+R84–R132 are the batch-18 to batch-20 extracts' R81–R129, three numbers up: R81 was already taken,
+and Z5-12 took R82 and R83 before the extracts arrived.
+
 Rulings that are still open are marked **OPEN**. They are recorded rather than settled quietly,
 which is the point of the registry — a question nobody has answered looks exactly like a question
 nobody noticed, unless it is written down.
@@ -1708,3 +1711,796 @@ taken while any working Auto Shop stands on a slot with Power, however many go, 
 protect vehicles as R66 counts them, converted or not.
 
 *Recorded 2026-10-15 with Z5-12.*
+
+---
+
+## R84 — What a survivor's sheet records for traits
+
+**pp. 87–88, 137–140; Phase 7.** Story Traits are core (pg. 88); Permanent Injuries, Advantages and
+the origin traits are a chapter the Apocalypse Toolkit makes optional (pg. 137). Veteran sits beside
+a story trait rather than in its place (pg. 88), injuries can repeat (pg. 137), Advantages carry an
+experience debt (pg. 139), and Bonded survivors form groups (pp. 88, 90–91).
+
+**The ruling is that a survivor records one story trait or none, Veteran on its own, a count of
+each Permanent Injury, a set of Advantages, their experience debt, and the bond group they belong
+to**, and a campaign records whether the Toolkit's traits are in use. With them off, a survivor has
+no injuries, no Advantages and no debt.
+
+*Decided 2026-10-17 from the batch-18 extract.*
+
+---
+
+## R85 — A new story trait replaces the old one, and Veteran stays
+
+**pg. 88; Phase 7.** The book gives a survivor one story trait at a time, a new one replacing it, and
+says Veteran is kept when another is given.
+
+**The ruling is that the app follows it**: assigning a story trait removes the one held, and never
+Veteran.
+
+*Confirmed 2026-10-17 from the batch-18 extract.*
+
+---
+
+## R86 — A Permanent Injury comes only at creation or from a failed Rot check
+
+**pp. 22, 137–138, 149; Phase 7; the Toolkit.** An injury can be chosen at creation for bonus XP,
+or taken instead of turning after a failed Rot check (pp. 22, 137). Pg. 137 also mentions injuries
+from being incapacitated on a mission and from crippling terrain, but gives no roll or table for
+either, and pg. 149's crippling terrain lasts only for its mission.
+
+**The ruling is that an injury is gained at creation, or by the player's choice when a Rot check
+fails**, at Management Step 1. Being incapacitated and crippling terrain cause none between
+missions.
+
+**What it costs.** A table reading pg. 137's other two sentences as rules has no table to roll on,
+and would have to invent one.
+
+*Decided 2026-10-17 from the batch-18 extract.*
+
+---
+
+## R87 — A repeated injury
+
+**pp. 137–138; Phase 7; the Toolkit.** The book gives four injuries their own result when taken a
+second time, One-handed a third, and says any other repeat means the survivor turns as normal.
+
+**The ruling is that the app follows the printed results** (One-eyed twice is Blind; One-handed
+twice gives no Labor and no attack skills, three times kills; Bad knee and Bad shoulder twice as
+printed), **and any other repeat, an origin injury included, turns the survivor.** The origin
+injuries are the derived part: the book does not name them, and they have no second result.
+
+*Confirmed 2026-10-17 from the batch-18 extract.*
+
+---
+
+## R88 — Permanent Injuries never heal
+
+**pp. 69, 137–140; Phase 7; the Toolkit.** No rule removes an injury, and the Medical Clinic restores
+Health, not injuries (pg. 69). Pg. 140's origin injuries replace an Advantage when they meet one;
+that is a substitution, not a cure.
+
+**The ruling is that an injury lasts for the campaign**, apart from those printed substitutions.
+
+*Decided 2026-10-17 from the batch-18 extract.*
+
+---
+
+## R89 — The order a survivor's Labor is worked out in
+
+**pp. 20, 88, 138–139; Phase 7.** Traits and injuries change a project-team survivor's Labor by
+setting it, adding to it and multiplying it, and the book gives no order or rounding.
+
+**The ruling is five steps**: start from the Tier; apply anything that sets it (Blind to 1, One-handed
+twice to 0, Lone Wolf with company to 0); add (One-handed −1, Natural Leader +1 to each other member);
+multiply (Bonded ×2 with two or more bonded on the team, Lone Wolf alone ×2, Jaded ×½ rounded up);
+and never go below 0.
+
+**What it costs.** Another order gives different totals in the rare case a survivor carries three of
+these at once.
+
+*Decided 2026-10-17 from the batch-18 extract.*
+
+---
+
+## R90 — Jaded takes one Health a turn from every source together
+
+**pp. 19, 69, 88; Phase 7.** Jaded caps a survivor's healing at 1 Health a campaign turn (pg. 88),
+and Health reaches a survivor from several places: the Clinic's shared points, resting, the Recovery
+Room, the Herb Plot and a Veteran.
+
+**The ruling is that once a Jaded survivor has had 1 that turn, from any source, they take no more**,
+and the Clinic's pool goes on to the next survivor. A point nobody can take is left unspent.
+
+*Decided 2026-10-17 from the batch-18 extract.*
+
+---
+
+## R91 — A Veteran's healing comes before the Rot check
+
+**pp. 22, 88; Phase 7.** A Veteran spends XP to bring survivors at 0 Health up in the Planning Phase
+(pg. 88), and the Rot check, at Management Step 1, is for survivors at 0 Health (pg. 22). The book
+does not say whose XP pays, or what a Veteran in experience debt may do.
+
+**The ruling is that a survivor the Veteran lifted above 0 has no Rot check that turn, the Veteran
+pays from their own XP, and a Veteran in debt cannot pay.**
+
+*Decided 2026-10-17 from the batch-18 extract.*
+
+---
+
+## R92 — A trait's bonus stacks with an item's
+
+**pp. 8, 44, 139; Phase 7.** Quiet and Natural Leader raise a Score and say they do not count against
+skill-level maximums (pg. 139); items raise Scores through their own term (pg. 8); the tool belt caps
+Stealth (pg. 44).
+
+**The ruling is that a trait's bonus is a term of its own and adds to an item's**, and a cap like
+the tool belt's applies to the final Score.
+
+*Decided 2026-10-17 from the batch-18 extract.*
+
+---
+
+## R93 — A restricted survivor is never offered the assignment
+
+**pp. 20–21, 88, 138; Phase 7.** Berserk keeps a survivor to resting, healing or a mission team
+(pg. 88); Blind keeps them off mission teams, and Twice Shy off a Watchtower and off any mission team
+with fewer than three others (pg. 138). Jaded may join a mission team while wounded (pg. 88), the one
+exception to [R12](#r12--wounded-and-injured-are-one-state).
+
+**The ruling is that the Planning Phase does not offer a survivor an assignment their traits forbid**,
+and Twice Shy's team size is checked when the team is chosen.
+
+*Decided 2026-10-17 from the batch-18 extract.*
+
+---
+
+## R94 — Experience debt is paid before XP can be spent
+
+**pp. 18, 70, 137, 139; Phase 7; the Toolkit.** An Advantage taken at creation carries a debt in XP,
+and XP earned pays the debt before it can be spent (pg. 137). The book does not order the XP a turn
+brings.
+
+**The ruling is that the debt takes XP one for one in the order it arrives** (a mission's point, the
+extra point, the Training Room, a story's reward), **and nothing can be spent while any debt is
+left.** The Training Room's cap of 2 counts the XP it hands out, not what is left after the debt.
+
+*Decided 2026-10-17 from the batch-18 extract.*
+
+---
+
+## R95 — Traits travel with the survivor
+
+**pp. 86, 124; Phase 7.** Survivors set aside come back with their Inventory and experience
+(pg. 86), and a Lost survivor returns with full abilities (pg. 124). Nothing mentions traits.
+
+**The ruling is that a survivor's traits, debt, bond group and attached stories go wherever the
+survivor goes**: set aside ([R31](#r31--abandoned-survivors-and-a-hero-sent-away-are-set-aside),
+[R76](#r76--a-survivor-set-aside-keeps-what-they-carry)), Lost and back. A Bonded survivor keeps the
+trait while their bondmates are away, and the bonus waits until two are on one team.
+
+*Decided 2026-10-17 from the batch-18 extract.*
+
+---
+
+## R96 — Rot Resistant works first in the Advancement Phase
+
+**pg. 140; Phase 7.** Rot Resistant takes 1 Infection off at the start of every Advancement Phase
+(pg. 140), and does nothing at the Rot check. The book does not place it against Advancement's
+steps. Pg. 48's pg. 142 is a misprint for pg. 140.
+
+**The ruling is that it applies before Character Advancement**, so Heal Wounds sees the lower
+Infection.
+
+*Decided 2026-10-17 from the batch-18 extract.*
+
+---
+
+## R97 — Inoculation is built, then given at the Clinic
+
+**pp. 42, 48, 107, 140; Phase 7.** Inoculation is equipment built at a Medical Clinic with Water,
+with no trade price (pg. 42), and a survivor assigned to receive it at a Clinic gains Rot Resistant
+(pg. 48). Viral Mission 3's Medical Supply tokens pay its Labor (pg. 107). The book does not say
+which step gives it, whether it is used up, or whether it takes a Clinic place.
+
+**The ruling is that it is built in Planning Step 2, given to a survivor assigned to the Clinic that
+turn in Step 3 in place of their healing, used up, and the trait appears in the Advancement Phase.**
+A survivor who is already Rot Resistant cannot be given one. Rot Resistant is core whether or not the
+Toolkit's traits are in use: it is how the equipment works.
+
+*Decided 2026-10-17 from the batch-18 extract.*
+
+---
+
+## R98 — A campaign has one origin, fixed
+
+**pp. 13, 122; Phase 7.** A campaign has an origin, chosen at the start (pp. 13, 122).
+
+**The ruling is that a campaign has none or one of the three, fixed for its life**, and only that
+origin's counters exist. This is what `Campaign.origin` already does.
+
+*Confirmed 2026-10-17 from the batch-19 extract.*
+
+---
+
+## R99 — The Infection check adds the whole community's Medicine
+
+**pp. 22, 123; Phase 7.** At Management Step 1 every survivor with Infection makes a Tier check
+against their Infection, as well as any 0-Health check, and 1 and 10 have no special meaning
+(pp. 22, 123). With a Medical Clinic the check adds the Medicine score of the community, which the
+0-Health check words as the Clinic staff's.
+
+**The ruling is that the bonus is the sum of every survivor's Medicine Score**, added to the roll,
+whenever the community has a Clinic.
+
+**What it costs.** Read as the Clinic staff's only, the check fails far more often.
+
+*Decided 2026-10-17 from the batch-19 extract.*
+
+---
+
+## R100 — A failed Infection check turns the survivor
+
+**pp. 22, 123; Phase 7.** A failed Infection check turns the survivor in the night, with the
+0-Health check's consequences (pg. 22).
+
+**The ruling is that the app treats it exactly as a failed Rot check**: the survivor turns, may bite,
+and with the Toolkit may take an injury instead ([R86](#r86--a-permanent-injury-comes-only-at-creation-or-from-a-failed-rot-check)).
+A survivor who fails both checks turns once.
+
+*Confirmed 2026-10-17 from the batch-19 extract.*
+
+---
+
+## R101 — A survivor at 10 Infection at the base
+
+**pg. 123; Phase 7.** This agrees with [R18](#r18--what-infection-incapacitates): incapacitated by
+Infection keeps a survivor off a mission team and lets them staff or join the project team as a
+wounded one may, and they make the Infection check each turn at target 10.
+
+*Confirmed 2026-10-17 from the batch-19 extract.*
+
+---
+
+## R102 — Each healing point is kept as Health or spent on Infection
+
+**pp. 19, 123; Phase 7.** This agrees with [R18](#r18--what-infection-incapacitates), which already
+splits each award point by point. What it adds: **a point spent on Infection counts as Jaded's one
+point for the turn** ([R90](#r90--jaded-takes-one-health-a-turn-from-every-source-together)), and
+Infection never goes below 0.
+
+*Decided 2026-10-17 from the batch-19 extract.*
+
+---
+
+## R103 — Containment holds a count
+
+**pg. 69; Phase 7.** Each zombie held in Containment adds 1 Siege Threat a turn, and takes 1 more
+Infection from each survivor assigned to healing (pg. 69). No limit is printed.
+
+**The ruling is that Containment records how many zombies it holds**, with no limit. Each turn adds
+that many to Siege Threat, and at Heal Wounds each survivor assigned to healing loses that many more
+Infection, after their points are split.
+
+*Confirmed 2026-10-17 from the batch-19 extract.*
+
+---
+
+## R104 — Bringing It On Home adds one zombie
+
+**pp. 105–106; Phase 7.** Viral Mission 2 puts one zombie in Containment when at least one ensnared
+zombie leaves the area, and pays XP for the rest (pg. 106).
+
+**The ruling is that a won Bring It On Home adds 1 held zombie however many leave**, and the extras
+pay their XP and the special zombies their items.
+
+*Confirmed 2026-10-17 from the batch-19 extract.*
+
+---
+
+## R105 — A held zombie is never released
+
+**pp. 69, 106–107; Phase 7.** No rule releases or uses up a held zombie; Viral Mission 3 needs one
+and takes none (pg. 106).
+
+**The ruling is that held zombies stay until the Containment that holds them is lost** with its
+Clinic, by a move or an overrun.
+
+*Decided 2026-10-17 from the batch-19 extract.*
+
+---
+
+## R106 — Madness empties the community before Departures
+
+**pp. 23, 124; Phase 7.** At Departures every survivor with 13 or more Madness becomes Lost and
+leaves with what they carry (pp. 23, 124), beside the Unrest rule's one departure (pg. 23).
+
+**The ruling is that the Madness departures come first, then the Unrest check as usual**, with the
+Labor and staff the Lost leave behind removed as for any departure. What they take follows
+[R73](#r73--a-survivor-who-departs-takes-their-items).
+
+*Decided 2026-10-17 from the batch-19 extract.*
+
+---
+
+## R107 — A survivor who is down does not go Lost at Departures
+
+**pg. 23; Phase 7.** Survivors at 0 Health cannot be chosen at Departures (pg. 23); whether that
+covers the Madness rule is not said.
+
+**The ruling is that it does**: a survivor who is down, as [R18](#r18--what-infection-incapacitates)
+reads Departures, is not taken by Madness that turn.
+
+*Decided 2026-10-17 from the batch-19 extract.*
+
+---
+
+## R108 — The Lost roll is once a turn, before the first mission
+
+**pp. 25, 124; Phase 7.** At the start of the Mission Phase each Lost survivor rolls a d10 and adds
+their XP spent: 18 or more places them on the mission area as a stranger, anything else gives them
+1 XP (pp. 25, 124). The book does not say which mission when there are several, nor their Tier.
+
+**The ruling is one roll per Lost survivor per turn, before the first mission**, the player choosing
+which mission a success joins, at the survivor's own Tier. A Lost survivor is the one stranger who
+can be a Hero ([R24](#r24--a-rescued-stranger-is-never-a-hero) is about creating one).
+
+*Decided 2026-10-17 from the batch-19 extract.*
+
+---
+
+## R109 — A rescued Lost survivor comes back as themselves
+
+**pp. 25, 124; Phase 7.** A rescued Lost survivor returns with full abilities, no Madness and the
+items they had when Lost, and is then marked Found or exiled back to the Lost (p. 124).
+
+**The ruling is that they return with their Tier, skills, XP, traits and items, full Health, no
+Infection and no Madness**, and the player marks them Found or exiles them. An exiled survivor's
+items stay at the base ([R75](#r75--a-survivor-taken-off-the-roster-leaves-their-items-to-the-base)).
+
+**OPEN: a Lost survivor placed as a stranger and not rescued.** The book does not say whether they
+stay on the list. Until it is settled the app keeps them on it.
+
+*Decided 2026-10-17 from the batch-19 extract; the open part recorded the same day.*
+
+---
+
+## R110 — The Lounge's points are shared like Health
+
+**pp. 21, 68; Phase 7.** Each Lounge takes 2 Madness from survivors assigned to Madness Recovery, 4
+with Power (pg. 68), as a total (pg. 21). The book does not say how it divides.
+
+**The ruling is that the points are shared equally among the survivors assigned**, at Advancement
+Step 4 beside Heal Wounds, the way healing points are, with points nobody can take left unspent.
+Madness never goes below 0. Madness Recovery is a survivor's one assignment that turn, in place of
+resting or healing. How many Lounges a Bunk Room takes is its upgrade limit, as for any upgrade.
+
+*Decided 2026-10-17 from the batch-19 extract.*
+
+---
+
+## R111 — Found caps Madness at 6 on a passed check
+
+**pp. 124, 130; Phase 7.** A Found survivor's next Madness gain calls for a Tier check against 8;
+passing caps their Madness at 6 for good (pg. 130). Above the cap nothing is recorded, but the
+horror check is still made.
+
+**The ruling is that the app follows it.**
+
+**OPEN: a failed Tier-8 check.** The book says what passing does and not what failing does. Until it
+is settled no cap applies, and the check is asked again at the next gain.
+
+*Confirmed 2026-10-17 from the batch-19 extract; the open part recorded the same day.*
+
+---
+
+## R112 — Spells are per survivor, and the ones seen are per campaign
+
+**pp. 70, 126–127; Phase 7.** A spell may be learned only once an enemy has used it on the table
+(pg. 70).
+
+**The ruling is that each survivor records the spells they know, and the campaign the spells an
+enemy has cast.**
+
+*Confirmed 2026-10-17 from the batch-19 extract.*
+
+---
+
+## R113 — Learning a spell at the Mystic Library
+
+**pp. 18, 70, 114, 140; Phase 7.** A survivor staffing a Mystic Library learns a spell in Advancement
+Step 1 for 6 XP, with Humanity 3 or less, one per staff place (pg. 70); after The Necromancer the next
+spell costs 3 fewer (pg. 114); Resistance can never learn one (pg. 140).
+
+**The ruling is one spell a turn per survivor staffing it, from the spells seen, at 6 XP or 3 once
+after The Necromancer, paid from earned XP** (never while in debt,
+[R94](#r94--experience-debt-is-paid-before-xp-can-be-spent)), **and counted as XP spent**.
+
+*Decided 2026-10-17 from the batch-19 extract.*
+
+---
+
+## R114 — When Humanity changes
+
+**pp. 127, 140; Phase 7.** A survivor's Humanity, 0 to 5, starting at 3, rises for a turn on the
+project team, for healing from 0 to 1 Health and for destroying a Magic enemy, and falls for
+starting a mission with a magical item, for each spell cast and for Damage from a Magic enemy; at 0
+they are lost to the Veil (pg. 127). Touched caps it at 4 (pg. 140). The book gives no timing, and
+never lists which items are magical.
+
+**The ruling is that a project-team turn adds 1 at Management Step 1 of that turn, healing from 0 adds
+1 wherever it happens, and the mission's own changes come with its outcome.** Silver ammunition,
+enchanted melee weapons, Resistance charms and Warding stones are magical, and starting a mission
+with any of them costs 1 once, however many are carried. At 0 the survivor leaves the community.
+
+*Decided 2026-10-17 from the batch-19 extract.*
+
+---
+
+## R115 — A new survivor's counters
+
+**pg. 127; Phase 7.** Every survivor begins with Humanity 3 (pg. 127); nothing gives a new survivor
+Infection or Madness, except the stories that say so.
+
+**The ruling is that a new survivor starts with Humanity 3, no Infection and no Madness**, unless a
+story's reward sets otherwise.
+
+*Decided 2026-10-17 from the batch-19 extract.*
+
+---
+
+## R116 — A survivor records the stories attached to them
+
+**pp. 87, 90, 96; Phase 7.** A story mission is attached to a survivor, which is the only way it can
+be played (pp. 75, 87). How many a survivor may hold at once is not said.
+
+**The ruling is that a survivor records each story attached to them and the turn it was attached,
+any number at once**, the campaign records the stories completed, and Select Mission offers an
+attached story to a team its survivor is on.
+
+**OPEN: a story whose survivor dies or leaves.** The book does not say. Until it is settled the story
+goes with them ([R95](#r95--traits-travel-with-the-survivor)) and nobody else can play it.
+
+*Decided 2026-10-17 from the batch-20 extract; the open part recorded the same day.*
+
+---
+
+## R117 — Promotion attaches a story, or makes a Veteran
+
+**pg. 87; Phase 7.** A survivor promoted from Tier 1 or 2 gets one of five stories attached, and one
+promoted from Tier 3 to Hero becomes a Veteran instead (pg. 87). The book names no die.
+
+**The ruling is that the app follows it, the player choosing the story or rolling for it.**
+
+*Confirmed 2026-10-17 from the batch-20 extract; the choice decided the same day.*
+
+---
+
+## R118 — Left Behind's time windows count three turns as inside
+
+**pp. 118, 121; Phase 7.** Two windows decide whether Left Behind's stranger is the one the story is
+about: under four turns since the story was attached (pg. 118), and under three since Part 1 ended
+(pg. 121), and the second says nothing of exactly three.
+
+**The ruling is that both windows are 0 to 3 turns**, counted from the attaching turn for Part 1 and
+from the turn Part 1 ended for Part 2a.
+
+*Decided 2026-10-17 from the batch-20 extract.*
+
+---
+
+## R119 — Left Behind 2b is played straight after Part 1
+
+**pp. 92–93; Phase 7.** When Part 1's loved one is not rescued, Part 2b follows in the same Mission
+Phase, with what the team carried and a second wind for survivors at 0 Health (pg. 92).
+
+**The ruling is that 2b is a second mission for the same team in the same Mission Phase**, its
+wounds and Inventory carried over from Part 1.
+
+*Confirmed 2026-10-17 from the batch-20 extract.*
+
+---
+
+## R120 — A story's new survivor joins at Create New Survivors
+
+**pp. 19, 90–91, 99, 117; Phase 7.** Several rewards give the community a survivor (Left Behind's
+family member, the Den's stranger, Friend or Foe's, Neighbor's Rifle's Tier 3), at a Tier the reward
+sets.
+
+**The ruling is that each is built at Advancement Step 2 like any rescued stranger**, at the Tier the
+reward sets, with what the reward gives them (a bond, Madness, a weapon).
+
+*Decided 2026-10-17 from the batch-20 extract.*
+
+---
+
+## R121 — A story is played once for each time it is attached
+
+**pp. 87–102; Phase 7.** A story mission's rewards end it, and only Prepper's Stash Part 2 and
+Sentimental Value say they can be tried again.
+
+**The ruling is that a story is complete once its rewards are taken**, apart from those two, which
+stay attached until they succeed.
+
+*Decided 2026-10-17 from the batch-20 extract.*
+
+---
+
+## R122 — Containment is unlocked for the campaign
+
+**pp. 69, 72, 104, 116; Phase 7.** Viral Mission 1 unlocks Containment for the Medical Clinic, at 2
+more Hardware if only one point of interest was investigated, and 2 less if the Broken Cage check
+passed (pp. 104, 116).
+
+**The ruling is that the unlock belongs to the campaign, with its Hardware change of −2, 0 or +2**,
+so it survives losing the Clinic; the zombies held do not
+([R105](#r105--a-held-zombie-is-never-released)).
+
+*Decided 2026-10-17 from the batch-20 extract.*
+
+---
+
+## R123 — Magic Mission 1 unlocks the Mystic Library
+
+**pp. 72, 112–113; Phase 7.** The Mystic Library needs a mission (pg. 72), and no Magic mission says
+it unlocks it.
+
+**The ruling is that completing The Graveyard unlocks it for the campaign.**
+
+**What it costs.** A table that reads the library as open from the first Magic enemy builds it a
+mission sooner.
+
+*Decided 2026-10-17 from the batch-20 extract.*
+
+---
+
+## R124 — The Necromancer's rewards are stored
+
+**pp. 114, 119; Phase 7.** The Necromancer gives the next spell 3 XP off (pg. 114), and killing him
+takes 1 Labor off a Mystic Library and every upgrade to it (pg. 119).
+
+**The ruling is that the campaign records both**: the spell discount until a spell uses it, and the
+Labor change for good.
+
+*Confirmed 2026-10-17 from the batch-20 extract.*
+
+---
+
+## R125 — The Warehouse's quiet turn
+
+**pg. 102; Phase 7.** Bringing more than 10 resources home from the Warehouse makes Unrest 0 in the
+next Management Phase (pg. 102). What counts as a resource is not said.
+
+**The ruling is that more than 10 resource and material tokens, not Rare Item tokens, set Unrest to 0
+at Management Step 4 of the same turn**, Hunger and Exhaustion still worked out and Siege Threat
+unchanged.
+
+*Decided 2026-10-17 from the batch-20 extract.*
+
+---
+
+## R126 — Crashed Convoy's two 10s are used once
+
+**pp. 19, 101; Phase 7.** Crashed Convoy lets two material rolls of the player's choice become 10s,
+each a Rare Item Table roll (pg. 101), and does not say how often.
+
+**The ruling is once, at the next Add Materials to Storage after the mission.**
+
+*Decided 2026-10-17 from the batch-20 extract.*
+
+---
+
+## R127 — Prepper's Stash Part 2 is six rolls or three choices
+
+**pg. 96; Phase 7.** The Trap Door gives six Rare Item Table rolls or three items chosen from it,
+and 6 Food (pg. 96).
+
+**The ruling is that the player picks between the two, a choice of three from any subtable**, and the
+Food goes to storage, checked at Check Storage like any other.
+
+*Decided 2026-10-17 from the batch-20 extract.*
+
+---
+
+## R128 — Who becomes Jaded in Left Behind 2b
+
+**pg. 93; Phase 7.** When the berserk survivor falls at 0 Health, another survivor on the mission
+becomes Jaded (pg. 93), and the book does not say who.
+
+**The ruling is that the player chooses.**
+
+*Decided 2026-10-17 from the batch-20 extract.*
+
+---
+
+## R129 — Friend or Foe's Rare Weapon tokens
+
+**pg. 111; Phase 7.** Each Rare Weapon token becomes one of four rewards (pg. 111).
+
+**The ruling is that the app follows it, the player choosing for each token as the mission ends.**
+
+*Confirmed 2026-10-17 from the batch-20 extract.*
+
+---
+
+## R130 — The Graveyard's Humanity
+
+**pg. 113; Phase 7.** The Graveyard lets every survivor gain or lose 1 Humanity (pg. 113).
+
+**The ruling is that each survivor on the mission takes +1, −1 or neither, the player's choice**,
+within 0 to 5.
+
+*Confirmed 2026-10-17 from the batch-20 extract.*
+
+---
+
+## R131 — Medical Supply tokens are kept
+
+**pg. 107; Phase 7.** Each Medical Supply token from Viral Mission 3 is 1 Labor toward bandages,
+disinfectant, medicated wraps or inoculations (pg. 107). Where they are kept is not said.
+
+**The ruling is that the base keeps a count of them, outside the storage caps**, each paying 1 Labor
+of one of those builds, and unused ones are kept.
+
+*Decided 2026-10-17 from the batch-20 extract.*
+
+---
+
+## R132 — Which origin missions can be played again
+
+**pp. 103–115; Phase 7.** The Magic missions say they repeat (pg. 103); Viral Mission 1 is played
+again until it succeeds (pg. 104); the rest are silent.
+
+**The ruling is that Viral Mission 1 repeats until a point of interest is investigated and never
+after, Viral Mission 2 repeats with one held zombie each time
+([R104](#r104--bringing-it-on-home-adds-one-zombie)), the Cosmic missions may be chosen whenever a
+team member has 4 or more Madness, and the Magic missions repeat as printed.**
+
+*Decided 2026-10-17 from the batch-20 extract.*
+
+---
+
+## R133 — Berserk's Health is one more maximum while it is held
+
+**pg. 88; Phase 7, Z7-1.** Berserk gives a survivor one more Health point between missions (pg. 88).
+The book does not say whether that is a lasting point of maximum Health or a single point healed.
+
+**The ruling is that a Berserk survivor's maximum Health is their Tier plus 1 for as long as they hold
+the trait.** When it is replaced, Health above the new maximum drops to it.
+
+**What it costs.** Read as one point healed, a Berserk survivor is no harder to bring down than
+anybody else of their Tier.
+
+*Decided 2026-10-17 with Z7-1.*
+
+---
+
+## R134 — Bonded doubles Labor with a bondmate on the team
+
+**pp. 88, 90–91; Phase 7, Z7-1.** Bonded doubles Labor when two or more bonded survivors are on the
+project team (pg. 88), and bonds are groups of bondmates (pp. 90–91;
+[R84](#r84--what-a-survivors-sheet-records-for-traits)). The book does not say whether two Bonded
+survivors of different groups count.
+
+**The ruling is that a Bonded survivor's Labor doubles when somebody of their own bond group is on
+the team with them.** Two Bonded survivors of different groups double nothing. This is the
+"two or more bonded" of [R89](#r89--the-order-a-survivors-labor-is-worked-out-in)'s fourth step.
+
+*Decided 2026-10-17 with Z7-1.*
+
+---
+
+## R135 — Driven leaves every stat tied for the highest alone
+
+**pg. 88; Phase 7, Z7-1.** Driven raises every stat but the highest by 1 (pg. 88). Every Tier's stat
+array has a single highest value (pg. 7), so a tie at the top arises only on a survivor whose stats
+were edited past the rules, and the book does not cover it.
+
+**The ruling is that every stat tied for the highest stays as it is**, and the rest rise by 1.
+Nothing is chosen or stored: Driven is worked out from the stats each time they are read.
+
+*Decided 2026-10-17 with Z7-1.*
+
+---
+
+## R136 — A story is attached to one survivor at a time
+
+**pp. 87, 90; Phase 7, Z7-2.** A promotion offers five stories (pg. 87), and Left Behind attaches
+Prepper's Stash only if nobody holds it already (pg. 90). The book does not say whether a promotion
+may offer a story somebody else holds.
+
+**The ruling is that a story is attached to one survivor at a time**, set-aside survivors included:
+a promotion offers only the five nobody holds, and attaches none when all five are held. The save
+refuses two survivors holding one story.
+
+*Decided 2026-10-17 with Z7-2.*
+
+---
+
+## R137 — A Veteran may bring themselves up
+
+**pg. 88; Phase 7, Z7-2.** A Veteran spends XP to bring any survivor at 0 Health up to 1 in the
+Planning Phase (pg. 88). The book does not say whether the Veteran is one of them.
+
+**The ruling is that they are**: a Veteran at 0 Health may spend 1 XP of their own on themselves,
+and makes no Rot check that turn
+([R91](#r91--a-veterans-healing-comes-before-the-rot-check)).
+
+*Decided 2026-10-17 with Z7-2.*
+
+---
+
+## R138 — Part 2a's family member joins unbonded once Bonded is lost
+
+**pp. 90–91; Phase 7, Z7-3.** Left Behind Part 1 bonds the rescued loved one to the attached
+survivor (pg. 90), and Part 2a bonds the rescued family member to the attached survivor and all
+their bondmates (pg. 91). Between the two the attached survivor can take another Story Trait,
+which replaces Bonded ([R85](#r85--a-new-story-trait-replaces-the-old-one-and-veteran-stays)), and the book does not say
+what the family member is bonded to then.
+
+**The ruling is that the family member joins unbonded** when the attached survivor no longer holds
+Bonded, and into their bond group when they do. Part 1's loved one joins the attached survivor's
+group when they are Bonded already, and starts a new group with them otherwise.
+
+*Decided 2026-10-18 with Z7-3.*
+
+---
+
+## R139 — A story done, or held, is not attached again
+
+**pp. 87, 90, 99, 101; Phase 7, Z7-3.** Left Behind Part 1 attaches Prepper's Stash only if it is
+not done or attached to someone else (pg. 90), and a story is complete once its rewards are taken
+([R121](#r121--a-story-is-played-once-for-each-time-it-is-attached)). The book does not say whether
+the other attachments, a promotion's or the next part of an arc (the Warehouse comes from both
+Neighbor's Rifle and Crashed Convoy, pp. 99, 101), follow the same rule.
+
+**The ruling is that every attachment does**: a story already attached to somebody, or done, is not
+attached again, by a promotion or by another story's ending. A story is done once played to an
+ending that neither keeps it attached nor attaches it again, so Sentimental Value not found and
+Prepper's Stash Part 2 with its trap door shut are not done. A story attached by hand on the sheet
+is a correction and is not held to it.
+
+*Decided 2026-10-18 with Z7-3.*
+
+---
+
+## R140 — Part 2a's XP to the bondmates stands with a Teacher on the mission
+
+**pp. 12, 18, 91; Phase 7, Z7-4.** Left Behind Part 2a sends Advancement Step 1's one additional XP
+to the attached survivor and every bondmate instead, 1 each (pg. 91). A Teacher on the mission
+replaces that point (pg. 12), and the book does not say which wins.
+
+**The ruling is that the story's XP stands**: on a turn Part 2a is played, the attached survivor and
+each bondmate in the community may be given 1 XP from that pool, whoever went on the mission, and a
+Teacher's own pool is unchanged. A survivor or bondmate who has left the community is given nothing.
+
+*Decided 2026-10-18 with Z7-4.*
+
+---
+
+## R141 — The Guard House safe's Crashed Convoy goes to whoever opened it
+
+**pg. 120; Phase 7, Z7-4.** A roll of 1 on Left Behind Part 2a's Guard House safe attaches Crashed
+Convoy (pg. 120), and the book does not say to whom.
+
+**The ruling is that it is attached to the team member who opened the safe**, the player's choice,
+if nobody holds Crashed Convoy and it is not done
+([R139](#r139--a-story-done-or-held-is-not-attached-again)). The safe's other results are the
+table's, added by hand.
+
+*Decided 2026-10-18 with Z7-4.*
+
+---
+
+## R142 — Neighbor's Rifle's Tier 3 arrives with Long Guns, Dexterity 3 and a quality rifle
+
+**pg. 99; Phase 7, Z7-4.** A Tier 3 survivor with Long Guns, Dexterity 3 and a quality rifle joins
+when Neighbor's Rifle is attached to a Tier 3 survivor (pg. 99), built in full at the next Create
+New Survivors ([R120](#r120--a-storys-new-survivor-joins-at-create-new-survivors)).
+
+**The ruling is that the app gives those three and leaves the rest of the build to the player**: the
+survivor is built as any Tier 3 stranger is, with Long Guns added at its first level, Dexterity
+swapped to 3 within the Tier's stat array, and the quality rifle in their hands.
+
+*Decided 2026-10-18 with Z7-4.*

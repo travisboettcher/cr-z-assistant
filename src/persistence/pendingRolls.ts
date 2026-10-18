@@ -104,8 +104,17 @@ function readRoll(value: unknown): MaterialRoll | undefined {
   // check below on its own; reading a field off `null` throws instead.
   if (value === null) return undefined;
 
-  const { roll, forced } = value as { roll?: unknown; forced?: unknown };
+  const { roll, forced, madeTen } = value as {
+    roll?: unknown;
+    forced?: unknown;
+    madeTen?: unknown;
+  };
   if (!isRoll(roll)) return undefined;
+
+  // Crashed Convoy's 10 (Z7-4): `true` or absent, and never beside a force.
+  if (madeTen !== undefined) {
+    return madeTen === true && forced === undefined ? { roll, madeTen } : undefined;
+  }
 
   // Built without the key rather than with `forced: undefined`:
   // `exactOptionalPropertyTypes` treats those as different types, and the

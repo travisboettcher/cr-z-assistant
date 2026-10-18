@@ -16,12 +16,13 @@
  */
 
 import type { BaseId } from '../data/bases';
-import type { OverrunOption } from '../data/missions';
+import type { OverrunOption, StoryMissionId } from '../data/missions';
 import type { Campaign, Survivor, Vehicle } from './campaign';
 import { equipCheck, withEquipMove, type EquipMove } from './equip';
 import { accepted, blockedBy, refused, type FormResult } from './forms';
-import { logged, type MissionWound } from './log';
+import { logged, type MissionWound, type StoryRecord } from './log';
 import {
+  membersOf,
   missionOutcomeProblem,
   missionTeams,
   outcomeTeam,
@@ -54,6 +55,8 @@ import {
   type TakenVehicle,
 } from './missionVehicles';
 import { spentItems, spentProblem, withItemsSpent } from './spent';
+import { isStory, partNow, storyHolder, storyRecord, withStoryRecorded } from './storyMissions';
+import { extrasOf } from './storyRewards';
 import { deathProblem, deathsProblem, withMissionDeath, type MissionDeath } from './missionDeaths';
 
 /**
@@ -171,7 +174,7 @@ export function submitMissionSkip(campaign: Campaign, at: string): FormResult {
  *
  * **The only change it makes is the wounds** (`withWounds`): each member's
  * Health, and Infection in a Viral campaign, set to what the table counted at
- * the end. The roster's own Health correction stays as it was, unlogged, for
+ * the end; and, for a story, what its ending gave (`withStoryRecorded`; Z7-3). The roster's own Health correction stays as it was, unlogged, for
  * fixing a mistake. The entry's wounds are written in team order with each
  * survivor's name as the roster has it now, whatever the screen sent, so the
  * history names them the way every other entry about a person does.
@@ -226,7 +229,16 @@ export function submitMissionEnded(
       };
     });
 
-  const recorded = logged(withWounds(campaign, wounds), at, { ...outcome, wounds });
+  // A story's ending, rebuilt from the result and who takes the next part, so
+  // the entry says what the rules gave whatever the screen sent (Z7-3).
+  const rebuilt = withStoryRebuilt(campaign, outcome);
+  const story = storyEnded(rebuilt);
+  const wounded = withWounds(campaign, wounds);
+  const recorded = logged(
+    story === undefined ? wounded : withStoryRecorded(wounded, story.mission, story.record),
+    at,
+    { ...rebuilt, wounds },
+  );
 
   const rewarded =
     // The vehicles driven off join the community at once (pg. 82; R63; Z5-11).
@@ -236,10 +248,66 @@ export function submitMissionEnded(
         outcome.kind === 'rare-goods-trader-resolved' && outcome.itemsTraded !== undefined
         ? withRareTradeSettled(recorded, outcome.itemsTraded, outcome.survivorsExited, at)
         : recorded;
+  const ended = deaths.reduce((current, death) => withMissionDeath(current, death, at), rewarded);
 
   return accepted(
-    deaths.reduce((current, death) => withMissionDeath(current, death, at), rewarded),
+    story === undefined ? ended : withPartNow(ended, outcomeTeam(outcome), story, at),
   );
+}
+
+/** A story outcome's mission and record, or `undefined` for any other outcome. */
+function storyEnded(
+  outcome: MissionOutcome,
+): { readonly mission: StoryMissionId; readonly record: StoryRecord } | undefined {
+  return outcome.kind === 'mission-played' &&
+    outcome.story !== undefined &&
+    isStory(outcome.mission)
+    ? { mission: outcome.mission, record: outcome.story }
+    : undefined;
+}
+
+/** The outcome with its story's record as `storyRecord` builds it, from the team before its wounds. */
+function withStoryRebuilt(campaign: Campaign, outcome: MissionOutcome): MissionOutcome {
+  const story = storyEnded(outcome);
+  if (outcome.kind !== 'mission-played' || story === undefined) return outcome;
+
+  const members = membersOf(campaign, outcome.team);
+
+  return {
+    ...outcome,
+    story: storyRecord(campaign, members, story.mission, {
+      result: story.record.result,
+      ...(story.record.attached === undefined ? {} : { to: story.record.attached.survivor }),
+      extras: extrasOf(story.record),
+    }),
+  };
+}
+
+/**
+ * The campaign with the next part chosen for the same team at once, where the
+ * ending says it is played in this Mission Phase (pg. 92; R119): Left Behind
+ * Part 2b after Part 1's loved one is lost. Nothing for any other ending, or
+ * when the survivor it went to died on the mission and took it with them
+ * (R116). The choice is the book's, so it is written as Select Mission writes
+ * one, naming whoever is on the team now.
+ */
+function withPartNow(
+  campaign: Campaign,
+  team: number,
+  story: { readonly mission: StoryMissionId; readonly record: StoryRecord },
+  at: string,
+): Campaign {
+  const now = partNow(story.mission, story.record);
+  const members = membersOf(campaign, team);
+
+  if (now === undefined || storyHolder(members, now) === undefined) return campaign;
+
+  return logged(campaign, at, {
+    kind: 'mission-selected',
+    team,
+    mission: now,
+    names: members.map((member) => member.name),
+  });
 }
 
 /** A place the siege emptied, and who fills it. */

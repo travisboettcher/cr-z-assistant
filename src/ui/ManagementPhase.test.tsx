@@ -446,6 +446,43 @@ describe('Calculate Unrest', () => {
 
     expect(walk().textContent).toContain('0 Hunger + 2 Exhaustion = 0 Unrest');
     expect(walk().textContent).toContain('Locked at 0 for the rest of this turn');
+    expect(walk().textContent).toContain('the community claimed a new base');
+  });
+
+  /** The acceptance (pg. 102; R125; Z7-4). */
+  it('holds Unrest at 0 after the Warehouse brought more than 10 home, Exhaustion still shown', () => {
+    open(
+      management({
+        step: 'calculate-unrest',
+        survivors: Array.from({ length: 6 }, (_, at) =>
+          createSurvivor(`Survivor ${String(at)}`, 1, { id: `survivor-${String(at)}` }),
+        ),
+        log: [
+          {
+            turn: 3,
+            phase: 'mission',
+            at: '2026-10-13T09:00:00.000Z',
+            event: {
+              kind: 'mission-played',
+              team: 1,
+              mission: 'warehouse',
+              story: {
+                survivor: 'survivor-0',
+                name: 'Survivor 0',
+                result: 'played',
+                xp: 1,
+                resources: 11,
+              },
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(walk().textContent).toContain('0 Hunger + 2 Exhaustion = 0 Unrest');
+    expect(walk().textContent).toContain(
+      'Locked at 0 for the rest of this turn: the Warehouse brought enough home',
+    );
   });
 });
 

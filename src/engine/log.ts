@@ -43,10 +43,11 @@ import type { D10Result } from '../data/dice';
 import type { Grade, ItemId, VehicleTier } from '../data/equipment';
 import type { FacilityId, UpgradeId } from '../data/facilities';
 import type { Material, Materials } from '../data/materials';
-import type { MissionId, OverrunOption } from '../data/missions';
+import type { MissionId, OverrunOption, StoryMissionId } from '../data/missions';
 import type { CommonSkill, Skill } from '../data/skills';
 import type { FieldRecruitTier } from '../data/recruitTable';
 import type { Tier } from '../data/tiers';
+import type { StoryTrait } from '../data/traits';
 import type { CampaignPhase, HealthSource, XpSource } from '../data/turn';
 import { phaseOf } from './turn';
 // Type-only, and the other half of a deliberate pair: `campaign.ts` imports
@@ -81,6 +82,99 @@ export interface MissionWound {
   readonly health: number;
   readonly infection?: number;
 }
+
+/**
+ * How a story mission ended and what it gave, as the outcome recorded it
+ * (pp. 87–102; R85, R116–R121, R138; Z7-3). Written out in full rather than
+ * read back from the result, so the history says what happened whatever the
+ * rules data later says.
+ */
+export interface StoryRecord {
+  /** The survivor the story was attached to. */
+  readonly survivor: string;
+  readonly name: string;
+  /** Which of the story's results, by `STORY_RESULTS` id. */
+  readonly result: string;
+  /** XP the attached survivor gained. */
+  readonly xp?: number;
+  /** The Story Trait they took, replacing theirs (R85). */
+  readonly trait?: StoryTrait;
+  /** Their new bond group, where the result bonded them to a new survivor. */
+  readonly bondGroup?: number;
+  /** The story stays attached to them, to be tried again (R121). */
+  readonly stays?: true;
+  /** The story it attached next, and to whom (R116). */
+  readonly attached?: {
+    readonly mission: StoryMissionId;
+    readonly survivor: string;
+    readonly name: string;
+  };
+  /** A survivor who joins at the next Create New Survivors (R120). */
+  readonly joins?: {
+    readonly tier: Tier;
+    readonly bondGroup?: number;
+    readonly xp?: number;
+    /** What their build is given (pg. 99; R142). */
+    readonly build?: StoryBuild;
+  };
+  /** Other stories the ending attached, besides the next part (pp. 90, 120; R139, R141). */
+  readonly alsoAttached?: readonly {
+    readonly mission: StoryMissionId;
+    readonly survivor: string;
+    readonly name: string;
+  }[];
+  /** What the ending gave as items (Z7-4), each with how it was found. */
+  readonly items?: readonly StoryItem[];
+  /** Food added to storage (pg. 96; R127). */
+  readonly food?: number;
+  /** The vehicle the community took home (pg. 93). */
+  readonly vehicle?: Vehicle;
+  /** Who became Jaded when the Berserk survivor fell (pg. 93; R128). */
+  readonly jaded?: { readonly survivor: string; readonly name: string };
+  /** The resource and material tokens carried home (pg. 102; R125). */
+  readonly resources?: number;
+}
+
+/** What a story gives the build of a survivor it brings (pg. 99; R142; Z7-4). */
+export interface StoryBuild {
+  readonly skill: Skill;
+  readonly stat: { readonly dexterity: number };
+  readonly item: { readonly item: ItemId; readonly grade: Grade };
+}
+
+/**
+ * An item a story's ending gave (Z7-4): into a survivor's hands, named, or
+ * into the base's Inventory, with the dice that found it where a table did.
+ */
+export interface StoryItem {
+  readonly id: string;
+  readonly item: ItemId;
+  readonly grade: Grade;
+  /** How it was come by, which is what says where it goes. */
+  readonly from: StoryItemSource;
+  /** Who holds it, for one given to a survivor. */
+  readonly survivor?: string;
+  readonly name?: string;
+  /** The Rare Item Table's first die, for a roll on the whole table. */
+  readonly subtable?: D10Result;
+  /** The entry's die, for any roll. */
+  readonly entry?: D10Result;
+}
+
+/**
+ * Where a story's item came from (Z7-4): the weapon Left Behind's loved one
+ * carried, one found on the map, a Quality Items roll, a Rare Item Table
+ * roll, or an item picked from that table.
+ */
+export const STORY_ITEM_SOURCES = [
+  'skilled-weapon',
+  'found-item',
+  'quality-roll',
+  'rare-roll',
+  'rare-pick',
+] as const;
+
+export type StoryItemSource = (typeof STORY_ITEM_SOURCES)[number];
 
 /** What the player had added to one slot of a base an overrun destroyed (Z4-10). */
 export interface RebuildSlot {
@@ -638,6 +732,8 @@ export type CampaignEvent =
       readonly mission: MissionId;
       /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
       readonly wounds?: readonly MissionWound[];
+      /** A story mission's result and what it gave (Z7-3); absent before, and for any other. */
+      readonly story?: StoryRecord;
     }
   /**
    * A mission-team survivor took the place of a worker this turn's Siege
@@ -749,6 +845,12 @@ export type CampaignEvent =
       readonly team: number;
       readonly stranger: number;
       readonly roll?: D10Result;
+      /** The bond group a survivor a story brought joined, Bonded (R138; Z7-3). */
+      readonly bondGroup?: number;
+      /** The XP a survivor a story brought arrived with (Z7-3). */
+      readonly xp?: number;
+      /** What a story gave the build of a survivor it brought (pg. 99; R142; Z7-4). */
+      readonly build?: StoryBuild;
     }
   /**
    * A survivor gone from the roster, and why (#201): `turned` at a Rot check,
@@ -768,12 +870,27 @@ export type CampaignEvent =
       /** What a `killed` survivor carried that nobody took, lost on the map (R71). */
       readonly lost?: readonly Item[];
     }
+  /**
+   * A Veteran's 1 XP spent bringing a survivor at 0 Health up to 1, in the
+   * Planning Phase (pg. 88; R91; Z7-2). The Veteran may be the survivor (R137).
+   */
+  | {
+      readonly kind: 'veteran-healed';
+      readonly veteran: string;
+      readonly veteranName: string;
+      readonly survivor: string;
+      readonly name: string;
+    }
   | {
       readonly kind: 'survivor-promoted';
       readonly survivor: string;
       readonly name: string;
       /** The Tier reached, not the one left. */
       readonly tier: Tier;
+      /** The story the promotion attached (pg. 87; R117; Z7-2), absent when none. */
+      readonly story?: StoryMissionId;
+      /** A Tier 3 become a Hero, and so a Veteran (pg. 87); absent otherwise and before Z7-2. */
+      readonly veteran?: true;
     }
   | {
       readonly kind: 'skill-level-bought';

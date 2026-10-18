@@ -38,21 +38,41 @@
  */
 
 import type { D10Result } from '../data/dice';
-import { rollsForSkill, type FieldRecruitTier } from '../data/recruitTable';
+import type { StoryMissionId } from '../data/missions';
+import { rollsForSkill } from '../data/recruitTable';
+import { MIN_SKILL_LEVEL, STATS } from '../data/skills';
+import type { Tier } from '../data/tiers';
 import type { Campaign, Survivor } from './campaign';
+import type { StoryRecord } from './log';
 import { isMissionOutcome, outcomeTeam, teamOutcomes } from './missions';
-import { recruitSurvivor, type NewSurvivorOptions } from './survivor';
+import { createSurvivor, recruitSurvivor, type NewSurvivorOptions } from './survivor';
 import { phaseOf } from './turn';
 
-/** One stranger an outcome this turn counted. */
+/** One stranger an outcome this turn counted, or a survivor a story brought. */
 export interface RescuedStranger {
   /** The mission team whose outcome counted them. */
   readonly team: number;
 
-  /** Their position in that outcome's `strangers`, from 0. */
+  /**
+   * Their position in that outcome's `strangers`, from 0. A story's survivor,
+   * the only one its outcome brings, is 0.
+   */
   readonly stranger: number;
 
-  readonly tier: FieldRecruitTier;
+  /** A field recruit's Tier, or whatever Tier a story sets (R120). */
+  readonly tier: Tier;
+
+  /** The story that brought them, which is all that sets the two below (Z7-3). */
+  readonly story?: StoryMissionId;
+
+  /** The bond group they join, Bonded (R138). */
+  readonly bondGroup?: number;
+
+  /** XP they arrive with. */
+  readonly xp?: number;
+
+  /** What the story gives their build (pg. 99; R142). */
+  readonly build?: NonNullable<NonNullable<StoryRecord['joins']>['build']>;
 }
 
 /** What Advancement Step 2 is told about a stranger joining. */
@@ -76,15 +96,34 @@ export interface StrangerForm {
 export function rescuedStrangers(campaign: Campaign): readonly RescuedStranger[] {
   return [...teamOutcomes(campaign).values()]
     .sort((one, other) => outcomeTeam(one) - outcomeTeam(other))
-    .flatMap((outcome) =>
+    .flatMap((outcome): readonly RescuedStranger[] =>
       'strangers' in outcome
         ? outcome.strangers.map((tier, stranger) => ({
             team: outcomeTeam(outcome),
             stranger,
             tier,
           }))
-        : [],
+        : outcome.kind === 'mission-played' && outcome.story?.joins !== undefined
+          ? [storyJoiner(outcome.team, outcome.mission as StoryMissionId, outcome.story.joins)]
+          : [],
     );
+}
+
+/** The survivor a story's ending brings, as the first of its team's strangers (R120). */
+function storyJoiner(
+  team: number,
+  story: StoryMissionId,
+  joins: NonNullable<StoryRecord['joins']>,
+): RescuedStranger {
+  return {
+    team,
+    stranger: 0,
+    tier: joins.tier,
+    story,
+    ...(joins.bondGroup === undefined ? {} : { bondGroup: joins.bondGroup }),
+    ...(joins.xp === undefined ? {} : { xp: joins.xp }),
+    ...(joins.build === undefined ? {} : { build: joins.build }),
+  };
 }
 
 /**
@@ -159,15 +198,66 @@ export function strangerProblem(campaign: Campaign, form: StrangerForm): string 
   return null;
 }
 
-/** The survivor a stranger becomes: a field recruit at their Tier (pp. 15, 19). */
+/**
+ * The survivor a stranger becomes: a field recruit at their Tier (pp. 15, 19),
+ * and, for one a story brought, Bonded into their group and with their XP
+ * (R120, R138). A story may set Tier 4, which no field recruit is (pg. 7): a
+ * Hero joins with their slots waiting, as a new survivor does.
+ */
 export function strangerSurvivor(
   name: string,
-  tier: FieldRecruitTier,
+  rescued: RescuedStranger,
   roll: D10Result | undefined,
   options: NewSurvivorOptions,
 ): Survivor {
-  return recruitSurvivor(name, tier, roll, options);
+  const recruit =
+    rescued.tier === HERO
+      ? createSurvivor(name, rescued.tier, options)
+      : recruitSurvivor(name, rescued.tier, roll, options);
+
+  return withBuild(
+    {
+      ...recruit,
+      xp: recruit.xp + (rescued.xp ?? 0),
+      ...(rescued.bondGroup === undefined
+        ? {}
+        : { storyTrait: 'bonded' as const, bondGroup: rescued.bondGroup }),
+    },
+    rescued.build,
+  );
 }
+
+/** The id of the item a story's survivor arrives carrying: theirs, and nobody else's. */
+export function buildItemId(survivor: string): string {
+  return `${survivor}-arrived-with`;
+}
+
+/**
+ * A survivor with what a story gives their build (pg. 99; R142): the skill at
+ * its first level, beside any the recruit roll gave; the stat at its
+ * value, swapped with whichever stat held it so the Tier's array stays whole;
+ * and the item, in their hands. The rest stays the player's, on the sheet.
+ */
+function withBuild(survivor: Survivor, build: RescuedStranger['build']): Survivor {
+  if (build === undefined) return survivor;
+
+  const wanted = build.stat.dexterity;
+  const holder = STATS.find((stat) => survivor.stats[stat] === wanted);
+  const stats =
+    holder === undefined
+      ? survivor.stats
+      : { ...survivor.stats, [holder]: survivor.stats.dexterity, dexterity: wanted };
+
+  return {
+    ...survivor,
+    stats,
+    skills: { ...survivor.skills, [build.skill]: MIN_SKILL_LEVEL },
+    items: [...survivor.items, { id: buildItemId(survivor.id), ...build.item }],
+  };
+}
+
+/** The Tier never recruited in the field (pg. 7). */
+const HERO = 4;
 
 /**
  * The survivors set aside whom this turn's Rescue Strangers outcomes brought

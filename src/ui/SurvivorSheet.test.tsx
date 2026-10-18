@@ -496,6 +496,10 @@ describe('SurvivorSheet advancement', () => {
 
     await user.selectOptions(within(sheet).getByLabelText(/^intelligence$/i), '2');
     await user.selectOptions(within(sheet).getByLabelText(/raise from zero/i), 'strength');
+    await user.selectOptions(
+      within(sheet).getByLabelText(/story it attaches/i),
+      'sentimental-value',
+    );
     await user.click(within(sheet).getByRole('button', { name: /raise their Tier/i }));
 
     expect(within(sheet).getByText(/Tier 3 · leader/i)).toBeInTheDocument();
@@ -518,6 +522,14 @@ describe('SurvivorSheet advancement', () => {
     expect(promote).toHaveAccessibleName(/choose which stat comes off zero/i);
 
     await user.selectOptions(within(sheet).getByLabelText(/raise from zero/i), 'cooperation');
+    // And the story the promotion attaches (pg. 87; R117), asked the same way.
+    expect(within(sheet).getByRole('button', { name: /raise their Tier/i })).toHaveAccessibleName(
+      /choose the story it attaches/i,
+    );
+    await user.selectOptions(
+      within(sheet).getByLabelText(/story it attaches/i),
+      'sentimental-value',
+    );
     await user.click(within(sheet).getByRole('button', { name: /raise their Tier/i }));
 
     expect(within(sheet).getByText(/Tier 3 · leader/i)).toBeInTheDocument();
@@ -531,9 +543,14 @@ describe('SurvivorSheet advancement', () => {
 
     expect(within(sheet).queryByLabelText(/raise from zero/i)).not.toBeInTheDocument();
 
+    expect(within(sheet).queryByLabelText(/story it attaches/i)).not.toBeInTheDocument();
+    expect(within(sheet).getByText('Becomes a Veteran')).toBeInTheDocument();
+
     await user.click(within(sheet).getByRole('button', { name: /raise their Tier/i }));
 
     expect(within(sheet).getByText(/Tier 4 · hero/i)).toBeInTheDocument();
+    // A Leader made a Hero is a Veteran (pg. 87).
+    expect(within(sheet).getByText('Veteran')).toBeInTheDocument();
   });
 
   /** A slot, not a skill — so the sheet immediately says one is missing. */
@@ -545,6 +562,10 @@ describe('SurvivorSheet advancement', () => {
     expect(within(sheet).queryByText(/still choosing/i)).not.toBeInTheDocument();
 
     await user.selectOptions(within(sheet).getByLabelText(/raise from zero/i), 'intelligence');
+    await user.selectOptions(
+      within(sheet).getByLabelText(/story it attaches/i),
+      'sentimental-value',
+    );
     await user.click(within(sheet).getByRole('button', { name: /raise their Tier/i }));
 
     expect(within(sheet).getByText(/still choosing skills: 2 of 3/i)).toBeInTheDocument();

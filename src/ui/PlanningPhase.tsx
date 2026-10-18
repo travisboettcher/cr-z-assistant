@@ -14,6 +14,7 @@
  * that takes staff.
  */
 
+import { VeteranHealing } from './VeteranHealing';
 import type { Campaign } from '../engine/campaign';
 import type { TurnStepId } from '../data/turn';
 import { staffCapacity, type Occupant } from '../engine/base';
@@ -23,6 +24,7 @@ import {
   baseLaborBonus,
   laborPool,
   siegeLaborBonus,
+  traitLaborChange,
   utilitiesScore,
 } from '../engine/assignments';
 import { laborAvailable, laborThisTurn, projectTeamIdle } from '../engine/projects';
@@ -78,6 +80,7 @@ export function PlanningPhase({ campaign, step }: PlanningPhaseProps) {
                 <PageRef pages={86} />
               </>
             )}
+            <TraitLabor change={traitLaborChange(campaign)} />
             . Whatever is left at the end of the turn is lost <PageRef pages={20} />
           </p>
           <AssignmentBoard
@@ -121,6 +124,7 @@ export function PlanningPhase({ campaign, step }: PlanningPhaseProps) {
               { task: { task: 'healing' }, name: laneLabel({ task: 'healing' }), pages: 21 },
             ]}
           />
+          <VeteranHealing campaign={campaign} />
         </>
       )}
 
@@ -276,6 +280,18 @@ function FacilityStaff({ campaign }: { readonly campaign: Campaign }) {
           detail: <StaffRoom campaign={campaign} occupant={occupant} />,
         }))}
       />
+    </>
+  );
+}
+
+/** What the project team's Story Traits add to its Labor or take from it (pg. 88). */
+function TraitLabor({ change }: { readonly change: number }) {
+  if (change === 0) return null;
+
+  return (
+    <>
+      , {change > 0 ? 'plus' : 'less'} <span className="tabular-nums">{Math.abs(change)}</span> from
+      their Story Traits <PageRef pages={88} />
     </>
   );
 }

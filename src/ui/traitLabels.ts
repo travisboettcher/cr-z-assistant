@@ -1,0 +1,37 @@
+/**
+ * Display names for the Story Traits (pg. 88; Z7-1).
+ *
+ * Presentation only, as `tierLabels.ts` is: what a trait does is
+ * `STORY_TRAIT_RULES` in `src/data`. A full `Record`, so a trait added to the
+ * rules data fails the typecheck here rather than rendering `undefined`.
+ */
+
+import type { StoryTrait } from '../data/traits';
+
+export const STORY_TRAIT_LABELS: Record<StoryTrait, string> = {
+  bonded: 'Bonded',
+  jaded: 'Jaded',
+  berserk: 'Berserk',
+  'lone-wolf': 'Lone Wolf',
+  driven: 'Driven',
+};
+
+/** What a survivor's traits read as on their sheet: "Bonded (bond group 1), Veteran". */
+export function describeTraits(traits: {
+  readonly storyTrait: StoryTrait | null;
+  readonly veteran: boolean;
+  readonly bondGroup: number | null;
+}): string {
+  const named = [
+    ...(traits.storyTrait === null
+      ? []
+      : [
+          traits.bondGroup === null
+            ? STORY_TRAIT_LABELS[traits.storyTrait]
+            : `${STORY_TRAIT_LABELS[traits.storyTrait]} (bond group ${String(traits.bondGroup)})`,
+        ]),
+    ...(traits.veteran ? ['Veteran'] : []),
+  ];
+
+  return named.length === 0 ? 'None' : named.join(', ');
+}

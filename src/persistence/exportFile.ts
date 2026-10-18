@@ -34,6 +34,8 @@ import type {
   ItemHolder,
   LogEntry,
   MissionWound,
+  StoryBuild,
+  StoryRecord,
   RetrievedVehicle,
 } from '../engine/log';
 import { isMissionOutcome } from '../engine/missions';
@@ -94,6 +96,10 @@ function orderedSurvivor(survivor: Survivor): Record<keyof Survivor, unknown> {
     infection: survivor.infection,
     xp: survivor.xp,
     items: survivor.items.map(orderedItem),
+    storyTrait: survivor.storyTrait,
+    veteran: survivor.veteran,
+    bondGroup: survivor.bondGroup,
+    stories: survivor.stories.map(({ mission, attachedOnTurn }) => ({ mission, attachedOnTurn })),
   };
 }
 
@@ -375,10 +381,80 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
       ? taggedFirst(event, 'kind')
       : { ...taggedFirst(event, 'kind'), wounds: event.wounds.map(orderedWound) };
 
+  // A story's ending and what it gave (Z7-3).
+  if (event.kind === 'mission-played' && event.story !== undefined) {
+    return { ...outcome, story: orderedStory(event.story) };
+  }
+
+  // What a story gave the build of a survivor it brought (Z7-4).
+  if (event.kind === 'stranger-joined' && event.build !== undefined) {
+    return { ...outcome, build: orderedBuild(event.build) };
+  }
+
   // The vehicles a Retrieve New Vehicles team drove off (Z5-11).
   return event.kind === 'retrieve-new-vehicles-resolved' && event.retrieved !== undefined
     ? { ...outcome, retrieved: event.retrieved.map(orderedRetrieved) }
     : outcome;
+}
+
+/**
+ * A story's record with its keys, and those of what it attached and who
+ * joins, in a fixed order. What it did not give is `undefined`, which the file
+ * drops, as a wound's Infection is.
+ */
+function orderedStory(story: StoryRecord): Record<keyof StoryRecord, unknown> {
+  const attachment = (one: NonNullable<StoryRecord['attached']>) => ({
+    mission: one.mission,
+    survivor: one.survivor,
+    name: one.name,
+  });
+
+  return {
+    survivor: story.survivor,
+    name: story.name,
+    result: story.result,
+    xp: story.xp,
+    trait: story.trait,
+    bondGroup: story.bondGroup,
+    stays: story.stays,
+    attached: story.attached === undefined ? undefined : attachment(story.attached),
+    joins:
+      story.joins === undefined
+        ? undefined
+        : {
+            tier: story.joins.tier,
+            bondGroup: story.joins.bondGroup,
+            xp: story.joins.xp,
+            build: story.joins.build === undefined ? undefined : orderedBuild(story.joins.build),
+          },
+    alsoAttached: story.alsoAttached?.map(attachment),
+    items: story.items?.map((item) => ({
+      id: item.id,
+      item: item.item,
+      grade: item.grade,
+      from: item.from,
+      survivor: item.survivor,
+      name: item.name,
+      subtable: item.subtable,
+      entry: item.entry,
+    })),
+    food: story.food,
+    vehicle: story.vehicle === undefined ? undefined : orderedVehicle(story.vehicle),
+    jaded:
+      story.jaded === undefined
+        ? undefined
+        : { survivor: story.jaded.survivor, name: story.jaded.name },
+    resources: story.resources,
+  };
+}
+
+/** What a story gave a new survivor's build, its keys and its item's in a fixed order. */
+function orderedBuild(build: StoryBuild): Record<keyof StoryBuild, unknown> {
+  return {
+    skill: build.skill,
+    stat: { dexterity: build.stat.dexterity },
+    item: { item: build.item.item, grade: build.item.grade },
+  };
 }
 
 /**

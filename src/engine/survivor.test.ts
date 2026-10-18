@@ -37,6 +37,10 @@ const EARL = {
   infection: 0,
   xp: 0,
   items: [],
+  storyTrait: null,
+  veteran: false,
+  bondGroup: null,
+  stories: [],
 } satisfies Survivor;
 
 /** pg. 15. Tier 3, stats 3/2/1/0, three skills — and no Carry. */
@@ -52,6 +56,10 @@ const CARLA = {
   infection: 0,
   xp: 0,
   items: [],
+  storyTrait: null,
+  veteran: false,
+  bondGroup: null,
+  stories: [],
 } satisfies Survivor;
 
 /**
