@@ -224,6 +224,25 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
     mission: 'medical-salvage',
     wounds: [{ survivor: 'carla', name: 'Carla Proust', health: 2, infection: 4 }],
   },
+  {
+    kind: 'mission-played',
+    team: 1,
+    mission: 'experimental-data',
+    viral: { investigated: 1, brokenCage: true },
+  },
+  {
+    kind: 'mission-played',
+    team: 1,
+    mission: 'bring-it-on-home',
+    viral: { zombiesLeft: 3, held: true },
+  },
+  {
+    kind: 'mission-played',
+    team: 1,
+    mission: 'bring-it-on-home',
+    viral: { zombiesLeft: 2, held: false },
+  },
+  { kind: 'mission-played', team: 1, mission: 'medical-salvage', viral: { supplies: 4 } },
   // A team with nobody left on it records nobody's Health.
   {
     kind: 'gather-materials-resolved',

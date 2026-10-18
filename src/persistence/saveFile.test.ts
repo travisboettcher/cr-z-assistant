@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import currentFixture from './__fixtures__/campaign-v20.json';
+import currentFixture from './__fixtures__/campaign-v21.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -636,6 +636,15 @@ describe('a file whose fields are the wrong type', () => {
     expect(rejected({ createdAt: 12345 })?.reason).toBe('damaged-campaign');
   });
 
+  // Containment's held zombies and the Medical Supply tokens (Z7-6).
+  it.each([
+    ['held zombies that aren’t a count', { heldZombies: -1 }, /zombies Containment holds/],
+    ['no held zombies at all', { heldZombies: undefined }, /zombies Containment holds/],
+    ['Medical Supplies that aren’t a count', { medicalSupplies: 1.5 }, /Medical Supply tokens/],
+  ])('refuses %s', (_label, overrides, expected) => {
+    expect(rejected(overrides)?.message).toMatch(expected);
+  });
+
   it('refuses a step that is not a string', () => {
     expect(rejected({ step: 3 })?.reason).toBe('damaged-campaign');
   });
@@ -1069,6 +1078,42 @@ describe('a campaign whose log is damaged', () => {
       'a trade lost for a reason this version doesn’t know',
       { kind: 'rare-trade-lost', reason: 'weather', items: [], food: 0, fuel: 0 },
       'unreadable reason',
+    ],
+    // A Viral mission's counts (Z7-6): only its own fields, counts from 0, flags yes or no.
+    [
+      'a Viral record that isn’t an object',
+      { kind: 'mission-played', team: 1, mission: 'medical-salvage', viral: 4 },
+      'unreadable viral',
+    ],
+    [
+      'a Viral record with a field it doesn’t have',
+      { kind: 'mission-played', team: 1, mission: 'medical-salvage', viral: { tokens: 4 } },
+      'unreadable viral',
+    ],
+    [
+      'a Viral record with a negative count',
+      { kind: 'mission-played', team: 1, mission: 'medical-salvage', viral: { supplies: -1 } },
+      'unreadable viral',
+    ],
+    [
+      'a Viral record with a Broken Cage check that isn’t yes or no',
+      {
+        kind: 'mission-played',
+        team: 1,
+        mission: 'experimental-data',
+        viral: { investigated: 1, brokenCage: 'yes' },
+      },
+      'unreadable viral',
+    ],
+    [
+      'a Viral record with a held zombie that isn’t yes or no',
+      {
+        kind: 'mission-played',
+        team: 1,
+        mission: 'bring-it-on-home',
+        viral: { zombiesLeft: 1, held: 1 },
+      },
+      'unreadable viral',
     ],
   ])('refuses %s', (_label, event, expected) => {
     const result = parseCampaignFile(savedWith({ log: [{ ...good, event }] }));

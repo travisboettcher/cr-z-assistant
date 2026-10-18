@@ -65,6 +65,7 @@ import {
   overrunClaim,
 } from '../engine/overrun';
 import { isStory, storyEnding, type StoryChoice } from '../engine/storyMissions';
+import { isViralMission, viralRecord } from '../engine/viralMissions';
 import { maxHp } from '../engine/survivor';
 import { atTier, tierRolled } from '../engine/vehicles';
 import { D10_RESULTS, type D10Result } from '../data/dice';
@@ -84,6 +85,8 @@ import {
 } from './missionLabels';
 import { PageRef } from './PageRef';
 import { StoryEnding } from './StoryEnding';
+import { ViralEnding } from './ViralEnding';
+import { EMPTY_VIRAL_DRAFT, viralDraftRecord, type ViralDraft } from './viralDraft';
 import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 
 const HINT = 'text-sm text-stone-600 dark:text-stone-400';
@@ -420,6 +423,7 @@ function TeamOutcome({
   const [dead, setDead] = useState<ReadonlySet<string>>(() => new Set());
   const [taken, setTaken] = useState<Readonly<Record<string, string>>>({});
   const [ending, setEnding] = useState<StoryChoice>({ result: '' });
+  const [viralDraft, setViralDraft] = useState<ViralDraft>(EMPTY_VIRAL_DRAFT);
 
   // The claim an overrun goes on with places no strangers (pg. 86), and asks
   // whether it was the overrun base's own map when it is that base's type (R29).
@@ -473,10 +477,19 @@ function TeamOutcome({
   const story = isStory(choice.mission) ? choice.mission : undefined;
   const team = membersOf(campaign, choice.team);
   const record = story === undefined ? undefined : storyEnding(campaign, team, story, ending);
+  // A Viral mission's counts (Z7-6).
+  const viral = isViralMission(choice.mission) ? choice.mission : undefined;
   const outcome =
-    played.kind === 'mission-played' && record !== undefined
-      ? { ...played, story: record }
-      : played;
+    played.kind !== 'mission-played'
+      ? played
+      : {
+          ...played,
+          ...(record === undefined ? {} : { story: record }),
+          // Rebuilt as recording will, so what it says it gives is what it will.
+          ...(viral === undefined
+            ? {}
+            : { viral: viralRecord(campaign, viral, viralDraftRecord(viral, viralDraft)) }),
+        };
   const members = wentOut(campaign, choice.team);
   const deaths = deathsTicked(choice.team, members, dead, taken);
   const problem =
@@ -493,9 +506,11 @@ function TeamOutcome({
     HINTS[choice.mission] ??
     (story !== undefined
       ? 'Record how the story ended. What the map held, an item or a roll, isn’t tracked yet.'
-      : asked.length === 0
-        ? 'Its rewards aren’t tracked yet. Recording it marks the mission played.'
-        : 'Record what the table counted when the mission ended.');
+      : viral !== undefined
+        ? 'Record what the table counted when the mission ended.'
+        : asked.length === 0
+          ? 'Its rewards aren’t tracked yet. Recording it marks the mission played.'
+          : 'Record what the table counted when the mission ended.');
 
   return (
     <fieldset className="mt-4 flex flex-col gap-2 rounded-lg border border-stone-200 p-3 dark:border-stone-700">
@@ -631,6 +646,10 @@ function TeamOutcome({
             );
         }
       })}
+
+      {viral !== undefined && (
+        <ViralEnding mission={viral} prefix={prefix} draft={viralDraft} onChange={setViralDraft} />
+      )}
 
       {story !== undefined && (
         <StoryEnding

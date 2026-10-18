@@ -36,7 +36,7 @@ import type { LogEntry } from './log';
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 20;
+export const CURRENT_SCHEMA_VERSION = 21;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -565,6 +565,21 @@ export interface Campaign {
   vehicles: readonly Vehicle[];
 
   /**
+   * The zombies held in the base's Containment (pg. 69; R103–R105; Z7-6):
+   * one for each won Bring It On Home while a Containment stood (R146), kept
+   * until the base is lost by a move or an overrun. Zero for every save from
+   * before v21.
+   */
+  heldZombies: number;
+
+  /**
+   * The Medical Supply tokens the base keeps (pg. 107; R131; Z7-6), each 1
+   * Labor toward a medical build. Outside the storage caps, and where the
+   * Inventory goes on a move (R147). Zero for every save from before v21.
+   */
+  medicalSupplies: number;
+
+  /**
    * Whether the player has finished assembling their starting community.
    *
    * A starting community is built from ten Tier levels (pg. 13), and that rule
@@ -652,6 +667,8 @@ export function createNewCampaign(name: string, options: NewCampaignOptions = {}
     trades: [],
     rareTrade: null,
     vehicles: [],
+    heldZombies: 0,
+    medicalSupplies: 0,
     // False, so a new campaign gets the ten-tier-level check while it is being
     // built. The v2 → v3 migration deliberately answers `true` instead — see
     // the step in `src/persistence/migrations.ts` for why the two differ.

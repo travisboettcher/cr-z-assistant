@@ -126,6 +126,20 @@ function isStoryItem(one: unknown): boolean {
   );
 }
 
+/** A Viral mission's counts, as `ViralRecord` shapes them: only its own fields, each optional. */
+function isViralRecord(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+
+  const counts = ['investigated', 'zombiesLeft', 'supplies'] as const;
+  const flags = ['brokenCage', 'held'] as const;
+
+  return (
+    Object.keys(value).every((key) => ([...counts, ...flags] as readonly string[]).includes(key)) &&
+    counts.every((key) => optional(value[key], isCountFromZero)) &&
+    flags.every((key) => optional(value[key], (flag) => typeof flag === 'boolean'))
+  );
+}
+
 /** A story's record, as `StoryRecord` shapes it. */
 function isStoryRecord(value: unknown): boolean {
   if (!isRef(value)) return false;
@@ -664,6 +678,8 @@ const EVENT_FIELD_CHECKS = {
   // to the story's own endings, which the rules data may later change.
   optionalStoryRecord: (value: unknown) => value === undefined || isStoryRecord(value),
   optionalStoryBuild: (value: unknown) => value === undefined || isStoryBuild(value),
+  // A Viral mission's counts (Z7-6), absent on any other mission and before.
+  optionalViralRecord: (value: unknown) => value === undefined || isViralRecord(value),
   // Why a survivor left (#201), absent on an entry from before it was recorded.
   optionalLeavingCause: (value: unknown) =>
     value === undefined || LEAVING_CAUSES.some((cause) => cause === value),
@@ -864,6 +880,7 @@ const EVENT_FIELDS: Record<
     ['mission', 'mission'],
     ['wounds', 'optionalWounds'],
     ['story', 'optionalStoryRecord'],
+    ['viral', 'optionalViralRecord'],
   ],
   'health-restored': [
     ['survivor', 'id'],
@@ -1329,6 +1346,13 @@ function describeCampaignProblem(value: unknown): string | null {
 
   // The Rare Item Table rolls a v16 save's Rare became (R49; Z5-7).
   if (!isCountFromZero(value.rareRollsOwed)) return 'it doesn’t say how many Rare rolls it owes';
+
+  // Containment's held zombies and the Medical Supply tokens (R103, R131; Z7-6).
+  if (!isCountFromZero(value.heldZombies))
+    return 'it doesn’t say how many zombies Containment holds';
+  if (!isCountFromZero(value.medicalSupplies)) {
+    return 'it doesn’t say how many Medical Supply tokens it keeps';
+  }
 
   // The base's Inventory (Z5-2), which never holds a shoddy item: shoddy gear
   // is free and unlimited, so nobody owns one (R35).

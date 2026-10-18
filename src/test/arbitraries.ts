@@ -667,6 +667,17 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
             },
             { requiredKeys: ['survivor', 'name', 'result'] },
           ),
+          // A Viral mission's counts (Z7-6), each given or not.
+          viral: fc.record(
+            {
+              investigated: anyCount,
+              brokenCage: fc.boolean(),
+              zombiesLeft: anyCount,
+              held: fc.boolean(),
+              supplies: anyCount,
+            },
+            { requiredKeys: [] },
+          ),
         },
         { requiredKeys: ['kind', 'team', 'mission'] },
       ),
@@ -1100,6 +1111,8 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
           // Never shoddy, as the Inventory's: a trade buys a priced grade (R51).
           trades: fc.array(tradeArbitrary(), { maxLength: 2 }),
           vehicles: fc.array(vehicleArbitrary(), { maxLength: 2 }),
+          heldZombies: anyCount,
+          medicalSupplies: anyCount,
           // None as often as one: a trade under way is the rarer state (Z5-10).
           rareTrade: fc.option(
             fc.record({
@@ -1140,6 +1153,8 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
             'trades',
             'rareTrade',
             'vehicles',
+            'heldZombies',
+            'medicalSupplies',
             'startingCommunityBuilt',
             'base',
             'log',

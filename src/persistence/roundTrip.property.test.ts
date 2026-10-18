@@ -197,6 +197,8 @@ it('does not survive a negative zero material count, which is why the generator 
     trades: [],
     rareTrade: null,
     vehicles: [],
+    heldZombies: 0,
+    medicalSupplies: 0,
     startingCommunityBuilt: false,
     base: null,
     assignments: {},

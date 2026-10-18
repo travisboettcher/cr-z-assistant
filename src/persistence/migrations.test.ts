@@ -827,3 +827,27 @@ describe('the v19 to v20 Rot Resistant', () => {
     expect(result.campaign.setAside).toBe('nobody');
   });
 });
+
+describe('the v20 to v21 Containment and Medical Supplies', () => {
+  it('brings every earlier save forward holding no zombie and keeping no token', () => {
+    for (const fixture of fixtures.filter((f) => f.version < 21)) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok) continue;
+
+      expect(result.campaign.heldZombies, fixture.path).toBe(0);
+      expect(result.campaign.medicalSupplies, fixture.path).toBe(0);
+    }
+  });
+
+  it('keeps a v21 save’s own', () => {
+    const v21 = fixtures.find((fixture) => fixture.version === 21);
+    const result = migrate(v21?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect([result.campaign.heldZombies, result.campaign.medicalSupplies]).toEqual([1, 2]);
+  });
+});

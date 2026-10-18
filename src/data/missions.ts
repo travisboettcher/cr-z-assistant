@@ -147,9 +147,10 @@ export interface ListedMission {
 /**
  * An origin mission, which belongs to one Origin of the Rot (pg. 103).
  *
- * The origin is the one fact about it part 1 can use: a campaign that is not
- * Viral has no Viral missions to offer. The prerequisites inside an origin —
- * a Medicine Score, a Containment upgrade, a survivor's Madness — are Phase 7's.
+ * The origin is the one fact about it the catalogue holds: a campaign that is
+ * not Viral has no Viral missions to offer. Which of an origin's missions are
+ * offered when is `missionsOnOffer`'s (R132, R145), and what the Viral ones
+ * record is `viralMissions.ts`'s (Z7-6).
  */
 export interface OriginMission {
   readonly family: 'origin';
@@ -268,6 +269,11 @@ export type StandardMissionId = {
 /** The story missions (pp. 87–102), played only by the team of the survivor they are attached to. */
 export type StoryMissionId = {
   [Id in MissionId]: (typeof MISSIONS)[Id]['family'] extends 'story' ? Id : never;
+}[MissionId];
+
+/** The Viral origin's three missions (pp. 103–107). */
+export type ViralMissionId = {
+  [Id in MissionId]: (typeof MISSIONS)[Id] extends { readonly origin: 'viral' } ? Id : never;
 }[MissionId];
 
 /** Every story mission, in the catalogue's order (pp. 89–102). */

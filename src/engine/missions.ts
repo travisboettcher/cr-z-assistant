@@ -48,6 +48,7 @@ import type { Campaign, RareTrade, Survivor } from './campaign';
 import type { CampaignEvent, MissionWound, RetrievedVehicle } from './log';
 import { FIRST_TURN, siegeDue } from './siege';
 import { storyProblem } from './storyMissions';
+import { containmentUnlock, viralProblem } from './viralMissions';
 import { maxHp } from './survivor';
 import { phaseOf } from './turn';
 import { retrievedProblem } from './vehicles';
@@ -240,7 +241,8 @@ export function missionsChosen(campaign: Campaign): boolean {
  * which may be chosen on any turn (pg. 75), the Road Trip ones, the origin
  * missions of the campaign's own Origin of the Rot, and **the stories attached
  * to somebody on this team**, a story being its survivor's to play (pp. 75, 87;
- * R116). The prerequisites inside an origin are Phase 7's.
+ * R116). An origin's missions are offered on every turn but Viral Mission 1
+ * once it has unlocked Containment (R132, R145).
  *
  * What it does not narrow is R20's: a second Claim a New Base is refused when
  * it is chosen, because which team may have it depends on who asks.
@@ -261,7 +263,12 @@ export function missionsOnOffer(campaign: Campaign, team: number): readonly Miss
       case 'standard':
         return mission.availability === 'any-time';
       case 'origin':
-        return mission.origin === campaign.origin;
+        // Experimental Data until it unlocks Containment, and never after
+        // (R132); the other two on every turn (R145).
+        return (
+          mission.origin === campaign.origin &&
+          (id !== 'experimental-data' || containmentUnlock(campaign) === null)
+        );
       case 'story':
         return storiesOn(campaign, team).has(id);
       default:
@@ -420,8 +427,9 @@ const OUTCOME_KINDS = [
  * and failure are read back from the counts — which is also why the missions
  * that name no failure at all need nothing here to say what one would be. A
  * story, origin or Road Trip mission records that it was played
- * (`mission-played`), and a story how it ended and what that gave (`story`;
- * Z7-3); an origin's rewards are Phase 7's still.
+ * (`mission-played`), a story how it ended and what that gave (`story`;
+ * Z7-3), and a Viral mission what the table counted (`viral`; Z7-6). The
+ * Cosmic and Magic missions' rewards are Phase 7's still.
  *
  * Every kind, `mission-played` included, also carries the team's wounds since
  * Z4-4: each member's Health at the end, and Infection in a Viral campaign
@@ -821,6 +829,13 @@ export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcom
     outcome.kind === 'mission-played' ? outcome.story : undefined,
   );
   if (story !== null) return story;
+
+  // A Viral mission's counts (Z7-6).
+  const viral = viralProblem(
+    choice.mission,
+    outcome.kind === 'mission-played' ? outcome.viral : undefined,
+  );
+  if (viral !== null) return viral;
 
   return woundsProblem(campaign, outcome);
 }

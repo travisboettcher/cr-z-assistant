@@ -135,6 +135,22 @@ export interface StoryRecord {
   readonly resources?: number;
 }
 
+/**
+ * How a Viral mission ended, as the table counted it (pp. 103–107; R104,
+ * R122, R131, R144, R146; Z7-6). Each mission fills its own fields: Experimental
+ * Data the points of interest investigated and the Broken Cage check,
+ * Bring It On Home the ensnared zombies that left and whether one was held,
+ * Medical Salvage its Medical Supply tokens. `held` is rebuilt when recorded,
+ * from whether a Containment stood on the base.
+ */
+export interface ViralRecord {
+  readonly investigated?: number;
+  readonly brokenCage?: boolean;
+  readonly zombiesLeft?: number;
+  readonly held?: boolean;
+  readonly supplies?: number;
+}
+
 /** What a story gives the build of a survivor it brings (pg. 99; R142; Z7-4). */
 export interface StoryBuild {
   readonly skill: Skill;
@@ -767,6 +783,8 @@ export type CampaignEvent =
       readonly wounds?: readonly MissionWound[];
       /** A story mission's result and what it gave (Z7-3); absent before, and for any other. */
       readonly story?: StoryRecord;
+      /** A Viral mission's counts (Z7-6); absent before, and for any other. */
+      readonly viral?: ViralRecord;
     }
   /**
    * A mission-team survivor took the place of a worker this turn's Siege

@@ -548,6 +548,19 @@ const rotResistanceRecorded: MigrationStep = {
   },
 };
 
+/**
+ * v20 → v21: Containment's held zombies and the Medical Supply tokens
+ * (R103, R131; Z7-6).
+ *
+ * **None of either, and that is the truth.** A v20 build had no Bring It On
+ * Home or Medical Salvage to record, so nothing it kept was put there by one.
+ */
+const containmentRecorded: MigrationStep = {
+  from: 20,
+  to: 21,
+  up: (previous) => ({ ...previous, heldZombies: 0, medicalSupplies: 0 }),
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -569,6 +582,7 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   tradesRecorded,
   storyTraitsRecorded,
   rotResistanceRecorded,
+  containmentRecorded,
 ];
 
 /** Why a save could not be brought forward. */

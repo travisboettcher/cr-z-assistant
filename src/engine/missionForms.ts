@@ -57,6 +57,7 @@ import {
 import { spentItems, spentProblem, withItemsSpent } from './spent';
 import { isStory, partNow, storyHolder, storyRecord, withStoryRecorded } from './storyMissions';
 import { extrasOf } from './storyRewards';
+import { isViralMission, viralRecord, withViralRecorded } from './viralMissions';
 import { deathProblem, deathsProblem, withMissionDeath, type MissionDeath } from './missionDeaths';
 
 /**
@@ -174,7 +175,9 @@ export function submitMissionSkip(campaign: Campaign, at: string): FormResult {
  *
  * **The only change it makes is the wounds** (`withWounds`): each member's
  * Health, and Infection in a Viral campaign, set to what the table counted at
- * the end; and, for a story, what its ending gave (`withStoryRecorded`; Z7-3). The roster's own Health correction stays as it was, unlogged, for
+ * the end; for a story, what its ending gave (`withStoryRecorded`; Z7-3); and
+ * for a Viral mission, a held zombie or Medical Supply tokens
+ * (`withViralRecorded`; Z7-6). The roster's own Health correction stays as it was, unlogged, for
  * fixing a mistake. The entry's wounds are written in team order with each
  * survivor's name as the roster has it now, whatever the screen sent, so the
  * history names them the way every other entry about a person does.
@@ -231,14 +234,16 @@ export function submitMissionEnded(
 
   // A story's ending, rebuilt from the result and who takes the next part, so
   // the entry says what the rules gave whatever the screen sent (Z7-3).
-  const rebuilt = withStoryRebuilt(campaign, outcome);
+  const rebuilt = withViralRebuilt(campaign, withStoryRebuilt(campaign, outcome));
   const story = storyEnded(rebuilt);
+  const viral = rebuilt.kind === 'mission-played' ? rebuilt.viral : undefined;
   const wounded = withWounds(campaign, wounds);
-  const recorded = logged(
-    story === undefined ? wounded : withStoryRecorded(wounded, story.mission, story.record),
-    at,
-    { ...rebuilt, wounds },
-  );
+  const storied =
+    story === undefined ? wounded : withStoryRecorded(wounded, story.mission, story.record);
+  const recorded = logged(viral === undefined ? storied : withViralRecorded(storied, viral), at, {
+    ...rebuilt,
+    wounds,
+  });
 
   const rewarded =
     // The vehicles driven off join the community at once (pg. 82; R63; Z5-11).
@@ -281,6 +286,19 @@ function withStoryRebuilt(campaign: Campaign, outcome: MissionOutcome): MissionO
       extras: extrasOf(story.record),
     }),
   };
+}
+
+/** The outcome with its Viral record as `viralRecord` builds it, from the base as it stands (Z7-6). */
+function withViralRebuilt(campaign: Campaign, outcome: MissionOutcome): MissionOutcome {
+  if (
+    outcome.kind !== 'mission-played' ||
+    outcome.viral === undefined ||
+    !isViralMission(outcome.mission)
+  ) {
+    return outcome;
+  }
+
+  return { ...outcome, viral: viralRecord(campaign, outcome.mission, outcome.viral) };
 }
 
 /**
