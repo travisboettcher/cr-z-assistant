@@ -131,6 +131,7 @@ describe('who plays a story (pg. 87; R116)', () => {
 
     expect(missionsOnOffer(campaign, 1)).toContain('left-behind-1');
     expect(missionsOnOffer(campaign, 2)).not.toContain('left-behind-1');
+    expect(missionsOnOffer(campaign, 9)).not.toContain('left-behind-1');
   });
 });
 
@@ -273,7 +274,7 @@ describe('storyRecord (pp. 89–102; R85, R120, R138)', () => {
       ],
     });
 
-    expect(recordOf(campaign, 'left-behind-1', 'rescued')).toEqual({
+    expect(recordOf(campaign, 'left-behind-1', 'rescued')).toStrictEqual({
       survivor: 'earl',
       name: 'Earl Rhodes',
       result: 'rescued',
@@ -291,7 +292,7 @@ describe('storyRecord (pp. 89–102; R85, R120, R138)', () => {
 
     expect(record.trait).toBeUndefined();
     expect(record.bondGroup).toBeUndefined();
-    expect(record.joins).toEqual({ tier: 2, bondGroup: 2, xp: 1 });
+    expect(record.joins).toStrictEqual({ tier: 2, bondGroup: 2, xp: 1 });
   });
 
   it('bonds Part 2a’s family member into the survivor’s group, or none once Bonded is lost (R138)', () => {
@@ -299,15 +300,16 @@ describe('storyRecord (pp. 89–102; R85, R120, R138)', () => {
     const bonded = playing('left-behind-2a', [
       earl({ ...story, storyTrait: 'bonded', bondGroup: 2 }),
     ]);
-    const lost = playing('left-behind-2a', [earl({ ...story, storyTrait: 'jaded' })]);
+    const lost = playing('left-behind-2a', [earl({ ...story, tier: 3, storyTrait: 'jaded' })]);
 
-    expect(recordOf(bonded, 'left-behind-2a', 'family-rescued').joins).toEqual({
+    expect(recordOf(bonded, 'left-behind-2a', 'family-rescued').joins).toStrictEqual({
       tier: 2,
       bondGroup: 2,
     });
-    expect(recordOf(lost, 'left-behind-2a', 'family-rescued').joins).toEqual({ tier: 2 });
-    expect(recordOf(lost, 'left-behind-2a', 'stranger-rescued').joins).toEqual({ tier: 2 });
-    expect(recordOf(lost, 'left-behind-2a', 'nobody-rescued')).toEqual({
+    expect(recordOf(lost, 'left-behind-2a', 'family-rescued').joins).toStrictEqual({ tier: 3 });
+    // A stranger rather than the family member is Tier 2 whatever the survivor's Tier.
+    expect(recordOf(lost, 'left-behind-2a', 'stranger-rescued').joins).toStrictEqual({ tier: 2 });
+    expect(recordOf(lost, 'left-behind-2a', 'nobody-rescued')).toStrictEqual({
       survivor: 'earl',
       name: 'Earl Rhodes',
       result: 'nobody-rescued',
@@ -319,7 +321,7 @@ describe('storyRecord (pp. 89–102; R85, R120, R138)', () => {
     const leader = playing('neighbors-rifle', [earl({ ...story, tier: 3 }), carla]);
     const citizen = playing('neighbors-rifle', [earl(story), carla]);
 
-    expect(recordOf(leader, 'neighbors-rifle', 'seating-failed').joins).toEqual({ tier: 3 });
+    expect(recordOf(leader, 'neighbors-rifle', 'seating-failed').joins).toStrictEqual({ tier: 3 });
     expect(recordOf(citizen, 'neighbors-rifle', 'seating-failed').joins).toBeUndefined();
     expect(recordOf(citizen, 'neighbors-rifle', 'seating-passed', 'carla').attached).toEqual({
       mission: 'warehouse',
@@ -328,10 +330,21 @@ describe('storyRecord (pp. 89–102; R85, R120, R138)', () => {
     });
   });
 
+  it('attaches nothing while nobody is chosen to take the next part', () => {
+    const convoy = playing('crashed-convoy', [earl(holding('crashed-convoy')), carla]);
+
+    expect(recordOf(convoy, 'crashed-convoy', 'search-passed')).toStrictEqual({
+      survivor: 'earl',
+      name: 'Earl Rhodes',
+      result: 'search-passed',
+      xp: 1,
+    });
+  });
+
   it('keeps Sentimental Value attached when the heirloom is not found (R121)', () => {
     const campaign = playing('sentimental-value', [earl(holding('sentimental-value'))]);
 
-    expect(recordOf(campaign, 'sentimental-value', 'heirloom-not-recovered')).toEqual({
+    expect(recordOf(campaign, 'sentimental-value', 'heirloom-not-recovered')).toStrictEqual({
       survivor: 'earl',
       name: 'Earl Rhodes',
       result: 'heirloom-not-recovered',
@@ -419,6 +432,26 @@ describe('withStoryRecorded (R85, R116, R121)', () => {
     ]);
   });
 
+  it('takes off only the story played, leaving any other the survivor holds', () => {
+    const campaign = playing('crashed-convoy', [
+      earl({
+        stories: [
+          { mission: 'sentimental-value', attachedOnTurn: 1 },
+          { mission: 'crashed-convoy', attachedOnTurn: 2 },
+        ],
+      }),
+    ]);
+    const after = withStoryRecorded(
+      campaign,
+      'crashed-convoy',
+      recordOf(campaign, 'crashed-convoy', 'search-failed'),
+    );
+
+    expect(named(after, 'earl').stories).toEqual([
+      { mission: 'sentimental-value', attachedOnTurn: 1 },
+    ]);
+  });
+
   it('drops Health above a maximum Berserk took with it (R133)', () => {
     const story = holding('left-behind-2b');
     const berserk = playing('left-behind-2b', [
@@ -484,6 +517,8 @@ describe('the stories done (R116, R121, R139)', () => {
     expect(
       partNow('left-behind-1', recordOf(playing(), 'left-behind-1', 'rescued')),
     ).toBeUndefined();
+    expect(partNow('left-behind-2b', { ...unattached, result: 'fire-lit' })).toBeUndefined();
+    expect(partNow('left-behind-1', { ...unattached, result: 'played' })).toBeUndefined();
   });
 });
 
@@ -503,7 +538,7 @@ describe('a story’s ending, recorded (Z7-3)', () => {
     });
 
     const advancing = { ...after, step: 'create-new-survivors' as const };
-    expect(strangersWaiting(advancing)).toEqual([
+    expect(strangersWaiting(advancing)).toStrictEqual([
       { team: 1, stranger: 0, tier: 2, story: 'left-behind-1', bondGroup: 1, xp: 1 },
     ]);
 
@@ -545,6 +580,47 @@ describe('a story’s ending, recorded (Z7-3)', () => {
     expect(after.log.at(-1)?.event).toMatchObject({
       kind: 'mission-played',
       story: recordOf(campaign, 'left-behind-1', 'rescued'),
+    });
+  });
+
+  it('records a team 2 story and the survivor the player chose for its next part', () => {
+    const campaign = playing('crashed-convoy', [carla, earl(holding('crashed-convoy')), ruby], {
+      assignments: {
+        carla: { task: 'mission', team: 1 },
+        earl: { task: 'mission', team: 2 },
+        ruby: { task: 'mission', team: 2 },
+      },
+      log: [chose('left-behind-1'), chose('crashed-convoy', 2)],
+    });
+    const team2 = [named(campaign, 'earl'), ruby];
+    const after = accepted(
+      submitMissionEnded(
+        campaign,
+        {
+          kind: 'mission-played',
+          team: 2,
+          mission: 'crashed-convoy',
+          wounds: team2.map((member) => ({
+            survivor: member.id,
+            name: member.name,
+            health: member.currentHp,
+          })),
+          story: {
+            survivor: 'earl',
+            name: 'Earl Rhodes',
+            result: 'search-passed',
+            attached: { mission: 'warehouse', survivor: 'ruby', name: 'Ruby Vance' },
+          },
+        },
+        [],
+        AT,
+      ),
+    );
+
+    expect(named(after, 'ruby').stories).toEqual([{ mission: 'warehouse', attachedOnTurn: 4 }]);
+    expect(after.log.at(-1)?.event).toMatchObject({
+      team: 2,
+      story: { attached: { mission: 'warehouse', survivor: 'ruby' } },
     });
   });
 

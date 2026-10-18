@@ -120,11 +120,12 @@ export function storyProblem(
 
 /** The bond group a new pair of Bonded survivors takes: one more than any in use. */
 function newBondGroup(campaign: Campaign): number {
-  const groups = [...campaign.survivors, ...campaign.setAside].flatMap((survivor) =>
-    survivor.bondGroup === null ? [] : [survivor.bondGroup],
+  return (
+    Math.max(
+      0,
+      ...[...campaign.survivors, ...campaign.setAside].map((survivor) => survivor.bondGroup ?? 0),
+    ) + 1
   );
-
-  return Math.max(0, ...groups) + 1;
 }
 
 /**

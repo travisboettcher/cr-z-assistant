@@ -46,8 +46,8 @@ import { deathsProblem, wentOut, type MissionDeath } from '../engine/missionDeat
 import {
   asksSameMap,
   rareTradeDue,
+  membersOf,
   missionOutcomeProblem,
-  missionTeams,
   outcomeOf,
   selectionProblem,
   strangerWarning,
@@ -471,7 +471,7 @@ function TeamOutcome({
   });
   // A story's ending, from the team that played it (Z7-3).
   const story = isStory(choice.mission) ? choice.mission : undefined;
-  const team = missionTeams(campaign).find((each) => each.team === choice.team)?.members ?? [];
+  const team = membersOf(campaign, choice.team);
   const record = story === undefined ? undefined : storyEnding(campaign, team, story, ending);
   const outcome =
     played.kind === 'mission-played' && record !== undefined

@@ -289,6 +289,24 @@ describe('strangerSurvivor', () => {
     });
   });
 
+  it('offers nobody for a story, or a mission, that brings nobody', () => {
+    const campaign = {
+      ...createNewCampaign('Cedar Hollow'),
+      turn: 4,
+      step: 'create-new-survivors' as const,
+      log: [
+        {
+          turn: 4,
+          phase: 'mission' as const,
+          at: '2026-10-18T09:00:00.000Z',
+          event: { kind: 'mission-played' as const, team: 1, mission: 'chased' as const },
+        },
+      ],
+    };
+
+    expect(rescuedStrangers(campaign)).toEqual([]);
+  });
+
   it('builds a Hero a story brought with their slots waiting, as no recruit is (pg. 7)', () => {
     expect(strangerSurvivor('Hal', rescued(4), 6, { id: 'hal' })).toEqual(
       createSurvivor('Hal', 4, { id: 'hal' }),

@@ -78,29 +78,25 @@ function isKeyOf(catalogue: object, key: string): boolean {
 
 /** A story's record, as `StoryRecord` shapes it. */
 function isStoryRecord(value: unknown): boolean {
-  if (!isRecord(value)) return false;
-
-  const { attached, joins } = value;
-  const optional = (field: unknown, check: (one: unknown) => boolean) =>
-    field === undefined || check(field);
-  const isRef = (one: unknown) =>
+  const isRef = (one: unknown): one is Record<string, unknown> =>
     isRecord(one) &&
     typeof one.survivor === 'string' &&
     one.survivor !== '' &&
     typeof one.name === 'string';
+  if (!isRef(value)) return false;
+
+  const { attached, joins } = value;
+  const optional = (field: unknown, check: (one: unknown) => boolean) =>
+    field === undefined || check(field);
 
   return (
-    isRef(value) &&
     typeof value.result === 'string' &&
     value.result !== '' &&
     optional(value.xp, isCountFromOne) &&
     optional(value.trait, (trait) => STORY_TRAITS.some((each) => each === trait)) &&
     optional(value.bondGroup, isCountFromOne) &&
     optional(value.stays, (stays) => stays === true) &&
-    optional(
-      attached,
-      (one) => isRef(one) && isRecord(one) && STORY_MISSION_IDS.some((id) => id === one.mission),
-    ) &&
+    optional(attached, (one) => isRef(one) && STORY_MISSION_IDS.some((id) => id === one.mission)) &&
     optional(
       joins,
       (one) =>

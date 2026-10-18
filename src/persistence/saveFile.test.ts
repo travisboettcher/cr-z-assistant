@@ -1338,6 +1338,10 @@ describe('a campaign whose log is damaged', () => {
     ['bringing a Tier 5', { joins: { tier: 5 } }],
     ['bringing a survivor into bond group 0', { joins: { tier: 2, bondGroup: 0 } }],
     ['naming nobody', { survivor: '' }],
+    ['naming somebody by a number', { survivor: 5 }],
+    ['with a name that is a number', { name: 5 }],
+    ['with a result that is a number', { result: 5 }],
+    ['attaching by a bare name', { attached: 'warehouse' }],
   ] as const)('refuses a story ending %s', (_label, story) => {
     expect(
       refusalFor([

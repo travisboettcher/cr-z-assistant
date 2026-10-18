@@ -272,10 +272,9 @@ export function missionsOnOffer(campaign: Campaign, team: number): readonly Miss
 
 /** The stories attached to somebody on this mission team (R116). */
 function storiesOn(campaign: Campaign, team: number): ReadonlySet<MissionId> {
-  const members =
-    missionTeams(campaign).find((candidate) => candidate.team === team)?.members ?? [];
-
-  return new Set(members.flatMap((survivor) => survivor.stories.map((story) => story.mission)));
+  return new Set(
+    membersOf(campaign, team).flatMap((survivor) => survivor.stories.map((story) => story.mission)),
+  );
 }
 
 /** Whether a mission asks Select Mission for this (`SelectionChoice`). */
@@ -817,7 +816,7 @@ export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcom
   // A story's ending, from the team its survivor is on (Z7-3).
   const story = storyProblem(
     campaign,
-    missionTeams(campaign).find((candidate) => candidate.team === team)?.members ?? [],
+    membersOf(campaign, team),
     choice.mission,
     outcome.kind === 'mission-played' ? outcome.story : undefined,
   );
@@ -850,7 +849,7 @@ export function asksSameMap(campaign: Campaign, choice: MissionChoice): boolean 
 }
 
 /** Who is on a team this turn, or nobody for a team that does not exist. */
-function membersOf(campaign: Campaign, team: number): readonly Survivor[] {
+export function membersOf(campaign: Campaign, team: number): readonly Survivor[] {
   return missionTeams(campaign).find((candidate) => candidate.team === team)?.members ?? [];
 }
 

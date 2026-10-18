@@ -22,6 +22,7 @@ import { equipCheck, withEquipMove, type EquipMove } from './equip';
 import { accepted, blockedBy, refused, type FormResult } from './forms';
 import { logged, type MissionWound, type StoryRecord } from './log';
 import {
+  membersOf,
   missionOutcomeProblem,
   missionTeams,
   outcomeTeam,
@@ -269,7 +270,7 @@ function withStoryRebuilt(campaign: Campaign, outcome: MissionOutcome): MissionO
   const story = storyEnded(outcome);
   if (outcome.kind !== 'mission-played' || story === undefined) return outcome;
 
-  const members = missionTeams(campaign).find((each) => each.team === outcome.team)?.members ?? [];
+  const members = membersOf(campaign, outcome.team);
 
   return {
     ...outcome,
@@ -295,7 +296,7 @@ function withPartNow(
   at: string,
 ): Campaign {
   const now = partNow(story.mission, story.record);
-  const members = missionTeams(campaign).find((each) => each.team === team)?.members ?? [];
+  const members = membersOf(campaign, team);
 
   if (now === undefined || storyHolder(members, now) === undefined) return campaign;
 
