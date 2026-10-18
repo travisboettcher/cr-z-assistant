@@ -203,3 +203,51 @@ describe('the Lost roll at Select Mission (pp. 25, 124; R108; Z7-8)', () => {
     expect(region.textContent).toContain('and gained 1 XP.');
   });
 });
+
+describe('a Lost survivor on a mission (pg. 124; R109; Z7-8)', () => {
+  it('is rescued and Found, back on the roster', async () => {
+    const user = open(
+      cosmic({
+        turn: 4,
+        step: 'tactical-mission',
+        survivors: [earl()],
+        lost: [{ ...createSurvivor('June Park', 2, { id: 'june' }), madness: 14 }],
+        assignments: { earl: { task: 'mission', team: 1 } },
+        log: [
+          {
+            turn: 4,
+            phase: 'mission',
+            at: AT,
+            event: {
+              kind: 'lost-rolled',
+              survivor: 'june',
+              name: 'June Park',
+              roll: 10,
+              xpSpent: 0,
+              team: 1,
+            },
+          },
+        ],
+      }),
+    );
+    const region = within(walk()).getByRole('region', { name: 'The Lost on a mission' });
+
+    await user.click(within(region).getByRole('button', { name: 'Rescued, and Found' }));
+
+    expect(
+      within(region).getByText(
+        'June Park was rescued from the Lost and is Found, back in the community.',
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/^1 Lost$/)).toBeNull();
+  });
+
+  it('lists the Lost in the roster', () => {
+    open(cosmic({ lost: [{ ...createSurvivor('June Park', 2, { id: 'june' }), xpSpent: 4 }] }));
+    openPanel('survivors');
+
+    expect(
+      within(screen.getByRole('list', { name: 'Lost' })).getByText(/June Park/).textContent,
+    ).toBe('June Park, Citizen, 4 XP spent');
+  });
+});

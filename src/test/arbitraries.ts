@@ -766,6 +766,17 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       },
       { requiredKeys: ['kind', 'survivor', 'name', 'roll', 'xpSpent'] },
     ),
+    // A placed Lost survivor's rescue (R109; Z7-8).
+    fc.record(
+      {
+        kind: fc.constant('lost-rescued' as const),
+        ...survivor,
+        team: fc.integer({ min: 1, max: 4 }),
+        result: fc.constantFrom('found' as const, 'exiled' as const, 'not-rescued' as const),
+        items: fc.array(itemArbitrary(), { minLength: 1, maxLength: 2 }),
+      },
+      { requiredKeys: ['kind', 'survivor', 'name', 'team', 'result'] },
+    ),
     // Gone Lost to Madness (R106; Z7-7), with what they carried or nothing.
     fc.record(
       {

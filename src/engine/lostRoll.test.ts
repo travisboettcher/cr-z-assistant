@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign, type Survivor } from './campaign';
 import type { LogEntry } from './log';
-import { lostRollPasses, lostRollProblem, lostRollsDue, placedLost } from './lostRoll';
-import { submitLostRolled } from './missionForms';
+import {
+  lostRescueProblem,
+  lostRollPasses,
+  lostRollProblem,
+  lostRollsDue,
+  placedLost,
+  rescuesDue,
+} from './lostRoll';
+import { submitLostRescued, submitLostRolled } from './missionForms';
 import { outstanding } from './outstanding';
 import { createSurvivor } from './survivor';
 
@@ -136,5 +143,85 @@ describe('recording it (R108)', () => {
       ok: false,
       problem: 'Choose the mission team they join.',
     });
+  });
+});
+
+describe('a placed Lost survivor’s rescue (pg. 124; R109)', () => {
+  const AXE = { id: 'axe', item: 'bladed', grade: 'standard' } as const;
+  /** June placed on team 2 at Play the Mission, hurt, Infected, mad and carrying an axe. */
+  const placed = (): Campaign =>
+    accepted(
+      submitLostRolled(
+        selecting({
+          lost: [june(10, { currentHp: 1, infection: 3, madness: 14, items: [AXE] })],
+        }),
+        'june',
+        9,
+        2,
+        AT,
+      ),
+    );
+  const rescued = (result: 'found' | 'exiled' | 'not-rescued') => {
+    const result_ = submitLostRescued(
+      { ...placed(), step: 'tactical-mission' },
+      'june',
+      result,
+      AT,
+    );
+    if (!result_.ok) throw new Error(result_.problem);
+
+    return result_.campaign;
+  };
+
+  it('is owed once placed, until recorded', () => {
+    expect(rescuesDue(selecting())).toEqual([]);
+    expect(rescuesDue(placed()).map((one) => one.id)).toEqual(['june']);
+    expect(outstanding(placed()).map((one) => one.says)).toContain(
+      'A Lost survivor was on a mission, and whether they were rescued isn’t recorded.',
+    );
+    expect(rescuesDue(rescued('not-rescued'))).toEqual([]);
+    expect(lostRescueProblem(rescued('found'), 'june')).toBe(
+      'Nobody placed on a mission this turn is waiting to be rescued.',
+    );
+    expect(rescuesDue({ ...placed(), step: 'heal-wounds' })).toEqual([]);
+  });
+
+  it('brings a Found survivor back as themselves, whole, with their items', () => {
+    const after = rescued('found');
+    const back = after.survivors.find((one) => one.id === 'june');
+
+    expect(after.lost).toEqual([]);
+    expect(back).toMatchObject({
+      currentHp: 2,
+      infection: 0,
+      madness: 0,
+      found: true,
+      xpSpent: 10,
+      items: [AXE],
+    });
+    expect(after.log.at(-1)?.event).toEqual({
+      kind: 'lost-rescued',
+      survivor: 'june',
+      name: 'June Park',
+      team: 2,
+      result: 'found',
+    });
+  });
+
+  it('exiles one back to the Lost, their items left to the base (R75)', () => {
+    const after = rescued('exiled');
+
+    expect(after.survivors.map((one) => one.id)).toEqual(['earl', 'carla']);
+    expect(after.lost).toMatchObject([{ id: 'june', items: [], madness: 0, currentHp: 2 }]);
+    expect(after.inventory).toEqual([AXE]);
+    expect(after.log.at(-1)?.event).toMatchObject({ result: 'exiled', items: [AXE] });
+  });
+
+  it('keeps one not rescued on the list as they were (R109)', () => {
+    const after = rescued('not-rescued');
+
+    expect(after.lost).toEqual(placed().lost);
+    expect(after.log.at(-1)?.event).toMatchObject({ result: 'not-rescued' });
+    expect(after.log.at(-1)?.event).not.toHaveProperty('items');
   });
 });

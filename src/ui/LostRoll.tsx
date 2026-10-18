@@ -9,7 +9,7 @@ import { useId, useState } from 'react';
 import { D10_RESULTS, type D10Result } from '../data/dice';
 import { LOST_ROLL_TARGET } from '../data/origins';
 import type { Campaign, Survivor } from '../engine/campaign';
-import { lostRollPasses, lostRollProblem, lostRollsDue } from '../engine/lostRoll';
+import { lostRollPasses, lostRollProblem, lostRollsDue, rescuesDue } from '../engine/lostRoll';
 import { missionTeams } from '../engine/missions';
 import { useCampaign } from '../state/useCampaign';
 import { describeEvent } from './logLabels';
@@ -136,6 +136,78 @@ export function LostRolls({ campaign }: { readonly campaign: Campaign }) {
           </ul>
         </>
       )}
+    </section>
+  );
+}
+
+/**
+ * After the mission, how each Lost survivor placed on it came out (pg. 124;
+ * R109): rescued and Found, rescued and exiled back to the Lost, or not
+ * rescued. Shown while one is owed or one was recorded this turn.
+ */
+export function LostRescues({ campaign }: { readonly campaign: Campaign }) {
+  const { dispatch } = useCampaign();
+  const due = rescuesDue(campaign);
+  const recorded = campaign.log.filter(
+    (entry) => entry.turn === campaign.turn && entry.event.kind === 'lost-rescued',
+  );
+
+  if (due.length === 0 && recorded.length === 0) return null;
+
+  const record = (survivor: string, result: 'found' | 'exiled' | 'not-rescued') => {
+    dispatch({ type: 'mission/lostRescued', survivor, result, at: new Date().toISOString() });
+  };
+
+  return (
+    <section aria-label="The Lost on a mission" className="mt-4 flex flex-col gap-2">
+      <h4 className="text-sm font-semibold">
+        The Lost on a mission <PageRef pages={124} />
+      </h4>
+      {recorded.map((entry, index) => (
+        <p key={index} className={HINT}>
+          {describeEvent(entry.event, entry.turn).text}
+        </p>
+      ))}
+      {due.length > 0 && (
+        <p className={HINT}>
+          A rescued Lost survivor comes back as themselves, at full Health with no Infection or
+          Madness, and is Found or exiled. An exiled survivor’s items stay at the base.
+        </p>
+      )}
+      <ul className="flex flex-col gap-2">
+        {due.map((survivor) => (
+          <li key={survivor.id} className="flex flex-wrap items-center gap-2">
+            <span className="text-sm">{survivor.name}</span>
+            <button
+              type="button"
+              className={BUTTON}
+              onClick={() => {
+                record(survivor.id, 'found');
+              }}
+            >
+              Rescued, and Found
+            </button>
+            <button
+              type="button"
+              className={BUTTON}
+              onClick={() => {
+                record(survivor.id, 'exiled');
+              }}
+            >
+              Rescued, and exiled
+            </button>
+            <button
+              type="button"
+              className={BUTTON}
+              onClick={() => {
+                record(survivor.id, 'not-rescued');
+              }}
+            >
+              Not rescued
+            </button>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

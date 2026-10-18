@@ -3313,6 +3313,32 @@ describe('what earns a line in the log', () => {
         xpSpent: 0,
       }),
     },
+    // June, Lost and placed on team 1, comes back Found (R109; Z7-8).
+    'mission/lostRescued': {
+      state: openState({
+        ...expectOpen(
+          marcusOnTeamOne([
+            entry(3, 'mission', {
+              kind: 'lost-rolled',
+              survivor: 'june',
+              name: 'June Park',
+              roll: 10,
+              xpSpent: 0,
+              team: 1,
+            }),
+          ]),
+        ),
+        lost: [createSurvivor('June Park', 2, { id: 'june' })],
+      }),
+      action: { type: 'mission/lostRescued', survivor: 'june', result: 'found', at: AT },
+      entry: entry(3, 'mission', {
+        kind: 'lost-rescued',
+        survivor: 'june',
+        name: 'June Park',
+        team: 1,
+        result: 'found',
+      }),
+    },
     'mission/skipped': {
       action: { type: 'mission/skipped', at: AT },
       entry: entry(3, 'mission', { kind: 'mission-skipped' }),

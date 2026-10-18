@@ -691,6 +691,8 @@ const EVENT_FIELD_CHECKS = {
   optionalStoryBuild: (value: unknown) => value === undefined || isStoryBuild(value),
   // A Viral mission's counts (Z7-6), absent on any other mission and before.
   optionalViralRecord: (value: unknown) => value === undefined || isViralRecord(value),
+  // How a placed Lost survivor's mission left them (R109; Z7-8).
+  lostRescue: (value: unknown) => ['found', 'exiled', 'not-rescued'].includes(value as string),
   // Why a survivor left (#201), absent on an entry from before it was recorded.
   optionalLeavingCause: (value: unknown) =>
     value === undefined || LEAVING_CAUSES.some((cause) => cause === value),
@@ -965,6 +967,13 @@ const EVENT_FIELDS: Record<
     ['roll', 'roll'],
     ['xpSpent', 'count'],
     ['team', 'optionalTeam'],
+  ],
+  'lost-rescued': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['team', 'countFromOne'],
+    ['result', 'lostRescue'],
+    ['items', 'optionalItems'],
   ],
   'survivor-lost': [
     ['survivor', 'id'],

@@ -315,6 +315,15 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   },
   { kind: 'lost-rolled', ...SURVIVOR, roll: 4, xpSpent: 6 },
   { kind: 'lost-rolled', ...SURVIVOR, roll: 9, xpSpent: 12, team: 2 },
+  { kind: 'lost-rescued', ...SURVIVOR, team: 1, result: 'found' },
+  { kind: 'lost-rescued', ...SURVIVOR, team: 2, result: 'not-rescued' },
+  {
+    kind: 'lost-rescued',
+    ...SURVIVOR,
+    team: 1,
+    result: 'exiled',
+    items: [{ id: 'rifle-3', item: 'rifle', grade: 'standard' }],
+  },
   { kind: 'survivor-lost', ...SURVIVOR, madness: 13 },
   {
     kind: 'survivor-lost',

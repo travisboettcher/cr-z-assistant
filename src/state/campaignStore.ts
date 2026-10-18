@@ -82,6 +82,7 @@ import {
   submitMissionEnded,
   submitMissionSelection,
   submitOverrunContinuation,
+  submitLostRescued,
   submitLostRolled,
   submitMissionSkip,
   submitStandIn,
@@ -138,6 +139,7 @@ import type {
   Stats,
   Survivor,
 } from '../engine/campaign';
+import type { LostRescue } from '../engine/lostRoll';
 
 /**
  * The app boots with nothing loaded, and Z0-7's empty state renders off that
@@ -603,6 +605,13 @@ export type CampaignAction =
     }
   /** The community opts out of this turn's mission (pg. 17). */
   | { readonly type: 'mission/skipped'; readonly at: string }
+  /** How a placed Lost survivor came out of their mission (R109; Z7-8). */
+  | {
+      readonly type: 'mission/lostRescued';
+      readonly survivor: string;
+      readonly result: LostRescue;
+      readonly at: string;
+    }
   /** A Lost survivor's roll, before the first mission (R108; Z7-8). */
   | {
       readonly type: 'mission/lostRolled';
@@ -1050,6 +1059,11 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
           },
           action.at,
         ),
+      );
+
+    case 'mission/lostRescued':
+      return submitted(state, (campaign) =>
+        submitLostRescued(campaign, action.survivor, action.result, action.at),
       );
 
     case 'mission/lostRolled':

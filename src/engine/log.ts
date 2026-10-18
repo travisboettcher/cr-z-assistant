@@ -521,6 +521,20 @@ export type CampaignEvent =
       readonly team?: number;
     }
   /**
+   * How a Lost survivor placed on a mission came out of it (pg. 124; R109;
+   * Z7-8): rescued and Found, rescued and exiled back to the Lost with their
+   * items left to the base, or not rescued and still Lost.
+   */
+  | {
+      readonly kind: 'lost-rescued';
+      readonly survivor: string;
+      readonly name: string;
+      readonly team: number;
+      readonly result: 'found' | 'exiled' | 'not-rescued';
+      /** What an exiled survivor left to the base (R75). */
+      readonly items?: readonly Item[];
+    }
+  /**
    * A survivor gone Lost to Madness at Departures, before the Unrest check
    * (pp. 23, 124; R106, R107; Z7-7). Off the roster onto the list of the Lost,
    * whole, with what they carried.

@@ -18,6 +18,7 @@ import { LOST_ROLL_TARGET, LOST_ROLL_XP } from '../data/origins';
 import type { Campaign, Survivor } from './campaign';
 import { logged } from './log';
 import { isMissionOutcome, missionTeams, turnMissions } from './missions';
+import { maxHp } from './survivor';
 import { phaseOf } from './turn';
 
 /** Whether this survivor's Lost roll places them on a mission (R108). */
@@ -117,4 +118,93 @@ export function placedLost(campaign: Campaign, team: number): readonly Survivor[
   );
 
   return campaign.lost.filter((survivor) => placed.has(survivor.id));
+}
+
+/** How a placed Lost survivor's mission left them (R109). */
+export const LOST_RESCUES = ['found', 'exiled', 'not-rescued'] as const;
+
+export type LostRescue = (typeof LOST_RESCUES)[number];
+
+/** Whether this Lost survivor's rescue has been recorded this turn. */
+function rescueRecorded(campaign: Campaign, survivorId: string): boolean {
+  return campaign.log.some(
+    ({ turn, event }) =>
+      turn === campaign.turn && event.kind === 'lost-rescued' && event.survivor === survivorId,
+  );
+}
+
+/** The Lost placed on a mission this turn whose rescue is still to be recorded (R109). */
+export function rescuesDue(campaign: Campaign): readonly Survivor[] {
+  if (phaseOf(campaign.step) !== 'mission') return [];
+
+  const placed = new Set(
+    campaign.log.flatMap(({ turn, event }) =>
+      turn === campaign.turn && event.kind === 'lost-rolled' && event.team !== undefined
+        ? [event.survivor]
+        : [],
+    ),
+  );
+
+  return campaign.lost.filter(
+    (survivor) => placed.has(survivor.id) && !rescueRecorded(campaign, survivor.id),
+  );
+}
+
+/** Why this rescue cannot be recorded, or `null`: for a Lost survivor placed this turn, once. */
+export function lostRescueProblem(campaign: Campaign, survivorId: string): string | null {
+  return rescuesDue(campaign).some((survivor) => survivor.id === survivorId)
+    ? null
+    : 'Nobody placed on a mission this turn is waiting to be rescued.';
+}
+
+/**
+ * The survivor as a rescue brings them back (pg. 124; R109): as themselves,
+ * with their Tier, skills, XP, traits and items, at full Health, with no
+ * Infection and no Madness.
+ */
+function returned(survivor: Survivor): Survivor {
+  return { ...survivor, currentHp: maxHp(survivor), infection: 0, madness: 0 };
+}
+
+/**
+ * The campaign with this rescue recorded (R109): a Found survivor back in the
+ * community, an exiled one back on the list of the Lost with their items left
+ * to the base (R75), and one not rescued still Lost. Assumes the check passed.
+ */
+export function withLostRescued(
+  campaign: Campaign,
+  survivorId: string,
+  result: LostRescue,
+  at: string,
+): Campaign {
+  const survivor = campaign.lost.find((one) => one.id === survivorId) as Survivor;
+  const placing = campaign.log
+    .filter(
+      ({ turn, event }) =>
+        turn === campaign.turn && event.kind === 'lost-rolled' && event.survivor === survivorId,
+    )
+    .at(-1)?.event as { readonly team: number };
+  const team = placing.team;
+  const others = campaign.lost.filter((one) => one.id !== survivorId);
+  const back = returned(survivor);
+
+  const after: Campaign =
+    result === 'found'
+      ? { ...campaign, lost: others, survivors: [...campaign.survivors, { ...back, found: true }] }
+      : result === 'exiled'
+        ? {
+            ...campaign,
+            lost: [...others, { ...back, items: [] }],
+            inventory: [...campaign.inventory, ...survivor.items],
+          }
+        : campaign;
+
+  return logged(after, at, {
+    kind: 'lost-rescued',
+    survivor: survivor.id,
+    name: survivor.name,
+    team,
+    result,
+    ...(result === 'exiled' && survivor.items.length > 0 ? { items: survivor.items } : {}),
+  });
 }

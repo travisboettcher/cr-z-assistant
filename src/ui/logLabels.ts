@@ -500,6 +500,17 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
         pages: '25, 124',
       };
 
+    case 'lost-rescued':
+      return {
+        text:
+          event.result === 'found'
+            ? `${event.name} was rescued from the Lost and is Found, back in the community.`
+            : event.result === 'exiled'
+              ? `${event.name} was rescued from the Lost and exiled back to them${event.items === undefined ? '' : `, leaving ${counted(event.items)} to the base`}.`
+              : `${event.name} wasn’t rescued, and is still Lost.`,
+        pages: 124,
+      };
+
     case 'survivor-lost':
       return {
         text: `${event.name} went Lost at ${String(event.madness)} Madness${event.items === undefined ? '' : `, taking ${counted(event.items)}`}.`,

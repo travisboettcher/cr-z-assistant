@@ -326,7 +326,9 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
   }
 
   if (
-    (event.kind === 'survivor-departed' || event.kind === 'survivor-lost') &&
+    (event.kind === 'survivor-departed' ||
+      event.kind === 'survivor-lost' ||
+      event.kind === 'lost-rescued') &&
     event.items !== undefined
   ) {
     return { ...taggedFirst(event, 'kind'), items: event.items.map(orderedItem) };

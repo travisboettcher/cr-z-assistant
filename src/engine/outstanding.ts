@@ -38,7 +38,7 @@ import { moveOwed } from './claim';
 import { survivorsFed } from './feeding';
 import { containmentDraws, healthAwards, woundsHealed } from './healing';
 import { madnessAwards, madnessRecovered } from './lounge';
-import { lostRollsDue } from './lostRoll';
+import { lostRollsDue, rescuesDue } from './lostRoll';
 import { materialsAdded } from './materials';
 import { firstMissionFailed, missionsChosen, unresolvedTeams } from './missions';
 import {
@@ -121,6 +121,14 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
     owed.push({
       step: 'tactical-mission',
       says: `Mission team ${String(team)} carries gear that lasts one mission, and what it used isn’t recorded.`,
+    });
+  }
+
+  // A Lost survivor placed on a mission is rescued or not (R109; Z7-8).
+  if (rescuesDue(campaign).length > 0) {
+    owed.push({
+      step: 'tactical-mission',
+      says: 'A Lost survivor was on a mission, and whether they were rescued isn’t recorded.',
     });
   }
 

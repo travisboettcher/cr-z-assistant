@@ -57,7 +57,13 @@ import {
 } from './missionVehicles';
 import { spentItems, spentProblem, withItemsSpent } from './spent';
 import { isStory, partNow, storyHolder, storyRecord, withStoryRecorded } from './storyMissions';
-import { lostRollProblem, withLostRolled } from './lostRoll';
+import {
+  lostRescueProblem,
+  lostRollProblem,
+  withLostRescued,
+  withLostRolled,
+  type LostRescue,
+} from './lostRoll';
 import { extrasOf } from './storyRewards';
 import { viralRecord, withViralRecorded } from './viralMissions';
 import { deathProblem, deathsProblem, withMissionDeath, type MissionDeath } from './missionDeaths';
@@ -513,4 +519,21 @@ export function submitLostRolled(
   if (problem !== null) return refused(problem);
 
   return accepted(withLostRolled(campaign, survivor, roll, team, at));
+}
+
+/**
+ * How a Lost survivor placed on a mission came out of it (pg. 124; R109;
+ * Z7-8): Found, exiled, or not rescued. Refused for whatever
+ * `lostRescueProblem` says.
+ */
+export function submitLostRescued(
+  campaign: Campaign,
+  survivor: string,
+  result: LostRescue,
+  at: string,
+): FormResult {
+  const problem = lostRescueProblem(campaign, survivor);
+  if (problem !== null) return refused(problem);
+
+  return accepted(withLostRescued(campaign, survivor, result, at));
 }

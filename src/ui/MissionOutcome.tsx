@@ -84,6 +84,7 @@ import {
   outcomePages,
 } from './missionLabels';
 import { PageRef } from './PageRef';
+import { LostRescues } from './LostRoll';
 import { StoryEnding } from './StoryEnding';
 import { ViralEnding } from './ViralEnding';
 import { EMPTY_VIRAL_DRAFT, viralDraftRecord, type ViralDraft } from './viralDraft';
@@ -1080,6 +1081,8 @@ export function MissionOutcome({ campaign }: { readonly campaign: Campaign }) {
           </div>
         );
       })}
+
+      <LostRescues campaign={campaign} />
 
       {overrunChoiceOwed(campaign) && <OverrunChoice campaign={campaign} />}
       {continuationOpen(campaign) && overrunChoice(campaign) === 'abandon' && (
