@@ -722,6 +722,16 @@ const EVENT_FIELDS: Record<
     ['target', 'amount'],
     ['passed', 'flag'],
   ],
+  // The Viral origin's Infection check (Z7-5): against Infection from 1, with
+  // the community's Medicine, which a Score can make any whole number.
+  'infection-checked': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['roll', 'roll'],
+    ['infection', 'countFromOne'],
+    ['bonus', 'amount'],
+    ['passed', 'flag'],
+  ],
   'bite-restrained': [
     ['survivor', 'id'],
     ['name', 'name'],

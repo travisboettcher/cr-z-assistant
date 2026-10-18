@@ -30,6 +30,13 @@
  * reading it, which is the shape half the September playtest's findings took:
  * the transcription was right and the code that sums never asked.
  *
+ * ## And the Viral origin's Infection check
+ *
+ * Under the Viral origin everybody carrying Infection checks too, a Tier check
+ * against their Infection with the community's Medicine added where there is
+ * a Clinic, and no natural results (pp. 22, 123; R99). A failure is the same
+ * turning, bite and all (R100), which is why both checks share it.
+ *
  * ## Nothing happens without a confirmation
  *
  * These are the only functions in the engine that remove a survivor as a
@@ -234,9 +241,25 @@ export function rotOutcome(
   roll: D10Result,
   bittenId: string | null,
 ): RotOutcome {
+  return turningOutcome(campaign, survivorId, bittenId, (survivor) =>
+    rotCheckPasses(survivor, roll, rotTarget(campaign)),
+  );
+}
+
+/**
+ * What a check means once it is known whether it held: nothing, or a turning
+ * with its bite or the Restraints that stopped it (pg. 22). Shared by the Rot
+ * check and the Infection check, whose failure is the same (R100).
+ */
+function turningOutcome(
+  campaign: Campaign,
+  survivorId: string,
+  bittenId: string | null,
+  holds: (survivor: Survivor) => boolean,
+): RotOutcome {
   const survivor = campaign.survivors.find((candidate) => candidate.id === survivorId);
 
-  if (survivor === undefined || rotCheckPasses(survivor, roll, rotTarget(campaign))) {
+  if (survivor === undefined || holds(survivor)) {
     return { turned: null, bitten: null, restrained: false };
   }
 
@@ -301,8 +324,11 @@ export function checkBite(
   roll: D10Result,
   bittenId: string | null,
 ): BiteCheck {
-  const outcome = rotOutcome(campaign, survivorId, roll, bittenId);
+  return biteCheckOf(campaign, survivorId, rotOutcome(campaign, survivorId, roll, bittenId));
+}
 
+/** The bite's check for an outcome, whichever check it came from. */
+function biteCheckOf(campaign: Campaign, survivorId: string, outcome: RotOutcome): BiteCheck {
   // Asked of the outcome rather than worked out again, so "is a bite due" is
   // the same answer `rotOutcome` gives: turned, not held, and somebody there.
   const due =
@@ -370,6 +396,86 @@ export function rotCheckResolved(campaign: Campaign, survivorId: string): boolea
     (entry) =>
       entry.turn === campaign.turn &&
       entry.event.kind === 'rot-checked' &&
+      entry.event.survivor === survivorId,
+  );
+}
+
+/**
+ * Everybody carrying Infection in a Viral campaign, who must make the
+ * Infection check this turn (pp. 22, 123; R99, R101), in roster order. A
+ * survivor at 0 Health makes the Rot check as well, and one who fails either
+ * turns once (R100).
+ */
+export function infectionMustCheck(campaign: Campaign): readonly Survivor[] {
+  if (campaign.origin !== 'viral') return [];
+
+  return campaign.survivors.filter((survivor) => survivor.infection > 0);
+}
+
+/** Everybody carrying Infection whose check has not been resolved yet this turn. */
+export function infectionStillToCheck(campaign: Campaign): readonly Survivor[] {
+  return infectionMustCheck(campaign).filter(
+    (survivor) => !infectionCheckResolved(campaign, survivor.id),
+  );
+}
+
+/**
+ * What the Infection check adds to the roll (pg. 123; R99): the whole
+ * community's Medicine, every survivor's Score together, whenever the base
+ * has a Medical Clinic, and nothing without one. Read under the hunger penalty,
+ * as the Rot check's Medicine is.
+ */
+export function infectionBonus(campaign: Campaign): number {
+  const clinic = suppliedOccupants(campaign).some(
+    (occupant) => occupant.facility.id === 'medical-clinic',
+  );
+  if (!clinic) return 0;
+
+  const penalty = hungerPenalty(campaign);
+
+  return campaign.survivors.reduce(
+    (total, survivor) => total + (skillScore(survivor, 'medicine', penalty) ?? 0),
+    0,
+  );
+}
+
+/**
+ * Whether a roll passes the Infection check (pp. 8, 123): the die, the
+ * survivor's Tier and the community's Medicine against their Infection. A 1
+ * and a 10 are only their numbers here (pg. 123).
+ */
+export function infectionCheckPasses(survivor: Survivor, roll: D10Result, bonus: number): boolean {
+  return roll + survivor.tier + bonus >= survivor.infection;
+}
+
+/** What an Infection check's roll means: a failure turns, as the Rot check's does (R100). */
+export function infectionOutcome(
+  campaign: Campaign,
+  survivorId: string,
+  roll: D10Result,
+  bittenId: string | null,
+): RotOutcome {
+  return turningOutcome(campaign, survivorId, bittenId, (survivor) =>
+    infectionCheckPasses(survivor, roll, infectionBonus(campaign)),
+  );
+}
+
+/** The Infection check's bite, which is the Rot check's (pg. 22; R100). */
+export function checkInfectionBite(
+  campaign: Campaign,
+  survivorId: string,
+  roll: D10Result,
+  bittenId: string | null,
+): BiteCheck {
+  return biteCheckOf(campaign, survivorId, infectionOutcome(campaign, survivorId, roll, bittenId));
+}
+
+/** Whether this survivor's Infection check has been resolved this turn (R99). */
+export function infectionCheckResolved(campaign: Campaign, survivorId: string): boolean {
+  return campaign.log.some(
+    (entry) =>
+      entry.turn === campaign.turn &&
+      entry.event.kind === 'infection-checked' &&
       entry.event.survivor === survivorId,
   );
 }

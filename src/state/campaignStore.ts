@@ -117,6 +117,7 @@ import {
   submitDeparture,
   submitFeeding,
   submitHordeCheck,
+  submitInfectionCheck,
   submitRotCheck,
   submitStorageCheck,
   submitTeamReduction,
@@ -648,6 +649,19 @@ export type CampaignAction =
       readonly at: string;
     }
   /**
+   * Resolve one survivor's Infection check, under the Viral origin (pg. 123;
+   * R99; Z7-5). Refused as `submitInfectionCheck` refuses: a second time this
+   * turn, for somebody carrying no Infection, and a turning that bites nobody
+   * when somebody is there to bite.
+   */
+  | {
+      readonly type: 'management/infectionChecked';
+      readonly survivor: string;
+      readonly roll: D10Result;
+      readonly bitten: string | null;
+      readonly at: string;
+    }
+  /**
    * Share out a turn's Health, in the Heal Wounds step (pg. 19).
    *
    * Carries the clock, and **what each award is spent on, never how big it
@@ -1001,6 +1015,15 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
     case 'management/rotChecked':
       return submitted(state, (campaign) =>
         submitRotCheck(
+          campaign,
+          { survivor: action.survivor, roll: action.roll, bitten: action.bitten },
+          action.at,
+        ),
+      );
+
+    case 'management/infectionChecked':
+      return submitted(state, (campaign) =>
+        submitInfectionCheck(
           campaign,
           { survivor: action.survivor, roll: action.roll, bitten: action.bitten },
           action.at,

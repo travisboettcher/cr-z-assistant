@@ -47,7 +47,7 @@ import {
   siegeLaborShortfall,
 } from './projects';
 import { continuationOpen, overrunChoiceOwed } from './overrun';
-import { mustCheck, rotCheckResolved } from './rot';
+import { infectionStillToCheck, mustCheck, rotCheckResolved } from './rot';
 import { hordeChecked } from './siege';
 import { anythingOverCap, storageChecked } from './storage';
 import { someoneDeparted, someoneIsLeaving } from './departures';
@@ -242,6 +242,14 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
 
   if (rotOutstanding(campaign)) {
     owed.push({ step: 'check-for-rot', says: 'Somebody at 0 Health hasn’t made a Rot check.' });
+  }
+
+  // Under the Viral origin, everybody carrying Infection checks too (pg. 123; R99).
+  if (infectionStillToCheck(campaign).length > 0) {
+    owed.push({
+      step: 'check-for-rot',
+      says: 'Somebody carrying Infection hasn’t made an Infection check.',
+    });
   }
 
   if (!survivorsFed(campaign)) {

@@ -398,6 +398,22 @@ export type CampaignEvent =
       readonly passed: boolean;
     }
   /**
+   * One survivor's Infection check under the Viral origin (pp. 22, 123; R99;
+   * Z7-5): the roll, their Infection it was against, and the community's
+   * Medicine added to it. Load-bearing, as `rot-checked` is: it is how the step
+   * knows the check is made. A failure is followed by the turning's own
+   * entries (R100).
+   */
+  | {
+      readonly kind: 'infection-checked';
+      readonly survivor: string;
+      readonly name: string;
+      readonly roll: D10Result;
+      readonly infection: number;
+      readonly bonus: number;
+      readonly passed: boolean;
+    }
+  /**
    * A set of Restraints held a turning survivor, so nobody was bitten (pg. 69).
    *
    * **Load-bearing**, like `planning-began` and `materials-added`:

@@ -363,6 +363,54 @@ describe('Check for Rot', () => {
   });
 });
 
+/** The Viral origin's Infection check, beside the Rot checks (pg. 123; R99–R101; Z7-5). */
+describe('the Infection check', () => {
+  const infected = (infection: number): Campaign =>
+    management({
+      step: 'check-for-rot',
+      origin: 'viral',
+      survivors: [
+        { ...createSurvivor('Earl Rhodes', 4, { id: EARL }), infection },
+        createSurvivor('Carla Proust', 4, { id: CARLA }),
+      ],
+    });
+
+  it('asks everybody carrying Infection for a roll, and records it', async () => {
+    const user = open(infected(6));
+    const section = within(within(walk()).getByRole('region', { name: 'Infection checks' }));
+
+    expect(section.getByText(/Everybody carrying Infection checks against it/)).toBeTruthy();
+    expect(section.getByText(/6 Infection/)).toBeTruthy();
+    expect(section.queryByText(/Carla Proust/)).toBeNull();
+
+    await user.selectOptions(section.getByLabelText('Rolled'), '2');
+    expect(section.getByText('Earl Rhodes holds off the Infection.')).toBeTruthy();
+    await user.click(
+      section.getByRole('button', { name: 'Resolve Earl Rhodes’s Infection check' }),
+    );
+
+    expect(section.getByText(/Earl Rhodes held off the Infection this turn/)).toBeTruthy();
+    expect(campaignLog().textContent).toContain(
+      'Earl Rhodes held off the Infection, rolling a 2 against 6 Infection.',
+    );
+  });
+
+  it('says what a failure costs before the press', async () => {
+    const user = open(infected(10));
+    const section = within(within(walk()).getByRole('region', { name: 'Infection checks' }));
+
+    await user.selectOptions(section.getByLabelText('Rolled'), '1');
+
+    expect(section.getByText('Earl Rhodes turns and is removed.')).toBeTruthy();
+  });
+
+  it('is not asked outside a Viral campaign', () => {
+    open(management({ step: 'check-for-rot' }));
+
+    expect(within(walk()).queryByRole('region', { name: 'Infection checks' })).toBeNull();
+  });
+});
+
 describe('Calculate Unrest', () => {
   it('adds the two terms up and shows the working', () => {
     // Six Rookies in a base that sleeps four: two Exhaustion, no Hunger.

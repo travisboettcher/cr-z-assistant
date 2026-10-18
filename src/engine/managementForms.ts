@@ -26,7 +26,19 @@ import { accepted, blockedBy, refused, type FormResult } from './forms';
 import { logged } from './log';
 import { withRareTradeLost } from './rareTrade';
 import { withItemsLeftBehind } from './spent';
-import { checkBite, rotCheckResolved, rotOutcome, rotTarget, withRotApplied } from './rot';
+import {
+  checkBite,
+  checkInfectionBite,
+  infectionBonus,
+  infectionCheckResolved,
+  infectionMustCheck,
+  infectionOutcome,
+  rotCheckResolved,
+  rotOutcome,
+  rotTarget,
+  withRotApplied,
+  type RotOutcome,
+} from './rot';
 import { hordeChecked, hordeForced, siegeThreat, siegeTriggered } from './siege';
 import { overCap, storageChecked, withStorageChecked } from './storage';
 
@@ -84,15 +96,64 @@ export function submitRotCheck(campaign: Campaign, form: RotCheckForm, at: strin
     passed: outcome.turned === null,
   });
 
-  if (outcome.turned === null) return accepted(checked);
+  return accepted(withTurningLogged(checked, outcome, at));
+}
 
-  // What a survivor gone this way carried stays at the base (R72, R74), written
-  // after the entries that took them off the roster.
+/**
+ * Resolve one survivor's Infection check, under the Viral origin (pp. 22,
+ * 123; R99, R100; Z7-5). The Rot check's form in every way but the roll's
+ * target: their Infection, with the community's Medicine added. A failure
+ * turns them, and writes what a failed Rot check writes.
+ */
+export function submitInfectionCheck(
+  campaign: Campaign,
+  form: RotCheckForm,
+  at: string,
+): FormResult {
+  if (infectionCheckResolved(campaign, form.survivor)) {
+    return refused('Their Infection check is already resolved this turn.');
+  }
+
+  const survivor = infectionMustCheck(campaign).find((candidate) => candidate.id === form.survivor);
+  if (survivor === undefined) {
+    return refused('Only a survivor carrying Infection, in a Viral campaign, makes this check.');
+  }
+
+  const biteProblem = blockedBy(
+    checkInfectionBite(campaign, form.survivor, form.roll, form.bitten),
+  );
+  if (biteProblem !== null) return refused(biteProblem);
+
+  const outcome = infectionOutcome(campaign, form.survivor, form.roll, form.bitten);
+
+  const checked = logged(withRotApplied(campaign, outcome), at, {
+    kind: 'infection-checked',
+    survivor: survivor.id,
+    name: survivor.name,
+    roll: form.roll,
+    infection: survivor.infection,
+    bonus: infectionBonus(campaign),
+    passed: outcome.turned === null,
+  });
+
+  return accepted(withTurningLogged(checked, outcome, at));
+}
+
+/**
+ * A turning written down after its check (pg. 22): the survivor leaving; and
+ * either the Restraints holding them (pg. 69) or the bite, and the bitten
+ * survivor leaving if it finishes them. What anybody gone this way carried
+ * stays at the base (R72, R74), written after the entries that took them off
+ * the roster. Nothing for a check that held.
+ */
+function withTurningLogged(checked: Campaign, outcome: RotOutcome, at: string): Campaign {
+  if (outcome.turned === null) return checked;
+
   const gone = [
     outcome.turned,
     ...(outcome.bitten?.dies === true ? [outcome.bitten.survivor] : []),
   ];
-  const behind = (result: Campaign) => accepted(withItemsLeftBehind(result, gone, at));
+  const behind = (result: Campaign) => withItemsLeftBehind(result, gone, at);
 
   const turned = logged(checked, at, {
     kind: 'survivor-left',

@@ -438,6 +438,15 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       passed: fc.boolean(),
     }),
     fc.record({
+      kind: fc.constant('infection-checked' as const),
+      survivor: anyId,
+      name: anyName,
+      roll: fc.constantFrom(...D10_RESULTS),
+      infection: fc.integer({ min: 1, max: 10 }),
+      bonus: anyAmount,
+      passed: fc.boolean(),
+    }),
+    fc.record({
       kind: fc.constant('bite-restrained' as const),
       survivor: anyId,
       name: anyName,

@@ -3349,6 +3349,30 @@ describe('what earns a line in the log', () => {
         passed: true,
       }),
     },
+    'management/infectionChecked': {
+      // A Viral survivor carrying 3 Infection who holds it off: one entry.
+      state: openState({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        turn: 3,
+        origin: 'viral',
+        survivors: [{ ...createSurvivor('Marcus Webb', 2, { id: LOGGED_SURVIVOR }), infection: 3 }],
+      }),
+      action: {
+        type: 'management/infectionChecked',
+        at: AT,
+        survivor: LOGGED_SURVIVOR,
+        roll: 4,
+        bitten: null,
+      },
+      entry: entry(3, 'mission', {
+        kind: 'infection-checked',
+        ...WEBB,
+        roll: 4,
+        infection: 3,
+        bonus: 0,
+        passed: true,
+      }),
+    },
     'advancement/woundsHealed': {
       // Its own campaign, because `rich()` has nobody wounded and nobody
       // healing — the step would be a no-op there and "records nothing" would

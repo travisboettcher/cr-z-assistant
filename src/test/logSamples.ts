@@ -71,6 +71,9 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   // A Clinic can drive the target below zero, which the book leaves unclamped
   // (R2) — so the validator has to accept a target no count would.
   { kind: 'rot-checked', ...SURVIVOR, roll: 10, target: -1, passed: true },
+  // The Viral origin's Infection check (Z7-5), with and without a Clinic's Medicine.
+  { kind: 'infection-checked', ...SURVIVOR, roll: 4, infection: 6, bonus: 3, passed: true },
+  { kind: 'infection-checked', ...SURVIVOR, roll: 1, infection: 10, bonus: 0, passed: false },
   { kind: 'bite-restrained', ...SURVIVOR },
   { kind: 'survivor-bitten', ...SURVIVOR, damage: 1 },
   { kind: 'storage-checked', food: 2, fuel: 0, hardware: 0 },

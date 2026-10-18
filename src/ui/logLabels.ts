@@ -253,6 +253,20 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
         pages: 22,
       };
 
+    case 'infection-checked': {
+      // The roll's whole sum, because the Medicine is what usually decides it (R99).
+      const against = `rolling ${articleForNumber(event.roll)} ${String(event.roll)}${
+        event.bonus === 0 ? '' : ` with ${String(event.bonus)} Medicine`
+      } against ${String(event.infection)} Infection`;
+
+      return {
+        text: event.passed
+          ? `${event.name} held off the Infection, ${against}.`
+          : `${event.name} turned from the Infection, ${against}.`,
+        pages: 123,
+      };
+    }
+
     case 'bite-restrained':
       return {
         text: `The Restraints held ${event.name}, and nobody was bitten.`,
