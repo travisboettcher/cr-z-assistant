@@ -81,6 +81,8 @@ export interface MissionWound {
   readonly name: string;
   readonly health: number;
   readonly infection?: number;
+  /** In a Cosmic Horror campaign, as Infection is in a Viral one (Z7-7). */
+  readonly madness?: number;
 }
 
 /**

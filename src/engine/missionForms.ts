@@ -220,7 +220,7 @@ export function submitMissionEnded(
   const wounds = woundsAsTheyStand(campaign, outcomeTeam(outcome))
     .filter((member) => !dead.has(member.survivor))
     .map((member) => {
-      const { health, infection } = (outcome.wounds as readonly MissionWound[]).find(
+      const { health, infection, madness } = (outcome.wounds as readonly MissionWound[]).find(
         (wound) => wound.survivor === member.survivor,
       ) as MissionWound;
 
@@ -229,6 +229,7 @@ export function submitMissionEnded(
         name: member.name,
         health,
         ...(infection === undefined ? {} : { infection }),
+        ...(madness === undefined ? {} : { madness }),
       };
     });
 

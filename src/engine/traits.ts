@@ -17,7 +17,7 @@ import { STATS, type Stat } from '../data/skills';
 import { STORY_TRAIT_RULES, type StoryTrait, type StoryTraitRules } from '../data/traits';
 import { TIER_RULES } from '../data/tiers';
 import { PROMOTION_STORIES, type StoryMissionId } from '../data/missions';
-import type { Assignment, Campaign, Survivor } from './campaign';
+import { type Assignment, type Campaign, keptSurvivors, type Survivor } from './campaign';
 
 /** The rules of the Story Trait a survivor holds, or `undefined` for none. */
 export function storyTraitRules(survivor: Survivor): StoryTraitRules | undefined {
@@ -141,12 +141,10 @@ export function withTraits(survivor: Survivor, traits: SurvivorTraits): Survivor
 /** Promoting from below this Tier attaches a story; from it, makes a Veteran (pg. 87). */
 const STORY_TIERS_BELOW = 3;
 
-/** Every story attached to somebody, in the community or set aside (R136). */
+/** Every story attached to somebody, in the community, set aside or Lost (R136). */
 export function storiesHeld(campaign: Campaign): ReadonlySet<StoryMissionId> {
   return new Set(
-    [...campaign.survivors, ...campaign.setAside].flatMap((survivor) =>
-      survivor.stories.map((story) => story.mission),
-    ),
+    keptSurvivors(campaign).flatMap((survivor) => survivor.stories.map((story) => story.mission)),
   );
 }
 

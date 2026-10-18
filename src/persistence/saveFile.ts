@@ -343,6 +343,9 @@ function describeSurvivorProblem(value: unknown): string | null {
   // Any count, not capped at 10: a survivor at 10 is down rather than gone
   // (pg. 123), and what is above it is a table's typing, not a damaged file.
   if (!isCountFromZero(value.infection)) return 'has unreadable infection';
+  // Any count too: at 13 a survivor goes Lost at Departures (R106), and what is
+  // above it is the table's count until then.
+  if (!isCountFromZero(value.madness)) return 'has unreadable madness';
   if (!isCountFromZero(value.xp)) return 'has unreadable experience';
 
   // What they carry (Z5-2). A current-version survivor with no list is damaged
@@ -558,7 +561,8 @@ const EVENT_FIELD_CHECKS = {
   // (Z4-4); absent on every outcome written before. Shape only: not held to
   // the roster or to anybody's maximum, for the reason `optionalAssignments`
   // is not — this is history, and the survivor it names may have left, or
-  // been promoted, since. Infection is any count, as on the survivor.
+  // been promoted, since. Infection is any count, as on the survivor, and so
+  // is Madness in a Cosmic Horror campaign (Z7-7).
   optionalWounds: (value: unknown) =>
     value === undefined ||
     (Array.isArray(value) &&
@@ -569,7 +573,8 @@ const EVENT_FIELD_CHECKS = {
           wound.survivor !== '' &&
           typeof wound.name === 'string' &&
           isCountFromZero(wound.health) &&
-          (wound.infection === undefined || isCountFromZero(wound.infection)),
+          (wound.infection === undefined || isCountFromZero(wound.infection)) &&
+          (wound.madness === undefined || isCountFromZero(wound.madness)),
       )),
   // Which numbered end condition was met, or `null` for none (pp. 77, 79).
   // Which numbers a mission has is the engine's to check, not a file's.
@@ -1351,6 +1356,22 @@ function describeCampaignProblem(value: unknown): string | null {
     }
   }
 
+  // The Lost (R106; Z7-7), checked as the set-aside are, and nobody in two lists.
+  if (!Array.isArray(value.lost)) return 'its list of the Lost is missing';
+  for (const [index, survivor] of value.lost.entries()) {
+    const problem = describeSurvivorProblem(survivor);
+    if (problem !== null) return `Lost survivor ${index + 1} of ${value.lost.length} ${problem}`;
+
+    const { id } = survivor as { readonly id: string };
+    if (
+      [...value.survivors, ...(value.setAside as unknown[])].some(
+        (one) => isRecord(one) && one.id === id,
+      )
+    ) {
+      return `it has somebody both Lost and elsewhere: ${id}`;
+    }
+  }
+
   // The Rare Item Table rolls a v16 save's Rare became (R49; Z5-7).
   if (!isCountFromZero(value.rareRollsOwed)) return 'it doesn’t say how many Rare rolls it owes';
 
@@ -1412,6 +1433,7 @@ function describeCampaignProblem(value: unknown): string | null {
     ...[
       ...(value.survivors as readonly { readonly items: readonly { readonly id: string }[] }[]),
       ...(value.setAside as readonly { readonly items: readonly { readonly id: string }[] }[]),
+      ...(value.lost as readonly { readonly items: readonly { readonly id: string }[] }[]),
     ].flatMap((survivor) => survivor.items),
     ...installed,
     // An item on its way from a trade has its id already (Z5-9), and so does
@@ -1428,12 +1450,13 @@ function describeCampaignProblem(value: unknown): string | null {
   const repeated = ids.find((id, at) => ids.indexOf(id) !== at);
   if (repeated !== undefined) return `it holds two items with one id: ${repeated}`;
 
-  // A story is attached to one survivor at a time (R136), the set-aside included.
+  // A story is attached to one survivor at a time (R136), the set-aside and Lost included.
   const stories = [
     ...(value.survivors as readonly {
       readonly stories: readonly { readonly mission: string }[];
     }[]),
     ...(value.setAside as readonly { readonly stories: readonly { readonly mission: string }[] }[]),
+    ...(value.lost as readonly { readonly stories: readonly { readonly mission: string }[] }[]),
   ].flatMap((survivor) => survivor.stories.map((story) => story.mission));
   const shared = stories.find((mission, at) => stories.indexOf(mission) !== at);
   if (shared !== undefined) return `two survivors hold one story: ${shared}`;

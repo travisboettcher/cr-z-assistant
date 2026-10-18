@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import currentFixture from './__fixtures__/campaign-v21.json';
+import currentFixture from './__fixtures__/campaign-v22.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -18,6 +18,7 @@ const VALID_SURVIVOR = {
   defense: 6,
   currentHp: 3,
   infection: 0,
+  madness: 0,
   xp: 5,
   items: [],
   storyTrait: null,
@@ -731,6 +732,9 @@ describe('a survivor whose fields are the wrong type', () => {
     // Rot Resistant (Z7-5), yes or no.
     ['a Rot Resistant that isn’t yes or no', { rotResistant: 'yes' }],
     ['a missing Rot Resistant', { rotResistant: undefined }],
+    // Madness (Z7-7), any count from 0.
+    ['a fractional madness', { madness: 1.5 }],
+    ['a missing madness', { madness: undefined }],
     // Attached stories (Z7-2): a list of story missions, each with its turn.
     ['stories that aren’t a list', { stories: 'warehouse' }],
     ['a story that isn’t an object', { stories: ['warehouse'] }],
@@ -756,6 +760,7 @@ describe('a survivor whose fields are the wrong type', () => {
       defense: 0,
       currentHp: 0,
       infection: 0,
+      madness: 0,
       xp: 0,
       items: [],
     });
@@ -955,6 +960,58 @@ describe('a campaign whose set-aside list is damaged', () => {
     expect(refusalFor({ survivors: [VALID_SURVIVOR], setAside: [VALID_SURVIVOR] })).toMatch(
       /both in the community and set aside/,
     );
+  });
+});
+
+/** The Lost (R106; Z7-7), read as the set-aside are. */
+describe('a campaign whose list of the Lost is damaged', () => {
+  const refusalFor = (overrides: Record<string, unknown>) => {
+    const result = parseCampaignFile(savedWith(overrides));
+
+    return result.ok ? null : result.error.message;
+  };
+
+  it('reads a Lost survivor back as they were written', () => {
+    const lost = { ...VALID_SURVIVOR, madness: 14 };
+    const result = parseCampaignFile(savedWith({ lost: [lost] }));
+
+    expect(result.ok ? result.campaign.lost : null).toEqual([lost]);
+  });
+
+  it('refuses a missing list, a damaged survivor, and somebody both Lost and elsewhere', () => {
+    expect(refusalFor({ lost: undefined })).toMatch(/list of the Lost is missing/);
+    expect(refusalFor({ lost: [{ ...VALID_SURVIVOR, madness: -1 }] })).toMatch(
+      /Lost survivor 1 of 1 has unreadable madness/,
+    );
+    expect(refusalFor({ survivors: [VALID_SURVIVOR], lost: [VALID_SURVIVOR] })).toMatch(
+      /both Lost and elsewhere/,
+    );
+    expect(refusalFor({ setAside: [VALID_SURVIVOR], lost: [VALID_SURVIVOR] })).toMatch(
+      /both Lost and elsewhere/,
+    );
+  });
+
+  it('counts a Lost survivor’s items and stories as held', () => {
+    const carrying = (id: string) => ({
+      ...VALID_SURVIVOR,
+      id,
+      items: [{ id: 'axe', item: 'bladed', grade: 'standard' }],
+    });
+
+    expect(
+      refusalFor({
+        inventory: [{ id: 'axe', item: 'bladed', grade: 'standard' }],
+        lost: [carrying('gone')],
+      }),
+    ).toMatch(/two items with one id: axe/);
+    expect(
+      refusalFor({
+        survivors: [{ ...VALID_SURVIVOR, stories: [{ mission: 'warehouse', attachedOnTurn: 1 }] }],
+        lost: [
+          { ...VALID_SURVIVOR, id: 'gone', stories: [{ mission: 'warehouse', attachedOnTurn: 1 }] },
+        ],
+      }),
+    ).toMatch(/two survivors hold one story: warehouse/);
   });
 });
 
@@ -1689,6 +1746,7 @@ describe('a campaign whose assignments are damaged', () => {
       defense: 6,
       currentHp: 4,
       infection: 0,
+      madness: 0,
       xp: 0,
       items: [],
       storyTrait: null,

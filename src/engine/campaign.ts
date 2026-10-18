@@ -36,7 +36,7 @@ import type { LogEntry } from './log';
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 21;
+export const CURRENT_SCHEMA_VERSION = 22;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -100,6 +100,15 @@ export interface Survivor {
    * difference (#176).
    */
   infection: number;
+
+  /**
+   * Madness, under the Cosmic Horror origin (pg. 124; Z7-7). Stored on every
+   * survivor, as Infection is, and for the same reason: a horror check adds it
+   * on a mission and it carries from one to the next. The Lounge takes it away
+   * (R110); at 13 or more the survivor goes Lost at Departures (R106). Zero
+   * outside a Cosmic Horror campaign, and for every save from before v22.
+   */
+  madness: number;
 
   xp: number;
 
@@ -528,6 +537,13 @@ export interface Campaign {
   setAside: readonly Survivor[];
 
   /**
+   * Survivors gone Lost to Madness (pp. 23, 124; R106; Z7-7), kept whole with
+   * what they carried, because a rescued one comes back as themselves (R109).
+   * Off the roster, like the set-aside. Empty for every save from before v22.
+   */
+  lost: readonly Survivor[];
+
+  /**
    * The base's Inventory: the items the community owns that nobody is carrying
    * (pp. 18, 54; Z5-2).
    *
@@ -662,6 +678,7 @@ export function createNewCampaign(name: string, options: NewCampaignOptions = {}
     projects: [],
     survivors: [],
     setAside: [],
+    lost: [],
     inventory: [],
     rareRollsOwed: 0,
     trades: [],
@@ -677,4 +694,13 @@ export function createNewCampaign(name: string, options: NewCampaignOptions = {}
     assignments: {},
     log: [],
   };
+}
+
+/**
+ * Everybody the campaign keeps: the community, the set-aside and the Lost
+ * (R31, R106). What one of them holds, an item, a story or a bond group, is
+ * taken whether or not they are here.
+ */
+export function keptSurvivors(campaign: Campaign): readonly Survivor[] {
+  return [...campaign.survivors, ...campaign.setAside, ...campaign.lost];
 }

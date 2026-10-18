@@ -94,6 +94,7 @@ function orderedSurvivor(survivor: Survivor): Record<keyof Survivor, unknown> {
     defense: survivor.defense,
     currentHp: survivor.currentHp,
     infection: survivor.infection,
+    madness: survivor.madness,
     xp: survivor.xp,
     items: survivor.items.map(orderedItem),
     storyTrait: survivor.storyTrait,
@@ -486,6 +487,7 @@ function orderedWound(wound: MissionWound): Record<keyof MissionWound, unknown> 
     name: wound.name,
     health: wound.health,
     infection: wound.infection,
+    madness: wound.madness,
   };
 }
 
@@ -529,6 +531,7 @@ function inFileOrder(campaign: Campaign): Record<keyof Campaign, unknown> {
     materials: orderedMaterials(campaign),
     survivors: campaign.survivors.map(orderedSurvivor),
     setAside: campaign.setAside.map(orderedSurvivor),
+    lost: campaign.lost.map(orderedSurvivor),
     inventory: campaign.inventory.map(orderedItem),
     rareRollsOwed: campaign.rareRollsOwed,
     trades: campaign.trades.map(orderedTrade),

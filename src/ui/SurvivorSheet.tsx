@@ -15,6 +15,7 @@ import { useId, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { COMMON_SKILLS, SKILLS, SKILL_STATS, STATS, type Skill, type Stat } from '../data/skills';
 import { TIER_RULES } from '../data/tiers';
+import { MADNESS_GOES_LOST } from '../data/origins';
 import {
   commonSkillPurchase,
   promotionStatChoices,
@@ -156,6 +157,8 @@ function Vitals({ survivor, penalty }: { readonly survivor: Survivor; readonly p
   // and stays 0 elsewhere, so the control is shown only where it can mean
   // something — a Cosmic Horror table has no use for a number nothing raises.
   const viral = state.status === 'open' && state.campaign.origin === 'viral';
+  // Madness likewise, the Cosmic Horror origin's (pg. 124; Z7-7).
+  const cosmic = state.status === 'open' && state.campaign.origin === 'cosmic-horror';
 
   return (
     <div className="mt-6 flex flex-wrap items-end gap-x-8 gap-y-4 border-t border-stone-200 pt-6 dark:border-stone-800">
@@ -205,6 +208,37 @@ function Vitals({ survivor, penalty }: { readonly survivor: Survivor; readonly p
           onSave={(infection) =>
             dispatch({ type: 'survivor/infectionSet', id: survivor.id, infection })
           }
+        />
+      )}
+
+      {/*
+       * Typed in as Infection is: a horror check adds it on a mission, and the
+       * Lounge takes it away (R110). No maximum: at 13 the survivor goes Lost
+       * at Departures (R106), and the sheet says so rather than refusing it.
+       */}
+      {cosmic && (
+        <EditableNumber
+          heading={
+            <>
+              Madness <PageRef pages={124} />
+            </>
+          }
+          display={
+            survivor.madness >= MADNESS_GOES_LOST ? (
+              <>
+                {survivor.madness}{' '}
+                <span className="text-sm font-medium text-red-700 dark:text-red-400">
+                  goes Lost at Departures
+                </span>
+              </>
+            ) : (
+              survivor.madness
+            )
+          }
+          value={survivor.madness}
+          what="madness"
+          fieldLabel={`Madness for ${survivor.name}`}
+          onSave={(madness) => dispatch({ type: 'survivor/madnessSet', id: survivor.id, madness })}
         />
       )}
 

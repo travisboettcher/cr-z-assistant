@@ -118,6 +118,7 @@ export function utilityWorker(score: number): Survivor {
     bondGroup: null,
     stories: [],
     rotResistant: false,
+    madness: 0,
   };
 }
 

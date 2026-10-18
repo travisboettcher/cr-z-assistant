@@ -31,6 +31,7 @@ const SAMPLE_SURVIVOR = {
   bondGroup: null,
   stories: [],
   rotResistant: false,
+  madness: 0,
 } satisfies Survivor;
 
 /**
@@ -849,5 +850,46 @@ describe('the v20 to v21 Containment and Medical Supplies', () => {
     if (!result.ok) return;
 
     expect([result.campaign.heldZombies, result.campaign.medicalSupplies]).toEqual([1, 2]);
+  });
+});
+
+describe('the v21 to v22 Madness and the Lost', () => {
+  it('brings every earlier survivor forward with no Madness, and nobody Lost', () => {
+    for (const fixture of fixtures.filter((f) => f.version < 22)) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok) continue;
+
+      for (const survivor of [...result.campaign.survivors, ...result.campaign.setAside]) {
+        expect(survivor.madness, `${fixture.path} ${survivor.name}`).toBe(0);
+      }
+      expect(result.campaign.lost, fixture.path).toEqual([]);
+    }
+  });
+
+  it('keeps a v22 save’s own', () => {
+    const v22 = fixtures.find((fixture) => fixture.version === 22);
+    const result = migrate(v22?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.survivors.map((one) => one.madness)).toEqual([5, 0, 0, 0]);
+  });
+
+  it('hands a survivor that is not an object, or a list that is not a list, on untouched', () => {
+    const v21 = fixtures.find((fixture) => fixture.version === 21);
+    const result = migrate({
+      ...(v21?.contents as object),
+      survivors: [null, 7],
+      setAside: 'nobody',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.survivors).toEqual([null, 7]);
+    expect(result.campaign.setAside).toBe('nobody');
   });
 });

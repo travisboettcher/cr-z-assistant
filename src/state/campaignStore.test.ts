@@ -467,6 +467,15 @@ describe('the survivor actions', () => {
     expect(after).toEqual({ ...before, infection: 10 });
   });
 
+  it('sets Madness without touching anything else about the survivor', () => {
+    const before = expectOpen(withRoster()).survivors[0];
+    const after = expectOpen(
+      campaignReducer(withRoster(), { type: 'survivor/madnessSet', id: SURVIVOR_ID, madness: 13 }),
+    ).survivors[0];
+
+    expect(after).toEqual({ ...before, madness: 13 });
+  });
+
   it('removes only the named survivor', () => {
     const campaign = expectOpen(
       campaignReducer(withRoster(), { type: 'survivor/removed', at: AT, id: SURVIVOR_ID }),
@@ -3064,6 +3073,10 @@ describe('what earns a line in the log', () => {
     // run (#176). Heal Wounds removing it is what earns a line.
     'survivor/infectionSet': {
       action: { type: 'survivor/infectionSet', id: LOGGED_SURVIVOR, infection: 3 },
+      entry: null,
+    },
+    'survivor/madnessSet': {
+      action: { type: 'survivor/madnessSet', id: LOGGED_SURVIVOR, madness: 3 },
       entry: null,
     },
     'survivor/statsSet': {

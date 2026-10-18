@@ -42,6 +42,7 @@ import {
   type StandardMissionId,
 } from '../data/missions';
 import { FIELD_RECRUITABLE_TIERS, type FieldRecruitTier } from '../data/recruitTable';
+import { MADNESS_FOR_COSMIC_MISSIONS } from '../data/origins';
 import { beforePlanning } from './assignments';
 import { continuationMission, continuationOpen, overrunChoice, overrunClaim } from './overrun';
 import type { Campaign, RareTrade, Survivor } from './campaign';
@@ -242,7 +243,8 @@ export function missionsChosen(campaign: Campaign): boolean {
  * missions of the campaign's own Origin of the Rot, and **the stories attached
  * to somebody on this team**, a story being its survivor's to play (pp. 75, 87;
  * R116). An origin's missions are offered on every turn but Viral Mission 1
- * once it has unlocked Containment (R132, R145).
+ * once it has unlocked Containment (R132, R145), and a Cosmic Horror one only
+ * to a team with somebody at 4 or more Madness (R132).
  *
  * What it does not narrow is R20's: a second Claim a New Base is refused when
  * it is chosen, because which team may have it depends on who asks.
@@ -264,10 +266,12 @@ export function missionsOnOffer(campaign: Campaign, team: number): readonly Miss
         return mission.availability === 'any-time';
       case 'origin':
         // Experimental Data until it unlocks Containment, and never after
-        // (R132); the other two on every turn (R145).
+        // (R132); the other two on every turn (R145); a Cosmic Horror mission
+        // to a team with somebody at 4 or more Madness (R132).
         return (
           mission.origin === campaign.origin &&
-          (id !== 'experimental-data' || containmentUnlock(campaign) === null)
+          (id !== 'experimental-data' || containmentUnlock(campaign) === null) &&
+          (mission.origin !== 'cosmic-horror' || maddened(campaign, team))
         );
       case 'story':
         return storiesOn(campaign, team).has(id);
@@ -275,6 +279,13 @@ export function missionsOnOffer(campaign: Campaign, team: number): readonly Miss
         return true;
     }
   });
+}
+
+/** Whether somebody on this team has the Madness a Cosmic Horror mission needs (R132). */
+function maddened(campaign: Campaign, team: number): boolean {
+  return membersOf(campaign, team).some(
+    (survivor) => survivor.madness >= MADNESS_FOR_COSMIC_MISSIONS,
+  );
 }
 
 /** The stories attached to somebody on this mission team (R116). */
@@ -870,8 +881,9 @@ export function membersOf(campaign: Campaign, team: number): readonly Survivor[]
 
 /**
  * Each member of a team as they stand now, written as the wounds a form
- * starts from (Z4-4): their current Health, and their Infection in a Viral
- * campaign. In team order, which is roster order.
+ * starts from (Z4-4): their current Health, their Infection in a Viral
+ * campaign, and their Madness in a Cosmic Horror one (Z7-7). In team order,
+ * which is roster order.
  *
  * So recording everybody is the natural thing to do — a member who came back
  * unhurt needs nothing typed — and a correction already made on the roster
@@ -879,12 +891,14 @@ export function membersOf(campaign: Campaign, team: number): readonly Survivor[]
  */
 export function woundsAsTheyStand(campaign: Campaign, team: number): readonly MissionWound[] {
   const viral = campaign.origin === 'viral';
+  const cosmic = campaign.origin === 'cosmic-horror';
 
   return membersOf(campaign, team).map((survivor) => ({
     survivor: survivor.id,
     name: survivor.name,
     health: survivor.currentHp,
     ...(viral ? { infection: survivor.infection } : {}),
+    ...(cosmic ? { madness: survivor.madness } : {}),
   }));
 }
 
@@ -944,6 +958,13 @@ export function woundsProblem(campaign: Campaign, outcome: MissionOutcome): stri
     ) {
       return `${survivor.name}’s Infection must be a whole number, 0 or more.`;
     }
+
+    // Madness the same way, in a Cosmic Horror campaign only (pg. 124; Z7-7).
+    if (campaign.origin !== 'cosmic-horror') {
+      if (wound.madness !== undefined) return 'Only a Cosmic Horror campaign records Madness.';
+    } else if (!Number.isSafeInteger(wound.madness) || (wound.madness as number) < 0) {
+      return `${survivor.name}’s Madness must be a whole number, 0 or more.`;
+    }
   }
 
   return recorded.size === members.length
@@ -953,7 +974,8 @@ export function woundsProblem(campaign: Campaign, outcome: MissionOutcome): stri
 
 /**
  * The roster as an outcome's wounds leave it: each survivor named at the
- * Health recorded, and at the Infection recorded where there is one (Z4-4).
+ * Health recorded, and at the Infection or Madness recorded where there is
+ * one (Z4-4, Z7-7).
  *
  * The same change the roster's own correction makes, which stays the way to
  * fix a mistake — this is the one that happened, and its entry says so.
@@ -970,6 +992,7 @@ export function withWounds(campaign: Campaign, wounds: readonly MissionWound[]):
             ...survivor,
             currentHp: wound.health,
             ...(wound.infection === undefined ? {} : { infection: wound.infection }),
+            ...(wound.madness === undefined ? {} : { madness: wound.madness }),
           };
     }),
   };

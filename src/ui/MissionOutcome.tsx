@@ -176,7 +176,12 @@ function CountField({
 }
 
 /** What has been typed over a member's Health or Infection, by survivor id. */
-type Typed = Partial<Record<string, { readonly health?: string; readonly infection?: string }>>;
+type Typed = Partial<
+  Record<
+    string,
+    { readonly health?: string; readonly infection?: string; readonly madness?: string }
+  >
+>;
 
 /**
  * The team's wounds as the form stands: each member where the roster has them,
@@ -191,6 +196,7 @@ function woundsTyped(standing: readonly MissionWound[], typed: Typed): readonly 
       ...wound,
       ...(over?.health === undefined ? {} : { health: count(over.health) }),
       ...(over?.infection === undefined ? {} : { infection: count(over.infection) }),
+      ...(over?.madness === undefined ? {} : { madness: count(over.madness) }),
     };
   });
 }
@@ -210,7 +216,11 @@ function WoundFields({
   /** Who died, whose Health is not asked: they did not come home. */
   readonly dead: ReadonlySet<string>;
   readonly typed: Typed;
-  readonly onType: (survivor: string, field: 'health' | 'infection', value: string) => void;
+  readonly onType: (
+    survivor: string,
+    field: 'health' | 'infection' | 'madness',
+    value: string,
+  ) => void;
 }) {
   const home = wounds.filter((wound) => !dead.has(wound.survivor));
 
@@ -220,6 +230,7 @@ function WoundFields({
   // gives it to every member of a Viral campaign and nobody else), not a
   // second reading of the origin here.
   const viral = home.some((wound) => wound.infection !== undefined);
+  const cosmic = home.some((wound) => wound.madness !== undefined);
 
   return (
     <div className="flex flex-col gap-2">
@@ -231,6 +242,12 @@ function WoundFields({
             and Infection <PageRef pages={123} />
           </>
         )}
+        {cosmic && (
+          <>
+            {' '}
+            and Madness <PageRef pages={124} />
+          </>
+        )}
       </p>
       <p className={HINT}>
         Everybody starts where the roster has them now. Change anybody the mission left differently;
@@ -240,6 +257,7 @@ function WoundFields({
         const survivor = campaign.survivors.find((one) => one.id === wound.survivor);
         const health = `${prefix}-health-${wound.survivor}`;
         const infection = `${prefix}-infection-${wound.survivor}`;
+        const madness = `${prefix}-madness-${wound.survivor}`;
         const most = survivor === undefined ? undefined : maxHp(survivor);
 
         return (
@@ -278,6 +296,25 @@ function WoundFields({
                   className={FIELD}
                   onChange={(changed) => {
                     onType(wound.survivor, 'infection', changed.target.value);
+                  }}
+                />
+              </>
+            )}
+            {wound.madness !== undefined && (
+              <>
+                <label className="ml-2 text-sm" htmlFor={madness}>
+                  {wound.name}’s Madness
+                </label>
+                <input
+                  id={madness}
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  step={1}
+                  value={typed[wound.survivor]?.madness ?? String(wound.madness)}
+                  className={FIELD}
+                  onChange={(changed) => {
+                    onType(wound.survivor, 'madness', changed.target.value);
                   }}
                 />
               </>

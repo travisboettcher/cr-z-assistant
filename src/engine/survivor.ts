@@ -264,6 +264,7 @@ export function createSurvivor(
     // Clean, whatever the origin. Infection is gained from a zombie's damage on
     // a mission (pg. 123), and nobody joins a community having taken any.
     infection: 0,
+    madness: 0,
     xp: 0,
     // Nothing carried: a new survivor's shoddy gear is chosen when they are
     // first equipped for a mission (pp. 13–14, 18; R35).

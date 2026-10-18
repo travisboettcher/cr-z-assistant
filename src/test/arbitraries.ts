@@ -209,6 +209,7 @@ export function survivorArbitrary(): fc.Arbitrary<Survivor> {
         { maxLength: 2 },
       ),
       rotResistant: fc.boolean(),
+      madness: anyCount,
     })
     .chain((survivor) =>
       // A bond group only on a Bonded survivor (R84), so every pairing the file
@@ -289,7 +290,9 @@ function tradeArbitrary(): fc.Arbitrary<TradeOrder> {
 function itemIdsDistinct(campaign: Omit<Campaign, 'assignments'>): boolean {
   const ids = [
     ...campaign.inventory,
-    ...[...campaign.survivors, ...campaign.setAside].flatMap((survivor) => survivor.items),
+    ...[...campaign.survivors, ...campaign.setAside, ...campaign.lost].flatMap(
+      (survivor) => survivor.items,
+    ),
     ...campaign.trades,
     ...(campaign.rareTrade?.items ?? []),
     ...campaign.vehicles.flatMap((vehicle) =>
@@ -377,6 +380,7 @@ const anyWounds = fc.array(
       name: anyName,
       health: fc.integer({ min: 0, max: 20 }),
       infection: fc.integer({ min: 0, max: 20 }),
+      madness: fc.integer({ min: 0, max: 20 }),
     },
     { requiredKeys: ['survivor', 'name', 'health'] },
   ),
@@ -1112,6 +1116,7 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
           materials: materialsArbitrary(),
           survivors: fc.array(survivorArbitrary(), { maxLength: 6 }),
           setAside: fc.array(survivorArbitrary(), { maxLength: 2 }),
+          lost: fc.array(survivorArbitrary(), { maxLength: 2 }),
           // Never shoddy: the base owns no shoddy item (R35).
           inventory: fc.array(
             itemArbitrary().filter((item) => item.grade !== 'shoddy'),
@@ -1158,6 +1163,7 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
             'materials',
             'survivors',
             'setAside',
+            'lost',
             'inventory',
             'rareRollsOwed',
             'trades',
@@ -1179,6 +1185,11 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
           campaign.setAside.every(
             (gone) => !campaign.survivors.some((one) => one.id === gone.id),
           ) &&
+          // Nor anybody Lost who is also somewhere else (R106).
+          campaign.lost.every(
+            (gone) =>
+              ![...campaign.survivors, ...campaign.setAside].some((one) => one.id === gone.id),
+          ) &&
           itemIdsDistinct(campaign) &&
           new Set(campaign.vehicles.map((vehicle) => vehicle.id)).size === campaign.vehicles.length,
       )
@@ -1189,7 +1200,7 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
 }
 
 /** The campaign with each story kept on the first survivor who holds it. */
-function withStoriesDistinct<Shape extends Pick<Campaign, 'survivors' | 'setAside'>>(
+function withStoriesDistinct<Shape extends Pick<Campaign, 'survivors' | 'setAside' | 'lost'>>(
   campaign: Shape,
 ): Shape {
   const seen = new Set<string>();
@@ -1206,6 +1217,7 @@ function withStoriesDistinct<Shape extends Pick<Campaign, 'survivors' | 'setAsid
     ...campaign,
     survivors: campaign.survivors.map(keep),
     setAside: campaign.setAside.map(keep),
+    lost: campaign.lost.map(keep),
   };
 }
 

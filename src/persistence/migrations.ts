@@ -561,6 +561,36 @@ const containmentRecorded: MigrationStep = {
   up: (previous) => ({ ...previous, heldZombies: 0, medicalSupplies: 0 }),
 };
 
+/**
+ * v21 → v22: Madness on every survivor, and the list of the Lost (pg. 124;
+ * R106; Z7-7).
+ *
+ * **None of either.** A v21 build had no Madness to record, so nobody in it
+ * had any the app knew of, and nobody had gone Lost through it. Both lists,
+ * and defensive about what it reads, as v19 → v20 is.
+ */
+const madnessRecorded: MigrationStep = {
+  from: 21,
+  to: 22,
+  up: (previous) => {
+    const withMadness = (list: unknown): unknown =>
+      Array.isArray(list)
+        ? (list as unknown[]).map((survivor) =>
+            typeof survivor === 'object' && survivor !== null && !('madness' in survivor)
+              ? { ...survivor, madness: 0 }
+              : survivor,
+          )
+        : list;
+
+    return {
+      ...previous,
+      survivors: withMadness(previous.survivors),
+      setAside: withMadness(previous.setAside),
+      lost: [],
+    };
+  },
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -583,6 +613,7 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   storyTraitsRecorded,
   rotResistanceRecorded,
   containmentRecorded,
+  madnessRecorded,
 ];
 
 /** Why a save could not be brought forward. */

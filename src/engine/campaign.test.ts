@@ -71,6 +71,7 @@ describe('createNewCampaign', () => {
       'id',
       'inventory',
       'log',
+      'lost',
       'materials',
       'medicalSupplies',
       'name',
@@ -118,6 +119,7 @@ describe('Survivor', () => {
       bondGroup: null,
       stories: [],
       rotResistant: false,
+      madness: 0,
     } satisfies Survivor;
 
     expect(Object.keys(survivor).sort()).toEqual([
@@ -127,6 +129,7 @@ describe('Survivor', () => {
       'id',
       'infection',
       'items',
+      'madness',
       'move',
       'name',
       'rotResistant',
@@ -163,6 +166,7 @@ describe('Survivor', () => {
       bondGroup: null,
       stories: [],
       rotResistant: false,
+      madness: 0,
     } satisfies Survivor;
 
     expect(Object.keys(rookie.skills)).toEqual(['handguns']);

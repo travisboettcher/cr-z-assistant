@@ -18,7 +18,15 @@ import type { FieldRecruitTier } from '../data/recruitTable';
 import type { Tier } from '../data/tiers';
 import { withoutAssignment } from './assignments';
 import { storageCaps } from './base';
-import type { Assignment, Campaign, Item, RareTrade, Survivor, Vehicle } from './campaign';
+import {
+  type Assignment,
+  type Campaign,
+  type Item,
+  keptSurvivors,
+  type RareTrade,
+  type Survivor,
+  type Vehicle,
+} from './campaign';
 import { idTaken, newItemProblem, removalProblem, type NewItem } from './equipment';
 import { rareItemFor, type RareItemRoll } from './finding';
 import { turnoutGear, withEquipmentHandedOver } from './handover';
@@ -227,12 +235,12 @@ export interface NewSurvivorForm {
  * The caller makes the id, and every reader that finds a survivor by one —
  * assignments, Rot checks, removals, items — takes the first match. Two
  * survivors under one id would make the second unreachable, so an id somebody
- * already has, on the roster or set aside (R31), is refused rather than added.
+ * already has, on the roster, set aside (R31) or Lost (R106), is refused rather than added.
  */
 export function newSurvivorIdProblem(campaign: Campaign, id: string): string | null {
   if (id === '') return 'A new survivor needs an id.';
 
-  return [...campaign.survivors, ...campaign.setAside].some((survivor) => survivor.id === id)
+  return keptSurvivors(campaign).some((survivor) => survivor.id === id)
     ? 'Somebody in the community already has that id.'
     : null;
 }

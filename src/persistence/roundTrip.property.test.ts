@@ -192,6 +192,7 @@ it('does not survive a negative zero material count, which is why the generator 
     projects: [],
     survivors: [],
     setAside: [],
+    lost: [],
     inventory: [],
     rareRollsOwed: 0,
     trades: [],

@@ -298,6 +298,8 @@ export type CampaignAction =
    * on a campaign that never raises it changes nothing (#176).
    */
   | { readonly type: 'survivor/infectionSet'; readonly id: string; readonly infection: number }
+  /** Set a survivor's Madness by hand, under the Cosmic Horror origin (pg. 124; Z7-7). */
+  | { readonly type: 'survivor/madnessSet'; readonly id: string; readonly madness: number }
   /**
    * Replace a survivor's four stat values wholesale.
    *
@@ -888,6 +890,12 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return editSurvivor(state, action.id, (survivor) => ({
         ...survivor,
         infection: action.infection,
+      }));
+
+    case 'survivor/madnessSet':
+      return editSurvivor(state, action.id, (survivor) => ({
+        ...survivor,
+        madness: action.madness,
       }));
 
     case 'survivor/statsSet':
