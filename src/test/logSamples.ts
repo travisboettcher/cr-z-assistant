@@ -174,6 +174,38 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
       joins: { tier: 2, bondGroup: 1, xp: 1 },
     },
   },
+  // Everything a story's ending can give as things (Z7-4).
+  {
+    kind: 'mission-played',
+    team: 1,
+    mission: 'left-behind-2b',
+    story: {
+      ...SURVIVOR,
+      result: 'body-left',
+      items: [
+        {
+          id: 'found-1',
+          item: 'rifle',
+          grade: 'quality',
+          from: 'found-item',
+          ...SURVIVOR,
+        },
+        {
+          id: 'found-2',
+          item: 'riot-shield',
+          grade: 'standard',
+          from: 'rare-roll',
+          subtable: 3,
+          entry: 1,
+        },
+      ],
+      food: 6,
+      vehicle: { id: 'boat', tier: 2, label: 'Boat', water: true },
+      jaded: { survivor: 'ruby', name: 'Ruby Vance' },
+      resources: 12,
+      alsoAttached: [{ mission: 'crashed-convoy', ...SURVIVOR }],
+    },
+  },
   {
     kind: 'mission-played',
     team: 1,
@@ -218,6 +250,19 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'stranger-joined', ...SURVIVOR, tier: 1, team: 1, stranger: 1 },
   // A survivor a story brought, Bonded and with XP (Z7-3).
   { kind: 'stranger-joined', ...SURVIVOR, tier: 3, team: 1, stranger: 0, bondGroup: 2, xp: 1 },
+  // And one whose build the story gave (Z7-4).
+  {
+    kind: 'stranger-joined',
+    ...SURVIVOR,
+    tier: 3,
+    team: 1,
+    stranger: 0,
+    build: {
+      skill: 'long-guns',
+      stat: { dexterity: 3 },
+      item: { item: 'rifle', grade: 'quality' },
+    },
+  },
   // Each cause (#201), and an entry from before the cause was recorded.
   { kind: 'survivor-left', ...SURVIVOR, tier: 1, cause: 'turned' },
   { kind: 'survivor-left', ...SURVIVOR, tier: 2, cause: 'bitten' },

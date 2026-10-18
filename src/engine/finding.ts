@@ -15,7 +15,7 @@
  */
 
 import type { D10Result } from '../data/dice';
-import { RARE_ITEM_CATEGORIES, RARE_ITEM_TABLE, type RareItemEntry } from '../data/equipment';
+import { rareItemFor } from '../data/equipment';
 import type { Campaign } from './campaign';
 import { idTaken } from './equipment';
 import { logged } from './log';
@@ -30,15 +30,9 @@ export interface RareItemRoll {
   readonly entry: D10Result;
 }
 
-/** What two d10s find on the Rare Item Table (pg. 43). */
-export function rareItemFor(subtable: D10Result, entry: D10Result): RareItemEntry {
-  // Every d10 result is in one category: `rules.test` holds the table to it.
-  const category = RARE_ITEM_CATEGORIES.find((candidate) =>
-    (candidate.rolls as readonly number[]).includes(subtable),
-  ) as (typeof RARE_ITEM_CATEGORIES)[number];
-
-  return RARE_ITEM_TABLE[category.subtable][entry - 1] as RareItemEntry;
-}
+// The lookup is the table's own, in `src/data`, so a story's rewards can read it
+// without this module's materials (Z7-4).
+export { rareItemFor };
 
 /**
  * How many Rare Item Table rolls this haul owes: one per unforced 10, and one

@@ -70,6 +70,7 @@ import { phaseOf } from './turn';
 import { suppliedOccupants } from './utilities';
 import { beds, working } from './base';
 import { claimWon } from './claim';
+import { warehouseQuiet } from './storyRewards';
 import type { Campaign } from './campaign';
 
 /** How much Food this community eats in a Management Phase (pg. 22). */
@@ -322,7 +323,8 @@ export function unrestFromBase(campaign: Campaign): number {
 
 /**
  * Whether Unrest is held at 0 for the rest of the turn, because a Claim a New
- * Base was won in it (pg. 79; Z4-8).
+ * Base was won in it (pg. 79; Z4-8), or the Warehouse brought enough home
+ * (pg. 102; R125; Z7-4).
  *
  * The lock is on the sum, not its terms: Hunger still costs the stats it costs
  * (R1) and Exhaustion still takes a survivor off the mission team (pg. 23).
@@ -331,7 +333,7 @@ export function unrestFromBase(campaign: Campaign): number {
  * turn counts Unrest afresh, as every turn does.
  */
 export function unrestLocked(campaign: Campaign): boolean {
-  return claimWon(campaign);
+  return claimWon(campaign) || warehouseQuiet(campaign);
 }
 
 /** Whether this turn's Feed step has already run. */

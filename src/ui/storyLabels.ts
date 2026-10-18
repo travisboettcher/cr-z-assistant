@@ -9,7 +9,10 @@
 
 import type { StoryMissionId } from '../data/missions';
 import type { StoryResultId } from '../data/stories';
-import type { StoryRecord } from '../engine/log';
+import type { StoryBuild, StoryRecord } from '../engine/log';
+import { withArticle } from './articles';
+import { describeItem } from './equipmentLabels';
+import { SKILL_LABELS } from './skillLabels';
 import { STORY_TRAIT_LABELS } from './traitLabels';
 
 export const STORY_RESULT_LABELS: {
@@ -61,7 +64,8 @@ export function storyResultLabel(story: StoryMissionId, result: string): string 
 
 /**
  * What a story's ending gives, a sentence each, with the stories named by
- * `title`: XP, a trait, the story kept or done, the next part, and who joins.
+ * `title`: XP, a trait, the story kept or done, the next part, who joins, and
+ * the things it gave.
  */
 export function storyConsequences(
   story: StoryMissionId,
@@ -92,7 +96,48 @@ export function storyConsequences(
             record.joins.bondGroup === undefined
               ? ''
               : `, Bonded in bond group ${String(record.joins.bondGroup)}`
-          }${record.joins.xp === undefined ? '' : `, with ${String(record.joins.xp)} XP`}.`,
+          }${record.joins.xp === undefined ? '' : `, with ${String(record.joins.xp)} XP`}${
+            record.joins.build === undefined ? '' : `, ${describeBuild(record.joins.build)}`
+          }.`,
         ]),
+    ...extrasConsequences(record, title),
   ];
 }
+
+/** What a story gives a new survivor's build, as a phrase: "with Long Guns, Dexterity 3 and a quality rifle". */
+export function describeBuild(build: StoryBuild): string {
+  return `with ${SKILL_LABELS[build.skill]}, Dexterity ${String(build.stat.dexterity)} and ${withArticle(describeItem(build.item))}`;
+}
+
+/** The things an ending gave (Z7-4), a sentence each. */
+function extrasConsequences(
+  record: StoryRecord,
+  title: (mission: StoryMissionId) => string,
+): readonly string[] {
+  return [
+    ...(record.items ?? []).map((item) =>
+      item.name === undefined
+        ? `${capitalised(withArticle(describeItem(item)))} goes into the base’s Inventory.`
+        : `${item.name} takes ${withArticle(describeItem(item))}.`,
+    ),
+    ...(record.food === undefined ? [] : [`${String(record.food)} Food goes into storage.`]),
+    ...(record.vehicle === undefined
+      ? []
+      : [
+          `${record.vehicle.label}, a Tier ${String(record.vehicle.tier)} ${
+            record.vehicle.water ? 'boat' : 'vehicle'
+          }, joins the community.`,
+        ]),
+    ...(record.jaded === undefined
+      ? []
+      : [`${record.jaded.name} is now Jaded, in place of any other Story Trait.`]),
+    ...(record.resources === undefined
+      ? []
+      : [`${String(record.resources)} resource and material tokens came home.`]),
+    ...(record.alsoAttached ?? []).map(
+      (one) => `${title(one.mission)} is attached to ${one.name}.`,
+    ),
+  ];
+}
+
+const capitalised = (text: string) => `${text.charAt(0).toUpperCase()}${text.slice(1)}`;

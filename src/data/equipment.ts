@@ -1131,6 +1131,16 @@ export const RARE_ITEM_TABLE = {
   ],
 } as const satisfies Record<RareSubtable, readonly RareItemEntry[]>;
 
+/** What two d10s find on the Rare Item Table (pg. 43): the subtable, then the entry. */
+export function rareItemFor(subtable: D10Result, entry: D10Result): RareItemEntry {
+  // Every d10 result is in one category: `rules.test` holds the table to it.
+  const category = RARE_ITEM_CATEGORIES.find((candidate) =>
+    (candidate.rolls as readonly number[]).includes(subtable),
+  ) as (typeof RARE_ITEM_CATEGORIES)[number];
+
+  return RARE_ITEM_TABLE[category.subtable][entry - 1] as RareItemEntry;
+}
+
 /** What a rare item sells back for: its price less two (pp. 21, 37). */
 export const RARE_SALE_DISCOUNT = 2;
 

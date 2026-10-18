@@ -1309,7 +1309,17 @@ describe('a campaign whose log is damaged', () => {
       ],
       /unreadable team/i,
     ],
-    // What a story gave a survivor it brought (Z7-3).
+    // What a story gave a survivor it brought (Z7-3, Z7-4).
+    [
+      'a stranger who joined with a build of nothing',
+      [
+        {
+          ...good,
+          event: { ...good.event, kind: 'stranger-joined', team: 1, stranger: 0, build: {} },
+        },
+      ],
+      /unreadable build/i,
+    ],
     [
       'a stranger who joined into bond group 0',
       [
@@ -1342,6 +1352,59 @@ describe('a campaign whose log is damaged', () => {
     ['with a name that is a number', { name: 5 }],
     ['with a result that is a number', { result: 5 }],
     ['attaching by a bare name', { attached: 'warehouse' }],
+    // What Z7-4 added.
+    [
+      'also attaching a mission that is no story',
+      { alsoAttached: [{ mission: 'chased', survivor: 'a', name: 'Earl' }] },
+    ],
+    ['also attaching something not a list', { alsoAttached: { mission: 'warehouse' } }],
+    [
+      'giving an item of no known source',
+      { items: [{ id: 'i', item: 'rifle', grade: 'quality', from: 'gift' }] },
+    ],
+    [
+      'giving an item to a survivor unnamed',
+      { items: [{ id: 'i', item: 'rifle', grade: 'quality', from: 'found-item', survivor: 'a' }] },
+    ],
+    [
+      'giving an item rolled off the d10',
+      { items: [{ id: 'i', item: 'rifle', grade: 'quality', from: 'quality-roll', entry: 11 }] },
+    ],
+    [
+      'giving an item in a grade it lacks',
+      { items: [{ id: 'i', item: 'rifle', grade: 'mythic', from: 'found-item' }] },
+    ],
+    ['giving items that are not a list', { items: 'rifle' }],
+    ['giving no Food', { food: 0 }],
+    ['giving a vehicle with no Tier', { vehicle: { id: 'boat', label: 'Boat', water: true } }],
+    ['making somebody unnamed Jaded', { jaded: { survivor: 'a' } }],
+    ['counting resources below 0', { resources: -1 }],
+    [
+      'bringing a survivor with a skill nobody knows',
+      {
+        joins: {
+          tier: 3,
+          build: {
+            skill: 'juggling',
+            stat: { dexterity: 3 },
+            item: { item: 'rifle', grade: 'quality' },
+          },
+        },
+      },
+    ],
+    [
+      'bringing a survivor with no Dexterity',
+      {
+        joins: {
+          tier: 3,
+          build: { skill: 'long-guns', stat: {}, item: { item: 'rifle', grade: 'quality' } },
+        },
+      },
+    ],
+    [
+      'bringing a survivor carrying no item',
+      { joins: { tier: 3, build: { skill: 'long-guns', stat: { dexterity: 3 } } } },
+    ],
   ] as const)('refuses a story ending %s', (_label, story) => {
     expect(
       refusalFor([

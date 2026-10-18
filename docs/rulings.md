@@ -2462,3 +2462,45 @@ Prepper's Stash Part 2 with its trap door shut are not done. A story attached by
 is a correction and is not held to it.
 
 *Decided 2026-10-18 with Z7-3.*
+
+---
+
+## R140 — Part 2a's XP to the bondmates stands with a Teacher on the mission
+
+**pp. 12, 18, 91; Phase 7, Z7-4.** Left Behind Part 2a sends Advancement Step 1's one additional XP
+to the attached survivor and every bondmate instead, 1 each (pg. 91). A Teacher on the mission
+replaces that point (pg. 12), and the book does not say which wins.
+
+**The ruling is that the story's XP stands**: on a turn Part 2a is played, the attached survivor and
+each bondmate in the community may be given 1 XP from that pool, whoever went on the mission, and a
+Teacher's own pool is unchanged. A survivor or bondmate who has left the community is given nothing.
+
+*Decided 2026-10-18 with Z7-4.*
+
+---
+
+## R141 — The Guard House safe's Crashed Convoy goes to whoever opened it
+
+**pg. 120; Phase 7, Z7-4.** A roll of 1 on Left Behind Part 2a's Guard House safe attaches Crashed
+Convoy (pg. 120), and the book does not say to whom.
+
+**The ruling is that it is attached to the team member who opened the safe**, the player's choice,
+if nobody holds Crashed Convoy and it is not done
+([R139](#r139--a-story-done-or-held-is-not-attached-again)). The safe's other results are the
+table's, added by hand.
+
+*Decided 2026-10-18 with Z7-4.*
+
+---
+
+## R142 — Neighbor's Rifle's Tier 3 arrives with Long Guns, Dexterity 3 and a quality rifle
+
+**pg. 99; Phase 7, Z7-4.** A Tier 3 survivor with Long Guns, Dexterity 3 and a quality rifle joins
+when Neighbor's Rifle is attached to a Tier 3 survivor (pg. 99), built in full at the next Create
+New Survivors ([R120](#r120--a-storys-new-survivor-joins-at-create-new-survivors)).
+
+**The ruling is that the app gives those three and leaves the rest of the build to the player**: the
+survivor is built as any Tier 3 stranger is, with Long Guns added at its first level, Dexterity
+swapped to 3 within the Tier's stat array, and the quality rifle in their hands.
+
+*Decided 2026-10-18 with Z7-4.*

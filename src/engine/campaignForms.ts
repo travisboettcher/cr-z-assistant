@@ -46,6 +46,7 @@ import {
   type TradeRequest,
 } from './trading';
 import {
+  buildItemId,
   rescuedStrangers,
   returnProblem,
   strangerProblem,
@@ -362,6 +363,9 @@ export function submitStrangerJoined(
   const rescued = rescuedStrangers(campaign).find(
     (candidate) => candidate.team === form.team && candidate.stranger === form.stranger,
   ) as RescuedStranger;
+  if (rescued.build !== undefined && idTaken(campaign, buildItemId(form.id))) {
+    return refused('An item already has that id.');
+  }
 
   return accepted(
     settled(
@@ -387,6 +391,7 @@ export function submitStrangerJoined(
           // What a story gave them (R120, R138; Z7-3).
           ...(rescued.bondGroup === undefined ? {} : { bondGroup: rescued.bondGroup }),
           ...(rescued.xp === undefined ? {} : { xp: rescued.xp }),
+          ...(rescued.build === undefined ? {} : { build: rescued.build }),
         },
       ),
       at,

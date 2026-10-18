@@ -175,6 +175,54 @@ describe('Character Advancement', () => {
   });
 });
 
+/** Left Behind Part 2a's XP to its survivor and every bondmate (pg. 91; R140; Z7-4). */
+describe('Part 2a’s extra XP', () => {
+  it('goes to the survivor and each bondmate, 1 each, and says why', async () => {
+    const bonded = (survivor: Survivor): Survivor => ({
+      ...survivor,
+      storyTrait: 'bonded',
+      bondGroup: 1,
+    });
+    const user = open(
+      advancement({
+        survivors: [
+          bonded(createSurvivor('Earl Rhodes', 4, { id: EARL })),
+          bonded(createSurvivor('Carla Proust', 3, { id: CARLA })),
+          createSurvivor('Ruby Vance', 2, { id: 'ruby' }),
+        ],
+        log: [
+          {
+            turn: 3,
+            phase: 'mission',
+            at: '2026-10-12T09:00:00.000Z',
+            event: {
+              kind: 'mission-played',
+              team: 1,
+              mission: 'left-behind-2a',
+              story: { survivor: EARL, name: 'Earl Rhodes', result: 'nobody-rescued' },
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(within(walk()).getByText(/Left Behind Part 2a sends it to its survivor/)).toBeTruthy();
+    expect(within(walk()).getByText(/The discretionary point/).textContent).toContain(
+      '2 of 2 left',
+    );
+
+    await user.click(award(/The discretionary point/, /Carla Proust/));
+    expect(award(/The discretionary point/, /Carla Proust/)).toBeDisabled();
+    expect(award(/The discretionary point/, /Earl Rhodes/)).toBeEnabled();
+    // Nobody else is offered it.
+    expect(
+      within(walk())
+        .getByText(/The discretionary point/)
+        .closest('li')?.textContent,
+    ).not.toContain('Ruby Vance');
+  });
+});
+
 describe('naming the award buttons', () => {
   /**
    * Three pools can be on screen at once, and every award button used to read
@@ -425,6 +473,54 @@ describe('Add Materials to Storage', () => {
 
     expect(within(walk()).getByText(/2 results forced with mechanics/i)).toBeTruthy();
     expect(within(walk()).getByRole('button', { name: /add to storage/i })).toBeEnabled();
+  });
+
+  it('lets Crashed Convoy make two rolls 10s, each a Rare Item Table roll (pg. 101; R126)', async () => {
+    const user = open(
+      onTheStep({
+        log: [
+          {
+            turn: 3,
+            phase: 'mission',
+            at: '2026-10-12T09:00:00.000Z',
+            event: {
+              kind: 'mission-played',
+              team: 1,
+              mission: 'crashed-convoy',
+              story: { survivor: EARL, name: 'Earl Rhodes', result: 'search-failed', xp: 1 },
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(
+      within(walk()).getByText(/Crashed Convoy makes 2 of this turn’s rolls 10s/),
+    ).toBeTruthy();
+    for (const face of [1, 2, 3]) {
+      await user.click(
+        within(walk()).getByRole('button', { name: `Add a roll of ${String(face)}` }),
+      );
+    }
+    const tens = () => within(walk()).queryAllByLabelText('Make it a 10');
+
+    expect(tens()).toHaveLength(3);
+    await user.click(tens()[0] as HTMLElement);
+    await user.click(tens()[1] as HTMLElement);
+    // Two are made; the third is offered no more.
+    expect(tens()).toHaveLength(2);
+    expect(within(walk()).getAllByLabelText(/Rare Item Table roll \d, first d10/)).toHaveLength(2);
+
+    await user.click(tens()[0] as HTMLElement);
+    expect(tens()).toHaveLength(3);
+  });
+
+  it('offers no 10s on a turn without Crashed Convoy', async () => {
+    const user = open(onTheStep());
+
+    await user.click(within(walk()).getByRole('button', { name: 'Add a roll of 4' }));
+
+    expect(within(walk()).queryByLabelText('Make it a 10')).toBeNull();
   });
 
   it('puts the haul in storage once, and refuses to do it twice', async () => {
@@ -1004,6 +1100,49 @@ describe('Create New Survivors', () => {
 
     expect(campaignLog().textContent).toContain(
       'June Rhodes joined as a Citizen, rescued by mission team 1, Bonded in bond group 1, with 1 XP.',
+    );
+  });
+
+  it('says what Neighbor’s Rifle gives its Tier 3’s build (pg. 99; R142)', async () => {
+    const user = open(
+      advancement({
+        step: 'create-new-survivors',
+        startingCommunityBuilt: true,
+        log: [
+          {
+            ...rescuedBy(1, []),
+            event: {
+              kind: 'mission-played',
+              team: 1,
+              mission: 'neighbors-rifle',
+              story: {
+                survivor: EARL,
+                name: 'Earl Rhodes',
+                result: 'seating-failed',
+                xp: 1,
+                joins: {
+                  tier: 3,
+                  build: {
+                    skill: 'long-guns',
+                    stat: { dexterity: 3 },
+                    item: { item: 'rifle', grade: 'quality' },
+                  },
+                },
+              },
+            },
+          },
+        ],
+      }),
+    );
+    const joining = stranger(/mission team 1, from neighbor’s rifle: a leader/i);
+
+    expect(joining.getByText(/Joins with Long Guns, Dexterity 3 and a quality rifle/)).toBeTruthy();
+
+    await user.type(joining.getByLabelText('Name'), 'Dale Hart');
+    await user.click(joining.getByRole('button', { name: 'Join the community' }));
+
+    expect(campaignLog().textContent).toContain(
+      'Dale Hart joined as a Leader, rescued by mission team 1, with Long Guns, Dexterity 3 and a quality rifle.',
     );
   });
 

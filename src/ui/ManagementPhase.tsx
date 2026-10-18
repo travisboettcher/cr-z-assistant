@@ -36,6 +36,7 @@ import {
   unrestFromBase,
   unrestLocked,
 } from '../engine/feeding';
+import { claimWon } from '../engine/claim';
 import { beds } from '../engine/base';
 import { missionTeam, missionTeamReduced, overworked } from '../engine/assignments';
 import {
@@ -510,8 +511,17 @@ function CalculateUnrest({ campaign }: { readonly campaign: Campaign }) {
 
       {unrestLocked(campaign) && (
         <p className={`mt-2 ${HINT}`}>
-          Locked at 0 for the rest of this turn: the community claimed a new base{' '}
-          <PageRef pages={79} />
+          {claimWon(campaign) ? (
+            <>
+              Locked at 0 for the rest of this turn: the community claimed a new base{' '}
+              <PageRef pages={79} />
+            </>
+          ) : (
+            <>
+              Locked at 0 for the rest of this turn: the Warehouse brought enough home{' '}
+              <PageRef pages={102} />
+            </>
+          )}
         </p>
       )}
     </>

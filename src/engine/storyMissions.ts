@@ -9,8 +9,9 @@
  * player picks, who that is; the form rebuilds it from those two before it is
  * logged, so the history says what the rules gave, whatever the screen sent.
  *
- * What the map holds, an item, the boat, a roll on a table, is Z7-4's. A
- * survivor a story brings is built at Create New Survivors (R120).
+ * What the map holds, an item, the boat, a roll on a table, is
+ * `storyRewards.ts`'s (Z7-4). A survivor a story brings is built at Create New
+ * Survivors (R120).
  *
  * Reads no mission module: `missions.ts` asks `storyProblem` as part of every
  * outcome check, so the team and its story are handed in.
@@ -23,6 +24,13 @@ import { storyResult, type StoryResult } from '../data/stories';
 import type { Tier } from '../data/tiers';
 import type { Campaign, Survivor } from './campaign';
 import type { StoryRecord } from './log';
+import {
+  extrasOf,
+  extrasProblem,
+  extrasRecord,
+  withExtrasTaken,
+  type StoryExtras,
+} from './storyRewards';
 import { holds, storiesDone, storiesHeld, withTraits } from './traits';
 
 /** Whether a mission is a story, played by the survivor it is attached to (pg. 87). */
@@ -75,11 +83,13 @@ export function storyRecipients(
   }
 }
 
-/** What the table chose of a story's ending: the result, and who takes the next part. */
+/** What the table chose of a story's ending: the result, who takes the next part, and the rest. */
 export interface StoryChoice {
   readonly result: string;
   /** The survivor given the next part, by id, where the player chooses (`storyRecipients`). */
   readonly to?: string;
+  /** The things the ending gives, as the table entered them (Z7-4). */
+  readonly extras?: StoryExtras;
 }
 
 /**
@@ -98,24 +108,26 @@ export function storyProblem(
     return record === undefined ? null : 'Only a story mission records a story’s ending.';
   }
   if (record === undefined) return 'Choose how the story ended.';
-  if (storyHolder(members, mission) === undefined) {
-    return 'Nobody on the team has this story attached.';
-  }
+
+  const holder = storyHolder(members, mission);
+  if (holder === undefined) return 'Nobody on the team has this story attached.';
 
   const result = storyResult(mission, record.result);
   if (result === undefined) return 'Choose one of the story’s endings.';
 
   const next = nextPart(campaign, mission, result);
-  if (next === undefined || next.to === 'attached') return null;
+  if (next !== undefined && next.to !== 'attached') {
+    const to = record.attached?.survivor;
+    if (to === undefined) return 'Choose who the next part is attached to.';
 
-  const to = record.attached?.survivor;
-  if (to === undefined) return 'Choose who the next part is attached to.';
+    if (!storyRecipients(campaign, members, next).some((survivor) => survivor.id === to)) {
+      return next.to === 'anyone'
+        ? 'The next part goes to somebody in the community.'
+        : 'The next part goes to a Tier 2 or 3 survivor on the team.';
+    }
+  }
 
-  return storyRecipients(campaign, members, next).some((survivor) => survivor.id === to)
-    ? null
-    : next.to === 'anyone'
-      ? 'The next part goes to somebody in the community.'
-      : 'The next part goes to a Tier 2 or 3 survivor on the team.';
+  return extrasProblem(campaign, members, holder, result, extrasOf(record));
 }
 
 /** The bond group a new pair of Bonded survivors takes: one more than any in use. */
@@ -146,7 +158,11 @@ function joinerFor(
   }
 
   const tier: Tier = joiner.tier === 'attached' ? holder.tier : joiner.tier;
-  const xp = joiner.xp === undefined ? {} : { xp: joiner.xp };
+  const xp = {
+    ...(joiner.xp === undefined ? {} : { xp: joiner.xp }),
+    // What the page gives their build (pg. 99; R142).
+    ...(joiner.build === undefined ? {} : { build: joiner.build }),
+  };
   const bonded = holds(holder, 'bonded') ? holder.bondGroup : null;
 
   switch (joiner.bond) {
@@ -201,14 +217,16 @@ export function storyRecord(
       ? {}
       : { attached: { mission: next.story, survivor: recipient.id, name: recipient.name } }),
     ...(joins === undefined ? {} : { joins }),
+    ...extrasRecord(campaign, members, result, choice.extras ?? {}),
   };
 }
 
 /**
  * The campaign with a story's ending taken (R85, R116, R121): the XP to the
  * survivor who played it, the trait replacing theirs, the story off them
- * unless it stays, and the next part on whoever it went to, from this turn.
- * Whoever joins is built at Create New Survivors, from the record (R120).
+ * unless it stays, and the next part on whoever it went to, from this turn;
+ * then the things it gave (`withExtrasTaken`; Z7-4). Whoever joins is built
+ * at Create New Survivors, from the record (R120).
  */
 export function withStoryRecorded(
   campaign: Campaign,
@@ -245,10 +263,10 @@ export function withStoryRecorded(
         }
       : survivor;
 
-  return {
-    ...campaign,
-    survivors: campaign.survivors.map((survivor) => attached(rewarded(survivor))),
-  };
+  return withExtrasTaken(
+    { ...campaign, survivors: campaign.survivors.map((survivor) => attached(rewarded(survivor))) },
+    record,
+  );
 }
 
 /**

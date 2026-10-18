@@ -114,8 +114,67 @@ export interface StoryRecord {
     readonly tier: Tier;
     readonly bondGroup?: number;
     readonly xp?: number;
+    /** What their build is given (pg. 99; R142). */
+    readonly build?: StoryBuild;
   };
+  /** Other stories the ending attached, besides the next part (pp. 90, 120; R139, R141). */
+  readonly alsoAttached?: readonly {
+    readonly mission: StoryMissionId;
+    readonly survivor: string;
+    readonly name: string;
+  }[];
+  /** What the ending gave as items (Z7-4), each with how it was found. */
+  readonly items?: readonly StoryItem[];
+  /** Food added to storage (pg. 96; R127). */
+  readonly food?: number;
+  /** The vehicle the community took home (pg. 93). */
+  readonly vehicle?: Vehicle;
+  /** Who became Jaded when the Berserk survivor fell (pg. 93; R128). */
+  readonly jaded?: { readonly survivor: string; readonly name: string };
+  /** The resource and material tokens carried home (pg. 102; R125). */
+  readonly resources?: number;
 }
+
+/** What a story gives the build of a survivor it brings (pg. 99; R142; Z7-4). */
+export interface StoryBuild {
+  readonly skill: Skill;
+  readonly stat: { readonly dexterity: number };
+  readonly item: { readonly item: ItemId; readonly grade: Grade };
+}
+
+/**
+ * An item a story's ending gave (Z7-4): into a survivor's hands, named, or
+ * into the base's Inventory, with the dice that found it where a table did.
+ */
+export interface StoryItem {
+  readonly id: string;
+  readonly item: ItemId;
+  readonly grade: Grade;
+  /** How it was come by, which is what says where it goes. */
+  readonly from: StoryItemSource;
+  /** Who holds it, for one given to a survivor. */
+  readonly survivor?: string;
+  readonly name?: string;
+  /** The Rare Item Table's first die, for a roll on the whole table. */
+  readonly subtable?: D10Result;
+  /** The entry's die, for any roll. */
+  readonly entry?: D10Result;
+}
+
+/**
+ * Where a story's item came from (Z7-4): the weapon Left Behind's loved one
+ * carried, one found on the map, a Quality Items roll, a Rare Item Table
+ * roll, or an item picked from that table.
+ */
+export const STORY_ITEM_SOURCES = [
+  'skilled-weapon',
+  'found-item',
+  'quality-roll',
+  'rare-roll',
+  'rare-pick',
+] as const;
+
+export type StoryItemSource = (typeof STORY_ITEM_SOURCES)[number];
 
 /** What the player had added to one slot of a base an overrun destroyed (Z4-10). */
 export interface RebuildSlot {
@@ -790,6 +849,8 @@ export type CampaignEvent =
       readonly bondGroup?: number;
       /** The XP a survivor a story brought arrived with (Z7-3). */
       readonly xp?: number;
+      /** What a story gave the build of a survivor it brought (pg. 99; R142; Z7-4). */
+      readonly build?: StoryBuild;
     }
   /**
    * A survivor gone from the roster, and why (#201): `turned` at a Rot check,

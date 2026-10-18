@@ -46,8 +46,11 @@ outcomes and the community's equipment.
   tracker does not play the mission itself.
 - **Equipment** (Phase 5). The book's items as a catalogue, the base's Inventory, what each survivor
   carries, building, the Rare Item Table, trading, and vehicles taken on missions.
+- **Stories** (Phase 7, part 1). Story Traits and Veteran, a story attached at promotion, story
+  missions offered to their survivor's team, and each ending's rewards: XP, traits, the next part,
+  new survivors, items, Food, a boat, and the later steps they change.
 
-Still to come: **Phase 7**, traits and origins
+Still to come: the rest of **Phase 7**, the origins and the Toolkit's traits
 ([scoped](docs/phase-7-stories.md)), and **Phase 8**, undo and a markdown export of the log.
 **Phase 6**, a mission companion (a round counter, an activation checklist, a zombie count, a Noise
 reference and the mission's end conditions as a checklist), is deferred.

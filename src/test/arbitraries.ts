@@ -51,6 +51,7 @@ import type {
 import {
   LEAVING_CAUSES,
   RARE_TRADE_LOSSES,
+  STORY_ITEM_SOURCES,
   type CampaignEvent,
   type LogEntry,
 } from '../engine/log';
@@ -101,6 +102,16 @@ const anyHolder = fc.oneof(
  * feature that silently destroys the save that used it.
  */
 const anyCount = fc.integer({ min: 0, max: 999 });
+
+/** What a story gives a new survivor's build (Z7-4). */
+const anyStoryBuild = fc.record({
+  skill: fc.constantFrom('long-guns' as const, 'archery' as const),
+  stat: fc.record({ dexterity: fc.integer({ min: 0, max: 4 }) }),
+  item: fc.record({
+    item: fc.constant('rifle' as const),
+    grade: fc.constantFrom('standard' as const, 'quality' as const),
+  }),
+});
 
 /**
  * A material count.
@@ -590,9 +601,48 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
                   tier: fc.constantFrom(...TIERS),
                   bondGroup: fc.integer({ min: 1, max: 3 }),
                   xp: fc.integer({ min: 1, max: 3 }),
+                  build: anyStoryBuild,
                 },
                 { requiredKeys: ['tier'] },
               ),
+              // The things an ending gives (Z7-4), each given or not.
+              alsoAttached: fc.array(
+                fc.record({
+                  mission: fc.constantFrom(...STORY_MISSION_IDS),
+                  survivor: anyId,
+                  name: anyName,
+                }),
+                { maxLength: 2 },
+              ),
+              items: fc.array(
+                fc
+                  .tuple(
+                    fc.record(
+                      {
+                        id: anyId,
+                        item: fc.constantFrom('rifle' as const, 'tool-belt' as const),
+                        grade: fc.constant('quality' as const),
+                        from: fc.constantFrom(...STORY_ITEM_SOURCES),
+                        subtable: fc.constantFrom(...D10_RESULTS),
+                        entry: fc.constantFrom(...D10_RESULTS),
+                      },
+                      { requiredKeys: ['id', 'item', 'grade', 'from'] },
+                    ),
+                    // A holder is named whole or not at all.
+                    fc.option(fc.record({ survivor: anyId, name: anyName }), { nil: undefined }),
+                  )
+                  .map(([item, holder]) => ({ ...item, ...holder })),
+                { maxLength: 3 },
+              ),
+              food: fc.integer({ min: 1, max: 6 }),
+              vehicle: fc.record({
+                id: anyId,
+                tier: fc.constantFrom(...VEHICLE_TIERS),
+                label: anyName,
+                water: fc.boolean(),
+              }),
+              jaded: fc.record({ survivor: anyId, name: anyName }),
+              resources: anyCount,
             },
             { requiredKeys: ['survivor', 'name', 'result'] },
           ),

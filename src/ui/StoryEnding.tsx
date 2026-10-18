@@ -11,6 +11,7 @@ import type { Campaign, Survivor } from '../engine/campaign';
 import { nextPart, storyHolder, storyRecipients, type StoryChoice } from '../engine/storyMissions';
 import { missionTitle } from './missionLabels';
 import { PageRef } from './PageRef';
+import { StoryExtrasFields } from './StoryExtras';
 import { storyResultLabel } from './storyLabels';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
@@ -76,6 +77,20 @@ export function StoryEnding({
         </label>
       ))}
       {choice.result === '' && <span className={HINT}>Choose one to record the story.</span>}
+
+      {chosen !== undefined && (
+        <StoryExtrasFields
+          campaign={campaign}
+          members={members}
+          holder={holder}
+          result={chosen}
+          prefix={prefix}
+          extras={choice.extras ?? {}}
+          onChange={(extras) => {
+            onChange({ ...choice, extras });
+          }}
+        />
+      )}
 
       {next !== undefined && next.to !== 'attached' && (
         <div className="flex flex-wrap items-center gap-2">

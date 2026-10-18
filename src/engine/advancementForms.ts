@@ -45,8 +45,10 @@ import {
   scavenger,
   withMaterialsAdded,
   gathered,
+  madeTens,
   type MaterialRoll,
 } from './materials';
+import { convoyTensDue } from './storyRewards';
 import { rareRollsProblem, withItemsFound, type RareItemRoll } from './finding';
 import { installProblem, withRareUpgradeInstalled } from './install';
 import { turnoutGear, withEquipmentHandedOver } from './handover';
@@ -96,6 +98,18 @@ export interface HaulForm {
  */
 export function submitHaul(campaign: Campaign, form: HaulForm, at: string): FormResult {
   if (materialsAdded(campaign)) return refused('This turn’s haul is already in storage.');
+
+  // Crashed Convoy's 10s, no more than it gives and never on a forced roll (R126).
+  if (madeTens(form.rolls) > convoyTensDue(campaign)) {
+    return refused(
+      convoyTensDue(campaign) === 0
+        ? 'No story makes a roll a 10 this turn.'
+        : `Crashed Convoy makes ${String(convoyTensDue(campaign))} rolls 10s, and no more.`,
+    );
+  }
+  if (form.rolls.some((entry) => entry.madeTen === true && entry.forced !== undefined)) {
+    return refused('A roll made a 10 is not forced as well.');
+  }
 
   const rareItems = form.rareItems ?? [];
   const rare = rareRollsProblem(campaign, form.rolls, rareItems);

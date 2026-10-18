@@ -261,6 +261,32 @@ nothing records one.
 - After the Warehouse with 11 resources home, Calculate Unrest is 0 that turn, and Hunger and
   Exhaustion are still shown.
 
+**What this story turned out to include.**
+- **Three more rulings, decided 2026-10-18**: Part 2a's XP to the bondmates stands with a Teacher on
+  the mission (R140); the Guard House safe's Crashed Convoy goes to whoever opened it, and the
+  safe's other results are the table's (R141); and Neighbor's Rifle's Tier 3 is given Long Guns,
+  Dexterity 3 and a quality rifle, the rest of the build the player's (R142).
+- **An ending says what else it asks for** (`asks` in `src/data/stories.ts`): a weapon, a roll, a
+  survivor, a count. The outcome form shows one field for each, and the record keeps what was
+  given, every item a die found read off the table rather than the screen (`storyRewards.ts`). The
+  same record carries Food, the boat, who became Jaded, the Warehouse's count, and the other stories
+  attached, which follow R139 like the next part does.
+- **Rolls and picks go into the base's Inventory**, as a material 10's find does (Z5-7); the loved
+  one's weapon and the rifle go to the survivor who has them. Prepper's Stash 2's three picks are
+  from any subtable (R127).
+- **The boat is a Tier 2 water vehicle**, the fishing boat the Story Elements give (pp. 93, 117–121),
+  named on the form.
+- **Later steps read the turn's story endings off the log**, as a won claim is read: the Warehouse
+  holds Unrest at 0 beside a won claim, Crashed Convoy's two 10s are ticked on the material rolls
+  at the same turn's Add Materials to Storage, and Part 2a's point is the discretionary pool, sized
+  to the survivor and their bondmates.
+- **`rareItemFor` moved into `src/data/equipment.ts`**, a lookup over the table, so the rewards can
+  read it without the materials module; `finding.ts` still exports it.
+- **Not tracked**: the safe's other results, the Hatch's Rare Equipment token and Food, the other
+  Story Elements' tokens and vehicles (pp. 116–121), and the quality weapons the Heirloom and
+  Mabel's machete are (pp. 96–99). They go in by hand
+  on the Inventory and vehicles.
+
 ## Part 2 — The origins (outline)
 
 - **Z7-5 — Viral: the Infection check and Rot Resistant.** The check at Management Step 1 for

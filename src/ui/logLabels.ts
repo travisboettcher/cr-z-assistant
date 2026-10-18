@@ -17,6 +17,7 @@
  */
 
 import { MATERIALS, type Material } from '../data/materials';
+import { describeBuild } from './storyLabels';
 import { articleForNumber, withArticle } from './articles';
 import { FIRST_TURN } from '../engine/siege';
 import { SIEGE_TRIGGER, XP_SOURCE_PAGES, type HealthSource, type XpSource } from '../data/turn';
@@ -419,7 +420,9 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
       // What a story gave a survivor it brought (Z7-3).
       const joined = `${event.name} joined as ${withArticle(TIER_LABELS[event.tier])}, rescued by mission team ${String(event.team)}${
         event.bondGroup === undefined ? '' : `, Bonded in bond group ${String(event.bondGroup)}`
-      }${event.xp === undefined ? '' : `, with ${String(event.xp)} XP`}`;
+      }${event.xp === undefined ? '' : `, with ${String(event.xp)} XP`}${
+        event.build === undefined ? '' : `, ${describeBuild(event.build)}`
+      }`;
 
       return event.roll === undefined
         ? { text: `${joined}.`, pages: 19 }

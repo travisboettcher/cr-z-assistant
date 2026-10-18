@@ -261,7 +261,10 @@ describe('storyProblem', () => {
       }),
     ).toBe('The next part goes to somebody in the community.');
     expect(
-      problem(stash, 'preppers-stash-1', sent('duffel-recovered', to(ruby, 'preppers-stash-2'))),
+      problem(stash, 'preppers-stash-1', {
+        ...sent('duffel-recovered', to(ruby, 'preppers-stash-2')),
+        items: [{ id: 'found', item: 'bladed', grade: 'quality', from: 'quality-roll', entry: 1 }],
+      }),
     ).toBeNull();
   });
 });
@@ -321,7 +324,14 @@ describe('storyRecord (pp. 89–102; R85, R120, R138)', () => {
     const leader = playing('neighbors-rifle', [earl({ ...story, tier: 3 }), carla]);
     const citizen = playing('neighbors-rifle', [earl(story), carla]);
 
-    expect(recordOf(leader, 'neighbors-rifle', 'seating-failed').joins).toStrictEqual({ tier: 3 });
+    expect(recordOf(leader, 'neighbors-rifle', 'seating-failed').joins).toStrictEqual({
+      tier: 3,
+      build: {
+        skill: 'long-guns',
+        stat: { dexterity: 3 },
+        item: { item: 'rifle', grade: 'quality' },
+      },
+    });
     expect(recordOf(citizen, 'neighbors-rifle', 'seating-failed').joins).toBeUndefined();
     expect(recordOf(citizen, 'neighbors-rifle', 'seating-passed', 'carla').attached).toEqual({
       mission: 'warehouse',
@@ -522,6 +532,20 @@ describe('the stories done (R116, R121, R139)', () => {
   });
 });
 
+/** Earl, skilled with Long Guns, playing Left Behind Part 1. */
+const rifleman = () =>
+  playing('left-behind-1', [earl({ skills: { 'long-guns': 0 } }), carla, nell, ruby]);
+
+/** The quality rifle Part 1's loved one carried, for a survivor with Long Guns (pg. 90). */
+const lovedOnes = {
+  id: 'loved-ones-rifle',
+  item: 'rifle',
+  grade: 'quality',
+  from: 'skilled-weapon',
+  survivor: 'earl',
+  name: 'Earl Rhodes',
+} as const;
+
 describe('a story’s ending, recorded (Z7-3)', () => {
   /** The acceptance's first half. */
   it('Left Behind Part 1 with the loved one rescued brings a bonded survivor, both with 1 XP, and attaches Part 2a', () => {
@@ -633,11 +657,11 @@ describe('a story’s ending, recorded (Z7-3)', () => {
   });
 
   it('chooses Part 2b for the same team at once when the loved one is lost (R119)', () => {
-    const campaign = playing();
+    const campaign = rifleman();
     const after = accepted(
       submitMissionEnded(
         campaign,
-        ended(campaign, 'left-behind-1', { result: 'not-rescued' }),
+        ended(campaign, 'left-behind-1', { result: 'not-rescued', items: [lovedOnes] }),
         [],
         AT,
       ),
@@ -660,8 +684,8 @@ describe('a story’s ending, recorded (Z7-3)', () => {
   });
 
   it('chooses no Part 2b when its survivor died on Part 1, the story going with them (R116)', () => {
-    const campaign = playing();
-    const outcome = ended(campaign, 'left-behind-1', { result: 'not-rescued' });
+    const campaign = rifleman();
+    const outcome = ended(campaign, 'left-behind-1', { result: 'not-rescued', items: [lovedOnes] });
     const after = accepted(
       submitMissionEnded(campaign, outcome, [{ team: 1, survivor: 'earl', taken: {} }], AT),
     );

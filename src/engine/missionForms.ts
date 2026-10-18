@@ -56,6 +56,7 @@ import {
 } from './missionVehicles';
 import { spentItems, spentProblem, withItemsSpent } from './spent';
 import { isStory, partNow, storyHolder, storyRecord, withStoryRecorded } from './storyMissions';
+import { extrasOf } from './storyRewards';
 import { deathProblem, deathsProblem, withMissionDeath, type MissionDeath } from './missionDeaths';
 
 /**
@@ -277,6 +278,7 @@ function withStoryRebuilt(campaign: Campaign, outcome: MissionOutcome): MissionO
     story: storyRecord(campaign, members, story.mission, {
       result: story.record.result,
       ...(story.record.attached === undefined ? {} : { to: story.record.attached.survivor }),
+      extras: extrasOf(story.record),
     }),
   };
 }

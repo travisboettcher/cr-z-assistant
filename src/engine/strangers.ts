@@ -40,6 +40,7 @@
 import type { D10Result } from '../data/dice';
 import type { StoryMissionId } from '../data/missions';
 import { rollsForSkill } from '../data/recruitTable';
+import { MIN_SKILL_LEVEL, STATS } from '../data/skills';
 import type { Tier } from '../data/tiers';
 import type { Campaign, Survivor } from './campaign';
 import type { StoryRecord } from './log';
@@ -69,6 +70,9 @@ export interface RescuedStranger {
 
   /** XP they arrive with. */
   readonly xp?: number;
+
+  /** What the story gives their build (pg. 99; R142). */
+  readonly build?: NonNullable<NonNullable<StoryRecord['joins']>['build']>;
 }
 
 /** What Advancement Step 2 is told about a stranger joining. */
@@ -118,6 +122,7 @@ function storyJoiner(
     story,
     ...(joins.bondGroup === undefined ? {} : { bondGroup: joins.bondGroup }),
     ...(joins.xp === undefined ? {} : { xp: joins.xp }),
+    ...(joins.build === undefined ? {} : { build: joins.build }),
   };
 }
 
@@ -210,12 +215,44 @@ export function strangerSurvivor(
       ? createSurvivor(name, rescued.tier, options)
       : recruitSurvivor(name, rescued.tier, roll, options);
 
+  return withBuild(
+    {
+      ...recruit,
+      xp: recruit.xp + (rescued.xp ?? 0),
+      ...(rescued.bondGroup === undefined
+        ? {}
+        : { storyTrait: 'bonded' as const, bondGroup: rescued.bondGroup }),
+    },
+    rescued.build,
+  );
+}
+
+/** The id of the item a story's survivor arrives carrying: theirs, and nobody else's. */
+export function buildItemId(survivor: string): string {
+  return `${survivor}-arrived-with`;
+}
+
+/**
+ * A survivor with what a story gives their build (pg. 99; R142): the skill at
+ * its first level, beside any the recruit roll gave; the stat at its
+ * value, swapped with whichever stat held it so the Tier's array stays whole;
+ * and the item, in their hands. The rest stays the player's, on the sheet.
+ */
+function withBuild(survivor: Survivor, build: RescuedStranger['build']): Survivor {
+  if (build === undefined) return survivor;
+
+  const wanted = build.stat.dexterity;
+  const holder = STATS.find((stat) => survivor.stats[stat] === wanted);
+  const stats =
+    holder === undefined
+      ? survivor.stats
+      : { ...survivor.stats, [holder]: survivor.stats.dexterity, dexterity: wanted };
+
   return {
-    ...recruit,
-    xp: recruit.xp + (rescued.xp ?? 0),
-    ...(rescued.bondGroup === undefined
-      ? {}
-      : { storyTrait: 'bonded' as const, bondGroup: rescued.bondGroup }),
+    ...survivor,
+    stats,
+    skills: { ...survivor.skills, [build.skill]: MIN_SKILL_LEVEL },
+    items: [...survivor.items, { id: buildItemId(survivor.id), ...build.item }],
   };
 }
 

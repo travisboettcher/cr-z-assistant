@@ -54,6 +54,8 @@ import type { Check, Violation } from './checks';
 import { facilityProduction } from './production';
 import { hungerPenalty } from './feeding';
 import { skillScore } from './survivor';
+import { bondmateXpRecipients } from './storyRewards';
+import type { StoryMissionId } from '../data/missions';
 
 export type XpViolationCode = 'nothing-left-in-the-pool' | 'at-the-cap' | 'not-eligible';
 
@@ -82,7 +84,12 @@ export type XpPoolEmptiness =
   /** No staffed Training Room to teach in. */
   | 'nowhere-to-teach'
   /** A staffed Training Room, worked by somebody without Teaching. */
-  | 'wrong-person';
+  | 'wrong-person'
+  /**
+   * Left Behind Part 2a sent the point to its survivor and their bondmates,
+   * and none of them is in the community any more (pg. 91; R140).
+   */
+  | 'sent-to-the-gone';
 
 export interface XpPool {
   readonly source: XpSource;
@@ -125,6 +132,12 @@ export interface XpPool {
 
   /** Who may draw on it (pg. 18, 12, 70). */
   readonly eligible: readonly Survivor[];
+
+  /**
+   * The story that decides who this pool goes to, where one does: Left Behind
+   * Part 2a, for the discretionary point (pg. 91; R140).
+   */
+  readonly sentBy?: StoryMissionId;
 }
 
 /** The mission team's combined Teaching Score, which is a Teacher's pool (pg. 12). */
@@ -216,6 +229,10 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
    */
   const canTeach = team.some((survivor) => survivor.skills['teaching'] !== undefined);
 
+  // Left Behind Part 2a sends the discretionary point to its survivor and each
+  // bondmate, 1 each, a Teacher or not (pg. 91; R140).
+  const bondmateXp = bondmateXpRecipients(campaign);
+
   const totals: Record<XpSource, number> = {
     // One each (pg. 18). `MISSION_XP` is 1, so nothing can tell this
     // multiplication from a division and one mutant lives here permanently —
@@ -224,7 +241,12 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
     // suite would catch it the same day.
     mission: team.length * MISSION_XP,
     // Replaced, not topped up: a Teacher on the mission takes the point away.
-    discretionary: canTeach ? 0 : DISCRETIONARY_MISSION_XP,
+    discretionary:
+      bondmateXp === undefined
+        ? canTeach
+          ? 0
+          : DISCRETIONARY_MISSION_XP
+        : bondmateXp.length * DISCRETIONARY_MISSION_XP,
     'mission-teaching': teaching,
     'training-room': trainingRoomXp(campaign),
   };
@@ -238,7 +260,7 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
 
   const eligible: Record<XpSource, readonly Survivor[]> = {
     mission: team,
-    discretionary: campaign.survivors,
+    discretionary: bondmateXp ?? campaign.survivors,
     'mission-teaching': campaign.survivors,
     // Whoever stayed behind: a Training Room teaches the people who were in it
     // to be taught (pg. 70).
@@ -250,7 +272,7 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
 
   const emptiness: Record<XpSource, XpPoolEmptiness> = {
     mission: 'nobody-went',
-    discretionary: 'replaced-by-teaching',
+    discretionary: bondmateXp === undefined ? 'replaced-by-teaching' : 'sent-to-the-gone',
     'mission-teaching': canTeach ? 'score-is-nothing' : 'nobody-qualifies',
     'training-room': roomIsStaffed ? 'wrong-person' : 'nowhere-to-teach',
   };
@@ -263,6 +285,9 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
     pages: XP_SOURCE_PAGES[source],
     eligible: eligible[source],
     emptyBecause: totals[source] === 0 ? emptiness[source] : undefined,
+    ...(source === 'discretionary' && bondmateXp !== undefined
+      ? { sentBy: 'left-behind-2a' as const }
+      : {}),
   }));
 }
 
@@ -321,7 +346,15 @@ export function checkXpAward(campaign: Campaign, survivorId: string, source: XpS
   const blockers: XpViolation[] = [];
 
   if (!pool.eligible.some((survivor) => survivor.id === survivorId)) {
-    blockers.push({ code: 'not-eligible', message: WHO_MAY_DRAW[source], pages: pool.pages });
+    blockers.push(
+      pool.sentBy === undefined
+        ? { code: 'not-eligible', message: WHO_MAY_DRAW[source], pages: pool.pages }
+        : {
+            code: 'not-eligible',
+            message: 'Left Behind Part 2a sends this point to its survivor and their bondmates.',
+            pages: 91,
+          },
+    );
   }
 
   if (pool.awarded >= pool.total) {

@@ -77,6 +77,12 @@ export type MaterialsCheck = Check<MaterialsViolationCode>;
 export interface MaterialRoll {
   readonly roll: D10Result;
   readonly forced?: { readonly skill: SubstitutionSkill; readonly material: Material };
+  /**
+   * Made a 10 by Crashed Convoy, whatever it rolled, so a Rare Item Table
+   * roll (pp. 19, 101; R126; Z7-4). Never with `forced`: a roll is one or the
+   * other.
+   */
+  readonly madeTen?: true;
 }
 
 /** An empty haul, which is what a turn with no rolls and no production adds. */
@@ -87,10 +93,17 @@ export function noMaterials(): Materials {
 /**
  * What one roll actually yielded, after any substitution spent on it: a
  * material, or a roll on the Rare Item Table for an unforced 10 (pp. 12, 19).
- * No skill forces a 10 (R9).
+ * No skill forces a 10 (R9), and Crashed Convoy makes one (R126).
  */
 export function rolledMaterial(entry: MaterialRoll): MaterialRollResult {
+  if (entry.madeTen === true) return MATERIAL_ROLL_TABLE[10];
+
   return entry.forced?.material ?? MATERIAL_ROLL_TABLE[entry.roll];
+}
+
+/** How many rolls Crashed Convoy made 10s. */
+export function madeTens(rolls: readonly MaterialRoll[]): number {
+  return rolls.filter((entry) => entry.madeTen === true).length;
 }
 
 /** How many of these rolls are Rare Item Table rolls rather than materials (pg. 19). */
