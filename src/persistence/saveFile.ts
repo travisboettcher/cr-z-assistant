@@ -769,6 +769,11 @@ const EVENT_FIELDS: Record<
     ['survivor', 'id'],
     ['name', 'name'],
   ],
+  'madness-recovered': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['madness', 'countFromOne'],
+  ],
   'infection-contained': [
     ['survivor', 'id'],
     ['name', 'name'],
@@ -1194,6 +1199,7 @@ const ASSIGNMENT_FIELDS: Record<Assignment['task'], readonly [string, EventField
   healing: ['inoculation', 'optionalItemId'],
   mission: ['team', 'countFromOne'],
   scavenging: null,
+  'madness-recovery': null,
 };
 
 /**

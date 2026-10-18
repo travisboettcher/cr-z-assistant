@@ -37,6 +37,7 @@ import type { Campaign } from './campaign';
 import { moveOwed } from './claim';
 import { survivorsFed } from './feeding';
 import { containmentDraws, healthAwards, woundsHealed } from './healing';
+import { madnessAwards, madnessRecovered } from './lounge';
 import { materialsAdded } from './materials';
 import { firstMissionFailed, missionsChosen, unresolvedTeams } from './missions';
 import {
@@ -243,6 +244,14 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
     (awards.length > 0 || containmentDraws(campaign, awards).length > 0)
   ) {
     owed.push({ step: 'heal-wounds', says: 'This turn’s Health hasn’t been handed out.' });
+  }
+
+  // The Lounge's Madness Recovery, beside the Health (R110; Z7-7).
+  if (!madnessRecovered(campaign) && madnessAwards(campaign).length > 0) {
+    owed.push({
+      step: 'heal-wounds',
+      says: 'The Lounge’s Madness Recovery hasn’t been handed out.',
+    });
   }
 
   // An Inoculation chosen last Planning Phase is given here (R97; Z7-5).

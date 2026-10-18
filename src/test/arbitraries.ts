@@ -454,6 +454,12 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       name: anyName,
     }),
     fc.record({
+      kind: fc.constant('madness-recovered' as const),
+      survivor: anyId,
+      name: anyName,
+      madness: fc.integer({ min: 1, max: 8 }),
+    }),
+    fc.record({
       kind: fc.constant('infection-contained' as const),
       survivor: anyId,
       name: anyName,
@@ -997,7 +1003,7 @@ function logEntryArbitrary(): fc.Arbitrary<LogEntry> {
 }
 
 /**
- * One task, drawn from all six.
+ * One task, drawn from all seven.
  *
  * Written out per task rather than generated from a shared shape, for the
  * reason `campaignEventArbitrary` is: the members carry different fields, and a
@@ -1014,6 +1020,7 @@ function assignmentArbitrary(): fc.Arbitrary<Assignment> {
     ),
     fc.record({ task: fc.constant('mission' as const), team: fc.integer({ min: 1, max: 4 }) }),
     fc.record({ task: fc.constant('scavenging' as const) }),
+    fc.record({ task: fc.constant('madness-recovery' as const) }),
   );
 }
 

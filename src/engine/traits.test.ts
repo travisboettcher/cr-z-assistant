@@ -224,6 +224,7 @@ describe('the trait catalogue against the engine', () => {
     healing: true,
     mission: true,
     scavenging: true,
+    'madness-recovery': true,
   } satisfies Record<Assignment['task'], true>);
 
   it('names only tasks that exist (R93)', () => {

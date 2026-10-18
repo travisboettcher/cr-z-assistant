@@ -123,6 +123,16 @@ export function PlanningPhase({ campaign, step }: PlanningPhaseProps) {
             lanes={[
               { task: { task: 'rest' }, name: laneLabel({ task: 'rest' }), pages: 21 },
               { task: { task: 'healing' }, name: laneLabel({ task: 'healing' }), pages: 21 },
+              // In place of either, under the Cosmic Horror origin (R110; Z7-7).
+              ...(campaign.origin === 'cosmic-horror'
+                ? [
+                    {
+                      task: { task: 'madness-recovery' } as const,
+                      name: laneLabel({ task: 'madness-recovery' }),
+                      pages: '21, 68',
+                    },
+                  ]
+                : []),
             ]}
           />
           <InoculationChoices campaign={campaign} />

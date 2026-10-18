@@ -30,6 +30,8 @@ export function taskLabel(assignment: Assignment): string {
         : `on mission team ${String(assignment.team)}`;
     case 'scavenging':
       return 'scavenging';
+    case 'madness-recovery':
+      return 'recovering from Madness';
   }
 }
 
@@ -50,5 +52,7 @@ export function laneLabel(assignment: Exclude<Assignment, { task: 'staff' }>): s
       return `Mission team ${String(assignment.team)}`;
     case 'scavenging':
       return 'Scavenging instead of the mission';
+    case 'madness-recovery':
+      return 'Madness Recovery';
   }
 }

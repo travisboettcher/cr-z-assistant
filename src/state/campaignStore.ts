@@ -58,6 +58,7 @@ import {
   submitConversion,
   submitHaul,
   submitInoculated,
+  submitMadnessRecovered,
   submitRotResisted,
   submitRareUpgradeInstalled,
   submitHealing,
@@ -329,6 +330,8 @@ export type CampaignAction =
   | { readonly type: 'advancement/inoculated'; readonly survivor: string; readonly at: string }
   /** Rot Resistant's 1 Infection off, at the start of the Advancement Phase (R96; Z7-5). */
   | { readonly type: 'advancement/rotResisted'; readonly at: string }
+  /** This turn's Madness Recovery in the Lounge, at Heal Wounds (R110; Z7-7). */
+  | { readonly type: 'advancement/madnessRecovered'; readonly at: string }
   /** A survivor's Story Trait, Veteran and bond group, set on their sheet (R84; Z7-1). */
   | { readonly type: 'survivor/traitsSet'; readonly id: string; readonly traits: SurvivorTraits }
   /** Take a skill, at level 0 — skills all start there (pg. 8). */
@@ -916,6 +919,9 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
     case 'advancement/rotResisted':
       return submitted(state, (campaign) => submitRotResisted(campaign, action.at));
+
+    case 'advancement/madnessRecovered':
+      return submitted(state, (campaign) => submitMadnessRecovered(campaign, action.at));
 
     case 'survivor/traitsSet':
       return submitted(state, (campaign) => submitTraitsSet(campaign, action.id, action.traits));

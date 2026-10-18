@@ -34,6 +34,8 @@ import { claimedBase } from './claim';
 import { checkConversion, conversions, withConversion } from './conversions';
 import { checkXpAward, withXpAwarded } from './experience';
 import { accepted, blockedBy, refused, type FormResult, type Refused } from './forms';
+import { madnessAwards, madnessRecovered, withMadnessTaken } from './lounge';
+import { phaseOf } from './turn';
 import {
   containmentDraws,
   healthAwards,
@@ -587,4 +589,32 @@ export function submitRotResisted(campaign: Campaign, at: string): FormResult {
   if (problem !== null) return refused(problem);
 
   return accepted(withRotResisted(campaign, at));
+}
+
+/**
+ * Hand out this turn's Madness Recovery at Heal Wounds (pp. 21, 68; R110;
+ * Z7-7): each award's Madness off, an entry each. Once a turn, in the
+ * Advancement Phase, and only with something to hand out.
+ */
+export function submitMadnessRecovered(campaign: Campaign, at: string): FormResult {
+  if (phaseOf(campaign.step) !== 'advancement') {
+    return refused('Madness Recovery is handed out in the Advancement Phase.');
+  }
+  if (madnessRecovered(campaign)) return refused('This turn’s Madness Recovery is done.');
+
+  const awards = madnessAwards(campaign);
+  if (awards.length === 0) return refused('Nobody has Madness the Lounge can take off this turn.');
+
+  return accepted(
+    awards.reduce(
+      (recovered, award) =>
+        logged(recovered, at, {
+          kind: 'madness-recovered',
+          survivor: award.survivor.id,
+          name: award.survivor.name,
+          madness: award.madness,
+        }),
+      withMadnessTaken(campaign, awards),
+    ),
+  );
 }

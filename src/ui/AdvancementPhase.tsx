@@ -103,6 +103,7 @@ import { PageRef } from './PageRef';
 import { SKILL_LABELS } from './skillLabels';
 import { TIER_LABELS } from './tierLabels';
 import { InoculationsGiven, RotResistance } from './Inoculations';
+import { LoungeRecovery } from './Lounge';
 import { missionTitle } from './missionLabels';
 import { describeBuild } from './storyLabels';
 import { withArticle } from './articles';
@@ -1125,6 +1126,7 @@ function HealWounds({ campaign }: { readonly campaign: Campaign }) {
         </>
       )}
       <InoculationsGiven campaign={campaign} />
+      <LoungeRecovery campaign={campaign} />
     </>
   );
 }

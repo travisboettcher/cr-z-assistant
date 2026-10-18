@@ -392,6 +392,11 @@ export type Assignment =
    */
   | { readonly task: 'healing'; readonly inoculation?: string }
   /**
+   * Recovering from Madness in the Lounge, under the Cosmic Horror origin, in
+   * place of resting or healing (pp. 21, 68; R110; Z7-7).
+   */
+  | { readonly task: 'madness-recovery' }
+  /**
    * On a mission team, for the mission next turn (pg. 21).
    *
    * Carries a team number from the day it lands. Phase 3 only ever wrote 1;

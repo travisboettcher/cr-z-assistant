@@ -458,6 +458,17 @@ export type CampaignEvent =
    */
   | { readonly kind: 'infection-resisted'; readonly survivor: string; readonly name: string }
   /**
+   * The Lounge took Madness off a survivor assigned to Madness Recovery, at
+   * Heal Wounds (pp. 21, 68; R110; Z7-7). Load-bearing: it is how the turn
+   * knows Madness Recovery is done.
+   */
+  | {
+      readonly kind: 'madness-recovered';
+      readonly survivor: string;
+      readonly name: string;
+      readonly madness: number;
+    }
+  /**
    * Containment's held zombies took Infection off a survivor being healed, at
    * Heal Wounds after their points were split (pg. 69; R103, R148; Z7-6).
    * Load-bearing, as `health-restored` is: either says Heal Wounds is done.

@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign, type Survivor } from '../engine/campaign';
 import { createSurvivor } from '../engine/survivor';
 import { CampaignProvider } from '../state/CampaignProvider';
-import { openPanel } from '../test/screens';
+import { withPlanningBegun } from '../test/campaigns';
+import { lane, moveTo, openPanel } from '../test/screens';
 import { App } from './App';
 
 const AT = '2026-10-18T09:00:00.000Z';
@@ -85,5 +86,47 @@ describe('Madness at the end of a mission (Z7-7)', () => {
     await user.click(within(walk()).getByRole('button', { name: 'Record Rescue Strangers' }));
 
     expect(walk().textContent).toContain('Earl Rhodes at 2 Health and 6 Madness');
+  });
+});
+
+describe('Madness Recovery in the Lounge (pp. 21, 68; R110; Z7-7)', () => {
+  const lounge = {
+    id: 'small-town-home',
+    slots: { 'bunk-room-1': { upgrades: ['lounge'] } },
+  } as const satisfies Campaign['base'];
+
+  it('is a lane at Rest and Healing in a Cosmic Horror campaign, and only there', () => {
+    open(withPlanningBegun(cosmic({ step: 'assign-rest-and-healing', base: lounge })));
+
+    moveTo(/^earl rhodes/i, 'Madness Recovery');
+    expect(within(lane('Madness Recovery')).getByText(/Earl Rhodes/)).toBeTruthy();
+  });
+
+  it('has no lane in another campaign', () => {
+    open(withPlanningBegun(cosmic({ step: 'assign-rest-and-healing', origin: 'viral' })));
+
+    expect(screen.queryByRole('group', { name: 'Madness Recovery' })).toBeNull();
+    expect(screen.queryByText('Madness Recovery')).toBeNull();
+  });
+
+  it('is handed out at Heal Wounds, and says so', async () => {
+    const user = open(
+      cosmic({
+        step: 'heal-wounds',
+        base: lounge,
+        survivors: [earl({ madness: 5 })],
+        assignments: { earl: { task: 'madness-recovery' } },
+      }),
+    );
+    const region = within(walk()).getByRole('region', { name: 'Madness Recovery' });
+    const section = within(region);
+
+    expect(region.textContent).toContain(
+      'The Lounge makes 2 points, shared equally among everybody assigned to Madness Recovery: Earl Rhodes −2.',
+    );
+    await user.click(section.getByRole('button', { name: 'Take the Madness off' }));
+
+    expect(section.getByText('Earl Rhodes recovered from 2 Madness in the Lounge.')).toBeTruthy();
+    expect(section.queryByRole('button')).toBeNull();
   });
 });

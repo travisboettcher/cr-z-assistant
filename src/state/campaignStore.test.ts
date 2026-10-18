@@ -3156,6 +3156,21 @@ describe('what earns a line in the log', () => {
       action: { type: 'advancement/rotResisted', at: AT },
       entry: entry(3, 'advancement', { kind: 'infection-resisted', ...WEBB }),
     },
+    // Marcus, assigned to Madness Recovery with 3 Madness and a Lounge (R110; Z7-7).
+    'advancement/madnessRecovered': {
+      state: openState({
+        ...expectOpen(rich()),
+        step: 'heal-wounds',
+        origin: 'cosmic-horror',
+        base: { id: 'small-town-home', slots: { 'bunk-room-1': { upgrades: ['lounge'] } } },
+        survivors: expectOpen(rich()).survivors.map((survivor) =>
+          survivor.id === LOGGED_SURVIVOR ? { ...survivor, madness: 3 } : survivor,
+        ),
+        assignments: { [LOGGED_SURVIVOR]: { task: 'madness-recovery' } },
+      }),
+      action: { type: 'advancement/madnessRecovered', at: AT },
+      entry: entry(3, 'advancement', { kind: 'madness-recovered', ...WEBB, madness: 2 }),
+    },
     // A correction on the sheet, like the stats above: a trait a story gives is
     // the story's own entry (Z7-1).
     'survivor/traitsSet': {
