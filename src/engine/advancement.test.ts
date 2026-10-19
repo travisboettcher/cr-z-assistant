@@ -30,6 +30,11 @@ const CARLA = {
   veteran: false,
   bondGroup: null,
   stories: [],
+  rotResistant: false,
+  madness: 0,
+  xpSpent: 0,
+  found: false,
+  foundCheckPassed: false,
 } satisfies Survivor;
 
 /** A Tier 2 Citizen with the 2 deliberately not in the first stat. */
@@ -49,6 +54,11 @@ const MARCUS = {
   veteran: false,
   bondGroup: null,
   stories: [],
+  rotResistant: false,
+  madness: 0,
+  xpSpent: 0,
+  found: false,
+  foundCheckPassed: false,
 } satisfies Survivor;
 
 /** A Rookie's 1/0/0/0, with the point on Intelligence: three zeros to choose from. */

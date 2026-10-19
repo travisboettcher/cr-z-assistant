@@ -52,11 +52,13 @@ import { anythingOverCap, overCap, storageChecked } from '../engine/storage';
 import {
   departureCalled,
   departureCandidates,
+  goingLost,
   departurePressure,
   someoneDeparted,
 } from '../engine/departures';
 import { MATERIAL_LABELS, slotLabel } from './baseLabels';
 import { STORED_MATERIALS } from '../data/materials';
+import { MADNESS_GOES_LOST } from '../data/origins';
 import {
   biteCandidates,
   mustCheck,
@@ -64,10 +66,15 @@ import {
   rotOutcome,
   rotTarget,
   stillToCheck,
+  infectionBonus,
+  infectionMustCheck,
+  infectionOutcome,
+  infectionStillToCheck,
 } from '../engine/rot';
 import { laborShortfall, orderedThisTurn, queuedCost } from '../engine/projects';
 import { describeProject } from './projectLabels';
 import { useCampaign } from '../state/useCampaign';
+import { describeEvent } from './logLabels';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 
@@ -145,7 +152,12 @@ function CheckForRot({ campaign }: { readonly campaign: Campaign }) {
         <ul className="mt-3 flex flex-col gap-4">
           {outstanding.map((survivor) => (
             <li key={survivor.id}>
-              <RotCheck campaign={campaign} survivorId={survivor.id} name={survivor.name} />
+              <RotCheck
+                campaign={campaign}
+                check="rot"
+                survivorId={survivor.id}
+                name={survivor.name}
+              />
             </li>
           ))}
         </ul>
@@ -167,16 +179,79 @@ function CheckForRot({ campaign }: { readonly campaign: Campaign }) {
           it again.
         </p>
       )}
+
+      {campaign.origin === 'viral' && <InfectionChecks campaign={campaign} />}
     </>
+  );
+}
+
+/**
+ * Under the Viral origin, a check for everybody carrying Infection (pp. 22,
+ * 123; R99–R101; Z7-5), beside the Rot checks and made the same way: one card
+ * each, rolled at the table, and a failure turns them as a failed Rot check
+ * does.
+ */
+function InfectionChecks({ campaign }: { readonly campaign: Campaign }) {
+  const infected = infectionMustCheck(campaign);
+  const outstanding = infectionStillToCheck(campaign);
+  const bonus = infectionBonus(campaign);
+
+  return (
+    <section aria-label="Infection checks" className="mt-5">
+      <h3 className="text-sm font-semibold">Infection</h3>
+      <p className={`mt-1 ${HINT}`}>
+        Everybody carrying Infection checks against it. Roll a d10 and add their Tier
+        {bonus === 0 ? (
+          ''
+        ) : (
+          <>
+            {' '}
+            and the community’s <span className="tabular-nums">{bonus}</span> Medicine, for the
+            Medical Clinic
+          </>
+        )}
+        . A 1 or a 10 is only its number <PageRef pages={123} />
+      </p>
+
+      {infected.length === 0 && <p className={`mt-2 ${HINT}`}>Nobody is carrying Infection.</p>}
+
+      {outstanding.length > 0 && (
+        <ul className="mt-3 flex flex-col gap-4">
+          {outstanding.map((survivor) => (
+            <li key={survivor.id}>
+              <RotCheck
+                campaign={campaign}
+                check="infection"
+                survivorId={survivor.id}
+                name={survivor.name}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {infected.length > outstanding.length && (
+        <p className="mt-3 text-sm font-medium">
+          {infected
+            .filter((survivor) => !outstanding.includes(survivor))
+            .map((survivor) => survivor.name)
+            .join(', ')}{' '}
+          held off the Infection this turn.
+        </p>
+      )}
+    </section>
   );
 }
 
 function RotCheck({
   campaign,
+  check,
   survivorId,
   name,
 }: {
   readonly campaign: Campaign;
+  /** The Rot check at 0 Health, or the Viral origin's Infection check (R99). */
+  readonly check: 'rot' | 'infection';
   readonly survivorId: string;
   readonly name: string;
 }) {
@@ -214,18 +289,29 @@ function RotCheck({
   // Shown before the press, so a player can see what the roll they are about to
   // enter would cost before it costs it — and nothing at all before that,
   // because there is no outcome to preview yet.
-  const outcome = roll === null ? null : rotOutcome(campaign, survivorId, roll, chosen);
+  const outcome =
+    roll === null
+      ? null
+      : (check === 'rot' ? rotOutcome : infectionOutcome)(campaign, survivorId, roll, chosen);
+  const infection =
+    campaign.survivors.find((survivor) => survivor.id === survivorId)?.infection ?? 0;
+  const prefix = `${check}-${survivorId}`;
 
   return (
     <div className="rounded-lg border border-stone-200 p-3 dark:border-stone-700">
-      <p className="text-sm font-medium">{name}</p>
+      <p className="text-sm font-medium">
+        {name}
+        {check === 'infection' && (
+          <span className="font-normal tabular-nums">, {infection} Infection</span>
+        )}
+      </p>
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <label className="text-sm" htmlFor={`rot-roll-${survivorId}`}>
+        <label className="text-sm" htmlFor={`${prefix}-roll`}>
           Rolled
         </label>
         <select
-          id={`rot-roll-${survivorId}`}
+          id={`${prefix}-roll`}
           value={roll ?? ''}
           className={FIELD}
           onChange={(changed) => {
@@ -242,11 +328,11 @@ function RotCheck({
 
         {candidates.length > 0 && !held && (
           <>
-            <label className="text-sm" htmlFor={`rot-bite-${survivorId}`}>
+            <label className="text-sm" htmlFor={`${prefix}-bite`}>
               Bites
             </label>
             <select
-              id={`rot-bite-${survivorId}`}
+              id={`${prefix}-bite`}
               value={chosen ?? ''}
               className={FIELD}
               onChange={(changed) => {
@@ -267,7 +353,9 @@ function RotCheck({
         {outcome === null
           ? `Enter ${name}’s roll to see what it would cost.`
           : outcome.turned === null
-            ? `${name} holds on.`
+            ? check === 'rot'
+              ? `${name} holds on.`
+              : `${name} holds off the Infection.`
             : `${name} turns and is removed.` +
               (outcome.restrained ? ' The Restraints hold them, and nobody is bitten.' : '') +
               (outcome.bitten === null
@@ -283,7 +371,7 @@ function RotCheck({
           if (roll === null) return;
 
           dispatch({
-            type: 'management/rotChecked',
+            type: check === 'rot' ? 'management/rotChecked' : 'management/infectionChecked',
             survivor: survivorId,
             roll,
             bitten: chosen,
@@ -291,7 +379,7 @@ function RotCheck({
           });
         }}
       >
-        Resolve {name}’s check
+        Resolve {name}’s {check === 'rot' ? 'check' : 'Infection check'}
       </button>
     </div>
   );
@@ -606,12 +694,15 @@ function CheckTheHorde({ campaign }: { readonly campaign: Campaign }) {
       </p>
 
       <ul className="mt-3 flex flex-col gap-0.5">
-        {SIEGE_THREAT_TERMS.map((term) => (
-          <li key={term} className={`${HINT} tabular-nums`}>
-            {terms[term] >= 0 ? '+' : ''}
-            {terms[term]} {SIEGE_TERM_LABELS[term]}
-          </li>
-        ))}
+        {/* Held zombies only where there are some: a Viral campaign's term alone. */}
+        {SIEGE_THREAT_TERMS.filter((term) => term !== 'held-zombies' || terms[term] !== 0).map(
+          (term) => (
+            <li key={term} className={`${HINT} tabular-nums`}>
+              {terms[term] >= 0 ? '+' : ''}
+              {terms[term]} {SIEGE_TERM_LABELS[term]}
+            </li>
+          ),
+        )}
       </ul>
 
       {/*
@@ -710,16 +801,58 @@ function Departures({ campaign }: { readonly campaign: Campaign }) {
   const pressure = departurePressure(campaign);
   const candidates = departureCandidates(campaign);
   const departed = someoneDeparted(campaign);
+  const lost = goingLost(campaign);
+  const wentLost = campaign.log.filter(
+    (entry) => entry.turn === campaign.turn && entry.event.kind === 'survivor-lost',
+  );
 
   return (
     <>
+      {/* The Lost first, before the Unrest check (pp. 23, 124; R106, R107; Z7-7). */}
+      {(lost.length > 0 || wentLost.length > 0) && (
+        <section aria-label="Lost to Madness" className="mb-4 flex flex-col gap-2">
+          <h4 className="text-sm font-semibold">
+            Lost to Madness <PageRef pages="23, 124" />
+          </h4>
+          {wentLost.map((entry, index) => (
+            <p key={index} className={HINT}>
+              {describeEvent(entry.event, entry.turn).text}
+            </p>
+          ))}
+          {lost.length > 0 && (
+            <>
+              <p className={HINT}>
+                Everybody at <span className="tabular-nums">{MADNESS_GOES_LOST}</span> or more
+                Madness goes Lost before the Unrest check, taking what they carry, unless they’re
+                down. Going: {lost.map((survivor) => survivor.name).join(', ')}.
+              </p>
+              <div>
+                <button
+                  type="button"
+                  className={SMALL_BUTTON}
+                  onClick={() => {
+                    dispatch({ type: 'management/goneLost', at: new Date().toISOString() });
+                  }}
+                >
+                  They go Lost
+                </button>
+              </div>
+            </>
+          )}
+        </section>
+      )}
+
       <p className={HINT}>
         Unrest plus Siege Threat is <span className="tabular-nums">{pressure}</span>. At{' '}
         <span className="tabular-nums">{DEPARTURE_THRESHOLD}</span> or over, the lowest-Tier
         survivor leaves — and a tie is yours to break <PageRef pages={23} />
       </p>
 
-      {departed ? (
+      {lost.length > 0 ? (
+        <p className="mt-3 text-sm font-medium">
+          The Unrest check follows once the Lost have gone, against what they leave behind.
+        </p>
+      ) : departed ? (
         <p className="mt-3 text-sm font-medium">
           Somebody has already left this turn. The rules send one survivor away, however far over
           the threshold the pressure is.
@@ -845,4 +978,5 @@ const SIEGE_TERM_LABELS: Record<SiegeThreatTerm, string> = {
   'base-features': 'from the base itself',
   'turns-since-last-siege': 'turns since the last siege',
   'watched-from-above': 'watched from a staffed Watchtower',
+  'held-zombies': 'held in Containment',
 };

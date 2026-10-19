@@ -22,7 +22,7 @@
 import { MISSIONS, type MissionId, type StoryMissionId } from '../data/missions';
 import { storyResult, type StoryResult } from '../data/stories';
 import type { Tier } from '../data/tiers';
-import type { Campaign, Survivor } from './campaign';
+import { type Campaign, keptSurvivors, type Survivor } from './campaign';
 import type { StoryRecord } from './log';
 import {
   extrasOf,
@@ -132,12 +132,7 @@ export function storyProblem(
 
 /** The bond group a new pair of Bonded survivors takes: one more than any in use. */
 function newBondGroup(campaign: Campaign): number {
-  return (
-    Math.max(
-      0,
-      ...[...campaign.survivors, ...campaign.setAside].map((survivor) => survivor.bondGroup ?? 0),
-    ) + 1
-  );
+  return Math.max(0, ...keptSurvivors(campaign).map((survivor) => survivor.bondGroup ?? 0)) + 1;
 }
 
 /**

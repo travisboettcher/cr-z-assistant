@@ -67,10 +67,13 @@ describe('createNewCampaign', () => {
       'assignments',
       'base',
       'createdAt',
+      'heldZombies',
       'id',
       'inventory',
       'log',
+      'lost',
       'materials',
+      'medicalSupplies',
       'name',
       'projects',
       'rareRollsOwed',
@@ -115,17 +118,26 @@ describe('Survivor', () => {
       veteran: false,
       bondGroup: null,
       stories: [],
+      rotResistant: false,
+      madness: 0,
+      xpSpent: 0,
+      found: false,
+      foundCheckPassed: false,
     } satisfies Survivor;
 
     expect(Object.keys(survivor).sort()).toEqual([
       'bondGroup',
       'currentHp',
       'defense',
+      'found',
+      'foundCheckPassed',
       'id',
       'infection',
       'items',
+      'madness',
       'move',
       'name',
+      'rotResistant',
       'skills',
       'stats',
       'stories',
@@ -133,6 +145,7 @@ describe('Survivor', () => {
       'tier',
       'veteran',
       'xp',
+      'xpSpent',
     ]);
   });
 
@@ -158,6 +171,11 @@ describe('Survivor', () => {
       veteran: false,
       bondGroup: null,
       stories: [],
+      rotResistant: false,
+      madness: 0,
+      xpSpent: 0,
+      found: false,
+      foundCheckPassed: false,
     } satisfies Survivor;
 
     expect(Object.keys(rookie.skills)).toEqual(['handguns']);

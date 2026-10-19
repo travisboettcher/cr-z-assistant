@@ -27,3 +27,31 @@ export type CampaignOrigin = (typeof CAMPAIGN_ORIGINS)[number];
  * else asks that, or `isDown` (#176).
  */
 export const INFECTION_INCAPACITATES = 10;
+
+/**
+ * The Madness at which a survivor goes Lost at Departures (pp. 23, 124;
+ * R106). The Cosmic Horror origin's.
+ */
+export const MADNESS_GOES_LOST = 13;
+
+/**
+ * The Madness a team member needs for a Cosmic Horror mission to be offered
+ * to their team (pp. 108–111; R132).
+ */
+export const MADNESS_FOR_COSMIC_MISSIONS = 4;
+
+/**
+ * What the Lost roll, d10 plus the survivor's XP spent, must reach to place
+ * them on a mission as a stranger (pp. 25, 124; R108). Anything less gives
+ * them 1 XP.
+ */
+export const LOST_ROLL_TARGET = 18;
+
+/** The XP a Lost survivor gains from a Lost roll that does not place them (pg. 124). */
+export const LOST_ROLL_XP = 1;
+
+/** The Tier check a Found survivor makes at their next Madness gain (pg. 130; R111). */
+export const FOUND_CHECK_TARGET = 8;
+
+/** The Madness a Found survivor who passed that check never goes above (pg. 130; R111). */
+export const FOUND_MADNESS_CAP = 6;

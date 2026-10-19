@@ -42,6 +42,7 @@
 
 import { REST_HEALTH, SURVIVORS_RESTING_PER_TURN, type HealthSource } from '../data/turn';
 import { beforePlanning, staffOf, survivorsDoing } from './assignments';
+import { PER_HELD_ZOMBIE } from './viralMissions';
 import { whoWorked } from './siegeWork';
 import { suppliedOccupants } from './utilities';
 import type { Campaign, Survivor } from './campaign';
@@ -227,7 +228,11 @@ export function healingPool(campaign: Campaign): number {
  * #95).
  */
 export function beingHealed(campaign: Campaign): readonly Survivor[] {
-  return survivorsDoing(beforePlanning(campaign), (assignment) => assignment.task === 'healing');
+  // A survivor given an Inoculation there takes it in place of their healing (R97).
+  return survivorsDoing(
+    beforePlanning(campaign),
+    (assignment) => assignment.task === 'healing' && assignment.inoculation === undefined,
+  );
 }
 
 /** Whoever is resting, and takes a point nobody else can use (pg. 21). */
@@ -375,7 +380,9 @@ export function checkHealing(campaign: Campaign): HealingCheck {
  */
 export function woundsHealed(campaign: Campaign): boolean {
   return campaign.log.some(
-    (entry) => entry.turn === campaign.turn && entry.event.kind === 'health-restored',
+    (entry) =>
+      entry.turn === campaign.turn &&
+      (entry.event.kind === 'health-restored' || entry.event.kind === 'infection-contained'),
   );
 }
 
@@ -401,6 +408,50 @@ export function withWoundsHealed(campaign: Campaign, awards: readonly HealthAwar
         currentHp: survivor.currentHp + health,
         infection: Math.max(0, survivor.infection - cleared),
       };
+    }),
+  };
+}
+
+/** Infection Containment takes off one survivor being healed. */
+export interface ContainmentDraw {
+  readonly survivor: Survivor;
+  readonly infection: number;
+}
+
+/**
+ * What Containment takes off each survivor being healed this turn, after
+ * their points are split (pg. 69; R103): as much Infection as zombies are
+ * held, and never more than they still carry once `awards` are applied.
+ * Nobody given an Inoculation, who is not being healed (R148), and nobody
+ * with no zombie held.
+ */
+export function containmentDraws(
+  campaign: Campaign,
+  awards: readonly HealthAward[],
+): readonly ContainmentDraw[] {
+  const each = campaign.heldZombies * PER_HELD_ZOMBIE.infectionRemoved;
+  const healing = new Set(beingHealed(campaign).map((survivor) => survivor.id));
+
+  return withWoundsHealed(campaign, awards).survivors.flatMap((survivor) => {
+    const infection = healing.has(survivor.id) ? Math.min(each, survivor.infection) : 0;
+
+    return infection === 0 ? [] : [{ survivor, infection }];
+  });
+}
+
+/** The campaign with each draw's Infection taken off. Assumes `containmentDraws` made them. */
+export function withInfectionContained(
+  campaign: Campaign,
+  draws: readonly ContainmentDraw[],
+): Campaign {
+  return {
+    ...campaign,
+    survivors: campaign.survivors.map((survivor) => {
+      const draw = draws.find((one) => one.survivor.id === survivor.id);
+
+      return draw === undefined
+        ? survivor
+        : { ...survivor, infection: survivor.infection - draw.infection };
     }),
   };
 }

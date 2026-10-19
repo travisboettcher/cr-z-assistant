@@ -2504,3 +2504,116 @@ survivor is built as any Tier 3 stranger is, with Long Guns added at its first l
 swapped to 3 within the Tier's stat array, and the quality rifle in their hands.
 
 *Decided 2026-10-18 with Z7-4.*
+
+---
+
+## R143 — A survivor at full Health can be assigned to the Clinic to be inoculated
+
+**pp. 21, 48; Phase 7, Z7-5.** An Inoculation is given to a survivor assigned to a Medical Clinic in
+place of their healing ([R97](#r97--inoculation-is-built-then-given-at-the-clinic)), and the app
+warns when somebody at full Health is assigned to healing (pg. 21). The book does not say whether a
+survivor who has no Health to gain may take a Clinic place to be inoculated.
+
+**The ruling is that they may, with no warning**: an Inoculation chosen for a survivor assigned to
+healing is reason enough for them to be there, and the full-Health warning is not raised for them.
+
+*Decided 2026-10-18 with Z7-5.*
+
+---
+
+## R144 — Experimental Data's two Hardware changes add up
+
+**pp. 104, 116; Phase 7, Z7-6.** Containment, once Viral Mission 1 unlocks it, costs 2 more Hardware
+if only one point of interest was investigated, and 2 less if the Broken Cage check passed
+([R122](#r122--containment-is-unlocked-for-the-campaign)). The book does not say what happens when
+both are true.
+
+**The ruling is that they add up**: one point of interest and a passed Broken Cage check leave
+Containment at its catalogue Hardware.
+
+*Decided 2026-10-18 with Z7-6.*
+
+---
+
+## R145 — Viral Missions 2 and 3 are offered any time in a Viral campaign
+
+**pp. 105–107; Phase 7, Z7-6.** Bring It On Home puts a zombie in Containment, and Medical Salvage
+needs a held zombie ([R105](#r105--a-held-zombie-is-never-released)).
+[R132](#r132--which-origin-missions-can-be-played-again) does not say whether Viral Mission 3
+repeats, or whether either is offered before what it needs is there.
+
+**The ruling is that both are offered on every turn of a Viral campaign, and played as often as the
+player chooses.** The app does not hold either back for a missing Containment or held zombie: the
+table knows what it is setting up. Viral Mission 1 still stops being offered once it unlocks
+Containment.
+
+*Decided 2026-10-18 with Z7-6.*
+
+---
+
+## R146 — Bring It On Home's extras are the player's, and only a Containment holds its zombie
+
+**pp. 105–106; Phase 7, Z7-6.** A won Bring It On Home adds one held zombie, and the zombies beyond it
+pay XP and the special zombies items
+([R104](#r104--bringing-it-on-home-adds-one-zombie)). It can be played with no Containment built
+([R145](#r145--viral-missions-2-and-3-are-offered-any-time-in-a-viral-campaign)).
+
+**The ruling is that the app records how many ensnared zombies left the area, and adds the one held
+zombie only when a Containment stands on the base.** Without one, nothing is held. The extras' XP
+and the special zombies' items are added by the player.
+
+*Decided 2026-10-18 with Z7-6.*
+
+---
+
+## R147 — Medical Supply tokens go where the Inventory goes
+
+**pp. 54, 107; Phase 7, Z7-6.** The base keeps its Medical Supply tokens
+([R131](#r131--medical-supply-tokens-are-kept)), and the book does not say what a move does to them.
+
+**The ruling is that they follow the Inventory**: taken on a move that takes the Inventory, left on
+one that leaves it, and lost in an overrun with it
+([R78](#r78--an-overrun-loses-the-bases-inventory)).
+
+*Decided 2026-10-18 with Z7-6.*
+
+---
+
+## R148 — Containment's Infection reaches only the survivors being healed
+
+**pp. 48, 69; Phase 7, Z7-6.** Each held zombie takes 1 more Infection from each survivor assigned to
+healing ([R103](#r103--containment-holds-a-count)), and an Inoculation is given in place of a
+survivor's healing ([R97](#r97--inoculation-is-built-then-given-at-the-clinic)).
+
+**The ruling is that a survivor given an Inoculation that turn loses no Infection to Containment**:
+the Inoculation replaces their healing, Containment's included.
+
+*Decided 2026-10-18 with Z7-6.*
+
+---
+
+## R149 — XP spent is counted from Z7-8 on
+
+**pp. 18, 124; Phase 7, Z7-8.** The Lost roll adds the survivor's XP spent
+([R108](#r108--the-lost-roll-is-once-a-turn-before-the-first-mission)), and a survivor's sheet does
+not say what they bought: one created at Tier 3 paid nothing for it.
+
+**The ruling is that every survivor keeps a count of the XP they have spent, from 0**, raised by
+every purchase the Advancement Phase makes and by a Veteran's healing, which is XP spent too
+(pg. 88). It starts at 0 for everybody already playing, and the sheet corrects it by hand.
+
+*Decided 2026-10-18 with Z7-8.*
+
+---
+
+## R150 — No Lost roll on a turn without a mission
+
+**pp. 25, 124; Phase 7, Z7-8.** The Lost roll is made once a turn, before the first mission, and a
+success is placed on a mission
+([R108](#r108--the-lost-roll-is-once-a-turn-before-the-first-mission)). The book does not say what
+happens on a turn the community skips its mission.
+
+**The ruling is that nobody rolls that turn**: with no mission to be placed on there is no roll, and
+nobody gains its 1 XP.
+
+*Decided 2026-10-18 with Z7-8.*

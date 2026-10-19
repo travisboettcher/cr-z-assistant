@@ -17,7 +17,7 @@ import {
   type Skill,
   type Stat,
 } from '../data/skills';
-import type { D10Result } from '../data/dice';
+import { NATURAL_FAILURE, NATURAL_SUCCESS, type D10Result } from '../data/dice';
 import { INFECTION_INCAPACITATES } from '../data/origins';
 import {
   PLAYERS_CHOICE,
@@ -264,6 +264,10 @@ export function createSurvivor(
     // Clean, whatever the origin. Infection is gained from a zombie's damage on
     // a mission (pg. 123), and nobody joins a community having taken any.
     infection: 0,
+    madness: 0,
+    xpSpent: 0,
+    found: false,
+    foundCheckPassed: false,
     xp: 0,
     // Nothing carried: a new survivor's shoddy gear is chosen when they are
     // first equipped for a mission (pp. 13–14, 18; R35).
@@ -272,5 +276,26 @@ export function createSurvivor(
     veteran: false,
     bondGroup: null,
     stories: [],
+    rotResistant: false,
   };
+}
+
+/**
+ * The survivor with this much XP spent: taken off what they have and added to
+ * what they have spent (R149), which the Lost roll reads (R108).
+ */
+export function withXpSpent(survivor: Survivor, cost: number): Survivor {
+  return { ...survivor, xp: survivor.xp - cost, xpSpent: survivor.xpSpent + cost };
+}
+
+/**
+ * Whether a Tier check passes (pg. 8): the d10 and the survivor's Tier
+ * against the target, a natural 1 always failing and a natural 10 always
+ * succeeding.
+ */
+export function tierCheckPasses(survivor: Survivor, roll: D10Result, target: number): boolean {
+  if (roll === NATURAL_FAILURE) return false;
+  if (roll === NATURAL_SUCCESS) return true;
+
+  return roll + survivor.tier >= target;
 }

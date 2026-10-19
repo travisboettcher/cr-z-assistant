@@ -71,6 +71,14 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   // A Clinic can drive the target below zero, which the book leaves unclamped
   // (R2) — so the validator has to accept a target no count would.
   { kind: 'rot-checked', ...SURVIVOR, roll: 10, target: -1, passed: true },
+  // The Viral origin's Infection check (Z7-5), with and without a Clinic's Medicine.
+  { kind: 'infection-checked', ...SURVIVOR, roll: 4, infection: 6, bonus: 3, passed: true },
+  { kind: 'infection-checked', ...SURVIVOR, roll: 1, infection: 10, bonus: 0, passed: false },
+  // Inoculation and Rot Resistant (Z7-5).
+  { kind: 'survivor-inoculated', ...SURVIVOR, item: 'inoculation-1' },
+  { kind: 'infection-resisted', ...SURVIVOR },
+  { kind: 'madness-recovered', ...SURVIVOR, madness: 2 },
+  { kind: 'infection-contained', ...SURVIVOR, infection: 2 },
   { kind: 'bite-restrained', ...SURVIVOR },
   { kind: 'survivor-bitten', ...SURVIVOR, damage: 1 },
   { kind: 'storage-checked', food: 2, fuel: 0, hardware: 0 },
@@ -218,6 +226,25 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
     mission: 'medical-salvage',
     wounds: [{ survivor: 'carla', name: 'Carla Proust', health: 2, infection: 4 }],
   },
+  {
+    kind: 'mission-played',
+    team: 1,
+    mission: 'experimental-data',
+    viral: { investigated: 1, brokenCage: true },
+  },
+  {
+    kind: 'mission-played',
+    team: 1,
+    mission: 'bring-it-on-home',
+    viral: { zombiesLeft: 3, held: true },
+  },
+  {
+    kind: 'mission-played',
+    team: 1,
+    mission: 'bring-it-on-home',
+    viral: { zombiesLeft: 2, held: false },
+  },
+  { kind: 'mission-played', team: 1, mission: 'medical-salvage', viral: { supplies: 4 } },
   // A team with nobody left on it records nobody's Health.
   {
     kind: 'gather-materials-resolved',
@@ -285,6 +312,24 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
     ...SURVIVOR,
     tier: 2,
     items: [{ id: 'rifle-1', item: 'rifle', grade: 'standard' }],
+  },
+  { kind: 'lost-rolled', ...SURVIVOR, roll: 4, xpSpent: 6 },
+  { kind: 'lost-rolled', ...SURVIVOR, roll: 9, xpSpent: 12, team: 2 },
+  { kind: 'lost-rescued', ...SURVIVOR, team: 1, result: 'found' },
+  { kind: 'lost-rescued', ...SURVIVOR, team: 2, result: 'not-rescued' },
+  {
+    kind: 'lost-rescued',
+    ...SURVIVOR,
+    team: 1,
+    result: 'exiled',
+    items: [{ id: 'rifle-3', item: 'rifle', grade: 'standard' }],
+  },
+  { kind: 'survivor-lost', ...SURVIVOR, madness: 13 },
+  {
+    kind: 'survivor-lost',
+    ...SURVIVOR,
+    madness: 15,
+    items: [{ id: 'rifle-2', item: 'rifle', grade: 'standard' }],
   },
   { kind: 'mission-team-reduced', ...SURVIVOR },
   { kind: 'survivor-promoted', ...SURVIVOR, tier: 4 },
@@ -378,6 +423,15 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   },
   // An item the project team built (Z5-6).
   { kind: 'item-built', id: 'item-5', item: 'blunt', grade: 'standard', hardware: 1, labor: 1 },
+  {
+    kind: 'item-built',
+    id: 'item-6',
+    item: 'bandages',
+    grade: 'standard',
+    hardware: 1,
+    labor: 0,
+    supplies: 2,
+  },
   // Vehicles (Z5-11): added by hand, taken out, and an upgrade fitted.
   { kind: 'vehicle-added', vehicle: { id: 'car', tier: 2, label: 'Red pickup', water: false } },
   { kind: 'vehicle-removed', id: 'car', label: 'Red pickup', tier: 2 },

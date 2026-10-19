@@ -39,6 +39,7 @@ import type { Check, Violation } from './checks';
 import { missionTeam, survivorsDoing } from './assignments';
 import { incapacitatedByInfection, maxHp } from './survivor';
 import { need } from './healing';
+import { hasLounge } from './lounge';
 import { STORY_TRAIT_RULES, type StoryTrait } from '../data/traits';
 import { forbiddenBy, missionWhileWounded } from './traits';
 
@@ -54,7 +55,10 @@ export type PlanningViolationCode =
   | 'a-second-hero-on-one-mission'
   | 'someone-else-scavenging'
   | 'scavenging-needs-the-mission-skipped'
-  | 'forbidden-by-trait';
+  | 'forbidden-by-trait'
+  | 'not-this-origin'
+  | 'no-lounge'
+  | 'no-madness';
 
 export type PlanningViolation = Violation<PlanningViolationCode>;
 
@@ -207,11 +211,13 @@ function warningsFor(
     case 'rest':
       return restWarnings(campaign, survivor);
     case 'healing':
-      return healingWarnings(campaign, survivor);
+      return healingWarnings(campaign, survivor, assignment.inoculation !== undefined);
     case 'mission':
       return missionWarnings(campaign, survivor, assignment.team);
     case 'scavenging':
       return scavengingWarnings(campaign, survivor);
+    case 'madness-recovery':
+      return madnessRecoveryWarnings(campaign, survivor);
     // Anybody may be on the project team: it is the task with no eligibility
     // rule of its own (pg. 20).
     case 'project':
@@ -308,10 +314,51 @@ function restWarnings(campaign: Campaign, survivor: Survivor): readonly Planning
   return warnings;
 }
 
-function healingWarnings(campaign: Campaign, survivor: Survivor): readonly PlanningViolation[] {
+/**
+ * What is wrong with Madness Recovery (pp. 21, 68; R110): it is the Cosmic
+ * Horror origin's, done in a working Lounge, by somebody with Madness to lose.
+ */
+function madnessRecoveryWarnings(
+  campaign: Campaign,
+  survivor: Survivor,
+): readonly PlanningViolation[] {
   const warnings: PlanningViolation[] = [];
 
-  if (nothingToHeal(survivor)) {
+  if (campaign.origin !== 'cosmic-horror') {
+    warnings.push({
+      code: 'not-this-origin',
+      message:
+        'Madness Recovery belongs to the Cosmic Horror origin, which this campaign isn’t running.',
+      pages: 124,
+    });
+  } else if (!hasLounge(campaign)) {
+    warnings.push({
+      code: 'no-lounge',
+      message: 'Madness Recovery needs a Lounge, and this base has none working.',
+      pages: 68,
+    });
+  }
+
+  if (survivor.madness === 0) {
+    warnings.push({
+      code: 'no-madness',
+      message: 'Has no Madness, so recovering would do nothing.',
+      pages: 21,
+    });
+  }
+
+  return warnings;
+}
+
+function healingWarnings(
+  campaign: Campaign,
+  survivor: Survivor,
+  inoculating: boolean,
+): readonly PlanningViolation[] {
+  const warnings: PlanningViolation[] = [];
+
+  // Being inoculated is reason enough to be there at full Health (R143).
+  if (nothingToHeal(survivor) && !inoculating) {
     warnings.push({
       code: 'already-at-full-health',
       message: 'Already at full Health, so healing would do nothing.',

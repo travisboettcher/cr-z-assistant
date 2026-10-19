@@ -34,7 +34,16 @@ import { claimedBase } from './claim';
 import { checkConversion, conversions, withConversion } from './conversions';
 import { checkXpAward, withXpAwarded } from './experience';
 import { accepted, blockedBy, refused, type FormResult, type Refused } from './forms';
-import { healthAwards, withInfectionSpent, withWoundsHealed, woundsHealed } from './healing';
+import { madnessAwards, madnessRecovered, withMadnessTaken } from './lounge';
+import { phaseOf } from './turn';
+import {
+  containmentDraws,
+  healthAwards,
+  withInfectionContained,
+  withInfectionSpent,
+  withWoundsHealed,
+  woundsHealed,
+} from './healing';
 import { logged, type CampaignEvent } from './log';
 import {
   baseProduction,
@@ -50,6 +59,12 @@ import {
 } from './materials';
 import { convoyTensDue } from './storyRewards';
 import { rareRollsProblem, withItemsFound, type RareItemRoll } from './finding';
+import {
+  inoculateProblem,
+  rotResistanceProblem,
+  withInoculated,
+  withRotResisted,
+} from './inoculation';
 import { installProblem, withRareUpgradeInstalled } from './install';
 import { turnoutGear, withEquipmentHandedOver } from './handover';
 import {
@@ -204,19 +219,31 @@ export function submitHealing(
   if (woundsHealed(campaign)) return refused('This turn’s Health has already been shared out.');
 
   const awards = withInfectionSpent(healthAwards(campaign), infection);
+  const healed = awards.reduce(
+    (healing, award) =>
+      logged(healing, at, {
+        kind: 'health-restored',
+        survivor: award.survivor.id,
+        name: award.survivor.name,
+        health: award.health,
+        source: award.source,
+        ...(award.infection > 0 ? { infection: award.infection } : {}),
+      }),
+    withWoundsHealed(campaign, awards),
+  );
+  // Then Containment, on what the points left (R103).
+  const draws = containmentDraws(campaign, awards);
 
   return accepted(
-    awards.reduce(
-      (healing, award) =>
-        logged(healing, at, {
-          kind: 'health-restored',
-          survivor: award.survivor.id,
-          name: award.survivor.name,
-          health: award.health,
-          source: award.source,
-          ...(award.infection > 0 ? { infection: award.infection } : {}),
+    draws.reduce(
+      (contained, draw) =>
+        logged(contained, at, {
+          kind: 'infection-contained',
+          survivor: draw.survivor.id,
+          name: draw.survivor.name,
+          infection: draw.infection,
         }),
-      withWoundsHealed(campaign, awards),
+      withInfectionContained(healed, draws),
     ),
   );
 }
@@ -537,5 +564,57 @@ export function submitRareUpgradeInstalled(
       grade: item.grade,
       slot,
     }),
+  );
+}
+
+/**
+ * Give a survivor the Inoculation chosen for them, at Heal Wounds in place of
+ * their healing (pg. 48; R97; Z7-5): the item used up, and the survivor Rot
+ * Resistant. Refused for whatever `inoculateProblem` refuses.
+ */
+export function submitInoculated(campaign: Campaign, survivor: string, at: string): FormResult {
+  const problem = inoculateProblem(campaign, survivor);
+  if (problem !== null) return refused(problem);
+
+  return accepted(withInoculated(campaign, survivor, at));
+}
+
+/**
+ * Rot Resistant takes 1 Infection off everybody who has it, at the start of
+ * the Advancement Phase (pg. 140; R96; Z7-5), once a turn. Refused for
+ * whatever `rotResistanceProblem` refuses.
+ */
+export function submitRotResisted(campaign: Campaign, at: string): FormResult {
+  const problem = rotResistanceProblem(campaign);
+  if (problem !== null) return refused(problem);
+
+  return accepted(withRotResisted(campaign, at));
+}
+
+/**
+ * Hand out this turn's Madness Recovery at Heal Wounds (pp. 21, 68; R110;
+ * Z7-7): each award's Madness off, an entry each. Once a turn, in the
+ * Advancement Phase, and only with something to hand out.
+ */
+export function submitMadnessRecovered(campaign: Campaign, at: string): FormResult {
+  if (phaseOf(campaign.step) !== 'advancement') {
+    return refused('Madness Recovery is handed out in the Advancement Phase.');
+  }
+  if (madnessRecovered(campaign)) return refused('This turn’s Madness Recovery is done.');
+
+  const awards = madnessAwards(campaign);
+  if (awards.length === 0) return refused('Nobody has Madness the Lounge can take off this turn.');
+
+  return accepted(
+    awards.reduce(
+      (recovered, award) =>
+        logged(recovered, at, {
+          kind: 'madness-recovered',
+          survivor: award.survivor.id,
+          name: award.survivor.name,
+          madness: award.madness,
+        }),
+      withMadnessTaken(campaign, awards),
+    ),
   );
 }

@@ -208,6 +208,11 @@ export function survivorArbitrary(): fc.Arbitrary<Survivor> {
         }),
         { maxLength: 2 },
       ),
+      rotResistant: fc.boolean(),
+      madness: anyCount,
+      xpSpent: anyCount,
+      found: fc.boolean(),
+      foundCheckPassed: fc.boolean(),
     })
     .chain((survivor) =>
       // A bond group only on a Bonded survivor (R84), so every pairing the file
@@ -288,7 +293,9 @@ function tradeArbitrary(): fc.Arbitrary<TradeOrder> {
 function itemIdsDistinct(campaign: Omit<Campaign, 'assignments'>): boolean {
   const ids = [
     ...campaign.inventory,
-    ...[...campaign.survivors, ...campaign.setAside].flatMap((survivor) => survivor.items),
+    ...[...campaign.survivors, ...campaign.setAside, ...campaign.lost].flatMap(
+      (survivor) => survivor.items,
+    ),
     ...campaign.trades,
     ...(campaign.rareTrade?.items ?? []),
     ...campaign.vehicles.flatMap((vehicle) =>
@@ -376,6 +383,8 @@ const anyWounds = fc.array(
       name: anyName,
       health: fc.integer({ min: 0, max: 20 }),
       infection: fc.integer({ min: 0, max: 20 }),
+      madness: fc.integer({ min: 0, max: 20 }),
+      foundCheck: fc.constantFrom(...D10_RESULTS),
     },
     { requiredKeys: ['survivor', 'name', 'health'] },
   ),
@@ -435,6 +444,38 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       name: anyName,
       roll: fc.constantFrom(...D10_RESULTS),
       target: anyAmount,
+      passed: fc.boolean(),
+    }),
+    fc.record({
+      kind: fc.constant('survivor-inoculated' as const),
+      survivor: anyId,
+      name: anyName,
+      item: anyId,
+    }),
+    fc.record({
+      kind: fc.constant('infection-resisted' as const),
+      survivor: anyId,
+      name: anyName,
+    }),
+    fc.record({
+      kind: fc.constant('madness-recovered' as const),
+      survivor: anyId,
+      name: anyName,
+      madness: fc.integer({ min: 1, max: 8 }),
+    }),
+    fc.record({
+      kind: fc.constant('infection-contained' as const),
+      survivor: anyId,
+      name: anyName,
+      infection: fc.integer({ min: 1, max: 10 }),
+    }),
+    fc.record({
+      kind: fc.constant('infection-checked' as const),
+      survivor: anyId,
+      name: anyName,
+      roll: fc.constantFrom(...D10_RESULTS),
+      infection: fc.integer({ min: 1, max: 10 }),
+      bonus: anyAmount,
       passed: fc.boolean(),
     }),
     fc.record({
@@ -646,6 +687,17 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
             },
             { requiredKeys: ['survivor', 'name', 'result'] },
           ),
+          // A Viral mission's counts (Z7-6), each given or not.
+          viral: fc.record(
+            {
+              investigated: anyCount,
+              brokenCage: fc.boolean(),
+              zombiesLeft: anyCount,
+              held: fc.boolean(),
+              supplies: anyCount,
+            },
+            { requiredKeys: [] },
+          ),
         },
         { requiredKeys: ['kind', 'team', 'mission'] },
       ),
@@ -703,6 +755,38 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
         items: fc.array(itemArbitrary(), { minLength: 1, maxLength: 2 }),
       },
       { requiredKeys: ['kind', 'survivor', 'name', 'tier'] },
+    ),
+    // The Lost roll (R108; Z7-8), placing them with a team or not.
+    fc.record(
+      {
+        kind: fc.constant('lost-rolled' as const),
+        ...survivor,
+        roll: fc.constantFrom(...D10_RESULTS),
+        xpSpent: anyCount,
+        team: fc.integer({ min: 1, max: 4 }),
+      },
+      { requiredKeys: ['kind', 'survivor', 'name', 'roll', 'xpSpent'] },
+    ),
+    // A placed Lost survivor's rescue (R109; Z7-8).
+    fc.record(
+      {
+        kind: fc.constant('lost-rescued' as const),
+        ...survivor,
+        team: fc.integer({ min: 1, max: 4 }),
+        result: fc.constantFrom('found' as const, 'exiled' as const, 'not-rescued' as const),
+        items: fc.array(itemArbitrary(), { minLength: 1, maxLength: 2 }),
+      },
+      { requiredKeys: ['kind', 'survivor', 'name', 'team', 'result'] },
+    ),
+    // Gone Lost to Madness (R106; Z7-7), with what they carried or nothing.
+    fc.record(
+      {
+        kind: fc.constant('survivor-lost' as const),
+        ...survivor,
+        madness: fc.integer({ min: 13, max: 20 }),
+        items: fc.array(itemArbitrary(), { minLength: 1, maxLength: 2 }),
+      },
+      { requiredKeys: ['kind', 'survivor', 'name', 'madness'] },
     ),
     fc.record({
       kind: fc.constant('survivor-promoted' as const),
@@ -809,14 +893,18 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       subtable: fc.constantFrom(...D10_RESULTS),
       entry: fc.constantFrom(...D10_RESULTS),
     }),
-    fc.record({
-      kind: fc.constant('item-built' as const),
-      id: anyId,
-      item: fc.constantFrom(...ITEM_IDS),
-      grade: fc.constantFrom(...GRADES),
-      hardware: anyCount,
-      labor: anyCount,
-    }),
+    fc.record(
+      {
+        kind: fc.constant('item-built' as const),
+        id: anyId,
+        item: fc.constantFrom(...ITEM_IDS),
+        grade: fc.constantFrom(...GRADES),
+        hardware: anyCount,
+        labor: anyCount,
+        supplies: fc.integer({ min: 1, max: 5 }),
+      },
+      { requiredKeys: ['kind', 'id', 'item', 'grade', 'hardware', 'labor'] },
+    ),
     fc.record({
       kind: fc.constant('vehicle-added' as const),
       vehicle: vehicleArbitrary().map((vehicle) => {
@@ -951,7 +1039,7 @@ function logEntryArbitrary(): fc.Arbitrary<LogEntry> {
 }
 
 /**
- * One task, drawn from all six.
+ * One task, drawn from all seven.
  *
  * Written out per task rather than generated from a shared shape, for the
  * reason `campaignEventArbitrary` is: the members carry different fields, and a
@@ -962,9 +1050,13 @@ function assignmentArbitrary(): fc.Arbitrary<Assignment> {
     fc.record({ task: fc.constant('staff' as const), slot: anyId }),
     fc.record({ task: fc.constant('project' as const) }),
     fc.record({ task: fc.constant('rest' as const) }),
-    fc.record({ task: fc.constant('healing' as const) }),
+    fc.record(
+      { task: fc.constant('healing' as const), inoculation: anyId },
+      { requiredKeys: ['task'] },
+    ),
     fc.record({ task: fc.constant('mission' as const), team: fc.integer({ min: 1, max: 4 }) }),
     fc.record({ task: fc.constant('scavenging' as const) }),
+    fc.record({ task: fc.constant('madness-recovery' as const) }),
   );
 }
 
@@ -1067,6 +1159,7 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
           materials: materialsArbitrary(),
           survivors: fc.array(survivorArbitrary(), { maxLength: 6 }),
           setAside: fc.array(survivorArbitrary(), { maxLength: 2 }),
+          lost: fc.array(survivorArbitrary(), { maxLength: 2 }),
           // Never shoddy: the base owns no shoddy item (R35).
           inventory: fc.array(
             itemArbitrary().filter((item) => item.grade !== 'shoddy'),
@@ -1076,6 +1169,8 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
           // Never shoddy, as the Inventory's: a trade buys a priced grade (R51).
           trades: fc.array(tradeArbitrary(), { maxLength: 2 }),
           vehicles: fc.array(vehicleArbitrary(), { maxLength: 2 }),
+          heldZombies: anyCount,
+          medicalSupplies: anyCount,
           // None as often as one: a trade under way is the rarer state (Z5-10).
           rareTrade: fc.option(
             fc.record({
@@ -1111,11 +1206,14 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
             'materials',
             'survivors',
             'setAside',
+            'lost',
             'inventory',
             'rareRollsOwed',
             'trades',
             'rareTrade',
             'vehicles',
+            'heldZombies',
+            'medicalSupplies',
             'startingCommunityBuilt',
             'base',
             'log',
@@ -1130,6 +1228,11 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
           campaign.setAside.every(
             (gone) => !campaign.survivors.some((one) => one.id === gone.id),
           ) &&
+          // Nor anybody Lost who is also somewhere else (R106).
+          campaign.lost.every(
+            (gone) =>
+              ![...campaign.survivors, ...campaign.setAside].some((one) => one.id === gone.id),
+          ) &&
           itemIdsDistinct(campaign) &&
           new Set(campaign.vehicles.map((vehicle) => vehicle.id)).size === campaign.vehicles.length,
       )
@@ -1140,7 +1243,7 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
 }
 
 /** The campaign with each story kept on the first survivor who holds it. */
-function withStoriesDistinct<Shape extends Pick<Campaign, 'survivors' | 'setAside'>>(
+function withStoriesDistinct<Shape extends Pick<Campaign, 'survivors' | 'setAside' | 'lost'>>(
   campaign: Shape,
 ): Shape {
   const seen = new Set<string>();
@@ -1157,6 +1260,7 @@ function withStoriesDistinct<Shape extends Pick<Campaign, 'survivors' | 'setAsid
     ...campaign,
     survivors: campaign.survivors.map(keep),
     setAside: campaign.setAside.map(keep),
+    lost: campaign.lost.map(keep),
   };
 }
 

@@ -36,7 +36,9 @@ import { firstBaseOwed } from './base';
 import type { Campaign } from './campaign';
 import { moveOwed } from './claim';
 import { survivorsFed } from './feeding';
-import { healthAwards, woundsHealed } from './healing';
+import { containmentDraws, healthAwards, woundsHealed } from './healing';
+import { madnessAwards, madnessRecovered } from './lounge';
+import { lostRollsDue, rescuesDue } from './lostRoll';
 import { materialsAdded } from './materials';
 import { firstMissionFailed, missionsChosen, unresolvedTeams } from './missions';
 import {
@@ -47,10 +49,11 @@ import {
   siegeLaborShortfall,
 } from './projects';
 import { continuationOpen, overrunChoiceOwed } from './overrun';
-import { mustCheck, rotCheckResolved } from './rot';
+import { infectionStillToCheck, mustCheck, rotCheckResolved } from './rot';
+import { inoculationsDue, rotResistanceDue } from './inoculation';
 import { hordeChecked } from './siege';
 import { anythingOverCap, storageChecked } from './storage';
-import { someoneDeparted, someoneIsLeaving } from './departures';
+import { goingLost, someoneDeparted, someoneIsLeaving } from './departures';
 import { broughtHomeOwed } from './missionVehicles';
 import { spentOwed } from './spent';
 import { advance, positionOf, type AdvanceBy } from './turn';
@@ -95,6 +98,11 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
     owed.push({ step: 'select-mission', says: 'A mission team has no mission chosen.' });
   }
 
+  // The Lost roll, before the first mission (R108; Z7-8).
+  if (lostRollsDue(campaign).length > 0) {
+    owed.push({ step: 'select-mission', says: 'A Lost survivor hasn’t made the Lost roll.' });
+  }
+
   // Every team that chose a mission owes its outcome (Z4-3): what it counted
   // is what its rewards, the turns since the last siege among them, are read
   // from. Before Z4-3 only a siege was owed, because only a siege was known to
@@ -113,6 +121,14 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
     owed.push({
       step: 'tactical-mission',
       says: `Mission team ${String(team)} carries gear that lasts one mission, and what it used isn’t recorded.`,
+    });
+  }
+
+  // A Lost survivor placed on a mission is rescued or not (R109; Z7-8).
+  if (rescuesDue(campaign).length > 0) {
+    owed.push({
+      step: 'tactical-mission',
+      says: 'A Lost survivor was on a mission, and whether they were rescued isn’t recorded.',
     });
   }
 
@@ -156,6 +172,14 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
     owed.push({
       step: 'select-mission',
       says: 'The First Mission failed and has to be played again.',
+    });
+  }
+
+  // Rot Resistant works at the start of the Advancement Phase (R96; Z7-5).
+  if (rotResistanceDue(campaign).length > 0) {
+    owed.push({
+      step: 'character-advancement',
+      says: 'Rot Resistant hasn’t taken this turn’s Infection off.',
     });
   }
 
@@ -227,8 +251,26 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
     });
   }
 
-  if (!woundsHealed(campaign) && healthAwards(campaign).length > 0) {
+  // Containment's draw is owed with the Health, even when there is none (R103).
+  const awards = healthAwards(campaign);
+  if (
+    !woundsHealed(campaign) &&
+    (awards.length > 0 || containmentDraws(campaign, awards).length > 0)
+  ) {
     owed.push({ step: 'heal-wounds', says: 'This turn’s Health hasn’t been handed out.' });
+  }
+
+  // The Lounge's Madness Recovery, beside the Health (R110; Z7-7).
+  if (!madnessRecovered(campaign) && madnessAwards(campaign).length > 0) {
+    owed.push({
+      step: 'heal-wounds',
+      says: 'The Lounge’s Madness Recovery hasn’t been handed out.',
+    });
+  }
+
+  // An Inoculation chosen last Planning Phase is given here (R97; Z7-5).
+  if (inoculationsDue(campaign).length > 0) {
+    owed.push({ step: 'heal-wounds', says: 'An Inoculation hasn’t been given.' });
   }
 
   // A project team with Labor and nothing ordered from it, owed at the step
@@ -244,6 +286,14 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
     owed.push({ step: 'check-for-rot', says: 'Somebody at 0 Health hasn’t made a Rot check.' });
   }
 
+  // Under the Viral origin, everybody carrying Infection checks too (pg. 123; R99).
+  if (infectionStillToCheck(campaign).length > 0) {
+    owed.push({
+      step: 'check-for-rot',
+      says: 'Somebody carrying Infection hasn’t made an Infection check.',
+    });
+  }
+
   if (!survivorsFed(campaign)) {
     owed.push({ step: 'feed-your-survivors', says: 'The community hasn’t eaten.' });
   }
@@ -254,6 +304,11 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
 
   if (!hordeChecked(campaign)) {
     owed.push({ step: 'check-the-horde', says: 'The horde hasn’t been checked.' });
+  }
+
+  // The Lost first, then the Unrest check (R106; Z7-7).
+  if (goingLost(campaign).length > 0) {
+    owed.push({ step: 'departures', says: 'Somebody at 13 or more Madness hasn’t gone Lost.' });
   }
 
   if (someoneIsLeaving(campaign) && !someoneDeparted(campaign)) {

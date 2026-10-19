@@ -36,7 +36,7 @@ import type { LogEntry } from './log';
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 19;
+export const CURRENT_SCHEMA_VERSION = 23;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -101,7 +101,34 @@ export interface Survivor {
    */
   infection: number;
 
+  /**
+   * Madness, under the Cosmic Horror origin (pg. 124; Z7-7). Stored on every
+   * survivor, as Infection is, and for the same reason: a horror check adds it
+   * on a mission and it carries from one to the next. The Lounge takes it away
+   * (R110); at 13 or more the survivor goes Lost at Departures (R106). Zero
+   * outside a Cosmic Horror campaign, and for every save from before v22.
+   */
+  madness: number;
+
   xp: number;
+
+  /**
+   * The XP the survivor has spent, counted from Z7-8 on (pg. 124; R149): every
+   * purchase in the Advancement Phase and a Veteran's healing add to it. The
+   * Lost roll adds it to the die (R108). Zero for everybody in a save from
+   * before v23, which the sheet corrects by hand.
+   */
+  xpSpent: number;
+
+  /**
+   * Found: a Lost survivor rescued and taken back (pg. 124; R109; Z7-8). Their
+   * next Madness gain calls for a Tier check against 8, and passing it
+   * (`foundCheckPassed`) caps their Madness at 6 for good (pg. 130; R111).
+   */
+  found: boolean;
+
+  /** A Found survivor who has passed the Tier check against 8 (R111). */
+  foundCheckPassed: boolean;
 
   /**
    * What the survivor carries, each item in an Inventory Slot (pp. 14, 18;
@@ -143,6 +170,15 @@ export interface Survivor {
    * survivor in a save from before v19.
    */
   stories: readonly AttachedStory[];
+
+  /**
+   * Rot Resistant, which an Inoculation gives at a Medical Clinic and which
+   * takes 1 Infection off at the start of every Advancement Phase (pp. 48,
+   * 140; R96, R97; Z7-5). Core, whether or not the Toolkit's traits are in
+   * use: it is how the equipment works. `false` for every survivor in a save
+   * from before v20.
+   */
+  rotResistant: boolean;
 }
 
 /** A story mission attached to a survivor, and when (pg. 87; R116, R118). */
@@ -367,8 +403,17 @@ export type Assignment =
    * survivor may rest per turn, and any number may be healed.
    */
   | { readonly task: 'rest' }
-  /** Being healed from the pool the Medical Clinic's staff generates (pg. 21). */
-  | { readonly task: 'healing' }
+  /**
+   * Being healed from the pool the Medical Clinic's staff generates (pg. 21),
+   * or, under the Viral origin, given an Inoculation from the base's
+   * Inventory there instead, by its id (pg. 48; R97, R143; Z7-5).
+   */
+  | { readonly task: 'healing'; readonly inoculation?: string }
+  /**
+   * Recovering from Madness in the Lounge, under the Cosmic Horror origin, in
+   * place of resting or healing (pp. 21, 68; R110; Z7-7).
+   */
+  | { readonly task: 'madness-recovery' }
   /**
    * On a mission team, for the mission next turn (pg. 21).
    *
@@ -515,6 +560,13 @@ export interface Campaign {
   setAside: readonly Survivor[];
 
   /**
+   * Survivors gone Lost to Madness (pp. 23, 124; R106; Z7-7), kept whole with
+   * what they carried, because a rescued one comes back as themselves (R109).
+   * Off the roster, like the set-aside. Empty for every save from before v22.
+   */
+  lost: readonly Survivor[];
+
+  /**
    * The base's Inventory: the items the community owns that nobody is carrying
    * (pp. 18, 54; Z5-2).
    *
@@ -550,6 +602,21 @@ export interface Campaign {
    * Empty for every save from before v18.
    */
   vehicles: readonly Vehicle[];
+
+  /**
+   * The zombies held in the base's Containment (pg. 69; R103–R105; Z7-6):
+   * one for each won Bring It On Home while a Containment stood (R146), kept
+   * until the base is lost by a move or an overrun. Zero for every save from
+   * before v21.
+   */
+  heldZombies: number;
+
+  /**
+   * The Medical Supply tokens the base keeps (pg. 107; R131; Z7-6), each 1
+   * Labor toward a medical build. Outside the storage caps, and where the
+   * Inventory goes on a move (R147). Zero for every save from before v21.
+   */
+  medicalSupplies: number;
 
   /**
    * Whether the player has finished assembling their starting community.
@@ -634,11 +701,14 @@ export function createNewCampaign(name: string, options: NewCampaignOptions = {}
     projects: [],
     survivors: [],
     setAside: [],
+    lost: [],
     inventory: [],
     rareRollsOwed: 0,
     trades: [],
     rareTrade: null,
     vehicles: [],
+    heldZombies: 0,
+    medicalSupplies: 0,
     // False, so a new campaign gets the ten-tier-level check while it is being
     // built. The v2 → v3 migration deliberately answers `true` instead — see
     // the step in `src/persistence/migrations.ts` for why the two differ.
@@ -647,4 +717,13 @@ export function createNewCampaign(name: string, options: NewCampaignOptions = {}
     assignments: {},
     log: [],
   };
+}
+
+/**
+ * Everybody the campaign keeps: the community, the set-aside and the Lost
+ * (R31, R106). What one of them holds, an item, a story or a bond group, is
+ * taken whether or not they are here.
+ */
+export function keptSurvivors(campaign: Campaign): readonly Survivor[] {
+  return [...campaign.survivors, ...campaign.setAside, ...campaign.lost];
 }

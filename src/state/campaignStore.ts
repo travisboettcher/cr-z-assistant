@@ -57,6 +57,9 @@ import {
   submitCommonSkill,
   submitConversion,
   submitHaul,
+  submitInoculated,
+  submitMadnessRecovered,
+  submitRotResisted,
   submitRareUpgradeInstalled,
   submitHealing,
   submitNewSkill,
@@ -79,6 +82,8 @@ import {
   submitMissionEnded,
   submitMissionSelection,
   submitOverrunContinuation,
+  submitLostRescued,
+  submitLostRolled,
   submitMissionSkip,
   submitStandIn,
   submitEquipMove,
@@ -109,14 +114,17 @@ import {
   submitStrangerJoined,
   submitAssignment,
   submitTraitsSet,
+  submitInoculationChosen,
   submitVeteranHealing,
 } from '../engine/campaignForms';
 import { withoutAssignment } from '../engine/assignments';
 import type { FormResult } from '../engine/forms';
 import {
   submitDeparture,
+  submitGoneLost,
   submitFeeding,
   submitHordeCheck,
+  submitInfectionCheck,
   submitRotCheck,
   submitStorageCheck,
   submitTeamReduction,
@@ -131,6 +139,7 @@ import type {
   Stats,
   Survivor,
 } from '../engine/campaign';
+import type { LostRescue } from '../engine/lostRoll';
 
 /**
  * The app boots with nothing loaded, and Z0-7's empty state renders off that
@@ -294,6 +303,10 @@ export type CampaignAction =
    * on a campaign that never raises it changes nothing (#176).
    */
   | { readonly type: 'survivor/infectionSet'; readonly id: string; readonly infection: number }
+  /** Set a survivor's Madness by hand, under the Cosmic Horror origin (pg. 124; Z7-7). */
+  | { readonly type: 'survivor/madnessSet'; readonly id: string; readonly madness: number }
+  /** Correct a survivor's XP spent by hand (R149; Z7-8). */
+  | { readonly type: 'survivor/xpSpentSet'; readonly id: string; readonly xpSpent: number }
   /**
    * Replace a survivor's four stat values wholesale.
    *
@@ -310,6 +323,21 @@ export type CampaignAction =
       readonly survivor: string;
       readonly at: string;
     }
+  /**
+   * Choose an Inoculation for a survivor assigned to healing, or `null` to
+   * take it back (pg. 48; R97, R143; Z7-5).
+   */
+  | {
+      readonly type: 'planning/inoculationChosen';
+      readonly survivor: string;
+      readonly item: string | null;
+    }
+  /** Give a survivor their Inoculation, at Heal Wounds (pg. 48; R97; Z7-5). */
+  | { readonly type: 'advancement/inoculated'; readonly survivor: string; readonly at: string }
+  /** Rot Resistant's 1 Infection off, at the start of the Advancement Phase (R96; Z7-5). */
+  | { readonly type: 'advancement/rotResisted'; readonly at: string }
+  /** This turn's Madness Recovery in the Lounge, at Heal Wounds (R110; Z7-7). */
+  | { readonly type: 'advancement/madnessRecovered'; readonly at: string }
   /** A survivor's Story Trait, Veteran and bond group, set on their sheet (R84; Z7-1). */
   | { readonly type: 'survivor/traitsSet'; readonly id: string; readonly traits: SurvivorTraits }
   /** Take a skill, at level 0 — skills all start there (pg. 8). */
@@ -577,6 +605,21 @@ export type CampaignAction =
     }
   /** The community opts out of this turn's mission (pg. 17). */
   | { readonly type: 'mission/skipped'; readonly at: string }
+  /** How a placed Lost survivor came out of their mission (R109; Z7-8). */
+  | {
+      readonly type: 'mission/lostRescued';
+      readonly survivor: string;
+      readonly result: LostRescue;
+      readonly at: string;
+    }
+  /** A Lost survivor's roll, before the first mission (R108; Z7-8). */
+  | {
+      readonly type: 'mission/lostRolled';
+      readonly survivor: string;
+      readonly roll: D10Result;
+      readonly team: number | null;
+      readonly at: string;
+    }
   /**
    * Record how a team's mission ended (pp. 77–86; Z4-3), and the Health — and
    * in a Viral campaign the Infection — its members came home with (Z4-4).
@@ -617,6 +660,8 @@ export type CampaignAction =
    * still over the threshold with somebody still to lose genuinely loses them.
    */
   | { readonly type: 'management/departed'; readonly survivor: string; readonly at: string }
+  /** Everybody at 13 or more Madness goes Lost, before the Unrest check (R106; Z7-7). */
+  | { readonly type: 'management/goneLost'; readonly at: string }
   /**
    * Take one survivor off the mission team, because Exhaustion is above its
    * size (pg. 23).
@@ -642,6 +687,19 @@ export type CampaignAction =
    */
   | {
       readonly type: 'management/rotChecked';
+      readonly survivor: string;
+      readonly roll: D10Result;
+      readonly bitten: string | null;
+      readonly at: string;
+    }
+  /**
+   * Resolve one survivor's Infection check, under the Viral origin (pg. 123;
+   * R99; Z7-5). Refused as `submitInfectionCheck` refuses: a second time this
+   * turn, for somebody carrying no Infection, and a turning that bites nobody
+   * when somebody is there to bite.
+   */
+  | {
+      readonly type: 'management/infectionChecked';
       readonly survivor: string;
       readonly roll: D10Result;
       readonly bitten: string | null;
@@ -860,6 +918,18 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         infection: action.infection,
       }));
 
+    case 'survivor/madnessSet':
+      return editSurvivor(state, action.id, (survivor) => ({
+        ...survivor,
+        madness: action.madness,
+      }));
+
+    case 'survivor/xpSpentSet':
+      return editSurvivor(state, action.id, (survivor) => ({
+        ...survivor,
+        xpSpent: action.xpSpent,
+      }));
+
     case 'survivor/statsSet':
       return editSurvivor(state, action.id, (survivor) => ({ ...survivor, stats: action.stats }));
 
@@ -867,6 +937,20 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return submitted(state, (campaign) =>
         submitVeteranHealing(campaign, action.veteran, action.survivor, action.at),
       );
+
+    case 'planning/inoculationChosen':
+      return submitted(state, (campaign) =>
+        submitInoculationChosen(campaign, action.survivor, action.item),
+      );
+
+    case 'advancement/inoculated':
+      return submitted(state, (campaign) => submitInoculated(campaign, action.survivor, action.at));
+
+    case 'advancement/rotResisted':
+      return submitted(state, (campaign) => submitRotResisted(campaign, action.at));
+
+    case 'advancement/madnessRecovered':
+      return submitted(state, (campaign) => submitMadnessRecovered(campaign, action.at));
 
     case 'survivor/traitsSet':
       return submitted(state, (campaign) => submitTraitsSet(campaign, action.id, action.traits));
@@ -977,6 +1061,16 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         ),
       );
 
+    case 'mission/lostRescued':
+      return submitted(state, (campaign) =>
+        submitLostRescued(campaign, action.survivor, action.result, action.at),
+      );
+
+    case 'mission/lostRolled':
+      return submitted(state, (campaign) =>
+        submitLostRolled(campaign, action.survivor, action.roll, action.team, action.at),
+      );
+
     case 'mission/skipped':
       return submitted(state, (campaign) => submitMissionSkip(campaign, action.at));
 
@@ -993,6 +1087,9 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
     case 'management/departed':
       return submitted(state, (campaign) => submitDeparture(campaign, action.survivor, action.at));
 
+    case 'management/goneLost':
+      return submitted(state, (campaign) => submitGoneLost(campaign, action.at));
+
     case 'management/teamReduced':
       return submitted(state, (campaign) =>
         submitTeamReduction(campaign, action.survivor, action.at),
@@ -1001,6 +1098,15 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
     case 'management/rotChecked':
       return submitted(state, (campaign) =>
         submitRotCheck(
+          campaign,
+          { survivor: action.survivor, roll: action.roll, bitten: action.bitten },
+          action.at,
+        ),
+      );
+
+    case 'management/infectionChecked':
+      return submitted(state, (campaign) =>
+        submitInfectionCheck(
           campaign,
           { survivor: action.survivor, roll: action.roll, bitten: action.bitten },
           action.at,

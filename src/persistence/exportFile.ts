@@ -94,12 +94,17 @@ function orderedSurvivor(survivor: Survivor): Record<keyof Survivor, unknown> {
     defense: survivor.defense,
     currentHp: survivor.currentHp,
     infection: survivor.infection,
+    madness: survivor.madness,
     xp: survivor.xp,
+    xpSpent: survivor.xpSpent,
+    found: survivor.found,
+    foundCheckPassed: survivor.foundCheckPassed,
     items: survivor.items.map(orderedItem),
     storyTrait: survivor.storyTrait,
     veteran: survivor.veteran,
     bondGroup: survivor.bondGroup,
     stories: survivor.stories.map(({ mission, attachedOnTurn }) => ({ mission, attachedOnTurn })),
+    rotResistant: survivor.rotResistant,
   };
 }
 
@@ -320,7 +325,12 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
     };
   }
 
-  if (event.kind === 'survivor-departed' && event.items !== undefined) {
+  if (
+    (event.kind === 'survivor-departed' ||
+      event.kind === 'survivor-lost' ||
+      event.kind === 'lost-rescued') &&
+    event.items !== undefined
+  ) {
     return { ...taggedFirst(event, 'kind'), items: event.items.map(orderedItem) };
   }
   if (event.kind === 'survivor-left' && event.lost !== undefined) {
@@ -381,9 +391,24 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
       ? taggedFirst(event, 'kind')
       : { ...taggedFirst(event, 'kind'), wounds: event.wounds.map(orderedWound) };
 
-  // A story's ending and what it gave (Z7-3).
-  if (event.kind === 'mission-played' && event.story !== undefined) {
-    return { ...outcome, story: orderedStory(event.story) };
+  // A story's ending and what it gave (Z7-3), and a Viral mission's counts (Z7-6).
+  if (event.kind === 'mission-played') {
+    const { story, viral } = event;
+
+    return {
+      ...outcome,
+      story: story === undefined ? undefined : orderedStory(story),
+      viral:
+        viral === undefined
+          ? undefined
+          : {
+              investigated: viral.investigated,
+              brokenCage: viral.brokenCage,
+              zombiesLeft: viral.zombiesLeft,
+              held: viral.held,
+              supplies: viral.supplies,
+            },
+    };
   }
 
   // What a story gave the build of a survivor it brought (Z7-4).
@@ -470,6 +495,8 @@ function orderedWound(wound: MissionWound): Record<keyof MissionWound, unknown> 
     name: wound.name,
     health: wound.health,
     infection: wound.infection,
+    madness: wound.madness,
+    foundCheck: wound.foundCheck,
   };
 }
 
@@ -513,10 +540,13 @@ function inFileOrder(campaign: Campaign): Record<keyof Campaign, unknown> {
     materials: orderedMaterials(campaign),
     survivors: campaign.survivors.map(orderedSurvivor),
     setAside: campaign.setAside.map(orderedSurvivor),
+    lost: campaign.lost.map(orderedSurvivor),
     inventory: campaign.inventory.map(orderedItem),
     rareRollsOwed: campaign.rareRollsOwed,
     trades: campaign.trades.map(orderedTrade),
     vehicles: campaign.vehicles.map(orderedVehicle),
+    heldZombies: campaign.heldZombies,
+    medicalSupplies: campaign.medicalSupplies,
     rareTrade:
       campaign.rareTrade === null
         ? null

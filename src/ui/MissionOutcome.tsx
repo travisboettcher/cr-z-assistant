@@ -53,6 +53,7 @@ import {
   strangerWarning,
   teamOutcomes,
   turnMissions,
+  foundCheckOwed,
   woundsAsTheyStand,
   type MissionChoice,
 } from '../engine/missions';
@@ -65,6 +66,7 @@ import {
   overrunClaim,
 } from '../engine/overrun';
 import { isStory, storyEnding, type StoryChoice } from '../engine/storyMissions';
+import { isViralMission, viralRecord } from '../engine/viralMissions';
 import { maxHp } from '../engine/survivor';
 import { atTier, tierRolled } from '../engine/vehicles';
 import { D10_RESULTS, type D10Result } from '../data/dice';
@@ -83,7 +85,10 @@ import {
   outcomePages,
 } from './missionLabels';
 import { PageRef } from './PageRef';
+import { LostRescues } from './LostRoll';
 import { StoryEnding } from './StoryEnding';
+import { ViralEnding } from './ViralEnding';
+import { EMPTY_VIRAL_DRAFT, viralDraftRecord, type ViralDraft } from './viralDraft';
 import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 
 const HINT = 'text-sm text-stone-600 dark:text-stone-400';
@@ -173,7 +178,17 @@ function CountField({
 }
 
 /** What has been typed over a member's Health or Infection, by survivor id. */
-type Typed = Partial<Record<string, { readonly health?: string; readonly infection?: string }>>;
+type Typed = Partial<
+  Record<
+    string,
+    {
+      readonly health?: string;
+      readonly infection?: string;
+      readonly madness?: string;
+      readonly foundCheck?: string;
+    }
+  >
+>;
 
 /**
  * The team's wounds as the form stands: each member where the roster has them,
@@ -188,6 +203,10 @@ function woundsTyped(standing: readonly MissionWound[], typed: Typed): readonly 
       ...wound,
       ...(over?.health === undefined ? {} : { health: count(over.health) }),
       ...(over?.infection === undefined ? {} : { infection: count(over.infection) }),
+      ...(over?.madness === undefined ? {} : { madness: count(over.madness) }),
+      ...(over?.foundCheck === undefined || over.foundCheck === ''
+        ? {}
+        : { foundCheck: Number(over.foundCheck) as D10Result }),
     };
   });
 }
@@ -207,7 +226,11 @@ function WoundFields({
   /** Who died, whose Health is not asked: they did not come home. */
   readonly dead: ReadonlySet<string>;
   readonly typed: Typed;
-  readonly onType: (survivor: string, field: 'health' | 'infection', value: string) => void;
+  readonly onType: (
+    survivor: string,
+    field: 'health' | 'infection' | 'madness' | 'foundCheck',
+    value: string,
+  ) => void;
 }) {
   const home = wounds.filter((wound) => !dead.has(wound.survivor));
 
@@ -217,6 +240,7 @@ function WoundFields({
   // gives it to every member of a Viral campaign and nobody else), not a
   // second reading of the origin here.
   const viral = home.some((wound) => wound.infection !== undefined);
+  const cosmic = home.some((wound) => wound.madness !== undefined);
 
   return (
     <div className="flex flex-col gap-2">
@@ -228,6 +252,12 @@ function WoundFields({
             and Infection <PageRef pages={123} />
           </>
         )}
+        {cosmic && (
+          <>
+            {' '}
+            and Madness <PageRef pages={124} />
+          </>
+        )}
       </p>
       <p className={HINT}>
         Everybody starts where the roster has them now. Change anybody the mission left differently;
@@ -237,6 +267,17 @@ function WoundFields({
         const survivor = campaign.survivors.find((one) => one.id === wound.survivor);
         const health = `${prefix}-health-${wound.survivor}`;
         const infection = `${prefix}-infection-${wound.survivor}`;
+        const madness = `${prefix}-madness-${wound.survivor}`;
+        const foundCheck = `${prefix}-found-${wound.survivor}`;
+        // A Found survivor whose Madness goes up makes the check (R111).
+        const checking =
+          survivor !== undefined &&
+          foundCheckOwed(
+            survivor,
+            typed[wound.survivor]?.madness === undefined
+              ? wound.madness
+              : count(typed[wound.survivor]?.madness ?? ''),
+          );
         const most = survivor === undefined ? undefined : maxHp(survivor);
 
         return (
@@ -277,6 +318,50 @@ function WoundFields({
                     onType(wound.survivor, 'infection', changed.target.value);
                   }}
                 />
+              </>
+            )}
+            {wound.madness !== undefined && (
+              <>
+                <label className="ml-2 text-sm" htmlFor={madness}>
+                  {wound.name}’s Madness
+                </label>
+                <input
+                  id={madness}
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  step={1}
+                  value={typed[wound.survivor]?.madness ?? String(wound.madness)}
+                  className={FIELD}
+                  onChange={(changed) => {
+                    onType(wound.survivor, 'madness', changed.target.value);
+                  }}
+                />
+              </>
+            )}
+            {checking && (
+              <>
+                <label className="ml-2 text-sm" htmlFor={foundCheck}>
+                  {wound.name} is Found: the d10 for their Tier check against 8
+                </label>
+                <select
+                  id={foundCheck}
+                  className={SELECT}
+                  value={typed[wound.survivor]?.foundCheck ?? ''}
+                  onChange={(changed) => {
+                    onType(wound.survivor, 'foundCheck', changed.target.value);
+                  }}
+                >
+                  <option value="" disabled>
+                    Choose…
+                  </option>
+                  {D10_RESULTS.map((result) => (
+                    <option key={result} value={result}>
+                      {result}
+                    </option>
+                  ))}
+                </select>
+                <PageRef pages={130} />
               </>
             )}
           </div>
@@ -420,6 +505,7 @@ function TeamOutcome({
   const [dead, setDead] = useState<ReadonlySet<string>>(() => new Set());
   const [taken, setTaken] = useState<Readonly<Record<string, string>>>({});
   const [ending, setEnding] = useState<StoryChoice>({ result: '' });
+  const [viralDraft, setViralDraft] = useState<ViralDraft>(EMPTY_VIRAL_DRAFT);
 
   // The claim an overrun goes on with places no strangers (pg. 86), and asks
   // whether it was the overrun base's own map when it is that base's type (R29).
@@ -473,10 +559,19 @@ function TeamOutcome({
   const story = isStory(choice.mission) ? choice.mission : undefined;
   const team = membersOf(campaign, choice.team);
   const record = story === undefined ? undefined : storyEnding(campaign, team, story, ending);
+  // A Viral mission's counts (Z7-6).
+  const viral = isViralMission(choice.mission) ? choice.mission : undefined;
   const outcome =
-    played.kind === 'mission-played' && record !== undefined
-      ? { ...played, story: record }
-      : played;
+    played.kind !== 'mission-played'
+      ? played
+      : {
+          ...played,
+          ...(record === undefined ? {} : { story: record }),
+          // Rebuilt as recording will, so what it says it gives is what it will.
+          ...(viral === undefined
+            ? {}
+            : { viral: viralRecord(campaign, viral, viralDraftRecord(viral, viralDraft)) }),
+        };
   const members = wentOut(campaign, choice.team);
   const deaths = deathsTicked(choice.team, members, dead, taken);
   const problem =
@@ -493,9 +588,11 @@ function TeamOutcome({
     HINTS[choice.mission] ??
     (story !== undefined
       ? 'Record how the story ended. What the map held, an item or a roll, isn’t tracked yet.'
-      : asked.length === 0
-        ? 'Its rewards aren’t tracked yet. Recording it marks the mission played.'
-        : 'Record what the table counted when the mission ended.');
+      : viral !== undefined
+        ? 'Record what the table counted when the mission ended.'
+        : asked.length === 0
+          ? 'Its rewards aren’t tracked yet. Recording it marks the mission played.'
+          : 'Record what the table counted when the mission ended.');
 
   return (
     <fieldset className="mt-4 flex flex-col gap-2 rounded-lg border border-stone-200 p-3 dark:border-stone-700">
@@ -632,6 +729,10 @@ function TeamOutcome({
         }
       })}
 
+      {viral !== undefined && (
+        <ViralEnding mission={viral} prefix={prefix} draft={viralDraft} onChange={setViralDraft} />
+      )}
+
       {story !== undefined && (
         <StoryEnding
           campaign={campaign}
@@ -733,7 +834,13 @@ function TeamOutcome({
         dead={dead}
         typed={typed}
         onType={(survivor, field, value) => {
-          setTyped({ ...typed, [survivor]: { ...typed[survivor], [field]: value } });
+          // A new Madness asks the Found check afresh, if it asks at all (R111).
+          const { foundCheck, ...rest } = typed[survivor] ?? {};
+          const kept =
+            field === 'madness'
+              ? rest
+              : { ...rest, ...(foundCheck === undefined ? {} : { foundCheck }) };
+          setTyped({ ...typed, [survivor]: { ...kept, [field]: value } });
         }}
       />
 
@@ -1024,6 +1131,8 @@ export function MissionOutcome({ campaign }: { readonly campaign: Campaign }) {
           </div>
         );
       })}
+
+      <LostRescues campaign={campaign} />
 
       {overrunChoiceOwed(campaign) && <OverrunChoice campaign={campaign} />}
       {continuationOpen(campaign) && overrunChoice(campaign) === 'abandon' && (

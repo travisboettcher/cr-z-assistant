@@ -211,6 +211,28 @@ export function SurvivorRoster({ campaign, onOpenSheet }: SurvivorRosterProps) {
         </div>
       )}
 
+      {/*
+       * Gone Lost to Madness (R106), kept whole for the day a rescue brings
+       * them back (R109). The Lost roll is made at Select Mission.
+       */}
+      {campaign.lost.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold">
+            Lost <PageRef pages={124} />
+          </h3>
+          <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+            Gone to Madness. Each rolls before the first mission, and may be found on one.
+          </p>
+          <ul aria-label="Lost" className="mt-2 flex flex-col gap-1">
+            {campaign.lost.map((gone) => (
+              <li key={gone.id} className="text-sm">
+                {gone.name}, {TIER_LABELS[gone.tier]}, {gone.xpSpent} XP spent
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <dialog
         ref={dialogRef}
         aria-labelledby={`${headingId}-remove`}

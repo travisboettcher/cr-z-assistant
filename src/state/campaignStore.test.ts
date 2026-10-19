@@ -467,6 +467,15 @@ describe('the survivor actions', () => {
     expect(after).toEqual({ ...before, infection: 10 });
   });
 
+  it('sets Madness without touching anything else about the survivor', () => {
+    const before = expectOpen(withRoster()).survivors[0];
+    const after = expectOpen(
+      campaignReducer(withRoster(), { type: 'survivor/madnessSet', id: SURVIVOR_ID, madness: 13 }),
+    ).survivors[0];
+
+    expect(after).toEqual({ ...before, madness: 13 });
+  });
+
   it('removes only the named survivor', () => {
     const campaign = expectOpen(
       campaignReducer(withRoster(), { type: 'survivor/removed', at: AT, id: SURVIVOR_ID }),
@@ -3066,6 +3075,14 @@ describe('what earns a line in the log', () => {
       action: { type: 'survivor/infectionSet', id: LOGGED_SURVIVOR, infection: 3 },
       entry: null,
     },
+    'survivor/madnessSet': {
+      action: { type: 'survivor/madnessSet', id: LOGGED_SURVIVOR, madness: 3 },
+      entry: null,
+    },
+    'survivor/xpSpentSet': {
+      action: { type: 'survivor/xpSpentSet', id: LOGGED_SURVIVOR, xpSpent: 12 },
+      entry: null,
+    },
     'survivor/statsSet': {
       action: {
         type: 'survivor/statsSet',
@@ -3095,6 +3112,68 @@ describe('what earns a line in the log', () => {
         survivor: DECOY,
         name: 'Ruby Vance',
       }),
+    },
+    // A Planning choice the assignment carries, logged only when it is given (Z7-5).
+    'planning/inoculationChosen': {
+      state: openState({
+        ...expectOpen(rich()),
+        step: 'assign-rest-and-healing',
+        origin: 'viral',
+        base: {
+          id: 'small-town-home',
+          slots: { garage: { built: { facility: 'medical-clinic', builtOnTurn: 1 } } },
+        },
+        inventory: [{ id: 'shot', item: 'inoculation', grade: 'standard' }],
+        assignments: { [LOGGED_SURVIVOR]: { task: 'healing' } },
+      }),
+      action: { type: 'planning/inoculationChosen', survivor: LOGGED_SURVIVOR, item: 'shot' },
+      entry: null,
+    },
+    // Marcus, assigned to be inoculated last Planning Phase, is given it (R97; Z7-5).
+    'advancement/inoculated': {
+      state: openState({
+        ...expectOpen(rich()),
+        step: 'heal-wounds',
+        origin: 'viral',
+        inventory: [{ id: 'shot', item: 'inoculation', grade: 'standard' }],
+        assignments: { [LOGGED_SURVIVOR]: { task: 'healing', inoculation: 'shot' } },
+      }),
+      action: { type: 'advancement/inoculated', survivor: LOGGED_SURVIVOR, at: AT },
+      entry: entry(3, 'advancement', {
+        kind: 'survivor-inoculated',
+        ...WEBB,
+        item: 'shot',
+      }),
+    },
+    // Marcus, Rot Resistant with 2 Infection, loses 1 (pg. 140; R96; Z7-5).
+    'advancement/rotResisted': {
+      state: openState({
+        ...expectOpen(rich()),
+        step: 'character-advancement',
+        origin: 'viral',
+        survivors: expectOpen(rich()).survivors.map((survivor) =>
+          survivor.id === LOGGED_SURVIVOR
+            ? { ...survivor, rotResistant: true, infection: 2 }
+            : survivor,
+        ),
+      }),
+      action: { type: 'advancement/rotResisted', at: AT },
+      entry: entry(3, 'advancement', { kind: 'infection-resisted', ...WEBB }),
+    },
+    // Marcus, assigned to Madness Recovery with 3 Madness and a Lounge (R110; Z7-7).
+    'advancement/madnessRecovered': {
+      state: openState({
+        ...expectOpen(rich()),
+        step: 'heal-wounds',
+        origin: 'cosmic-horror',
+        base: { id: 'small-town-home', slots: { 'bunk-room-1': { upgrades: ['lounge'] } } },
+        survivors: expectOpen(rich()).survivors.map((survivor) =>
+          survivor.id === LOGGED_SURVIVOR ? { ...survivor, madness: 3 } : survivor,
+        ),
+        assignments: { [LOGGED_SURVIVOR]: { task: 'madness-recovery' } },
+      }),
+      action: { type: 'advancement/madnessRecovered', at: AT },
+      entry: entry(3, 'advancement', { kind: 'madness-recovered', ...WEBB, madness: 2 }),
     },
     // A correction on the sheet, like the stats above: a trait a story gives is
     // the story's own entry (Z7-1).
@@ -3219,6 +3298,47 @@ describe('what earns a line in the log', () => {
         base: 'distillery',
       }),
     },
+    // June, Lost with nothing spent, rolls a 4 and gains 1 XP (R108; Z7-8).
+    'mission/lostRolled': {
+      state: openState({
+        ...expectOpen(marcusOnTeamOne()),
+        lost: [createSurvivor('June Park', 2, { id: 'june' })],
+      }),
+      action: { type: 'mission/lostRolled', survivor: 'june', roll: 4, team: null, at: AT },
+      entry: entry(3, 'mission', {
+        kind: 'lost-rolled',
+        survivor: 'june',
+        name: 'June Park',
+        roll: 4,
+        xpSpent: 0,
+      }),
+    },
+    // June, Lost and placed on team 1, comes back Found (R109; Z7-8).
+    'mission/lostRescued': {
+      state: openState({
+        ...expectOpen(
+          marcusOnTeamOne([
+            entry(3, 'mission', {
+              kind: 'lost-rolled',
+              survivor: 'june',
+              name: 'June Park',
+              roll: 10,
+              xpSpent: 0,
+              team: 1,
+            }),
+          ]),
+        ),
+        lost: [createSurvivor('June Park', 2, { id: 'june' })],
+      }),
+      action: { type: 'mission/lostRescued', survivor: 'june', result: 'found', at: AT },
+      entry: entry(3, 'mission', {
+        kind: 'lost-rescued',
+        survivor: 'june',
+        name: 'June Park',
+        team: 1,
+        result: 'found',
+      }),
+    },
     'mission/skipped': {
       action: { type: 'mission/skipped', at: AT },
       entry: entry(3, 'mission', { kind: 'mission-skipped' }),
@@ -3310,6 +3430,21 @@ describe('what earns a line in the log', () => {
         tier: 1,
       }),
     },
+    // Marcus at 13 Madness in a Cosmic Horror campaign goes Lost (R106; Z7-7).
+    'management/goneLost': {
+      state: openState({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        turn: 3,
+        step: 'departures',
+        origin: 'cosmic-horror',
+        survivors: [
+          createSurvivor('Ruby Vance', 4, { id: DECOY }),
+          { ...createSurvivor('Marcus Webb', 1, { id: LOGGED_SURVIVOR }), madness: 13 },
+        ],
+      }),
+      action: { type: 'management/goneLost', at: AT },
+      entry: entry(3, 'management', { kind: 'survivor-lost', ...WEBB, madness: 13 }),
+    },
     'management/teamReduced': {
       // Marcus is on the mission team, and there are no beds anywhere, so
       // Exhaustion is the whole head count and comfortably above the team's one.
@@ -3346,6 +3481,30 @@ describe('what earns a line in the log', () => {
         ...WEBB,
         roll: 10,
         target: 12,
+        passed: true,
+      }),
+    },
+    'management/infectionChecked': {
+      // A Viral survivor carrying 3 Infection who holds it off: one entry.
+      state: openState({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        turn: 3,
+        origin: 'viral',
+        survivors: [{ ...createSurvivor('Marcus Webb', 2, { id: LOGGED_SURVIVOR }), infection: 3 }],
+      }),
+      action: {
+        type: 'management/infectionChecked',
+        at: AT,
+        survivor: LOGGED_SURVIVOR,
+        roll: 4,
+        bitten: null,
+      },
+      entry: entry(3, 'mission', {
+        kind: 'infection-checked',
+        ...WEBB,
+        roll: 4,
+        infection: 3,
+        bonus: 0,
         passed: true,
       }),
     },

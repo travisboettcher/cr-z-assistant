@@ -518,6 +518,109 @@ const storyTraitsRecorded: MigrationStep = {
   },
 };
 
+/**
+ * v19 → v20: whether a survivor is Rot Resistant (pp. 48, 140; R96, R97;
+ * Z7-5).
+ *
+ * **Nobody, and that is the truth.** A v19 build had no Inoculation to give,
+ * so no v19 survivor was made Rot Resistant by it: a table that kept one on
+ * paper ticks it on the sheet once. Both lists, and defensive about what it
+ * reads, as v18 → v19 is.
+ */
+const rotResistanceRecorded: MigrationStep = {
+  from: 19,
+  to: 20,
+  up: (previous) => {
+    const withResistance = (list: unknown): unknown =>
+      Array.isArray(list)
+        ? (list as unknown[]).map((survivor) =>
+            typeof survivor === 'object' && survivor !== null && !('rotResistant' in survivor)
+              ? { ...survivor, rotResistant: false }
+              : survivor,
+          )
+        : list;
+
+    return {
+      ...previous,
+      survivors: withResistance(previous.survivors),
+      setAside: withResistance(previous.setAside),
+    };
+  },
+};
+
+/**
+ * v20 → v21: Containment's held zombies and the Medical Supply tokens
+ * (R103, R131; Z7-6).
+ *
+ * **None of either, and that is the truth.** A v20 build had no Bring It On
+ * Home or Medical Salvage to record, so nothing it kept was put there by one.
+ */
+const containmentRecorded: MigrationStep = {
+  from: 20,
+  to: 21,
+  up: (previous) => ({ ...previous, heldZombies: 0, medicalSupplies: 0 }),
+};
+
+/**
+ * v21 → v22: Madness on every survivor, and the list of the Lost (pg. 124;
+ * R106; Z7-7).
+ *
+ * **None of either.** A v21 build had no Madness to record, so nobody in it
+ * had any the app knew of, and nobody had gone Lost through it. Both lists,
+ * and defensive about what it reads, as v19 → v20 is.
+ */
+const madnessRecorded: MigrationStep = {
+  from: 21,
+  to: 22,
+  up: (previous) => {
+    const withMadness = (list: unknown): unknown =>
+      Array.isArray(list)
+        ? (list as unknown[]).map((survivor) =>
+            typeof survivor === 'object' && survivor !== null && !('madness' in survivor)
+              ? { ...survivor, madness: 0 }
+              : survivor,
+          )
+        : list;
+
+    return {
+      ...previous,
+      survivors: withMadness(previous.survivors),
+      setAside: withMadness(previous.setAside),
+      lost: [],
+    };
+  },
+};
+
+/**
+ * v22 → v23: the XP each survivor has spent, and the Found marks (R109, R111,
+ * R149; Z7-8).
+ *
+ * **Zero, and nobody Found.** What a v22 survivor had spent is nowhere in the
+ * save (R149), so it starts at 0 for the sheet to correct, and nobody could
+ * have come back Found through a build with no Lost roll. All three lists.
+ */
+const xpSpentRecorded: MigrationStep = {
+  from: 22,
+  to: 23,
+  up: (previous) => {
+    const withSpent = (list: unknown): unknown =>
+      Array.isArray(list)
+        ? (list as unknown[]).map((survivor) =>
+            typeof survivor === 'object' && survivor !== null && !('xpSpent' in survivor)
+              ? { ...survivor, xpSpent: 0, found: false, foundCheckPassed: false }
+              : survivor,
+          )
+        : list;
+
+    return {
+      ...previous,
+      survivors: withSpent(previous.survivors),
+      setAside: withSpent(previous.setAside),
+      lost: withSpent(previous.lost),
+    };
+  },
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -538,6 +641,10 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   rareBecameRolls,
   tradesRecorded,
   storyTraitsRecorded,
+  rotResistanceRecorded,
+  containmentRecorded,
+  madnessRecorded,
+  xpSpentRecorded,
 ];
 
 /** Why a save could not be brought forward. */

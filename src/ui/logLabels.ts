@@ -253,6 +253,41 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
         pages: 22,
       };
 
+    case 'infection-checked': {
+      // The roll's whole sum, because the Medicine is what usually decides it (R99).
+      const against = `rolling ${articleForNumber(event.roll)} ${String(event.roll)}${
+        event.bonus === 0 ? '' : ` with ${String(event.bonus)} Medicine`
+      } against ${String(event.infection)} Infection`;
+
+      return {
+        text: event.passed
+          ? `${event.name} held off the Infection, ${against}.`
+          : `${event.name} turned from the Infection, ${against}.`,
+        pages: 123,
+      };
+    }
+
+    case 'survivor-inoculated':
+      return {
+        text: `${event.name} was given an Inoculation at the Medical Clinic, and is Rot Resistant.`,
+        pages: 48,
+      };
+
+    case 'infection-resisted':
+      return { text: `${event.name} lost 1 Infection, being Rot Resistant.`, pages: 140 };
+
+    case 'madness-recovered':
+      return {
+        text: `${event.name} recovered from ${String(event.madness)} Madness in the Lounge.`,
+        pages: 68,
+      };
+
+    case 'infection-contained':
+      return {
+        text: `Containment took ${String(event.infection)} Infection off ${event.name}.`,
+        pages: 69,
+      };
+
     case 'bite-restrained':
       return {
         text: `The Restraints held ${event.name}, and nobody was bitten.`,
@@ -456,6 +491,32 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
         pages: 23,
       };
 
+    case 'lost-rolled':
+      return {
+        text:
+          event.team === undefined
+            ? `${event.name}, Lost, rolled a ${String(event.roll)} with ${String(event.xpSpent)} XP spent, and gained 1 XP.`
+            : `${event.name}, Lost, rolled a ${String(event.roll)} with ${String(event.xpSpent)} XP spent, and is on mission team ${String(event.team)}’s area as a stranger.`,
+        pages: '25, 124',
+      };
+
+    case 'lost-rescued':
+      return {
+        text:
+          event.result === 'found'
+            ? `${event.name} was rescued from the Lost and is Found, back in the community.`
+            : event.result === 'exiled'
+              ? `${event.name} was rescued from the Lost and exiled back to them${event.items === undefined ? '' : `, leaving ${counted(event.items)} to the base`}.`
+              : `${event.name} wasn’t rescued, and is still Lost.`,
+        pages: 124,
+      };
+
+    case 'survivor-lost':
+      return {
+        text: `${event.name} went Lost at ${String(event.madness)} Madness${event.items === undefined ? '' : `, taking ${counted(event.items)}`}.`,
+        pages: '23, 124',
+      };
+
     case 'mission-team-reduced':
       return {
         text: `${event.name} was too exhausted to go out, and came off the mission team.`,
@@ -567,8 +628,12 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
 
     case 'item-built':
       return {
-        text: `Built into the base’s Inventory: ${describeItem(event)}, for ${String(event.hardware)} Hardware and ${String(event.labor)} Labor.`,
-        pages: '20, 41–42',
+        text: `Built into the base’s Inventory: ${describeItem(event)}, for ${String(event.hardware)} Hardware and ${String(event.labor)} Labor${
+          event.supplies === undefined
+            ? ''
+            : `, and ${String(event.supplies)} Medical Supply ${event.supplies === 1 ? 'token' : 'tokens'}`
+        }.`,
+        pages: event.supplies === undefined ? '20, 41–42' : '20, 41–42, 107',
       };
 
     case 'vehicle-added':

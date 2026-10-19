@@ -126,6 +126,20 @@ function isStoryItem(one: unknown): boolean {
   );
 }
 
+/** A Viral mission's counts, as `ViralRecord` shapes them: only its own fields, each optional. */
+function isViralRecord(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+
+  const counts = ['investigated', 'zombiesLeft', 'supplies'] as const;
+  const flags = ['brokenCage', 'held'] as const;
+
+  return (
+    Object.keys(value).every((key) => ([...counts, ...flags] as readonly string[]).includes(key)) &&
+    counts.every((key) => optional(value[key], isCountFromZero)) &&
+    flags.every((key) => optional(value[key], (flag) => typeof flag === 'boolean'))
+  );
+}
+
 /** A story's record, as `StoryRecord` shapes it. */
 function isStoryRecord(value: unknown): boolean {
   if (!isRef(value)) return false;
@@ -329,6 +343,15 @@ function describeSurvivorProblem(value: unknown): string | null {
   // Any count, not capped at 10: a survivor at 10 is down rather than gone
   // (pg. 123), and what is above it is a table's typing, not a damaged file.
   if (!isCountFromZero(value.infection)) return 'has unreadable infection';
+  // Any count too: at 13 a survivor goes Lost at Departures (R106), and what is
+  // above it is the table's count until then.
+  if (!isCountFromZero(value.madness)) return 'has unreadable madness';
+  // The XP spent (R149) and the Found marks (R109, R111; Z7-8).
+  if (!isCountFromZero(value.xpSpent)) return 'doesn’t say how much XP they have spent';
+  if (typeof value.found !== 'boolean') return 'doesn’t say whether they are Found';
+  if (typeof value.foundCheckPassed !== 'boolean') {
+    return 'doesn’t say whether they have passed the Found check';
+  }
   if (!isCountFromZero(value.xp)) return 'has unreadable experience';
 
   // What they carry (Z5-2). A current-version survivor with no list is damaged
@@ -359,6 +382,11 @@ function describeSurvivorProblem(value: unknown): string | null {
       return 'has a story that isn’t a story mission';
     }
     if (!isCountFromOne(story.attachedOnTurn)) return 'has a story with no turn it was attached';
+  }
+
+  // Rot Resistant (Z7-5), yes or no.
+  if (typeof value.rotResistant !== 'boolean') {
+    return 'doesn’t say whether they are Rot Resistant';
   }
 
   return null;
@@ -539,7 +567,8 @@ const EVENT_FIELD_CHECKS = {
   // (Z4-4); absent on every outcome written before. Shape only: not held to
   // the roster or to anybody's maximum, for the reason `optionalAssignments`
   // is not — this is history, and the survivor it names may have left, or
-  // been promoted, since. Infection is any count, as on the survivor.
+  // been promoted, since. Infection is any count, as on the survivor, and so
+  // is Madness in a Cosmic Horror campaign (Z7-7).
   optionalWounds: (value: unknown) =>
     value === undefined ||
     (Array.isArray(value) &&
@@ -550,7 +579,10 @@ const EVENT_FIELD_CHECKS = {
           wound.survivor !== '' &&
           typeof wound.name === 'string' &&
           isCountFromZero(wound.health) &&
-          (wound.infection === undefined || isCountFromZero(wound.infection)),
+          (wound.infection === undefined || isCountFromZero(wound.infection)) &&
+          (wound.madness === undefined || isCountFromZero(wound.madness)) &&
+          (wound.foundCheck === undefined ||
+            D10_RESULTS.some((result) => result === wound.foundCheck)),
       )),
   // Which numbered end condition was met, or `null` for none (pp. 77, 79).
   // Which numbers a mission has is the engine's to check, not a file's.
@@ -649,6 +681,8 @@ const EVENT_FIELD_CHECKS = {
       typeof value.name === 'string'),
   optionalFlag: (value: unknown) => value === undefined || typeof value === 'boolean',
   optionalTrue: (value: unknown) => value === undefined || value === true,
+  optionalItemId: (value: unknown) =>
+    value === undefined || (typeof value === 'string' && value !== ''),
   optionalCountFromOne: (value: unknown) => value === undefined || isCountFromOne(value),
   optionalStoryMission: (value: unknown) =>
     value === undefined || STORY_MISSION_IDS.some((id) => id === value),
@@ -657,6 +691,10 @@ const EVENT_FIELD_CHECKS = {
   // to the story's own endings, which the rules data may later change.
   optionalStoryRecord: (value: unknown) => value === undefined || isStoryRecord(value),
   optionalStoryBuild: (value: unknown) => value === undefined || isStoryBuild(value),
+  // A Viral mission's counts (Z7-6), absent on any other mission and before.
+  optionalViralRecord: (value: unknown) => value === undefined || isViralRecord(value),
+  // How a placed Lost survivor's mission left them (R109; Z7-8).
+  lostRescue: (value: unknown) => ['found', 'exiled', 'not-rescued'].includes(value as string),
   // Why a survivor left (#201), absent on an entry from before it was recorded.
   optionalLeavingCause: (value: unknown) =>
     value === undefined || LEAVING_CAUSES.some((cause) => cause === value),
@@ -721,6 +759,35 @@ const EVENT_FIELDS: Record<
     ['roll', 'roll'],
     ['target', 'amount'],
     ['passed', 'flag'],
+  ],
+  // The Viral origin's Infection check (Z7-5): against Infection from 1, with
+  // the community's Medicine, which a Score can make any whole number.
+  'infection-checked': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['roll', 'roll'],
+    ['infection', 'countFromOne'],
+    ['bonus', 'amount'],
+    ['passed', 'flag'],
+  ],
+  'survivor-inoculated': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['item', 'id'],
+  ],
+  'infection-resisted': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+  ],
+  'madness-recovered': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['madness', 'countFromOne'],
+  ],
+  'infection-contained': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['infection', 'countFromOne'],
   ],
   'bite-restrained': [
     ['survivor', 'id'],
@@ -838,6 +905,7 @@ const EVENT_FIELDS: Record<
     ['mission', 'mission'],
     ['wounds', 'optionalWounds'],
     ['story', 'optionalStoryRecord'],
+    ['viral', 'optionalViralRecord'],
   ],
   'health-restored': [
     ['survivor', 'id'],
@@ -893,6 +961,26 @@ const EVENT_FIELDS: Record<
     ['survivor', 'id'],
     ['name', 'name'],
     ['tier', 'tier'],
+    ['items', 'optionalItems'],
+  ],
+  'lost-rolled': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['roll', 'roll'],
+    ['xpSpent', 'count'],
+    ['team', 'optionalTeam'],
+  ],
+  'lost-rescued': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['team', 'countFromOne'],
+    ['result', 'lostRescue'],
+    ['items', 'optionalItems'],
+  ],
+  'survivor-lost': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['madness', 'countFromOne'],
     ['items', 'optionalItems'],
   ],
   'mission-team-reduced': [
@@ -972,6 +1060,8 @@ const EVENT_FIELDS: Record<
     ['grade', 'grade'],
     ['hardware', 'count'],
     ['labor', 'count'],
+    // Medical Supply tokens that paid some of it (R131; Z7-6), absent for none.
+    ['supplies', 'optionalCountFromOne'],
   ],
   // Vehicles (Z5-11).
   'vehicle-added': [['vehicle', 'vehicle']],
@@ -1135,9 +1225,11 @@ const ASSIGNMENT_FIELDS: Record<Assignment['task'], readonly [string, EventField
   staff: ['slot', 'id'],
   project: null,
   rest: null,
-  healing: null,
+  // The Inoculation given there instead, by id (Z7-5), or none.
+  healing: ['inoculation', 'optionalItemId'],
   mission: ['team', 'countFromOne'],
   scavenging: null,
+  'madness-recovery': null,
 };
 
 /**
@@ -1300,8 +1392,31 @@ function describeCampaignProblem(value: unknown): string | null {
     }
   }
 
+  // The Lost (R106; Z7-7), checked as the set-aside are, and nobody in two lists.
+  if (!Array.isArray(value.lost)) return 'its list of the Lost is missing';
+  for (const [index, survivor] of value.lost.entries()) {
+    const problem = describeSurvivorProblem(survivor);
+    if (problem !== null) return `Lost survivor ${index + 1} of ${value.lost.length} ${problem}`;
+
+    const { id } = survivor as { readonly id: string };
+    if (
+      [...value.survivors, ...(value.setAside as unknown[])].some(
+        (one) => isRecord(one) && one.id === id,
+      )
+    ) {
+      return `it has somebody both Lost and elsewhere: ${id}`;
+    }
+  }
+
   // The Rare Item Table rolls a v16 save's Rare became (R49; Z5-7).
   if (!isCountFromZero(value.rareRollsOwed)) return 'it doesn’t say how many Rare rolls it owes';
+
+  // Containment's held zombies and the Medical Supply tokens (R103, R131; Z7-6).
+  if (!isCountFromZero(value.heldZombies))
+    return 'it doesn’t say how many zombies Containment holds';
+  if (!isCountFromZero(value.medicalSupplies)) {
+    return 'it doesn’t say how many Medical Supply tokens it keeps';
+  }
 
   // The base's Inventory (Z5-2), which never holds a shoddy item: shoddy gear
   // is free and unlimited, so nobody owns one (R35).
@@ -1354,6 +1469,7 @@ function describeCampaignProblem(value: unknown): string | null {
     ...[
       ...(value.survivors as readonly { readonly items: readonly { readonly id: string }[] }[]),
       ...(value.setAside as readonly { readonly items: readonly { readonly id: string }[] }[]),
+      ...(value.lost as readonly { readonly items: readonly { readonly id: string }[] }[]),
     ].flatMap((survivor) => survivor.items),
     ...installed,
     // An item on its way from a trade has its id already (Z5-9), and so does
@@ -1370,12 +1486,13 @@ function describeCampaignProblem(value: unknown): string | null {
   const repeated = ids.find((id, at) => ids.indexOf(id) !== at);
   if (repeated !== undefined) return `it holds two items with one id: ${repeated}`;
 
-  // A story is attached to one survivor at a time (R136), the set-aside included.
+  // A story is attached to one survivor at a time (R136), the set-aside and Lost included.
   const stories = [
     ...(value.survivors as readonly {
       readonly stories: readonly { readonly mission: string }[];
     }[]),
     ...(value.setAside as readonly { readonly stories: readonly { readonly mission: string }[] }[]),
+    ...(value.lost as readonly { readonly stories: readonly { readonly mission: string }[] }[]),
   ].flatMap((survivor) => survivor.stories.map((story) => story.mission));
   const shared = stories.find((mission, at) => stories.indexOf(mission) !== at);
   if (shared !== undefined) return `two survivors hold one story: ${shared}`;

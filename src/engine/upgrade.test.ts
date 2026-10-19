@@ -36,9 +36,25 @@ describe('upgradesFor', () => {
     // Repeats are legal and count separately, so hiding an installed upgrade
     // would hide a legal build.
     const base = home({ 'bunk-room-1': { upgrades: ['extra-bed'] } });
-    const ids = upgradesFor(campaignWith(base), 'bunk-room-1').map((upgrade) => upgrade.id);
+    const ids = upgradesFor(campaignWith(base, { origin: 'cosmic-horror' }), 'bunk-room-1').map(
+      (upgrade) => upgrade.id,
+    );
 
     expect(ids).toEqual(['extra-bed', 'loft', 'lounge']);
+  });
+
+  /** As `buildableFacilities` leaves another origin's facilities out (pg. 69). */
+  it('leaves out an upgrade belonging to an origin the campaign isn’t running', () => {
+    const offered = (campaign: Campaign, slot: string) =>
+      upgradesFor(campaign, slot).map((upgrade) => upgrade.id);
+    const bunks = home({ 'bunk-room-1': {} });
+    const clinic = home({ garage: { built: { facility: 'medical-clinic', builtOnTurn: 1 } } });
+
+    expect(offered(campaignWith(bunks), 'bunk-room-1')).toEqual(['extra-bed', 'loft']);
+    expect(offered(campaignWith(clinic, { origin: 'magic' }), 'garage')).not.toContain(
+      'containment',
+    );
+    expect(offered(campaignWith(clinic, { origin: 'viral' }), 'garage')).toContain('containment');
   });
 
   it('lists nothing for a slot with nothing in it', () => {

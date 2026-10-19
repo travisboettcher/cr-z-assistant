@@ -40,6 +40,7 @@
  * Pure, like the rest of `src/engine`.
  */
 
+import { MADNESS_GOES_LOST } from '../data/origins';
 import { DEPARTURE_THRESHOLD } from '../data/turn';
 import type { Campaign, Survivor } from './campaign';
 import { unrest } from './feeding';
@@ -133,4 +134,28 @@ export function someoneDeparted(campaign: Campaign): boolean {
   return campaign.log.some(
     (entry) => entry.turn === campaign.turn && entry.event.kind === 'survivor-departed',
   );
+}
+
+/**
+ * Who goes Lost to Madness at this Departures step (pp. 23, 124; R106, R107):
+ * everybody at 13 or more Madness in a Cosmic Horror campaign, unless they
+ * are down. They go first, before the Unrest check, all of them.
+ */
+export function goingLost(campaign: Campaign): readonly Survivor[] {
+  if (campaign.origin !== 'cosmic-horror') return [];
+
+  return campaign.survivors.filter(
+    (survivor) => survivor.madness >= MADNESS_GOES_LOST && !isDown(survivor),
+  );
+}
+
+/**
+ * The campaign with these survivors gone Lost: off the roster and onto the
+ * list of the Lost, whole, with what they carry and without their task, as
+ * any departure takes it (R106).
+ */
+export function withLost(campaign: Campaign, lost: readonly Survivor[]): Campaign {
+  const gone = lost.reduce((left, survivor) => withDeparture(left, survivor.id), campaign);
+
+  return { ...gone, lost: [...campaign.lost, ...lost] };
 }

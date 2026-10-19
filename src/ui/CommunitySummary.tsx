@@ -91,6 +91,12 @@ function Survivors({
         {survivors.length === 1 ? '' : 's'} ·{' '}
         <span className="tabular-nums">{communityTierLevels(survivors)}</span> Tier levels
       </p>
+      {/* Gone Lost to Madness, kept for their return (R106, R109; Z7-7). */}
+      {campaign.lost.length > 0 && (
+        <p className="text-sm text-stone-600 dark:text-stone-400">
+          <span className="tabular-nums">{campaign.lost.length}</span> Lost
+        </p>
+      )}
 
       {empty ? (
         <div className="mt-3 flex flex-col gap-3">
@@ -179,6 +185,13 @@ function BaseCard({
             <span className="tabular-nums">{layoutOf(base).length}</span> slots,{' '}
             <span className="tabular-nums">{emptySlotCount(campaign)}</span> empty
           </p>
+          {/* Containment's held zombies (pg. 69; R103; Z7-6). */}
+          {campaign.heldZombies > 0 && (
+            <p className="text-sm text-stone-600 dark:text-stone-400">
+              <span className="tabular-nums">{campaign.heldZombies}</span>{' '}
+              {campaign.heldZombies === 1 ? 'zombie' : 'zombies'} held in Containment
+            </p>
+          )}
         </>
       )}
     </section>
@@ -265,6 +278,13 @@ function InventoryCard({
         <p className="text-sm text-stone-600 dark:text-stone-400">
           <span className="tabular-nums">{campaign.vehicles.length}</span> vehicle
           {campaign.vehicles.length === 1 ? '' : 's'}
+        </p>
+      )}
+      {/* Kept by the base, outside the storage caps (pg. 107; R131; Z7-6). */}
+      {campaign.medicalSupplies > 0 && (
+        <p className="text-sm text-stone-600 dark:text-stone-400">
+          <span className="tabular-nums">{campaign.medicalSupplies}</span> Medical Supply token
+          {campaign.medicalSupplies === 1 ? '' : 's'}
         </p>
       )}
       {kinds.length > 0 && (

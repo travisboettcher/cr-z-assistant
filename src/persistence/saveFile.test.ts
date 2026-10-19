@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import currentFixture from './__fixtures__/campaign-v19.json';
+import currentFixture from './__fixtures__/campaign-v23.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -18,12 +18,17 @@ const VALID_SURVIVOR = {
   defense: 6,
   currentHp: 3,
   infection: 0,
+  madness: 0,
+  xpSpent: 0,
+  found: false,
+  foundCheckPassed: false,
   xp: 5,
   items: [],
   storyTrait: null,
   veteran: false,
   bondGroup: null,
   stories: [],
+  rotResistant: false,
 };
 
 /**
@@ -635,6 +640,15 @@ describe('a file whose fields are the wrong type', () => {
     expect(rejected({ createdAt: 12345 })?.reason).toBe('damaged-campaign');
   });
 
+  // Containment's held zombies and the Medical Supply tokens (Z7-6).
+  it.each([
+    ['held zombies that aren’t a count', { heldZombies: -1 }, /zombies Containment holds/],
+    ['no held zombies at all', { heldZombies: undefined }, /zombies Containment holds/],
+    ['Medical Supplies that aren’t a count', { medicalSupplies: 1.5 }, /Medical Supply tokens/],
+  ])('refuses %s', (_label, overrides, expected) => {
+    expect(rejected(overrides)?.message).toMatch(expected);
+  });
+
   it('refuses a step that is not a string', () => {
     expect(rejected({ step: 3 })?.reason).toBe('damaged-campaign');
   });
@@ -718,6 +732,16 @@ describe('a survivor whose fields are the wrong type', () => {
     ['a bond group of 0', { storyTrait: 'bonded', bondGroup: 0 }],
     ['a Bonded survivor with no bond group', { storyTrait: 'bonded', bondGroup: null }],
     ['a bond group without the trait', { storyTrait: 'jaded', bondGroup: 1 }],
+    // Rot Resistant (Z7-5), yes or no.
+    ['a Rot Resistant that isn’t yes or no', { rotResistant: 'yes' }],
+    ['a missing Rot Resistant', { rotResistant: undefined }],
+    // Madness (Z7-7), any count from 0.
+    ['a fractional madness', { madness: 1.5 }],
+    ['a missing madness', { madness: undefined }],
+    // XP spent (R149) and the Found marks (R109, R111; Z7-8).
+    ['a negative XP spent', { xpSpent: -1 }],
+    ['a Found that isn’t yes or no', { found: 'yes' }],
+    ['a missing Found check', { foundCheckPassed: undefined }],
     // Attached stories (Z7-2): a list of story missions, each with its turn.
     ['stories that aren’t a list', { stories: 'warehouse' }],
     ['a story that isn’t an object', { stories: ['warehouse'] }],
@@ -743,6 +767,10 @@ describe('a survivor whose fields are the wrong type', () => {
       defense: 0,
       currentHp: 0,
       infection: 0,
+      madness: 0,
+      xpSpent: 0,
+      found: false,
+      foundCheckPassed: false,
       xp: 0,
       items: [],
     });
@@ -945,6 +973,58 @@ describe('a campaign whose set-aside list is damaged', () => {
   });
 });
 
+/** The Lost (R106; Z7-7), read as the set-aside are. */
+describe('a campaign whose list of the Lost is damaged', () => {
+  const refusalFor = (overrides: Record<string, unknown>) => {
+    const result = parseCampaignFile(savedWith(overrides));
+
+    return result.ok ? null : result.error.message;
+  };
+
+  it('reads a Lost survivor back as they were written', () => {
+    const lost = { ...VALID_SURVIVOR, madness: 14 };
+    const result = parseCampaignFile(savedWith({ lost: [lost] }));
+
+    expect(result.ok ? result.campaign.lost : null).toEqual([lost]);
+  });
+
+  it('refuses a missing list, a damaged survivor, and somebody both Lost and elsewhere', () => {
+    expect(refusalFor({ lost: undefined })).toMatch(/list of the Lost is missing/);
+    expect(refusalFor({ lost: [{ ...VALID_SURVIVOR, madness: -1 }] })).toMatch(
+      /Lost survivor 1 of 1 has unreadable madness/,
+    );
+    expect(refusalFor({ survivors: [VALID_SURVIVOR], lost: [VALID_SURVIVOR] })).toMatch(
+      /both Lost and elsewhere/,
+    );
+    expect(refusalFor({ setAside: [VALID_SURVIVOR], lost: [VALID_SURVIVOR] })).toMatch(
+      /both Lost and elsewhere/,
+    );
+  });
+
+  it('counts a Lost survivor’s items and stories as held', () => {
+    const carrying = (id: string) => ({
+      ...VALID_SURVIVOR,
+      id,
+      items: [{ id: 'axe', item: 'bladed', grade: 'standard' }],
+    });
+
+    expect(
+      refusalFor({
+        inventory: [{ id: 'axe', item: 'bladed', grade: 'standard' }],
+        lost: [carrying('gone')],
+      }),
+    ).toMatch(/two items with one id: axe/);
+    expect(
+      refusalFor({
+        survivors: [{ ...VALID_SURVIVOR, stories: [{ mission: 'warehouse', attachedOnTurn: 1 }] }],
+        lost: [
+          { ...VALID_SURVIVOR, id: 'gone', stories: [{ mission: 'warehouse', attachedOnTurn: 1 }] },
+        ],
+      }),
+    ).toMatch(/two survivors hold one story: warehouse/);
+  });
+});
+
 /**
  * Names that every object already has.
  *
@@ -1065,6 +1145,52 @@ describe('a campaign whose log is damaged', () => {
       'a trade lost for a reason this version doesn’t know',
       { kind: 'rare-trade-lost', reason: 'weather', items: [], food: 0, fuel: 0 },
       'unreadable reason',
+    ],
+    // A Viral mission's counts (Z7-6): only its own fields, counts from 0, flags yes or no.
+    [
+      'a Viral record that isn’t an object',
+      { kind: 'mission-played', team: 1, mission: 'medical-salvage', viral: 4 },
+      'unreadable viral',
+    ],
+    [
+      'a Viral record with a field it doesn’t have',
+      { kind: 'mission-played', team: 1, mission: 'medical-salvage', viral: { tokens: 4 } },
+      'unreadable viral',
+    ],
+    [
+      'a Viral record with a field it doesn’t have beside one it does',
+      {
+        kind: 'mission-played',
+        team: 1,
+        mission: 'medical-salvage',
+        viral: { supplies: 1, tokens: 4 },
+      },
+      'unreadable viral',
+    ],
+    [
+      'a Viral record with a negative count',
+      { kind: 'mission-played', team: 1, mission: 'medical-salvage', viral: { supplies: -1 } },
+      'unreadable viral',
+    ],
+    [
+      'a Viral record with a Broken Cage check that isn’t yes or no',
+      {
+        kind: 'mission-played',
+        team: 1,
+        mission: 'experimental-data',
+        viral: { investigated: 1, brokenCage: 'yes' },
+      },
+      'unreadable viral',
+    ],
+    [
+      'a Viral record with a held zombie that isn’t yes or no',
+      {
+        kind: 'mission-played',
+        team: 1,
+        mission: 'bring-it-on-home',
+        viral: { zombiesLeft: 1, held: 1 },
+      },
+      'unreadable viral',
     ],
   ])('refuses %s', (_label, event, expected) => {
     const result = parseCampaignFile(savedWith({ log: [{ ...good, event }] }));
@@ -1630,12 +1756,17 @@ describe('a campaign whose assignments are damaged', () => {
       defense: 6,
       currentHp: 4,
       infection: 0,
+      madness: 0,
+      xpSpent: 0,
+      found: false,
+      foundCheckPassed: false,
       xp: 0,
       items: [],
       storyTrait: null,
       veteran: false,
       bondGroup: null,
       stories: [],
+      rotResistant: false,
     },
   ];
 
@@ -1654,6 +1785,7 @@ describe('a campaign whose assignments are damaged', () => {
     ['project', { task: 'project' }],
     ['rest', { task: 'rest' }],
     ['healing', { task: 'healing' }],
+    ['healing with an Inoculation (Z7-5)', { task: 'healing', inoculation: 'shot' }],
     ['mission', { task: 'mission', team: 1 }],
     ['scavenging', { task: 'scavenging' }],
   ])('accepts %s, so the refusals below mean something', (_label, assignment) => {
@@ -1683,6 +1815,11 @@ describe('a campaign whose assignments are damaged', () => {
       'a mission team that isn’t a team',
       { [EARL]: { task: 'mission', team: 0 } },
       /unreadable team/i,
+    ],
+    [
+      'an Inoculation that names no item',
+      { [EARL]: { task: 'healing', inoculation: '' } },
+      /unreadable inoculation/i,
     ],
     // The orphan: a task given to somebody the roster does not hold.
     [

@@ -81,6 +81,13 @@ export interface MissionWound {
   readonly name: string;
   readonly health: number;
   readonly infection?: number;
+  /** In a Cosmic Horror campaign, as Infection is in a Viral one (Z7-7). */
+  readonly madness?: number;
+  /**
+   * A Found survivor's Tier check against 8, the d10, when their Madness went
+   * up (pg. 130; R111; Z7-8). Absent for anybody else.
+   */
+  readonly foundCheck?: D10Result;
 }
 
 /**
@@ -133,6 +140,22 @@ export interface StoryRecord {
   readonly jaded?: { readonly survivor: string; readonly name: string };
   /** The resource and material tokens carried home (pg. 102; R125). */
   readonly resources?: number;
+}
+
+/**
+ * How a Viral mission ended, as the table counted it (pp. 103–107; R104,
+ * R122, R131, R144, R146; Z7-6). Each mission fills its own fields: Experimental
+ * Data the points of interest investigated and the Broken Cage check,
+ * Bring It On Home the ensnared zombies that left and whether one was held,
+ * Medical Salvage its Medical Supply tokens. `held` is rebuilt when recorded,
+ * from whether a Containment stood on the base.
+ */
+export interface ViralRecord {
+  readonly investigated?: number;
+  readonly brokenCage?: boolean;
+  readonly zombiesLeft?: number;
+  readonly held?: boolean;
+  readonly supplies?: number;
 }
 
 /** What a story gives the build of a survivor it brings (pg. 99; R142; Z7-4). */
@@ -398,6 +421,22 @@ export type CampaignEvent =
       readonly passed: boolean;
     }
   /**
+   * One survivor's Infection check under the Viral origin (pp. 22, 123; R99;
+   * Z7-5): the roll, their Infection it was against, and the community's
+   * Medicine added to it. Load-bearing, as `rot-checked` is: it is how the step
+   * knows the check is made. A failure is followed by the turning's own
+   * entries (R100).
+   */
+  | {
+      readonly kind: 'infection-checked';
+      readonly survivor: string;
+      readonly name: string;
+      readonly roll: D10Result;
+      readonly infection: number;
+      readonly bonus: number;
+      readonly passed: boolean;
+    }
+  /**
    * A set of Restraints held a turning survivor, so nobody was bitten (pg. 69).
    *
    * **Load-bearing**, like `planning-began` and `materials-added`:
@@ -406,6 +445,45 @@ export type CampaignEvent =
    * gone either way and the only difference is a bite that did not happen.
    */
   | { readonly kind: 'bite-restrained'; readonly survivor: string; readonly name: string }
+  /**
+   * A survivor was given an Inoculation at the Medical Clinic, in place of
+   * their healing, and is Rot Resistant from now on (pg. 48; R97; Z7-5). The
+   * item, by id, is used up.
+   */
+  | {
+      readonly kind: 'survivor-inoculated';
+      readonly survivor: string;
+      readonly name: string;
+      readonly item: string;
+    }
+  /**
+   * Rot Resistant took 1 Infection off a survivor at the start of the
+   * Advancement Phase (pg. 140; R96; Z7-5). Load-bearing: it is how the turn
+   * knows Rot Resistant has worked.
+   */
+  | { readonly kind: 'infection-resisted'; readonly survivor: string; readonly name: string }
+  /**
+   * The Lounge took Madness off a survivor assigned to Madness Recovery, at
+   * Heal Wounds (pp. 21, 68; R110; Z7-7). Load-bearing: it is how the turn
+   * knows Madness Recovery is done.
+   */
+  | {
+      readonly kind: 'madness-recovered';
+      readonly survivor: string;
+      readonly name: string;
+      readonly madness: number;
+    }
+  /**
+   * Containment's held zombies took Infection off a survivor being healed, at
+   * Heal Wounds after their points were split (pg. 69; R103, R148; Z7-6).
+   * Load-bearing, as `health-restored` is: either says Heal Wounds is done.
+   */
+  | {
+      readonly kind: 'infection-contained';
+      readonly survivor: string;
+      readonly name: string;
+      readonly infection: number;
+    }
   /** A turning survivor bit somebody being healed beside them (pg. 22). */
   | {
       readonly kind: 'survivor-bitten';
@@ -432,6 +510,47 @@ export type CampaignEvent =
        * What they took with them (R73; Z5-13). Absent when they carried
        * nothing, and on an entry from before Z5-13, which left it at the base.
        */
+      readonly items?: readonly Item[];
+    }
+  /**
+   * A Lost survivor's roll at Select Mission (pp. 25, 124; R108; Z7-8): the
+   * d10, the XP spent it was added to, and the mission team a pass placed
+   * them with. Load-bearing: one a turn each.
+   */
+  | {
+      readonly kind: 'lost-rolled';
+      readonly survivor: string;
+      readonly name: string;
+      readonly roll: D10Result;
+      readonly xpSpent: number;
+      readonly team?: number;
+    }
+  /**
+   * How a Lost survivor placed on a mission came out of it (pg. 124; R109;
+   * Z7-8): rescued and Found, rescued and exiled back to the Lost with their
+   * items left to the base, or not rescued and still Lost.
+   */
+  | {
+      readonly kind: 'lost-rescued';
+      readonly survivor: string;
+      readonly name: string;
+      readonly team: number;
+      readonly result: 'found' | 'exiled' | 'not-rescued';
+      /** What an exiled survivor left to the base (R75). */
+      readonly items?: readonly Item[];
+    }
+  /**
+   * A survivor gone Lost to Madness at Departures, before the Unrest check
+   * (pp. 23, 124; R106, R107; Z7-7). Off the roster onto the list of the Lost,
+   * whole, with what they carried.
+   */
+  | {
+      readonly kind: 'survivor-lost';
+      readonly survivor: string;
+      readonly name: string;
+      /** The Madness they went at, 13 or more (R106). */
+      readonly madness: number;
+      /** What they took with them (R106, R73); absent when they carried nothing. */
       readonly items?: readonly Item[];
     }
   /**
@@ -734,6 +853,8 @@ export type CampaignEvent =
       readonly wounds?: readonly MissionWound[];
       /** A story mission's result and what it gave (Z7-3); absent before, and for any other. */
       readonly story?: StoryRecord;
+      /** A Viral mission's counts (Z7-6); absent before, and for any other. */
+      readonly viral?: ViralRecord;
     }
   /**
    * A mission-team survivor took the place of a worker this turn's Siege
@@ -973,7 +1094,10 @@ export type CampaignEvent =
       readonly item: ItemId;
       readonly grade: Grade;
       readonly hardware: number;
+      /** The project team's Labor, after any Medical Supply tokens. */
       readonly labor: number;
+      /** Medical Supply tokens that paid the rest (R131; Z7-6); absent for none, and before. */
+      readonly supplies?: number;
     }
   /**
    * An item traded for in the Planning Phase (pg. 21; R51–R53; Z5-9): the id it

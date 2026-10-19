@@ -16,7 +16,9 @@ import { BASE_LABELS, MATERIAL_LABELS } from './baseLabels';
 import type { MissionWound } from '../engine/log';
 import { outcomeMission, outcomeTeam, type MissionOutcome } from '../engine/missions';
 import { isStory } from '../engine/storyMissions';
+import { isViralMission } from '../engine/viralMissions';
 import { storyConsequences, storyResultLabel } from './storyLabels';
+import { viralConsequences, viralCounted } from './viralLabels';
 import {
   baseOverrun,
   FIRST_TURN,
@@ -189,6 +191,10 @@ function counted(outcome: MissionOutcome): string {
           : `, ${plural(outcome.itemsTraded, 'item', 'items')} traded`
       }${anyStrangers(outcome.strangers)}`;
     case 'mission-played':
+      if (outcome.viral !== undefined && isViralMission(outcome.mission)) {
+        return viralCounted(outcome.mission, outcome.viral);
+      }
+
       return outcome.story === undefined || !isStory(outcome.mission)
         ? 'played'
         : lowerFirst(storyResultLabel(outcome.mission, outcome.story.result));
@@ -228,6 +234,14 @@ export function outcomeConsequences(outcome: MissionOutcome, turn: number): read
     return storyConsequences(outcome.mission, outcome.story, missionTitle);
   }
 
+  if (
+    outcome.kind === 'mission-played' &&
+    outcome.viral !== undefined &&
+    isViralMission(outcome.mission)
+  ) {
+    return viralConsequences(outcome.mission, outcome.viral);
+  }
+
   if (!isCounterOutcome(outcome)) return [];
 
   const consequences = [COUNTER_PHRASES[siegeCounterChange(outcome)]];
@@ -259,6 +273,10 @@ function woundsOf(wounds: readonly MissionWound[] | undefined): readonly string[
     (wound) =>
       `${wound.name} at ${String(wound.health)} Health${
         wound.infection === undefined ? '' : ` and ${String(wound.infection)} Infection`
+      }${wound.madness === undefined ? '' : ` and ${String(wound.madness)} Madness`}${
+        wound.foundCheck === undefined
+          ? ''
+          : `, rolling ${String(wound.foundCheck)} for the Found check`
       }`,
   );
 

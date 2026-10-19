@@ -45,6 +45,7 @@ import {
 } from './projects';
 import type { Check, Violation } from './checks';
 import type { Campaign } from './campaign';
+import { containmentUnlock } from './viralMissions';
 
 export type UpgradeViolationCode =
   | 'no-base'
@@ -56,7 +57,8 @@ export type UpgradeViolationCode =
   | 'built-this-turn'
   | 'wrong-slot-kind'
   | 'cap-reached'
-  | 'one-per-facility';
+  | 'one-per-facility'
+  | 'mission-locked';
 
 export type UpgradeViolation = Violation<UpgradeViolationCode>;
 
@@ -77,9 +79,13 @@ export interface UpgradeRequest {
  * the picker has no business hiding the second one.
  */
 export function upgradesFor(campaign: Campaign, slot: string): readonly Upgrade[] {
-  // Never the rare ones, which are installed from the Inventory (R47).
+  // Never the rare ones, which are installed from the Inventory (R47), and
+  // never another origin's, as `buildableFacilities` leaves out its facilities:
+  // Containment is the Viral origin's (pg. 69).
   return (occupantAt(campaign, slot)?.facility.upgrades ?? []).filter(
-    (upgrade) => upgrade.rare !== true,
+    (upgrade) =>
+      upgrade.rare !== true &&
+      (upgrade.requires?.origin === undefined || upgrade.requires.origin === campaign.origin),
   );
 }
 
@@ -221,6 +227,17 @@ export function checkUpgrade(
   // `!== undefined` guard standing in front of a comparison that would be false
   // against `undefined` anyway.
   const limit = upgrade.constraints?.maxPerFacility ?? Number.POSITIVE_INFINITY;
+
+  // Containment, the one upgrade a mission unlocks (pp. 72, 104; R122). A
+  // warning, as a facility's origin is: a table that won it before the app
+  // recorded the mission can build it anyway.
+  if (upgrade.requires?.mission === true && containmentUnlock(campaign) === null) {
+    warnings.push({
+      code: 'mission-locked',
+      message: 'Unlocked by winning Experimental Data, which this campaign hasn’t done yet.',
+      pages: 104,
+    });
+  }
 
   if (already >= limit) {
     warnings.push({

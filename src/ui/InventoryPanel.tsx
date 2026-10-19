@@ -13,6 +13,7 @@ import { useId, useState } from 'react';
 import {
   EQUIPMENT,
   ITEM_IDS,
+  MEDICAL_SUPPLY_BUILDS,
   type Grade,
   type ItemId,
   type ItemKind,
@@ -252,6 +253,7 @@ function BuildItem({ campaign }: { readonly campaign: Campaign }) {
   const itemId = useId();
   const gradeId = useId();
   const weaponId = useId();
+  const suppliesId = useId();
 
   const offered = buildableItems(campaign);
   const [chosenItem, setItem] = useState<ItemId>('blunt');
@@ -260,11 +262,22 @@ function BuildItem({ campaign }: { readonly campaign: Campaign }) {
   const [chosenGrade, setGrade] = useState<Grade>('standard');
   const grade = grades.includes(chosenGrade) ? chosenGrade : (grades[0] ?? 'standard');
   const [enchants, setEnchants] = useState<Enchantable>('bladed');
+  const [chosenSupplies, setSupplies] = useState(0);
   const [fresh, setFresh] = useState(() => crypto.randomUUID());
 
   const rules: ItemRules = EQUIPMENT[item];
   const onWeapon = rules.build?.kind === 'as-base-weapon';
-  const order = { id: fresh, item, grade, ...(onWeapon ? { enchants } : {}) };
+  // Medical Supply tokens, for a medical build while the base keeps some (R131).
+  const takesSupplies =
+    campaign.medicalSupplies > 0 && (MEDICAL_SUPPLY_BUILDS as readonly ItemId[]).includes(item);
+  const supplies = takesSupplies ? chosenSupplies : 0;
+  const order = {
+    id: fresh,
+    item,
+    grade,
+    ...(onWeapon ? { enchants } : {}),
+    ...(supplies > 0 ? { supplies } : {}),
+  };
   const check = buildCheck(campaign, order);
   const cost = buildCost(campaign, order);
 
@@ -348,10 +361,34 @@ function BuildItem({ campaign }: { readonly campaign: Campaign }) {
         )}
       </div>
 
+      {takesSupplies && (
+        <div className="mt-3 flex items-center gap-2">
+          <input
+            id={suppliesId}
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={campaign.medicalSupplies}
+            step={1}
+            value={chosenSupplies}
+            className={`${FOCUS_RING} w-20 rounded-lg border border-stone-300 px-2 py-1 text-sm tabular-nums dark:border-stone-700 dark:bg-stone-950`}
+            onChange={(changed) => {
+              setSupplies(Number(changed.target.value));
+            }}
+          />
+          <label htmlFor={suppliesId} className="text-sm">
+            Medical Supply tokens toward its Labor, of {campaign.medicalSupplies} kept{' '}
+            <PageRef pages={107} />
+          </label>
+        </div>
+      )}
+
       {cost !== undefined && (
         <p className={`mt-2 ${HINT}`}>
-          {cost.hardware} Hardware · {cost.labor} Labor, of {Math.max(0, laborAvailable(campaign))}{' '}
-          available <PageRef pages={rules.pages} />
+          {cost.hardware} Hardware · {cost.labor - supplies} Labor
+          {supplies > 0 &&
+            ` and ${String(supplies)} Medical Supply ${supplies === 1 ? 'token' : 'tokens'}`}
+          , of {Math.max(0, laborAvailable(campaign))} available <PageRef pages={rules.pages} />
         </p>
       )}
 
@@ -372,6 +409,7 @@ function BuildItem({ campaign }: { readonly campaign: Campaign }) {
         onClick={() => {
           dispatch({ type: 'planning/itemBuilt', order, at: new Date().toISOString() });
           setFresh(crypto.randomUUID());
+          setSupplies(0);
         }}
       >
         Build

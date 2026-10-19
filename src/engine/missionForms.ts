@@ -16,12 +16,14 @@
  */
 
 import type { BaseId } from '../data/bases';
-import type { OverrunOption, StoryMissionId } from '../data/missions';
+import type { D10Result } from '../data/dice';
+import type { OverrunOption, StoryMissionId, ViralMissionId } from '../data/missions';
 import type { Campaign, Survivor, Vehicle } from './campaign';
 import { equipCheck, withEquipMove, type EquipMove } from './equip';
 import { accepted, blockedBy, refused, type FormResult } from './forms';
 import { logged, type MissionWound, type StoryRecord } from './log';
 import {
+  madnessAfter,
   membersOf,
   missionOutcomeProblem,
   missionTeams,
@@ -56,7 +58,15 @@ import {
 } from './missionVehicles';
 import { spentItems, spentProblem, withItemsSpent } from './spent';
 import { isStory, partNow, storyHolder, storyRecord, withStoryRecorded } from './storyMissions';
+import {
+  lostRescueProblem,
+  lostRollProblem,
+  withLostRescued,
+  withLostRolled,
+  type LostRescue,
+} from './lostRoll';
 import { extrasOf } from './storyRewards';
+import { viralRecord, withViralRecorded } from './viralMissions';
 import { deathProblem, deathsProblem, withMissionDeath, type MissionDeath } from './missionDeaths';
 
 /**
@@ -174,7 +184,9 @@ export function submitMissionSkip(campaign: Campaign, at: string): FormResult {
  *
  * **The only change it makes is the wounds** (`withWounds`): each member's
  * Health, and Infection in a Viral campaign, set to what the table counted at
- * the end; and, for a story, what its ending gave (`withStoryRecorded`; Z7-3). The roster's own Health correction stays as it was, unlogged, for
+ * the end; for a story, what its ending gave (`withStoryRecorded`; Z7-3); and
+ * for a Viral mission, a held zombie or Medical Supply tokens
+ * (`withViralRecorded`; Z7-6). The roster's own Health correction stays as it was, unlogged, for
  * fixing a mistake. The entry's wounds are written in team order with each
  * survivor's name as the roster has it now, whatever the screen sent, so the
  * history names them the way every other entry about a person does.
@@ -217,28 +229,35 @@ export function submitMissionEnded(
   const wounds = woundsAsTheyStand(campaign, outcomeTeam(outcome))
     .filter((member) => !dead.has(member.survivor))
     .map((member) => {
-      const { health, infection } = (outcome.wounds as readonly MissionWound[]).find(
-        (wound) => wound.survivor === member.survivor,
+      const wound = (outcome.wounds as readonly MissionWound[]).find(
+        (one) => one.survivor === member.survivor,
       ) as MissionWound;
+      const { health, infection, madness, foundCheck } = wound;
+      const survivor = campaign.survivors.find((one) => one.id === member.survivor) as Survivor;
 
       return {
         survivor: member.survivor,
         name: member.name,
         health,
         ...(infection === undefined ? {} : { infection }),
+        // Capped at 6 for a Found survivor who has passed their check (R111).
+        ...(madness === undefined ? {} : { madness: madnessAfter(survivor, wound).madness }),
+        ...(foundCheck === undefined ? {} : { foundCheck }),
       };
     });
 
   // A story's ending, rebuilt from the result and who takes the next part, so
   // the entry says what the rules gave whatever the screen sent (Z7-3).
-  const rebuilt = withStoryRebuilt(campaign, outcome);
+  const rebuilt = withViralRebuilt(campaign, withStoryRebuilt(campaign, outcome));
   const story = storyEnded(rebuilt);
+  const viral = rebuilt.kind === 'mission-played' ? rebuilt.viral : undefined;
   const wounded = withWounds(campaign, wounds);
-  const recorded = logged(
-    story === undefined ? wounded : withStoryRecorded(wounded, story.mission, story.record),
-    at,
-    { ...rebuilt, wounds },
-  );
+  const storied =
+    story === undefined ? wounded : withStoryRecorded(wounded, story.mission, story.record);
+  const recorded = logged(viral === undefined ? storied : withViralRecorded(storied, viral), at, {
+    ...rebuilt,
+    wounds,
+  });
 
   const rewarded =
     // The vehicles driven off join the community at once (pg. 82; R63; Z5-11).
@@ -281,6 +300,16 @@ function withStoryRebuilt(campaign: Campaign, outcome: MissionOutcome): MissionO
       extras: extrasOf(story.record),
     }),
   };
+}
+
+/** The outcome with its Viral record as `viralRecord` builds it, from the base as it stands (Z7-6). */
+function withViralRebuilt(campaign: Campaign, outcome: MissionOutcome): MissionOutcome {
+  if (outcome.kind !== 'mission-played' || outcome.viral === undefined) return outcome;
+
+  // A Viral mission's by now: `viralProblem` refuses a record on any other.
+  const mission = outcome.mission as ViralMissionId;
+
+  return { ...outcome, viral: viralRecord(campaign, mission, outcome.viral) };
 }
 
 /**
@@ -477,4 +506,39 @@ export function submitMissionDeath(
   if (problem !== null) return refused(problem);
 
   return accepted(withMissionDeath(campaign, death, at));
+}
+
+/**
+ * A Lost survivor's roll, before the first mission (pp. 25, 124; R108, R150;
+ * Z7-8): on a pass, the mission team they join as a stranger; on a fail, 1 XP.
+ * Refused for whatever `lostRollProblem` says.
+ */
+export function submitLostRolled(
+  campaign: Campaign,
+  survivor: string,
+  roll: D10Result,
+  team: number | null,
+  at: string,
+): FormResult {
+  const problem = lostRollProblem(campaign, survivor, roll, team);
+  if (problem !== null) return refused(problem);
+
+  return accepted(withLostRolled(campaign, survivor, roll, team, at));
+}
+
+/**
+ * How a Lost survivor placed on a mission came out of it (pg. 124; R109;
+ * Z7-8): Found, exiled, or not rescued. Refused for whatever
+ * `lostRescueProblem` says.
+ */
+export function submitLostRescued(
+  campaign: Campaign,
+  survivor: string,
+  result: LostRescue,
+  at: string,
+): FormResult {
+  const problem = lostRescueProblem(campaign, survivor);
+  if (problem !== null) return refused(problem);
+
+  return accepted(withLostRescued(campaign, survivor, result, at));
 }

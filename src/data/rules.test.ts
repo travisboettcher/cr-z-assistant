@@ -610,8 +610,8 @@ describe('the campaign turn', () => {
     expect([...new Set(rolled)].sort()).toEqual([...MATERIALS, 'rare-item'].sort());
   });
 
-  it('builds Siege Threat out of five distinct terms', () => {
-    expect(new Set(SIEGE_THREAT_TERMS).size).toBe(5);
+  it('builds Siege Threat out of six distinct terms', () => {
+    expect(new Set(SIEGE_THREAT_TERMS).size).toBe(6);
   });
 
   /**

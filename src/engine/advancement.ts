@@ -27,6 +27,7 @@ import {
 } from '../data/skills';
 import { TIER_RULES, type StatArray, type Tier } from '../data/tiers';
 import type { Stats, Survivor } from './campaign';
+import { withXpSpent } from './survivor';
 
 /** Why a purchase cannot be made. */
 export type PurchaseBlock =
@@ -155,11 +156,7 @@ export function withSkillLevelBought(survivor: Survivor, skill: Skill): Survivor
 
   if (blocked !== null || level === undefined) return survivor;
 
-  return {
-    ...survivor,
-    skills: { ...survivor.skills, [skill]: level + 1 },
-    xp: survivor.xp - cost,
-  };
+  return { ...withXpSpent(survivor, cost), skills: { ...survivor.skills, [skill]: level + 1 } };
 }
 
 /** The survivor with Move or Defense one higher, or unchanged when blocked. */
@@ -168,7 +165,7 @@ export function withCommonSkillBought(survivor: Survivor, skill: CommonSkill): S
 
   if (blocked !== null) return survivor;
 
-  return { ...survivor, [skill]: survivor[skill] + 1, xp: survivor.xp - cost };
+  return { ...withXpSpent(survivor, cost), [skill]: survivor[skill] + 1 };
 }
 
 /**
@@ -195,10 +192,9 @@ export function withTierBought(survivor: Survivor, raise: Stat | null): Survivor
   if (blocked !== null || !isTier(newTier)) return survivor;
 
   return {
-    ...survivor,
+    ...withXpSpent(survivor, cost),
     tier: newTier,
     stats: assignByRank(survivor.stats, TIER_RULES[newTier].statArray, raise),
-    xp: survivor.xp - cost,
   };
 }
 

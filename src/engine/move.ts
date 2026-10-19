@@ -84,7 +84,8 @@ export function moveProblem(campaign: Campaign, leaving: readonly string[]): str
  * set aside (R25, R26, R31, R32). Unguarded: `moveProblem` is the guard.
  *
  * The new base's slots are empty, so what was built, staffed and powered stays
- * in the old one. The stores are untouched (pg. 54). A Hero set aside leaves
+ * in the old one, Containment and its held zombies too (R105). The stores are
+ * untouched (pg. 54). A Hero set aside leaves
  * the roster whole, keeping their sheet for the day they come back (R31), and
  * takes their task with them, as anybody leaving does.
  */
@@ -104,6 +105,10 @@ export function withBaseMoved(campaign: Campaign, leaving: readonly string[]): C
     ],
     assignments: leaving.reduce(withoutAssignment, campaign.assignments),
     materials: storesAfterMove(campaign) ?? campaign.materials,
+    // Containment stays in the old base with its Clinic, and the zombies it
+    // holds with it (R105). The Medical Supply tokens go where the Inventory
+    // goes (R147).
+    heldZombies: 0,
     ...withoutLost(campaign, lostInOverrun(campaign)),
   };
 }
@@ -144,11 +149,12 @@ export function lostInOverrun(campaign: Campaign): LostInOverrun | null {
 function withoutLost(
   campaign: Campaign,
   lost: LostInOverrun | null,
-): Partial<Pick<Campaign, 'inventory' | 'vehicles' | 'trades'>> {
+): Partial<Pick<Campaign, 'inventory' | 'vehicles' | 'trades' | 'medicalSupplies'>> {
   if (lost === null) return {};
 
   return {
     inventory: [],
+    medicalSupplies: 0,
     vehicles: campaign.vehicles.filter((vehicle) => !lost.vehicles.includes(vehicle)),
     trades: campaign.trades.filter((trade) => !lost.trades.includes(trade)),
   };

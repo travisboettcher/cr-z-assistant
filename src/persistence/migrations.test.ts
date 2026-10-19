@@ -30,6 +30,11 @@ const SAMPLE_SURVIVOR = {
   veteran: false,
   bondGroup: null,
   stories: [],
+  rotResistant: false,
+  madness: 0,
+  xpSpent: 0,
+  found: false,
+  foundCheckPassed: false,
 } satisfies Survivor;
 
 /**
@@ -777,6 +782,168 @@ describe('the v18 to v19 Story Traits', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
+    expect(result.campaign.survivors).toEqual([null, 7]);
+    expect(result.campaign.setAside).toBe('nobody');
+  });
+});
+
+describe('the v19 to v20 Rot Resistant', () => {
+  it('brings every earlier survivor forward not Rot Resistant', () => {
+    for (const fixture of fixtures.filter((f) => f.version < 20)) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok) continue;
+
+      for (const survivor of [...result.campaign.survivors, ...result.campaign.setAside]) {
+        expect(survivor.rotResistant, `${fixture.path} ${survivor.name}`).toBe(false);
+      }
+    }
+  });
+
+  it('keeps a v20 save’s own', () => {
+    const v20 = fixtures.find((fixture) => fixture.version === 20);
+    const result = migrate(v20?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.survivors.map((one) => one.rotResistant)).toEqual([
+      true,
+      false,
+      false,
+      false,
+    ]);
+  });
+
+  it('hands a survivor that is not an object, or a list that is not a list, on untouched', () => {
+    const v19 = fixtures.find((fixture) => fixture.version === 19);
+    const result = migrate({
+      ...(v19?.contents as object),
+      survivors: [null, 7],
+      setAside: 'nobody',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.survivors).toEqual([null, 7]);
+    expect(result.campaign.setAside).toBe('nobody');
+  });
+});
+
+describe('the v20 to v21 Containment and Medical Supplies', () => {
+  it('brings every earlier save forward holding no zombie and keeping no token', () => {
+    for (const fixture of fixtures.filter((f) => f.version < 21)) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok) continue;
+
+      expect(result.campaign.heldZombies, fixture.path).toBe(0);
+      expect(result.campaign.medicalSupplies, fixture.path).toBe(0);
+    }
+  });
+
+  it('keeps a v21 save’s own', () => {
+    const v21 = fixtures.find((fixture) => fixture.version === 21);
+    const result = migrate(v21?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect([result.campaign.heldZombies, result.campaign.medicalSupplies]).toEqual([1, 2]);
+  });
+});
+
+describe('the v21 to v22 Madness and the Lost', () => {
+  it('brings every earlier survivor forward with no Madness, and nobody Lost', () => {
+    for (const fixture of fixtures.filter((f) => f.version < 22)) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok) continue;
+
+      for (const survivor of [...result.campaign.survivors, ...result.campaign.setAside]) {
+        expect(survivor.madness, `${fixture.path} ${survivor.name}`).toBe(0);
+      }
+      expect(result.campaign.lost, fixture.path).toEqual([]);
+    }
+  });
+
+  it('keeps a v22 save’s own', () => {
+    const v22 = fixtures.find((fixture) => fixture.version === 22);
+    const result = migrate(v22?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.survivors.map((one) => one.madness)).toEqual([5, 0, 0, 0]);
+  });
+
+  it('hands a survivor that is not an object, or a list that is not a list, on untouched', () => {
+    const v21 = fixtures.find((fixture) => fixture.version === 21);
+    const result = migrate({
+      ...(v21?.contents as object),
+      survivors: [null, 7],
+      setAside: 'nobody',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.survivors).toEqual([null, 7]);
+    expect(result.campaign.setAside).toBe('nobody');
+  });
+});
+
+describe('the v22 to v23 XP spent and Found', () => {
+  it('brings every earlier survivor forward having spent nothing, and nobody Found', () => {
+    for (const fixture of fixtures.filter((f) => f.version < 23)) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok) continue;
+
+      for (const survivor of [...result.campaign.survivors, ...result.campaign.setAside]) {
+        expect(
+          [survivor.xpSpent, survivor.found, survivor.foundCheckPassed],
+          `${fixture.path} ${survivor.name}`,
+        ).toEqual([0, false, false]);
+      }
+    }
+  });
+
+  it('keeps a v23 save’s own', () => {
+    const v23 = fixtures.find((fixture) => fixture.version === 23);
+    const result = migrate(v23?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.survivors.map((one) => [one.xpSpent, one.found])).toEqual([
+      [6, false],
+      [0, true],
+      [0, false],
+      [0, false],
+    ]);
+  });
+
+  it('brings a Lost survivor forward too, and hands anything else on untouched', () => {
+    const v22 = fixtures.find((fixture) => fixture.version === 22);
+    const lost = { ...((v22?.contents as { survivors: object[] }).survivors[0] as object) };
+    delete (lost as { xpSpent?: unknown }).xpSpent;
+    const result = migrate({
+      ...(v22?.contents as object),
+      lost: [{ ...lost, id: 'gone' }],
+      survivors: [null, 7],
+      setAside: 'nobody',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.lost[0]?.xpSpent).toBe(0);
     expect(result.campaign.survivors).toEqual([null, 7]);
     expect(result.campaign.setAside).toBe('nobody');
   });

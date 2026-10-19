@@ -21,7 +21,7 @@ import {
   type ItemRules,
 } from '../data/equipment';
 import type { CommonSkill, Skill } from '../data/skills';
-import type { Campaign, Item, Survivor } from './campaign';
+import { type Campaign, type Item, keptSurvivors, type Survivor } from './campaign';
 
 /** An item's catalogue entry. */
 export function rulesOf(item: Item): ItemRules {
@@ -108,14 +108,14 @@ export function newItemProblem(campaign: Campaign, item: NewItem): string | null
 }
 
 /**
- * Every item the campaign holds: the base's, the roster's, the set-aside's,
+ * Every item the campaign holds: the base's, the roster's, the set-aside's and the Lost's,
  * the rare upgrades installed in its facilities (Z5-8), and the upgrades
  * fitted to its vehicles (Z5-11).
  */
 export function allItems(campaign: Campaign): readonly Item[] {
   return [
     ...campaign.inventory,
-    ...[...campaign.survivors, ...campaign.setAside].flatMap((survivor) => survivor.items),
+    ...keptSurvivors(campaign).flatMap((survivor) => survivor.items),
     ...Object.values(campaign.base?.slots ?? {}).flatMap((slot) => slot.installed ?? []),
     ...campaign.vehicles.flatMap((vehicle) =>
       vehicle.upgrade === undefined ? [] : [vehicle.upgrade],

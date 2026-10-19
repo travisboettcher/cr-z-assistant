@@ -42,13 +42,20 @@ import {
   type StandardMissionId,
 } from '../data/missions';
 import { FIELD_RECRUITABLE_TIERS, type FieldRecruitTier } from '../data/recruitTable';
+import {
+  FOUND_CHECK_TARGET,
+  FOUND_MADNESS_CAP,
+  MADNESS_FOR_COSMIC_MISSIONS,
+} from '../data/origins';
+import { D10_RESULTS } from '../data/dice';
 import { beforePlanning } from './assignments';
 import { continuationMission, continuationOpen, overrunChoice, overrunClaim } from './overrun';
 import type { Campaign, RareTrade, Survivor } from './campaign';
 import type { CampaignEvent, MissionWound, RetrievedVehicle } from './log';
 import { FIRST_TURN, siegeDue } from './siege';
 import { storyProblem } from './storyMissions';
-import { maxHp } from './survivor';
+import { containmentUnlock, viralProblem } from './viralMissions';
+import { maxHp, tierCheckPasses } from './survivor';
 import { phaseOf } from './turn';
 import { retrievedProblem } from './vehicles';
 
@@ -240,7 +247,9 @@ export function missionsChosen(campaign: Campaign): boolean {
  * which may be chosen on any turn (pg. 75), the Road Trip ones, the origin
  * missions of the campaign's own Origin of the Rot, and **the stories attached
  * to somebody on this team**, a story being its survivor's to play (pp. 75, 87;
- * R116). The prerequisites inside an origin are Phase 7's.
+ * R116). An origin's missions are offered on every turn but Viral Mission 1
+ * once it has unlocked Containment (R132, R145), and a Cosmic Horror one only
+ * to a team with somebody at 4 or more Madness (R132).
  *
  * What it does not narrow is R20's: a second Claim a New Base is refused when
  * it is chosen, because which team may have it depends on who asks.
@@ -261,13 +270,27 @@ export function missionsOnOffer(campaign: Campaign, team: number): readonly Miss
       case 'standard':
         return mission.availability === 'any-time';
       case 'origin':
-        return mission.origin === campaign.origin;
+        // Experimental Data until it unlocks Containment, and never after
+        // (R132); the other two on every turn (R145); a Cosmic Horror mission
+        // to a team with somebody at 4 or more Madness (R132).
+        return (
+          mission.origin === campaign.origin &&
+          (id !== 'experimental-data' || containmentUnlock(campaign) === null) &&
+          (mission.origin !== 'cosmic-horror' || maddened(campaign, team))
+        );
       case 'story':
         return storiesOn(campaign, team).has(id);
       default:
         return true;
     }
   });
+}
+
+/** Whether somebody on this team has the Madness a Cosmic Horror mission needs (R132). */
+function maddened(campaign: Campaign, team: number): boolean {
+  return membersOf(campaign, team).some(
+    (survivor) => survivor.madness >= MADNESS_FOR_COSMIC_MISSIONS,
+  );
 }
 
 /** The stories attached to somebody on this mission team (R116). */
@@ -420,8 +443,9 @@ const OUTCOME_KINDS = [
  * and failure are read back from the counts — which is also why the missions
  * that name no failure at all need nothing here to say what one would be. A
  * story, origin or Road Trip mission records that it was played
- * (`mission-played`), and a story how it ended and what that gave (`story`;
- * Z7-3); an origin's rewards are Phase 7's still.
+ * (`mission-played`), a story how it ended and what that gave (`story`;
+ * Z7-3), and a Viral mission what the table counted (`viral`; Z7-6). The
+ * Cosmic and Magic missions' rewards are Phase 7's still.
  *
  * Every kind, `mission-played` included, also carries the team's wounds since
  * Z4-4: each member's Health at the end, and Infection in a Viral campaign
@@ -822,6 +846,13 @@ export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcom
   );
   if (story !== null) return story;
 
+  // A Viral mission's counts (Z7-6).
+  const viral = viralProblem(
+    choice.mission,
+    outcome.kind === 'mission-played' ? outcome.viral : undefined,
+  );
+  if (viral !== null) return viral;
+
   return woundsProblem(campaign, outcome);
 }
 
@@ -855,8 +886,9 @@ export function membersOf(campaign: Campaign, team: number): readonly Survivor[]
 
 /**
  * Each member of a team as they stand now, written as the wounds a form
- * starts from (Z4-4): their current Health, and their Infection in a Viral
- * campaign. In team order, which is roster order.
+ * starts from (Z4-4): their current Health, their Infection in a Viral
+ * campaign, and their Madness in a Cosmic Horror one (Z7-7). In team order,
+ * which is roster order.
  *
  * So recording everybody is the natural thing to do — a member who came back
  * unhurt needs nothing typed — and a correction already made on the roster
@@ -864,12 +896,14 @@ export function membersOf(campaign: Campaign, team: number): readonly Survivor[]
  */
 export function woundsAsTheyStand(campaign: Campaign, team: number): readonly MissionWound[] {
   const viral = campaign.origin === 'viral';
+  const cosmic = campaign.origin === 'cosmic-horror';
 
   return membersOf(campaign, team).map((survivor) => ({
     survivor: survivor.id,
     name: survivor.name,
     health: survivor.currentHp,
     ...(viral ? { infection: survivor.infection } : {}),
+    ...(cosmic ? { madness: survivor.madness } : {}),
   }));
 }
 
@@ -929,6 +963,25 @@ export function woundsProblem(campaign: Campaign, outcome: MissionOutcome): stri
     ) {
       return `${survivor.name}’s Infection must be a whole number, 0 or more.`;
     }
+
+    // Madness the same way, in a Cosmic Horror campaign only (pg. 124; Z7-7).
+    if (campaign.origin !== 'cosmic-horror') {
+      if (wound.madness !== undefined) return 'Only a Cosmic Horror campaign records Madness.';
+    } else if (!Number.isSafeInteger(wound.madness) || (wound.madness as number) < 0) {
+      return `${survivor.name}’s Madness must be a whole number, 0 or more.`;
+    }
+
+    // A Found survivor's Tier check at their next gain (pg. 130; R111; Z7-8).
+    const owed = foundCheckOwed(survivor, wound.madness);
+    if (owed && wound.foundCheck === undefined) {
+      return `${survivor.name} is Found and their Madness went up: enter the d10 for their Tier check against 8.`;
+    }
+    if (!owed && wound.foundCheck !== undefined) {
+      return 'Only a Found survivor whose Madness went up makes the Tier check against 8.';
+    }
+    if (wound.foundCheck !== undefined && !D10_RESULTS.includes(wound.foundCheck)) {
+      return 'The Tier check is a d10, from 1 to 10.';
+    }
   }
 
   return recorded.size === members.length
@@ -938,7 +991,8 @@ export function woundsProblem(campaign: Campaign, outcome: MissionOutcome): stri
 
 /**
  * The roster as an outcome's wounds leave it: each survivor named at the
- * Health recorded, and at the Infection recorded where there is one (Z4-4).
+ * Health recorded, and at the Infection or Madness recorded where there is
+ * one (Z4-4, Z7-7).
  *
  * The same change the roster's own correction makes, which stays the way to
  * fix a mistake — this is the one that happened, and its entry says so.
@@ -955,8 +1009,44 @@ export function withWounds(campaign: Campaign, wounds: readonly MissionWound[]):
             ...survivor,
             currentHp: wound.health,
             ...(wound.infection === undefined ? {} : { infection: wound.infection }),
+            ...(wound.madness === undefined ? {} : madnessAfter(survivor, wound)),
           };
     }),
+  };
+}
+
+/**
+ * Whether a Found survivor owes the Tier check against 8 for this Madness: it
+ * went up, and the check has not yet been passed (pg. 130; R111). A failed
+ * check caps nothing and is asked again at the next gain (R111's open part).
+ */
+export function foundCheckOwed(survivor: Survivor, madness: number | undefined): boolean {
+  return (
+    survivor.found &&
+    !survivor.foundCheckPassed &&
+    madness !== undefined &&
+    madness > survivor.madness
+  );
+}
+
+/**
+ * The Madness a wound leaves a survivor with, and whether they have passed
+ * the Found check (R111): capped at 6 once it is passed, this check included,
+ * and as recorded otherwise.
+ */
+export function madnessAfter(
+  survivor: Survivor,
+  wound: MissionWound,
+): Pick<Survivor, 'madness' | 'foundCheckPassed'> {
+  const madness = wound.madness ?? survivor.madness;
+  const passed =
+    survivor.foundCheckPassed ||
+    (wound.foundCheck !== undefined &&
+      tierCheckPasses(survivor, wound.foundCheck, FOUND_CHECK_TARGET));
+
+  return {
+    madness: passed ? Math.min(madness, FOUND_MADNESS_CAP) : madness,
+    foundCheckPassed: passed,
   };
 }
 

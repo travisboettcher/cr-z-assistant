@@ -308,6 +308,101 @@ nothing records one.
   by The Graveyard (R123); The Necromancer's discounts (R124); The Graveyard's Humanity choice
   (R130).
 
+### Z7-5 — What this story turned out to include
+
+- **One more ruling, decided 2026-10-18**: a survivor at full Health can be assigned to the Clinic
+  to be inoculated, with no warning (R143).
+- **The Infection check sits beside the Rot check** at Check for Rot, for everybody carrying
+  Infection in a Viral campaign (`infectionMustCheck` in `src/engine/rot.ts`). The roll, the Tier
+  and the community's Medicine with a supplied Clinic, under the Hunger penalty, against the
+  survivor's Infection, with no natural results (R99). A failure turns the survivor through the
+  same bite and turning the Rot check uses (R100), logged once by `withTurningLogged`.
+- **Rot Resistant is a survivor field** (`rotResistant`, schema v20), false for everybody already
+  playing. The sheet shows it with the traits and edits it in a Viral campaign, or for a survivor
+  who already has it.
+- **An Inoculation is chosen in the Planning Phase and given at Heal Wounds** (R97): the healing
+  assignment carries the item, read back off last turn's Planning once this turn's has cleared it. Giving it uses the item up and takes the survivor out of the Clinic's
+  healing share that turn.
+- **Rot Resistant's first Infection off comes the turn after**, being pressed at Character
+  Advancement, which comes before Heal Wounds (R96). One press takes 1 off everybody owed it, an
+  entry each, once a turn.
+- **Building one is unchanged**: an Inoculation is equipment already built at a Clinic with Water
+  (pg. 42). The Medical Supply tokens that pay its Labor are Z7-6's (R131).
+
+### Z7-6 — What this story turned out to include
+
+- **Five more rulings, decided 2026-10-18**: one point of interest and a passed Broken Cage check add
+  up to Containment's usual Hardware (R144); Bring It On Home and Medical Salvage are offered on
+  every Viral turn (R145); Bring It On Home's extras are the player's, and only a standing
+  Containment holds its zombie (R146); Medical Supply tokens go where the Inventory goes (R147);
+  and a survivor given an Inoculation loses no Infection to Containment (R148).
+- **A Viral mission records what the table counted** (`ViralRecord` on `mission-played`,
+  `src/engine/viralMissions.ts`): the points of interest and the Broken Cage check, the ensnared
+  zombies that left, or the Medical Supply tokens. The form rebuilds it before it is logged, so
+  whether a zombie was held is the base's answer, not the screen's.
+- **Containment's unlock is read off the log**, from the first Experimental Data that investigated
+  a point of interest, as the campaign's own (R122). Experimental Data is not offered after it.
+  Building Containment before then is a warning, not a refusal, and its Hardware is changed by
+  −2, 0 or +2.
+- **Schema v21 counts the held zombies and the Medical Supply tokens** (`heldZombies`,
+  `medicalSupplies`), zero for every earlier save. The base and Inventory cards show them when
+  there are any.
+- **Each held zombie adds a Siege Threat term of its own** and takes 1 Infection off each survivor
+  being healed at Heal Wounds, after the points are split, as an `infection-contained` entry. That
+  entry counts as Heal Wounds done, as Health does.
+- **A move leaves the held zombies behind** with Containment (R105). An overrun loses the tokens
+  with the Inventory.
+- **A token pays 1 Labor of a medical build**, entered on the build form: the `item-built` entry
+  keeps the project team's Labor and the tokens apart.
+- **Fixed on the way**: an upgrade of another origin, Containment or the Lounge, is no longer
+  offered in a campaign that is not running it, as its facilities never were.
+- **Not tracked**: Bring It On Home's XP for the other zombies and the special zombies' items, added
+  by hand (R146).
+
+### Z7-7 — What this story turned out to include
+
+- **No new rulings**: R106, R107, R110 and R132 covered it.
+- **Madness is a survivor field** (`madness`, schema v22), stored on everybody as Infection is, zero
+  for everybody already playing. A Cosmic Horror campaign's mission outcome records each member's
+  Madness at the end, beside their Health, and the sheet shows and edits it, saying when it reaches
+  13.
+- **The list of the Lost** (`lost` on the campaign) is new with v22, kept whole like the set-aside,
+  so a Lost survivor's items and stories still count as held (`keptSurvivors`). Z7-8 brings them
+  back.
+- **A Cosmic Horror mission is offered to a team** with somebody at 4 or more Madness (R132), read
+  per team as story missions are.
+- **Madness Recovery is an assignment** at Rest and Healing, in place of resting or healing, in a
+  Cosmic Horror campaign only. It's warned about without a working Lounge or any Madness to lose.
+  At the next Heal Wounds the Lounges' points (2 each, 4 with Power) are shared equally among
+  those assigned, one at a time, never past 0 (`src/engine/lounge.ts`), with a press of their
+  own beside the Health.
+- **At Departures, everybody at 13 or more goes Lost first** unless they're down, on one press,
+  each with a `survivor-lost` entry and what they carry. The Unrest departure is refused until they
+  have gone, so it reads the community they leave (R106).
+- **The Survivors card counts the Lost.** Who they are, and the Lost roll, are Z7-8's.
+
+### Z7-8 — What this story turned out to include
+
+- **Two more rulings, decided 2026-10-18**: XP spent is counted from now on, by every purchase and a
+  Veteran's healing, and corrected by hand for what came before (R149); and nobody makes the Lost
+  roll on a turn with no mission (R150). The Found check is asked on the mission outcome, at the
+  gain R111 names.
+- **Schema v23 adds `xpSpent`, `found` and `foundCheckPassed`** to every survivor, 0 and false for
+  everybody already playing. `withXpSpent` is the one place XP is spent, so the count can't miss a
+  purchase. A Cosmic Horror sheet shows and corrects XP spent, and Found reads with the traits.
+- **The Lost roll is made in the Mission Phase before any outcome is recorded**, a `lost-rolled`
+  entry each, once a turn (`src/engine/lostRoll.ts`). The d10 and the XP spent against 18 is a
+  check by the book's convention (pg. 8), so a natural 1 fails and a natural 10 succeeds. A pass
+  names the mission team they join; a fail gives the Lost survivor 1 XP.
+- **A placed survivor's rescue is recorded beside the outcome**: Found, back in the community as
+  themselves at full Health with no Infection or Madness; exiled, back on the list with their items
+  left to the base (R75); or not rescued, still Lost (R109's open part).
+- **The Found check is a Tier check against 8**, asked on the outcome when a Found survivor's
+  Madness goes up. A pass caps them at 6 for good, the entry included. A fail caps nothing and is
+  asked again at the next gain (R111's open part). `tierCheckPasses` is now the one Tier check, and
+  the Rot check reads it.
+- **The roster lists the Lost**, with their XP spent.
+
 ## Part 3 — The Toolkit's survivor traits (outline)
 
 - **Z7-10 — The switch, Advantages and experience debt.** A campaign setting, off by default (R84);

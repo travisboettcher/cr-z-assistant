@@ -183,6 +183,44 @@ describe('building an item from the Inventory', () => {
     ).toBeInTheDocument();
   });
 
+  /** Medical Salvage's tokens pay a medical build's Labor (pg. 107; R131; Z7-6). */
+  it('spends Medical Supply tokens on a medical build’s Labor', async () => {
+    const user = open({
+      ...building(),
+      origin: 'viral',
+      base: {
+        id: 'small-town-home',
+        slots: { garage: { built: { facility: 'medical-clinic', builtOnTurn: 1 } } },
+      },
+      medicalSupplies: 2,
+    });
+    openPanel('inventory');
+
+    await user.selectOptions(screen.getByLabelText('Item to build'), 'bandages');
+    const tokens = screen.getByLabelText(/Medical Supply tokens toward its Labor, of 2 kept/);
+    await user.clear(tokens);
+    await user.type(tokens, '1');
+
+    expect(
+      screen.getByText(/2 Hardware · 0 Labor and 1 Medical Supply token, of 2 available/),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Build' }));
+
+    expect(campaignLog().textContent).toContain(
+      'for 2 Hardware and 0 Labor, and 1 Medical Supply token.',
+    );
+    expect(card().getByText(/Medical Supply/).textContent).toBe('1 Medical Supply token');
+  });
+
+  it('asks for no tokens for any other build', async () => {
+    const user = open({ ...building(), medicalSupplies: 2 });
+    openPanel('inventory');
+
+    await user.selectOptions(screen.getByLabelText('Item to build'), 'blunt');
+
+    expect(screen.queryByLabelText(/Medical Supply tokens toward/)).toBeNull();
+  });
+
   it('is linked from Assign Project Team', async () => {
     const user = open(building());
 

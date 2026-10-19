@@ -15,6 +15,7 @@ import { useId, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { COMMON_SKILLS, SKILLS, SKILL_STATS, STATS, type Skill, type Stat } from '../data/skills';
 import { TIER_RULES } from '../data/tiers';
+import { MADNESS_GOES_LOST } from '../data/origins';
 import {
   commonSkillPurchase,
   promotionStatChoices,
@@ -156,6 +157,8 @@ function Vitals({ survivor, penalty }: { readonly survivor: Survivor; readonly p
   // and stays 0 elsewhere, so the control is shown only where it can mean
   // something — a Cosmic Horror table has no use for a number nothing raises.
   const viral = state.status === 'open' && state.campaign.origin === 'viral';
+  // Madness likewise, the Cosmic Horror origin's (pg. 124; Z7-7).
+  const cosmic = state.status === 'open' && state.campaign.origin === 'cosmic-horror';
 
   return (
     <div className="mt-6 flex flex-wrap items-end gap-x-8 gap-y-4 border-t border-stone-200 pt-6 dark:border-stone-800">
@@ -208,6 +211,37 @@ function Vitals({ survivor, penalty }: { readonly survivor: Survivor; readonly p
         />
       )}
 
+      {/*
+       * Typed in as Infection is: a horror check adds it on a mission, and the
+       * Lounge takes it away (R110). No maximum: at 13 the survivor goes Lost
+       * at Departures (R106), and the sheet says so rather than refusing it.
+       */}
+      {cosmic && (
+        <EditableNumber
+          heading={
+            <>
+              Madness <PageRef pages={124} />
+            </>
+          }
+          display={
+            survivor.madness >= MADNESS_GOES_LOST ? (
+              <>
+                {survivor.madness}{' '}
+                <span className="text-sm font-medium text-red-700 dark:text-red-400">
+                  goes Lost at Departures
+                </span>
+              </>
+            ) : (
+              survivor.madness
+            )
+          }
+          value={survivor.madness}
+          what="madness"
+          fieldLabel={`Madness for ${survivor.name}`}
+          onSave={(madness) => dispatch({ type: 'survivor/madnessSet', id: survivor.id, madness })}
+        />
+      )}
+
       <div>
         <p className={VITAL_HEADING}>
           Inventory Slots <PageRef pages={14} />
@@ -245,6 +279,26 @@ function Vitals({ survivor, penalty }: { readonly survivor: Survivor; readonly p
         fieldLabel={`Experience for ${survivor.name}`}
         onSave={(xp) => dispatch({ type: 'survivor/xpSet', id: survivor.id, xp })}
       />
+
+      {/*
+       * Counted from Z7-8 on (R149): every purchase adds to it, and the Lost
+       * roll reads it (R108). Shown where it has a reader, and corrected here
+       * for what was spent before the app counted.
+       */}
+      {cosmic && (
+        <EditableNumber
+          heading={
+            <>
+              XP spent <PageRef pages={124} />
+            </>
+          }
+          display={survivor.xpSpent}
+          value={survivor.xpSpent}
+          what="XP spent"
+          fieldLabel={`XP spent by ${survivor.name}`}
+          onSave={(xpSpent) => dispatch({ type: 'survivor/xpSpentSet', id: survivor.id, xpSpent })}
+        />
+      )}
     </div>
   );
 }
@@ -284,6 +338,9 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
     veteran: survivor.veteran,
     bondGroup: survivor.bondGroup,
     stories: survivor.stories,
+    rotResistant: survivor.rotResistant,
+    found: survivor.found,
+    foundCheckPassed: survivor.foundCheckPassed,
   };
 
   return (
@@ -386,6 +443,56 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
               />
               Veteran <PageRef pages="87–88" />
             </label>
+
+            {/* An Inoculation gives it (R97); set here for a correction, in a Viral campaign. */}
+            {(campaign?.origin === 'viral' || survivor.rotResistant) && (
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className={FOCUS_RING}
+                  checked={draft.rotResistant === true}
+                  onChange={(event) => {
+                    setDraft({ ...draft, rotResistant: event.target.checked });
+                  }}
+                />
+                Rot Resistant <PageRef pages="48, 140" />
+              </label>
+            )}
+
+            {/* A rescue sets them (R109, R111); here for a correction, in a Cosmic Horror campaign. */}
+            {(campaign?.origin === 'cosmic-horror' || survivor.found) && (
+              <>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className={FOCUS_RING}
+                    checked={draft.found === true}
+                    onChange={(event) => {
+                      setDraft({
+                        ...draft,
+                        found: event.target.checked,
+                        ...(event.target.checked ? {} : { foundCheckPassed: false }),
+                      });
+                    }}
+                  />
+                  Found <PageRef pages={124} />
+                </label>
+                {draft.found === true && (
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className={FOCUS_RING}
+                      checked={draft.foundCheckPassed === true}
+                      onChange={(event) => {
+                        setDraft({ ...draft, foundCheckPassed: event.target.checked });
+                      }}
+                    />
+                    Passed the Tier check against 8, so Madness stays at 6 or less{' '}
+                    <PageRef pages={130} />
+                  </label>
+                )}
+              </>
+            )}
           </div>
 
           <div className="flex flex-col gap-1">
