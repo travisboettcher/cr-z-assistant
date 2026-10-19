@@ -99,6 +99,8 @@ describe('what they leave (R123, R124, R153)', () => {
 
   it('unlock the Mystic Library from a completed Graveyard only', () => {
     expect(mysticLibraryUnlocked(campaign([]))).toBe(false);
+    // An entry from before the Magic record has none.
+    expect(mysticLibraryUnlocked(campaign([played('the-graveyard')]))).toBe(false);
     expect(mysticLibraryUnlocked(campaign([played('the-graveyard', { completed: false })]))).toBe(
       false,
     );
@@ -167,8 +169,16 @@ describe('building the Mystic Library (pp. 70, 72; R123, R124)', () => {
     const cheaper = projectCost(planning(killed, built), upgrade);
 
     expect(plain.labor - cheaper.labor).toBe(Math.min(1, plain.labor));
-    // Nothing else is touched.
+    // Nothing else is touched, an upgrade to another facility included.
     const other = { kind: 'facility', slot: 'garage', facility: 'workshop' } as const;
     expect(projectCost(planning(killed), other)).toEqual(projectCost(planning([]), other));
+    const workshop = {
+      id: 'small-town-home',
+      slots: { garage: { built: { facility: 'workshop', builtOnTurn: 1 } } },
+    } as const;
+    const tools = { kind: 'upgrade', slot: 'garage', upgrade: 'gunsmith' } as const;
+    expect(projectCost(planning(killed, workshop), tools)).toEqual(
+      projectCost(planning([], workshop), tools),
+    );
   });
 });

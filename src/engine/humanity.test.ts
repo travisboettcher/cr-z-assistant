@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { submitHealing } from './advancementForms';
 import { createNewCampaign, type Base, type Campaign, type Survivor } from './campaign';
 import { submitVeteranHealing } from './campaignForms';
-import { projectTeamHumanityDue, withHumanityGained } from './humanity';
+import { healedFromZero, projectTeamHumanityDue, withHumanityGained } from './humanity';
 import type { MissionWound } from './log';
 import { submitProjectHumanity } from './managementForms';
 import { submitMissionEnded } from './missionForms';
@@ -237,5 +237,37 @@ describe('healing from 0 Health (R114)', () => {
 
     expect(healed('magic')).toBe(4);
     expect(healed('viral')).toBe(3);
+  });
+});
+
+describe('withHumanityGained and healedFromZero', () => {
+  const both = (): Campaign => ({
+    ...createNewCampaign('Cedar Hollow'),
+    origin: 'magic',
+    survivors: [earl({ humanity: 4 }), carla({ humanity: 5 })],
+  });
+
+  it('raises only those named and below 5, an entry each', () => {
+    const after = withHumanityGained(both(), ['earl', 'carla'], 'healed-from-0', AT);
+
+    expect(after.survivors.map((one) => one.humanity)).toEqual([5, 5]);
+    expect(after.log).toHaveLength(1);
+    const full = both();
+    expect(withHumanityGained(full, ['carla'], 'project-team', AT)).toEqual(full);
+  });
+
+  it('names who healing brought up from 0, by comparing each with themselves', () => {
+    const before: Campaign = {
+      ...both(),
+      survivors: [earl({ currentHp: 0 }), carla({ currentHp: 0 })],
+    };
+    const after: Campaign = {
+      ...before,
+      survivors: [earl({ currentHp: 0 }), carla({ currentHp: 2 })],
+    };
+
+    expect(healedFromZero(before, after)).toEqual(['carla']);
+    expect(healedFromZero({ ...before, origin: 'viral' }, after)).toEqual([]);
+    expect(healedFromZero(before, { ...after, survivors: [] })).toEqual([]);
   });
 });
