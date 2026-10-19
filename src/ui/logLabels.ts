@@ -511,6 +511,21 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
         pages: 124,
       };
 
+    case 'humanity-gained':
+      return {
+        text:
+          event.reason === 'project-team'
+            ? `${event.name} gained 1 Humanity for a turn on the project team.`
+            : `${event.name} gained 1 Humanity for being healed from 0 Health.`,
+        pages: 127,
+      };
+
+    case 'survivor-veiled':
+      return {
+        text: `${event.name} was lost to the Veil at 0 Humanity${event.items === undefined ? '' : `, taking ${counted(event.items)}`}.`,
+        pages: 127,
+      };
+
     case 'survivor-lost':
       return {
         text: `${event.name} went Lost at ${String(event.madness)} Madness${event.items === undefined ? '' : `, taking ${counted(event.items)}`}.`,

@@ -2617,3 +2617,39 @@ happens on a turn the community skips its mission.
 nobody gains its 1 XP.
 
 *Decided 2026-10-18 with Z7-8.*
+
+---
+
+## R151 — A survivor lost to the Veil takes what they carry
+
+**pg. 127; Phase 7, Z7-9.** At 0 Humanity a survivor is lost to the Veil and leaves the community
+([R114](#r114--when-humanity-changes)). The book does not say what becomes of their items.
+
+**The ruling is that they take them**, as any departure does
+([R73](#r73--a-survivor-who-departs-takes-their-items)).
+
+*Decided 2026-10-19 with Z7-9.*
+
+---
+
+## R152 — The Dark is recorded as played
+
+**pg. 115; Phase 7, Z7-9.** No ruling yet covers what Magic Mission 3 gives.
+
+**The ruling is that recording The Dark marks it played**, as before, and its rewards are added by
+hand until they are settled.
+
+*Decided 2026-10-19 with Z7-9.*
+
+---
+
+## R153 — The Necromancer's two rewards have two triggers
+
+**pp. 114, 119; Phase 7, Z7-9.** The Necromancer gives the next spell 3 XP off, and killing him
+takes 1 Labor off a Mystic Library and every upgrade to it
+([R124](#r124--the-necromancers-rewards-are-stored)).
+
+**The ruling is that winning the mission gives the spell discount, and killing the Necromancer gives
+the Labor change**, each recorded on the outcome.
+
+*Decided 2026-10-19 with Z7-9.*

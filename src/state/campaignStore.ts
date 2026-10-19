@@ -122,6 +122,7 @@ import type { FormResult } from '../engine/forms';
 import {
   submitDeparture,
   submitGoneLost,
+  submitProjectHumanity,
   submitFeeding,
   submitHordeCheck,
   submitInfectionCheck,
@@ -305,6 +306,8 @@ export type CampaignAction =
   | { readonly type: 'survivor/infectionSet'; readonly id: string; readonly infection: number }
   /** Set a survivor's Madness by hand, under the Cosmic Horror origin (pg. 124; Z7-7). */
   | { readonly type: 'survivor/madnessSet'; readonly id: string; readonly madness: number }
+  /** Correct a survivor's Humanity by hand, 0 to 5 (R114; Z7-9). */
+  | { readonly type: 'survivor/humanitySet'; readonly id: string; readonly humanity: number }
   /** Correct a survivor's XP spent by hand (R149; Z7-8). */
   | { readonly type: 'survivor/xpSpentSet'; readonly id: string; readonly xpSpent: number }
   /**
@@ -660,6 +663,8 @@ export type CampaignAction =
    * still over the threshold with somebody still to lose genuinely loses them.
    */
   | { readonly type: 'management/departed'; readonly survivor: string; readonly at: string }
+  /** The project team's 1 Humanity for the turn, at Management Step 1 (R114; Z7-9). */
+  | { readonly type: 'management/projectHumanity'; readonly at: string }
   /** Everybody at 13 or more Madness goes Lost, before the Unrest check (R106; Z7-7). */
   | { readonly type: 'management/goneLost'; readonly at: string }
   /**
@@ -924,6 +929,12 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         madness: action.madness,
       }));
 
+    case 'survivor/humanitySet':
+      return editSurvivor(state, action.id, (survivor) => ({
+        ...survivor,
+        humanity: Math.min(5, action.humanity),
+      }));
+
     case 'survivor/xpSpentSet':
       return editSurvivor(state, action.id, (survivor) => ({
         ...survivor,
@@ -1086,6 +1097,9 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
     case 'management/departed':
       return submitted(state, (campaign) => submitDeparture(campaign, action.survivor, action.at));
+
+    case 'management/projectHumanity':
+      return submitted(state, (campaign) => submitProjectHumanity(campaign, action.at));
 
     case 'management/goneLost':
       return submitted(state, (campaign) => submitGoneLost(campaign, action.at));

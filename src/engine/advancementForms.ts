@@ -34,6 +34,7 @@ import { claimedBase } from './claim';
 import { checkConversion, conversions, withConversion } from './conversions';
 import { checkXpAward, withXpAwarded } from './experience';
 import { accepted, blockedBy, refused, type FormResult, type Refused } from './forms';
+import { healedFromZero, withHumanityGained } from './humanity';
 import { madnessAwards, madnessRecovered, withMadnessTaken } from './lounge';
 import { phaseOf } from './turn';
 import {
@@ -234,17 +235,20 @@ export function submitHealing(
   // Then Containment, on what the points left (R103).
   const draws = containmentDraws(campaign, awards);
 
+  const contained = draws.reduce(
+    (drawn, draw) =>
+      logged(drawn, at, {
+        kind: 'infection-contained',
+        survivor: draw.survivor.id,
+        name: draw.survivor.name,
+        infection: draw.infection,
+      }),
+    withInfectionContained(healed, draws),
+  );
+
+  // Healed from 0 Health, 1 Humanity each (R114; Z7-9).
   return accepted(
-    draws.reduce(
-      (contained, draw) =>
-        logged(contained, at, {
-          kind: 'infection-contained',
-          survivor: draw.survivor.id,
-          name: draw.survivor.name,
-          infection: draw.infection,
-        }),
-      withInfectionContained(healed, draws),
-    ),
+    withHumanityGained(contained, healedFromZero(campaign, contained), 'healed-from-0', at),
   );
 }
 

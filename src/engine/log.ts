@@ -83,6 +83,8 @@ export interface MissionWound {
   readonly infection?: number;
   /** In a Cosmic Horror campaign, as Infection is in a Viral one (Z7-7). */
   readonly madness?: number;
+  /** In a Magic campaign, from 0 to 5 (pg. 127; R114; Z7-9). */
+  readonly humanity?: number;
   /**
    * A Found survivor's Tier check against 8, the d10, when their Madness went
    * up (pg. 130; R111; Z7-8). Absent for anybody else.
@@ -537,6 +539,27 @@ export type CampaignEvent =
       readonly team: number;
       readonly result: 'found' | 'exiled' | 'not-rescued';
       /** What an exiled survivor left to the base (R75). */
+      readonly items?: readonly Item[];
+    }
+  /**
+   * A survivor gained 1 Humanity between missions (pg. 127; R114; Z7-9): for a
+   * turn on the project team, or for healing from 0 Health. Load-bearing for
+   * the project team's: it is taken once a turn.
+   */
+  | {
+      readonly kind: 'humanity-gained';
+      readonly survivor: string;
+      readonly name: string;
+      readonly reason: 'project-team' | 'healed-from-0';
+    }
+  /**
+   * A survivor lost to the Veil at 0 Humanity, on the mission outcome that took
+   * them there (pg. 127; R114, R151; Z7-9), taking what they carry.
+   */
+  | {
+      readonly kind: 'survivor-veiled';
+      readonly survivor: string;
+      readonly name: string;
       readonly items?: readonly Item[];
     }
   /**

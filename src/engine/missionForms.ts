@@ -65,6 +65,7 @@ import {
   withLostRolled,
   type LostRescue,
 } from './lostRoll';
+import { withDeparture } from './departures';
 import { extrasOf } from './storyRewards';
 import { viralRecord, withViralRecorded } from './viralMissions';
 import { deathProblem, deathsProblem, withMissionDeath, type MissionDeath } from './missionDeaths';
@@ -232,7 +233,7 @@ export function submitMissionEnded(
       const wound = (outcome.wounds as readonly MissionWound[]).find(
         (one) => one.survivor === member.survivor,
       ) as MissionWound;
-      const { health, infection, madness, foundCheck } = wound;
+      const { health, infection, madness, humanity, foundCheck } = wound;
       const survivor = campaign.survivors.find((one) => one.id === member.survivor) as Survivor;
 
       return {
@@ -243,6 +244,7 @@ export function submitMissionEnded(
         // Capped at 6 for a Found survivor who has passed their check (R111).
         ...(madness === undefined ? {} : { madness: madnessAfter(survivor, wound).madness }),
         ...(foundCheck === undefined ? {} : { foundCheck }),
+        ...(humanity === undefined ? {} : { humanity }),
       };
     });
 
@@ -267,7 +269,11 @@ export function submitMissionEnded(
         outcome.kind === 'rare-goods-trader-resolved' && outcome.itemsTraded !== undefined
         ? withRareTradeSettled(recorded, outcome.itemsTraded, outcome.survivorsExited, at)
         : recorded;
-  const ended = deaths.reduce((current, death) => withMissionDeath(current, death, at), rewarded);
+  const died = deaths.reduce((current, death) => withMissionDeath(current, death, at), rewarded);
+  // At 0 Humanity they are lost to the Veil, with what they carry (R114, R151).
+  const ended = wounds
+    .filter((wound) => wound.humanity === 0)
+    .reduce((current, wound) => withVeiled(current, wound.survivor, at), died);
 
   return accepted(
     story === undefined ? ended : withPartNow(ended, outcomeTeam(outcome), story, at),
@@ -541,4 +547,19 @@ export function submitLostRescued(
   if (problem !== null) return refused(problem);
 
   return accepted(withLostRescued(campaign, survivor, result, at));
+}
+
+/**
+ * The campaign with this survivor lost to the Veil (pg. 127; R114, R151;
+ * Z7-9): gone from the community with what they carry, and their task.
+ */
+function withVeiled(campaign: Campaign, survivorId: string, at: string): Campaign {
+  const survivor = campaign.survivors.find((one) => one.id === survivorId) as Survivor;
+
+  return logged(withDeparture(campaign, survivorId), at, {
+    kind: 'survivor-veiled',
+    survivor: survivor.id,
+    name: survivor.name,
+    ...(survivor.items.length === 0 ? {} : { items: survivor.items }),
+  });
 }

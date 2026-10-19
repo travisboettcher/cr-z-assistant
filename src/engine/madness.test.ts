@@ -55,7 +55,9 @@ describe('Madness on a mission’s wounds (pg. 124; Z7-7)', () => {
     expect(woundsAsTheyStand(cosmic({ origin: 'viral' }), 1)).toEqual([
       { ...wounded(undefined), infection: 0 },
     ]);
-    expect(woundsAsTheyStand(cosmic({ origin: 'magic' }), 1)).toEqual([wounded(undefined)]);
+    expect(woundsAsTheyStand(cosmic({ origin: 'magic' }), 1)).toEqual([
+      { ...wounded(undefined), humanity: 3 },
+    ]);
   });
 
   it('asks for a whole number from 0, and nothing outside Cosmic Horror', () => {

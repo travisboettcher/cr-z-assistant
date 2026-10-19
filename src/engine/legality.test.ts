@@ -35,6 +35,7 @@ const EARL = {
   stories: [],
   rotResistant: false,
   madness: 0,
+  humanity: 3,
   xpSpent: 0,
   found: false,
   foundCheckPassed: false,

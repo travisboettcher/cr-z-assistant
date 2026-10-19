@@ -185,6 +185,7 @@ type Typed = Partial<
       readonly health?: string;
       readonly infection?: string;
       readonly madness?: string;
+      readonly humanity?: string;
       readonly foundCheck?: string;
     }
   >
@@ -204,6 +205,7 @@ function woundsTyped(standing: readonly MissionWound[], typed: Typed): readonly 
       ...(over?.health === undefined ? {} : { health: count(over.health) }),
       ...(over?.infection === undefined ? {} : { infection: count(over.infection) }),
       ...(over?.madness === undefined ? {} : { madness: count(over.madness) }),
+      ...(over?.humanity === undefined ? {} : { humanity: count(over.humanity) }),
       ...(over?.foundCheck === undefined || over.foundCheck === ''
         ? {}
         : { foundCheck: Number(over.foundCheck) as D10Result }),
@@ -228,7 +230,7 @@ function WoundFields({
   readonly typed: Typed;
   readonly onType: (
     survivor: string,
-    field: 'health' | 'infection' | 'madness' | 'foundCheck',
+    field: 'health' | 'infection' | 'madness' | 'humanity' | 'foundCheck',
     value: string,
   ) => void;
 }) {
@@ -241,6 +243,7 @@ function WoundFields({
   // second reading of the origin here.
   const viral = home.some((wound) => wound.infection !== undefined);
   const cosmic = home.some((wound) => wound.madness !== undefined);
+  const magic = home.some((wound) => wound.humanity !== undefined);
 
   return (
     <div className="flex flex-col gap-2">
@@ -258,7 +261,19 @@ function WoundFields({
             and Madness <PageRef pages={124} />
           </>
         )}
+        {magic && (
+          <>
+            {' '}
+            and Humanity <PageRef pages={127} />
+          </>
+        )}
       </p>
+      {magic && (
+        <p className={HINT}>
+          Humanity starts 1 lower for anybody who set out with a magical item. At 0 they are lost to
+          the Veil, and leave with what they carry.
+        </p>
+      )}
       <p className={HINT}>
         Everybody starts where the roster has them now. Change anybody the mission left differently;
         recording sets the roster to these.
@@ -269,6 +284,7 @@ function WoundFields({
         const infection = `${prefix}-infection-${wound.survivor}`;
         const madness = `${prefix}-madness-${wound.survivor}`;
         const foundCheck = `${prefix}-found-${wound.survivor}`;
+        const humanity = `${prefix}-humanity-${wound.survivor}`;
         // A Found survivor whose Madness goes up makes the check (R111).
         const checking =
           survivor !== undefined &&
@@ -335,6 +351,26 @@ function WoundFields({
                   className={FIELD}
                   onChange={(changed) => {
                     onType(wound.survivor, 'madness', changed.target.value);
+                  }}
+                />
+              </>
+            )}
+            {wound.humanity !== undefined && (
+              <>
+                <label className="ml-2 text-sm" htmlFor={humanity}>
+                  {wound.name}’s Humanity
+                </label>
+                <input
+                  id={humanity}
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={5}
+                  step={1}
+                  value={typed[wound.survivor]?.humanity ?? String(wound.humanity)}
+                  className={FIELD}
+                  onChange={(changed) => {
+                    onType(wound.survivor, 'humanity', changed.target.value);
                   }}
                 />
               </>

@@ -95,6 +95,7 @@ function orderedSurvivor(survivor: Survivor): Record<keyof Survivor, unknown> {
     currentHp: survivor.currentHp,
     infection: survivor.infection,
     madness: survivor.madness,
+    humanity: survivor.humanity,
     xp: survivor.xp,
     xpSpent: survivor.xpSpent,
     found: survivor.found,
@@ -328,7 +329,8 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
   if (
     (event.kind === 'survivor-departed' ||
       event.kind === 'survivor-lost' ||
-      event.kind === 'lost-rescued') &&
+      event.kind === 'lost-rescued' ||
+      event.kind === 'survivor-veiled') &&
     event.items !== undefined
   ) {
     return { ...taggedFirst(event, 'kind'), items: event.items.map(orderedItem) };
@@ -497,6 +499,7 @@ function orderedWound(wound: MissionWound): Record<keyof MissionWound, unknown> 
     infection: wound.infection,
     madness: wound.madness,
     foundCheck: wound.foundCheck,
+    humanity: wound.humanity,
   };
 }
 

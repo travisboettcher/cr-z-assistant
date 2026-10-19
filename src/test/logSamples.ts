@@ -324,6 +324,14 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
     result: 'exiled',
     items: [{ id: 'rifle-3', item: 'rifle', grade: 'standard' }],
   },
+  { kind: 'humanity-gained', ...SURVIVOR, reason: 'project-team' },
+  { kind: 'humanity-gained', ...SURVIVOR, reason: 'healed-from-0' },
+  { kind: 'survivor-veiled', ...SURVIVOR },
+  {
+    kind: 'survivor-veiled',
+    ...SURVIVOR,
+    items: [{ id: 'charm-1', item: 'resistance-charm', grade: 'standard' }],
+  },
   { kind: 'survivor-lost', ...SURVIVOR, madness: 13 },
   {
     kind: 'survivor-lost',

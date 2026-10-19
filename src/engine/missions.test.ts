@@ -904,7 +904,11 @@ describe('woundsAsTheyStand', () => {
     expect(woundsAsTheyStand(viral, 2)).toStrictEqual([
       { survivor: 'ruby', name: 'Ruby Vance', health: 3, infection: 3 },
     ]);
+    // A Magic campaign adds Humanity instead (Z7-9), and no other origin adds either.
     expect(woundsAsTheyStand(playing({ origin: 'magic' }), 2)).toStrictEqual([
+      { survivor: 'ruby', name: 'Ruby Vance', health: 3, humanity: 3 },
+    ]);
+    expect(woundsAsTheyStand(playing(), 2)).toStrictEqual([
       { survivor: 'ruby', name: 'Ruby Vance', health: 3 },
     ]);
   });

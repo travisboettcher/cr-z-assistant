@@ -55,3 +55,18 @@ export const FOUND_CHECK_TARGET = 8;
 
 /** The Madness a Found survivor who passed that check never goes above (pg. 130; R111). */
 export const FOUND_MADNESS_CAP = 6;
+
+/** A survivor's Humanity at the start, and its range (pg. 127; R114, R115). The Magic origin's. */
+export const HUMANITY_START = 3;
+export const HUMANITY_MAX = 5;
+
+/**
+ * The items R114 names as magical: starting a mission carrying any of them
+ * costs 1 Humanity, once however many (pg. 127).
+ */
+export const MAGICAL_ITEMS = [
+  'silver-ammunition',
+  'enchanted-melee-weapon',
+  'resistance-charm',
+  'warding-stones',
+] as const;

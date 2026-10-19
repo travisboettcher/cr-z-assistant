@@ -38,6 +38,7 @@ import { moveOwed } from './claim';
 import { survivorsFed } from './feeding';
 import { containmentDraws, healthAwards, woundsHealed } from './healing';
 import { madnessAwards, madnessRecovered } from './lounge';
+import { projectTeamHumanityDue } from './humanity';
 import { lostRollsDue, rescuesDue } from './lostRoll';
 import { materialsAdded } from './materials';
 import { firstMissionFailed, missionsChosen, unresolvedTeams } from './missions';
@@ -300,6 +301,14 @@ export function outstanding(campaign: Campaign): readonly Outstanding[] {
 
   if (!storageChecked(campaign) && anythingOverCap(campaign)) {
     owed.push({ step: 'check-storage', says: 'Something is over its storage cap.' });
+  }
+
+  // The project team's Humanity for the turn (R114; Z7-9).
+  if (projectTeamHumanityDue(campaign).length > 0) {
+    owed.push({
+      step: 'check-for-rot',
+      says: 'The project team hasn’t taken its Humanity for the turn.',
+    });
   }
 
   if (!hordeChecked(campaign)) {

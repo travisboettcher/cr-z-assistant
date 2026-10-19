@@ -621,6 +621,35 @@ const xpSpentRecorded: MigrationStep = {
   },
 };
 
+/**
+ * v23 → v24: Humanity on every survivor (pg. 127; R114, R115; Z7-9).
+ *
+ * **3, the start.** Every survivor begins at 3 (R115), and a v23 build had no
+ * Humanity to change, so 3 is what each of them has as far as the app knows.
+ * All three lists.
+ */
+const humanityRecorded: MigrationStep = {
+  from: 23,
+  to: 24,
+  up: (previous) => {
+    const withHumanity = (list: unknown): unknown =>
+      Array.isArray(list)
+        ? (list as unknown[]).map((survivor) =>
+            typeof survivor === 'object' && survivor !== null && !('humanity' in survivor)
+              ? { ...survivor, humanity: 3 }
+              : survivor,
+          )
+        : list;
+
+    return {
+      ...previous,
+      survivors: withHumanity(previous.survivors),
+      setAside: withHumanity(previous.setAside),
+      lost: withHumanity(previous.lost),
+    };
+  },
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -645,6 +674,7 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   containmentRecorded,
   madnessRecorded,
   xpSpentRecorded,
+  humanityRecorded,
 ];
 
 /** Why a save could not be brought forward. */

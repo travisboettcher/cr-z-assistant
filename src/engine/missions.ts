@@ -45,6 +45,8 @@ import { FIELD_RECRUITABLE_TIERS, type FieldRecruitTier } from '../data/recruitT
 import {
   FOUND_CHECK_TARGET,
   FOUND_MADNESS_CAP,
+  HUMANITY_MAX,
+  MAGICAL_ITEMS,
   MADNESS_FOR_COSMIC_MISSIONS,
 } from '../data/origins';
 import { D10_RESULTS } from '../data/dice';
@@ -887,8 +889,9 @@ export function membersOf(campaign: Campaign, team: number): readonly Survivor[]
 /**
  * Each member of a team as they stand now, written as the wounds a form
  * starts from (Z4-4): their current Health, their Infection in a Viral
- * campaign, and their Madness in a Cosmic Horror one (Z7-7). In team order,
- * which is roster order.
+ * campaign, their Madness in a Cosmic Horror one (Z7-7), and their Humanity in
+ * a Magic one, 1 lower for carrying a magical item (R114; Z7-9). In team
+ * order, which is roster order.
  *
  * So recording everybody is the natural thing to do — a member who came back
  * unhurt needs nothing typed — and a correction already made on the roster
@@ -897,6 +900,7 @@ export function membersOf(campaign: Campaign, team: number): readonly Survivor[]
 export function woundsAsTheyStand(campaign: Campaign, team: number): readonly MissionWound[] {
   const viral = campaign.origin === 'viral';
   const cosmic = campaign.origin === 'cosmic-horror';
+  const magic = campaign.origin === 'magic';
 
   return membersOf(campaign, team).map((survivor) => ({
     survivor: survivor.id,
@@ -904,6 +908,10 @@ export function woundsAsTheyStand(campaign: Campaign, team: number): readonly Mi
     health: survivor.currentHp,
     ...(viral ? { infection: survivor.infection } : {}),
     ...(cosmic ? { madness: survivor.madness } : {}),
+    // Less the 1 a magical item costs at the start of the mission (R114).
+    ...(magic
+      ? { humanity: Math.max(0, survivor.humanity - (carriesMagic(survivor) ? 1 : 0)) }
+      : {}),
   }));
 }
 
@@ -971,6 +979,17 @@ export function woundsProblem(campaign: Campaign, outcome: MissionOutcome): stri
       return `${survivor.name}’s Madness must be a whole number, 0 or more.`;
     }
 
+    // Humanity in a Magic campaign only, from 0 to 5 (pg. 127; R114; Z7-9).
+    if (campaign.origin !== 'magic') {
+      if (wound.humanity !== undefined) return 'Only a Magic campaign records Humanity.';
+    } else if (
+      !Number.isSafeInteger(wound.humanity) ||
+      (wound.humanity as number) < 0 ||
+      (wound.humanity as number) > HUMANITY_MAX
+    ) {
+      return `${survivor.name}’s Humanity must be a whole number from 0 to ${String(HUMANITY_MAX)}.`;
+    }
+
     // A Found survivor's Tier check at their next gain (pg. 130; R111; Z7-8).
     const owed = foundCheckOwed(survivor, wound.madness);
     if (owed && wound.foundCheck === undefined) {
@@ -1010,9 +1029,15 @@ export function withWounds(campaign: Campaign, wounds: readonly MissionWound[]):
             currentHp: wound.health,
             ...(wound.infection === undefined ? {} : { infection: wound.infection }),
             ...(wound.madness === undefined ? {} : madnessAfter(survivor, wound)),
+            ...(wound.humanity === undefined ? {} : { humanity: wound.humanity }),
           };
     }),
   };
+}
+
+/** Whether a survivor carries one of R114's magical items. */
+export function carriesMagic(survivor: Survivor): boolean {
+  return survivor.items.some((item) => (MAGICAL_ITEMS as readonly string[]).includes(item.item));
 }
 
 /**

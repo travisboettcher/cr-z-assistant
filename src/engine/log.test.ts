@@ -137,6 +137,8 @@ describe('the event samples', () => {
     'survivor-lost': true,
     'lost-rolled': true,
     'lost-rescued': true,
+    'survivor-veiled': true,
+    'humanity-gained': true,
     'mission-team-reduced': true,
     'survivor-promoted': true,
     'veteran-healed': true,

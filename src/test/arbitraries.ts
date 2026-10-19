@@ -210,6 +210,7 @@ export function survivorArbitrary(): fc.Arbitrary<Survivor> {
       ),
       rotResistant: fc.boolean(),
       madness: anyCount,
+      humanity: fc.integer({ min: 0, max: 5 }),
       xpSpent: anyCount,
       found: fc.boolean(),
       foundCheckPassed: fc.boolean(),
@@ -385,6 +386,7 @@ const anyWounds = fc.array(
       infection: fc.integer({ min: 0, max: 20 }),
       madness: fc.integer({ min: 0, max: 20 }),
       foundCheck: fc.constantFrom(...D10_RESULTS),
+      humanity: fc.integer({ min: 0, max: 5 }),
     },
     { requiredKeys: ['survivor', 'name', 'health'] },
   ),
@@ -777,6 +779,20 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
         items: fc.array(itemArbitrary(), { minLength: 1, maxLength: 2 }),
       },
       { requiredKeys: ['kind', 'survivor', 'name', 'team', 'result'] },
+    ),
+    fc.record({
+      kind: fc.constant('humanity-gained' as const),
+      ...survivor,
+      reason: fc.constantFrom('project-team' as const, 'healed-from-0' as const),
+    }),
+    // Lost to the Veil (R114, R151; Z7-9), with what they carried or nothing.
+    fc.record(
+      {
+        kind: fc.constant('survivor-veiled' as const),
+        ...survivor,
+        items: fc.array(itemArbitrary(), { minLength: 1, maxLength: 2 }),
+      },
+      { requiredKeys: ['kind', 'survivor', 'name'] },
     ),
     // Gone Lost to Madness (R106; Z7-7), with what they carried or nothing.
     fc.record(

@@ -36,7 +36,7 @@ import type { LogEntry } from './log';
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 23;
+export const CURRENT_SCHEMA_VERSION = 24;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -109,6 +109,14 @@ export interface Survivor {
    * outside a Cosmic Horror campaign, and for every save from before v22.
    */
   madness: number;
+
+  /**
+   * Humanity, under the Magic origin (pg. 127; R114, R115; Z7-9): 0 to 5,
+   * starting at 3. A mission's outcome records it as it records Madness; a turn
+   * on the project team and healing from 0 Health raise it; at 0 the survivor
+   * is lost to the Veil. 3 for everybody in a save from before v24.
+   */
+  humanity: number;
 
   xp: number;
 

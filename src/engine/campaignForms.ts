@@ -69,6 +69,7 @@ import { storiesHeld, traitsProblem, withTraits, type SurvivorTraits } from './t
 import { veteranHealingProblem, withVeteranHealing } from './veteran';
 import { advance, type AdvanceBy } from './turn';
 import { suppliedOccupants } from './utilities';
+import { healedFromZero, withHumanityGained } from './humanity';
 
 /**
  * Move forward through the turn: one step, or on to the next phase.
@@ -770,14 +771,17 @@ export function submitVeteranHealing(
   // Both present by now: the check found the Veteran and the survivor on the roster.
   const named = (id: string) => (campaign.survivors.find((one) => one.id === id) as Survivor).name;
 
+  const healed = logged(withVeteranHealing(campaign, veteran, survivor), at, {
+    kind: 'veteran-healed',
+    veteran,
+    veteranName: named(veteran),
+    survivor,
+    name: named(survivor),
+  });
+
+  // Up from 0 Health, so 1 Humanity (R114; Z7-9).
   return accepted(
-    logged(withVeteranHealing(campaign, veteran, survivor), at, {
-      kind: 'veteran-healed',
-      veteran,
-      veteranName: named(veteran),
-      survivor,
-      name: named(survivor),
-    }),
+    withHumanityGained(healed, healedFromZero(campaign, healed), 'healed-from-0', at),
   );
 }
 

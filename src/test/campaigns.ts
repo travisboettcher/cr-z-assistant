@@ -119,6 +119,7 @@ export function utilityWorker(score: number): Survivor {
     stories: [],
     rotResistant: false,
     madness: 0,
+    humanity: 3,
     xpSpent: 0,
     found: false,
     foundCheckPassed: false,

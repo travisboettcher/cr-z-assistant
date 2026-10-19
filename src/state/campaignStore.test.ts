@@ -3079,6 +3079,10 @@ describe('what earns a line in the log', () => {
       action: { type: 'survivor/madnessSet', id: LOGGED_SURVIVOR, madness: 3 },
       entry: null,
     },
+    'survivor/humanitySet': {
+      action: { type: 'survivor/humanitySet', id: LOGGED_SURVIVOR, humanity: 1 },
+      entry: null,
+    },
     'survivor/xpSpentSet': {
       action: { type: 'survivor/xpSpentSet', id: LOGGED_SURVIVOR, xpSpent: 12 },
       entry: null,
@@ -3429,6 +3433,19 @@ describe('what earns a line in the log', () => {
         ...WEBB,
         tier: 1,
       }),
+    },
+    // Marcus, on the project team in a Magic campaign, gains 1 Humanity (R114; Z7-9).
+    'management/projectHumanity': {
+      state: openState({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        turn: 3,
+        step: 'check-for-rot',
+        origin: 'magic',
+        survivors: [createSurvivor('Marcus Webb', 1, { id: LOGGED_SURVIVOR })],
+        assignments: { [LOGGED_SURVIVOR]: { task: 'project' } },
+      }),
+      action: { type: 'management/projectHumanity', at: AT },
+      entry: entry(3, 'management', { kind: 'humanity-gained', ...WEBB, reason: 'project-team' }),
     },
     // Marcus at 13 Madness in a Cosmic Horror campaign goes Lost (R106; Z7-7).
     'management/goneLost': {

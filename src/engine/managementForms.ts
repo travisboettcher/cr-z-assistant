@@ -47,6 +47,7 @@ import {
 } from './rot';
 import { hordeChecked, hordeForced, siegeThreat, siegeTriggered } from './siege';
 import { overCap, storageChecked, withStorageChecked } from './storage';
+import { projectTeamHumanityDue, withHumanityGained } from './humanity';
 
 /** One survivor's Rot check, as the table rolled it (pg. 22). */
 export interface RotCheckForm {
@@ -356,6 +357,24 @@ export function submitGoneLost(campaign: Campaign, at: string): FormResult {
           ...(survivor.items.length === 0 ? {} : { items: survivor.items }),
         }),
       withLost(campaign, lost),
+    ),
+  );
+}
+
+/**
+ * The project team's 1 Humanity for this turn on it, at Management Step 1
+ * (pg. 127; R114; Z7-9): everybody on it below 5, an entry each, once a turn.
+ */
+export function submitProjectHumanity(campaign: Campaign, at: string): FormResult {
+  const due = projectTeamHumanityDue(campaign);
+  if (due.length === 0) return refused('Nobody on the project team has Humanity to gain now.');
+
+  return accepted(
+    withHumanityGained(
+      campaign,
+      due.map((survivor) => survivor.id),
+      'project-team',
+      at,
     ),
   );
 }

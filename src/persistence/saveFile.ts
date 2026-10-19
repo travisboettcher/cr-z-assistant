@@ -346,6 +346,10 @@ function describeSurvivorProblem(value: unknown): string | null {
   // Any count too: at 13 a survivor goes Lost at Departures (R106), and what is
   // above it is the table's count until then.
   if (!isCountFromZero(value.madness)) return 'has unreadable madness';
+  // 0 to 5 (pg. 127; R114).
+  if (!isCountFromZero(value.humanity) || (value.humanity as number) > 5) {
+    return 'has unreadable humanity';
+  }
   // The XP spent (R149) and the Found marks (R109, R111; Z7-8).
   if (!isCountFromZero(value.xpSpent)) return 'doesn’t say how much XP they have spent';
   if (typeof value.found !== 'boolean') return 'doesn’t say whether they are Found';
@@ -581,6 +585,7 @@ const EVENT_FIELD_CHECKS = {
           isCountFromZero(wound.health) &&
           (wound.infection === undefined || isCountFromZero(wound.infection)) &&
           (wound.madness === undefined || isCountFromZero(wound.madness)) &&
+          (wound.humanity === undefined || isCountFromZero(wound.humanity)) &&
           (wound.foundCheck === undefined ||
             D10_RESULTS.some((result) => result === wound.foundCheck)),
       )),
@@ -695,6 +700,8 @@ const EVENT_FIELD_CHECKS = {
   optionalViralRecord: (value: unknown) => value === undefined || isViralRecord(value),
   // How a placed Lost survivor's mission left them (R109; Z7-8).
   lostRescue: (value: unknown) => ['found', 'exiled', 'not-rescued'].includes(value as string),
+  // Why a survivor gained Humanity (R114; Z7-9).
+  humanityGain: (value: unknown) => ['project-team', 'healed-from-0'].includes(value as string),
   // Why a survivor left (#201), absent on an entry from before it was recorded.
   optionalLeavingCause: (value: unknown) =>
     value === undefined || LEAVING_CAUSES.some((cause) => cause === value),
@@ -975,6 +982,16 @@ const EVENT_FIELDS: Record<
     ['name', 'name'],
     ['team', 'countFromOne'],
     ['result', 'lostRescue'],
+    ['items', 'optionalItems'],
+  ],
+  'humanity-gained': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['reason', 'humanityGain'],
+  ],
+  'survivor-veiled': [
+    ['survivor', 'id'],
+    ['name', 'name'],
     ['items', 'optionalItems'],
   ],
   'survivor-lost': [
