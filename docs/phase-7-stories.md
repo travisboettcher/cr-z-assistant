@@ -403,6 +403,31 @@ nothing records one.
   the Rot check reads it.
 - **The roster lists the Lost**, with their XP spent.
 
+### Z7-9 — What this story turned out to include
+
+- **Five more rulings, decided 2026-10-19**: a survivor lost to the Veil takes what they carry
+  (R151); recording The Dark marks it played, its rewards added by hand (R152); winning The
+  Necromancer gives the spell discount and killing him gives the Labor change (R153); every spell
+  an enemy casts is seen, on any mission (R154); and each spell is known once, with no limit
+  (R155). The batch-21 extract gives The Dark's reward as 3 warding stones; where they are kept is
+  still open, so they stay a hand entry in the Inventory under R152.
+- **Schema v24 adds Humanity** to every survivor, 3 for everybody already playing (R115). A Magic
+  campaign's mission outcome records it, 1 lower to start for anybody carrying one of R114's
+  magical items, and at 0 the survivor is lost to the Veil (`survivor-veiled`). A turn on the
+  project team gives 1 at Check for Rot, once a turn; healing from 0 Health gives 1 wherever it
+  happens (`src/engine/humanity.ts`).
+- **The Magic missions record how they ended** (`src/engine/magicMissions.ts`): The Graveyard
+  completed unlocks the Mystic Library; The Necromancer won takes 3 XP off the next spell, and
+  killed takes 1 Labor off a Mystic Library and every upgrade to it.
+- **Schema v25 adds the spells a survivor knows.** The spells seen are read off `spells-cast`
+  entries, which a Magic campaign's mission outcome writes from the spells ticked
+  (`src/engine/spells.ts`). The Spells section at Character Advancement offers whoever staffed a
+  working Mystic Library, one a staff place, one spell a turn from those seen, for 6 XP or 3 with a
+  Necromancer discount left, paid as XP spent (R113, R149). The sheet lists and corrects them with
+  the traits.
+- **Not tracked yet**: the Resistance trait that can never learn a spell (pg. 140) is the Toolkit's,
+  Z7-10's. Casting is a mission action, so it shows only as the Humanity the outcome records.
+
 ## Part 3 — The Toolkit's survivor traits (outline)
 
 - **Z7-10 — The switch, Advantages and experience debt.** A campaign setting, off by default (R84);

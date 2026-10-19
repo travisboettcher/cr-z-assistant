@@ -17,6 +17,7 @@ import { STATS, type Stat } from '../data/skills';
 import { STORY_TRAIT_RULES, type StoryTrait, type StoryTraitRules } from '../data/traits';
 import { TIER_RULES } from '../data/tiers';
 import { PROMOTION_STORIES, type StoryMissionId } from '../data/missions';
+import { SPELLS } from '../data/origins';
 import { type Assignment, type Campaign, keptSurvivors, type Survivor } from './campaign';
 
 /** The rules of the Story Trait a survivor holds, or `undefined` for none. */
@@ -105,18 +106,23 @@ export function missionWhileWounded(survivor: Survivor): boolean {
 
 /**
  * A survivor's Story Trait, Veteran, bond group, attached stories, Rot
- * Resistant and the Found marks together, as the sheet sets them (R84, R97,
- * R109, R111, R116). The last three are optional here: the stories and traits
- * a story sets leave them as they are.
+ * Resistant, the Found marks and the spells they know together, as the sheet
+ * sets them (R84, R97, R109, R111, R112, R116). The last four are optional
+ * here: the stories and traits a story sets leave them as they are.
  */
 export type SurvivorTraits = Pick<Survivor, 'storyTrait' | 'veteran' | 'bondGroup' | 'stories'> &
-  Partial<Pick<Survivor, 'rotResistant' | 'found' | 'foundCheckPassed'>>;
+  Partial<Pick<Survivor, 'rotResistant' | 'found' | 'foundCheckPassed' | 'spells'>>;
 
 /**
- * Why these traits cannot be a survivor's, or `null`: a bond group, counted
- * from 1, on a Bonded survivor and nobody else (R84).
+ * Why these traits cannot be a survivor's, or `null`: each spell known once
+ * (R155), and a bond group, counted from 1, on a Bonded survivor and nobody
+ * else (R84).
  */
 export function traitsProblem(traits: SurvivorTraits): string | null {
+  const spells = traits.spells ?? [];
+  if (spells.some((spell, at) => !SPELLS.includes(spell) || spells.indexOf(spell) !== at)) {
+    return 'Each spell is known once.';
+  }
   if (traits.storyTrait === 'bonded') {
     return Number.isInteger(traits.bondGroup) && (traits.bondGroup as number) >= 1
       ? null

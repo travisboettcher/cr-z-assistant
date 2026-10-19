@@ -650,6 +650,34 @@ const humanityRecorded: MigrationStep = {
   },
 };
 
+/**
+ * v24 → v25: the spells each survivor knows (pp. 70, 126; R112; Z7-9).
+ *
+ * **None.** A v24 build had no way to learn one, so nobody knows any as far as
+ * the app knows; the sheet adds any a table learned on paper. All three lists.
+ */
+const spellsRecorded: MigrationStep = {
+  from: 24,
+  to: 25,
+  up: (previous) => {
+    const withSpells = (list: unknown): unknown =>
+      Array.isArray(list)
+        ? (list as unknown[]).map((survivor) =>
+            typeof survivor === 'object' && survivor !== null && !('spells' in survivor)
+              ? { ...survivor, spells: [] }
+              : survivor,
+          )
+        : list;
+
+    return {
+      ...previous,
+      survivors: withSpells(previous.survivors),
+      setAside: withSpells(previous.setAside),
+      lost: withSpells(previous.lost),
+    };
+  },
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -675,6 +703,7 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   madnessRecorded,
   xpSpentRecorded,
   humanityRecorded,
+  spellsRecorded,
 ];
 
 /** Why a save could not be brought forward. */

@@ -89,6 +89,8 @@ import { PageRef } from './PageRef';
 import { LostRescues } from './LostRoll';
 import { StoryEnding } from './StoryEnding';
 import { MagicEnding } from './MagicEnding';
+import { SpellsCast } from './Spells';
+import type { SpellId } from '../data/origins';
 import { ViralEnding } from './ViralEnding';
 import { EMPTY_VIRAL_DRAFT, viralDraftRecord, type ViralDraft } from './viralDraft';
 import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
@@ -545,6 +547,7 @@ function TeamOutcome({
   const [ending, setEnding] = useState<StoryChoice>({ result: '' });
   const [viralDraft, setViralDraft] = useState<ViralDraft>(EMPTY_VIRAL_DRAFT);
   const [magicDraft, setMagicDraft] = useState<MagicRecord>({});
+  const [spellsCast, setSpellsCast] = useState<readonly SpellId[]>([]);
 
   // The claim an overrun goes on with places no strangers (pg. 86), and asks
   // whether it was the overrun base's own map when it is that base's type (R29).
@@ -784,6 +787,8 @@ function TeamOutcome({
         <MagicEnding mission={magic} record={magicDraft} onChange={setMagicDraft} />
       )}
 
+      {campaign.origin === 'magic' && <SpellsCast cast={spellsCast} onChange={setSpellsCast} />}
+
       {viral !== undefined && (
         <ViralEnding mission={viral} prefix={prefix} draft={viralDraft} onChange={setViralDraft} />
       )}
@@ -952,6 +957,7 @@ function TeamOutcome({
             type: 'mission/resolved',
             outcome,
             ...(deaths.length === 0 ? {} : { deaths }),
+            ...(spellsCast.length === 0 ? {} : { spellsCast }),
             at: new Date().toISOString(),
           });
         }}
@@ -963,24 +969,28 @@ function TeamOutcome({
 }
 
 /**
- * Who died on the team's mission, as the log says it, since the team last
- * chose one: a First Mission played again (R21) has deaths of its own.
+ * What the log says of the team's mission beside its outcome, since the team
+ * last chose one: the spells an enemy cast on it (Z7-9), and who died. A First
+ * Mission played again (R21) has deaths of its own.
  */
-function killedSince(campaign: Campaign, team: number): readonly string[] {
-  let killed: string[] = [];
+function endedSince(campaign: Campaign, team: number): readonly string[] {
+  let said: string[] = [];
 
   for (const entry of campaign.log) {
     if (entry.turn !== campaign.turn) continue;
 
     const { event } = entry;
 
-    if (event.kind === 'mission-selected' && event.team === team) killed = [];
-    else if (event.kind === 'survivor-left' && event.cause === 'killed' && event.team === team) {
-      killed = [...killed, describeEvent(event, entry.turn).text];
+    if (event.kind === 'mission-selected' && event.team === team) said = [];
+    else if (
+      (event.kind === 'survivor-left' && event.cause === 'killed' && event.team === team) ||
+      (event.kind === 'spells-cast' && event.team === team)
+    ) {
+      said = [...said, describeEvent(event, entry.turn).text];
     }
   }
 
-  return killed;
+  return said;
 }
 
 /** How many times a team has chosen a mission this turn — a key, not a rule. */
@@ -1178,7 +1188,7 @@ export function MissionOutcome({ campaign }: { readonly campaign: Campaign }) {
             <p className="text-sm font-medium">
               {describeOutcome(recorded, campaign.turn)} <PageRef pages={outcomePages(recorded)} />
             </p>
-            {killedSince(campaign, choice.team).map((text) => (
+            {endedSince(campaign, choice.team).map((text) => (
               <p key={text} className="text-sm">
                 {text}
               </p>

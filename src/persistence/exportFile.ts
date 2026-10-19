@@ -96,6 +96,7 @@ function orderedSurvivor(survivor: Survivor): Record<keyof Survivor, unknown> {
     infection: survivor.infection,
     madness: survivor.madness,
     humanity: survivor.humanity,
+    spells: survivor.spells,
     xp: survivor.xp,
     xpSpent: survivor.xpSpent,
     found: survivor.found,

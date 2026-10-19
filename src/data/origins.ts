@@ -70,3 +70,22 @@ export const MAGICAL_ITEMS = [
   'resistance-charm',
   'warding-stones',
 ] as const;
+
+/**
+ * The six spells, all on pg. 127 and in no groups (R112). An enemy casting one
+ * on the table is the only way a spell becomes seen; every enemy that casts
+ * picks from the same d10 table (pg. 133), so no spell belongs to one enemy.
+ */
+export const SPELLS = [
+  'dominate-enemy',
+  'rain-of-fire',
+  'teleport',
+  'restoration',
+  'duplicate',
+  'mass-recall',
+] as const;
+
+export type SpellId = (typeof SPELLS)[number];
+
+/** XP off the next spell learned, for each win of The Necromancer (pg. 114; R124, R153). */
+export const NECROMANCER_SPELL_DISCOUNT = 3;

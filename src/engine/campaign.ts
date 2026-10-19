@@ -20,7 +20,7 @@ import type { Cost, FacilityId, UpgradeId } from '../data/facilities';
 import type { Materials } from '../data/materials';
 import type { StoryTrait } from '../data/traits';
 import type { StoryMissionId } from '../data/missions';
-import type { CampaignOrigin } from '../data/origins';
+import type { CampaignOrigin, SpellId } from '../data/origins';
 import type { D10Result } from '../data/dice';
 import type { Skill, Stat } from '../data/skills';
 import type { Tier } from '../data/tiers';
@@ -36,7 +36,7 @@ import type { LogEntry } from './log';
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 24;
+export const CURRENT_SCHEMA_VERSION = 25;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -117,6 +117,14 @@ export interface Survivor {
    * is lost to the Veil. 3 for everybody in a save from before v24.
    */
   humanity: number;
+
+  /**
+   * The spells they have learned at a Mystic Library, under the Magic origin
+   * (pp. 70, 126; R112, R113; Z7-9), in the order `SPELLS` lists them. Known
+   * for good: the book gives them no uses and no limit (R155). Empty for
+   * everybody in a save from before v25.
+   */
+  spells: readonly SpellId[];
 
   xp: number;
 

@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import currentFixture from './__fixtures__/campaign-v24.json';
+import currentFixture from './__fixtures__/campaign-v25.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -20,6 +20,7 @@ const VALID_SURVIVOR = {
   infection: 0,
   madness: 0,
   humanity: 3,
+  spells: [],
   xpSpent: 0,
   found: false,
   foundCheckPassed: false,
@@ -742,6 +743,10 @@ describe('a survivor whose fields are the wrong type', () => {
     // Humanity (Z7-9), 0 to 5.
     ['a Humanity over 5', { humanity: 6 }],
     ['a missing Humanity', { humanity: undefined }],
+    // The spells known (R112, R155; Z7-9): a list of spells, each once.
+    ['a missing spell list', { spells: undefined }],
+    ['a spell this version doesn’t know', { spells: ['fireball'] }],
+    ['a spell known twice', { spells: ['teleport', 'teleport'] }],
     // XP spent (R149) and the Found marks (R109, R111; Z7-8).
     ['a negative XP spent', { xpSpent: -1 }],
     ['a Found that isn’t yes or no', { found: 'yes' }],
@@ -773,6 +778,7 @@ describe('a survivor whose fields are the wrong type', () => {
       infection: 0,
       madness: 0,
       humanity: 3,
+      spells: [],
       xpSpent: 0,
       found: false,
       foundCheckPassed: false,
@@ -781,6 +787,10 @@ describe('a survivor whose fields are the wrong type', () => {
     });
 
     expect(result.ok).toBe(true);
+  });
+
+  it('accepts the spells a survivor knows', () => {
+    expect(withSurvivor({ spells: ['mass-recall', 'dominate-enemy'] }).ok).toBe(true);
   });
 
   it('accepts a survivor’s attached stories', () => {
@@ -1196,6 +1206,35 @@ describe('a campaign whose log is damaged', () => {
         viral: { zombiesLeft: 1, held: 1 },
       },
       'unreadable viral',
+    ],
+    // The spells an enemy cast and a spell learned (R112, R113; Z7-9).
+    ['no spells cast', { kind: 'spells-cast', team: 1, spells: [] }, 'unreadable spells'],
+    [
+      'a spell cast twice',
+      { kind: 'spells-cast', team: 1, spells: ['teleport', 'teleport'] },
+      'unreadable spells',
+    ],
+    [
+      'spells cast that aren’t a list',
+      { kind: 'spells-cast', team: 1, spells: 'teleport' },
+      'unreadable spells',
+    ],
+    [
+      'a spell learned this version doesn’t know',
+      { kind: 'spell-learned', survivor: 'earl', name: 'Earl Rhodes', spell: 'fireball', xp: 6 },
+      'unreadable spell',
+    ],
+    [
+      'a discount that isn’t yes',
+      {
+        kind: 'spell-learned',
+        survivor: 'earl',
+        name: 'Earl Rhodes',
+        spell: 'teleport',
+        xp: 3,
+        discounted: false,
+      },
+      'unreadable discounted',
     ],
   ])('refuses %s', (_label, event, expected) => {
     const result = parseCampaignFile(savedWith({ log: [{ ...good, event }] }));
@@ -1763,6 +1802,7 @@ describe('a campaign whose assignments are damaged', () => {
       infection: 0,
       madness: 0,
       humanity: 3,
+      spells: [],
       xpSpent: 0,
       found: false,
       foundCheckPassed: false,

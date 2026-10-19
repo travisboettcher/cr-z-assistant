@@ -3179,6 +3179,27 @@ describe('what earns a line in the log', () => {
       action: { type: 'advancement/madnessRecovered', at: AT },
       entry: entry(3, 'advancement', { kind: 'madness-recovered', ...WEBB, madness: 2 }),
     },
+    // Marcus, staffing a Mystic Library with 20 XP, learns a spell an enemy cast (R113; Z7-9).
+    'advancement/spellLearned': {
+      state: openState({
+        ...expectOpen(rich()),
+        step: 'character-advancement',
+        origin: 'magic',
+        base: {
+          id: 'small-town-home',
+          slots: { garage: { built: { facility: 'mystic-library', builtOnTurn: 1 } } },
+        },
+        assignments: { [LOGGED_SURVIVOR]: { task: 'staff', slot: 'garage' } },
+        log: [entry(3, 'mission', { kind: 'spells-cast', team: 1, spells: ['teleport'] })],
+      }),
+      action: {
+        type: 'advancement/spellLearned',
+        survivor: LOGGED_SURVIVOR,
+        spell: 'teleport',
+        at: AT,
+      },
+      entry: entry(3, 'advancement', { kind: 'spell-learned', ...WEBB, spell: 'teleport', xp: 6 }),
+    },
     // A correction on the sheet, like the stats above: a trait a story gives is
     // the story's own entry (Z7-1).
     'survivor/traitsSet': {

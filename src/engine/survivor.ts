@@ -266,6 +266,7 @@ export function createSurvivor(
     infection: 0,
     madness: 0,
     humanity: HUMANITY_START,
+    spells: [],
     xpSpent: 0,
     found: false,
     foundCheckPassed: false,

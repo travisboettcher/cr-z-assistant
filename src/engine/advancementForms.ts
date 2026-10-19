@@ -18,6 +18,7 @@
 import type { StoryMissionId } from '../data/missions';
 import { becomesVeteran, storiesOnOffer } from './traits';
 import type { Material } from '../data/materials';
+import type { SpellId } from '../data/origins';
 import { MIN_SKILL_LEVEL, type CommonSkill, type Skill, type Stat } from '../data/skills';
 import { XP_AWARD, type XpSource } from '../data/turn';
 import {
@@ -36,6 +37,7 @@ import { checkXpAward, withXpAwarded } from './experience';
 import { accepted, blockedBy, refused, type FormResult, type Refused } from './forms';
 import { healedFromZero, withHumanityGained } from './humanity';
 import { madnessAwards, madnessRecovered, withMadnessTaken } from './lounge';
+import { spellLearningProblem, withSpellLearned } from './spells';
 import { phaseOf } from './turn';
 import {
   containmentDraws,
@@ -621,4 +623,22 @@ export function submitMadnessRecovered(campaign: Campaign, at: string): FormResu
       withMadnessTaken(campaign, awards),
     ),
   );
+}
+
+/** A spell learned at the Mystic Library (pg. 70; R113; Z7-9). */
+export interface SpellForm {
+  readonly survivor: string;
+  readonly spell: SpellId;
+}
+
+/**
+ * Learn a spell at Character Advancement (pg. 70; R113; Z7-9): refused for
+ * whatever `spellLearningProblem` says, and otherwise paid for, known and
+ * logged.
+ */
+export function submitSpellLearned(campaign: Campaign, form: SpellForm, at: string): FormResult {
+  const problem = spellLearningProblem(campaign, form.survivor, form.spell);
+  if (problem !== null) return refused(problem);
+
+  return accepted(withSpellLearned(campaign, form.survivor, form.spell, at));
 }

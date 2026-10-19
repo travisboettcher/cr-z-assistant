@@ -333,6 +333,10 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   },
   { kind: 'humanity-gained', ...SURVIVOR, reason: 'project-team' },
   { kind: 'humanity-gained', ...SURVIVOR, reason: 'healed-from-0' },
+  { kind: 'spells-cast', team: 1, spells: ['teleport'] },
+  { kind: 'spells-cast', team: 2, spells: ['dominate-enemy', 'rain-of-fire', 'mass-recall'] },
+  { kind: 'spell-learned', ...SURVIVOR, spell: 'restoration', xp: 6 },
+  { kind: 'spell-learned', ...SURVIVOR, spell: 'duplicate', xp: 3, discounted: true },
   { kind: 'survivor-veiled', ...SURVIVOR },
   {
     kind: 'survivor-veiled',

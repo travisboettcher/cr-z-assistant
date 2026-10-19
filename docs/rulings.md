@@ -2653,3 +2653,33 @@ takes 1 Labor off a Mystic Library and every upgrade to it
 the Labor change**, each recorded on the outcome.
 
 *Decided 2026-10-19 with Z7-9.*
+
+---
+
+## R154 — Any spell an enemy casts is seen, on any mission
+
+**pp. 70, 126, 133; Phase 7, Z7-9.** A spell can be learned once an enemy has used it on the
+table, and the spells seen are the campaign's
+([R112](#r112--spells-are-per-survivor-and-the-ones-seen-are-per-campaign)). Vampire spawn and the
+Necromancer cast from one table (pg. 133), and no mission, story or reward reveals a spell any
+other way. The book does not say whether a cast with no target or no effect counts, or whether
+the learner must have been on that mission.
+
+**The ruling is that every cast counts, whatever it did, on any mission the campaign plays.** A
+Magic campaign's mission outcome records which spells an enemy cast, and from then on any Mystic
+Library can teach them.
+
+*Decided 2026-10-19 with Z7-9, from the batch-21 extract.*
+
+---
+
+## R155 — A survivor knows each spell once, with no limit
+
+**pp. 70, 126; Phase 7, Z7-9.** A learned spell is kept for good, with no uses or charges
+(pg. 126). The book sets no limit on how many one survivor knows, and does not say whether one can
+be learned twice.
+
+**The ruling is no limit, and each spell once**: a survivor learns only spells they do not know,
+and the sheet keeps each spell at most once.
+
+*Decided 2026-10-19 with Z7-9, from the batch-21 extract.*

@@ -36,6 +36,7 @@ const EARL = {
   rotResistant: false,
   madness: 0,
   humanity: 3,
+  spells: [],
   xpSpent: 0,
   found: false,
   foundCheckPassed: false,

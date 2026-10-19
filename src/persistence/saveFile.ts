@@ -24,7 +24,7 @@ import { MATERIALS } from '../data/materials';
 import { EQUIPMENT, GRADES, VEHICLE_TIERS, type ItemId } from '../data/equipment';
 import { MISSIONS, OVERRUN_OPTIONS, STORY_MISSION_IDS } from '../data/missions';
 import { FIELD_RECRUITABLE_TIERS } from '../data/recruitTable';
-import { CAMPAIGN_ORIGINS } from '../data/origins';
+import { CAMPAIGN_ORIGINS, SPELLS } from '../data/origins';
 import { CAMPAIGN_PHASES, HEALTH_SOURCES, XP_SOURCES } from '../data/turn';
 import type { Assignment, Campaign, Project } from '../engine/campaign';
 import { STORY_TRAITS } from '../data/traits';
@@ -349,6 +349,16 @@ function describeSurvivorProblem(value: unknown): string | null {
   // 0 to 5 (pg. 127; R114).
   if (!isCountFromZero(value.humanity) || (value.humanity as number) > 5) {
     return 'has unreadable humanity';
+  }
+  // The spells they know, each once (R112, R155; Z7-9).
+  if (
+    !Array.isArray(value.spells) ||
+    value.spells.some(
+      (spell: unknown, at: number, all: unknown[]) =>
+        !SPELLS.some((known) => known === spell) || all.indexOf(spell) !== at,
+    )
+  ) {
+    return 'has an unreadable list of spells';
   }
   // The XP spent (R149) and the Found marks (R109, R111; Z7-8).
   if (!isCountFromZero(value.xpSpent)) return 'doesn’t say how much XP they have spent';
@@ -707,6 +717,15 @@ const EVENT_FIELD_CHECKS = {
       )),
   // How a placed Lost survivor's mission left them (R109; Z7-8).
   lostRescue: (value: unknown) => ['found', 'exiled', 'not-rescued'].includes(value as string),
+  // The spells an enemy cast, each once and at least one (R112; Z7-9).
+  spells: (value: unknown) =>
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every(
+      (spell: unknown, at) =>
+        SPELLS.some((known) => known === spell) && value.indexOf(spell) === at,
+    ),
+  spell: (value: unknown) => SPELLS.some((known) => known === value),
   // Why a survivor gained Humanity (R114; Z7-9).
   humanityGain: (value: unknown) => ['project-team', 'healed-from-0'].includes(value as string),
   // Why a survivor left (#201), absent on an entry from before it was recorded.
@@ -996,6 +1015,17 @@ const EVENT_FIELDS: Record<
     ['survivor', 'id'],
     ['name', 'name'],
     ['reason', 'humanityGain'],
+  ],
+  'spells-cast': [
+    ['team', 'countFromOne'],
+    ['spells', 'spells'],
+  ],
+  'spell-learned': [
+    ['survivor', 'id'],
+    ['name', 'name'],
+    ['spell', 'spell'],
+    ['xp', 'count'],
+    ['discounted', 'optionalTrue'],
   ],
   'survivor-veiled': [
     ['survivor', 'id'],

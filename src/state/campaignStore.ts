@@ -32,6 +32,7 @@
 import type { BaseId } from '../data/bases';
 import type { Utility } from '../data/facilities';
 import type { Material } from '../data/materials';
+import type { SpellId } from '../data/origins';
 import type { Grade, ItemId } from '../data/equipment';
 import type { MissionId, OverrunOption } from '../data/missions';
 import type { D10Result } from '../data/dice';
@@ -59,6 +60,7 @@ import {
   submitHaul,
   submitInoculated,
   submitMadnessRecovered,
+  submitSpellLearned,
   submitRotResisted,
   submitRareUpgradeInstalled,
   submitHealing,
@@ -341,6 +343,13 @@ export type CampaignAction =
   | { readonly type: 'advancement/rotResisted'; readonly at: string }
   /** This turn's Madness Recovery in the Lounge, at Heal Wounds (R110; Z7-7). */
   | { readonly type: 'advancement/madnessRecovered'; readonly at: string }
+  /** Learn a spell at the Mystic Library, at Character Advancement (R113; Z7-9). */
+  | {
+      readonly type: 'advancement/spellLearned';
+      readonly survivor: string;
+      readonly spell: SpellId;
+      readonly at: string;
+    }
   /** A survivor's Story Trait, Veteran and bond group, set on their sheet (R84; Z7-1). */
   | { readonly type: 'survivor/traitsSet'; readonly id: string; readonly traits: SurvivorTraits }
   /** Take a skill, at level 0 — skills all start there (pg. 8). */
@@ -638,6 +647,8 @@ export type CampaignAction =
       readonly type: 'mission/resolved';
       readonly outcome: MissionOutcome;
       readonly deaths?: readonly MissionDeath[];
+      /** The spells an enemy cast on it, in a Magic campaign (R112; Z7-9). Absent is none. */
+      readonly spellsCast?: readonly SpellId[];
       readonly at: string;
     }
   /**
@@ -963,6 +974,11 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
     case 'advancement/madnessRecovered':
       return submitted(state, (campaign) => submitMadnessRecovered(campaign, action.at));
 
+    case 'advancement/spellLearned':
+      return submitted(state, (campaign) =>
+        submitSpellLearned(campaign, { survivor: action.survivor, spell: action.spell }, action.at),
+      );
+
     case 'survivor/traitsSet':
       return submitted(state, (campaign) => submitTraitsSet(campaign, action.id, action.traits));
 
@@ -1087,7 +1103,13 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
     case 'mission/resolved':
       return submitted(state, (campaign) =>
-        submitMissionEnded(campaign, action.outcome, action.deaths ?? [], action.at),
+        submitMissionEnded(
+          campaign,
+          action.outcome,
+          action.deaths ?? [],
+          action.at,
+          action.spellsCast ?? [],
+        ),
       );
 
     case 'mission/stoodIn':

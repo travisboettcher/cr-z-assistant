@@ -28,7 +28,7 @@ import { MATERIALS, type Materials } from '../data/materials';
 import { STORY_TRAITS } from '../data/traits';
 import { EQUIPMENT, GRADES, ITEM_IDS, VEHICLE_TIERS } from '../data/equipment';
 import { OVERRUN_OPTIONS, PROMOTION_STORIES, STORY_MISSION_IDS } from '../data/missions';
-import { CAMPAIGN_ORIGINS } from '../data/origins';
+import { CAMPAIGN_ORIGINS, SPELLS } from '../data/origins';
 import { MISSIONS, type MissionId } from '../data/missions';
 import { FIELD_RECRUITABLE_TIERS } from '../data/recruitTable';
 import { CAMPAIGN_PHASES, HEALTH_SOURCES, XP_SOURCES } from '../data/turn';
@@ -211,6 +211,7 @@ export function survivorArbitrary(): fc.Arbitrary<Survivor> {
       rotResistant: fc.boolean(),
       madness: anyCount,
       humanity: fc.integer({ min: 0, max: 5 }),
+      spells: fc.subarray([...SPELLS]),
       xpSpent: anyCount,
       found: fc.boolean(),
       foundCheckPassed: fc.boolean(),
@@ -787,6 +788,22 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       ...survivor,
       reason: fc.constantFrom('project-team' as const, 'healed-from-0' as const),
     }),
+    // The spells an enemy cast on a mission, and one learned (R112, R113; Z7-9).
+    fc.record({
+      kind: fc.constant('spells-cast' as const),
+      team: fc.integer({ min: 1, max: 4 }),
+      spells: fc.subarray([...SPELLS], { minLength: 1 }),
+    }),
+    fc.record(
+      {
+        kind: fc.constant('spell-learned' as const),
+        ...survivor,
+        spell: fc.constantFrom(...SPELLS),
+        xp: fc.constantFrom(3, 6),
+        discounted: fc.constant(true as const),
+      },
+      { requiredKeys: ['kind', 'survivor', 'name', 'spell', 'xp'] },
+    ),
     // Lost to the Veil (R114, R151; Z7-9), with what they carried or nothing.
     fc.record(
       {

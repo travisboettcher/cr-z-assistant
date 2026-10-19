@@ -33,6 +33,7 @@ const SAMPLE_SURVIVOR = {
   rotResistant: false,
   madness: 0,
   humanity: 3,
+  spells: [],
   xpSpent: 0,
   found: false,
   foundCheckPassed: false,
@@ -988,6 +989,54 @@ describe('the v23 to v24 Humanity', () => {
     if (!result.ok) return;
 
     expect(result.campaign.lost[0]?.humanity).toBe(3);
+    expect(result.campaign.survivors).toEqual([null, 7]);
+    expect(result.campaign.setAside).toBe('nobody');
+  });
+});
+
+describe('the v24 to v25 spells', () => {
+  it('brings every earlier survivor forward knowing none (R112)', () => {
+    for (const fixture of fixtures.filter((f) => f.version < 25)) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok) continue;
+
+      for (const survivor of [...result.campaign.survivors, ...result.campaign.setAside]) {
+        expect(survivor.spells, `${fixture.path} ${survivor.name}`).toEqual([]);
+      }
+    }
+  });
+
+  it('keeps a v25 save’s own', () => {
+    const v25 = fixtures.find((fixture) => fixture.version === 25);
+    const result = migrate(v25?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.survivors.map((one) => one.spells)).toEqual([
+      ['teleport', 'mass-recall'],
+      [],
+      [],
+      [],
+    ]);
+  });
+
+  it('brings a Lost survivor forward too, and hands anything else on untouched', () => {
+    const v24 = fixtures.find((fixture) => fixture.version === 24);
+    const gone = { ...((v24?.contents as { survivors: object[] }).survivors[0] as object) };
+    const result = migrate({
+      ...(v24?.contents as object),
+      lost: [{ ...gone, id: 'gone' }],
+      survivors: [null, 7],
+      setAside: 'nobody',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.lost[0]?.spells).toEqual([]);
     expect(result.campaign.survivors).toEqual([null, 7]);
     expect(result.campaign.setAside).toBe('nobody');
   });

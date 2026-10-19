@@ -45,6 +45,7 @@ import type { FacilityId, UpgradeId } from '../data/facilities';
 import type { Material, Materials } from '../data/materials';
 import type { MissionId, OverrunOption, StoryMissionId } from '../data/missions';
 import type { CommonSkill, Skill } from '../data/skills';
+import type { SpellId } from '../data/origins';
 import type { FieldRecruitTier } from '../data/recruitTable';
 import type { Tier } from '../data/tiers';
 import type { StoryTrait } from '../data/traits';
@@ -561,6 +562,30 @@ export type CampaignEvent =
       readonly survivor: string;
       readonly name: string;
       readonly reason: 'project-team' | 'healed-from-0';
+    }
+  /**
+   * The spells an enemy cast on a team's mission, as its outcome recorded them
+   * (pp. 70, 126, 133; R112, R154; Z7-9). **Load-bearing**: the spells seen,
+   * which a Mystic Library teaches from, are read back off these.
+   */
+  | {
+      readonly kind: 'spells-cast';
+      readonly team: number;
+      readonly spells: readonly SpellId[];
+    }
+  /**
+   * A survivor staffing a Mystic Library learned a spell at Character
+   * Advancement (pg. 70; R113; Z7-9), for this XP. `discounted` when a win of
+   * The Necromancer took 3 off it (R124, R153). Load-bearing for both: one
+   * spell a turn each, and each win's discount used once.
+   */
+  | {
+      readonly kind: 'spell-learned';
+      readonly survivor: string;
+      readonly name: string;
+      readonly spell: SpellId;
+      readonly xp: number;
+      readonly discounted?: true;
     }
   /**
    * A survivor lost to the Veil at 0 Humanity, on the mission outcome that took
