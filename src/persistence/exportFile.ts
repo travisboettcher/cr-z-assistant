@@ -395,7 +395,7 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
 
   // A story's ending and what it gave (Z7-3), and a Viral mission's counts (Z7-6).
   if (event.kind === 'mission-played') {
-    const { story, viral } = event;
+    const { story, viral, magic } = event;
 
     return {
       ...outcome,
@@ -410,6 +410,7 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
               held: viral.held,
               supplies: viral.supplies,
             },
+      magic: magic === undefined ? undefined : { completed: magic.completed, killed: magic.killed },
     };
   }
 

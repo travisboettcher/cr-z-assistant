@@ -700,6 +700,8 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
             },
             { requiredKeys: [] },
           ),
+          // A Magic mission's ending (Z7-9), each answer given or not.
+          magic: fc.record({ completed: fc.boolean(), killed: fc.boolean() }, { requiredKeys: [] }),
         },
         { requiredKeys: ['kind', 'team', 'mission'] },
       ),

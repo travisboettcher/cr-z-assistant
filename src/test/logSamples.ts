@@ -245,6 +245,13 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
     viral: { zombiesLeft: 2, held: false },
   },
   { kind: 'mission-played', team: 1, mission: 'medical-salvage', viral: { supplies: 4 } },
+  { kind: 'mission-played', team: 1, mission: 'the-graveyard', magic: { completed: true } },
+  {
+    kind: 'mission-played',
+    team: 1,
+    mission: 'the-necromancer',
+    magic: { completed: true, killed: false },
+  },
   // A team with nobody left on it records nobody's Health.
   {
     kind: 'gather-materials-resolved',

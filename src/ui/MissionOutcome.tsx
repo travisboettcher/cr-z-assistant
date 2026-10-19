@@ -40,7 +40,7 @@ import {
 } from '../data/missions';
 import { FIELD_RECRUITABLE_TIERS, type FieldRecruitTier } from '../data/recruitTable';
 import type { Campaign, Survivor } from '../engine/campaign';
-import type { MissionWound } from '../engine/log';
+import type { MagicRecord, MissionWound } from '../engine/log';
 import { claimWarning } from '../engine/claim';
 import { deathsProblem, wentOut, type MissionDeath } from '../engine/missionDeaths';
 import {
@@ -66,6 +66,7 @@ import {
   overrunClaim,
 } from '../engine/overrun';
 import { isStory, storyEnding, type StoryChoice } from '../engine/storyMissions';
+import { isMagicMission, magicAsks } from '../engine/magicMissions';
 import { isViralMission, viralRecord } from '../engine/viralMissions';
 import { maxHp } from '../engine/survivor';
 import { atTier, tierRolled } from '../engine/vehicles';
@@ -87,6 +88,7 @@ import {
 import { PageRef } from './PageRef';
 import { LostRescues } from './LostRoll';
 import { StoryEnding } from './StoryEnding';
+import { MagicEnding } from './MagicEnding';
 import { ViralEnding } from './ViralEnding';
 import { EMPTY_VIRAL_DRAFT, viralDraftRecord, type ViralDraft } from './viralDraft';
 import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
@@ -542,6 +544,7 @@ function TeamOutcome({
   const [taken, setTaken] = useState<Readonly<Record<string, string>>>({});
   const [ending, setEnding] = useState<StoryChoice>({ result: '' });
   const [viralDraft, setViralDraft] = useState<ViralDraft>(EMPTY_VIRAL_DRAFT);
+  const [magicDraft, setMagicDraft] = useState<MagicRecord>({});
 
   // The claim an overrun goes on with places no strangers (pg. 86), and asks
   // whether it was the overrun base's own map when it is that base's type (R29).
@@ -597,6 +600,11 @@ function TeamOutcome({
   const record = story === undefined ? undefined : storyEnding(campaign, team, story, ending);
   // A Viral mission's counts (Z7-6).
   const viral = isViralMission(choice.mission) ? choice.mission : undefined;
+  // A Magic mission's ending (Z7-9); The Dark asks nothing.
+  const magic =
+    isMagicMission(choice.mission) && magicAsks(choice.mission).length > 0
+      ? choice.mission
+      : undefined;
   const outcome =
     played.kind !== 'mission-played'
       ? played
@@ -607,6 +615,13 @@ function TeamOutcome({
           ...(viral === undefined
             ? {}
             : { viral: viralRecord(campaign, viral, viralDraftRecord(viral, viralDraft)) }),
+          ...(magic === undefined
+            ? {}
+            : {
+                magic: Object.fromEntries(
+                  magicAsks(magic).map((field) => [field, magicDraft[field] === true]),
+                ) as MagicRecord,
+              }),
         };
   const members = wentOut(campaign, choice.team);
   const deaths = deathsTicked(choice.team, members, dead, taken);
@@ -624,7 +639,7 @@ function TeamOutcome({
     HINTS[choice.mission] ??
     (story !== undefined
       ? 'Record how the story ended. What the map held, an item or a roll, isn’t tracked yet.'
-      : viral !== undefined
+      : viral !== undefined || magic !== undefined
         ? 'Record what the table counted when the mission ended.'
         : asked.length === 0
           ? 'Its rewards aren’t tracked yet. Recording it marks the mission played.'
@@ -764,6 +779,10 @@ function TeamOutcome({
             );
         }
       })}
+
+      {magic !== undefined && (
+        <MagicEnding mission={magic} record={magicDraft} onChange={setMagicDraft} />
+      )}
 
       {viral !== undefined && (
         <ViralEnding mission={viral} prefix={prefix} draft={viralDraft} onChange={setViralDraft} />

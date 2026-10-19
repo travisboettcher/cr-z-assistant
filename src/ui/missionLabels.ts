@@ -16,8 +16,10 @@ import { BASE_LABELS, MATERIAL_LABELS } from './baseLabels';
 import type { MissionWound } from '../engine/log';
 import { outcomeMission, outcomeTeam, type MissionOutcome } from '../engine/missions';
 import { isStory } from '../engine/storyMissions';
+import { isMagicMission } from '../engine/magicMissions';
 import { isViralMission } from '../engine/viralMissions';
 import { storyConsequences, storyResultLabel } from './storyLabels';
+import { magicConsequences, magicCounted } from './magicLabels';
 import { viralConsequences, viralCounted } from './viralLabels';
 import {
   baseOverrun,
@@ -194,6 +196,9 @@ function counted(outcome: MissionOutcome): string {
       if (outcome.viral !== undefined && isViralMission(outcome.mission)) {
         return viralCounted(outcome.mission, outcome.viral);
       }
+      if (outcome.magic !== undefined && isMagicMission(outcome.mission)) {
+        return magicCounted(outcome.mission, outcome.magic);
+      }
 
       return outcome.story === undefined || !isStory(outcome.mission)
         ? 'played'
@@ -240,6 +245,14 @@ export function outcomeConsequences(outcome: MissionOutcome, turn: number): read
     isViralMission(outcome.mission)
   ) {
     return viralConsequences(outcome.mission, outcome.viral);
+  }
+
+  if (
+    outcome.kind === 'mission-played' &&
+    outcome.magic !== undefined &&
+    isMagicMission(outcome.mission)
+  ) {
+    return magicConsequences(outcome.mission, outcome.magic);
   }
 
   if (!isCounterOutcome(outcome)) return [];

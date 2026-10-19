@@ -160,6 +160,16 @@ export interface ViralRecord {
   readonly supplies?: number;
 }
 
+/**
+ * How a Magic mission ended (pp. 112–114; R123, R124, R153; Z7-9): The
+ * Graveyard and The Necromancer whether they were completed, and The
+ * Necromancer whether he was killed.
+ */
+export interface MagicRecord {
+  readonly completed?: boolean;
+  readonly killed?: boolean;
+}
+
 /** What a story gives the build of a survivor it brings (pg. 99; R142; Z7-4). */
 export interface StoryBuild {
   readonly skill: Skill;
@@ -878,6 +888,8 @@ export type CampaignEvent =
       readonly story?: StoryRecord;
       /** A Viral mission's counts (Z7-6); absent before, and for any other. */
       readonly viral?: ViralRecord;
+      /** A Magic mission's ending (Z7-9); absent before, and for any other. */
+      readonly magic?: MagicRecord;
     }
   /**
    * A mission-team survivor took the place of a worker this turn's Siege

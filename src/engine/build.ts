@@ -18,6 +18,7 @@ import type { Campaign } from './campaign';
 import { layoutOf, occupants, slotNeeded } from './base';
 import { laborRefusal, projectCost, queuedKindFor, type Pricing } from './projects';
 import type { Check, Violation } from './checks';
+import { mysticLibraryUnlocked } from './magicMissions';
 
 /**
  * Why a build is refused or questioned.
@@ -167,15 +168,14 @@ export function checkBuild(
     });
   }
 
-  if (facility.requires?.mission === true) {
-    // Which mission unlocks it is Phase 4's, so this app cannot yet know
-    // whether the player has earned it. Reported as something they may wave
-    // through rather than as a refusal, because the app is the one missing
-    // information here, not the player.
+  // The Mystic Library, the one facility a mission unlocks: completing The
+  // Graveyard (R123; Z7-9). A warning, as an origin is, so a table that earned
+  // it before the app recorded the mission can build it anyway.
+  if (facility.requires?.mission === true && !mysticLibraryUnlocked(campaign)) {
     warnings.push({
       code: 'mission-locked',
-      message: 'Unlocked by a mission, which the app doesn’t track yet.',
-      pages: '72–73',
+      message: 'Unlocked by completing The Graveyard, which this campaign hasn’t done yet.',
+      pages: '72, 112–113',
     });
   }
 

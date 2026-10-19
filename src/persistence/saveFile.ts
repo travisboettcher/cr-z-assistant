@@ -698,6 +698,13 @@ const EVENT_FIELD_CHECKS = {
   optionalStoryBuild: (value: unknown) => value === undefined || isStoryBuild(value),
   // A Viral mission's counts (Z7-6), absent on any other mission and before.
   optionalViralRecord: (value: unknown) => value === undefined || isViralRecord(value),
+  // A Magic mission's ending (Z7-9): only its own yes-or-no answers.
+  optionalMagicRecord: (value: unknown) =>
+    value === undefined ||
+    (isRecord(value) &&
+      Object.entries(value).every(
+        ([key, flag]) => ['completed', 'killed'].includes(key) && typeof flag === 'boolean',
+      )),
   // How a placed Lost survivor's mission left them (R109; Z7-8).
   lostRescue: (value: unknown) => ['found', 'exiled', 'not-rescued'].includes(value as string),
   // Why a survivor gained Humanity (R114; Z7-9).
@@ -913,6 +920,7 @@ const EVENT_FIELDS: Record<
     ['wounds', 'optionalWounds'],
     ['story', 'optionalStoryRecord'],
     ['viral', 'optionalViralRecord'],
+    ['magic', 'optionalMagicRecord'],
   ],
   'health-restored': [
     ['survivor', 'id'],

@@ -56,6 +56,7 @@ import type { Campaign, RareTrade, Survivor } from './campaign';
 import type { CampaignEvent, MissionWound, RetrievedVehicle } from './log';
 import { FIRST_TURN, siegeDue } from './siege';
 import { storyProblem } from './storyMissions';
+import { magicProblem } from './magicMissions';
 import { containmentUnlock, viralProblem } from './viralMissions';
 import { maxHp, tierCheckPasses } from './survivor';
 import { phaseOf } from './turn';
@@ -854,6 +855,13 @@ export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcom
     outcome.kind === 'mission-played' ? outcome.viral : undefined,
   );
   if (viral !== null) return viral;
+
+  // A Magic mission's ending (Z7-9).
+  const magic = magicProblem(
+    choice.mission,
+    outcome.kind === 'mission-played' ? outcome.magic : undefined,
+  );
+  if (magic !== null) return magic;
 
   return woundsProblem(campaign, outcome);
 }
