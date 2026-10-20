@@ -11,7 +11,13 @@
  */
 
 import type { BaseId } from '../data/bases';
-import type { FacilityId, SlotKind, UpgradeId, Utility } from '../data/facilities';
+import {
+  UTILITIES,
+  type FacilityId,
+  type SlotKind,
+  type UpgradeId,
+  type Utility,
+} from '../data/facilities';
 import type { Material } from '../data/materials';
 
 export const BASE_LABELS: Record<BaseId, string> = {
@@ -196,4 +202,18 @@ export function facilityInSlot(facility: FacilityId, slot: string): string {
   const name = FACILITY_LABELS[facility];
   const where = slotLabel(slot);
   return where === name ? name : `${name} (${where})`;
+}
+
+/**
+ * What a facility is supplied with, as the slot card says it (#258): "Supplied
+ * with Power and Water", or "No Power or Water". Read off the occupant as
+ * `suppliedOccupants` resolves it, so an emptied Station's point is not called
+ * a supply (#139).
+ */
+export function suppliedWith(occupant: { readonly [utility in Utility]: boolean }): string {
+  const supplied = UTILITIES.filter((utility) => occupant[utility]);
+
+  return supplied.length === 0
+    ? 'No Power or Water'
+    : `Supplied with ${supplied.map((utility) => UTILITY_LABELS[utility]).join(' and ')}`;
 }

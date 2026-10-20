@@ -108,3 +108,11 @@ to the Planning Phase.
 the slot card on purpose, because a facility's staff and what it makes belong together, and it
 reads and writes the same assignment the Planning Phase does. So staffing is on this card after
 all, as a list rather than a fifth verb. [`assignment-board.md`](assignment-board.md) keeps it.
+
+*Since written, again:* [#258](https://github.com/travisboettcher/cr-z-assistant/issues/258) moved
+Power and Water out of the card. Seeing which facilities had a point meant opening slot after
+slot, and the pools are the base's, like Labor. Above the map, under the base sheet, the Power
+and Water panel says which facilities have each, and its one button opens a list of every
+facility with both toggles, using the same checks and reasons. Each occupied card keeps a line
+saying what it is supplied with, and a button that opens that panel at its row. An occupied slot
+is back to one verb on the card, upgrading, with its work beside it.
