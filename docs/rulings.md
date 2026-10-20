@@ -607,8 +607,9 @@ mid-turn — and the Advancement Phase is written as though there were one missi
 
 **The ruling is that each outcome applies on its own, and none is read by another in the same
 turn.** What the Advancement Phase gathers from them is gathered across all of them: mission XP is
-a point for every survivor on every team, the discretionary point is still one per turn (pg. 18,
-literal), and the material roll is once per material recovered, from every mission together
+a point for every survivor on every team, the discretionary point is still one per turn with a
+mission (pg. 18, literal; [R156](#r156--no-discretionary-point-on-a-turn-without-a-mission)), and the
+material roll is once per material recovered, from every mission together
 (pg. 19, derived).
 
 **What it costs.** A table that plays its missions in sequence and lets the first change the
@@ -2683,3 +2684,17 @@ be learned twice.
 and the sheet keeps each spell at most once.
 
 *Decided 2026-10-19 with Z7-9, from the batch-21 extract.*
+
+---
+
+## R156 — No discretionary point on a turn without a mission
+
+**pg. 18; [#256](https://github.com/travisboettcher/cr-z-assistant/issues/256).** The
+discretionary XP is handed out after a mission (pg. 18). The app offered it on every turn, a turn
+the community skipped its mission included, and a playtest read the book the other way.
+
+**The ruling is that a turn nobody went out on a mission has no discretionary point.** A siege
+that deployed the community counts as going out, as it does for mission XP (#167). Left Behind
+Part 2a's redirect of the point (R140) always comes with a mission, so it is unchanged.
+
+*Decided 2026-10-20 from pg. 18.*

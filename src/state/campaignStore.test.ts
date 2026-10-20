@@ -3566,8 +3566,9 @@ describe('what earns a line in the log', () => {
       }),
     },
     'advancement/xpAwarded': {
-      // The discretionary point (pg. 18): one XP, anybody, and `rich()` has no
-      // mission team so no Teacher has taken it away.
+      // The discretionary point (pg. 18): one XP, anybody, after a mission
+      // (R156). Marcus has no Teaching, so no Teacher has taken it away.
+      state: marcusOnTeamOne(),
       action: {
         type: 'advancement/xpAwarded',
         at: AT,

@@ -1310,6 +1310,7 @@ const XP_SOURCE_LABELS: Record<XpSource, string> = {
  */
 const XP_POOL_EMPTY: Record<XpPoolEmptiness, string> = {
   'nobody-went': 'Nobody is on a mission team, so there is no mission XP this turn.',
+  'no-mission': 'Nobody went on a mission, so there is no discretionary point this turn.',
   'replaced-by-teaching': 'A Teacher on the mission takes this point and hands it out instead.',
   'sent-to-the-gone':
     'Left Behind Part 2a sends this point to its survivor and their bondmates, and none of them is in the community now.',
