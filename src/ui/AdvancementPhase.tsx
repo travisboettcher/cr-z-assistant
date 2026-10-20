@@ -33,6 +33,7 @@ import {
   combined,
   gathered,
   gatheredToRoll,
+  rollsOwed,
   madeTens,
   materialsAdded,
   recovered,
@@ -863,10 +864,11 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
             onClick={() => {
               // Zero rolls is legitimate — a turn with no mission still adds
               // the base's production — so the button is never disabled. It
-              // is only worth a question when somebody went out and came back
-              // with nothing entered, which is the shape of the lost-rolls
-              // bug rather than a rule.
-              if (rolls.length === 0 && team.length > 0) {
+              // is only worth a question when the haul is owed dice and none
+              // are entered, which is the shape of the lost-rolls bug rather
+              // than a rule. A Gather Materials haul with nothing left to roll
+              // owes none (#257).
+              if (rolls.length === 0 && rollsOwed(campaign)) {
                 emptyRef.current?.showModal();
                 return;
               }
@@ -887,8 +889,11 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
             </h2>
             <p className="mt-2 text-stone-600 dark:text-stone-400">
               {team.length} survivor{team.length === 1 ? '' : 's'} went out this turn and no rolls
-              are entered. Only the base’s production goes into storage, and this step doesn’t run
-              again this turn.
+              are entered.{' '}
+              {gatheredCount === 0
+                ? 'Only the base’s production goes into storage'
+                : `Only the base’s production and the ${String(gatheredCount)} ${gatheredCount === 1 ? 'material' : 'materials'} Gather Materials brought back without a roll go into storage`}
+              , and this step doesn’t run again this turn.
             </p>
 
             <div className="mt-6 flex flex-wrap justify-end gap-3">
@@ -907,7 +912,7 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
                 }}
                 className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg ${PRIMARY_FILL} px-5 font-semibold`}
               >
-                Add production only
+                {gatheredCount === 0 ? 'Add production only' : 'Add without rolls'}
               </button>
             </div>
           </dialog>

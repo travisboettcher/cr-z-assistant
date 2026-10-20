@@ -381,6 +381,28 @@ export function gatheredToRoll(campaign: Campaign): number {
 }
 
 /**
+ * Whether this turn's haul is owed dice the table rolls (pp. 17–18, 80; #257):
+ * somebody went out, and either a team played a mission whose materials are
+ * rolled, or a Gather Materials team came back short and rolls after all.
+ *
+ * A turn whose only haul is what Gather Materials teams brought back without a
+ * roll owes none, so an empty list of rolls is the right answer then and not
+ * the shape of rolls lost before they were entered (#96). A team gone out with
+ * no outcome recorded is assumed to owe them.
+ */
+export function rollsOwed(campaign: Campaign): boolean {
+  if (deployed(campaign).length === 0) return false;
+  if (gatheredToRoll(campaign) > 0) return true;
+
+  const outcomes = [...teamOutcomes(campaign).values()];
+
+  return (
+    outcomes.length === 0 ||
+    outcomes.some((outcome) => outcome.kind !== 'gather-materials-resolved')
+  );
+}
+
+/**
  * Everything wrong with adding this haul, none of it a blocker.
  *
  * Both codes are rules a table may be playing past or about to correct: a
