@@ -138,6 +138,37 @@ describe('an Other mission (#259; R157)', () => {
     expect(rollsOwed(result.campaign)).toBe(true);
   });
 
+  it('reads a name off an Other mission’s outcome only', () => {
+    // A hand-edited save can name a standard mission's choice; only Other's is checked.
+    const named = selecting({
+      step: 'tactical-mission',
+      log: [
+        {
+          turn: 4,
+          phase: 'mission',
+          at: AT,
+          event: {
+            kind: 'mission-selected',
+            team: 1,
+            mission: 'rescue-strangers',
+            names: [],
+            name: 'Stray',
+          },
+        },
+      ],
+    });
+
+    expect(
+      missionOutcomeProblem(named, {
+        kind: 'rescue-strangers-resolved',
+        team: 1,
+        strangers: [],
+        wounds: counts.wounds,
+      }),
+    ).toBeNull();
+    expect(outcomeOf({ team: 1, mission: 'other' }, counts)).toMatchObject({ name: '' });
+  });
+
   it('is refused under another name, or with a Hero rescued', () => {
     const outcome = {
       kind: 'other-mission-resolved',

@@ -288,10 +288,8 @@ export function missionsOnOffer(campaign: Campaign, team: number): readonly Miss
         );
       case 'story':
         return storiesOn(campaign, team).has(id);
-      // On any turn the standard missions are (#259; R157): turn 1 and a siege
-      // turn are answered above.
-      case 'other':
-        return true;
+      // Road Trip and an Other mission on any turn the standard missions are
+      // (#259; R157): turn 1 and a siege turn are answered above.
       default:
         return true;
     }
@@ -729,7 +727,8 @@ export function outcomeOf(choice: MissionChoice, counts: OutcomeCounts): Mission
       return {
         kind: 'other-mission-resolved',
         team,
-        name: choice.name?.trim() ?? '',
+        // Trimmed when it was chosen, and present: `selectionProblem` asks it.
+        name: choice.name ?? '',
         strangers: counts.strangers,
         wounds,
       };
