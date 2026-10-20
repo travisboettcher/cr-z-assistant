@@ -114,6 +114,14 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
     names: ['Earl Rhodes'],
     base: 'distillery',
   },
+  // A mission from outside the book, by the name the table gave it (#259).
+  {
+    kind: 'mission-selected',
+    team: 1,
+    mission: 'other',
+    names: ['Earl Rhodes'],
+    name: 'The Lighthouse',
+  },
   { kind: 'mission-skipped' },
   { kind: 'siege-defense-resolved', zombiesLeft: 0, survivorsExited: 2 },
   // A team, which every outcome written since Z4-3 carries.
@@ -143,6 +151,8 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
     strangers: [],
   },
   { kind: 'rescue-strangers-resolved', team: 1, strangers: [2] },
+  { kind: 'other-mission-resolved', team: 1, name: 'The Lighthouse', strangers: [] },
+  { kind: 'other-mission-resolved', team: 2, name: 'The Lighthouse', strangers: [1, 3] },
   { kind: 'rare-goods-trader-resolved', team: 2, survivorsExited: 1, strangers: [3] },
   // With a trade under way, and how many items the trader handed over (Z5-10).
   {

@@ -1207,6 +1207,17 @@ describe('a campaign whose log is damaged', () => {
       },
       'unreadable viral',
     ],
+    // An Other mission's name (#259): something, not blank.
+    [
+      'an Other mission with a blank name',
+      { kind: 'other-mission-resolved', team: 1, name: ' ', strangers: [] },
+      'unreadable name',
+    ],
+    [
+      'a choice with a blank mission name',
+      { kind: 'mission-selected', team: 1, mission: 'other', names: [], name: '' },
+      'unreadable name',
+    ],
     // The spells an enemy cast and a spell learned (R112, R113; Z7-9).
     ['no spells cast', { kind: 'spells-cast', team: 1, spells: [] }, 'unreadable spells'],
     [

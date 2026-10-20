@@ -2698,3 +2698,19 @@ that deployed the community counts as going out, as it does for mission XP (#167
 Part 2a's redirect of the point (R140) always comes with a mission, so it is unchanged.
 
 *Decided 2026-10-20 from pg. 18.*
+
+---
+
+## R157 — A mission from outside the book counts strangers, and rolls its materials
+
+**[#259](https://github.com/travisboettcher/cr-z-assistant/issues/259).** A table may play a
+mission the book doesn't print, a Patreon release or a homebrew, and the book can't say what one
+records.
+
+**The ruling is that an Other mission is named at Select Mission and offered whenever the standard
+missions are**, never on turn 1 or a siege turn, where the book fixes the mission. **Its outcome
+records the team's wounds and the strangers rescued**, who join at Create New Survivors as any
+mission's do, **and its materials are rolled at Add Materials to Storage** like every mission's but
+Gather Materials'. Anything particular to the mission is the table's to add by hand.
+
+*Decided 2026-10-20.*

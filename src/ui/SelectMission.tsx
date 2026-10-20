@@ -21,11 +21,18 @@
 import { useState } from 'react';
 import { BASE_IDS, BASES, type BaseId } from '../data/bases';
 import type { Material } from '../data/materials';
-import { GATHERED_MATERIALS, MISSIONS, type MissionFamily, type MissionId } from '../data/missions';
+import {
+  GATHERED_MATERIALS,
+  MISSIONS,
+  OTHER_MISSION_NAME_MAX,
+  type MissionFamily,
+  type MissionId,
+} from '../data/missions';
 import type { Campaign } from '../engine/campaign';
 import {
   asksForBase,
   asksForMaterial,
+  asksForName,
   missionsOnOffer,
   missionTeams,
   selectionProblem,
@@ -38,7 +45,7 @@ import { claimWarning } from '../engine/claim';
 import { FIRST_TURN } from '../engine/siege';
 import { useCampaign } from '../state/useCampaign';
 import { BASE_LABELS, MATERIAL_LABELS } from './baseLabels';
-import { describeSelection, MISSION_LABELS } from './missionLabels';
+import { describeSelection, MISSION_LABELS, missionPages } from './missionLabels';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, PRIMARY_FILL, SECONDARY_FILL, TOUCH_TARGET } from './styles';
 import { LostRolls } from './LostRoll';
@@ -62,6 +69,7 @@ const FAMILY_LABELS: Record<MissionFamily, string> = {
   story: 'Story missions',
   origin: 'Zombie Origin missions',
   'road-trip': 'Road Trip missions',
+  other: 'Not in the book',
 };
 
 /** A label that opens a list entry rather than sitting inside a sentence. */
@@ -88,6 +96,7 @@ function TeamChoice({
   );
   const [material, setMaterial] = useState<Material>(current?.material ?? 'food');
   const [base, setBase] = useState<BaseId>(current?.base ?? 'small-town-home');
+  const [name, setName] = useState(current?.name ?? '');
   const [changing, setChanging] = useState(false);
 
   const choice = {
@@ -95,6 +104,7 @@ function TeamChoice({
     mission,
     ...(asksForMaterial(mission) ? { material } : {}),
     ...(asksForBase(campaign, mission) ? { base } : {}),
+    ...(asksForName(mission) ? { name } : {}),
   };
   const problem = selectionProblem(campaign, choice);
   const warning =
@@ -103,6 +113,7 @@ function TeamChoice({
   const missionId = `mission-team-${String(team.team)}`;
   const materialId = `mission-material-${String(team.team)}`;
   const baseId = `mission-base-${String(team.team)}`;
+  const nameId = `mission-name-${String(team.team)}`;
 
   const members = team.members.map((survivor) => survivor.name);
 
@@ -119,7 +130,7 @@ function TeamChoice({
         <legend className="px-1 text-sm font-semibold">Mission team {team.team}</legend>
 
         <p className="text-sm font-medium">
-          {describeSelection(current)} <PageRef pages={MISSIONS[current.mission].pages} />
+          {describeSelection(current)} <PageRef pages={missionPages(current.mission)} />
         </p>
 
         {moved && <p className={HINT}>The team is now {members.join(', ')}.</p>}
@@ -134,6 +145,7 @@ function TeamChoice({
                 setMission(current.mission);
                 setMaterial(current.material ?? 'food');
                 setBase(current.base ?? 'small-town-home');
+                setName(current.name ?? '');
                 setChanging(true);
               }}
             >
@@ -175,7 +187,7 @@ function TeamChoice({
             </optgroup>
           ))}
         </select>
-        <PageRef pages={MISSIONS[mission].pages} />
+        <PageRef pages={missionPages(mission)} />
       </div>
 
       {asksForMaterial(mission) && (
@@ -198,6 +210,32 @@ function TeamChoice({
             ))}
           </select>
           <PageRef pages={80} />
+        </div>
+      )}
+
+      {/* A mission from outside the book, by the name the table gives it (#259; R157). */}
+      {asksForName(mission) && (
+        <div className="flex flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="text-sm" htmlFor={nameId}>
+              Mission name
+            </label>
+            <input
+              id={nameId}
+              type="text"
+              className={`${SELECT} min-w-0 flex-1`}
+              maxLength={OTHER_MISSION_NAME_MAX}
+              value={name}
+              onChange={(changed) => {
+                setName(changed.target.value);
+              }}
+            />
+          </div>
+          <p className={HINT}>
+            For a mission that isn’t in the book. Its outcome records the team’s Health and any
+            strangers rescued, and its materials are rolled at Add Materials to Storage. Anything
+            else it gives, add by hand.
+          </p>
         </div>
       )}
 

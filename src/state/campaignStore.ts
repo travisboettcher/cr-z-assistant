@@ -518,6 +518,8 @@ export type CampaignAction =
       readonly mission: MissionId;
       readonly material?: Material;
       readonly base?: BaseId;
+      /** What the table calls an Other mission (#259). */
+      readonly name?: string;
       readonly at: string;
     }
   /**
@@ -1083,6 +1085,7 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
             mission: action.mission,
             ...(action.material === undefined ? {} : { material: action.material }),
             ...(action.base === undefined ? {} : { base: action.base }),
+            ...(action.name === undefined ? {} : { name: action.name }),
           },
           action.at,
         ),

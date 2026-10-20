@@ -752,7 +752,7 @@ describe('the missions', () => {
   // Each family's chapter (pp. 75, 87, 103, 158). A citation outside its
   // chapter is a transcription slip; Road Trip's chapter opens at pg. 158,
   // before its missions do.
-  const CHAPTERS: Record<MissionFamily, readonly [number, number]> = {
+  const CHAPTERS: Record<Exclude<MissionFamily, 'other'>, readonly [number, number]> = {
     standard: [75, 86],
     story: [87, 102],
     origin: [103, 115],
@@ -785,8 +785,17 @@ describe('the missions', () => {
     expect(count('road-trip')).toBe(3);
   });
 
+  it('has one mission from outside the book, which cites no page (#259)', () => {
+    expect(entries.filter(([, mission]) => mission.family === 'other').map(([id]) => id)).toEqual([
+      'other',
+    ]);
+    expect('pages' in MISSIONS.other).toBe(false);
+  });
+
   it('cites every mission inside its own chapter', () => {
     for (const [, mission] of entries) {
+      if (mission.family === 'other') continue;
+
       const [first, last] = CHAPTERS[mission.family];
       const pages = String(mission.pages)
         .split(/[^0-9]+/)

@@ -37,6 +37,7 @@ import { MATERIALS, type Material } from '../data/materials';
 import {
   GATHERED_MATERIALS,
   MISSIONS,
+  OTHER_MISSION_NAME_MAX,
   type MissionId,
   type SelectionChoice,
   type StandardMissionId,
@@ -78,6 +79,9 @@ export interface MissionChoice {
 
   /** The base a Claim a New Base team is claiming (pg. 78; Z4-7). */
   readonly base?: BaseId;
+
+  /** What the table calls an Other mission (#259; R157). */
+  readonly name?: string;
 }
 
 /**
@@ -169,6 +173,7 @@ export function turnMissions(campaign: Campaign): TurnMissions {
         names: event.names,
         ...(event.material === undefined ? {} : { material: event.material }),
         ...(event.base === undefined ? {} : { base: event.base }),
+        ...(event.name === undefined ? {} : { name: event.name }),
       });
       skipped = false;
       recorded = true;
@@ -283,6 +288,10 @@ export function missionsOnOffer(campaign: Campaign, team: number): readonly Miss
         );
       case 'story':
         return storiesOn(campaign, team).has(id);
+      // On any turn the standard missions are (#259; R157): turn 1 and a siege
+      // turn are answered above.
+      case 'other':
+        return true;
       default:
         return true;
     }
@@ -307,7 +316,12 @@ function storiesOn(campaign: Campaign, team: number): ReadonlySet<MissionId> {
 function asksFor(mission: MissionId, choice: SelectionChoice): boolean {
   const entry: (typeof MISSIONS)[MissionId] = MISSIONS[mission];
 
-  return entry.family === 'standard' && (entry.asks as readonly string[]).includes(choice);
+  return 'asks' in entry && (entry.asks as readonly string[]).includes(choice);
+}
+
+/** Whether Select Mission asks the table to name this mission: an Other mission (#259). */
+export function asksForName(mission: MissionId): boolean {
+  return asksFor(mission, 'name');
 }
 
 /** Whether a mission asks Select Mission for a material type (pg. 80). */
@@ -404,6 +418,16 @@ export function selectionProblem(campaign: Campaign, choice: MissionChoice): str
     return 'Only Claim a New Base, or starting over after an overrun, claims a base.';
   }
 
+  if (asksForName(choice.mission)) {
+    const name = choice.name?.trim() ?? '';
+    if (name === '') return 'Name the mission.';
+    if (name.length > OTHER_MISSION_NAME_MAX) {
+      return `Keep the mission’s name to ${String(OTHER_MISSION_NAME_MAX)} characters.`;
+    }
+  } else if (choice.name !== undefined) {
+    return 'Only an Other mission takes a name.';
+  }
+
   return null;
 }
 
@@ -435,6 +459,7 @@ const OUTCOME_KINDS = [
   'rescue-strangers-resolved',
   'rare-goods-trader-resolved',
   'siege-defense-resolved',
+  'other-mission-resolved',
   'mission-played',
 ] as const;
 
@@ -460,10 +485,10 @@ export type MissionOutcome = Extract<
   { readonly kind: (typeof OUTCOME_KINDS)[number] }
 >;
 
-/** The standard mission each standard outcome kind belongs to. */
+/** The mission each outcome kind but `mission-played` belongs to. */
 const OUTCOME_MISSION: Record<
   Exclude<MissionOutcome['kind'], 'mission-played'>,
-  StandardMissionId
+  StandardMissionId | 'other'
 > = {
   'first-mission-resolved': 'first-mission',
   'claim-a-new-base-resolved': 'claim-a-new-base',
@@ -473,6 +498,7 @@ const OUTCOME_MISSION: Record<
   'rescue-strangers-resolved': 'rescue-strangers',
   'rare-goods-trader-resolved': 'rare-goods-trader',
   'siege-defense-resolved': 'siege-defense',
+  'other-mission-resolved': 'other',
 };
 
 /** Whether an entry is a mission's outcome. */
@@ -699,6 +725,14 @@ export function outcomeOf(choice: MissionChoice, counts: OutcomeCounts): Mission
         survivorsExited: counts.survivorsExited,
         wounds,
       };
+    case 'other':
+      return {
+        kind: 'other-mission-resolved',
+        team,
+        name: choice.name?.trim() ?? '',
+        strangers: counts.strangers,
+        wounds,
+      };
     default:
       return { kind: 'mission-played', team, mission: choice.mission, wounds };
   }
@@ -754,7 +788,10 @@ export function missionOutcomeProblem(campaign: Campaign, outcome: MissionOutcom
   if (choice === undefined) {
     return `Mission team ${String(team)} hasn’t chosen a mission this turn.`;
   }
-  if (outcomeMission(outcome) !== choice.mission) {
+  if (
+    outcomeMission(outcome) !== choice.mission ||
+    (outcome.kind === 'other-mission-resolved' && outcome.name !== choice.name)
+  ) {
     return `That isn’t the mission team ${String(team)} chose.`;
   }
   if (teamOutcomes(campaign).has(team)) {

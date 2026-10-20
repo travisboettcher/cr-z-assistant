@@ -39,12 +39,12 @@ import {
   UPGRADE_LABELS,
   slotLabel,
 } from './baseLabels';
-import { MISSIONS } from '../data/missions';
 import { describeItem, holderLabel } from './equipmentLabels';
 import {
   describeOutcome,
   describeSelection,
   MISSION_LABELS,
+  missionPages,
   OVERRUN_LABELS,
   outcomePages,
 } from './missionLabels';
@@ -147,6 +147,11 @@ function paid(amount: { readonly food: number; readonly fuel: number }): string 
   ];
 
   return parts.length === 0 ? 'nothing' : parts.join(' and ');
+}
+
+/** A line with its page, or with none for something the book doesn't print (#259). */
+function cited(text: string, pages: number | string | undefined): EventLabel {
+  return pages === undefined ? { text } : { text, pages };
 }
 
 export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
@@ -384,7 +389,7 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
       };
 
     case 'mission-selected':
-      return { text: describeSelection(event), pages: MISSIONS[event.mission].pages };
+      return cited(describeSelection(event), missionPages(event.mission));
 
     case 'mission-skipped':
       return { text: 'The community skipped this turn’s mission.', pages: 17 };
@@ -397,8 +402,9 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
     case 'retrieve-new-vehicles-resolved':
     case 'rescue-strangers-resolved':
     case 'rare-goods-trader-resolved':
+    case 'other-mission-resolved':
     case 'mission-played':
-      return { text: describeOutcome(event, turn), pages: outcomePages(event) };
+      return cited(describeOutcome(event, turn), outcomePages(event));
 
     case 'stood-in':
       return {
