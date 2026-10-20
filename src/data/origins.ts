@@ -55,3 +55,37 @@ export const FOUND_CHECK_TARGET = 8;
 
 /** The Madness a Found survivor who passed that check never goes above (pg. 130; R111). */
 export const FOUND_MADNESS_CAP = 6;
+
+/** A survivor's Humanity at the start, and its range (pg. 127; R114, R115). The Magic origin's. */
+export const HUMANITY_START = 3;
+export const HUMANITY_MAX = 5;
+
+/**
+ * The items R114 names as magical: starting a mission carrying any of them
+ * costs 1 Humanity, once however many (pg. 127).
+ */
+export const MAGICAL_ITEMS = [
+  'silver-ammunition',
+  'enchanted-melee-weapon',
+  'resistance-charm',
+  'warding-stones',
+] as const;
+
+/**
+ * The six spells, all on pg. 127 and in no groups (R112). An enemy casting one
+ * on the table is the only way a spell becomes seen; every enemy that casts
+ * picks from the same d10 table (pg. 133), so no spell belongs to one enemy.
+ */
+export const SPELLS = [
+  'dominate-enemy',
+  'rain-of-fire',
+  'teleport',
+  'restoration',
+  'duplicate',
+  'mass-recall',
+] as const;
+
+export type SpellId = (typeof SPELLS)[number];
+
+/** XP off the next spell learned, for each win of The Necromancer (pg. 114; R124, R153). */
+export const NECROMANCER_SPELL_DISCOUNT = 3;

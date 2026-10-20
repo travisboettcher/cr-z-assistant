@@ -95,6 +95,8 @@ function orderedSurvivor(survivor: Survivor): Record<keyof Survivor, unknown> {
     currentHp: survivor.currentHp,
     infection: survivor.infection,
     madness: survivor.madness,
+    humanity: survivor.humanity,
+    spells: survivor.spells,
     xp: survivor.xp,
     xpSpent: survivor.xpSpent,
     found: survivor.found,
@@ -328,7 +330,8 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
   if (
     (event.kind === 'survivor-departed' ||
       event.kind === 'survivor-lost' ||
-      event.kind === 'lost-rescued') &&
+      event.kind === 'lost-rescued' ||
+      event.kind === 'survivor-veiled') &&
     event.items !== undefined
   ) {
     return { ...taggedFirst(event, 'kind'), items: event.items.map(orderedItem) };
@@ -393,7 +396,7 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
 
   // A story's ending and what it gave (Z7-3), and a Viral mission's counts (Z7-6).
   if (event.kind === 'mission-played') {
-    const { story, viral } = event;
+    const { story, viral, magic } = event;
 
     return {
       ...outcome,
@@ -408,6 +411,7 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
               held: viral.held,
               supplies: viral.supplies,
             },
+      magic: magic === undefined ? undefined : { completed: magic.completed, killed: magic.killed },
     };
   }
 
@@ -497,6 +501,7 @@ function orderedWound(wound: MissionWound): Record<keyof MissionWound, unknown> 
     infection: wound.infection,
     madness: wound.madness,
     foundCheck: wound.foundCheck,
+    humanity: wound.humanity,
   };
 }
 

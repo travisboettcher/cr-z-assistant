@@ -49,6 +49,7 @@ import { planningHasBegun } from './planning';
 import { projectTeamThatWorked, siegeDefended } from './siegeWork';
 import { freeRebuild } from './rebuild';
 import { phaseOf } from './turn';
+import { necromancerKilled } from './magicMissions';
 import { containmentUnlock } from './viralMissions';
 
 /**
@@ -142,7 +143,7 @@ export function occupantAwaiting(campaign: Campaign, slot: string): Occupant | u
  * `Project.charged`.
  */
 export function projectCost(campaign: Campaign, project: ProjectOrder): Cost {
-  const cost = costOf(campaign, project);
+  const cost = withNecromancerLabor(campaign, project, costOf(campaign, project));
 
   // Putting back what an overrun destroyed spends no resources; the Labor and
   // the turn it takes are unchanged (pg. 86; R29; Z4-10).
@@ -221,6 +222,21 @@ function costOf(campaign: Campaign, project: ProjectOrder): Cost {
 }
 
 const NOTHING = { hardware: 0, labor: 0 } as const;
+
+/**
+ * A Mystic Library, or an upgrade to one, at 1 Labor less once the
+ * Necromancer is killed (R124, R153; Z7-9), never below none.
+ */
+function withNecromancerLabor(campaign: Campaign, project: ProjectOrder, cost: Cost): Cost {
+  const library =
+    (project.kind === 'facility' && project.facility === 'mystic-library') ||
+    (project.kind === 'upgrade' &&
+      occupantAwaiting(campaign, project.slot)?.facility.id === 'mystic-library');
+
+  return library && necromancerKilled(campaign)
+    ? { ...cost, labor: Math.max(0, cost.labor - 1) }
+    : cost;
+}
 
 /** One queued project and where it sits, which is how it is cancelled. */
 export interface QueuedProject {

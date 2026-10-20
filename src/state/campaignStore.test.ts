@@ -3079,6 +3079,10 @@ describe('what earns a line in the log', () => {
       action: { type: 'survivor/madnessSet', id: LOGGED_SURVIVOR, madness: 3 },
       entry: null,
     },
+    'survivor/humanitySet': {
+      action: { type: 'survivor/humanitySet', id: LOGGED_SURVIVOR, humanity: 1 },
+      entry: null,
+    },
     'survivor/xpSpentSet': {
       action: { type: 'survivor/xpSpentSet', id: LOGGED_SURVIVOR, xpSpent: 12 },
       entry: null,
@@ -3174,6 +3178,27 @@ describe('what earns a line in the log', () => {
       }),
       action: { type: 'advancement/madnessRecovered', at: AT },
       entry: entry(3, 'advancement', { kind: 'madness-recovered', ...WEBB, madness: 2 }),
+    },
+    // Marcus, staffing a Mystic Library with 20 XP, learns a spell an enemy cast (R113; Z7-9).
+    'advancement/spellLearned': {
+      state: openState({
+        ...expectOpen(rich()),
+        step: 'character-advancement',
+        origin: 'magic',
+        base: {
+          id: 'small-town-home',
+          slots: { garage: { built: { facility: 'mystic-library', builtOnTurn: 1 } } },
+        },
+        assignments: { [LOGGED_SURVIVOR]: { task: 'staff', slot: 'garage' } },
+        log: [entry(3, 'mission', { kind: 'spells-cast', team: 1, spells: ['teleport'] })],
+      }),
+      action: {
+        type: 'advancement/spellLearned',
+        survivor: LOGGED_SURVIVOR,
+        spell: 'teleport',
+        at: AT,
+      },
+      entry: entry(3, 'advancement', { kind: 'spell-learned', ...WEBB, spell: 'teleport', xp: 6 }),
     },
     // A correction on the sheet, like the stats above: a trait a story gives is
     // the story's own entry (Z7-1).
@@ -3429,6 +3454,19 @@ describe('what earns a line in the log', () => {
         ...WEBB,
         tier: 1,
       }),
+    },
+    // Marcus, on the project team in a Magic campaign, gains 1 Humanity (R114; Z7-9).
+    'management/projectHumanity': {
+      state: openState({
+        ...createNewCampaign('Cedar Hollow', FIXED),
+        turn: 3,
+        step: 'check-for-rot',
+        origin: 'magic',
+        survivors: [createSurvivor('Marcus Webb', 1, { id: LOGGED_SURVIVOR })],
+        assignments: { [LOGGED_SURVIVOR]: { task: 'project' } },
+      }),
+      action: { type: 'management/projectHumanity', at: AT },
+      entry: entry(3, 'management', { kind: 'humanity-gained', ...WEBB, reason: 'project-team' }),
     },
     // Marcus at 13 Madness in a Cosmic Horror campaign goes Lost (R106; Z7-7).
     'management/goneLost': {

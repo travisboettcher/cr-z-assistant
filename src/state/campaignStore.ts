@@ -32,6 +32,7 @@
 import type { BaseId } from '../data/bases';
 import type { Utility } from '../data/facilities';
 import type { Material } from '../data/materials';
+import type { SpellId } from '../data/origins';
 import type { Grade, ItemId } from '../data/equipment';
 import type { MissionId, OverrunOption } from '../data/missions';
 import type { D10Result } from '../data/dice';
@@ -59,6 +60,7 @@ import {
   submitHaul,
   submitInoculated,
   submitMadnessRecovered,
+  submitSpellLearned,
   submitRotResisted,
   submitRareUpgradeInstalled,
   submitHealing,
@@ -122,6 +124,7 @@ import type { FormResult } from '../engine/forms';
 import {
   submitDeparture,
   submitGoneLost,
+  submitProjectHumanity,
   submitFeeding,
   submitHordeCheck,
   submitInfectionCheck,
@@ -305,6 +308,8 @@ export type CampaignAction =
   | { readonly type: 'survivor/infectionSet'; readonly id: string; readonly infection: number }
   /** Set a survivor's Madness by hand, under the Cosmic Horror origin (pg. 124; Z7-7). */
   | { readonly type: 'survivor/madnessSet'; readonly id: string; readonly madness: number }
+  /** Correct a survivor's Humanity by hand, 0 to 5 (R114; Z7-9). */
+  | { readonly type: 'survivor/humanitySet'; readonly id: string; readonly humanity: number }
   /** Correct a survivor's XP spent by hand (R149; Z7-8). */
   | { readonly type: 'survivor/xpSpentSet'; readonly id: string; readonly xpSpent: number }
   /**
@@ -338,6 +343,13 @@ export type CampaignAction =
   | { readonly type: 'advancement/rotResisted'; readonly at: string }
   /** This turn's Madness Recovery in the Lounge, at Heal Wounds (R110; Z7-7). */
   | { readonly type: 'advancement/madnessRecovered'; readonly at: string }
+  /** Learn a spell at the Mystic Library, at Character Advancement (R113; Z7-9). */
+  | {
+      readonly type: 'advancement/spellLearned';
+      readonly survivor: string;
+      readonly spell: SpellId;
+      readonly at: string;
+    }
   /** A survivor's Story Trait, Veteran and bond group, set on their sheet (R84; Z7-1). */
   | { readonly type: 'survivor/traitsSet'; readonly id: string; readonly traits: SurvivorTraits }
   /** Take a skill, at level 0 — skills all start there (pg. 8). */
@@ -635,6 +647,8 @@ export type CampaignAction =
       readonly type: 'mission/resolved';
       readonly outcome: MissionOutcome;
       readonly deaths?: readonly MissionDeath[];
+      /** The spells an enemy cast on it, in a Magic campaign (R112; Z7-9). Absent is none. */
+      readonly spellsCast?: readonly SpellId[];
       readonly at: string;
     }
   /**
@@ -660,6 +674,8 @@ export type CampaignAction =
    * still over the threshold with somebody still to lose genuinely loses them.
    */
   | { readonly type: 'management/departed'; readonly survivor: string; readonly at: string }
+  /** The project team's 1 Humanity for the turn, at Management Step 1 (R114; Z7-9). */
+  | { readonly type: 'management/projectHumanity'; readonly at: string }
   /** Everybody at 13 or more Madness goes Lost, before the Unrest check (R106; Z7-7). */
   | { readonly type: 'management/goneLost'; readonly at: string }
   /**
@@ -924,6 +940,12 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
         madness: action.madness,
       }));
 
+    case 'survivor/humanitySet':
+      return editSurvivor(state, action.id, (survivor) => ({
+        ...survivor,
+        humanity: Math.min(5, action.humanity),
+      }));
+
     case 'survivor/xpSpentSet':
       return editSurvivor(state, action.id, (survivor) => ({
         ...survivor,
@@ -951,6 +973,11 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
     case 'advancement/madnessRecovered':
       return submitted(state, (campaign) => submitMadnessRecovered(campaign, action.at));
+
+    case 'advancement/spellLearned':
+      return submitted(state, (campaign) =>
+        submitSpellLearned(campaign, { survivor: action.survivor, spell: action.spell }, action.at),
+      );
 
     case 'survivor/traitsSet':
       return submitted(state, (campaign) => submitTraitsSet(campaign, action.id, action.traits));
@@ -1076,7 +1103,13 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
     case 'mission/resolved':
       return submitted(state, (campaign) =>
-        submitMissionEnded(campaign, action.outcome, action.deaths ?? [], action.at),
+        submitMissionEnded(
+          campaign,
+          action.outcome,
+          action.deaths ?? [],
+          action.at,
+          action.spellsCast ?? [],
+        ),
       );
 
     case 'mission/stoodIn':
@@ -1086,6 +1119,9 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
     case 'management/departed':
       return submitted(state, (campaign) => submitDeparture(campaign, action.survivor, action.at));
+
+    case 'management/projectHumanity':
+      return submitted(state, (campaign) => submitProjectHumanity(campaign, action.at));
 
     case 'management/goneLost':
       return submitted(state, (campaign) => submitGoneLost(campaign, action.at));

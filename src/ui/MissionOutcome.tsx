@@ -40,7 +40,7 @@ import {
 } from '../data/missions';
 import { FIELD_RECRUITABLE_TIERS, type FieldRecruitTier } from '../data/recruitTable';
 import type { Campaign, Survivor } from '../engine/campaign';
-import type { MissionWound } from '../engine/log';
+import type { MagicRecord, MissionWound } from '../engine/log';
 import { claimWarning } from '../engine/claim';
 import { deathsProblem, wentOut, type MissionDeath } from '../engine/missionDeaths';
 import {
@@ -66,6 +66,7 @@ import {
   overrunClaim,
 } from '../engine/overrun';
 import { isStory, storyEnding, type StoryChoice } from '../engine/storyMissions';
+import { isMagicMission, magicAsks } from '../engine/magicMissions';
 import { isViralMission, viralRecord } from '../engine/viralMissions';
 import { maxHp } from '../engine/survivor';
 import { atTier, tierRolled } from '../engine/vehicles';
@@ -87,6 +88,9 @@ import {
 import { PageRef } from './PageRef';
 import { LostRescues } from './LostRoll';
 import { StoryEnding } from './StoryEnding';
+import { MagicEnding } from './MagicEnding';
+import { SpellsCast } from './Spells';
+import type { SpellId } from '../data/origins';
 import { ViralEnding } from './ViralEnding';
 import { EMPTY_VIRAL_DRAFT, viralDraftRecord, type ViralDraft } from './viralDraft';
 import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
@@ -185,6 +189,7 @@ type Typed = Partial<
       readonly health?: string;
       readonly infection?: string;
       readonly madness?: string;
+      readonly humanity?: string;
       readonly foundCheck?: string;
     }
   >
@@ -204,6 +209,7 @@ function woundsTyped(standing: readonly MissionWound[], typed: Typed): readonly 
       ...(over?.health === undefined ? {} : { health: count(over.health) }),
       ...(over?.infection === undefined ? {} : { infection: count(over.infection) }),
       ...(over?.madness === undefined ? {} : { madness: count(over.madness) }),
+      ...(over?.humanity === undefined ? {} : { humanity: count(over.humanity) }),
       ...(over?.foundCheck === undefined || over.foundCheck === ''
         ? {}
         : { foundCheck: Number(over.foundCheck) as D10Result }),
@@ -228,7 +234,7 @@ function WoundFields({
   readonly typed: Typed;
   readonly onType: (
     survivor: string,
-    field: 'health' | 'infection' | 'madness' | 'foundCheck',
+    field: 'health' | 'infection' | 'madness' | 'humanity' | 'foundCheck',
     value: string,
   ) => void;
 }) {
@@ -241,6 +247,7 @@ function WoundFields({
   // second reading of the origin here.
   const viral = home.some((wound) => wound.infection !== undefined);
   const cosmic = home.some((wound) => wound.madness !== undefined);
+  const magic = home.some((wound) => wound.humanity !== undefined);
 
   return (
     <div className="flex flex-col gap-2">
@@ -258,7 +265,19 @@ function WoundFields({
             and Madness <PageRef pages={124} />
           </>
         )}
+        {magic && (
+          <>
+            {' '}
+            and Humanity <PageRef pages={127} />
+          </>
+        )}
       </p>
+      {magic && (
+        <p className={HINT}>
+          Humanity starts 1 lower for anybody who set out with a magical item. At 0 they are lost to
+          the Veil, and leave with what they carry.
+        </p>
+      )}
       <p className={HINT}>
         Everybody starts where the roster has them now. Change anybody the mission left differently;
         recording sets the roster to these.
@@ -269,6 +288,7 @@ function WoundFields({
         const infection = `${prefix}-infection-${wound.survivor}`;
         const madness = `${prefix}-madness-${wound.survivor}`;
         const foundCheck = `${prefix}-found-${wound.survivor}`;
+        const humanity = `${prefix}-humanity-${wound.survivor}`;
         // A Found survivor whose Madness goes up makes the check (R111).
         const checking =
           survivor !== undefined &&
@@ -335,6 +355,26 @@ function WoundFields({
                   className={FIELD}
                   onChange={(changed) => {
                     onType(wound.survivor, 'madness', changed.target.value);
+                  }}
+                />
+              </>
+            )}
+            {wound.humanity !== undefined && (
+              <>
+                <label className="ml-2 text-sm" htmlFor={humanity}>
+                  {wound.name}’s Humanity
+                </label>
+                <input
+                  id={humanity}
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={5}
+                  step={1}
+                  value={typed[wound.survivor]?.humanity ?? String(wound.humanity)}
+                  className={FIELD}
+                  onChange={(changed) => {
+                    onType(wound.survivor, 'humanity', changed.target.value);
                   }}
                 />
               </>
@@ -506,6 +546,8 @@ function TeamOutcome({
   const [taken, setTaken] = useState<Readonly<Record<string, string>>>({});
   const [ending, setEnding] = useState<StoryChoice>({ result: '' });
   const [viralDraft, setViralDraft] = useState<ViralDraft>(EMPTY_VIRAL_DRAFT);
+  const [magicDraft, setMagicDraft] = useState<MagicRecord>({});
+  const [spellsCast, setSpellsCast] = useState<readonly SpellId[]>([]);
 
   // The claim an overrun goes on with places no strangers (pg. 86), and asks
   // whether it was the overrun base's own map when it is that base's type (R29).
@@ -561,6 +603,11 @@ function TeamOutcome({
   const record = story === undefined ? undefined : storyEnding(campaign, team, story, ending);
   // A Viral mission's counts (Z7-6).
   const viral = isViralMission(choice.mission) ? choice.mission : undefined;
+  // A Magic mission's ending (Z7-9); The Dark asks nothing.
+  const magic =
+    isMagicMission(choice.mission) && magicAsks(choice.mission).length > 0
+      ? choice.mission
+      : undefined;
   const outcome =
     played.kind !== 'mission-played'
       ? played
@@ -571,6 +618,13 @@ function TeamOutcome({
           ...(viral === undefined
             ? {}
             : { viral: viralRecord(campaign, viral, viralDraftRecord(viral, viralDraft)) }),
+          ...(magic === undefined
+            ? {}
+            : {
+                magic: Object.fromEntries(
+                  magicAsks(magic).map((field) => [field, magicDraft[field] === true]),
+                ) as MagicRecord,
+              }),
         };
   const members = wentOut(campaign, choice.team);
   const deaths = deathsTicked(choice.team, members, dead, taken);
@@ -588,7 +642,7 @@ function TeamOutcome({
     HINTS[choice.mission] ??
     (story !== undefined
       ? 'Record how the story ended. What the map held, an item or a roll, isn’t tracked yet.'
-      : viral !== undefined
+      : viral !== undefined || magic !== undefined
         ? 'Record what the table counted when the mission ended.'
         : asked.length === 0
           ? 'Its rewards aren’t tracked yet. Recording it marks the mission played.'
@@ -728,6 +782,12 @@ function TeamOutcome({
             );
         }
       })}
+
+      {magic !== undefined && (
+        <MagicEnding mission={magic} record={magicDraft} onChange={setMagicDraft} />
+      )}
+
+      {campaign.origin === 'magic' && <SpellsCast cast={spellsCast} onChange={setSpellsCast} />}
 
       {viral !== undefined && (
         <ViralEnding mission={viral} prefix={prefix} draft={viralDraft} onChange={setViralDraft} />
@@ -897,6 +957,7 @@ function TeamOutcome({
             type: 'mission/resolved',
             outcome,
             ...(deaths.length === 0 ? {} : { deaths }),
+            ...(spellsCast.length === 0 ? {} : { spellsCast }),
             at: new Date().toISOString(),
           });
         }}
@@ -908,24 +969,28 @@ function TeamOutcome({
 }
 
 /**
- * Who died on the team's mission, as the log says it, since the team last
- * chose one: a First Mission played again (R21) has deaths of its own.
+ * What the log says of the team's mission beside its outcome, since the team
+ * last chose one: the spells an enemy cast on it (Z7-9), and who died. A First
+ * Mission played again (R21) has deaths of its own.
  */
-function killedSince(campaign: Campaign, team: number): readonly string[] {
-  let killed: string[] = [];
+function endedSince(campaign: Campaign, team: number): readonly string[] {
+  let said: string[] = [];
 
   for (const entry of campaign.log) {
     if (entry.turn !== campaign.turn) continue;
 
     const { event } = entry;
 
-    if (event.kind === 'mission-selected' && event.team === team) killed = [];
-    else if (event.kind === 'survivor-left' && event.cause === 'killed' && event.team === team) {
-      killed = [...killed, describeEvent(event, entry.turn).text];
+    if (event.kind === 'mission-selected' && event.team === team) said = [];
+    else if (
+      (event.kind === 'survivor-left' && event.cause === 'killed' && event.team === team) ||
+      (event.kind === 'spells-cast' && event.team === team)
+    ) {
+      said = [...said, describeEvent(event, entry.turn).text];
     }
   }
 
-  return killed;
+  return said;
 }
 
 /** How many times a team has chosen a mission this turn — a key, not a rule. */
@@ -1123,7 +1188,7 @@ export function MissionOutcome({ campaign }: { readonly campaign: Campaign }) {
             <p className="text-sm font-medium">
               {describeOutcome(recorded, campaign.turn)} <PageRef pages={outcomePages(recorded)} />
             </p>
-            {killedSince(campaign, choice.team).map((text) => (
+            {endedSince(campaign, choice.team).map((text) => (
               <p key={text} className="text-sm">
                 {text}
               </p>

@@ -18,7 +18,7 @@ import {
   type Stat,
 } from '../data/skills';
 import { NATURAL_FAILURE, NATURAL_SUCCESS, type D10Result } from '../data/dice';
-import { INFECTION_INCAPACITATES } from '../data/origins';
+import { HUMANITY_START, INFECTION_INCAPACITATES } from '../data/origins';
 import {
   PLAYERS_CHOICE,
   RECRUIT_SKILL_TABLE,
@@ -265,6 +265,8 @@ export function createSurvivor(
     // a mission (pg. 123), and nobody joins a community having taken any.
     infection: 0,
     madness: 0,
+    humanity: HUMANITY_START,
+    spells: [],
     xpSpent: 0,
     found: false,
     foundCheckPassed: false,

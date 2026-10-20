@@ -18,6 +18,7 @@
 import type { BaseId } from '../data/bases';
 import type { D10Result } from '../data/dice';
 import type { OverrunOption, StoryMissionId, ViralMissionId } from '../data/missions';
+import type { SpellId } from '../data/origins';
 import type { Campaign, Survivor, Vehicle } from './campaign';
 import { equipCheck, withEquipMove, type EquipMove } from './equip';
 import { accepted, blockedBy, refused, type FormResult } from './forms';
@@ -65,8 +66,10 @@ import {
   withLostRolled,
   type LostRescue,
 } from './lostRoll';
+import { withDeparture } from './departures';
 import { extrasOf } from './storyRewards';
 import { viralRecord, withViralRecorded } from './viralMissions';
+import { spellsCastProblem, withSpellsCast } from './spells';
 import { deathProblem, deathsProblem, withMissionDeath, type MissionDeath } from './missionDeaths';
 
 /**
@@ -176,7 +179,8 @@ export function submitMissionSkip(campaign: Campaign, at: string): FormResult {
  * home with (Z4-4).
  *
  * The counts the table made at the end of the mission, and nothing worked out
- * from them; the outcome is its own entry. Refused for whatever
+ * from them; the outcome is its own entry, and the spells an enemy cast on it
+ * in a Magic campaign one more (R112, R154). Refused for whatever
  * `missionOutcomeProblem` says — outside the Mission Phase, a second time for
  * the team, for a mission the team did not choose, for a count that is not a
  * whole number, and for wounds that are not the whole team's or are out of
@@ -202,8 +206,9 @@ export function submitMissionOutcome(
 /**
  * Record how a team's mission ended together with whoever died on it, as one
  * press (#236, R3): the outcome as `submitMissionOutcome` records it, then
- * each death as `submitMissionDeath` does. Everything about one outcome is one
- * form, so it is all recorded or none of it is.
+ * each death as `submitMissionDeath` does, and the spells an enemy cast on it
+ * (`withSpellsCast`; Z7-9). Everything about one outcome is one form, so it is
+ * all recorded or none of it is.
  *
  * Refused for whatever `missionOutcomeProblem` refuses, or `deathsProblem`.
  * The outcome's wounds name only who came home: the screen still sends a wound
@@ -215,10 +220,12 @@ export function submitMissionEnded(
   outcome: MissionOutcome,
   deaths: readonly MissionDeath[],
   at: string,
+  spellsCast: readonly SpellId[] = [],
 ): FormResult {
   const problem =
     missionOutcomeProblem(campaign, outcome) ??
-    deathsProblem(campaign, outcomeTeam(outcome), deaths);
+    deathsProblem(campaign, outcomeTeam(outcome), deaths) ??
+    spellsCastProblem(campaign, spellsCast);
   if (problem !== null) return refused(problem);
 
   const dead = new Set(deaths.map((death) => death.survivor));
@@ -232,7 +239,7 @@ export function submitMissionEnded(
       const wound = (outcome.wounds as readonly MissionWound[]).find(
         (one) => one.survivor === member.survivor,
       ) as MissionWound;
-      const { health, infection, madness, foundCheck } = wound;
+      const { health, infection, madness, humanity, foundCheck } = wound;
       const survivor = campaign.survivors.find((one) => one.id === member.survivor) as Survivor;
 
       return {
@@ -243,6 +250,7 @@ export function submitMissionEnded(
         // Capped at 6 for a Found survivor who has passed their check (R111).
         ...(madness === undefined ? {} : { madness: madnessAfter(survivor, wound).madness }),
         ...(foundCheck === undefined ? {} : { foundCheck }),
+        ...(humanity === undefined ? {} : { humanity }),
       };
     });
 
@@ -254,10 +262,15 @@ export function submitMissionEnded(
   const wounded = withWounds(campaign, wounds);
   const storied =
     story === undefined ? wounded : withStoryRecorded(wounded, story.mission, story.record);
-  const recorded = logged(viral === undefined ? storied : withViralRecorded(storied, viral), at, {
-    ...rebuilt,
-    wounds,
-  });
+  const recorded = withSpellsCast(
+    logged(viral === undefined ? storied : withViralRecorded(storied, viral), at, {
+      ...rebuilt,
+      wounds,
+    }),
+    outcomeTeam(outcome),
+    spellsCast,
+    at,
+  );
 
   const rewarded =
     // The vehicles driven off join the community at once (pg. 82; R63; Z5-11).
@@ -267,7 +280,11 @@ export function submitMissionEnded(
         outcome.kind === 'rare-goods-trader-resolved' && outcome.itemsTraded !== undefined
         ? withRareTradeSettled(recorded, outcome.itemsTraded, outcome.survivorsExited, at)
         : recorded;
-  const ended = deaths.reduce((current, death) => withMissionDeath(current, death, at), rewarded);
+  const died = deaths.reduce((current, death) => withMissionDeath(current, death, at), rewarded);
+  // At 0 Humanity they are lost to the Veil, with what they carry (R114, R151).
+  const ended = wounds
+    .filter((wound) => wound.humanity === 0)
+    .reduce((current, wound) => withVeiled(current, wound.survivor, at), died);
 
   return accepted(
     story === undefined ? ended : withPartNow(ended, outcomeTeam(outcome), story, at),
@@ -541,4 +558,19 @@ export function submitLostRescued(
   if (problem !== null) return refused(problem);
 
   return accepted(withLostRescued(campaign, survivor, result, at));
+}
+
+/**
+ * The campaign with this survivor lost to the Veil (pg. 127; R114, R151;
+ * Z7-9): gone from the community with what they carry, and their task.
+ */
+function withVeiled(campaign: Campaign, survivorId: string, at: string): Campaign {
+  const survivor = campaign.survivors.find((one) => one.id === survivorId) as Survivor;
+
+  return logged(withDeparture(campaign, survivorId), at, {
+    kind: 'survivor-veiled',
+    survivor: survivor.id,
+    name: survivor.name,
+    ...(survivor.items.length === 0 ? {} : { items: survivor.items }),
+  });
 }

@@ -621,6 +621,63 @@ const xpSpentRecorded: MigrationStep = {
   },
 };
 
+/**
+ * v23 → v24: Humanity on every survivor (pg. 127; R114, R115; Z7-9).
+ *
+ * **3, the start.** Every survivor begins at 3 (R115), and a v23 build had no
+ * Humanity to change, so 3 is what each of them has as far as the app knows.
+ * All three lists.
+ */
+const humanityRecorded: MigrationStep = {
+  from: 23,
+  to: 24,
+  up: (previous) => {
+    const withHumanity = (list: unknown): unknown =>
+      Array.isArray(list)
+        ? (list as unknown[]).map((survivor) =>
+            typeof survivor === 'object' && survivor !== null && !('humanity' in survivor)
+              ? { ...survivor, humanity: 3 }
+              : survivor,
+          )
+        : list;
+
+    return {
+      ...previous,
+      survivors: withHumanity(previous.survivors),
+      setAside: withHumanity(previous.setAside),
+      lost: withHumanity(previous.lost),
+    };
+  },
+};
+
+/**
+ * v24 → v25: the spells each survivor knows (pp. 70, 126; R112; Z7-9).
+ *
+ * **None.** A v24 build had no way to learn one, so nobody knows any as far as
+ * the app knows; the sheet adds any a table learned on paper. All three lists.
+ */
+const spellsRecorded: MigrationStep = {
+  from: 24,
+  to: 25,
+  up: (previous) => {
+    const withSpells = (list: unknown): unknown =>
+      Array.isArray(list)
+        ? (list as unknown[]).map((survivor) =>
+            typeof survivor === 'object' && survivor !== null && !('spells' in survivor)
+              ? { ...survivor, spells: [] }
+              : survivor,
+          )
+        : list;
+
+    return {
+      ...previous,
+      survivors: withSpells(previous.survivors),
+      setAside: withSpells(previous.setAside),
+      lost: withSpells(previous.lost),
+    };
+  },
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -645,6 +702,8 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   containmentRecorded,
   madnessRecorded,
   xpSpentRecorded,
+  humanityRecorded,
+  spellsRecorded,
 ];
 
 /** Why a save could not be brought forward. */

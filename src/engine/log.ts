@@ -45,6 +45,7 @@ import type { FacilityId, UpgradeId } from '../data/facilities';
 import type { Material, Materials } from '../data/materials';
 import type { MissionId, OverrunOption, StoryMissionId } from '../data/missions';
 import type { CommonSkill, Skill } from '../data/skills';
+import type { SpellId } from '../data/origins';
 import type { FieldRecruitTier } from '../data/recruitTable';
 import type { Tier } from '../data/tiers';
 import type { StoryTrait } from '../data/traits';
@@ -83,6 +84,8 @@ export interface MissionWound {
   readonly infection?: number;
   /** In a Cosmic Horror campaign, as Infection is in a Viral one (Z7-7). */
   readonly madness?: number;
+  /** In a Magic campaign, from 0 to 5 (pg. 127; R114; Z7-9). */
+  readonly humanity?: number;
   /**
    * A Found survivor's Tier check against 8, the d10, when their Madness went
    * up (pg. 130; R111; Z7-8). Absent for anybody else.
@@ -156,6 +159,16 @@ export interface ViralRecord {
   readonly zombiesLeft?: number;
   readonly held?: boolean;
   readonly supplies?: number;
+}
+
+/**
+ * How a Magic mission ended (pp. 112–114; R123, R124, R153; Z7-9): The
+ * Graveyard and The Necromancer whether they were completed, and The
+ * Necromancer whether he was killed.
+ */
+export interface MagicRecord {
+  readonly completed?: boolean;
+  readonly killed?: boolean;
 }
 
 /** What a story gives the build of a survivor it brings (pg. 99; R142; Z7-4). */
@@ -540,6 +553,51 @@ export type CampaignEvent =
       readonly items?: readonly Item[];
     }
   /**
+   * A survivor gained 1 Humanity between missions (pg. 127; R114; Z7-9): for a
+   * turn on the project team, or for healing from 0 Health. Load-bearing for
+   * the project team's: it is taken once a turn.
+   */
+  | {
+      readonly kind: 'humanity-gained';
+      readonly survivor: string;
+      readonly name: string;
+      readonly reason: 'project-team' | 'healed-from-0';
+    }
+  /**
+   * The spells an enemy cast on a team's mission, as its outcome recorded them
+   * (pp. 70, 126, 133; R112, R154; Z7-9). **Load-bearing**: the spells seen,
+   * which a Mystic Library teaches from, are read back off these.
+   */
+  | {
+      readonly kind: 'spells-cast';
+      readonly team: number;
+      readonly spells: readonly SpellId[];
+    }
+  /**
+   * A survivor staffing a Mystic Library learned a spell at Character
+   * Advancement (pg. 70; R113; Z7-9), for this XP. `discounted` when a win of
+   * The Necromancer took 3 off it (R124, R153). Load-bearing for both: one
+   * spell a turn each, and each win's discount used once.
+   */
+  | {
+      readonly kind: 'spell-learned';
+      readonly survivor: string;
+      readonly name: string;
+      readonly spell: SpellId;
+      readonly xp: number;
+      readonly discounted?: true;
+    }
+  /**
+   * A survivor lost to the Veil at 0 Humanity, on the mission outcome that took
+   * them there (pg. 127; R114, R151; Z7-9), taking what they carry.
+   */
+  | {
+      readonly kind: 'survivor-veiled';
+      readonly survivor: string;
+      readonly name: string;
+      readonly items?: readonly Item[];
+    }
+  /**
    * A survivor gone Lost to Madness at Departures, before the Unrest check
    * (pp. 23, 124; R106, R107; Z7-7). Off the roster onto the list of the Lost,
    * whole, with what they carried.
@@ -855,6 +913,8 @@ export type CampaignEvent =
       readonly story?: StoryRecord;
       /** A Viral mission's counts (Z7-6); absent before, and for any other. */
       readonly viral?: ViralRecord;
+      /** A Magic mission's ending (Z7-9); absent before, and for any other. */
+      readonly magic?: MagicRecord;
     }
   /**
    * A mission-team survivor took the place of a worker this turn's Siege

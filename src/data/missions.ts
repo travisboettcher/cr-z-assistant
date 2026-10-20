@@ -271,6 +271,11 @@ export type StoryMissionId = {
   [Id in MissionId]: (typeof MISSIONS)[Id]['family'] extends 'story' ? Id : never;
 }[MissionId];
 
+/** The Magic origin's three missions (pp. 112–115). */
+export type MagicMissionId = {
+  [Id in MissionId]: (typeof MISSIONS)[Id] extends { readonly origin: 'magic' } ? Id : never;
+}[MissionId];
+
 /** The Viral origin's three missions (pp. 103–107). */
 export type ViralMissionId = {
   [Id in MissionId]: (typeof MISSIONS)[Id] extends { readonly origin: 'viral' } ? Id : never;

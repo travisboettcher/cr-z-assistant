@@ -245,6 +245,13 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
     viral: { zombiesLeft: 2, held: false },
   },
   { kind: 'mission-played', team: 1, mission: 'medical-salvage', viral: { supplies: 4 } },
+  { kind: 'mission-played', team: 1, mission: 'the-graveyard', magic: { completed: true } },
+  {
+    kind: 'mission-played',
+    team: 1,
+    mission: 'the-necromancer',
+    magic: { completed: true, killed: false },
+  },
   // A team with nobody left on it records nobody's Health.
   {
     kind: 'gather-materials-resolved',
@@ -323,6 +330,18 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
     team: 1,
     result: 'exiled',
     items: [{ id: 'rifle-3', item: 'rifle', grade: 'standard' }],
+  },
+  { kind: 'humanity-gained', ...SURVIVOR, reason: 'project-team' },
+  { kind: 'humanity-gained', ...SURVIVOR, reason: 'healed-from-0' },
+  { kind: 'spells-cast', team: 1, spells: ['teleport'] },
+  { kind: 'spells-cast', team: 2, spells: ['dominate-enemy', 'rain-of-fire', 'mass-recall'] },
+  { kind: 'spell-learned', ...SURVIVOR, spell: 'restoration', xp: 6 },
+  { kind: 'spell-learned', ...SURVIVOR, spell: 'duplicate', xp: 3, discounted: true },
+  { kind: 'survivor-veiled', ...SURVIVOR },
+  {
+    kind: 'survivor-veiled',
+    ...SURVIVOR,
+    items: [{ id: 'charm-1', item: 'resistance-charm', grade: 'standard' }],
   },
   { kind: 'survivor-lost', ...SURVIVOR, madness: 13 },
   {

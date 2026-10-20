@@ -74,6 +74,7 @@ import {
 import { laborShortfall, orderedThisTurn, queuedCost } from '../engine/projects';
 import { describeProject } from './projectLabels';
 import { useCampaign } from '../state/useCampaign';
+import { ProjectTeamHumanity } from './Humanity';
 import { describeEvent } from './logLabels';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
@@ -181,6 +182,7 @@ function CheckForRot({ campaign }: { readonly campaign: Campaign }) {
       )}
 
       {campaign.origin === 'viral' && <InfectionChecks campaign={campaign} />}
+      <ProjectTeamHumanity campaign={campaign} />
     </>
   );
 }

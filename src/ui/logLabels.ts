@@ -51,6 +51,7 @@ import {
 import { PHASE_LABELS } from './turnLabels';
 import { COMMON_SKILL_LABELS, SKILL_LABELS } from './skillLabels';
 import { TIER_LABELS } from './tierLabels';
+import { SPELL_LABELS, spellList } from './spellLabels';
 
 export interface EventLabel {
   /** One line, in the past tense. No rule text — see the copyright posture. */
@@ -509,6 +510,33 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
               ? `${event.name} was rescued from the Lost and exiled back to them${event.items === undefined ? '' : `, leaving ${counted(event.items)} to the base`}.`
               : `${event.name} wasn’t rescued, and is still Lost.`,
         pages: 124,
+      };
+
+    case 'humanity-gained':
+      return {
+        text:
+          event.reason === 'project-team'
+            ? `${event.name} gained 1 Humanity for a turn on the project team.`
+            : `${event.name} gained 1 Humanity for being healed from 0 Health.`,
+        pages: 127,
+      };
+
+    case 'spells-cast':
+      return {
+        text: `An enemy cast ${spellList(event.spells)} on mission team ${String(event.team)}’s mission.`,
+        pages: '127, 133',
+      };
+
+    case 'spell-learned':
+      return {
+        text: `${event.name} learned ${SPELL_LABELS[event.spell]} at the Mystic Library for ${String(event.xp)} XP${event.discounted === true ? ', 3 off for The Necromancer' : ''}.`,
+        pages: event.discounted === true ? '70, 114' : 70,
+      };
+
+    case 'survivor-veiled':
+      return {
+        text: `${event.name} was lost to the Veil at 0 Humanity${event.items === undefined ? '' : `, taking ${counted(event.items)}`}.`,
+        pages: 127,
       };
 
     case 'survivor-lost':

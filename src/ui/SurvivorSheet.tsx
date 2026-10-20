@@ -15,7 +15,7 @@ import { useId, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { COMMON_SKILLS, SKILLS, SKILL_STATS, STATS, type Skill, type Stat } from '../data/skills';
 import { TIER_RULES } from '../data/tiers';
-import { MADNESS_GOES_LOST } from '../data/origins';
+import { MADNESS_GOES_LOST, SPELLS } from '../data/origins';
 import {
   commonSkillPurchase,
   promotionStatChoices,
@@ -55,6 +55,7 @@ import { STORY_TRAITS, type StoryTrait } from '../data/traits';
 import { storiesHeld, storiesOnOffer, traitStatBonus, type SurvivorTraits } from '../engine/traits';
 import { STORY_MISSION_IDS, type StoryMissionId } from '../data/missions';
 import { MISSION_LABELS } from './missionLabels';
+import { SPELL_LABELS, spellList } from './spellLabels';
 
 export interface SurvivorSheetProps {
   readonly survivor: Survivor;
@@ -159,6 +160,8 @@ function Vitals({ survivor, penalty }: { readonly survivor: Survivor; readonly p
   const viral = state.status === 'open' && state.campaign.origin === 'viral';
   // Madness likewise, the Cosmic Horror origin's (pg. 124; Z7-7).
   const cosmic = state.status === 'open' && state.campaign.origin === 'cosmic-horror';
+  // And Humanity, the Magic origin's (pg. 127; Z7-9).
+  const magic = state.status === 'open' && state.campaign.origin === 'magic';
 
   return (
     <div className="mt-6 flex flex-wrap items-end gap-x-8 gap-y-4 border-t border-stone-200 pt-6 dark:border-stone-800">
@@ -239,6 +242,25 @@ function Vitals({ survivor, penalty }: { readonly survivor: Survivor; readonly p
           what="madness"
           fieldLabel={`Madness for ${survivor.name}`}
           onSave={(madness) => dispatch({ type: 'survivor/madnessSet', id: survivor.id, madness })}
+        />
+      )}
+
+      {/* 0 to 5 (R114); a mission's outcome sets it, and this corrects it. */}
+      {magic && (
+        <EditableNumber
+          heading={
+            <>
+              Humanity <PageRef pages={127} />
+            </>
+          }
+          display={`${String(survivor.humanity)} / 5`}
+          value={survivor.humanity}
+          max={5}
+          what="Humanity"
+          fieldLabel={`Humanity for ${survivor.name}`}
+          onSave={(humanity) =>
+            dispatch({ type: 'survivor/humanitySet', id: survivor.id, humanity })
+          }
         />
       )}
 
@@ -341,7 +363,10 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
     rotResistant: survivor.rotResistant,
     found: survivor.found,
     foundCheckPassed: survivor.foundCheckPassed,
+    spells: survivor.spells,
   };
+  // The spells they know, the Magic origin's (R112; Z7-9), or anybody's who knows one.
+  const spellsShown = campaign?.origin === 'magic' || survivor.spells.length > 0;
 
   return (
     <div className="mt-6 border-t border-stone-200 pt-6 dark:border-stone-800">
@@ -376,6 +401,14 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
                   .join('; ')}`}{' '}
             <PageRef pages={87} />
           </p>
+          {spellsShown && (
+            <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+              {survivor.spells.length === 0
+                ? 'Knows no spells'
+                : `Knows ${spellList(survivor.spells)}`}{' '}
+              <PageRef pages={127} />
+            </p>
+          )}
         </>
       ) : (
         <div className="mt-3 flex flex-col gap-3">
@@ -494,6 +527,36 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
               </>
             )}
           </div>
+
+          {/* Learned at the Mystic Library (R113); here for a correction. */}
+          {spellsShown && (
+            <fieldset className="flex flex-col gap-1">
+              <legend className="text-sm">
+                Spells known <PageRef pages={127} />
+              </legend>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                {SPELLS.map((spell) => (
+                  <label key={spell} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className={FOCUS_RING}
+                      checked={(draft.spells ?? []).includes(spell)}
+                      onChange={(event) => {
+                        const known = draft.spells ?? [];
+                        setDraft({
+                          ...draft,
+                          spells: SPELLS.filter((one) =>
+                            one === spell ? event.target.checked : known.includes(one),
+                          ),
+                        });
+                      }}
+                    />
+                    {SPELL_LABELS[spell]}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
 
           <div className="flex flex-col gap-1">
             <p className="text-sm">
