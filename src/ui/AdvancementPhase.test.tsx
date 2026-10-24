@@ -291,6 +291,49 @@ describe('Add Materials to Storage', () => {
     expect(within(walk()).getByText(/\+1 Hardware/)).toBeTruthy();
   });
 
+  /** #257: the empty-haul question is for rolls lost, not for a haul that needed none. */
+  it('stores a Gather Materials haul with nothing left to roll, without asking', async () => {
+    const user = open(onTheStep({ log: gatheredLog(4) }));
+
+    await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
+
+    expect(screen.queryByRole('dialog', { name: /add nothing the mission recovered/i })).toBeNull();
+    expect(within(walk()).getByText(/already in storage/i)).toBeTruthy();
+  });
+
+  it('still asks for a mission whose materials are rolled, and names the gathered ones', async () => {
+    const thinned: LogEntry = {
+      turn: 3,
+      phase: 'mission',
+      at: '2026-10-12T09:00:00.000Z',
+      event: {
+        kind: 'thin-the-herd-resolved',
+        team: 2,
+        startingZombies: 6,
+        zombiesLeft: 0,
+        survivorsExited: 1,
+        allIncapacitated: false,
+      },
+    };
+    const user = open(
+      onTheStep({
+        assignments: {
+          [EARL]: { task: 'mission', team: 1 },
+          [CARLA]: { task: 'mission', team: 2 },
+        },
+        log: [...gatheredLog(4), thinned],
+      }),
+    );
+
+    await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
+
+    const dialog = screen.getByRole('dialog', { name: /add nothing the mission recovered/i });
+    expect(dialog.textContent).toContain(
+      'Only the base’s production and the 4 materials Gather Materials brought back without a roll go into storage, and this step doesn’t run again this turn.',
+    );
+    expect(within(dialog).getByRole('button', { name: 'Add without rolls' })).toBeTruthy();
+  });
+
   it('says a short Gather Materials haul is rolled with the rest', () => {
     open(onTheStep({ log: gatheredLog(2) }));
 

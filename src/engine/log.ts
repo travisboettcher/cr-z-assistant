@@ -750,6 +750,8 @@ export type CampaignEvent =
       readonly names: readonly string[];
       readonly material?: Material;
       readonly base?: BaseId;
+      /** What the table calls an Other mission (#259); absent for every other. */
+      readonly name?: string;
     }
   /**
    * The community opted out of this turn's mission (pg. 17).
@@ -896,6 +898,20 @@ export type CampaignEvent =
       /** A stranger its setup may place on the area (pg. 84). */
       readonly strangers: readonly FieldRecruitTier[];
       /** Each team member's Health at the end; absent before Z4-4. See `MissionWound`. */
+      readonly wounds?: readonly MissionWound[];
+    }
+  /**
+   * How a mission from outside the book ended (#259; R157): its name, as the
+   * team chose it, and the Tier of each stranger brought out, who join at
+   * Create New Survivors as any mission's do. Its materials are rolled at Add
+   * Materials to Storage; anything else it gives is the table's.
+   */
+  | {
+      readonly kind: 'other-mission-resolved';
+      readonly team: number;
+      readonly name: string;
+      readonly strangers: readonly FieldRecruitTier[];
+      /** Each team member's Health at the end. See `MissionWound`. */
       readonly wounds?: readonly MissionWound[];
     }
   /**

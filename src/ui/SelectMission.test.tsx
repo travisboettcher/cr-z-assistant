@@ -312,3 +312,25 @@ describe('a team’s recorded choice', () => {
     expect(team(1).queryByRole('button', { name: /change/i })).toBeNull();
   });
 });
+
+describe('an Other mission (#259; R157)', () => {
+  it('is named at Select Mission, and recorded by its name', async () => {
+    const user = open(selecting());
+
+    await user.selectOptions(team(2).getByLabelText('Mission'), 'other');
+    expect(team(2).getByRole('button', { name: 'Choose for team 2' })).toBeDisabled();
+    expect(team(2).getByText('Name the mission.')).toBeInTheDocument();
+    await user.type(team(2).getByLabelText('Mission name'), 'The Lighthouse');
+    await user.click(team(2).getByRole('button', { name: 'Choose for team 2' }));
+
+    expect(
+      team(2).getByText('Mission team 2 chose The Lighthouse (other): Ruby Vance.'),
+    ).toBeInTheDocument();
+  });
+
+  it('isn’t offered when the horde called a siege', () => {
+    open(selecting({ log: [called] }));
+
+    expect(walk().queryByRole('option', { name: 'Other mission' })).toBeNull();
+  });
+});

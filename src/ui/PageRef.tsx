@@ -10,11 +10,16 @@
  */
 
 export interface PageRefProps {
-  /** A page (`41`) or a range (`'38–39'`). */
-  readonly pages: number | string;
+  /**
+   * A page (`41`) or a range (`'38–39'`). Absent for something the book does
+   * not print, such as an Other mission (#259), which cites nothing.
+   */
+  readonly pages: number | string | undefined;
 }
 
 export function PageRef({ pages }: PageRefProps) {
+  if (pages === undefined) return null;
+
   return (
     <span className="text-xs whitespace-nowrap text-stone-600 tabular-nums dark:text-stone-400">
       {/*

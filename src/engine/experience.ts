@@ -75,6 +75,8 @@ export type XpCheck = Check<XpViolationCode>;
 export type XpPoolEmptiness =
   /** No mission team at all, so nothing to award for going out. */
   | 'nobody-went'
+  /** No mission team, so no discretionary point either (pg. 18; R156; #256). */
+  | 'no-mission'
   /** A Teacher went, so this point is replaced rather than absent (pg. 12). */
   | 'replaced-by-teaching'
   /** Nobody who went can teach — no Teaching skill anywhere on the team. */
@@ -240,14 +242,17 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
     // the tests. An edition that made the award 2 would break that tie and the
     // suite would catch it the same day.
     mission: team.length * MISSION_XP,
-    // Replaced, not topped up: a Teacher on the mission takes the point away.
+    // After a mission only (R156), and replaced, not topped up: a Teacher on
+    // the mission takes the point away.
     discretionary:
-      bondmateXp === undefined
-        ? canTeach
-          ? 0
-          : DISCRETIONARY_MISSION_XP
-        : // 1 each (pg. 91), however many the community's point would be.
-          bondmateXp.length,
+      team.length === 0
+        ? 0
+        : bondmateXp === undefined
+          ? canTeach
+            ? 0
+            : DISCRETIONARY_MISSION_XP
+          : // 1 each (pg. 91), however many the community's point would be.
+            bondmateXp.length,
     'mission-teaching': teaching,
     'training-room': trainingRoomXp(campaign),
   };
@@ -273,7 +278,12 @@ export function xpPools(campaign: Campaign): readonly XpPool[] {
 
   const emptiness: Record<XpSource, XpPoolEmptiness> = {
     mission: 'nobody-went',
-    discretionary: bondmateXp === undefined ? 'replaced-by-teaching' : 'sent-to-the-gone',
+    discretionary:
+      team.length === 0
+        ? 'no-mission'
+        : bondmateXp === undefined
+          ? 'replaced-by-teaching'
+          : 'sent-to-the-gone',
     'mission-teaching': canTeach ? 'score-is-nothing' : 'nobody-qualifies',
     'training-room': roomIsStaffed ? 'wrong-person' : 'nowhere-to-teach',
   };

@@ -13,6 +13,7 @@ import {
   noMaterials,
   recovered,
   rolledMaterial,
+  rollsOwed,
   scavengeNeedsAChoice,
   scavenged,
   scavenger,
@@ -714,5 +715,50 @@ describe('gathered and gatheredToRoll', () => {
     };
 
     expect(codes(checkMaterials(tight, []).warnings)).toContain('over-storage-cap');
+  });
+});
+
+describe('rollsOwed (#257)', () => {
+  const onAMission = (log: LogEntry[], teams: readonly number[] = [1]): Campaign => ({
+    ...community(
+      Object.fromEntries(
+        teams.map((team, at) => [`survivor-${String(at)}`, { task: 'mission', team } as const]),
+      ),
+    ),
+    survivors: teams.map((_, at) =>
+      createSurvivor(`Survivor ${String(at)}`, 2, { id: `survivor-${String(at)}` }),
+    ),
+    log,
+  });
+  const thinned = (team: number): LogEntry => ({
+    turn: 3,
+    phase: 'mission',
+    at: AT,
+    event: {
+      kind: 'thin-the-herd-resolved',
+      team,
+      startingZombies: 6,
+      zombiesLeft: 0,
+      survivorsExited: 1,
+      allIncapacitated: false,
+    },
+  });
+
+  it('owes none with nobody out', () => {
+    expect(rollsOwed(community())).toBe(false);
+  });
+
+  it('owes none for a Gather Materials haul that came without a roll', () => {
+    expect(rollsOwed(onAMission(gathering(1, 4, 'food')))).toBe(false);
+  });
+
+  it('owes them for a short Gather Materials haul, or any other mission', () => {
+    expect(rollsOwed(onAMission(gathering(1, 2, 'food')))).toBe(true);
+    expect(rollsOwed(onAMission([thinned(1)]))).toBe(true);
+    expect(rollsOwed(onAMission([...gathering(1, 4, 'food'), thinned(2)], [1, 2]))).toBe(true);
+  });
+
+  it('owes them for a team out with no outcome recorded', () => {
+    expect(rollsOwed(onAMission([]))).toBe(true);
   });
 });

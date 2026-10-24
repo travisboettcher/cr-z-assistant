@@ -36,7 +36,7 @@ import { STORED_MATERIALS } from './materials';
 import type { CampaignOrigin } from './origins';
 
 /** The four families of mission (pp. 75, 87, 103, 158). */
-export const MISSION_FAMILIES = ['standard', 'story', 'origin', 'road-trip'] as const;
+export const MISSION_FAMILIES = ['standard', 'story', 'origin', 'road-trip', 'other'] as const;
 
 export type MissionFamily = (typeof MISSION_FAMILIES)[number];
 
@@ -66,8 +66,9 @@ export type MissionAvailability = 'first-turn' | 'forced-by-siege' | 'any-time';
  * - `base` — the base a Claim a New Base team is claiming. Its setup is built
  *   from that base (pg. 78), so it is known before the mission is played
  *   (Z4-7; derived, where Gather Materials' choice is literal).
+ * - `name` — what the table calls a mission from outside the book (#259).
  */
-export type SelectionChoice = 'material' | 'base';
+export type SelectionChoice = 'material' | 'base' | 'name';
 
 /**
  * What the table counts at the end of a standard mission — the facts its
@@ -158,7 +159,19 @@ export interface OriginMission {
   readonly origin: CampaignOrigin;
 }
 
-export type Mission = StandardMission | ListedMission | OriginMission;
+/**
+ * A mission from outside the book — a Patreon release, a homebrew — that the
+ * table names at Select Mission (#259; R157). It has no page, because the book
+ * does not print it; what its outcome counts is the general rewards a table
+ * can count by hand, and anything particular to it stays with the table.
+ */
+export interface OtherMission {
+  readonly family: 'other';
+  readonly asks: readonly SelectionChoice[];
+  readonly counts: readonly OutcomeCount[];
+}
+
+export type Mission = StandardMission | ListedMission | OriginMission | OtherMission;
 
 /**
  * Every mission in the book, in the order the book prints them.
@@ -257,6 +270,10 @@ export const MISSIONS = {
   'ford-the-river': { family: 'road-trip', pages: 164 },
   breakdown: { family: 'road-trip', pages: '165–166' },
   chased: { family: 'road-trip', pages: '166–167' },
+
+  // Outside the book (#259; R157). Its materials are rolled at Add Materials to
+  // Storage, as any mission's but Gather Materials' are, so they are no count.
+  other: { family: 'other', asks: ['name'], counts: ['strangers-rescued'] },
 } as const satisfies Record<string, Mission>;
 
 export type MissionId = keyof typeof MISSIONS;
@@ -280,6 +297,9 @@ export type MagicMissionId = {
 export type ViralMissionId = {
   [Id in MissionId]: (typeof MISSIONS)[Id] extends { readonly origin: 'viral' } ? Id : never;
 }[MissionId];
+
+/** The longest name an Other mission takes, so the history and the walk stay readable. */
+export const OTHER_MISSION_NAME_MAX = 60;
 
 /** Every story mission, in the catalogue's order (pp. 89–102). */
 export const STORY_MISSION_IDS = (Object.keys(MISSIONS) as MissionId[]).filter(

@@ -463,6 +463,16 @@ describe('why a pool is empty', () => {
     expect(reason(community(), 'mission')).toBe('nobody-went');
   });
 
+  /** #256: the discretionary point follows a mission (pg. 18; R156). */
+  it('has no discretionary point on a turn nobody went out, and says why', () => {
+    expect(xpPool(community(), 'discretionary').total).toBe(0);
+    expect(reason(community(), 'discretionary')).toBe('no-mission');
+    expect(
+      checkXpAward(community(), CARLA, 'discretionary').blockers.map((one) => one.code),
+    ).toEqual(['nothing-left-in-the-pool']);
+    expect(xpPool(community({ earl: onTheMission }), 'discretionary').total).toBe(1);
+  });
+
   /**
    * The first wrong message. A Rookie with Teaching at level 0 and Cooperation
    * 0 has a Score of 0, so a Teacher on the team read as no Teacher — and the

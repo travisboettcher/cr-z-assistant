@@ -81,6 +81,7 @@ import {
   COUNT_LABELS,
   describeOutcome,
   MISSION_LABELS,
+  missionPages,
   OVERRUN_LABELS,
   outcomeConsequences,
   outcomePages,
@@ -121,7 +122,7 @@ const count = (typed: string): number => (typed.trim() === '' ? Number.NaN : Num
 function countsFor(mission: MissionId): readonly OutcomeCount[] {
   const entry: (typeof MISSIONS)[MissionId] = MISSIONS[mission];
 
-  return entry.family === 'standard' ? entry.counts : [];
+  return 'counts' in entry ? entry.counts : [];
 }
 
 /** How many numbered end conditions a mission has (pp. 77, 79). */
@@ -147,6 +148,9 @@ const HINTS: Partial<Record<MissionId, string>> = {
   // Chosen for the team when Part 1's ending sends it straight on (R119).
   'left-behind-2b':
     'The team plays Part 2b straight after Part 1, with the wounds and gear Part 1 left it. Anyone at 0 Health gets a second wind. Record how the story ended.',
+  // A mission from outside the book (#259; R157).
+  other:
+    'Record the team’s Health and any strangers rescued. Its materials are rolled at Add Materials to Storage, and anything else it gives is added by hand.',
 };
 
 function CountField({
@@ -636,7 +640,8 @@ function TeamOutcome({
   const unchosen =
     (asked.includes('end-condition') && endCondition === '') ||
     (story !== undefined && ending.result === '');
-  const label = MISSION_LABELS[choice.mission];
+  // An Other mission by the name the team chose it under (#259).
+  const label = choice.name ?? MISSION_LABELS[choice.mission];
   const prefix = `mission-${String(choice.team)}`;
   const hint =
     HINTS[choice.mission] ??
@@ -652,7 +657,7 @@ function TeamOutcome({
     <fieldset className="mt-4 flex flex-col gap-2 rounded-lg border border-stone-200 p-3 dark:border-stone-700">
       <legend className="px-1 text-sm font-semibold">
         {named ? `Mission team ${String(choice.team)}: how ${label} ended` : `How ${label} ended`}{' '}
-        <PageRef pages={MISSIONS[choice.mission].pages} />
+        <PageRef pages={missionPages(choice.mission)} />
       </legend>
 
       <p className={HINT}>{hint}</p>
