@@ -121,7 +121,25 @@ describe('Character Advancement', () => {
     await user.click(award(/for going on the mission/i, /earl/i));
 
     expect(within(walk()).getByText(/for going on the mission/i).textContent).toContain('0 of 1');
-    expect(award(/for going on the mission/i, /earl/i)).toBeDisabled();
+    // A pool handed out says who had it once, not a refusal on every row (#239).
+    expect(within(walk()).getByText('All handed out: Earl Rhodes +1.')).toBeTruthy();
+  });
+
+  it('gives the whole mission team its point in one press (#239)', async () => {
+    const user = open(
+      advancement({
+        assignments: {
+          [EARL]: { task: 'mission', team: 1 },
+          [CARLA]: { task: 'mission', team: 1 },
+        },
+      }),
+    );
+
+    await user.click(within(walk()).getByRole('button', { name: '+1 XP to each of them' }));
+
+    expect(
+      within(walk()).getByText('All handed out: Earl Rhodes +1, Carla Proust +1.'),
+    ).toBeTruthy();
   });
 
   /**

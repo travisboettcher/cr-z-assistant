@@ -56,6 +56,45 @@ export interface AssignmentBoardProps {
 }
 
 const HINT = 'text-sm text-stone-600 dark:text-stone-400';
+
+/** One reason a lane's cards are warned about, and everybody it is said of. */
+interface LaneWarning {
+  readonly key: string;
+  readonly names: readonly string[];
+  readonly message: string;
+  readonly pages: number | string;
+}
+
+/**
+ * What is wrong with whoever is in a lane, each reason once with everybody it
+ * applies to (#239): three survivors healing at a base with no Clinic is one
+ * line naming the three, not the same sentence three times. A survivor whom a
+ * trait now forbids the lane (R93) is said about too, though nothing moves
+ * them out.
+ */
+function laneWarnings(
+  campaign: Campaign,
+  members: readonly Survivor[],
+  task: Assignment,
+): readonly LaneWarning[] {
+  const grouped = new Map<string, LaneWarning>();
+
+  for (const member of members) {
+    const check = checkAssignment(campaign, member.id, task);
+    for (const warning of [...check.blockers, ...check.warnings]) {
+      const key = `${warning.code}:${warning.message}`;
+      const found = grouped.get(key);
+      grouped.set(key, {
+        key,
+        names: [...(found?.names ?? []), member.name],
+        message: warning.message,
+        pages: warning.pages,
+      });
+    }
+  }
+
+  return [...grouped.values()];
+}
 const WARNING = 'text-xs text-amber-700 dark:text-amber-300';
 
 export function AssignmentBoard({ campaign, lanes }: AssignmentBoardProps) {
@@ -203,16 +242,11 @@ export function AssignmentBoard({ campaign, lanes }: AssignmentBoardProps) {
               {lane.detail}
               <CardRow empty="Nobody yet.">{members.map((member) => card(member))}</CardRow>
               {/* What is wrong with whoever is here now, from the same check. */}
-              {members.flatMap((member) => {
-                // A survivor already here whom a trait now forbids it (R93)
-                // is said about too, though nothing moves them out.
-                const check = checkAssignment(campaign, member.id, lane.task);
-                return [...check.blockers, ...check.warnings].map((warning) => (
-                  <p key={`${member.id}:${warning.code}`} className={`mt-1 ${WARNING}`}>
-                    {member.name}: {warning.message} <PageRef pages={warning.pages} />
-                  </p>
-                ));
-              })}
+              {laneWarnings(campaign, members, lane.task).map((warning) => (
+                <p key={warning.key} className={`mt-1 ${WARNING}`}>
+                  {warning.names.join(', ')}: {warning.message} <PageRef pages={warning.pages} />
+                </p>
+              ))}
               {target(lane.task)}
             </LaneFrame>
           );

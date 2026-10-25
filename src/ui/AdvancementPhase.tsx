@@ -25,7 +25,7 @@ import {
   type TurnStepId,
   type XpSource,
 } from '../data/turn';
-import type { Campaign } from '../engine/campaign';
+import type { Campaign, Survivor } from '../engine/campaign';
 import {
   baseProduction,
   canForce,
@@ -64,7 +64,7 @@ import {
   timesConverted,
   type Conversion,
 } from '../engine/conversions';
-import { checkXpAward, xpPools, type XpPoolEmptiness } from '../engine/experience';
+import { awardedThisTurn, checkXpAward, xpPools, type XpPoolEmptiness } from '../engine/experience';
 import {
   awardKey,
   checkHealing,
@@ -391,6 +391,11 @@ function CharacterAdvancement({ campaign }: { readonly campaign: Campaign }) {
    * DOM to go stale or to catch a text query twice.
    */
   const ids = useId();
+  // Who can still take the mission's point now, for the one press that gives it to each.
+  const dueEach = (eligible: readonly Survivor[]) =>
+    eligible.filter(
+      (survivor) => checkXpAward(campaign, survivor.id, 'mission').blockers.length === 0,
+    );
 
   return (
     <>
@@ -437,55 +442,94 @@ function CharacterAdvancement({ campaign }: { readonly campaign: Campaign }) {
                 <p className={`mt-1 ${HINT}`}>
                   {pool.emptyBecause === undefined ? null : XP_POOL_EMPTY[pool.emptyBecause]}
                 </p>
+              ) : left === 0 ? (
+                // Handed out: who had it, in a line, rather than a refusal on
+                // every row saying there is none left (#239).
+                <p className={`mt-1 ${HINT}`}>
+                  All handed out:{' '}
+                  {campaign.survivors
+                    .flatMap((survivor) => {
+                      const amount = awardedThisTurn(campaign, pool.source, survivor.id);
+                      return amount === 0 ? [] : [`${survivor.name} +${String(amount)}`];
+                    })
+                    .join(', ')}
+                  .
+                </p>
               ) : (
-                <ul className="mt-1 flex flex-col gap-1">
-                  {pool.eligible.map((survivor) => {
-                    const { blockers } = checkXpAward(campaign, survivor.id, pool.source);
-                    const buttonId = `${ids}-${pool.source}-${survivor.id}`;
-                    const nameId = `${buttonId}-who`;
+                <>
+                  {/*
+                   * The mission's point has its recipients fixed, one each, so a
+                   * press per survivor was a press per fact already known (#239).
+                   * The rows stay, for a table that holds one back.
+                   */}
+                  {pool.source === 'mission' && dueEach(pool.eligible).length > 1 && (
+                    <button
+                      type="button"
+                      className={`mt-1 ${SMALL_BUTTON}`}
+                      onClick={() => {
+                        const at = new Date().toISOString();
+                        for (const survivor of dueEach(pool.eligible)) {
+                          dispatch({
+                            type: 'advancement/xpAwarded',
+                            survivor: survivor.id,
+                            source: 'mission',
+                            at,
+                          });
+                        }
+                      }}
+                    >
+                      +1 XP to each of them
+                    </button>
+                  )}
+                  <ul className="mt-1 flex flex-col gap-1">
+                    {pool.eligible.map((survivor) => {
+                      const { blockers } = checkXpAward(campaign, survivor.id, pool.source);
+                      const buttonId = `${ids}-${pool.source}-${survivor.id}`;
+                      const nameId = `${buttonId}-who`;
 
-                    return (
-                      <li key={survivor.id} className="flex items-center gap-2 text-sm">
-                        <button
-                          type="button"
-                          id={buttonId}
-                          aria-labelledby={`${buttonId} ${nameId} ${ids}-${pool.source}`}
-                          disabled={blockers.length > 0}
-                          className={SMALL_BUTTON}
-                          onClick={() => {
-                            dispatch({
-                              type: 'advancement/xpAwarded',
-                              survivor: survivor.id,
-                              source: pool.source,
-                              at: new Date().toISOString(),
-                            });
-                          }}
-                        >
-                          +1 XP
-                        </button>
-                        <span id={nameId}>{survivor.name}</span>
-                        <span className="text-xs text-stone-500 tabular-nums dark:text-stone-400">
-                          {survivor.xp} XP
-                        </span>
-                        {/*
-                         * Why, beside the button that will not press. A greyed
-                         * control with no reason is the thing `advancement.ts`
-                         * argues against in as many words, and it was reachable
-                         * here: edit a mission team after its XP has been handed
-                         * out and the new member reads as eligible with a dead
-                         * button (#145). The point stays where it was awarded —
-                         * [R7](../../docs/rulings.md) — and this
-                         * is the sentence that says so.
-                         */}
-                        {blockers[0] !== undefined && (
-                          <span className="text-xs text-stone-500 dark:text-stone-400">
-                            {blockers[0].message}
+                      return (
+                        <li key={survivor.id} className="flex items-center gap-2 text-sm">
+                          <button
+                            type="button"
+                            id={buttonId}
+                            aria-labelledby={`${buttonId} ${nameId} ${ids}-${pool.source}`}
+                            disabled={blockers.length > 0}
+                            className={SMALL_BUTTON}
+                            onClick={() => {
+                              dispatch({
+                                type: 'advancement/xpAwarded',
+                                survivor: survivor.id,
+                                source: pool.source,
+                                at: new Date().toISOString(),
+                              });
+                            }}
+                          >
+                            +1 XP
+                          </button>
+                          <span id={nameId}>{survivor.name}</span>
+                          <span className="text-xs text-stone-500 tabular-nums dark:text-stone-400">
+                            {survivor.xp} XP
                           </span>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
+                          {/*
+                           * Why, beside the button that will not press. A greyed
+                           * control with no reason is the thing `advancement.ts`
+                           * argues against in as many words, and it was reachable
+                           * here: edit a mission team after its XP has been handed
+                           * out and the new member reads as eligible with a dead
+                           * button (#145). The point stays where it was awarded —
+                           * [R7](../../docs/rulings.md) — and this
+                           * is the sentence that says so.
+                           */}
+                          {blockers[0] !== undefined && (
+                            <span className="text-xs text-stone-500 dark:text-stone-400">
+                              {blockers[0].message}
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
               )}
             </li>
           );

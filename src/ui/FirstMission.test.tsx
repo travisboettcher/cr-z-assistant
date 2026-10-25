@@ -128,10 +128,9 @@ describe('the First Mission team', () => {
     // Turn 1's First Mission owes its outcome now that nobody has to choose it (#237).
     goOn();
 
-    const carla = missionAward(/carla/i);
-
-    expect(carla).toBeDisabled();
-    expect(carla.closest('li')?.textContent).toContain('no XP left from this source');
+    // The pool says who has the point, once, rather than a dead button on
+    // Carla's row with a refusal beside it (#145, #239).
+    expect(within(walk()).getByText('All handed out: Earl Rhodes +1.')).toBeTruthy();
   });
 
   /**

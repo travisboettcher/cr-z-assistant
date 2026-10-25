@@ -184,6 +184,23 @@ describe('the Planning Phase steps', () => {
     expect(within(lane('Being healed')).getByText(/needs a medical clinic/i)).toBeTruthy();
   });
 
+  /** #239: a reason said once, naming everybody it applies to. */
+  it('says a reason shared by a lane’s cards once', () => {
+    open(
+      planning({
+        step: 'assign-rest-and-healing',
+        assignments: { [EARL]: { task: 'healing' }, [CARLA]: { task: 'healing' } },
+      }),
+    );
+
+    expect(
+      within(lane('Being healed')).getAllByText(/healing needs a medical clinic/i),
+    ).toHaveLength(1);
+    expect(
+      within(lane('Being healed')).getByText(/^Earl Rhodes, Carla Proust: Healing needs/),
+    ).toBeTruthy();
+  });
+
   it('warns about sending an injured survivor on a mission', () => {
     open(planning({ step: 'assign-mission-team' }));
 
