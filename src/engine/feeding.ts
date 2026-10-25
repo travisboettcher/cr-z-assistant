@@ -71,14 +71,19 @@ import { suppliedOccupants } from './utilities';
 import { beds, working } from './base';
 import { claimWon } from './claim';
 import { warehouseQuiet } from './storyRewards';
-import type { Campaign } from './campaign';
+import type { Campaign, Survivor } from './campaign';
+import { advantagesOf } from './survivor';
 
 /** How much Food this community eats in a Management Phase (pg. 22). */
 export function foodRequired(campaign: Campaign): number {
-  return campaign.survivors.reduce(
-    (total, survivor) => total + FOOD_EATEN_PER_TURN[survivor.tier],
-    0,
-  );
+  return campaign.survivors.reduce((total, survivor) => total + foodEaten(survivor), 0);
+}
+
+/** What one survivor eats: their Tier's, or Light Eater's 1 whatever the Tier (pg. 139). */
+export function foodEaten(survivor: Survivor): number {
+  const light = advantagesOf(survivor).find((rules) => rules.foodEaten !== undefined);
+
+  return light?.foodEaten ?? FOOD_EATEN_PER_TURN[survivor.tier];
 }
 
 /**
@@ -288,7 +293,12 @@ export function exhaustion(campaign: Campaign): number {
   const base = campaign.base;
   const sleeping = base === null ? 0 : beds(base, suppliedOccupants(campaign));
 
-  return Math.max(0, campaign.survivors.length - sleeping);
+  // Outdoor Enthusiast takes no bed (pg. 139; Z7-10).
+  const sleepers = campaign.survivors.filter(
+    (survivor) => !advantagesOf(survivor).some((rules) => rules.needsNoBed === true),
+  );
+
+  return Math.max(0, sleepers.length - sleeping);
 }
 
 /**

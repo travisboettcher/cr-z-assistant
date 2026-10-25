@@ -51,6 +51,7 @@ import { logged, type CampaignEvent } from './log';
 import {
   baseProduction,
   combined,
+  foraged,
   materialsAdded,
   recovered,
   scavenged,
@@ -134,9 +135,13 @@ export function submitHaul(campaign: Campaign, form: HaulForm, at: string): Form
   if (rare !== null) return refused(rare);
 
   const found = scavenged(campaign, form.scavenged);
+  // Forager's Food with the haul (R164; Z7-10).
   const adding = combined(
-    combined(combined(recovered(form.rolls), gathered(campaign)), baseProduction(campaign)),
-    found,
+    combined(
+      combined(combined(recovered(form.rolls), gathered(campaign)), baseProduction(campaign)),
+      found,
+    ),
+    foraged(campaign),
   );
   const stored = logged(withMaterialsAdded(campaign, adding), at, {
     kind: 'materials-added',

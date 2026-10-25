@@ -14,7 +14,13 @@
  */
 
 import { STATS, type Stat } from '../data/skills';
-import { STORY_TRAIT_RULES, type StoryTrait, type StoryTraitRules } from '../data/traits';
+import {
+  ADVANTAGE_RULES,
+  STORY_TRAIT_RULES,
+  type AdvantageRules,
+  type StoryTrait,
+  type StoryTraitRules,
+} from '../data/traits';
 import { TIER_RULES } from '../data/tiers';
 import { PROMOTION_STORIES, type StoryMissionId } from '../data/missions';
 import { SPELLS } from '../data/origins';
@@ -70,11 +76,23 @@ export function survivorLabor(survivor: Survivor, team: readonly Survivor[]): nu
 
   if (rules?.laborAlone !== undefined && others.length > 0) return 0;
 
+  // R89's third step, adding: Natural Leader gives every other member 1
+  // (pg. 139; Z7-10).
+  const led = others.reduce(
+    (total, other) =>
+      total +
+      other.advantages.reduce(
+        (sum, advantage) =>
+          sum + ((ADVANTAGE_RULES[advantage] as AdvantageRules).laborToOthers ?? 0),
+        0,
+      ),
+    0,
+  );
   const bonded =
     rules?.laborNeedsBondmate !== true || others.some((other) => bondmates(survivor, other));
   const multiplier = (rules?.laborAlone ?? 1) * (bonded ? (rules?.laborMultiplier ?? 1) : 1);
 
-  return Math.max(0, Math.ceil(base * multiplier));
+  return Math.max(0, Math.ceil((base + led) * multiplier));
 }
 
 /** Whether two Bonded survivors share a bond group (R84, R134). */

@@ -57,7 +57,7 @@ import type { Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
 import { facilityProduction, NO_PENALTY } from './production';
 import { hungerPenalty } from './feeding';
-import { skillScore } from './survivor';
+import { advantagesOf, skillScore } from './survivor';
 
 export type MaterialsViolationCode = 'not-enough-substitution' | 'over-storage-cap';
 
@@ -378,6 +378,24 @@ export function gatheredToRoll(campaign: Campaign): number {
   return gatherings(campaign)
     .filter((gathering) => !splits(gathering.carried, gathering.chosen))
     .reduce((total, gathering) => total + gathering.carried, 0);
+}
+
+/**
+ * The Food Forager brings back (pg. 139; R164; Z7-10): 1 for each survivor
+ * with it who went on this turn's mission, added at Add Materials to Storage.
+ * None on a siege turn: a Siege Defense isn't going on a mission.
+ */
+export function foraged(campaign: Campaign): Materials {
+  const food = siegeDue(campaign)
+    ? 0
+    : deployed(campaign).reduce(
+        (total, survivor) =>
+          total +
+          advantagesOf(survivor).reduce((sum, rules) => sum + (rules.foodPerMission ?? 0), 0),
+        0,
+      );
+
+  return { ...noMaterials(), food };
 }
 
 /**

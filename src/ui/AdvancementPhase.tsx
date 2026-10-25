@@ -33,6 +33,7 @@ import {
   combined,
   gathered,
   gatheredToRoll,
+  foraged,
   rollsOwed,
   madeTens,
   materialsAdded,
@@ -629,7 +630,12 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
   const scavenging = scavenger(campaign);
   const stoodDown = scavengerStoodDown(campaign);
   const fromScavenging = scavenged(campaign, found);
-  const total = combined(combined(combined(fromMission, fromGathering), fromBase), fromScavenging);
+  // Forager's Food, for each survivor with it who went out (R164; Z7-10).
+  const fromForaging = foraged(campaign);
+  const total = combined(
+    combined(combined(combined(fromMission, fromGathering), fromBase), fromScavenging),
+    fromForaging,
+  );
   const unchosen = scavengeNeedsAChoice(campaign, found);
   const { warnings } = checkMaterials(campaign, rolls);
   const spent = substitutionsSpent(rolls);
@@ -879,6 +885,9 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
                   {scavenging === undefined
                     ? ''
                     : `, ${String(fromScavenging[material])} scavenged`}
+                  {fromForaging[material] === 0
+                    ? ''
+                    : `, ${String(fromForaging[material])} foraged`}
                   )
                 </span>
               </li>
