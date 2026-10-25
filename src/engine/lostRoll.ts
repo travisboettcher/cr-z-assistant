@@ -18,7 +18,7 @@ import { LOST_ROLL_TARGET, LOST_ROLL_XP } from '../data/origins';
 import type { Campaign, Survivor } from './campaign';
 import { logged } from './log';
 import { isMissionOutcome, missionTeams, turnMissions } from './missions';
-import { maxHp } from './survivor';
+import { maxHp, withXpGained } from './survivor';
 import { phaseOf } from './turn';
 
 /** Whether this survivor's Lost roll places them on a mission (R108). */
@@ -92,7 +92,7 @@ export function withLostRolled(
       ? {
           ...campaign,
           lost: campaign.lost.map((one) =>
-            one.id === survivorId ? { ...one, xp: one.xp + LOST_ROLL_XP } : one,
+            one.id === survivorId ? withXpGained(one, LOST_ROLL_XP) : one,
           ),
         }
       : campaign;

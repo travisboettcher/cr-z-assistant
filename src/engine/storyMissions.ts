@@ -32,6 +32,7 @@ import {
   type StoryExtras,
 } from './storyRewards';
 import { holds, storiesDone, storiesHeld, withTraits } from './traits';
+import { withXpGained } from './survivor';
 
 /** Whether a mission is a story, played by the survivor it is attached to (pg. 87). */
 export function isStory(mission: MissionId): mission is StoryMissionId {
@@ -235,7 +236,7 @@ export function withStoryRecorded(
     const bondGroup = record.bondGroup ?? (storyTrait === 'bonded' ? survivor.bondGroup : null);
 
     return withTraits(
-      { ...survivor, xp: survivor.xp + (record.xp ?? 0) },
+      withXpGained(survivor, record.xp ?? 0),
       {
         storyTrait,
         veteran: survivor.veteran,

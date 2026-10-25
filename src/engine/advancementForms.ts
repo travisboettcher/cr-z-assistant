@@ -273,14 +273,20 @@ export function submitXpAward(campaign: Campaign, form: XpAwardForm, at: string)
     const problem = blockedBy(checkXpAward(campaign, form.survivor, form.source));
     if (problem !== null) return refused(problem);
 
+    const awarded = withXpAwarded(survivor, XP_AWARD);
+    // What went to their experience debt instead (R94), so the history says why
+    // the XP didn't move.
+    const toDebt = survivor.xpDebt - awarded.xpDebt;
+
     return {
-      survivor: withXpAwarded(survivor, XP_AWARD),
+      survivor: awarded,
       event: {
         kind: 'xp-awarded',
         survivor: survivor.id,
         name: survivor.name,
         amount: XP_AWARD,
         source: form.source,
+        ...(toDebt > 0 ? { toDebt } : {}),
       },
     };
   });
@@ -452,6 +458,7 @@ export function submitNewSkill(campaign: Campaign, form: NewSkillForm): FormResu
  * does not show these.
  */
 const PURCHASE_BLOCKED: Record<PurchaseBlock, string> = {
+  'in-debt': 'Their experience debt is paid off before any XP is spent.',
   'not-enough-xp': 'They don’t have the experience for this yet.',
   'at-tier-maximum': 'That skill is already at the highest level their Tier allows.',
   'at-score-maximum': 'That Score is already at its maximum.',

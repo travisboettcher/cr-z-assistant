@@ -61,6 +61,9 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   },
   { kind: 'xp-awarded', ...SURVIVOR, amount: 1, source: 'mission' },
   { kind: 'xp-awarded', ...SURVIVOR, amount: 2, source: 'mission-teaching' },
+  // Paying off experience debt, all or part of it (R94; Z7-10).
+  { kind: 'xp-awarded', ...SURVIVOR, amount: 1, source: 'discretionary', toDebt: 1 },
+  { kind: 'xp-awarded', ...SURVIVOR, amount: 2, source: 'training-room', toDebt: 1 },
   { kind: 'health-restored', ...SURVIVOR, health: 2, source: 'facility' },
   { kind: 'health-restored', ...SURVIVOR, health: 1, source: 'rest' },
   // Under the Viral origin a point may remove Infection instead (#176).

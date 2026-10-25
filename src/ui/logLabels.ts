@@ -438,7 +438,13 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
 
     case 'xp-awarded':
       return {
-        text: `${event.name} gained ${event.amount} XP ${XP_SOURCE_PHRASES[event.source]}.`,
+        text: `${event.name} gained ${event.amount} XP ${XP_SOURCE_PHRASES[event.source]}${
+          event.toDebt === undefined
+            ? ''
+            : event.toDebt >= event.amount
+              ? ', all of it toward their experience debt'
+              : `, ${String(event.toDebt)} of it toward their experience debt`
+        }.`,
         pages: XP_SOURCE_PAGES[event.source],
       };
 

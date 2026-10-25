@@ -157,6 +157,11 @@ export function spellLearningProblem(
     return 'An enemy has to cast a spell before anybody can learn it.';
   }
 
+  // Never while in debt (R94, R113).
+  if (learner.survivor.xpDebt > 0) {
+    return 'Their experience debt is paid off before any XP is spent.';
+  }
+
   return learner.survivor.xp >= spellCost(campaign, learner).xp
     ? null
     : 'They don’t have the experience for this yet.';

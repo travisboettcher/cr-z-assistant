@@ -31,6 +31,7 @@ import { withXpSpent } from './survivor';
 
 /** Why a purchase cannot be made. */
 export type PurchaseBlock =
+  | 'in-debt'
   | 'not-enough-xp'
   | 'at-tier-maximum'
   | 'at-score-maximum'
@@ -235,6 +236,9 @@ function chosen(stat: Stat, raise: Stat | null): number {
 }
 
 function affordable(survivor: Survivor, cost: number): PurchaseBlock | null {
+  // Debt is paid before anything is spent (pg. 137; R94).
+  if (survivor.xpDebt > 0) return 'in-debt';
+
   return survivor.xp >= cost ? null : 'not-enough-xp';
 }
 

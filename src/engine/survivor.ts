@@ -285,6 +285,17 @@ export function createSurvivor(
 }
 
 /**
+ * The survivor with this much XP gained (pg. 137; R94): it pays off their
+ * experience debt one for one first, and only what is left over reaches their
+ * XP. Every gain goes through here, so no source can skip the debt.
+ */
+export function withXpGained(survivor: Survivor, amount: number): Survivor {
+  const paid = Math.min(survivor.xpDebt, amount);
+
+  return { ...survivor, xpDebt: survivor.xpDebt - paid, xp: survivor.xp + amount - paid };
+}
+
+/**
  * The survivor with this much XP spent: taken off what they have and added to
  * what they have spent (R149), which the Lost roll reads (R108).
  */

@@ -731,13 +731,18 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       },
       { requiredKeys: ['kind', 'survivor', 'name', 'health', 'source'] },
     ),
-    fc.record({
-      kind: fc.constant('xp-awarded' as const),
-      survivor: anyId,
-      name: anyName,
-      amount: fc.integer({ min: 1, max: 20 }),
-      source: fc.constantFrom(...XP_SOURCES),
-    }),
+    // With what went to experience debt, or none (R94; Z7-10).
+    fc.record(
+      {
+        kind: fc.constant('xp-awarded' as const),
+        survivor: anyId,
+        name: anyName,
+        amount: fc.integer({ min: 1, max: 20 }),
+        source: fc.constantFrom(...XP_SOURCES),
+        toDebt: fc.integer({ min: 1, max: 20 }),
+      },
+      { requiredKeys: ['kind', 'survivor', 'name', 'amount', 'source'] },
+    ),
     fc.record({ kind: fc.constant('starting-community-settled' as const), built: fc.boolean() }),
     fc.record({
       kind: fc.constant('survivor-added' as const),

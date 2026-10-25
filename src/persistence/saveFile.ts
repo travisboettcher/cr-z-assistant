@@ -978,6 +978,7 @@ const EVENT_FIELDS: Record<
     ['name', 'name'],
     ['amount', 'countFromOne'],
     ['source', 'xpSource'],
+    ['toDebt', 'optionalCountFromOne'],
   ],
   'survivor-added': [
     ['survivor', 'id'],

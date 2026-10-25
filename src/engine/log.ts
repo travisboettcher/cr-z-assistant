@@ -991,6 +991,8 @@ export type CampaignEvent =
       readonly name: string;
       readonly amount: number;
       readonly source: XpSource;
+      /** How much of it paid off experience debt instead (R94; Z7-10). Absent for none. */
+      readonly toDebt?: number;
     }
   | {
       readonly kind: 'survivor-added';

@@ -756,6 +756,7 @@ function EditableNumber({
  * the player is left wondering whether the app is broken or they are.
  */
 const BLOCKED_REASONS: Record<PurchaseBlock, string> = {
+  'in-debt': 'their experience debt comes first',
   'not-enough-xp': 'not enough experience yet',
   'at-tier-maximum': 'already at the maximum level for their Tier',
   'at-score-maximum': 'already at the maximum score of eight',
