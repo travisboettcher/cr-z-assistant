@@ -57,11 +57,17 @@ export function injuredSo(survivor: Survivor, has: (rules: InjuryRules) => boole
   return injuriesOf(survivor).some(({ rules }) => has(rules));
 }
 
-/** Whether they hold this origin Advantage: Rot Resistant's flag, or one in their list. */
-export function holdsOriginAdvantage(survivor: Survivor, advantage: OriginAdvantage): boolean {
+/**
+ * Whether they hold this origin Advantage: Rot Resistant's flag, or one in
+ * their list. None, for an injury that replaces nothing.
+ */
+export function holdsOriginAdvantage(
+  survivor: Survivor,
+  advantage: OriginAdvantage | undefined,
+): boolean {
   return advantage === 'rot-resistant'
     ? survivor.rotResistant
-    : survivor.advantages.includes(advantage);
+    : survivor.advantages.includes(advantage as Advantage);
 }
 
 /**
@@ -78,7 +84,7 @@ export function injuryFate(survivor: Survivor, injury: Injury): InjuryFate {
   const rules: InjuryRules = INJURY_RULES[injury];
   const next = injuryCount(survivor, injury) + 1;
 
-  if (rules.replaces !== undefined && holdsOriginAdvantage(survivor, rules.replaces)) {
+  if (holdsOriginAdvantage(survivor, rules.replaces)) {
     return 'replaces';
   }
   if (next <= rules.most) return 'gained';
@@ -98,7 +104,7 @@ export function injuryFate(survivor: Survivor, injury: Injury): InjuryFate {
  */
 export function withInjuryGained(survivor: Survivor, injury: Injury): Survivor {
   const rules: InjuryRules = INJURY_RULES[injury];
-  if (rules.replaces !== undefined && holdsOriginAdvantage(survivor, rules.replaces)) {
+  if (holdsOriginAdvantage(survivor, rules.replaces)) {
     return rules.replaces === 'rot-resistant'
       ? { ...survivor, rotResistant: false }
       : { ...survivor, advantages: survivor.advantages.filter((one) => one !== rules.replaces) };
