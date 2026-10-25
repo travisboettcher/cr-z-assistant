@@ -753,14 +753,14 @@ const EVENT_FIELD_CHECKS = {
         SPELLS.some((known) => known === spell) && value.indexOf(spell) === at,
     ),
   spell: (value: unknown) => SPELLS.some((known) => known === value),
-  // A Permanent Injury a failed Rot check was taken as (R86; Z7-11).
+  // A Permanent Injury a failed Rot or Infection check was taken as (R86, R100; Z7-11).
   optionalRotInjury: (value: unknown) =>
     value === undefined ||
     (isRecord(value) &&
       Object.keys(value).length === 3 &&
       D10_RESULTS.some((result) => result === value.roll) &&
       isKeyOf(INJURY_RULES, value.injury as string) &&
-      ['gained', 'becomes', 'turns', 'kills'].includes(value.fate as string)),
+      ['gained', 'becomes', 'turns', 'kills', 'replaces'].includes(value.fate as string)),
   // The origin a campaign began with (R98; Z7-10).
   optionalOrigin: (value: unknown) =>
     value === undefined || CAMPAIGN_ORIGINS.some((origin) => origin === value),
@@ -846,6 +846,7 @@ const EVENT_FIELDS: Record<
     ['infection', 'countFromOne'],
     ['bonus', 'amount'],
     ['passed', 'flag'],
+    ['injury', 'optionalRotInjury'],
   ],
   'survivor-inoculated': [
     ['survivor', 'id'],

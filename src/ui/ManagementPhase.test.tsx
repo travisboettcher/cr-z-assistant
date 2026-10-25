@@ -437,6 +437,54 @@ describe('the Infection check', () => {
     );
   });
 
+  /** R100; Z7-12: a Permanent Injury instead of turning, as a Rot check's can be. */
+  it('takes a Permanent Injury instead of turning, and says so', async () => {
+    const user = open({ ...infected(10), traitsEnabled: true });
+    const section = within(within(walk()).getByRole('region', { name: 'Infection checks' }));
+
+    await user.selectOptions(section.getByLabelText('Rolled'), '1');
+    await user.click(section.getByLabelText(/take a permanent injury instead of turning/i));
+    await user.selectOptions(section.getByLabelText(/injury table d10/i), '4');
+    expect(section.getByText('Earl Rhodes takes Sickly and doesn’t turn.')).toBeTruthy();
+    await user.click(
+      section.getByRole('button', { name: 'Resolve Earl Rhodes’s Infection check' }),
+    );
+
+    expect(section.queryByText(/held off the Infection this turn/)).toBeNull();
+    expect(
+      section.getByText(
+        'Earl Rhodes failed the Infection check, rolling a 1 against 10 Infection, and took Sickly instead of turning (a 4 on the injury table).',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('says an origin injury takes its Advantage away instead', async () => {
+    const user = open({
+      ...infected(10),
+      traitsEnabled: true,
+      survivors: [
+        { ...createSurvivor('Earl Rhodes', 4, { id: EARL }), infection: 10, rotResistant: true },
+      ],
+    });
+    const section = within(within(walk()).getByRole('region', { name: 'Infection checks' }));
+
+    await user.selectOptions(section.getByLabelText('Rolled'), '1');
+    await user.click(section.getByLabelText(/take a permanent injury instead of turning/i));
+    await user.selectOptions(section.getByLabelText(/injury table d10/i), '4');
+    expect(
+      section.getByText(
+        'Sickly takes Earl Rhodes’s Rot Resistant away instead, and they don’t turn.',
+      ),
+    ).toBeTruthy();
+    await user.click(
+      section.getByRole('button', { name: 'Resolve Earl Rhodes’s Infection check' }),
+    );
+
+    expect(
+      section.getByText(/and lost their Rot Resistant to Sickly instead of turning/),
+    ).toBeTruthy();
+  });
+
   it('says what a failure costs before the press', async () => {
     const user = open(infected(10));
     const section = within(within(walk()).getByRole('region', { name: 'Infection checks' }));

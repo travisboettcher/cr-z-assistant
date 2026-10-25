@@ -200,6 +200,18 @@ export function traitsProblem(traits: SurvivorTraits): string | null {
   ) {
     return 'One-handed and Ambidextrous can’t be held together.';
   }
+  // Nor Psychic Scars with Calloused Psyche, or Touched with Resistance (R163).
+  // Rot Resistant isn't refused with Sickly: an Inoculation gives it to anybody
+  // (R97), so only the sheet's creation picker keeps them apart.
+  if (
+    injuries.some(([injury]) =>
+      advantages.some(
+        (advantage) => (INJURY_RULES[injury as Injury] as InjuryRules).replaces === advantage,
+      ),
+    )
+  ) {
+    return 'An origin injury and the Advantage it takes away can’t be held together.';
+  }
   if (traits.storyTrait === 'bonded') {
     return Number.isInteger(traits.bondGroup) && (traits.bondGroup as number) >= 1
       ? null

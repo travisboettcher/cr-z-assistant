@@ -6,7 +6,14 @@
  * rules data fails the typecheck here rather than rendering `undefined`.
  */
 
-import type { Advantage, Injury, StoryTrait } from '../data/traits';
+import {
+  INJURY_RULES,
+  type Advantage,
+  type Injury,
+  type InjuryRules,
+  type OriginAdvantage,
+  type StoryTrait,
+} from '../data/traits';
 
 export const STORY_TRAIT_LABELS: Record<StoryTrait, string> = {
   bonded: 'Bonded',
@@ -53,6 +60,8 @@ export const ADVANTAGE_LABELS: Record<Advantage, string> = {
   ambidextrous: 'Ambidextrous',
   'parkour-practitioner': 'Parkour Practitioner',
   'natural-leader': 'Natural Leader',
+  'calloused-psyche': 'Calloused Psyche',
+  resistance: 'Resistance',
 };
 
 /** The Toolkit's Permanent Injuries as pp. 138 and 140 name them (Z7-11). */
@@ -69,3 +78,15 @@ export const INJURY_LABELS: Record<Injury, string> = {
   'psychic-scars': 'Psychic Scars',
   touched: 'Touched',
 };
+
+/** The origin Advantages by name: Rot Resistant, the flag, and the two in the list (pg. 140). */
+export const ORIGIN_ADVANTAGE_LABELS: Record<OriginAdvantage, string> = {
+  'rot-resistant': 'Rot Resistant',
+  'calloused-psyche': ADVANTAGE_LABELS['calloused-psyche'],
+  resistance: ADVANTAGE_LABELS.resistance,
+};
+
+/** The origin Advantage an origin injury takes away instead (pg. 140; R162), by name. */
+export function replacedLabel(injury: Injury): string {
+  return ORIGIN_ADVANTAGE_LABELS[(INJURY_RULES[injury] as InjuryRules).replaces as OriginAdvantage];
+}

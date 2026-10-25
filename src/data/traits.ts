@@ -7,9 +7,8 @@
  * missions is here, as numbers. What they do on the map (an extra Attack, a
  * die bonus, Damage dealt back) stays in the book, cited by page.
  *
- * The Toolkit's Advantages (pg. 139) are below, behind the campaign's switch
- * (R84, R158); its Permanent Injuries and origin traits (pp. 137–140) are
- * Z7-11's and Z7-12's.
+ * The Toolkit's Advantages, Permanent Injuries and origin traits (pp. 137–140)
+ * are below, behind the campaign's switch (R84, R158; Z7-10 to Z7-12).
  */
 
 import type { CampaignOrigin } from './origins';
@@ -70,10 +69,11 @@ export const VETERAN_PAGES = '87–88';
 export const VETERAN_HEALING = { xp: 1, health: 1 } as const;
 
 /**
- * The Toolkit's eight Advantages common to every origin (pg. 139; Z7-10). The
- * three origin ones on pg. 140, Rot Resistant, Calloused Psyche and
- * Resistance, are Z7-12's. Taken only at creation (pg. 139; R158, R166), any
- * number of them (R160), each adding its debt.
+ * The Toolkit's Advantages (pp. 139–140; Z7-10, Z7-12): the eight common to
+ * every origin, and two of the three origin ones, each only under its origin.
+ * The third, Rot Resistant, is the survivor's own flag, which an Inoculation
+ * gives too (R97), so it is apart, by its debt. Taken only at creation (pg.
+ * 139; R158, R166), any number of them (R160), each adding its debt.
  */
 export const ADVANTAGES = [
   'powerhouse',
@@ -84,6 +84,8 @@ export const ADVANTAGES = [
   'ambidextrous',
   'parkour-practitioner',
   'natural-leader',
+  'calloused-psyche',
+  'resistance',
 ] as const;
 
 export type Advantage = (typeof ADVANTAGES)[number];
@@ -119,6 +121,15 @@ export interface AdvantageRules {
 
   /** Labor added to every other survivor on the project team (Natural Leader; R89). */
   readonly laborToOthers?: number;
+
+  /** The origin it is taken under, and only under (pg. 140). Absent for the common eight. */
+  readonly origin?: CampaignOrigin;
+
+  /** At most this much Madness gained in a campaign turn, the rest ignored (Calloused Psyche; R165). */
+  readonly madnessPerTurn?: number;
+
+  /** Never learns a spell (Resistance; R113). */
+  readonly learnsNoSpell?: true;
 }
 
 export const ADVANTAGE_RULES = {
@@ -135,13 +146,23 @@ export const ADVANTAGE_RULES = {
     score: { skill: 'tactics', amount: 1 },
     laborToOthers: 1,
   },
+  'calloused-psyche': { pages: 140, debt: 2, origin: 'cosmic-horror', madnessPerTurn: 3 },
+  resistance: { pages: 140, debt: 1, origin: 'magic', learnsNoSpell: true },
 } as const satisfies Record<Advantage, AdvantageRules>;
 
+/** Rot Resistant's debt taken at creation, under the Viral origin (pg. 140). */
+export const ROT_RESISTANT_DEBT = 2;
+
 /**
- * The Toolkit's Permanent Injuries (pp. 137–138, 140; Z7-11): the nine of the
- * d10 table, and the three origin injuries its result 4 gives, one for each
- * origin (pg. 140; Z7-12 gives those their effects). A survivor holds a count
- * of each (R84).
+ * The origin Advantage an origin injury takes away instead of being gained
+ * (pg. 140; R162): Rot Resistant, the flag, or one of the two above.
+ */
+export type OriginAdvantage = 'rot-resistant' | 'calloused-psyche' | 'resistance';
+
+/**
+ * The Toolkit's Permanent Injuries (pp. 137–138, 140; Z7-11, Z7-12): the nine
+ * of the d10 table, and the three origin injuries its result 4 gives, one for
+ * each origin (pg. 140). A survivor holds a count of each (R84).
  */
 export const INJURIES = [
   'wheelchair-bound',
@@ -238,6 +259,18 @@ export interface InjuryRules {
 
   /** The Advantage it removes, and can't be held with (One-handed and Ambidextrous; pg. 138). */
   readonly removes?: Advantage;
+
+  /**
+   * The origin Advantage it takes away instead of being gained, and isn't
+   * taken with at creation (pg. 140; R162, R163).
+   */
+  readonly replaces?: OriginAdvantage;
+
+  /** Infection added after a mission that gave them any (Sickly). */
+  readonly infectionAfterMission?: number;
+
+  /** The most Humanity they can have (Touched; R114). */
+  readonly humanityMax?: number;
 }
 
 export const INJURY_RULES = {
@@ -274,7 +307,7 @@ export const INJURY_RULES = {
     missionTeamOthers: 3,
     cannotStaff: ['watchtower'],
   },
-  sickly: { pages: 140, xp: 1, most: 1 },
-  'psychic-scars': { pages: 140, xp: 2, most: 1 },
-  touched: { pages: 140, xp: 2, most: 1 },
+  sickly: { pages: 140, xp: 1, most: 1, replaces: 'rot-resistant', infectionAfterMission: 1 },
+  'psychic-scars': { pages: 140, xp: 2, most: 1, replaces: 'calloused-psyche' },
+  touched: { pages: 140, xp: 2, most: 1, replaces: 'resistance', humanityMax: 4 },
 } as const satisfies Record<Injury, InjuryRules>;

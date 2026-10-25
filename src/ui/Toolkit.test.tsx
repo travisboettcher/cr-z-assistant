@@ -238,3 +238,62 @@ describe('Permanent Injuries on the sheet (pp. 137–138; R86; Z7-11)', () => {
     expect(earlSheet.getByText(/Injuries: Deaf/)).toBeTruthy();
   });
 });
+
+describe('the origin Advantages on the sheet (pg. 140; R163; Z7-12)', () => {
+  const sheet = async (campaign: Campaign) => {
+    const user = open(campaign);
+    openPanel('survivors');
+    await user.click(screen.getByRole('button', { name: /^sheet$/i }));
+
+    return { user, sheet: within(screen.getByRole('region', { name: 'Earl Rhodes' })) };
+  };
+  const toolkit = (origin: 'viral' | 'cosmic-horror' | 'magic', survivor: Survivor): Campaign => ({
+    ...createNewCampaign('Cedar Hollow', { origin, traitsEnabled: true }),
+    survivors: [survivor],
+  });
+
+  it('offers Rot Resistant for its debt under the Viral origin, and keeps Sickly away from it', async () => {
+    const { user, sheet: earlSheet } = await sheet(toolkit('viral', earl()));
+
+    await user.click(earlSheet.getByRole('button', { name: 'Edit traits' }));
+    expect(earlSheet.queryByLabelText(/^Calloused Psyche/)).toBeNull();
+    expect(earlSheet.queryByLabelText(/^Resistance/)).toBeNull();
+    await user.click(earlSheet.getByLabelText(/^Rot Resistant/));
+    expect(earlSheet.getByLabelText(/^Experience debt/)).toHaveValue(2);
+    const sickly = within(earlSheet.getByLabelText(/^Sickly/));
+    expect(sickly.getByRole('option', { name: 'Once' })).toBeDisabled();
+    await user.click(earlSheet.getByLabelText(/^Rot Resistant/));
+    expect(earlSheet.getByLabelText(/^Experience debt/)).toHaveValue(0);
+    await user.selectOptions(earlSheet.getByLabelText(/^Sickly/), '1');
+    expect(earlSheet.getByLabelText(/^Rot Resistant/)).toBeDisabled();
+  });
+
+  it('moves no debt for a Rot Resistant an Inoculation gave', async () => {
+    const { user, sheet: earlSheet } = await sheet(
+      toolkit('viral', earl({ rotResistant: true, advantages: ['forager'], xpDebt: 3 })),
+    );
+
+    await user.click(earlSheet.getByRole('button', { name: 'Edit traits' }));
+    await user.click(earlSheet.getByLabelText(/^Rot Resistant/));
+    expect(earlSheet.getByLabelText(/^Experience debt/)).toHaveValue(3);
+  });
+
+  it('offers Calloused Psyche under Cosmic Horror and Resistance under Magic, each apart from its injury', async () => {
+    const cosmic = await sheet(toolkit('cosmic-horror', earl()));
+    await cosmic.user.click(cosmic.sheet.getByRole('button', { name: 'Edit traits' }));
+    expect(cosmic.sheet.queryByLabelText(/^Resistance/)).toBeNull();
+    expect(cosmic.sheet.queryByLabelText(/^Rot Resistant/)).toBeNull();
+    await cosmic.user.click(cosmic.sheet.getByLabelText(/^Calloused Psyche/));
+    expect(
+      within(cosmic.sheet.getByLabelText(/^Psychic Scars/)).getByRole('option', { name: 'Once' }),
+    ).toBeDisabled();
+  });
+
+  it('shows Touched’s lower Humanity maximum', async () => {
+    const { sheet: earlSheet } = await sheet(
+      toolkit('magic', earl({ humanity: 4, injuries: { touched: 1 } })),
+    );
+
+    expect(earlSheet.getByText('4 / 4')).toBeTruthy();
+  });
+});

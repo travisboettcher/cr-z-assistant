@@ -50,6 +50,7 @@ import {
 import { builtEvent, builtOf, checkOrder, orderedEvent } from '../engine/orders';
 import { withUtilityToggled } from '../engine/utilities';
 import { createNewCampaign } from '../engine/campaign';
+import { humanityMax } from '../engine/injuries';
 import { logged } from '../engine/log';
 import { reverse, type AdvanceBy } from '../engine/turn';
 import type { MaterialRoll } from '../engine/materials';
@@ -731,6 +732,8 @@ export type CampaignAction =
       readonly survivor: string;
       readonly roll: D10Result;
       readonly bitten: string | null;
+      /** A Permanent Injury taken instead of turning (R100; Z7-12). */
+      readonly injury?: { readonly roll: D10Result; readonly chosen?: Injury };
       readonly at: string;
     }
   /**
@@ -970,7 +973,7 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
     case 'survivor/humanitySet':
       return editSurvivor(state, action.id, (survivor) => ({
         ...survivor,
-        humanity: Math.min(5, action.humanity),
+        humanity: Math.min(humanityMax(survivor), action.humanity),
       }));
 
     case 'survivor/xpSpentSet':
@@ -1177,7 +1180,12 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return submitted(state, (campaign) =>
         submitInfectionCheck(
           campaign,
-          { survivor: action.survivor, roll: action.roll, bitten: action.bitten },
+          {
+            survivor: action.survivor,
+            roll: action.roll,
+            bitten: action.bitten,
+            ...(action.injury === undefined ? {} : { injury: action.injury }),
+          },
           action.at,
         ),
       );

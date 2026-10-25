@@ -346,8 +346,11 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
   ) {
     return { ...taggedFirst(event, 'kind'), items: event.items.map(orderedItem) };
   }
-  // A Permanent Injury taken instead of turning (R86; Z7-11).
-  if (event.kind === 'rot-checked' && event.injury !== undefined) {
+  // A Permanent Injury taken instead of turning (R86, R100; Z7-11).
+  if (
+    (event.kind === 'rot-checked' || event.kind === 'infection-checked') &&
+    event.injury !== undefined
+  ) {
     const { roll, injury, fate } = event.injury;
     return { ...taggedFirst(event, 'kind'), injury: { roll, injury, fate } };
   }

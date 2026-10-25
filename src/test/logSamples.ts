@@ -105,6 +105,14 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
     roll: 3,
     target: 8,
     passed: false,
+    injury: { roll: 4, injury: 'sickly', fate: 'replaces' },
+  },
+  {
+    kind: 'rot-checked',
+    ...SURVIVOR,
+    roll: 3,
+    target: 8,
+    passed: false,
     injury: { roll: 2, injury: 'one-handed', fate: 'kills' },
   },
   // A Clinic can drive the target below zero, which the book leaves unclamped
@@ -113,6 +121,15 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   // The Viral origin's Infection check (Z7-5), with and without a Clinic's Medicine.
   { kind: 'infection-checked', ...SURVIVOR, roll: 4, infection: 6, bonus: 3, passed: true },
   { kind: 'infection-checked', ...SURVIVOR, roll: 1, infection: 10, bonus: 0, passed: false },
+  {
+    kind: 'infection-checked',
+    ...SURVIVOR,
+    roll: 1,
+    infection: 10,
+    bonus: 0,
+    passed: false,
+    injury: { roll: 4, injury: 'sickly', fate: 'gained' },
+  },
   // Inoculation and Rot Resistant (Z7-5).
   { kind: 'survivor-inoculated', ...SURVIVOR, item: 'inoculation-1' },
   { kind: 'infection-resisted', ...SURVIVOR },

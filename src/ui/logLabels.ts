@@ -25,6 +25,7 @@ import type { Item } from '../engine/campaign';
 import type {
   CampaignEvent,
   HistoricMaterials,
+  InjuryTaken,
   LeavingCause,
   LogEntry,
   RareTradeLoss,
@@ -52,7 +53,7 @@ import { PHASE_LABELS } from './turnLabels';
 import { COMMON_SKILL_LABELS, SKILL_LABELS } from './skillLabels';
 import { TIER_LABELS } from './tierLabels';
 import { SPELL_LABELS, spellList } from './spellLabels';
-import { INJURY_LABELS } from './traitLabels';
+import { INJURY_LABELS, replacedLabel } from './traitLabels';
 import { ORIGIN_LABELS } from './originLabels';
 
 export interface EventLabel {
@@ -272,16 +273,8 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
 
       if (event.injury !== undefined) {
         // Taken as a Permanent Injury instead of turning (R86; Z7-11).
-        const injury = INJURY_LABELS[event.injury.injury];
-        const what = {
-          gained: `and took ${injury} instead of turning`,
-          becomes: `and took a second ${injury} instead of turning, so is Blind`,
-          turns: `and turned anyway: another ${injury} is more than they can carry`,
-          kills: `and a third ${injury} killed them`,
-        }[event.injury.fate];
-
         return {
-          text: `${event.name} failed, ${rolling}, ${what} (${articleForNumber(event.injury.roll)} ${String(event.injury.roll)} on the injury table).`,
+          text: `${event.name} failed, ${rolling}, ${injuryTakenText(event.injury)}.`,
           pages: '22, 137–138',
         };
       }
@@ -299,6 +292,14 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
       const against = `rolling ${articleForNumber(event.roll)} ${String(event.roll)}${
         event.bonus === 0 ? '' : ` with ${String(event.bonus)} Medicine`
       } against ${String(event.infection)} Infection`;
+
+      if (event.injury !== undefined) {
+        // Taken as a Permanent Injury instead of turning (R100; Z7-12).
+        return {
+          text: `${event.name} failed the Infection check, ${against}, ${injuryTakenText(event.injury)}.`,
+          pages: '123, 137–138',
+        };
+      }
 
       return {
         text: event.passed
@@ -850,4 +851,18 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
  */
 export function describeWhen(entry: LogEntry): string {
   return `Turn ${entry.turn}, ${PHASE_LABELS[entry.phase]}`;
+}
+
+/** What a check's Permanent Injury did, and the d10 on the table (R86, R87, R161, R162). */
+function injuryTakenText(taken: InjuryTaken): string {
+  const injury = INJURY_LABELS[taken.injury];
+  const what = {
+    gained: `and took ${injury} instead of turning`,
+    becomes: `and took a second ${injury} instead of turning, so is Blind`,
+    turns: `and turned anyway: another ${injury} is more than they can carry`,
+    kills: `and a third ${injury} killed them`,
+    replaces: `and lost their ${replacedLabel(taken.injury)} to ${injury} instead of turning`,
+  }[taken.fate];
+
+  return `${what} (${articleForNumber(taken.roll)} ${String(taken.roll)} on the injury table)`;
 }

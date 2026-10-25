@@ -78,6 +78,17 @@ import type { Assignment, Campaign, Item, RareTradeItem, TradeOrder, Vehicle } f
  * read who a Siege Defense left at 0 Health off these, rather than off Health
  * as the roster has it now (R17's October 2026 amendment).
  */
+/**
+ * A Permanent Injury a failed Rot or Infection check was taken as instead of
+ * turning (pg. 137; R86, R100): the d10 on the table, the injury it gave, and
+ * what gaining it did (R87, R161, R162).
+ */
+export interface InjuryTaken {
+  readonly roll: D10Result;
+  readonly injury: Injury;
+  readonly fate: InjuryFate;
+}
+
 export interface MissionWound {
   readonly survivor: string;
   readonly name: string;
@@ -452,11 +463,7 @@ export type CampaignEvent =
        * (pg. 137; R86; Z7-11): the d10 on the table, the injury it gave, and
        * what gaining it did (R87, R161). Absent when they didn't take one.
        */
-      readonly injury?: {
-        readonly roll: D10Result;
-        readonly injury: Injury;
-        readonly fate: InjuryFate;
-      };
+      readonly injury?: InjuryTaken;
     }
   /**
    * One survivor's Infection check under the Viral origin (pp. 22, 123; R99;
@@ -473,6 +480,8 @@ export type CampaignEvent =
       readonly infection: number;
       readonly bonus: number;
       readonly passed: boolean;
+      /** Taken as a Permanent Injury instead of turning, as a Rot check can be (R100; Z7-12). */
+      readonly injury?: InjuryTaken;
     }
   /**
    * A set of Restraints held a turning survivor, so nobody was bitten (pg. 69).

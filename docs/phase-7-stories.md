@@ -425,8 +425,8 @@ nothing records one.
   working Mystic Library, one a staff place, one spell a turn from those seen, for 6 XP or 3 with a
   Necromancer discount left, paid as XP spent (R113, R149). The sheet lists and corrects them with
   the traits.
-- **Not tracked yet**: the Resistance trait that can never learn a spell (pg. 140) is the Toolkit's,
-  Z7-10's. Casting is a mission action, so it shows only as the Humanity the outcome records.
+- **Casting is a mission action**, so it shows only as the Humanity the outcome records. The
+  Resistance trait that never learns a spell (pg. 140) came with Z7-12.
 
 ## Part 3 — The Toolkit's survivor traits (outline)
 
@@ -502,3 +502,29 @@ nothing records one.
   creation" ticked, each one added gains its XP, debt first (R94), and taking one off takes it back.
   A creation Blind made of two One-eyed is worth both (R161): the extra 2 XP is set by hand.
   Switching the traits off takes injuries away with the Advantages and debt.
+
+### Z7-12 — What this story turned out to include
+
+- **Calloused Psyche and Resistance are Advantages**, each offered only under its origin, or to
+  somebody who already holds one. Rot Resistant stays the survivor's own flag, because an
+  Inoculation gives it too (R97). With the Toolkit's traits in use it is ticked among the
+  Advantages for its 2 debt, and one an Inoculation gave moves no debt. Switching the traits off
+  leaves it alone for the same reason.
+- **An origin injury takes its Advantage away instead of being gained** (R162), the debt staying
+  (R159): a new `replaces` fate, which the check's entry records. Sickly does it to an Inoculation's
+  Rot Resistant too.
+- **Not both at creation** (R163). The sheet keeps each origin Advantage and its injury apart, and
+  `traitsProblem` refuses Calloused Psyche with Psychic Scars and Resistance with Touched. Rot
+  Resistant with Sickly isn't refused there, since an Inoculation can give it to somebody Sickly.
+- **The effects**:
+  - Sickly's 1 Infection, added when a mission's outcome gave them any.
+  - Calloused Psyche's cap of 3 more Madness than they had, where the outcome is recorded (R165). A
+    survivor is in one outcome a turn, a siege's included (R17), so that's the turn's.
+  - Resistance refused at the Mystic Library (R113).
+  - Touched's Humanity maximum of 4, wherever 5 was read: the gains, the outcome's Humanity, the
+    sheet and its correction. Gaining Touched at 5 brings it to 4.
+  - Psychic Scars only changes a check on the map (pg. 125), so it carries its XP and nothing else
+    here.
+- **A failed Infection check can be taken as an injury too**, as R100 has it. Z7-11 had only
+  offered it at the Rot check. The Infection check's entry records the injury, and the step names
+  who took one instead of saying they held it off.

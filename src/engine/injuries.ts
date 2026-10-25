@@ -12,7 +12,9 @@
  * What each changes between missions is read where the rule already lives:
  * Labor in `survivorLabor` (R89), slots and Scores in `survivor.ts`, the
  * skill-level maximum in `advancement.ts`, and the tasks allowed in
- * `planning.ts` (R93). The origin injuries' own effects are Z7-12's.
+ * `planning.ts` (R93). The origin injuries' are read the same way: Sickly's
+ * Infection where a mission's wounds are recorded, and Touched's Humanity
+ * wherever Humanity's maximum is.
  *
  * Pure, like the rest of `src/engine`.
  */
@@ -28,7 +30,9 @@ import {
   type Advantage,
   type Injury,
   type InjuryRules,
+  type OriginAdvantage,
 } from '../data/traits';
+import { HUMANITY_MAX } from '../data/origins';
 import { TIER_RULES } from '../data/tiers';
 import type { Survivor } from './campaign';
 
@@ -53,18 +57,30 @@ export function injuredSo(survivor: Survivor, has: (rules: InjuryRules) => boole
   return injuriesOf(survivor).some(({ rules }) => has(rules));
 }
 
+/** Whether they hold this origin Advantage: Rot Resistant's flag, or one in their list. */
+export function holdsOriginAdvantage(survivor: Survivor, advantage: OriginAdvantage): boolean {
+  return advantage === 'rot-resistant'
+    ? survivor.rotResistant
+    : survivor.advantages.includes(advantage);
+}
+
 /**
- * What happens when this survivor gains this injury (pp. 137–138; R87, R161):
- * it's `gained`, a second One-eyed `becomes` Blind (or turns them if they are
- * Blind already), a third One-handed `kills`, and any other repeat past what an
- * injury allows `turns` them.
+ * What happens when this survivor gains this injury (pp. 137–138, 140; R87,
+ * R161, R162): an origin injury `replaces` the origin Advantage they hold
+ * instead of being gained; otherwise it's `gained`, a second One-eyed
+ * `becomes` Blind (or turns them if they are Blind already), a third
+ * One-handed `kills`, and any other repeat past what an injury allows `turns`
+ * them.
  */
-export type InjuryFate = 'gained' | 'becomes' | 'turns' | 'kills';
+export type InjuryFate = 'gained' | 'becomes' | 'turns' | 'kills' | 'replaces';
 
 export function injuryFate(survivor: Survivor, injury: Injury): InjuryFate {
   const rules: InjuryRules = INJURY_RULES[injury];
   const next = injuryCount(survivor, injury) + 1;
 
+  if (rules.replaces !== undefined && holdsOriginAdvantage(survivor, rules.replaces)) {
+    return 'replaces';
+  }
   if (next <= rules.most) return 'gained';
   if (rules.becomes !== undefined) {
     return injuryFate(survivor, rules.becomes) === 'gained' ? 'becomes' : 'turns';
@@ -74,23 +90,54 @@ export function injuryFate(survivor: Survivor, injury: Injury): InjuryFate {
 }
 
 /**
- * The survivor with this injury gained, for a fate of `gained` or `becomes`:
- * counted, or a second One-eyed swapped for Blind, and any Advantage it
- * removes gone, its debt staying (R159). Assumes `injuryFate` said so.
+ * The survivor with this injury gained, for a fate of `gained`, `becomes` or
+ * `replaces`: counted, or a second One-eyed swapped for Blind, and any
+ * Advantage it removes gone; or, replacing, the origin Advantage gone and the
+ * injury not gained (R162). A debt stays either way (R159). Touched brings
+ * Humanity down to its maximum. Assumes `injuryFate` said so.
  */
 export function withInjuryGained(survivor: Survivor, injury: Injury): Survivor {
   const rules: InjuryRules = INJURY_RULES[injury];
+  if (rules.replaces !== undefined && holdsOriginAdvantage(survivor, rules.replaces)) {
+    return rules.replaces === 'rot-resistant'
+      ? { ...survivor, rotResistant: false }
+      : { ...survivor, advantages: survivor.advantages.filter((one) => one !== rules.replaces) };
+  }
+
   const becomes = injuryCount(survivor, injury) + 1 > rules.most ? rules.becomes : undefined;
   const injuries: Partial<Record<Injury, number>> =
     becomes === undefined
       ? { ...survivor.injuries, [injury]: injuryCount(survivor, injury) + 1 }
       : withoutKey({ ...survivor.injuries, [becomes]: injuryCount(survivor, becomes) + 1 }, injury);
 
-  return {
+  const gained = {
     ...survivor,
     injuries,
     advantages: survivor.advantages.filter((advantage) => advantage !== rules.removes),
   };
+
+  return { ...gained, humanity: Math.min(gained.humanity, humanityMax(gained)) };
+}
+
+/** The most Humanity they can have: 5, or Touched's 4 (pp. 127, 140; R114). */
+export function humanityMax(survivor: Survivor): number {
+  return Math.min(
+    HUMANITY_MAX,
+    ...injuriesOf(survivor).map(({ rules }) => rules.humanityMax ?? HUMANITY_MAX),
+  );
+}
+
+/**
+ * The Infection a mission's recorded wound leaves them with: as recorded,
+ * and Sickly's 1 more when the mission gave them any (pg. 140).
+ */
+export function infectionAfterMission(survivor: Survivor, recorded: number): number {
+  if (recorded <= survivor.infection) return recorded;
+
+  return injuriesOf(survivor).reduce(
+    (total, { rules }) => total + (rules.infectionAfterMission ?? 0),
+    recorded,
+  );
 }
 
 function withoutKey(

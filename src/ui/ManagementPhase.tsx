@@ -80,7 +80,7 @@ import { PageRef } from './PageRef';
 import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 import { INJURIES, ORIGIN_INJURIES, type Injury } from '../data/traits';
 import { injuryFate, rolledInjury, type InjuryFate } from '../engine/injuries';
-import { INJURY_LABELS } from './traitLabels';
+import { INJURY_LABELS, replacedLabel } from './traitLabels';
 
 export interface ManagementPhaseProps {
   readonly campaign: Campaign;
@@ -211,6 +211,20 @@ function InfectionChecks({ campaign }: { readonly campaign: Campaign }) {
   const infected = infectionMustCheck(campaign);
   const outstanding = infectionStillToCheck(campaign);
   const bonus = infectionBonus(campaign);
+  const checked = campaign.log.filter(
+    ({ turn, event }) =>
+      turn === campaign.turn &&
+      event.kind === 'infection-checked' &&
+      infected.some((survivor) => survivor.id === event.survivor),
+  );
+  const injured = checked.filter(
+    ({ event }) => event.kind === 'infection-checked' && event.injury !== undefined,
+  );
+  const heldOff = infected.filter(
+    (survivor) =>
+      !outstanding.includes(survivor) &&
+      !injured.some(({ event }) => 'survivor' in event && event.survivor === survivor.id),
+  );
 
   return (
     <section aria-label="Infection checks" className="mt-5">
@@ -246,15 +260,21 @@ function InfectionChecks({ campaign }: { readonly campaign: Campaign }) {
         </ul>
       )}
 
-      {infected.length > outstanding.length && (
+      {/*
+       * Those who held it off, named together; anybody who took a Permanent
+       * Injury instead is still here too, and says so in the history's words
+       * (R100; Z7-12).
+       */}
+      {heldOff.length > 0 && (
         <p className="mt-3 text-sm font-medium">
-          {infected
-            .filter((survivor) => !outstanding.includes(survivor))
-            .map((survivor) => survivor.name)
-            .join(', ')}{' '}
-          held off the Infection this turn.
+          {heldOff.map((survivor) => survivor.name).join(', ')} held off the Infection this turn.
         </p>
       )}
+      {injured.map((entry, index) => (
+        <p key={index} className="mt-1 text-sm font-medium">
+          {describeEvent(entry.event, entry.turn).text}
+        </p>
+      ))}
     </section>
   );
 }
@@ -317,9 +337,17 @@ function RotCheck({
   const survivor = campaign.survivors.find((one) => one.id === survivorId);
   const infection = survivor?.infection ?? 0;
   const prefix = `${check}-${survivorId}`;
-  // Offered for a failed Rot check, with the Toolkit's traits in use (R86).
-  const injuryOffered =
-    check === 'rot' && campaign.traitsEnabled && outcome !== null && outcome.turned !== null;
+  // Offered for a failed Rot or Infection check, with the Toolkit's traits in use (R86, R100).
+  const injuryOffered = campaign.traitsEnabled && outcome !== null && outcome.turned !== null;
+  const injuryForm =
+    injuryOffered && injuring && injuryRoll !== null
+      ? {
+          injury: {
+            roll: injuryRoll,
+            ...(injuryRoll === 10 ? { chosen: chosenInjury } : {}),
+          },
+        }
+      : {};
   const takingInjury = injuryOffered && injuring;
   const injury =
     takingInjury && injuryRoll !== null
@@ -467,14 +495,7 @@ function RotCheck({
               survivor: survivorId,
               roll,
               bitten: chosen,
-              ...(takingInjury && injuryRoll !== null
-                ? {
-                    injury: {
-                      roll: injuryRoll,
-                      ...(injuryRoll === 10 ? { chosen: chosenInjury } : {}),
-                    },
-                  }
-                : {}),
+              ...injuryForm,
               at: new Date().toISOString(),
             });
             return;
@@ -485,6 +506,7 @@ function RotCheck({
             survivor: survivorId,
             roll,
             bitten: chosen,
+            ...injuryForm,
             at: new Date().toISOString(),
           });
         }}
@@ -523,6 +545,7 @@ function injuryPreview(
     becomes: `${name} takes a second ${label}, so is Blind, and doesn’t turn.`,
     turns: `${name} can’t carry another ${label}, so turns as normal.`,
     kills: `A third ${label} kills ${name}.`,
+    replaces: `${label} takes ${name}’s ${replacedLabel(injury)} away instead, and they don’t turn.`,
   }[fate];
 }
 

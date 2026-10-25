@@ -45,7 +45,7 @@ Phase 7 (traits and origins):
 
 | | |
 |---|---|
-| `traits.ts` | the five Story Traits a survivor holds one of, and Veteran beside them, with what each changes between missions: Labor, Health, stats and the tasks allowed; and the Toolkit's eight common Advantages, each with its debt and numbers |
+| `traits.ts` | the five Story Traits a survivor holds one of, and Veteran beside them, with what each changes between missions: Labor, Health, stats and the tasks allowed; and the Toolkit's Advantages, the eight common ones and two of the three origin ones, each with its debt and numbers; its Permanent Injuries and the d10 table they're rolled on; and the origin injury each origin's 4 gives |
 | `stories.ts` | each story mission's endings and what each gives: XP, a Story Trait, the story kept, the next part and who takes it, a survivor who joins, Food, and what else it asks the table for (an item, a roll, a vehicle, a count); and Left Behind's time windows |
 | `origins.ts` | each origin's numbers besides: Infection's, Madness's and the Lost roll's, Humanity's range and the magical items, and the six spells with The Necromancer's discount |
 

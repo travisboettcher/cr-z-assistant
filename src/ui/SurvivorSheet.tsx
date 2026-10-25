@@ -58,12 +58,15 @@ import {
   INJURY_RULES,
   ORIGIN_INJURIES,
   STORY_TRAITS,
+  ROT_RESISTANT_DEBT,
   type Advantage,
+  type AdvantageRules,
   type Injury,
   type InjuryRules,
+  type OriginAdvantage,
   type StoryTrait,
 } from '../data/traits';
-import { injuriesOf, injuryCount } from '../engine/injuries';
+import { humanityMax, injuriesOf, injuryCount } from '../engine/injuries';
 import { storiesHeld, storiesOnOffer, traitStatBonus, type SurvivorTraits } from '../engine/traits';
 import { STORY_MISSION_IDS, type StoryMissionId } from '../data/missions';
 import { MISSION_LABELS } from './missionLabels';
@@ -257,7 +260,7 @@ function Vitals({ survivor, penalty }: { readonly survivor: Survivor; readonly p
         />
       )}
 
-      {/* 0 to 5 (R114); a mission's outcome sets it, and this corrects it. */}
+      {/* 0 to 5, or Touched's 4 (R114); a mission's outcome sets it, and this corrects it. */}
       {magic && (
         <EditableNumber
           heading={
@@ -265,9 +268,9 @@ function Vitals({ survivor, penalty }: { readonly survivor: Survivor; readonly p
               Humanity <PageRef pages={127} />
             </>
           }
-          display={`${String(survivor.humanity)} / 5`}
+          display={`${String(survivor.humanity)} / ${String(humanityMax(survivor))}`}
           value={survivor.humanity}
-          max={5}
+          max={humanityMax(survivor)}
           what="Humanity"
           fieldLabel={`Humanity for ${survivor.name}`}
           onSave={(humanity) =>
@@ -391,6 +394,14 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
   // The origin injuries are this campaign's own, or one already held (pg. 140).
   const originInjury =
     campaign?.origin === undefined ? undefined : ORIGIN_INJURIES[campaign.origin];
+  // And the origin Advantages the same way (pg. 140; Z7-12).
+  const advantagesOffered = ADVANTAGES.filter((advantage) => {
+    const origin = (ADVANTAGE_RULES[advantage] as AdvantageRules).origin;
+    return (
+      origin === undefined || origin === campaign?.origin || survivor.advantages.includes(advantage)
+    );
+  });
+  const rotResistantOffered = campaign?.origin === 'viral' || survivor.rotResistant;
   const injuriesOffered = INJURIES.filter(
     (injury) =>
       !(Object.values(ORIGIN_INJURIES) as readonly Injury[]).includes(injury) ||
@@ -539,8 +550,11 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
               Veteran <PageRef pages="87–88" />
             </label>
 
-            {/* An Inoculation gives it (R97); set here for a correction, in a Viral campaign. */}
-            {(campaign?.origin === 'viral' || survivor.rotResistant) && (
+            {/*
+             * An Inoculation gives it (R97); set here for a correction, in a
+             * Viral campaign. With the Toolkit's traits it's with the Advantages.
+             */}
+            {rotResistantOffered && !advantagesShown && (
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -598,10 +612,39 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
           {advantagesShown && (
             <fieldset className="flex flex-col gap-1">
               <legend className="text-sm">
-                Advantages, taken when they join <PageRef pages={139} />
+                Advantages, taken when they join <PageRef pages="139–140" />
               </legend>
               <div className="flex flex-wrap gap-x-4 gap-y-1">
-                {ADVANTAGES.map((advantage) => (
+                {/*
+                 * Rot Resistant is the flag an Inoculation sets too, so only
+                 * taking it here moves the debt: one they had already keeps it.
+                 */}
+                {rotResistantOffered && (
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className={FOCUS_RING}
+                      checked={draft.rotResistant === true}
+                      disabled={ruledOut(draft).includes('rot-resistant')}
+                      onChange={(event) => {
+                        const debt = survivor.rotResistant ? 0 : ROT_RESISTANT_DEBT;
+                        setDraft({
+                          ...draft,
+                          rotResistant: event.target.checked,
+                          xpDebt: Math.max(
+                            0,
+                            (draft.xpDebt ?? 0) + (event.target.checked ? debt : -debt),
+                          ),
+                        });
+                      }}
+                    />
+                    Rot Resistant{' '}
+                    <span className="text-stone-600 dark:text-stone-400">
+                      ({ROT_RESISTANT_DEBT} debt)
+                    </span>
+                  </label>
+                )}
+                {advantagesOffered.map((advantage) => (
                   <label key={advantage} className="flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"
@@ -662,7 +705,9 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
                   const rules: InjuryRules = INJURY_RULES[injury];
                   const count = draft.injuries?.[injury] ?? 0;
                   const blocked =
-                    rules.removes !== undefined && (draft.advantages ?? []).includes(rules.removes);
+                    (rules.removes !== undefined &&
+                      (draft.advantages ?? []).includes(rules.removes)) ||
+                    (rules.replaces !== undefined && draftHolds(draft, rules.replaces));
 
                   return (
                     <label key={injury} className="flex items-center gap-2 text-sm">
@@ -857,12 +902,22 @@ function withCreationXp(draft: SurvivorTraits, amount: number): SurvivorTraits {
   return { ...draft, xp: xp - taken, xpDebt: debt + (-amount - taken) };
 }
 
-/** The Advantages an injury in the draft rules out (One-handed's Ambidextrous; pg. 138). */
-function ruledOut(draft: SurvivorTraits): readonly Advantage[] {
+/**
+ * The Advantages an injury in the draft rules out: One-handed's Ambidextrous,
+ * and an origin injury's own (pp. 138, 140; R163).
+ */
+function ruledOut(draft: SurvivorTraits): readonly (Advantage | OriginAdvantage)[] {
   return Object.keys(draft.injuries ?? {}).flatMap((injury) => {
-    const removes = (INJURY_RULES[injury as Injury] as InjuryRules).removes;
-    return removes === undefined ? [] : [removes];
+    const { removes, replaces } = INJURY_RULES[injury as Injury] as InjuryRules;
+    return [removes, replaces].filter((one) => one !== undefined);
   });
+}
+
+/** Whether the draft holds this origin Advantage: Rot Resistant's flag, or one in its list. */
+function draftHolds(draft: SurvivorTraits, advantage: OriginAdvantage): boolean {
+  return advantage === 'rot-resistant'
+    ? draft.rotResistant === true
+    : (draft.advantages ?? []).includes(advantage);
 }
 
 const VITAL_HEADING =

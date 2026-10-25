@@ -433,6 +433,18 @@ const MISSION_IDS = Object.keys(MISSIONS) as MissionId[];
  */
 function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
   const survivor = { survivor: anyId, name: anyName };
+  // A Permanent Injury taken instead of turning (R86, R100).
+  const anyInjuryTaken = fc.record({
+    roll: fc.constantFrom(...D10_RESULTS),
+    injury: fc.constantFrom(...INJURIES),
+    fate: fc.constantFrom(
+      'gained' as const,
+      'becomes' as const,
+      'turns' as const,
+      'kills' as const,
+      'replaces' as const,
+    ),
+  });
 
   return fc.oneof<fc.Arbitrary<CampaignEvent>[]>(
     fc.record(
@@ -469,16 +481,7 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
         roll: fc.constantFrom(...D10_RESULTS),
         target: anyAmount,
         passed: fc.boolean(),
-        injury: fc.record({
-          roll: fc.constantFrom(...D10_RESULTS),
-          injury: fc.constantFrom(...INJURIES),
-          fate: fc.constantFrom(
-            'gained' as const,
-            'becomes' as const,
-            'turns' as const,
-            'kills' as const,
-          ),
-        }),
+        injury: anyInjuryTaken,
       },
       { requiredKeys: ['kind', 'survivor', 'name', 'roll', 'target', 'passed'] },
     ),
@@ -505,15 +508,19 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       name: anyName,
       infection: fc.integer({ min: 1, max: 10 }),
     }),
-    fc.record({
-      kind: fc.constant('infection-checked' as const),
-      survivor: anyId,
-      name: anyName,
-      roll: fc.constantFrom(...D10_RESULTS),
-      infection: fc.integer({ min: 1, max: 10 }),
-      bonus: anyAmount,
-      passed: fc.boolean(),
-    }),
+    fc.record(
+      {
+        kind: fc.constant('infection-checked' as const),
+        survivor: anyId,
+        name: anyName,
+        roll: fc.constantFrom(...D10_RESULTS),
+        infection: fc.integer({ min: 1, max: 10 }),
+        bonus: anyAmount,
+        passed: fc.boolean(),
+        injury: anyInjuryTaken,
+      },
+      { requiredKeys: ['kind', 'survivor', 'name', 'roll', 'infection', 'bonus', 'passed'] },
+    ),
     fc.record({
       kind: fc.constant('bite-restrained' as const),
       survivor: anyId,
