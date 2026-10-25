@@ -218,20 +218,21 @@ function injuryBlockers(
     ];
   }
 
-  if (assignment.task === 'staff') {
-    const facility = campaign.base?.slots[assignment.slot]?.built?.facility;
-    if (
-      facility !== undefined &&
-      injuredSo(survivor, (rules) => rules.cannotStaff?.includes(facility) === true)
-    ) {
-      return [
-        {
-          code: 'forbidden-by-injury',
-          message: 'A Twice shy survivor can’t staff a Watchtower.',
-          pages: 138,
-        },
-      ];
-    }
+  const facility =
+    assignment.task === 'staff'
+      ? campaign.base?.slots[assignment.slot]?.built?.facility
+      : undefined;
+  if (
+    facility !== undefined &&
+    injuredSo(survivor, (rules) => rules.cannotStaff?.includes(facility) === true)
+  ) {
+    return [
+      {
+        code: 'forbidden-by-injury',
+        message: 'A Twice shy survivor can’t staff a Watchtower.',
+        pages: 138,
+      },
+    ];
   }
 
   return [];

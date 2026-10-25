@@ -55,6 +55,8 @@ describe('gaining a Permanent Injury (pp. 137–138; R87, R161; Z7-11)', () => {
       deaf: 1,
       blind: 1,
     });
+    // The first is counted as itself.
+    expect(withInjuryGained(hurt({}), 'one-eyed').injuries).toEqual({ 'one-eyed': 1 });
   });
 
   it('kills at a third One-handed', () => {
@@ -121,6 +123,9 @@ describe('what an injury changes between missions (pg. 138; Z7-11)', () => {
     expect(skillLevelMaximum(two, 'long-guns')).toBe(skillLevelMaximum(hurt({}), 'long-guns') - 2);
     expect(skillLevelMaximum(two, 'heavy-weapon')).toBe(skillLevelMaximum(two, 'long-guns'));
     expect(skillLevelMaximum(two, 'handguns')).toBe(skillLevelMaximum(hurt({}), 'handguns'));
+    expect(skillLevelMaximum(hurt({ deaf: 1 }), 'long-guns')).toBe(
+      skillLevelMaximum(hurt({}), 'long-guns'),
+    );
     expect(skillLevelPurchase({ ...two, xp: 20 }, 'long-guns').blocked).toBe('at-tier-maximum');
     expect(skillLevelPurchase({ ...one, xp: 20 }, 'long-guns').blocked).toBeNull();
     // Never below 0, even at Tier 1.
@@ -147,6 +152,7 @@ describe('what an injury changes between missions (pg. 138; Z7-11)', () => {
     expect(injuryLaborSet(hurt({ deaf: 1 }))).toBeNull();
     expect(injuryLaborAdd(hurt({ 'one-handed': 2 }))).toBe(0);
     expect(injuryLaborAdd(hurt({ 'one-handed': 1 }))).toBe(-1);
+    expect(injuryLaborAdd(hurt({ deaf: 1, blind: 1 }))).toBe(0);
     // A Natural Leader's point is added after the set (R89).
     const leader = {
       ...createSurvivor('Lea', 2, { id: 'lea' }),
@@ -181,6 +187,10 @@ describe('the tasks an injury forbids (pg. 138; R93; Z7-11)', () => {
       'forbidden-by-injury',
     ]);
     expect(codes(checkAssignment(campaign, 'earl', { task: 'project' }))).toEqual([]);
+    // Another injury doesn't.
+    expect(
+      codes(checkAssignment(planning([hurt({ deaf: 1 })]), 'earl', { task: 'mission', team: 1 })),
+    ).toEqual([]);
   });
 
   it('keeps a Twice shy survivor off a Watchtower, and nothing else they staff', () => {
@@ -190,6 +200,7 @@ describe('the tasks an injury forbids (pg. 138; R93; Z7-11)', () => {
         slots: {
           'front-yard': { built: { facility: 'watchtower', builtOnTurn: 1 } },
           garage: { built: { facility: 'workshop', builtOnTurn: 1 } },
+          kitchen: {},
         },
       },
     });
@@ -269,6 +280,7 @@ describe('an injury instead of turning (pg. 137; R86; Z7-11)', () => {
       ['carla', 2],
     ]);
     expect(result.campaign.survivors[0]?.injuries).toEqual({ deaf: 1 });
+    expect(result.campaign.survivors[1]?.injuries).toEqual({});
     expect(result.campaign.log.at(-1)?.event).toEqual({
       kind: 'rot-checked',
       survivor: 'earl',

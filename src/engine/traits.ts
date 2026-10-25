@@ -192,10 +192,11 @@ export function traitsProblem(traits: SurvivorTraits): string | null {
     return 'Each injury is held from once to as many times as it allows.';
   }
   if (
-    injuries.some(([injury]) => {
-      const removes = (INJURY_RULES[injury as Injury] as InjuryRules).removes;
-      return removes !== undefined && (traits.advantages ?? []).includes(removes);
-    })
+    injuries.some(([injury]) =>
+      advantages.some(
+        (advantage) => (INJURY_RULES[injury as Injury] as InjuryRules).removes === advantage,
+      ),
+    )
   ) {
     return 'One-handed and Ambidextrous can’t be held together.';
   }

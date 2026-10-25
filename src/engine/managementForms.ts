@@ -96,7 +96,8 @@ export function submitRotCheck(campaign: Campaign, form: RotCheckForm, at: strin
   if (survivor === undefined) return refused('Only somebody in the community makes a Rot check.');
 
   // An injury instead of turning (R86): what it gives, and what gaining it does.
-  const instead = form.injury === undefined ? null : injuryInstead(campaign, survivor, form);
+  const instead =
+    form.injury === undefined ? null : injuryInstead(campaign, survivor, form, form.injury);
   if (instead !== null && 'ok' in instead) return instead;
   if (instead !== null && instead.fate !== 'turns') {
     return accepted(withInjuryTaken(campaign, survivor, form, instead, at));
@@ -117,12 +118,17 @@ export function submitRotCheck(campaign: Campaign, form: RotCheckForm, at: strin
     roll: form.roll,
     target: rotTarget(campaign),
     passed: outcome.turned === null,
-    ...(instead === null || form.injury === undefined
-      ? {}
-      : { injury: { roll: form.injury.roll, injury: instead.injury, fate: instead.fate } }),
+    ...(instead === null ? {} : { injury: instead }),
   });
 
   return accepted(withTurningLogged(checked, outcome, at));
+}
+
+/** The d10 on the injury table, the injury it gives, and what gaining it does. */
+interface InjuryTaken {
+  readonly roll: D10Result;
+  readonly injury: Injury;
+  readonly fate: InjuryFate;
 }
 
 /**
@@ -134,7 +140,8 @@ function injuryInstead(
   campaign: Campaign,
   survivor: Survivor,
   form: RotCheckForm,
-): { readonly injury: Injury; readonly fate: InjuryFate } | Refused {
+  taken: NonNullable<RotCheckForm['injury']>,
+): InjuryTaken | Refused {
   if (!campaign.traitsEnabled) {
     return refused('Permanent Injuries come with the Toolkit’s survivor traits.');
   }
@@ -142,15 +149,14 @@ function injuryInstead(
     return refused('They passed, so there’s no turning to take an injury instead of.');
   }
 
-  const roll = form.injury?.roll as D10Result;
-  const injury = rolledInjury(campaign.origin, roll, form.injury?.chosen);
+  const injury = rolledInjury(campaign.origin, taken.roll, taken.chosen);
   if (injury === null) {
     return refused(
-      roll === 10 ? 'Choose the injury a 10 gives.' : 'A 4 with no origin is rolled again.',
+      taken.roll === 10 ? 'Choose the injury a 10 gives.' : 'A 4 with no origin is rolled again.',
     );
   }
 
-  return { injury, fate: injuryFate(survivor, injury) };
+  return { roll: taken.roll, injury, fate: injuryFate(survivor, injury) };
 }
 
 /**
@@ -162,7 +168,7 @@ function withInjuryTaken(
   campaign: Campaign,
   survivor: Survivor,
   form: RotCheckForm,
-  taken: { readonly injury: Injury; readonly fate: InjuryFate },
+  taken: InjuryTaken,
   at: string,
 ): Campaign {
   const injured =
@@ -181,7 +187,7 @@ function withInjuryTaken(
     roll: form.roll,
     target: rotTarget(campaign),
     passed: false,
-    injury: { roll: form.injury?.roll as D10Result, ...taken },
+    injury: taken,
   });
 
   return taken.fate === 'kills'
