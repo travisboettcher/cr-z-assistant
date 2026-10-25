@@ -216,6 +216,17 @@ function SlotCard({
    * full of rubble is an Outdoor slot afterwards.
    */
   const buildable = occupant === undefined && (slot.state === 'empty' || cleared);
+  // Below what it cancels, not above it in the verb's place (#240). The verb's
+  // own button stays named for the verb, and closes the region too.
+  const cancel = (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`${TOUCH_TARGET} ${FOCUS_RING} mt-3 rounded-lg px-3 text-sm font-medium text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800`}
+    >
+      Cancel
+    </button>
+  );
 
   return (
     <li className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
@@ -253,7 +264,7 @@ function SlotCard({
               aria-expanded={open}
               className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 px-3 text-sm font-medium dark:border-stone-700`}
             >
-              {open ? 'Cancel' : `Upgrade ${slotLabel(slot.id)}`}
+              Upgrade {slotLabel(slot.id)}
             </button>
             <button
               type="button"
@@ -267,6 +278,7 @@ function SlotCard({
             <>
               <UpgradeFacility campaign={campaign} slot={slot.id} onUpgraded={onCommitted} />
               <FacilityWork campaign={campaign} occupant={occupant} />
+              {cancel}
             </>
           )}
         </>
@@ -297,9 +309,14 @@ function SlotCard({
             aria-expanded={open}
             className={`${TOUCH_TARGET} ${FOCUS_RING} mt-2 rounded-lg border border-stone-300 px-3 text-sm font-medium dark:border-stone-700`}
           >
-            {open ? 'Cancel' : `Build in ${slotLabel(slot.id)}`}
+            Build in {slotLabel(slot.id)}
           </button>
-          {open && <BuildFacility campaign={campaign} slot={slot.id} onBuilt={onCommitted} />}
+          {open && (
+            <>
+              <BuildFacility campaign={campaign} slot={slot.id} onBuilt={onCommitted} />
+              {cancel}
+            </>
+          )}
         </>
       )}
 
@@ -315,9 +332,14 @@ function SlotCard({
             aria-expanded={open}
             className={`${TOUCH_TARGET} ${FOCUS_RING} mt-2 rounded-lg border border-stone-300 px-3 text-sm font-medium dark:border-stone-700`}
           >
-            {open ? 'Cancel' : `Clear ${slotLabel(slot.id)}`}
+            Clear {slotLabel(slot.id)}
           </button>
-          {open && <ClearSlot campaign={campaign} slot={slot.id} onCleared={onCommitted} />}
+          {open && (
+            <>
+              <ClearSlot campaign={campaign} slot={slot.id} onCleared={onCommitted} />
+              {cancel}
+            </>
+          )}
         </>
       )}
     </li>
@@ -356,11 +378,8 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
   const empty = emptySlotCount(campaign);
 
   return (
-    <section
-      id="base"
-      aria-labelledby="base-slot-map-heading"
-      className="rounded-xl border border-stone-200 bg-white p-6 dark:border-stone-800 dark:bg-stone-900"
-    >
+    // No card of its own: it opens inside a modal, whose frame is the card (#240).
+    <section id="base" aria-labelledby="base-slot-map-heading">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h2 id="base-slot-map-heading" className="text-xl font-semibold">
           {BASE_LABELS[base.id]}

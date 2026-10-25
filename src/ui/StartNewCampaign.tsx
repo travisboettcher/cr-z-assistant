@@ -89,7 +89,7 @@ export function StartNewCampaign() {
             autoComplete="off"
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="Millbrook"
+            placeholder="For example, Millbrook"
             className={`${TOUCH_TARGET} ${FOCUS_RING} mt-2 w-full rounded-lg border border-stone-300 bg-stone-50 px-4 py-2 text-lg placeholder:text-stone-400 dark:border-stone-600 dark:bg-stone-800 dark:placeholder:text-stone-500`}
           />
 
@@ -101,9 +101,18 @@ export function StartNewCampaign() {
             >
               Cancel
             </button>
+            {trimmed === '' && (
+              <p
+                id={`${nameId}-needed`}
+                className="mr-auto self-center text-sm text-stone-600 dark:text-stone-400"
+              >
+                Type a name to start.
+              </p>
+            )}
             <button
               type="submit"
               disabled={trimmed === ''}
+              aria-describedby={trimmed === '' ? `${nameId}-needed` : undefined}
               className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg ${PRIMARY_FILL} px-5 font-semibold disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500 dark:disabled:bg-stone-700 dark:disabled:text-stone-400`}
             >
               Start campaign

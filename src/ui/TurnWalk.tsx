@@ -130,17 +130,24 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
       {/* Band one: orientation. A list rather than buttons, because the turn
           runs in order and there is nothing here to press. It wraps rather
           than scrolls, so no phase is ever off the edge of a phone (#232). */}
-      <ol className="mt-4 flex flex-wrap gap-2 text-sm">
-        {CAMPAIGN_PHASES.map((candidate) => (
+      {/* Arrows between, and no pill around the current one: pills read as
+          tabs to press (#240), and this is the order the turn runs in. */}
+      <ol className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
+        {CAMPAIGN_PHASES.map((candidate, at) => (
           <li
             key={candidate}
             aria-current={candidate === phase ? 'step' : undefined}
-            className={`rounded-lg px-3 py-1 whitespace-nowrap ${
+            className={`whitespace-nowrap ${
               candidate === phase
-                ? 'bg-amber-100 font-semibold text-amber-900 dark:bg-amber-900/40 dark:text-amber-100'
+                ? 'font-semibold text-amber-900 dark:text-amber-200'
                 : 'text-stone-500 dark:text-stone-400'
             }`}
           >
+            {at > 0 && (
+              <span aria-hidden="true" className="mr-2 font-normal text-stone-400">
+                →
+              </span>
+            )}
             {PHASE_LABELS[candidate]}
           </li>
         ))}

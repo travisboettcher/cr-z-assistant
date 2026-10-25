@@ -814,7 +814,7 @@ describe('assigning Power and Water', () => {
     await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
     expect(kitchen().textContent).not.toContain('Supplied with Water');
     expect(kitchen().textContent).toContain('No Power or Water');
-    expect(kitchen().textContent).toContain('+2 Food, halved for want of a utility');
+    expect(kitchen().textContent).toContain('+2 Food — halved for want of a utility');
   });
 
   it('lets a point go back even when the Score no longer covers it', async () => {
@@ -972,7 +972,7 @@ describe('staffing a facility', () => {
 
     // A Citizen with no Rationing has no Rationing Score at all — which the
     // sheet says rather than showing a zero.
-    expect(screen.getByText(/they don’t have the skill/i)).toBeInTheDocument();
+    expect(screen.getByText(/nobody working here has the skill it uses/i)).toBeInTheDocument();
     expect(screen.queryByText(/needs someone assigned/i)).not.toBeInTheDocument();
   });
 
