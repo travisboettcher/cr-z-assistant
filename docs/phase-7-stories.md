@@ -473,3 +473,32 @@ nothing records one.
   - Natural Leader's Labor, at R89's adding step.
 - **Advantages are taken on the sheet**, in the traits editor, each adding its debt. A survivor
   who joins gets theirs there.
+
+### Z7-11 — What this story turned out to include
+
+- **Schema v27 adds each survivor's Permanent Injuries**, a count of each, none for everybody
+  already playing. `src/data/traits.ts` lists the eleven injuries with each one's XP, how many a
+  survivor can hold and the numbers they change, and the d10 table on pg. 138, its 4 the origin's
+  injury and its 10 the player's choice. `src/engine/injuries.ts` answers the per-survivor
+  questions.
+- **Gaining one** follows R87 and R161: counted while the injury allows it, a second One-eyed
+  becomes Blind (or turns somebody Blind already), a third One-handed kills, and any other repeat
+  turns them. One-handed takes Ambidextrous away, its debt staying (R159).
+- **The effects are read where each rule already lives**:
+  - Labor in `survivorLabor`: Blind's 1 and a second One-handed's 0 at R89's setting step,
+    One-handed's −1 at its adding step.
+  - Wheelchair-bound's slot in `inventorySlots`.
+  - Blind's Scout and Scavenge at 0 in `skillScore`.
+  - Bad shoulder's lower skill-level maximum in the purchases and the legality checks.
+  - The tasks in `checkAssignment` (R93): Blind joins no mission team, and Twice shy needs company
+    on one and doesn't staff the watchtower.
+  - The origin injuries carry their XP only; what they do is Z7-12's.
+- **An injury instead of turning** is offered at Check for Rot when a check fails and the traits are
+  in use (R86). The player enters the d10, and chooses the injury for a 10; a 4 with no origin is
+  rolled again. A repeat that turns them turns them as normal, and a third One-handed is recorded
+  as leaving, "died of their injuries" (pg. 138).
+- **Injuries are set on the sheet**, in the traits editor, with a count for each. The origin
+  injuries are offered only for this campaign's origin, or to somebody holding one. With "Taken at
+  creation" ticked, each one added gains its XP, debt first (R94), and taking one off takes it back.
+  A creation Blind made of two One-eyed is worth both (R161): the extra 2 XP is set by hand.
+  Switching the traits off takes injuries away with the Advantages and debt.

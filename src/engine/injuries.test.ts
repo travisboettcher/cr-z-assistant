@@ -3,7 +3,7 @@ import type { Injury } from '../data/traits';
 import { skillLevelPurchase } from './advancement';
 import { laborOf } from './assignments';
 import { createNewCampaign, type Campaign, type Survivor } from './campaign';
-import { submitTraitsSwitched } from './campaignForms';
+import { submitTraitsSet, submitTraitsSwitched } from './campaignForms';
 import {
   advantagesRuledOut,
   injuryCount,
@@ -18,6 +18,7 @@ import {
 import { survivorViolations } from './legality';
 import { checkAssignment } from './planning';
 import { submitRotCheck } from './managementForms';
+import { traitsProblem } from './traits';
 import { createSurvivor, inventorySlots, skillScore } from './survivor';
 
 const AT = '2026-10-25T09:00:00.000Z';
@@ -348,6 +349,53 @@ describe('an injury instead of turning (pg. 137; R86; Z7-11)', () => {
     expect(check(dying(), { roll: 10 })).toEqual({
       ok: false,
       problem: 'Choose the injury a 10 gives.',
+    });
+  });
+});
+
+describe('injuries set on the sheet (pp. 137–138; R87; Z7-11)', () => {
+  const base = { storyTrait: null, veteran: false, bondGroup: null, stories: [] } as const;
+
+  it('holds each from once to as many times as it allows', () => {
+    expect(traitsProblem({ ...base, injuries: { deaf: 1, 'one-handed': 2 }, xp: 6 })).toBeNull();
+    expect(traitsProblem({ ...base, injuries: { 'bad-knee': 2 } })).toBeNull();
+    expect(traitsProblem({ ...base, injuries: { deaf: 2 } })).toBe(
+      'Each injury is held from once to as many times as it allows.',
+    );
+    expect(traitsProblem({ ...base, injuries: { deaf: 0 } })).toMatch(/from once/);
+    expect(traitsProblem({ ...base, injuries: { 'bad-knee': 1.5 } })).toMatch(/from once/);
+    expect(
+      traitsProblem({ ...base, injuries: { scurvy: 1 } as Partial<Record<Injury, number>> }),
+    ).toMatch(/from once/);
+  });
+
+  it('refuses One-handed with Ambidextrous, and XP that isn’t whole', () => {
+    expect(
+      traitsProblem({ ...base, injuries: { 'one-handed': 1 }, advantages: ['ambidextrous'] }),
+    ).toBe('One-handed and Ambidextrous can’t be held together.');
+    expect(
+      traitsProblem({ ...base, injuries: { deaf: 1 }, advantages: ['ambidextrous'] }),
+    ).toBeNull();
+    expect(traitsProblem({ ...base, xp: 0 })).toBeNull();
+    expect(traitsProblem({ ...base, xp: -1 })).toBe('XP is a whole number, 0 or more.');
+    expect(traitsProblem({ ...base, xp: 2.5 })).toMatch(/whole number/);
+  });
+
+  it('are saved on the survivor with their XP', () => {
+    const campaign: Campaign = {
+      ...createNewCampaign('Cedar Hollow'),
+      traitsEnabled: true,
+      survivors: [hurt({})],
+    };
+    const result = submitTraitsSet(campaign, 'earl', {
+      ...base,
+      injuries: { 'bad-shoulder': 2 },
+      xp: 6,
+    });
+
+    expect(result.ok && result.campaign.survivors[0]).toMatchObject({
+      injuries: { 'bad-shoulder': 2 },
+      xp: 6,
     });
   });
 });

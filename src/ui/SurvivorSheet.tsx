@@ -50,8 +50,20 @@ import {
 import { COMMON_SKILL_LABELS, SKILL_LABELS, STAT_LABELS } from './skillLabels';
 import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 import { TIER_LABELS } from './tierLabels';
-import { ADVANTAGE_LABELS, describeTraits, STORY_TRAIT_LABELS } from './traitLabels';
-import { ADVANTAGE_RULES, ADVANTAGES, STORY_TRAITS, type StoryTrait } from '../data/traits';
+import { ADVANTAGE_LABELS, describeTraits, INJURY_LABELS, STORY_TRAIT_LABELS } from './traitLabels';
+import {
+  ADVANTAGE_RULES,
+  ADVANTAGES,
+  INJURIES,
+  INJURY_RULES,
+  ORIGIN_INJURIES,
+  STORY_TRAITS,
+  type Advantage,
+  type Injury,
+  type InjuryRules,
+  type StoryTrait,
+} from '../data/traits';
+import { injuriesOf, injuryCount } from '../engine/injuries';
 import { storiesHeld, storiesOnOffer, traitStatBonus, type SurvivorTraits } from '../engine/traits';
 import { STORY_MISSION_IDS, type StoryMissionId } from '../data/missions';
 import { MISSION_LABELS } from './missionLabels';
@@ -366,10 +378,31 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
     spells: survivor.spells,
     advantages: survivor.advantages,
     xpDebt: survivor.xpDebt,
+    injuries: survivor.injuries,
+    xp: survivor.xp,
   };
-  // The Toolkit's Advantages and debt (R84; Z7-10), or anybody's who has them.
+  // The Toolkit's Advantages, debt and injuries (R84; Z7-10, Z7-11), or anybody's who has them.
+  const injuries = injuriesOf(survivor);
   const advantagesShown =
-    campaign?.traitsEnabled === true || survivor.advantages.length > 0 || survivor.xpDebt > 0;
+    campaign?.traitsEnabled === true ||
+    survivor.advantages.length > 0 ||
+    survivor.xpDebt > 0 ||
+    injuries.length > 0;
+  // The origin injuries are this campaign's own, or one already held (pg. 140).
+  const originInjury =
+    campaign?.origin === undefined ? undefined : ORIGIN_INJURIES[campaign.origin];
+  const injuriesOffered = INJURIES.filter(
+    (injury) =>
+      !(Object.values(ORIGIN_INJURIES) as readonly Injury[]).includes(injury) ||
+      injury === originInjury ||
+      injuryCount(survivor, injury) > 0,
+  );
+  const [creationXp, setCreationXp] = useState(true);
+  // What the injuries add is saved as a change, so XP set above while the editor
+  // is open is kept.
+  const [xpAtOpen, setXpAtOpen] = useState(survivor.xp);
+  const xpOnSave = (traits: SurvivorTraits) =>
+    Math.max(0, survivor.xp + (traits.xp ?? xpAtOpen) - xpAtOpen);
   // The spells they know, the Magic origin's (R112; Z7-9), or anybody's who knows one.
   const spellsShown = campaign?.origin === 'magic' || survivor.spells.length > 0;
 
@@ -385,6 +418,7 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
             className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 px-3 py-1 text-sm font-medium hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800`}
             onClick={() => {
               setDraft(current);
+              setXpAtOpen(survivor.xp);
             }}
           >
             Edit traits
@@ -413,6 +447,20 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
                 : `Advantages: ${survivor.advantages.map((one) => ADVANTAGE_LABELS[one]).join(', ')}`}
               {survivor.xpDebt > 0 && ` · ${String(survivor.xpDebt)} XP of experience debt`}{' '}
               <PageRef pages="137, 139" />
+            </p>
+          )}
+          {advantagesShown && (
+            <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+              {injuries.length === 0
+                ? 'No Permanent Injuries'
+                : `Injuries: ${injuries
+                    .map(({ injury, count }) =>
+                      count === 1
+                        ? INJURY_LABELS[injury]
+                        : `${INJURY_LABELS[injury]} ×${String(count)}`,
+                    )
+                    .join(', ')}`}{' '}
+              <PageRef pages="137–138" />
             </p>
           )}
           {spellsShown && (
@@ -559,6 +607,7 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
                       type="checkbox"
                       className={FOCUS_RING}
                       checked={(draft.advantages ?? []).includes(advantage)}
+                      disabled={ruledOut(draft).includes(advantage)}
                       onChange={(event) => {
                         const held = draft.advantages ?? [];
                         const debt = ADVANTAGE_RULES[advantage].debt;
@@ -595,6 +644,67 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
                 />
                 <PageRef pages={137} />
               </label>
+            </fieldset>
+          )}
+
+          {/*
+           * Taken at creation for their XP (pg. 137; R86), or gained from a Rot
+           * check and corrected here. With the box ticked, each one added or
+           * taken off moves its XP too, debt first (R94).
+           */}
+          {advantagesShown && (
+            <fieldset className="flex flex-col gap-1">
+              <legend className="text-sm">
+                Permanent Injuries <PageRef pages="137–138" />
+              </legend>
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
+                {injuriesOffered.map((injury) => {
+                  const rules: InjuryRules = INJURY_RULES[injury];
+                  const count = draft.injuries?.[injury] ?? 0;
+                  const blocked =
+                    rules.removes !== undefined && (draft.advantages ?? []).includes(rules.removes);
+
+                  return (
+                    <label key={injury} className="flex items-center gap-2 text-sm">
+                      {INJURY_LABELS[injury]}
+                      <select
+                        className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 bg-transparent px-2 dark:border-stone-600`}
+                        value={count}
+                        onChange={(event) => {
+                          const next = Number(event.target.value);
+                          const changed = withInjuryCount(draft, injury, next);
+                          setDraft(
+                            creationXp
+                              ? withCreationXp(changed, (next - count) * rules.xp)
+                              : changed,
+                          );
+                        }}
+                      >
+                        {Array.from({ length: rules.most + 1 }, (_, held) => (
+                          <option key={held} value={held} disabled={held > 0 && blocked}>
+                            {held === 0 ? 'None' : held === 1 ? 'Once' : `×${String(held)}`}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="text-stone-600 dark:text-stone-400">({rules.xp} XP)</span>
+                    </label>
+                  );
+                })}
+              </div>
+              <label className="mt-1 flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className={FOCUS_RING}
+                  checked={creationXp}
+                  onChange={(event) => {
+                    setCreationXp(event.target.checked);
+                  }}
+                />
+                Taken at creation: add their XP
+              </label>
+              <p className="text-sm text-stone-600 dark:text-stone-400">
+                {xpOnSave(draft)} XP once saved
+              </p>
             </fieldset>
           )}
 
@@ -695,7 +805,11 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
               type="button"
               className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg ${PRIMARY_FILL} px-4 py-2 font-medium`}
               onClick={() => {
-                dispatch({ type: 'survivor/traitsSet', id: survivor.id, traits: draft });
+                dispatch({
+                  type: 'survivor/traitsSet',
+                  id: survivor.id,
+                  traits: { ...draft, xp: xpOnSave(draft) },
+                });
                 setDraft(null);
               }}
             >
@@ -715,6 +829,40 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
       )}
     </div>
   );
+}
+
+/** The draft with this many of an injury, none leaving it out. */
+function withInjuryCount(draft: SurvivorTraits, injury: Injury, count: number): SurvivorTraits {
+  const others = Object.entries(draft.injuries ?? {}).filter(([one]) => one !== injury);
+
+  return {
+    ...draft,
+    injuries: Object.fromEntries(count === 0 ? others : [...others, [injury, count]]),
+  };
+}
+
+/**
+ * The draft with an injury's creation XP gained, debt first (R94), or for a
+ * negative amount taken back off: from their XP first, the rest returning to
+ * debt, which undoes the gain.
+ */
+function withCreationXp(draft: SurvivorTraits, amount: number): SurvivorTraits {
+  const xp = draft.xp ?? 0;
+  const debt = draft.xpDebt ?? 0;
+  if (amount >= 0) {
+    const paid = Math.min(debt, amount);
+    return { ...draft, xpDebt: debt - paid, xp: xp + amount - paid };
+  }
+  const taken = Math.min(xp, -amount);
+  return { ...draft, xp: xp - taken, xpDebt: debt + (-amount - taken) };
+}
+
+/** The Advantages an injury in the draft rules out (One-handed's Ambidextrous; pg. 138). */
+function ruledOut(draft: SurvivorTraits): readonly Advantage[] {
+  return Object.keys(draft.injuries ?? {}).flatMap((injury) => {
+    const removes = (INJURY_RULES[injury as Injury] as InjuryRules).removes;
+    return removes === undefined ? [] : [removes];
+  });
 }
 
 const VITAL_HEADING =

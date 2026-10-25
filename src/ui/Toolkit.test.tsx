@@ -131,3 +131,110 @@ describe('Advantages on the sheet (pg. 139; R158; Z7-10)', () => {
     expect(earlSheet.queryByText(/Advantages/)).toBeNull();
   });
 });
+
+describe('Permanent Injuries on the sheet (pp. 137–138; R86; Z7-11)', () => {
+  const sheet = async (campaign: Campaign) => {
+    const user = open(campaign);
+    openPanel('survivors');
+    await user.click(screen.getByRole('button', { name: /^sheet$/i }));
+
+    return { user, sheet: within(screen.getByRole('region', { name: 'Earl Rhodes' })) };
+  };
+
+  it('are taken at creation for their XP, paying debt first, and taken back off', async () => {
+    const { user, sheet: earlSheet } = await sheet({
+      ...createNewCampaign('Cedar Hollow'),
+      traitsEnabled: true,
+      survivors: [earl({ advantages: ['forager'], xpDebt: 3 })],
+    });
+
+    expect(earlSheet.getByText(/No Permanent Injuries/)).toBeTruthy();
+    await user.click(earlSheet.getByRole('button', { name: 'Edit traits' }));
+    await user.selectOptions(earlSheet.getByLabelText(/^One-handed/), '2');
+    expect(earlSheet.getByLabelText(/^Experience debt/)).toHaveValue(0);
+    expect(earlSheet.getByText('5 XP once saved')).toBeTruthy();
+    await user.selectOptions(earlSheet.getByLabelText(/^One-handed/), '1');
+    expect(earlSheet.getByText('1 XP once saved')).toBeTruthy();
+    await user.selectOptions(earlSheet.getByLabelText(/^Deaf/), '1');
+    await user.click(earlSheet.getByRole('button', { name: 'Save traits' }));
+
+    expect(earlSheet.getByText(/Injuries: One-handed, Deaf/)).toBeTruthy();
+  });
+
+  it('are corrected without XP with the box unticked, and count a repeat', async () => {
+    const { user, sheet: earlSheet } = await sheet({
+      ...createNewCampaign('Cedar Hollow'),
+      traitsEnabled: true,
+      survivors: [earl({ xp: 2 })],
+    });
+
+    await user.click(earlSheet.getByRole('button', { name: 'Edit traits' }));
+    await user.click(earlSheet.getByLabelText(/^Taken at creation/));
+    await user.selectOptions(earlSheet.getByLabelText(/^Bad knee/), '2');
+    expect(earlSheet.getByText('2 XP once saved')).toBeTruthy();
+    await user.click(earlSheet.getByRole('button', { name: 'Save traits' }));
+
+    expect(earlSheet.getByText(/Injuries: Bad knee ×2/)).toBeTruthy();
+  });
+
+  it('keep XP set above while the editor is open, adding theirs to it', async () => {
+    const { user, sheet: earlSheet } = await sheet({
+      ...createNewCampaign('Cedar Hollow'),
+      traitsEnabled: true,
+      survivors: [earl()],
+    });
+
+    await user.click(earlSheet.getByRole('button', { name: 'Edit traits' }));
+    await user.selectOptions(earlSheet.getByLabelText(/^Deaf/), '1');
+    await user.click(earlSheet.getByRole('button', { name: /^set experience$/i }));
+    const field = screen.getByLabelText(/experience for Earl Rhodes/i);
+    await user.clear(field);
+    await user.type(field, '10');
+    await user.click(screen.getByRole('button', { name: /save experience/i }));
+    expect(earlSheet.getByText('12 XP once saved')).toBeTruthy();
+    await user.click(earlSheet.getByRole('button', { name: 'Save traits' }));
+    await user.click(earlSheet.getByRole('button', { name: /^set experience$/i }));
+
+    expect(screen.getByLabelText(/experience for Earl Rhodes/i)).toHaveValue(12);
+  });
+
+  it('rule out Ambidextrous with One-handed, either way round', async () => {
+    const { user, sheet: earlSheet } = await sheet({
+      ...createNewCampaign('Cedar Hollow'),
+      traitsEnabled: true,
+      survivors: [earl()],
+    });
+
+    await user.click(earlSheet.getByRole('button', { name: 'Edit traits' }));
+    await user.click(earlSheet.getByLabelText(/^Ambidextrous/));
+    const oneHanded = within(earlSheet.getByLabelText(/^One-handed/));
+    expect(oneHanded.getByRole('option', { name: 'Once' })).toBeDisabled();
+    expect(oneHanded.getByRole('option', { name: 'None' })).toBeEnabled();
+    await user.click(earlSheet.getByLabelText(/^Ambidextrous/));
+    await user.selectOptions(earlSheet.getByLabelText(/^One-handed/), '1');
+    expect(earlSheet.getByLabelText(/^Ambidextrous/)).toBeDisabled();
+  });
+
+  it('offer only this campaign’s origin injury, or one already held', async () => {
+    const { user, sheet: earlSheet } = await sheet({
+      ...createNewCampaign('Cedar Hollow', { origin: 'magic' }),
+      traitsEnabled: true,
+      survivors: [earl({ injuries: { sickly: 1 } })],
+    });
+
+    expect(earlSheet.getByText(/Injuries: Sickly/)).toBeTruthy();
+    await user.click(earlSheet.getByRole('button', { name: 'Edit traits' }));
+    expect(earlSheet.getByLabelText(/^Touched/)).toBeTruthy();
+    expect(earlSheet.getByLabelText(/^Sickly/)).toBeTruthy();
+    expect(earlSheet.queryByLabelText(/^Psychic Scars/)).toBeNull();
+  });
+
+  it('show for somebody injured with the traits off', async () => {
+    const { sheet: earlSheet } = await sheet({
+      ...createNewCampaign('Cedar Hollow'),
+      survivors: [earl({ injuries: { deaf: 1 } })],
+    });
+
+    expect(earlSheet.getByText(/Injuries: Deaf/)).toBeTruthy();
+  });
+});

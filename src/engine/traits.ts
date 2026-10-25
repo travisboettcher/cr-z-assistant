@@ -17,6 +17,10 @@ import { STATS, type Stat } from '../data/skills';
 import {
   ADVANTAGE_RULES,
   ADVANTAGES,
+  INJURIES,
+  INJURY_RULES,
+  type Injury,
+  type InjuryRules,
   STORY_TRAIT_RULES,
   type AdvantageRules,
   type StoryTrait,
@@ -138,7 +142,14 @@ export type SurvivorTraits = Pick<Survivor, 'storyTrait' | 'veteran' | 'bondGrou
   Partial<
     Pick<
       Survivor,
-      'rotResistant' | 'found' | 'foundCheckPassed' | 'spells' | 'advantages' | 'xpDebt'
+      | 'rotResistant'
+      | 'found'
+      | 'foundCheckPassed'
+      | 'spells'
+      | 'advantages'
+      | 'xpDebt'
+      | 'injuries'
+      | 'xp'
     >
   >;
 
@@ -162,6 +173,31 @@ export function traitsProblem(traits: SurvivorTraits): string | null {
   }
   if (traits.xpDebt !== undefined && !(Number.isInteger(traits.xpDebt) && traits.xpDebt >= 0)) {
     return 'Experience debt is a whole number, 0 or more.';
+  }
+  if (traits.xp !== undefined && !(Number.isInteger(traits.xp) && traits.xp >= 0)) {
+    return 'XP is a whole number, 0 or more.';
+  }
+  // Each injury from 1 to as many as it allows (R87), and One-handed never with
+  // Ambidextrous (pg. 138).
+  const injuries = Object.entries(traits.injuries ?? {});
+  if (
+    injuries.some(
+      ([injury, count]) =>
+        !(INJURIES as readonly string[]).includes(injury) ||
+        !Number.isInteger(count) ||
+        (count as number) < 1 ||
+        (count as number) > INJURY_RULES[injury as Injury].most,
+    )
+  ) {
+    return 'Each injury is held from once to as many times as it allows.';
+  }
+  if (
+    injuries.some(([injury]) => {
+      const removes = (INJURY_RULES[injury as Injury] as InjuryRules).removes;
+      return removes !== undefined && (traits.advantages ?? []).includes(removes);
+    })
+  ) {
+    return 'One-handed and Ambidextrous can’t be held together.';
   }
   if (traits.storyTrait === 'bonded') {
     return Number.isInteger(traits.bondGroup) && (traits.bondGroup as number) >= 1
