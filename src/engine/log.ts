@@ -48,7 +48,8 @@ import type { CommonSkill, Skill } from '../data/skills';
 import type { CampaignOrigin, SpellId } from '../data/origins';
 import type { FieldRecruitTier } from '../data/recruitTable';
 import type { Tier } from '../data/tiers';
-import type { StoryTrait } from '../data/traits';
+import type { Injury, StoryTrait } from '../data/traits';
+import type { InjuryFate } from './injuries';
 import type { CampaignPhase, HealthSource, XpSource } from '../data/turn';
 import { phaseOf } from './turn';
 // Type-only, and the other half of a deliberate pair: `campaign.ts` imports
@@ -257,7 +258,7 @@ export const RARE_TRADE_LOSSES = ['siege', 'other-mission', 'no-mission'] as con
 export type RareTradeLoss = (typeof RARE_TRADE_LOSSES)[number];
 
 /** Why a `survivor-left` entry's survivor left (#201). */
-export const LEAVING_CAUSES = ['turned', 'bitten', 'removed', 'killed'] as const;
+export const LEAVING_CAUSES = ['turned', 'bitten', 'removed', 'killed', 'injury'] as const;
 
 export type LeavingCause = (typeof LEAVING_CAUSES)[number];
 
@@ -446,6 +447,16 @@ export type CampaignEvent =
       readonly roll: D10Result;
       readonly target: number;
       readonly passed: boolean;
+      /**
+       * The Permanent Injury a failed check was taken as instead of turning
+       * (pg. 137; R86; Z7-11): the d10 on the table, the injury it gave, and
+       * what gaining it did (R87, R161). Absent when they didn't take one.
+       */
+      readonly injury?: {
+        readonly roll: D10Result;
+        readonly injury: Injury;
+        readonly fate: InjuryFate;
+      };
     }
   /**
    * One survivor's Infection check under the Viral origin (pp. 22, 123; R99;

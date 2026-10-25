@@ -17,6 +17,7 @@ import {
 } from './injuries';
 import { survivorViolations } from './legality';
 import { checkAssignment } from './planning';
+import { submitRotCheck } from './managementForms';
 import { createSurvivor, inventorySlots, skillScore } from './survivor';
 
 const AT = '2026-10-25T09:00:00.000Z';
@@ -235,5 +236,118 @@ describe('switching the traits off (R84)', () => {
     if (!off.ok) throw new Error(off.problem);
 
     expect(off.campaign.survivors[0]?.injuries).toEqual({});
+  });
+});
+
+describe('an injury instead of turning (pg. 137; R86; Z7-11)', () => {
+  /** Turn 3's Check for Rot with the traits on: Earl at 0 Health, Carla being healed beside him. */
+  const dying = (earl: Partial<Survivor> = {}, overrides: Partial<Campaign> = {}): Campaign => ({
+    ...createNewCampaign('Cedar Hollow', { traitsEnabled: true }),
+    turn: 3,
+    step: 'check-for-rot',
+    base: { id: 'small-town-home', slots: {} },
+    survivors: [
+      hurt({}, { currentHp: 0, ...earl }, 2),
+      { ...createSurvivor('Carla Proust', 2, { id: 'carla' }), currentHp: 2 },
+    ],
+    assignments: { earl: { task: 'healing' }, carla: { task: 'healing' } },
+    ...overrides,
+  });
+  const check = (
+    campaign: Campaign,
+    injury: { roll: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10; chosen?: Injury },
+    bitten: string | null = null,
+  ) => submitRotCheck(campaign, { survivor: 'earl', roll: 1, bitten, injury }, AT);
+
+  it('gains the rolled injury, and nobody turns or is bitten', () => {
+    const result = check(dying(), { roll: 8 });
+    if (!result.ok) throw new Error(result.problem);
+
+    expect(result.campaign.survivors.map((one) => [one.id, one.currentHp])).toEqual([
+      ['earl', 0],
+      ['carla', 2],
+    ]);
+    expect(result.campaign.survivors[0]?.injuries).toEqual({ deaf: 1 });
+    expect(result.campaign.log.at(-1)?.event).toEqual({
+      kind: 'rot-checked',
+      survivor: 'earl',
+      name: 'Earl Rhodes',
+      roll: 1,
+      target: 12,
+      passed: false,
+      injury: { roll: 8, injury: 'deaf', fate: 'gained' },
+    });
+  });
+
+  it('makes a second One-eyed Blind', () => {
+    const result = check(dying({ injuries: { 'one-eyed': 1 } }), { roll: 3 });
+    if (!result.ok) throw new Error(result.problem);
+
+    expect(result.campaign.survivors[0]?.injuries).toEqual({ blind: 1 });
+  });
+
+  it('turns them as normal for a repeat they can’t carry, the bite and all', () => {
+    const result = check(dying({ injuries: { deaf: 1 } }), { roll: 8 }, 'carla');
+    if (!result.ok) throw new Error(result.problem);
+
+    expect(result.campaign.survivors.map((one) => [one.id, one.currentHp])).toEqual([['carla', 1]]);
+    expect(result.campaign.log.map((entry) => entry.event.kind)).toContain('survivor-left');
+    expect(
+      result.campaign.log.find((entry) => entry.event.kind === 'rot-checked')?.event,
+    ).toMatchObject({ injury: { injury: 'deaf', fate: 'turns' } });
+    // And the bite is still asked for.
+    expect(check(dying({ injuries: { deaf: 1 } }), { roll: 8 }).ok).toBe(false);
+  });
+
+  it('kills at a third One-handed, with no bite and their items left at the base', () => {
+    const axe = { id: 'axe', item: 'bladed', grade: 'standard' } as const;
+    const result = check(dying({ injuries: { 'one-handed': 2 }, items: [axe] }), { roll: 2 });
+    if (!result.ok) throw new Error(result.problem);
+
+    expect(result.campaign.survivors.map((one) => one.id)).toEqual(['carla']);
+    expect(result.campaign.survivors[0]?.currentHp).toBe(2);
+    expect(result.campaign.inventory).toEqual([axe]);
+    expect(
+      result.campaign.log.find((entry) => entry.event.kind === 'survivor-left')?.event,
+    ).toEqual({
+      kind: 'survivor-left',
+      survivor: 'earl',
+      name: 'Earl Rhodes',
+      tier: 2,
+      cause: 'injury',
+    });
+  });
+
+  it('takes the origin’s injury for a 4, and the chosen one for a 10', () => {
+    const magic = check(dying({}, { origin: 'magic' }), { roll: 4 });
+    const chose = check(dying(), { roll: 10, chosen: 'twice-shy' });
+
+    expect(magic.ok && magic.campaign.survivors[0]?.injuries).toEqual({ touched: 1 });
+    expect(chose.ok && chose.campaign.survivors[0]?.injuries).toEqual({ 'twice-shy': 1 });
+  });
+
+  it('is refused without the traits, on a check that held, and for a result that gives none', () => {
+    expect(check({ ...dying(), traitsEnabled: false }, { roll: 8 })).toEqual({
+      ok: false,
+      problem: 'Permanent Injuries come with the Toolkit’s survivor traits.',
+    });
+    expect(
+      submitRotCheck(
+        dying(),
+        { survivor: 'earl', roll: 10, bitten: null, injury: { roll: 8 } },
+        AT,
+      ),
+    ).toEqual({
+      ok: false,
+      problem: 'They passed, so there’s no turning to take an injury instead of.',
+    });
+    expect(check(dying(), { roll: 4 })).toEqual({
+      ok: false,
+      problem: 'A 4 with no origin is rolled again.',
+    });
+    expect(check(dying(), { roll: 10 })).toEqual({
+      ok: false,
+      problem: 'Choose the injury a 10 gives.',
+    });
   });
 });

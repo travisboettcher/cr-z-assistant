@@ -73,6 +73,7 @@ import type { MissionOutcome } from '../engine/missions';
 import type { EquipMove } from '../engine/equip';
 import type { MissionDeath } from '../engine/missionDeaths';
 import type { SurvivorTraits } from '../engine/traits';
+import type { Injury } from '../data/traits';
 import type { StoryMissionId } from '../data/missions';
 import type { BuildOrder } from '../engine/making';
 import type { RareItemRoll } from '../engine/finding';
@@ -715,6 +716,8 @@ export type CampaignAction =
       readonly survivor: string;
       readonly roll: D10Result;
       readonly bitten: string | null;
+      /** A Permanent Injury taken instead of turning (R86; Z7-11). */
+      readonly injury?: { readonly roll: D10Result; readonly chosen?: Injury };
       readonly at: string;
     }
   /**
@@ -1160,7 +1163,12 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return submitted(state, (campaign) =>
         submitRotCheck(
           campaign,
-          { survivor: action.survivor, roll: action.roll, bitten: action.bitten },
+          {
+            survivor: action.survivor,
+            roll: action.roll,
+            bitten: action.bitten,
+            ...(action.injury === undefined ? {} : { injury: action.injury }),
+          },
           action.at,
         ),
       );

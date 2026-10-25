@@ -74,6 +74,39 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'survivors-fed', required: 10, hunger: 0 },
   { kind: 'survivors-fed', required: 10, hunger: 6 },
   { kind: 'rot-checked', ...SURVIVOR, roll: 7, target: 12, passed: false },
+  // A Permanent Injury taken instead of turning, each fate (R86, R87, R161; Z7-11).
+  {
+    kind: 'rot-checked',
+    ...SURVIVOR,
+    roll: 3,
+    target: 8,
+    passed: false,
+    injury: { roll: 8, injury: 'deaf', fate: 'gained' },
+  },
+  {
+    kind: 'rot-checked',
+    ...SURVIVOR,
+    roll: 3,
+    target: 8,
+    passed: false,
+    injury: { roll: 3, injury: 'one-eyed', fate: 'becomes' },
+  },
+  {
+    kind: 'rot-checked',
+    ...SURVIVOR,
+    roll: 3,
+    target: 8,
+    passed: false,
+    injury: { roll: 7, injury: 'blind', fate: 'turns' },
+  },
+  {
+    kind: 'rot-checked',
+    ...SURVIVOR,
+    roll: 3,
+    target: 8,
+    passed: false,
+    injury: { roll: 2, injury: 'one-handed', fate: 'kills' },
+  },
   // A Clinic can drive the target below zero, which the book leaves unclamped
   // (R2) — so the validator has to accept a target no count would.
   { kind: 'rot-checked', ...SURVIVOR, roll: 10, target: -1, passed: true },
@@ -317,6 +350,7 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'survivor-left', ...SURVIVOR, tier: 1, cause: 'turned' },
   { kind: 'survivor-left', ...SURVIVOR, tier: 2, cause: 'bitten' },
   { kind: 'survivor-left', ...SURVIVOR, tier: 3, cause: 'removed' },
+  { kind: 'survivor-left', ...SURVIVOR, tier: 3, cause: 'injury' },
   { kind: 'survivor-left', ...SURVIVOR, tier: 1 },
   // A death on a mission (R71; Z5-13), with what stayed on the map and without.
   {

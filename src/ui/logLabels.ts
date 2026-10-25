@@ -52,6 +52,7 @@ import { PHASE_LABELS } from './turnLabels';
 import { COMMON_SKILL_LABELS, SKILL_LABELS } from './skillLabels';
 import { TIER_LABELS } from './tierLabels';
 import { SPELL_LABELS, spellList } from './spellLabels';
+import { INJURY_LABELS } from './traitLabels';
 import { ORIGIN_LABELS } from './originLabels';
 
 export interface EventLabel {
@@ -126,11 +127,13 @@ function counted(items: readonly Item[]): string {
 
 /** How a `survivor-left` entry's survivor left, by its cause (#201). */
 const LEFT_BY_CAUSE: Readonly<
-  Record<Exclude<LeavingCause, 'killed'>, { readonly how: string; readonly pages?: 22 }>
+  Record<Exclude<LeavingCause, 'killed'>, { readonly how: string; readonly pages?: number }>
 > = {
   turned: { how: 'turned and left the community', pages: 22 },
   bitten: { how: 'died of the bite', pages: 22 },
   removed: { how: 'was taken off the roster' },
+  // A third One-handed (pg. 138; R87; Z7-11).
+  injury: { how: 'died of their injuries', pages: 138 },
 };
 
 /** Why a Rare Items trade was lost, as its line opens (pp. 21, 23; R59, R60). */
@@ -264,13 +267,32 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
         pages: 22,
       };
 
-    case 'rot-checked':
+    case 'rot-checked': {
+      const rolling = `rolling ${articleForNumber(event.roll)} ${String(event.roll)} against ${String(event.target)}`;
+
+      if (event.injury !== undefined) {
+        // Taken as a Permanent Injury instead of turning (R86; Z7-11).
+        const injury = INJURY_LABELS[event.injury.injury];
+        const what = {
+          gained: `and took ${injury} instead of turning`,
+          becomes: `and took a second ${injury} instead of turning, so is Blind`,
+          turns: `and turned anyway: another ${injury} is more than they can carry`,
+          kills: `and a third ${injury} killed them`,
+        }[event.injury.fate];
+
+        return {
+          text: `${event.name} failed, ${rolling}, ${what} (${articleForNumber(event.injury.roll)} ${String(event.injury.roll)} on the injury table).`,
+          pages: '22, 137–138',
+        };
+      }
+
       return {
         text: event.passed
-          ? `${event.name} held on, rolling ${articleForNumber(event.roll)} ${String(event.roll)} against ${String(event.target)}.`
-          : `${event.name} turned, rolling ${articleForNumber(event.roll)} ${String(event.roll)} against ${String(event.target)}.`,
+          ? `${event.name} held on, ${rolling}.`
+          : `${event.name} turned, ${rolling}.`,
         pages: 22,
       };
+    }
 
     case 'infection-checked': {
       // The roll's whole sum, because the Medicine is what usually decides it (R99).

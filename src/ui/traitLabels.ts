@@ -6,7 +6,7 @@
  * rules data fails the typecheck here rather than rendering `undefined`.
  */
 
-import type { Advantage, StoryTrait } from '../data/traits';
+import type { Advantage, Injury, StoryTrait } from '../data/traits';
 
 export const STORY_TRAIT_LABELS: Record<StoryTrait, string> = {
   bonded: 'Bonded',
@@ -53,4 +53,19 @@ export const ADVANTAGE_LABELS: Record<Advantage, string> = {
   ambidextrous: 'Ambidextrous',
   'parkour-practitioner': 'Parkour Practitioner',
   'natural-leader': 'Natural Leader',
+};
+
+/** The Toolkit's Permanent Injuries as pp. 138 and 140 name them (Z7-11). */
+export const INJURY_LABELS: Record<Injury, string> = {
+  'wheelchair-bound': 'Wheelchair-bound',
+  'one-handed': 'One-handed',
+  'one-eyed': 'One-eyed',
+  'bad-knee': 'Bad knee',
+  'bad-shoulder': 'Bad shoulder',
+  blind: 'Blind',
+  deaf: 'Deaf',
+  'twice-shy': 'Twice shy',
+  sickly: 'Sickly',
+  'psychic-scars': 'Psychic Scars',
+  touched: 'Touched',
 };

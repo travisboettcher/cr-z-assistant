@@ -460,14 +460,28 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       required: anyCount,
       hunger: anyCount,
     }),
-    fc.record({
-      kind: fc.constant('rot-checked' as const),
-      survivor: anyId,
-      name: anyName,
-      roll: fc.constantFrom(...D10_RESULTS),
-      target: anyAmount,
-      passed: fc.boolean(),
-    }),
+    // With a Permanent Injury taken instead of turning, or none (R86; Z7-11).
+    fc.record(
+      {
+        kind: fc.constant('rot-checked' as const),
+        survivor: anyId,
+        name: anyName,
+        roll: fc.constantFrom(...D10_RESULTS),
+        target: anyAmount,
+        passed: fc.boolean(),
+        injury: fc.record({
+          roll: fc.constantFrom(...D10_RESULTS),
+          injury: fc.constantFrom(...INJURIES),
+          fate: fc.constantFrom(
+            'gained' as const,
+            'becomes' as const,
+            'turns' as const,
+            'kills' as const,
+          ),
+        }),
+      },
+      { requiredKeys: ['kind', 'survivor', 'name', 'roll', 'target', 'passed'] },
+    ),
     fc.record({
       kind: fc.constant('survivor-inoculated' as const),
       survivor: anyId,

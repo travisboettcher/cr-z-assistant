@@ -753,6 +753,14 @@ const EVENT_FIELD_CHECKS = {
         SPELLS.some((known) => known === spell) && value.indexOf(spell) === at,
     ),
   spell: (value: unknown) => SPELLS.some((known) => known === value),
+  // A Permanent Injury a failed Rot check was taken as (R86; Z7-11).
+  optionalRotInjury: (value: unknown) =>
+    value === undefined ||
+    (isRecord(value) &&
+      Object.keys(value).length === 3 &&
+      D10_RESULTS.some((result) => result === value.roll) &&
+      isKeyOf(INJURY_RULES, value.injury as string) &&
+      ['gained', 'becomes', 'turns', 'kills'].includes(value.fate as string)),
   // The origin a campaign began with (R98; Z7-10).
   optionalOrigin: (value: unknown) =>
     value === undefined || CAMPAIGN_ORIGINS.some((origin) => origin === value),
@@ -827,6 +835,7 @@ const EVENT_FIELDS: Record<
     ['roll', 'roll'],
     ['target', 'amount'],
     ['passed', 'flag'],
+    ['injury', 'optionalRotInjury'],
   ],
   // The Viral origin's Infection check (Z7-5): against Infection from 1, with
   // the community's Medicine, which a Score can make any whole number.

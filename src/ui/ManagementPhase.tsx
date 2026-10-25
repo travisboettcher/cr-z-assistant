@@ -78,6 +78,9 @@ import { ProjectTeamHumanity } from './Humanity';
 import { describeEvent } from './logLabels';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
+import { INJURIES, ORIGIN_INJURIES, type Injury } from '../data/traits';
+import { injuryFate, rolledInjury, type InjuryFate } from '../engine/injuries';
+import { INJURY_LABELS } from './traitLabels';
 
 export interface ManagementPhaseProps {
   readonly campaign: Campaign;
@@ -167,18 +170,29 @@ function CheckForRot({ campaign }: { readonly campaign: Campaign }) {
       {/*
        * Named rather than counted, because the answer a player wants from a
        * step they have half finished is *whose* check is still outstanding —
-       * and everybody left in `dying` who is not in `outstanding` held on,
-       * which is the only way to be at 0 Health with a check behind you.
+       * and everybody left in `dying` who is not in `outstanding` has a check
+       * behind them. Each says how theirs went, in the history's words, because
+       * holding on is no longer the only way to be here: a Permanent Injury
+       * taken instead of turning leaves them at 0 Health too (R86; Z7-11).
        */}
       {dying.length > outstanding.length && (
-        <p className={`mt-3 text-sm font-medium`}>
-          {dying
-            .filter((survivor) => !outstanding.includes(survivor))
-            .map((survivor) => survivor.name)
-            .join(', ')}{' '}
-          held on this turn. A check is rolled once, and stepping back through the walk won’t roll
-          it again.
-        </p>
+        <div className="mt-3 flex flex-col gap-1">
+          {campaign.log
+            .filter(
+              ({ turn, event }) =>
+                turn === campaign.turn &&
+                event.kind === 'rot-checked' &&
+                dying.some((survivor) => survivor.id === event.survivor),
+            )
+            .map((entry, index) => (
+              <p key={index} className="text-sm font-medium">
+                {describeEvent(entry.event, entry.turn).text}
+              </p>
+            ))}
+          <p className={HINT}>
+            A check is rolled once, and stepping back through the walk won’t roll it again.
+          </p>
+        </div>
       )}
 
       {campaign.origin === 'viral' && <InfectionChecks campaign={campaign} />}
@@ -265,6 +279,11 @@ function RotCheck({
    * for (#143).
    */
   const [roll, setRoll] = useState<D10Result | null>(null);
+  // A Permanent Injury taken instead of turning (R86; Z7-11): the d10 on the
+  // table, and the injury chosen for a 10.
+  const [injuring, setInjuring] = useState(false);
+  const [injuryRoll, setInjuryRoll] = useState<D10Result | null>(null);
+  const [chosenInjury, setChosenInjury] = useState<Injury>(INJURIES[0]);
 
   const candidates = biteCandidates(campaign, survivorId);
   const [bitten, setBitten] = useState<string>('');
@@ -295,9 +314,18 @@ function RotCheck({
     roll === null
       ? null
       : (check === 'rot' ? rotOutcome : infectionOutcome)(campaign, survivorId, roll, chosen);
-  const infection =
-    campaign.survivors.find((survivor) => survivor.id === survivorId)?.infection ?? 0;
+  const survivor = campaign.survivors.find((one) => one.id === survivorId);
+  const infection = survivor?.infection ?? 0;
   const prefix = `${check}-${survivorId}`;
+  // Offered for a failed Rot check, with the Toolkit's traits in use (R86).
+  const injuryOffered =
+    check === 'rot' && campaign.traitsEnabled && outcome !== null && outcome.turned !== null;
+  const takingInjury = injuryOffered && injuring;
+  const injury =
+    takingInjury && injuryRoll !== null
+      ? rolledInjury(campaign.origin, injuryRoll, chosenInjury)
+      : null;
+  const fate = injury === null || survivor === undefined ? null : injuryFate(survivor, injury);
 
   return (
     <div className="rounded-lg border border-stone-200 p-3 dark:border-stone-700">
@@ -351,29 +379,109 @@ function RotCheck({
         )}
       </div>
 
+      {injuryOffered && (
+        <div className="mt-2 flex flex-col gap-2">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className={FOCUS_RING}
+              checked={injuring}
+              onChange={(changed) => {
+                setInjuring(changed.target.checked);
+              }}
+            />
+            Take a Permanent Injury instead of turning <PageRef pages="137–138" />
+          </label>
+          {injuring && (
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="text-sm" htmlFor={`${prefix}-injury-roll`}>
+                Injury table d10
+              </label>
+              <select
+                id={`${prefix}-injury-roll`}
+                value={injuryRoll ?? ''}
+                className={FIELD}
+                onChange={(changed) => {
+                  setInjuryRoll(Number(changed.target.value) as D10Result);
+                }}
+              >
+                <option value="">—</option>
+                {D10_RESULTS.map((result) => (
+                  <option key={result} value={result}>
+                    {result}
+                  </option>
+                ))}
+              </select>
+              {injuryRoll === 10 && (
+                <>
+                  <label className="text-sm" htmlFor={`${prefix}-injury-choice`}>
+                    Chosen
+                  </label>
+                  <select
+                    id={`${prefix}-injury-choice`}
+                    value={chosenInjury}
+                    className={FIELD}
+                    onChange={(changed) => {
+                      setChosenInjury(changed.target.value as Injury);
+                    }}
+                  >
+                    {choosable(campaign).map((one) => (
+                      <option key={one} value={one}>
+                        {INJURY_LABELS[one]}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <p className={`mt-2 ${HINT}`}>
-        {outcome === null
-          ? `Enter ${name}’s roll to see what it would cost.`
-          : outcome.turned === null
-            ? check === 'rot'
-              ? `${name} holds on.`
-              : `${name} holds off the Infection.`
-            : `${name} turns and is removed.` +
-              (outcome.restrained ? ' The Restraints hold them, and nobody is bitten.' : '') +
-              (outcome.bitten === null
-                ? ''
-                : ` ${outcome.bitten.survivor.name} is bitten${outcome.bitten.dies ? ' and removed too' : ''}.`)}
+        {takingInjury
+          ? injuryPreview(name, injuryRoll, injury, fate)
+          : outcome === null
+            ? `Enter ${name}’s roll to see what it would cost.`
+            : outcome.turned === null
+              ? check === 'rot'
+                ? `${name} holds on.`
+                : `${name} holds off the Infection.`
+              : `${name} turns and is removed.` +
+                (outcome.restrained ? ' The Restraints hold them, and nobody is bitten.' : '') +
+                (outcome.bitten === null
+                  ? ''
+                  : ` ${outcome.bitten.survivor.name} is bitten${outcome.bitten.dies ? ' and removed too' : ''}.`)}
       </p>
 
       <button
         type="button"
         className={PRIMARY}
-        disabled={roll === null}
+        disabled={roll === null || (takingInjury && injury === null)}
         onClick={() => {
           if (roll === null) return;
 
+          if (check === 'rot') {
+            dispatch({
+              type: 'management/rotChecked',
+              survivor: survivorId,
+              roll,
+              bitten: chosen,
+              ...(takingInjury && injuryRoll !== null
+                ? {
+                    injury: {
+                      roll: injuryRoll,
+                      ...(injuryRoll === 10 ? { chosen: chosenInjury } : {}),
+                    },
+                  }
+                : {}),
+              at: new Date().toISOString(),
+            });
+            return;
+          }
+
           dispatch({
-            type: check === 'rot' ? 'management/rotChecked' : 'management/infectionChecked',
+            type: 'management/infectionChecked',
             survivor: survivorId,
             roll,
             bitten: chosen,
@@ -385,6 +493,37 @@ function RotCheck({
       </button>
     </div>
   );
+}
+
+/** The injuries a 10 on the table lets the player choose: the nine, and the origin's own (pg. 138). */
+function choosable(campaign: Campaign): readonly Injury[] {
+  const origin = campaign.origin === undefined ? undefined : ORIGIN_INJURIES[campaign.origin];
+
+  return INJURIES.filter(
+    (one) => !(Object.values(ORIGIN_INJURIES) as readonly Injury[]).includes(one) || one === origin,
+  );
+}
+
+/** What taking the rolled injury would do, before the press (R86, R87, R161). */
+function injuryPreview(
+  name: string,
+  roll: D10Result | null,
+  injury: Injury | null,
+  fate: InjuryFate | null,
+): string {
+  if (roll === null) return `Roll on the injury table for ${name}.`;
+  if (injury === null || fate === null) {
+    return roll === 4 ? 'A 4 with no origin is rolled again.' : 'Choose the injury a 10 gives.';
+  }
+
+  const label = INJURY_LABELS[injury];
+
+  return {
+    gained: `${name} takes ${label} and doesn’t turn.`,
+    becomes: `${name} takes a second ${label}, so is Blind, and doesn’t turn.`,
+    turns: `${name} can’t carry another ${label}, so turns as normal.`,
+    kills: `A third ${label} kills ${name}.`,
+  }[fate];
 }
 
 /**

@@ -19,7 +19,9 @@
 import type { D10Result } from '../data/dice';
 import { ROT_BITE_DAMAGE } from '../data/turn';
 import { missionTeam, missionTeamReduced, overworked, withoutAssignment } from './assignments';
-import type { Campaign } from './campaign';
+import type { Campaign, Survivor } from './campaign';
+import type { Injury } from '../data/traits';
+import { injuryFate, rolledInjury, withInjuryGained, type InjuryFate } from './injuries';
 import {
   departureCandidates,
   goingLost,
@@ -28,7 +30,7 @@ import {
   withLost,
 } from './departures';
 import { foodRequired, hungerIfFedNow, survivorsFed, withSurvivorsFed } from './feeding';
-import { accepted, blockedBy, refused, type FormResult } from './forms';
+import { accepted, blockedBy, refused, type FormResult, type Refused } from './forms';
 import { logged } from './log';
 import { withRareTradeLost } from './rareTrade';
 import { withItemsLeftBehind } from './spent';
@@ -62,6 +64,13 @@ export interface RotCheckForm {
    * choice is the table's.
    */
   readonly bitten: string | null;
+
+  /**
+   * A Permanent Injury taken instead of turning, with the Toolkit's traits in
+   * use (pg. 137; R86; Z7-11): the d10 on the table, and the injury chosen for
+   * a 10. Absent to turn as usual.
+   */
+  readonly injury?: { readonly roll: D10Result; readonly chosen?: Injury };
 }
 
 /**
@@ -86,6 +95,13 @@ export function submitRotCheck(campaign: Campaign, form: RotCheckForm, at: strin
   const survivor = campaign.survivors.find((candidate) => candidate.id === form.survivor);
   if (survivor === undefined) return refused('Only somebody in the community makes a Rot check.');
 
+  // An injury instead of turning (R86): what it gives, and what gaining it does.
+  const instead = form.injury === undefined ? null : injuryInstead(campaign, survivor, form);
+  if (instead !== null && 'ok' in instead) return instead;
+  if (instead !== null && instead.fate !== 'turns') {
+    return accepted(withInjuryTaken(campaign, survivor, form, instead, at));
+  }
+
   // A turning that bites nobody when somebody is there to bite is half the
   // rule (pg. 22). Refused whole, check and all, rather than recorded without
   // the Damage: the roll stays on the form to be sent again with a name (#189).
@@ -101,9 +117,86 @@ export function submitRotCheck(campaign: Campaign, form: RotCheckForm, at: strin
     roll: form.roll,
     target: rotTarget(campaign),
     passed: outcome.turned === null,
+    ...(instead === null || form.injury === undefined
+      ? {}
+      : { injury: { roll: form.injury.roll, injury: instead.injury, fate: instead.fate } }),
   });
 
   return accepted(withTurningLogged(checked, outcome, at));
+}
+
+/**
+ * The injury a failed Rot check is taken as (R86), and what gaining it does,
+ * or why it can't be: with the Toolkit's traits in use, on a check that failed,
+ * and a result the table gives an injury for.
+ */
+function injuryInstead(
+  campaign: Campaign,
+  survivor: Survivor,
+  form: RotCheckForm,
+): { readonly injury: Injury; readonly fate: InjuryFate } | Refused {
+  if (!campaign.traitsEnabled) {
+    return refused('Permanent Injuries come with the Toolkit’s survivor traits.');
+  }
+  if (rotOutcome(campaign, survivor.id, form.roll, form.bitten).turned === null) {
+    return refused('They passed, so there’s no turning to take an injury instead of.');
+  }
+
+  const roll = form.injury?.roll as D10Result;
+  const injury = rolledInjury(campaign.origin, roll, form.injury?.chosen);
+  if (injury === null) {
+    return refused(
+      roll === 10 ? 'Choose the injury a 10 gives.' : 'A 4 with no origin is rolled again.',
+    );
+  }
+
+  return { injury, fate: injuryFate(survivor, injury) };
+}
+
+/**
+ * The campaign after a failed Rot check is taken as an injury that doesn't
+ * turn them (R86): the injury gained, or, a third One-handed, the survivor
+ * dead and their items left at the base. No bite: nobody turned.
+ */
+function withInjuryTaken(
+  campaign: Campaign,
+  survivor: Survivor,
+  form: RotCheckForm,
+  taken: { readonly injury: Injury; readonly fate: InjuryFate },
+  at: string,
+): Campaign {
+  const injured =
+    taken.fate === 'kills'
+      ? withDeparture(campaign, survivor.id)
+      : {
+          ...campaign,
+          survivors: campaign.survivors.map((one) =>
+            one.id === survivor.id ? withInjuryGained(one, taken.injury) : one,
+          ),
+        };
+  const checked = logged(injured, at, {
+    kind: 'rot-checked',
+    survivor: survivor.id,
+    name: survivor.name,
+    roll: form.roll,
+    target: rotTarget(campaign),
+    passed: false,
+    injury: { roll: form.injury?.roll as D10Result, ...taken },
+  });
+
+  return taken.fate === 'kills'
+    ? withItemsLeftBehind(
+        logged(checked, at, {
+          kind: 'survivor-left',
+          survivor: survivor.id,
+          name: survivor.name,
+          tier: survivor.tier,
+          cause: 'injury',
+        }),
+        [survivor],
+        at,
+      )
+    : checked;
 }
 
 /**
