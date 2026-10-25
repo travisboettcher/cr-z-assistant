@@ -29,6 +29,7 @@ import { TIER_RULES, type Tier } from '../data/tiers';
 import type { Stats, Survivor } from './campaign';
 import { itemCap, itemInventorySlots, itemTerm } from './equipment';
 import { traitMaxHealth, traitStatBonus } from './traits';
+import { injuriesOf, scoreZeroed } from './injuries';
 import { ADVANTAGE_RULES, type AdvantageRules } from '../data/traits';
 
 /**
@@ -60,6 +61,9 @@ export function skillScore(survivor: Survivor, skill: Skill, penalty: number): n
     advantage +
     itemTerm(survivor, skill);
   const cap = itemCap(survivor, skill);
+
+  // Blind's Scout and Scavenge are 0 (pg. 138; Z7-11).
+  if (scoreZeroed(survivor, skill)) return 0;
 
   return cap === undefined ? score : Math.min(score, cap);
 }
@@ -167,7 +171,9 @@ export function inventorySlots(survivor: Survivor, penalty: number): number {
     TIER_RULES[survivor.tier].baseInventorySlots +
     (carry ?? 0) +
     itemInventorySlots(survivor) +
-    advantagesOf(survivor).reduce((total, rules) => total + (rules.inventorySlots ?? 0), 0)
+    advantagesOf(survivor).reduce((total, rules) => total + (rules.inventorySlots ?? 0), 0) +
+    // And Wheelchair-bound's (pg. 138; Z7-11).
+    injuriesOf(survivor).reduce((total, { rules }) => total + (rules.inventorySlots ?? 0), 0)
   );
 }
 

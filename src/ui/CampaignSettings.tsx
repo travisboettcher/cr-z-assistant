@@ -81,7 +81,10 @@ export function CampaignSettings({ campaign }: { readonly campaign: Campaign }) 
   const confirmRef = useRef<HTMLDialogElement>(null);
   const confirmId = useId();
   const holders = keptSurvivors(campaign).filter(
-    (survivor) => survivor.advantages.length > 0 || survivor.xpDebt > 0,
+    (survivor) =>
+      survivor.advantages.length > 0 ||
+      survivor.xpDebt > 0 ||
+      Object.keys(survivor.injuries).length > 0,
   );
 
   const switchTo = (enabled: boolean) => {
@@ -120,8 +123,9 @@ export function CampaignSettings({ campaign }: { readonly campaign: Campaign }) 
           In use
         </label>
         <p className={`mt-1 ${HINT}`}>
-          Advantages and their experience debt. Survivors already playing take none when they’re
-          switched on; survivors who join afterwards may. Story Traits are always in use.
+          Advantages and their experience debt, and Permanent Injuries. Survivors already playing
+          take no Advantages when they’re switched on; survivors who join afterwards may. Story
+          Traits are always in use.
         </p>
 
         <dialog
@@ -134,8 +138,8 @@ export function CampaignSettings({ campaign }: { readonly campaign: Campaign }) 
           </h2>
           <p className="mt-2 text-stone-600 dark:text-stone-400">
             {holders.map((survivor) => survivor.name).join(', ')}{' '}
-            {holders.length === 1 ? 'loses their' : 'lose their'} Advantages and experience debt.
-            Switching back on doesn’t return them.
+            {holders.length === 1 ? 'loses their' : 'lose their'} Advantages, experience debt and
+            Permanent Injuries. Switching back on doesn’t return them.
           </p>
           <div className="mt-6 flex flex-wrap justify-end gap-3">
             <button

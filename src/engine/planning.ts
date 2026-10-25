@@ -42,6 +42,7 @@ import { need } from './healing';
 import { hasLounge } from './lounge';
 import { STORY_TRAIT_RULES, type StoryTrait } from '../data/traits';
 import { forbiddenBy, missionWhileWounded } from './traits';
+import { injuredSo, injuriesOf } from './injuries';
 
 export type PlanningViolationCode =
   | 'nothing-in-slot'
@@ -56,6 +57,8 @@ export type PlanningViolationCode =
   | 'someone-else-scavenging'
   | 'scavenging-needs-the-mission-skipped'
   | 'forbidden-by-trait'
+  | 'forbidden-by-injury'
+  | 'twice-shy-needs-company'
   | 'not-this-origin'
   | 'no-lounge'
   | 'no-madness';
@@ -166,7 +169,10 @@ export function checkAssignment(
   if (survivor === undefined) return { blockers: [], warnings: [] };
 
   return {
-    blockers: blockersFor(survivor, assignment),
+    blockers: [
+      ...blockersFor(survivor, assignment),
+      ...injuryBlockers(campaign, survivor, assignment),
+    ],
     warnings: warningsFor(campaign, survivor, assignment),
   };
 }
@@ -188,6 +194,47 @@ function blockersFor(survivor: Survivor, assignment: Assignment): readonly Plann
       pages: STORY_TRAIT_RULES[trait].pages,
     },
   ];
+}
+
+/**
+ * A task a Permanent Injury forbids (pg. 138; R93; Z7-11): Blind never goes on
+ * a mission team, and Twice shy never staffs a Watchtower.
+ */
+function injuryBlockers(
+  campaign: Campaign,
+  survivor: Survivor,
+  assignment: Assignment,
+): readonly PlanningViolation[] {
+  if (
+    assignment.task === 'mission' &&
+    injuredSo(survivor, (rules) => rules.noMissionTeam === true)
+  ) {
+    return [
+      {
+        code: 'forbidden-by-injury',
+        message: 'A Blind survivor never goes on a mission team.',
+        pages: 138,
+      },
+    ];
+  }
+
+  if (assignment.task === 'staff') {
+    const facility = campaign.base?.slots[assignment.slot]?.built?.facility;
+    if (
+      facility !== undefined &&
+      injuredSo(survivor, (rules) => rules.cannotStaff?.includes(facility) === true)
+    ) {
+      return [
+        {
+          code: 'forbidden-by-injury',
+          message: 'A Twice shy survivor can’t staff a Watchtower.',
+          pages: 138,
+        },
+      ];
+    }
+  }
+
+  return [];
 }
 
 /**
@@ -383,6 +430,23 @@ function missionWarnings(
   team: number,
 ): readonly PlanningViolation[] {
   const warnings: PlanningViolation[] = [];
+
+  // Twice shy goes out only with three others on the team (pg. 138; R93; Z7-11).
+  const company = injuriesOf(survivor).reduce(
+    (most, { rules }) => Math.max(most, rules.missionTeamOthers ?? 0),
+    0,
+  );
+  const others = survivorsDoing(
+    campaign,
+    (task) => task.task === 'mission' && task.team === team,
+  ).filter((one) => one.id !== survivor.id).length;
+  if (others < company) {
+    warnings.push({
+      code: 'twice-shy-needs-company',
+      message: `Twice shy goes out only with ${String(company)} others on the team.`,
+      pages: 138,
+    });
+  }
 
   // Jaded may go out wounded, R12's one exception (R93).
   if (isInjured(survivor) && !missionWhileWounded(survivor)) {

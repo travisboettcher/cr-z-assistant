@@ -168,7 +168,7 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
       return {
         text: event.enabled
           ? 'The Toolkit’s survivor traits are in use from now on.'
-          : 'The Toolkit’s survivor traits are no longer in use, and every survivor’s Advantages and experience debt went with them.',
+          : 'The Toolkit’s survivor traits are no longer in use, and every survivor’s Advantages, experience debt and Permanent Injuries went with them.',
         pages: 137,
       };
 

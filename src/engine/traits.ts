@@ -25,6 +25,7 @@ import {
 import { TIER_RULES } from '../data/tiers';
 import { PROMOTION_STORIES, type StoryMissionId } from '../data/missions';
 import { SPELLS } from '../data/origins';
+import { injuryLaborAdd, injuryLaborSet } from './injuries';
 import { type Assignment, type Campaign, keptSurvivors, type Survivor } from './campaign';
 
 /** The rules of the Story Trait a survivor holds, or `undefined` for none. */
@@ -77,6 +78,9 @@ export function survivorLabor(survivor: Survivor, team: readonly Survivor[]): nu
 
   if (rules?.laborAlone !== undefined && others.length > 0) return 0;
 
+  // R89's first step, setting: Blind's 1, a second One-handed's 0 (pg. 138; Z7-11).
+  const set = injuryLaborSet(survivor);
+
   // R89's third step, adding: Natural Leader gives every other member 1
   // (pg. 139; Z7-10).
   const led = others.reduce(
@@ -93,7 +97,7 @@ export function survivorLabor(survivor: Survivor, team: readonly Survivor[]): nu
     rules?.laborNeedsBondmate !== true || others.some((other) => bondmates(survivor, other));
   const multiplier = (rules?.laborAlone ?? 1) * (bonded ? (rules?.laborMultiplier ?? 1) : 1);
 
-  return Math.max(0, Math.ceil((base + led) * multiplier));
+  return Math.max(0, Math.ceil(((set ?? base) + led + injuryLaborAdd(survivor)) * multiplier));
 }
 
 /** Whether two Bonded survivors share a bond group (R84, R134). */

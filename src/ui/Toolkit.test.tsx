@@ -75,7 +75,7 @@ describe('switching the traits part-way (R158; Z7-10)', () => {
     await user.click(screen.getByLabelText('In use'));
     const confirm = within(screen.getByRole('dialog', { name: /stop using the survivor traits/i }));
     expect(
-      confirm.getByText(/Earl Rhodes loses their Advantages and experience debt/),
+      confirm.getByText(/Earl Rhodes loses their Advantages, experience debt and/),
     ).toBeTruthy();
 
     await user.click(confirm.getByRole('button', { name: 'Keep them' }));

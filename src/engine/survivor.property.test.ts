@@ -1,3 +1,4 @@
+import { scoreZeroed } from './injuries';
 import { ADVANTAGE_RULES, type AdvantageRules } from '../data/traits';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
@@ -52,7 +53,13 @@ describe('derived survivor values', () => {
           const score = skillScore(survivor, skill, NO_PENALTY);
           const level = survivor.skills[skill];
 
-          if (score === null || level === undefined || itemCap(survivor, skill) !== undefined) {
+          // Blind's Scout and Scavenge are 0 whatever the stat (pg. 138; Z7-11).
+          if (
+            score === null ||
+            level === undefined ||
+            itemCap(survivor, skill) !== undefined ||
+            scoreZeroed(survivor, skill)
+          ) {
             continue;
           }
 

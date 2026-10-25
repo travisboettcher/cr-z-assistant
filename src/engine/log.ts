@@ -283,7 +283,7 @@ export type CampaignEvent =
     }
   /**
    * The Toolkit's traits were switched on or off part-way (R84, R158; Z7-10).
-   * Off takes every survivor's Advantages and debt with it.
+   * Off takes every survivor's Advantages, debt and injuries with it.
    */
   | { readonly kind: 'traits-switched'; readonly enabled: boolean }
   /**
