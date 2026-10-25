@@ -19,6 +19,7 @@ import {
   teamOutcomes,
   unresolvedTeams,
   missionsChosen,
+  missionPhaseEmpty,
   missionsOnOffer,
   missionTeams,
   selectionProblem,
@@ -1379,5 +1380,24 @@ describe('missionPlayed', () => {
 
   it('asks about the team it names', () => {
     expect(missionPlayed(firstTurn([ended(2)]), 2)).toBe(false);
+  });
+});
+
+describe('missionPhaseEmpty (#239)', () => {
+  it('is a turn after the first with nobody on a mission team', () => {
+    expect(missionPhaseEmpty(playing({ assignments: {} }))).toBe(true);
+    expect(missionPhaseEmpty(playing())).toBe(false);
+    expect(missionPhaseEmpty(playing({ turn: 1, assignments: {} }))).toBe(false);
+  });
+
+  it('is never a siege turn, which deploys everybody', () => {
+    expect(
+      missionPhaseEmpty(
+        playing({
+          assignments: {},
+          log: [at(3, { kind: 'horde-checked', roll: 10, threat: 6, siege: true })],
+        }),
+      ),
+    ).toBe(false);
   });
 });

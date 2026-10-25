@@ -21,7 +21,12 @@ import type { Campaign } from '../engine/campaign';
 import { staffOf } from '../engine/assignments';
 import { hungerPenalty } from '../engine/feeding';
 import { planningHasBegun } from '../engine/planning';
-import { facilityProduction, wantsStaff, type ProducedOutput } from '../engine/production';
+import {
+  facilityProduction,
+  wantsStaff,
+  type ProducedOutput,
+  type ProductionLine,
+} from '../engine/production';
 import { AssignTask } from './AssignTask';
 import { STAT_LABELS } from './skillLabels';
 import { MATERIAL_LABELS, UTILITY_LABELS, builtThingLabel } from './baseLabels';
@@ -140,9 +145,13 @@ export function FacilityWork({ campaign, occupant }: FacilityWorkProps) {
               {line.outputs.length > 1 && ', in any mix'}
               {line.restrictedToStat !== undefined &&
                 `, ${STAT_LABELS[line.restrictedToStat]} skills only — not handed out yet`}
-              {line.halved && ', halved for want of a utility'}
-              {line.staffed && line.missingSkill && ', but they don’t have the skill'}
-              {line.staffed && staff.length === 0 && ' — needs someone assigned'}
+              {/*
+               * Why it is short, each reason a clause of its own (#240): "+0
+               * Food, halved for want of a utility, but they don't have the
+               * skill" read as one sentence that didn't parse.
+               */}
+              {shortBecause(line, staff.length).length > 0 &&
+                ` — ${shortBecause(line, staff.length).join(', and ')}`}
             </li>
           ))}
         </ul>
@@ -170,4 +179,15 @@ export function FacilityWork({ campaign, occupant }: FacilityWorkProps) {
       )}
     </div>
   );
+}
+
+/** Why a line makes less than it might, as clauses: none for a line at full output. */
+function shortBecause(line: ProductionLine, staffed: number): readonly string[] {
+  return [
+    ...(line.staffed && staffed === 0 ? ['needs someone assigned'] : []),
+    ...(line.staffed && staffed > 0 && line.missingSkill
+      ? ['nobody working here has the skill it uses']
+      : []),
+    ...(line.halved ? ['halved for want of a utility'] : []),
+  ];
 }

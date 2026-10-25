@@ -166,7 +166,8 @@ const PHASE_ORDER = ['Mission', 'Advancement', 'Planning', 'Management'] as cons
 async function skipToPhase(page: Page, phase: (typeof PHASE_ORDER)[number]) {
   await closePanel(page);
   for (const next of PHASE_ORDER.slice(1, PHASE_ORDER.indexOf(phase) + 1)) {
-    await moveOn(page, page.getByRole('button', { name: `Skip to ${next}` }));
+    if (next === 'Advancement') await toAdvancement(page);
+    else await moveOn(page, page.getByRole('button', { name: `Skip to ${next}` }));
   }
 }
 
@@ -220,7 +221,12 @@ async function planTheTurn(page: Page) {
    * So: at most one skip per phase in between, then the step itself, stopping
    * the moment the step that assigns the team is one press away.
    */
-  for (const label of ['Skip to Advancement', 'Skip to Planning', 'Next: Assign Facility Staff']) {
+  for (const label of [
+    'Skip to Advancement',
+    'Next: Character Advancement',
+    'Skip to Planning',
+    'Next: Assign Facility Staff',
+  ]) {
     if (await intoTheTeam.isVisible()) break;
 
     const button = page.getByRole('button', { name: label, exact: true });
@@ -250,6 +256,20 @@ async function assignProjectTeam(page: Page) {
 }
 
 /**
+ * From the Mission Phase on to the Advancement Phase. On a turn with no mission
+ * team the phase is one move, and Next is that move (#239), so there is no Skip
+ * beside it.
+ */
+async function toAdvancement(page: Page) {
+  const skip = page.getByRole('button', { name: 'Skip to Advancement', exact: true });
+  const next = page.getByRole('button', { name: 'Next: Character Advancement', exact: true });
+
+  // One of the two is on screen once the step has drawn; wait for it before choosing.
+  await expect(skip.or(next).first()).toBeVisible();
+  await moveOn(page, (await skip.isVisible()) ? skip : next);
+}
+
+/**
  * Ends the turn and finishes everything ordered on it (pp. 20, 19).
  *
  * Since Z3-11 a project is ordered in one turn and lands in the next turn's
@@ -264,7 +284,7 @@ async function assignProjectTeam(page: Page) {
 async function finishProjects(page: Page, turn: number) {
   await endTheTurn(page, turn);
 
-  await moveOn(page, page.getByRole('button', { name: 'Skip to Advancement' }));
+  await toAdvancement(page);
   for (const step of [
     'Create New Survivors',
     'Add Materials to Storage',
@@ -1366,7 +1386,7 @@ test('a turn’s XP and materials are taken in the steps that award them', async
   await page.getByRole('dialog').getByRole('button', { name: 'End turn 1' }).click();
 
   // Turn 2's Advancement Phase, where the team that just went is read back.
-  await moveOn(page, page.getByRole('button', { name: 'Skip to Advancement' }));
+  await toAdvancement(page);
 
   const walk = page.getByRole('region', { name: 'Turn 2' });
 
@@ -1453,7 +1473,7 @@ test('turn 1 knows who went, and a step out to Planning does not forget', async 
   await assignTo(page, /^earl/i, 'On the First Mission');
 
   await closePanel(page);
-  await moveOn(page, page.getByRole('button', { name: 'Skip to Advancement' }));
+  await toAdvancement(page);
   await expect(walk.getByText(/for going on the mission/i)).toContainText('1 of 1');
 
   await walk
@@ -1534,7 +1554,7 @@ test('material rolls survive a reload, and storing nothing asks first', async ({
   await page.getByRole('button', { name: 'End turn 1' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'End turn 1' }).click();
 
-  await moveOn(page, page.getByRole('button', { name: 'Skip to Advancement' }));
+  await toAdvancement(page);
   await moveOn(page, page.getByRole('button', { name: 'Next: Create New Survivors' }));
   await moveOn(page, page.getByRole('button', { name: 'Next: Add Materials to Storage' }));
 
@@ -1608,7 +1628,7 @@ test('a Gas Range turns Fuel into Food, after the haul and not before', async ({
   await finishProjects(page, 1);
   await endTheTurn(page, 2);
 
-  await moveOn(page, page.getByRole('button', { name: 'Skip to Advancement' }));
+  await toAdvancement(page);
   await moveOn(page, page.getByRole('button', { name: 'Next: Create New Survivors' }));
   await moveOn(page, page.getByRole('button', { name: 'Next: Add Materials to Storage' }));
 
@@ -1751,7 +1771,7 @@ test('a Clinic’s Health is shared out unequally, because equally means this', 
   await page.getByRole('button', { name: 'End turn 2' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'End turn 2' }).click();
 
-  await moveOn(page, page.getByRole('button', { name: 'Skip to Advancement' }));
+  await toAdvancement(page);
   for (const step of ['Create New Survivors', 'Add Materials to Storage', 'Heal Wounds']) {
     await moveOn(page, page.getByRole('button', { name: `Next: ${step}` }));
   }

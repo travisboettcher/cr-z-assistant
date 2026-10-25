@@ -71,7 +71,9 @@ export function CampaignEmptyState() {
               autoComplete="off"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Cedar Hollow"
+              // "For example", so the grey reads as a suggestion and not a
+              // name already typed (#240).
+              placeholder="For example, Cedar Hollow"
               className={`${TOUCH_TARGET} ${FOCUS_RING} mt-2 w-full rounded-lg border border-stone-300 bg-stone-50 px-4 py-2 text-lg placeholder:text-stone-400 dark:border-stone-600 dark:bg-stone-800 dark:placeholder:text-stone-500`}
             />
           </div>
@@ -79,11 +81,18 @@ export function CampaignEmptyState() {
           <button
             type="submit"
             disabled={trimmed === ''}
+            aria-describedby={trimmed === '' ? 'campaign-name-needed' : undefined}
             className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg ${PRIMARY_FILL} px-6 py-2 text-lg font-semibold disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500 dark:disabled:bg-stone-700 dark:disabled:text-stone-400`}
           >
             New campaign
           </button>
         </form>
+        {/* Why the button waits, said rather than left to a grey button (#240). */}
+        {trimmed === '' && (
+          <p id="campaign-name-needed" className="mt-2 text-sm text-stone-600 dark:text-stone-400">
+            Type a name to start.
+          </p>
+        )}
       </section>
 
       {/* Nothing is open, so there is nothing an import could destroy. */}

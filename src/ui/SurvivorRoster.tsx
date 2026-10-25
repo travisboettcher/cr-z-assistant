@@ -80,11 +80,8 @@ export function SurvivorRoster({ campaign, onOpenSheet }: SurvivorRosterProps) {
   }
 
   return (
-    <section
-      id="roster"
-      aria-labelledby={headingId}
-      className="rounded-xl border border-stone-200 bg-white p-6 dark:border-stone-800 dark:bg-stone-900"
-    >
+    // No card of its own: it opens inside a modal, whose frame is the card (#240).
+    <section id="roster" aria-labelledby={headingId}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h2 id={headingId} className="text-xl font-semibold">
           Community

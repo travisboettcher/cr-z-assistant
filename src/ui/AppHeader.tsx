@@ -73,9 +73,11 @@ function Fact({
 }) {
   return (
     <div
-      className={`${className} rounded-lg border border-stone-200 bg-stone-50 px-4 py-2 text-center dark:border-stone-700 dark:bg-stone-800`}
+      // Plain text with a rule between, not a bordered box: the boxes shared
+      // the ☰ button's style and read as something to press (#240).
+      className={`${className} border-stone-200 px-4 py-1 text-left first:pl-0 sm:border-l sm:first:border-l-0 dark:border-stone-700`}
     >
-      <dt className="text-[0.65rem] font-semibold tracking-[0.15em] text-stone-500 uppercase dark:text-stone-400">
+      <dt className="text-xs font-semibold tracking-[0.15em] text-stone-500 uppercase dark:text-stone-400">
         {label}
       </dt>
       <dd className="text-lg font-semibold tabular-nums">{value}</dd>
