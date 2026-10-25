@@ -11,7 +11,7 @@
  * and the materials they qualify. This is the picture of the building.
  */
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { BASES, type BaseSlot } from '../data/bases';
 import type { Campaign } from '../engine/campaign';
 import { layoutOf, upgradesRemaining, upgradesUsed } from '../engine/base';
@@ -23,10 +23,10 @@ import {
   FACILITY_LABELS,
   SLOT_KIND_LABELS,
   UPGRADE_LABELS,
-  UTILITY_LABELS,
   slotLabel,
+  suppliedWith,
 } from './baseLabels';
-import { AssignUtilities } from './AssignUtilities';
+import { UtilitiesPanel } from './AssignUtilities';
 import { BaseSheet } from './BaseSheet';
 import { FacilityWork } from './FacilityWork';
 import { cancellable, laborAvailable, laborShortfall, queuedFor } from '../engine/projects';
@@ -176,6 +176,8 @@ interface SlotCardProps {
   readonly open: boolean;
   readonly onToggle: () => void;
   readonly onCommitted: () => void;
+  /** Open the base's Power and Water at this slot's row (#258). */
+  readonly onUtilities: () => void;
 }
 
 /**
@@ -206,6 +208,7 @@ function SlotCard({
   open,
   onToggle,
   onCommitted,
+  onUtilities,
 }: SlotCardProps) {
   /**
    * A cleared slot is an ordinary empty slot of its kind. Clearing changes what
@@ -213,12 +216,6 @@ function SlotCard({
    * full of rubble is an Outdoor slot afterwards.
    */
   const buildable = occupant === undefined && (slot.state === 'empty' || cleared);
-  const utilities =
-    occupant === undefined
-      ? []
-      : ([occupant.power && 'power', occupant.water && 'water'] as const).filter(
-          (utility): utility is 'power' | 'water' => utility !== false,
-        );
 
   return (
     <li className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
@@ -239,34 +236,36 @@ function SlotCard({
           <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
             {upgradeSummary(campaign, occupant)}
           </p>
-          {utilities.length > 0 && (
-            <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-              {/*
-               * "Supplied with" rather than "assigned", because the sheet above
-               * says "Power assigned" about the whole base and these are
-               * different facts — one slot's supply against the base's total.
-               */}
-              Supplied with {utilities.map((utility) => UTILITY_LABELS[utility]).join(' and ')}
-            </p>
-          )}
-          <button
-            type="button"
-            onClick={onToggle}
-            aria-expanded={open}
-            className={`${TOUCH_TARGET} ${FOCUS_RING} mt-2 rounded-lg border border-stone-300 px-3 text-sm font-medium dark:border-stone-700`}
-          >
-            {open ? 'Cancel' : `Upgrade ${slotLabel(slot.id)}`}
-          </button>
+          {/*
+           * "Supplied with" rather than "assigned", because the sheet above
+           * says "Power assigned" about the whole base and these are different
+           * facts — one slot's supply against the base's total. Edited in the
+           * base's Power and Water above the map (#258): the button opens it at
+           * this facility's row, so there is one place that edits.
+           */}
+          <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+            {suppliedWith(occupant)}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-expanded={open}
+              className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 px-3 text-sm font-medium dark:border-stone-700`}
+            >
+              {open ? 'Cancel' : `Upgrade ${slotLabel(slot.id)}`}
+            </button>
+            <button
+              type="button"
+              onClick={onUtilities}
+              className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 px-3 text-sm font-medium dark:border-stone-700`}
+            >
+              Power and Water <span className="sr-only">for {slotLabel(slot.id)}</span>
+            </button>
+          </div>
           {open && (
             <>
               <UpgradeFacility campaign={campaign} slot={slot.id} onUpgraded={onCommitted} />
-              {/*
-               * Both verbs an occupied slot has, in one expanded region. They
-               * sit together rather than behind separate toggles because a
-               * player deciding what to do with a facility is choosing between
-               * them, not navigating to one.
-               */}
-              <AssignUtilities campaign={campaign} slot={slot.id} />
               <FacilityWork campaign={campaign} occupant={occupant} />
             </>
           )}
@@ -338,6 +337,12 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
    * moment two are open — and matching how `App` holds `openSheetId`.
    */
   const [openSlot, setOpenSlot] = useState<string | null>(null);
+  // The base's Power and Water (#258), and the row a card asked to be opened at.
+  const [utilitiesOpen, setUtilitiesOpen] = useState(false);
+  const [utilitiesFocus, setUtilitiesFocus] = useState<string | null>(null);
+  const focused = useCallback(() => {
+    setUtilitiesFocus(null);
+  }, []);
 
   const base = campaign.base;
   if (base === null) return null;
@@ -457,6 +462,17 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
         <BaseSheet campaign={campaign} />
       </div>
 
+      {/* Which facilities have Power and Water, and the one place that changes it (#258). */}
+      <UtilitiesPanel
+        campaign={campaign}
+        open={utilitiesOpen}
+        onToggle={() => {
+          setUtilitiesOpen(!utilitiesOpen);
+        }}
+        focusSlot={utilitiesFocus}
+        onFocused={focused}
+      />
+
       {/*
        * Named, because it is no longer the only list in this region: the
        * project team above is one too, and a test — or a screen reader — asking
@@ -475,6 +491,10 @@ export function BaseSlotMap({ campaign }: BaseSlotMapProps) {
             },
             onCommitted: () => {
               setOpenSlot(null);
+            },
+            onUtilities: () => {
+              setUtilitiesOpen(true);
+              setUtilitiesFocus(slot.id);
             },
           };
 

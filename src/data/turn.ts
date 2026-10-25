@@ -142,8 +142,9 @@ export const MISSION_XP = 1;
  * The one further XP the player hands to a survivor of their choice after a
  * mission (pg. 18).
  *
- * No mechanical trigger — it is a gift, not a reward for anything. A Teacher on
- * the mission **replaces** it rather than adding to it (pg. 12).
+ * A gift rather than a reward for anything the team did, but it follows a
+ * mission: a turn nobody went out has none ([R156](../../docs/rulings.md)). A
+ * Teacher on the mission **replaces** it rather than adding to it (pg. 12).
  */
 export const DISCRETIONARY_MISSION_XP = 1;
 

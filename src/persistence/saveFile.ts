@@ -537,6 +537,10 @@ const EVENT_FIELD_CHECKS = {
   // The same shape for a name, beside an optional id: a stand-in's, on an
   // entry that may record that nobody stands in at all (#183).
   optionalName: (value: unknown) => value === undefined || typeof value === 'string',
+  // An Other mission's name (#259): something, not blank.
+  missionName: (value: unknown) => typeof value === 'string' && value.trim() !== '',
+  optionalMissionName: (value: unknown) =>
+    value === undefined || (typeof value === 'string' && value.trim() !== ''),
   // Everybody who deployed to a Siege Defense, by name (pg. 85). A list rather
   // than a count, and of names rather than ids, because it is a record for a
   // reader: a community that fought a siege is the roster as it stood, and the
@@ -877,6 +881,7 @@ const EVENT_FIELDS: Record<
     ['names', 'names'],
     ['material', 'optionalMaterial'],
     ['base', 'optionalBase'],
+    ['name', 'optionalMissionName'],
   ],
   'mission-skipped': [],
   'siege-defense-resolved': [
@@ -924,6 +929,12 @@ const EVENT_FIELDS: Record<
     ['team', 'countFromOne'],
     ['strangers', 'tiers'],
     ['returned', 'optionalIds'],
+    ['wounds', 'optionalWounds'],
+  ],
+  'other-mission-resolved': [
+    ['team', 'countFromOne'],
+    ['name', 'missionName'],
+    ['strangers', 'tiers'],
     ['wounds', 'optionalWounds'],
   ],
   'rare-goods-trader-resolved': [

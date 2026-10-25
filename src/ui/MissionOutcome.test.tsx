@@ -813,3 +813,36 @@ describe('an end condition not chosen yet (#240)', () => {
     expect(within(walk()).queryByText(/Choose an end condition from/)).toBeNull();
   });
 });
+
+describe('an Other mission’s outcome (#259; R157)', () => {
+  it('asks for strangers by the mission’s name, and records it by that name', async () => {
+    const user = open(
+      playing({
+        survivors: [createSurvivor('Earl Rhodes', 3, { id: 'earl' })],
+        assignments: { earl: { task: 'mission', team: 1 } },
+        log: [
+          {
+            turn: 4,
+            phase: 'mission',
+            at: AT,
+            event: {
+              kind: 'mission-selected',
+              team: 1,
+              mission: 'other',
+              names: ['Earl Rhodes'],
+              name: 'The Lighthouse',
+            },
+          },
+        ],
+      }),
+    );
+    const form = group(/how the lighthouse ended/i);
+
+    expect(form.getByText(/anything else it gives is added by hand/i)).toBeInTheDocument();
+    await user.selectOptions(form.getByLabelText('Stranger’s Tier'), '2');
+    await user.click(form.getByRole('button', { name: 'Add a stranger' }));
+    await user.click(form.getByRole('button', { name: 'Record The Lighthouse' }));
+
+    expect(walk().textContent).toContain('The Lighthouse: 1 stranger rescued (Tier 2).');
+  });
+});

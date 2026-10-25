@@ -33,7 +33,7 @@ Phase 4 (missions):
 
 | | |
 |---|---|
-| `missions.ts` | every mission in the book by family and pages; for the eight standard ones, when each may be chosen, what Select Mission asks for it, and what its outcome counts |
+| `missions.ts` | every mission in the book by family and pages, and an Other mission for one outside it (#259); for the eight standard ones, when each may be chosen, what Select Mission asks for it, and what its outcome counts |
 
 Phase 5 (equipment):
 

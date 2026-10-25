@@ -606,6 +606,15 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
         strangers: anyStrangers,
       }),
     ),
+    // A mission from outside the book, by the name the table gave it (#259).
+    withWounds(
+      fc.record({
+        kind: fc.constant('other-mission-resolved' as const),
+        team: anyTeam,
+        name: fc.string({ minLength: 1, maxLength: 20 }).filter((name) => name.trim() !== ''),
+        strangers: anyStrangers,
+      }),
+    ),
     withWounds(
       fc.record(
         {

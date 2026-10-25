@@ -701,9 +701,12 @@ describe('assigning Power and Water', () => {
     );
   }
 
-  const openKitchen = async (user: ReturnType<typeof userEvent.setup>) => {
-    await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
+  /** The base's Power and Water, opened from its own button (#258). */
+  const utilities = () => within(screen.getByRole('region', { name: 'Power and Water' }));
+  const openUtilities = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(utilities().getByRole('button', { name: 'Assign Power and Water' }));
   };
+  const openKitchen = openUtilities;
 
   /**
    * Against what the pool can back, not against flat generation alone. A
@@ -725,31 +728,34 @@ describe('assigning Power and Water', () => {
   it('assigns a point, and the readout follows it', async () => {
     const user = readyToSupply();
     await openKitchen(user);
-    await user.click(screen.getByRole('checkbox', { name: /water/i }));
+    await user.click(screen.getByRole('checkbox', { name: 'Water in Kitchen' }));
 
     expect(screen.getByRole('definition', { name: /water assigned/i })).toHaveTextContent('1 / 2');
     expect(screen.getByRole('definition', { name: /power assigned/i })).toHaveTextContent('0 / 1');
     expect(screen.getByRole('definition', { name: /score spent/i })).toHaveTextContent('1 / 2');
-    // And the card says so with the form closed.
-    await user.click(screen.getByRole('button', { name: /^cancel$/i }));
+    // And the panel and the card say so with the list closed.
+    await user.click(utilities().getByRole('button', { name: 'Close Power and Water' }));
+    expect(utilities().getByText(/^Water:/).parentElement?.textContent).toBe('Water: Kitchen');
     expect(within(slotMap()).getByText(/supplied with water/i)).toBeInTheDocument();
   });
 
   it('warns rather than refuses when nothing in the slot uses the point', async () => {
     const user = readyToSupply();
-    await user.click(screen.getByRole('button', { name: /upgrade bunk room 1/i }));
+    await openUtilities(user);
 
     // A Bunk Room needs neither utility: pointless, legal, and not refused.
-    expect(screen.getAllByText(/nothing here uses it/i)).toHaveLength(2);
-    expect(screen.getByRole('checkbox', { name: /power/i })).toBeEnabled();
+    const bunkRoom = within(utilities().getByRole('group', { name: /bunk room · bunk room 1/i }));
+    expect(bunkRoom.getAllByText(/nothing here uses it/i)).toHaveLength(2);
+    expect(bunkRoom.getByRole('checkbox', { name: 'Power in Bunk Room 1' })).toBeEnabled();
   });
 
   it('refuses a point the base cannot generate, and says how short it is', async () => {
     const user = readyToSupply(0);
     await openKitchen(user);
 
-    expect(screen.getAllByText(/needs 1 more than the base’s Utilities Score/i)).toHaveLength(2);
-    expect(screen.getByRole('checkbox', { name: /water/i })).toBeDisabled();
+    const kitchen = within(utilities().getByRole('group', { name: /^kitchen/i }));
+    expect(kitchen.getAllByText(/needs 1 more than the base’s Utilities Score/i)).toHaveLength(2);
+    expect(kitchen.getByRole('checkbox', { name: 'Water in Kitchen' })).toBeDisabled();
   });
 
   /**
@@ -784,7 +790,7 @@ describe('assigning Power and Water', () => {
         .getAllByRole('listitem')
         .find((slot) => /Kitchen/.test(slot.textContent ?? '')) as HTMLElement;
 
-    await openKitchen(user);
+    await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
     expect(kitchen().textContent).toContain('Supplied with Water');
     expect(kitchen().textContent).toContain('+3 Food');
     await user.click(screen.getByRole('button', { name: /^cancel$/i }));
@@ -799,16 +805,16 @@ describe('assigning Power and Water', () => {
     );
     await user.click(screen.getByRole('button', { name: /^cancel$/i }));
 
-    await openKitchen(user);
+    await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
     expect(kitchen().textContent).not.toContain('Supplied with Water');
+    expect(kitchen().textContent).toContain('No Power or Water');
     expect(kitchen().textContent).toContain('+2 Food, halved for want of a utility');
   });
 
   it('lets a point go back even when the Score no longer covers it', async () => {
     const user = readyToSupply(1);
     await openKitchen(user);
-    await user.click(screen.getByRole('checkbox', { name: /water/i }));
-    await user.click(screen.getByRole('button', { name: /^cancel$/i }));
+    await user.click(screen.getByRole('checkbox', { name: 'Water in Kitchen' }));
 
     // Take the Station's worker off it, as a Planning Phase re-assignment
     // would: the Score drops below what is already assigned, and the point must
@@ -819,13 +825,28 @@ describe('assigning Power and Water', () => {
     );
     await user.click(screen.getByRole('button', { name: /^cancel$/i }));
 
-    await openKitchen(user);
-    const water = screen.getByRole('checkbox', { name: /water/i });
+    const water = screen.getByRole('checkbox', { name: 'Water in Kitchen' });
     expect(water).toBeChecked();
     expect(water).toBeEnabled();
 
     await user.click(water);
-    expect(screen.getByRole('checkbox', { name: /water/i })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Water in Kitchen' })).not.toBeChecked();
+  });
+
+  /** #258: one place edits, and a card opens it at its own row. */
+  it('opens at a card’s row from that card, and the card no longer edits', async () => {
+    const user = readyToSupply();
+
+    await user.click(screen.getByRole('button', { name: /upgrade kitchen/i }));
+    expect(within(slotMap()).queryByRole('checkbox', { name: /water/i })).toBeNull();
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }));
+
+    await user.click(screen.getByRole('button', { name: 'Power and Water for Kitchen' }));
+    expect(screen.getByRole('checkbox', { name: 'Power in Kitchen' })).toHaveFocus();
+    expect(utilities().getByRole('button', { name: 'Close Power and Water' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
   });
 });
 
@@ -900,8 +921,12 @@ describe('the base sheet', () => {
       ),
     );
 
-    await user.click(screen.getByRole('button', { name: /upgrade storage area/i }));
-    await user.click(screen.getByRole('checkbox', { name: 'Power' }));
+    await user.click(screen.getByRole('button', { name: 'Assign Power and Water' }));
+    await user.click(
+      within(screen.getByRole('group', { name: /^storage area/i })).getByRole('checkbox', {
+        name: /^power/i,
+      }),
+    );
 
     expect(screen.getByRole('definition', { name: /food stored/i })).toHaveTextContent('0 / 8');
   });

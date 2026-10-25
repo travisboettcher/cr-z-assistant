@@ -122,6 +122,7 @@ describe('the event samples', () => {
     'first-mission-resolved': true,
     'claim-a-new-base-resolved': true,
     'gather-materials-resolved': true,
+    'other-mission-resolved': true,
     'retrieve-new-vehicles-resolved': true,
     'rescue-strangers-resolved': true,
     'rare-goods-trader-resolved': true,

@@ -1208,8 +1208,9 @@ test('a point of Power covers a facility and its upgrades, and survives the roun
   await moveOn(page, page.getByRole('button', { name: 'Next: Assign Facility Staff' }));
   await staffTheUtilityStation(page, 'front yard');
 
-  await page.getByRole('button', { name: /upgrade garage/i }).click();
-  await page.getByRole('checkbox', { name: 'Power' }).check();
+  // From the card, which opens the base's Power and Water at its row (#258).
+  await page.getByRole('button', { name: 'Power and Water for Garage' }).click();
+  await page.getByRole('checkbox', { name: 'Power in Garage' }).check();
 
   /*
    * One point for all three, not one each — and the sheet counts it against
@@ -1240,12 +1241,12 @@ test('a point of Power covers a facility and its upgrades, and survives the roun
   // Score is back to zero and the point is now over-assigned — and must still
   // be removable, or the base is stranded.
   await ensurePanel(page, 'base');
-  await page.getByRole('button', { name: /upgrade garage/i }).click();
-  const power = page.getByRole('checkbox', { name: 'Power' });
+  await page.getByRole('button', { name: 'Assign Power and Water' }).click();
+  const power = page.getByRole('checkbox', { name: 'Power in Garage' });
   await expect(power).toBeChecked();
   await expect(power).toBeEnabled();
   await power.uncheck();
-  await expect(page.getByRole('checkbox', { name: 'Power' })).not.toBeChecked();
+  await expect(page.getByRole('checkbox', { name: 'Power in Garage' })).not.toBeChecked();
 });
 
 /**
@@ -1297,10 +1298,10 @@ test('the base sheet totals the base, and staffing it is written down', async ({
   await moveOn(page, page.getByRole('button', { name: 'Next: Assign Facility Staff' }));
   await staffTheUtilityStation(page, 'parking lot 1');
 
-  await page.getByRole('button', { name: /upgrade storage area/i }).click();
-  await page.getByRole('checkbox', { name: 'Power' }).check();
+  await page.getByRole('button', { name: 'Assign Power and Water' }).click();
+  await page.getByRole('checkbox', { name: 'Power in Storage Area' }).check();
   await expect(page.getByLabel(/food stored/i)).toHaveText('6 / 8');
-  await page.getByRole('button', { name: /^cancel$/i }).click();
+  await page.getByRole('button', { name: 'Close Power and Water' }).click();
 
   const beforeStaffing = await exportCampaign(page);
 

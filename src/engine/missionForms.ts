@@ -99,6 +99,7 @@ export function submitMissionSelection(
     names: team.members.map((survivor) => survivor.name),
     ...(choice.material === undefined ? {} : { material: choice.material }),
     ...(choice.base === undefined ? {} : { base: choice.base }),
+    ...(choice.name === undefined ? {} : { name: choice.name.trim() }),
   });
 
   // A Rare Items trade binds the first mission chosen (R60): another loses it.

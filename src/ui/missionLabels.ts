@@ -63,6 +63,7 @@ export const MISSION_LABELS: Record<MissionId, string> = {
   'ford-the-river': 'Ford the River',
   breakdown: 'Breakdown',
   chased: 'Chased',
+  other: 'Other mission',
 };
 
 /** Each way on from an overrun base, as the end of a sentence (pg. 86). */
@@ -79,6 +80,7 @@ export function describeSelection(selection: {
   readonly names: readonly string[];
   readonly material?: Material;
   readonly base?: BaseId;
+  readonly name?: string;
 }): string {
   const remainder =
     selection.material === undefined
@@ -88,7 +90,11 @@ export function describeSelection(selection: {
     selection.base === undefined ? '' : `, claiming ${withArticle(BASE_LABELS[selection.base])}`;
   const who = selection.names.length === 0 ? '' : `: ${selection.names.join(', ')}`;
 
-  return `Mission team ${String(selection.team)} chose ${MISSION_LABELS[selection.mission]}${remainder}${claiming}${who}.`;
+  // An Other mission by the name the table gave it (#259).
+  const mission =
+    selection.name === undefined ? MISSION_LABELS[selection.mission] : `${selection.name} (other)`;
+
+  return `Mission team ${String(selection.team)} chose ${mission}${remainder}${claiming}${who}.`;
 }
 
 /** A mission's title at the start of a line: "Siege Defense", not "the Siege Defense". */
@@ -98,9 +104,16 @@ export function missionTitle(mission: MissionId): string {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
+/** A mission's pages, from the catalogue (Z4-1); none for an Other mission, which the book doesn't print. */
+export function missionPages(mission: MissionId): number | string | undefined {
+  const entry: (typeof MISSIONS)[MissionId] = MISSIONS[mission];
+
+  return 'pages' in entry ? entry.pages : undefined;
+}
+
 /** The whole mission's pages, from the catalogue (Z4-1). */
-export function outcomePages(outcome: MissionOutcome): number | string {
-  return MISSIONS[outcomeMission(outcome)].pages;
+export function outcomePages(outcome: MissionOutcome): number | string | undefined {
+  return missionPages(outcomeMission(outcome));
 }
 
 /** What the Tactical Mission form calls each count the table makes (Z4-3). */
@@ -186,6 +199,8 @@ function counted(outcome: MissionOutcome): string {
       }${anyStrangers(outcome.strangers)}`;
     case 'rescue-strangers-resolved':
       return `${strangersOf(outcome.strangers)}${broughtBack(outcome.returned)}`;
+    case 'other-mission-resolved':
+      return strangersOf(outcome.strangers);
     case 'rare-goods-trader-resolved':
       return `${plural(outcome.survivorsExited, 'survivor', 'survivors')} out over the map edge${
         outcome.itemsTraded === undefined
@@ -308,7 +323,7 @@ export function describeOutcome(outcome: MissionOutcome, turn: number): string {
   const who = team === 1 ? '' : ` (mission team ${String(team)})`;
 
   return [
-    `${missionTitle(outcomeMission(outcome))}${who}: ${counted(outcome)}.`,
+    `${outcome.kind === 'other-mission-resolved' ? outcome.name : missionTitle(outcomeMission(outcome))}${who}: ${counted(outcome)}.`,
     ...woundsOf(outcome.wounds),
     ...outcomeConsequences(outcome, turn),
   ].join(' ');
