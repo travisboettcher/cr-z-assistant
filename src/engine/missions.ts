@@ -152,6 +152,17 @@ export function missionTeams(campaign: Campaign): readonly MissionTeam[] {
 }
 
 /**
+ * Whether this turn's Mission Phase has nothing in it (#239): not turn 1,
+ * whose First Mission is how a community gets a base, not a siege turn, which
+ * deploys everybody, and nobody on a mission team. Nobody chooses, equips or
+ * plays anything, and there is no Lost roll without a mission (R150), so the
+ * walk goes on to the Advancement Phase in one move.
+ */
+export function missionPhaseEmpty(campaign: Campaign): boolean {
+  return campaign.turn !== FIRST_TURN && missionTeams(campaign).length === 0;
+}
+
+/**
  * What Select Mission has recorded this turn: the latest choice for each team,
  * unless an opt-out came after it. On turn 1, team 1's First Mission whether
  * or not it was chosen.

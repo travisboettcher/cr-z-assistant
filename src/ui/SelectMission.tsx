@@ -43,6 +43,7 @@ import {
 import { rareTradeBinds } from '../engine/rareTrade';
 import { claimWarning } from '../engine/claim';
 import { FIRST_TURN } from '../engine/siege';
+import { scavenger } from '../engine/materials';
 import { useCampaign } from '../state/useCampaign';
 import { BASE_LABELS, MATERIAL_LABELS } from './baseLabels';
 import { describeSelection, MISSION_LABELS, missionPages } from './missionLabels';
@@ -317,10 +318,12 @@ export function SelectMission({ campaign }: { readonly campaign: Campaign }) {
   const teams = firstTurn ? [] : missionTeams(campaign);
   const { skipped } = turnMissions(campaign);
   const canSkip = skipProblem(campaign) === null;
+  // What the community does instead of a mission (pg. 17).
+  const scavenging = scavenger(campaign);
 
   return (
     <section aria-label="Select Mission" className="mt-4">
-      {!firstTurn && (
+      {!firstTurn && teams.length > 0 && (
         <p className={HINT}>
           Each mission team plays its own mission this turn. The teams are the ones the Planning
           Phase assigned <PageRef pages="17, 21" />
@@ -343,7 +346,12 @@ export function SelectMission({ campaign }: { readonly campaign: Campaign }) {
       )}
 
       {firstTurn ? null : teams.length === 0 ? (
-        <p className={`mt-3 ${HINT}`}>Nobody is on a mission team this turn.</p>
+        // The whole phase, in a line: Next goes on to the Advancement Phase (#239).
+        <p className="mt-3 text-sm font-medium">
+          No mission this turn: nobody is on a mission team.
+          {scavenging !== undefined && ` ${scavenging.name} is scavenging instead.`}{' '}
+          <PageRef pages={17} />
+        </p>
       ) : (
         teams.map((team) => (
           // Keyed by turn as well, so a form left open across the turn boundary

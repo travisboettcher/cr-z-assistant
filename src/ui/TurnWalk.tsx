@@ -32,6 +32,7 @@ import { FIRST_TURN, siegeCalledOn, siegeDue } from '../engine/siege';
 import { outstanding, owedOnLeaving } from '../engine/outstanding';
 import { laborShortfall } from '../engine/projects';
 import { materialsAdded } from '../engine/materials';
+import { missionPhaseEmpty } from '../engine/missions';
 import { clearPendingRolls, readPendingRolls } from '../persistence/pendingRolls';
 import { PHASE_LABELS, STEP_LABELS } from './turnLabels';
 import { FOCUS_RING, PRIMARY_FILL, SECONDARY_FILL, TOUCH_TARGET } from './styles';
@@ -71,7 +72,10 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
    */
   const entered = readPendingRolls(campaign.id, campaign.turn).length;
 
-  const byStep = advance(campaign.step, 'step');
+  // A Mission Phase with nothing in it is one move to the next phase (#239):
+  // three steps saying nobody went out are three presses for one fact.
+  const nextBy: AdvanceBy = phase === 'mission' && missionPhaseEmpty(campaign) ? 'phase' : 'step';
+  const byStep = advance(campaign.step, nextBy);
   const byPhase = advance(campaign.step, 'phase');
   const back = reverse(campaign.step);
 
@@ -207,7 +211,7 @@ export function TurnWalk({ campaign }: TurnWalkProps) {
           type="button"
           className={`${BUTTON} ${owedHere(campaign.step).length > 0 ? SECONDARY_FILL : PRIMARY_FILL} disabled:opacity-50`}
           onClick={() => {
-            forward('step');
+            forward(nextBy);
           }}
         >
           {byStep.endsTurn ? `End turn ${campaign.turn}` : `Next: ${STEP_LABELS[byStep.step]}`}

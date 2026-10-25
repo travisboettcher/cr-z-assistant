@@ -334,3 +334,34 @@ describe('an Other mission (#259; R157)', () => {
     expect(walk().queryByRole('option', { name: 'Other mission' })).toBeNull();
   });
 });
+
+describe('a Mission Phase with nothing in it (#239)', () => {
+  const quiet = selecting({
+    base: { id: 'small-town-home', slots: {} },
+    assignments: { earl: { task: 'scavenging' }, carla: { task: 'rest' }, ruby: { task: 'rest' } },
+  });
+
+  it('says so in a line, names the scavenger, and goes on to the Advancement Phase', async () => {
+    const user = open(quiet);
+
+    expect(
+      walk().getByText(
+        /No mission this turn: nobody is on a mission team\. Earl Rhodes is scavenging instead\./,
+      ),
+    ).toBeInTheDocument();
+    expect(walk().queryByText(/Each mission team plays its own mission/)).toBeNull();
+    expect(walk().queryByRole('button', { name: /^Skip to/ })).toBeNull();
+
+    await user.click(walk().getByRole('button', { name: 'Next: Character Advancement' }));
+
+    expect(walk().getByRole('button', { name: 'Back to Play the Mission' })).toBeInTheDocument();
+  });
+
+  it('still walks each step with a team on it', () => {
+    open(selecting());
+
+    expect(
+      walk().getByRole('button', { name: 'Next: Equip the Mission Team' }),
+    ).toBeInTheDocument();
+  });
+});
