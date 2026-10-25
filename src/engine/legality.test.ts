@@ -39,6 +39,7 @@ const EARL = {
   spells: [],
   advantages: [],
   xpDebt: 0,
+  injuries: {},
   xpSpent: 0,
   found: false,
   foundCheckPassed: false,

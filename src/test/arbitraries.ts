@@ -25,7 +25,7 @@ import { COMMON_SKILLS, SKILLS, STATS, type Skill } from '../data/skills';
 import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS, type Materials } from '../data/materials';
-import { ADVANTAGES, STORY_TRAITS } from '../data/traits';
+import { ADVANTAGES, INJURIES, INJURY_RULES, STORY_TRAITS } from '../data/traits';
 import { EQUIPMENT, GRADES, ITEM_IDS, VEHICLE_TIERS } from '../data/equipment';
 import { OVERRUN_OPTIONS, PROMOTION_STORIES, STORY_MISSION_IDS } from '../data/missions';
 import { CAMPAIGN_ORIGINS, SPELLS } from '../data/origins';
@@ -214,6 +214,14 @@ export function survivorArbitrary(): fc.Arbitrary<Survivor> {
       spells: fc.subarray([...SPELLS]),
       advantages: fc.subarray([...ADVANTAGES]),
       xpDebt: anyCount,
+      // A count of each held, from 1 to as many as the injury allows (R87).
+      injuries: fc
+        .subarray([...INJURIES])
+        .chain((held) =>
+          fc
+            .tuple(...held.map((injury) => fc.integer({ min: 1, max: INJURY_RULES[injury].most })))
+            .map((counts) => Object.fromEntries(held.map((injury, at) => [injury, counts[at]]))),
+        ),
       xpSpent: anyCount,
       found: fc.boolean(),
       foundCheckPassed: fc.boolean(),

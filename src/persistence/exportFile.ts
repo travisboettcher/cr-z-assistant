@@ -18,6 +18,7 @@
 import { BASES } from '../data/bases';
 import { SKILLS, STATS } from '../data/skills';
 import { MATERIALS } from '../data/materials';
+import { INJURIES } from '../data/traits';
 import type {
   Base,
   Campaign,
@@ -109,6 +110,13 @@ function orderedSurvivor(survivor: Survivor): Record<keyof Survivor, unknown> {
     rotResistant: survivor.rotResistant,
     advantages: survivor.advantages,
     xpDebt: survivor.xpDebt,
+    // In the table's order, whatever order they were gained in (Z7-11).
+    injuries: Object.fromEntries(
+      INJURIES.flatMap((injury) => {
+        const count = survivor.injuries[injury];
+        return count === undefined ? [] : [[injury, count]];
+      }),
+    ),
   };
 }
 

@@ -27,7 +27,7 @@ import { FIELD_RECRUITABLE_TIERS } from '../data/recruitTable';
 import { CAMPAIGN_ORIGINS, SPELLS } from '../data/origins';
 import { CAMPAIGN_PHASES, HEALTH_SOURCES, XP_SOURCES } from '../data/turn';
 import type { Assignment, Campaign, Project } from '../engine/campaign';
-import { ADVANTAGES, STORY_TRAITS } from '../data/traits';
+import { ADVANTAGES, INJURY_RULES, STORY_TRAITS, type Injury } from '../data/traits';
 import {
   LEAVING_CAUSES,
   RARE_TRADE_LOSSES,
@@ -371,6 +371,18 @@ function describeSurvivorProblem(value: unknown): string | null {
     return 'has an unreadable list of Advantages';
   }
   if (!isCountFromZero(value.xpDebt)) return 'doesn’t say how much experience debt they carry';
+  // The Permanent Injuries, a count of each, from 1 to as many as one allows (R84, R87; Z7-11).
+  if (
+    !isRecord(value.injuries) ||
+    Object.entries(value.injuries).some(
+      ([injury, count]) =>
+        !isKeyOf(INJURY_RULES, injury) ||
+        !isCountFromOne(count) ||
+        (count as number) > INJURY_RULES[injury as Injury].most,
+    )
+  ) {
+    return 'has an unreadable list of Permanent Injuries';
+  }
   // The XP spent (R149) and the Found marks (R109, R111; Z7-8).
   if (!isCountFromZero(value.xpSpent)) return 'doesn’t say how much XP they have spent';
   if (typeof value.found !== 'boolean') return 'doesn’t say whether they are Found';

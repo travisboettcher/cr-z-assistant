@@ -708,6 +708,34 @@ const advantagesRecorded: MigrationStep = {
   },
 };
 
+/**
+ * v26 → v27: each survivor's Permanent Injuries (pp. 137–138; R84; Z7-11).
+ *
+ * **None.** A v26 build had no injuries to take, so nobody carries one as far
+ * as the app knows; the sheet adds any taken on paper. All three lists.
+ */
+const injuriesRecorded: MigrationStep = {
+  from: 26,
+  to: 27,
+  up: (previous) => {
+    const withInjuries = (list: unknown): unknown =>
+      Array.isArray(list)
+        ? (list as unknown[]).map((survivor) =>
+            typeof survivor === 'object' && survivor !== null && !('injuries' in survivor)
+              ? { ...survivor, injuries: {} }
+              : survivor,
+          )
+        : list;
+
+    return {
+      ...previous,
+      survivors: withInjuries(previous.survivors),
+      setAside: withInjuries(previous.setAside),
+      lost: withInjuries(previous.lost),
+    };
+  },
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -735,6 +763,7 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   humanityRecorded,
   spellsRecorded,
   advantagesRecorded,
+  injuriesRecorded,
 ];
 
 /** Why a save could not be brought forward. */

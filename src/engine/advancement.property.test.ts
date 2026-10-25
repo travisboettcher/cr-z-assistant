@@ -58,6 +58,7 @@ function playableSurvivorArbitrary(): fc.Arbitrary<Survivor> {
     spells: fc.constant([]),
     advantages: fc.constant([]),
     xpDebt: fc.constant(0),
+    injuries: fc.constant({}),
     xpSpent: fc.integer({ min: 0, max: 40 }),
     found: fc.constant(false),
     foundCheckPassed: fc.constant(false),

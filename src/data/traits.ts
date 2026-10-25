@@ -12,6 +12,8 @@
  * Z7-11's and Z7-12's.
  */
 
+import type { CampaignOrigin } from './origins';
+
 /** The five Story Traits a survivor holds one of at a time (pg. 88). Veteran is apart. */
 export const STORY_TRAITS = ['bonded', 'jaded', 'berserk', 'lone-wolf', 'driven'] as const;
 
@@ -134,3 +136,145 @@ export const ADVANTAGE_RULES = {
     laborToOthers: 1,
   },
 } as const satisfies Record<Advantage, AdvantageRules>;
+
+/**
+ * The Toolkit's Permanent Injuries (pp. 137–138, 140; Z7-11): the nine of the
+ * d10 table, and the three origin injuries its result 4 gives, one for each
+ * origin (pg. 140; Z7-12 gives those their effects). A survivor holds a count
+ * of each (R84).
+ */
+export const INJURIES = [
+  'wheelchair-bound',
+  'one-handed',
+  'one-eyed',
+  'bad-knee',
+  'bad-shoulder',
+  'blind',
+  'deaf',
+  'twice-shy',
+  'sickly',
+  'psychic-scars',
+  'touched',
+] as const;
+
+export type Injury = (typeof INJURIES)[number];
+
+/** The origin injury result 4 gives under each origin (pg. 140). */
+export const ORIGIN_INJURIES = {
+  viral: 'sickly',
+  'cosmic-horror': 'psychic-scars',
+  magic: 'touched',
+} as const satisfies Record<CampaignOrigin, Injury>;
+
+/**
+ * The d10 table on pg. 138, by result. 4 is the origin's injury, rolled again
+ * with no origin; 10 is the player's choice of any of them.
+ */
+export const INJURY_TABLE = {
+  1: 'wheelchair-bound',
+  2: 'one-handed',
+  3: 'one-eyed',
+  4: 'origin',
+  5: 'bad-knee',
+  6: 'bad-shoulder',
+  7: 'blind',
+  8: 'deaf',
+  9: 'twice-shy',
+  10: 'choice',
+} as const;
+
+/**
+ * What a Permanent Injury is worth and changes between missions (pp. 137–138).
+ * Only the numbers: what one does on the map stays in the book.
+ */
+export interface InjuryRules {
+  readonly pages: number | string;
+
+  /** The XP it gives when taken at creation; none when gained in play (pg. 137). */
+  readonly xp: number;
+
+  /**
+   * How many of it a survivor can hold. One more than this turns them as
+   * normal (pg. 137; R87, R161), unless `becomes` or `killsAt` says otherwise.
+   */
+  readonly most: number;
+
+  /** What the second one becomes instead (One-eyed twice is Blind; pg. 138). */
+  readonly becomes?: Injury;
+
+  /** The count that kills rather than turns (One-handed three times; pg. 138). */
+  readonly killsAt?: number;
+
+  /** Added to Inventory Slots (Wheelchair-bound). */
+  readonly inventorySlots?: number;
+
+  /**
+   * Labor on the project team, by R89's steps: `set` replaces the Tier's from
+   * this count on, and `add` is added at the adding step.
+   */
+  readonly labor?: {
+    readonly add?: number;
+    readonly set?: { readonly from: number; readonly to: number };
+  };
+
+  /** Skill Scores that are 0 (Blind's Scout and Scavenge). */
+  readonly scoresZero?: readonly ('scout' | 'scavenge')[];
+
+  /** Skill-level maximums lowered from this count on (Bad shoulder twice). */
+  readonly skillMaximum?: {
+    readonly from: number;
+    readonly skills: readonly ('long-guns' | 'heavy-weapon')[];
+    readonly less: number;
+  };
+
+  /** Never on a mission team (Blind; R93). */
+  readonly noMissionTeam?: true;
+
+  /** On a mission team only with at least this many others (Twice shy; R93). */
+  readonly missionTeamOthers?: number;
+
+  /** Facilities they can't staff (Twice shy's Watchtower; R93). */
+  readonly cannotStaff?: readonly string[];
+
+  /** The Advantage it removes, and can't be held with (One-handed and Ambidextrous; pg. 138). */
+  readonly removes?: Advantage;
+}
+
+export const INJURY_RULES = {
+  'wheelchair-bound': { pages: 138, xp: 3, most: 1, inventorySlots: 1 },
+  'one-handed': {
+    pages: 138,
+    xp: 4,
+    most: 2,
+    killsAt: 3,
+    labor: { add: -1, set: { from: 2, to: 0 } },
+    removes: 'ambidextrous',
+  },
+  'one-eyed': { pages: 138, xp: 3, most: 1, becomes: 'blind' },
+  'bad-knee': { pages: 138, xp: 2, most: 2 },
+  'bad-shoulder': {
+    pages: 138,
+    xp: 3,
+    most: 2,
+    skillMaximum: { from: 2, skills: ['long-guns', 'heavy-weapon'], less: 2 },
+  },
+  blind: {
+    pages: 138,
+    xp: 4,
+    most: 1,
+    labor: { set: { from: 1, to: 1 } },
+    scoresZero: ['scout', 'scavenge'],
+    noMissionTeam: true,
+  },
+  deaf: { pages: 138, xp: 2, most: 1 },
+  'twice-shy': {
+    pages: 138,
+    xp: 1,
+    most: 1,
+    missionTeamOthers: 3,
+    cannotStaff: ['watchtower'],
+  },
+  sickly: { pages: 140, xp: 1, most: 1 },
+  'psychic-scars': { pages: 140, xp: 2, most: 1 },
+  touched: { pages: 140, xp: 2, most: 1 },
+} as const satisfies Record<Injury, InjuryRules>;

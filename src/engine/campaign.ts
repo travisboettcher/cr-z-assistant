@@ -18,7 +18,7 @@ import type { BaseId } from '../data/bases';
 import type { Grade, ItemId, VehicleTier } from '../data/equipment';
 import type { Cost, FacilityId, UpgradeId } from '../data/facilities';
 import type { Materials } from '../data/materials';
-import type { Advantage, StoryTrait } from '../data/traits';
+import type { Advantage, Injury, StoryTrait } from '../data/traits';
 import type { StoryMissionId } from '../data/missions';
 import type { CampaignOrigin, SpellId } from '../data/origins';
 import type { D10Result } from '../data/dice';
@@ -36,7 +36,7 @@ import type { LogEntry } from './log';
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 26;
+export const CURRENT_SCHEMA_VERSION = 27;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -209,6 +209,13 @@ export interface Survivor {
    * any is left. Zero for everybody in a save from before v26.
    */
   xpDebt: number;
+
+  /**
+   * The Toolkit's Permanent Injuries they carry, a count of each (pp. 137–138;
+   * R84, R86–R88; Z7-11), and only those they carry. Never healed (R88). Empty
+   * for everybody in a save from before v27.
+   */
+  injuries: Partial<Record<Injury, number>>;
 }
 
 /** A story mission attached to a survivor, and when (pg. 87; R116, R118). */
