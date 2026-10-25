@@ -209,6 +209,15 @@ describe('the tasks an injury forbids (pg. 138; R93; Z7-11)', () => {
       ['forbidden-by-injury'],
     );
     expect(codes(checkAssignment(campaign, 'earl', { task: 'staff', slot: 'garage' }))).toEqual([]);
+    // Another injury staffs it.
+    expect(
+      codes(
+        checkAssignment({ ...campaign, survivors: [hurt({ deaf: 1 })] }, 'earl', {
+          task: 'staff',
+          slot: 'front-yard',
+        }),
+      ),
+    ).toEqual([]);
     expect(codes(checkAssignment(campaign, 'earl', { task: 'staff', slot: 'kitchen' }))).toEqual(
       [],
     );
