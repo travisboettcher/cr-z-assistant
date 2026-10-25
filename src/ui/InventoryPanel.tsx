@@ -9,7 +9,7 @@
  * it, as the materials editor does for materials.
  */
 
-import { useId, useState } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import {
   EQUIPMENT,
   ITEM_IDS,
@@ -87,6 +87,38 @@ function ownedGrades(item: ItemId): readonly Grade[] {
 
 export function InventoryPanel({ campaign }: { readonly campaign: Campaign }) {
   const { dispatch } = useCampaign();
+  // Which form is open: UI state, never the campaign's (#239).
+  const [open, setOpen] = useState<string | null>(null);
+
+  const forms: readonly { id: string; title: string; render: () => ReactNode }[] = [
+    { id: 'build', title: 'Build an item', render: () => <BuildItem campaign={campaign} /> },
+    { id: 'trade', title: 'Trade for an item', render: () => <TradeForItem campaign={campaign} /> },
+    ...(saleableItems(campaign).length > 0
+      ? [
+          {
+            id: 'sell',
+            title: 'Sell a rare item',
+            render: () => <SellRareItem campaign={campaign} />,
+          },
+        ]
+      : []),
+    ...(campaign.rareTrade === null
+      ? [
+          {
+            id: 'rare-trade',
+            title: 'Trade with the Rare Goods Trader',
+            render: () => <RareItemsTrade campaign={campaign} />,
+          },
+        ]
+      : []),
+    { id: 'roll', title: 'Roll on the Rare Item Table', render: () => <RollRareItem /> },
+    { id: 'add-item', title: 'Add an item by hand', render: () => <AddItem campaign={campaign} /> },
+    {
+      id: 'add-vehicle',
+      title: 'Add a vehicle by hand',
+      render: () => <AddVehicle campaign={campaign} />,
+    },
+  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -168,13 +200,33 @@ export function InventoryPanel({ campaign }: { readonly campaign: Campaign }) {
 
       <Vehicles campaign={campaign} />
 
-      <BuildItem campaign={campaign} />
-      <TradeForItem campaign={campaign} />
-      {saleableItems(campaign).length > 0 && <SellRareItem campaign={campaign} />}
-      <RareItemsTrade campaign={campaign} />
-      <RollRareItem />
-      <AddItem campaign={campaign} />
-      <AddVehicle campaign={campaign} />
+      {/* A trade under way is a fact about the Inventory, shown whatever is open. */}
+      {campaign.rareTrade !== null && <RareItemsTrade campaign={campaign} />}
+
+      {/*
+       * The forms, each behind its own button and one open at a time, as a
+       * slot card's verbs are (#239): the modal was one long scroll of open
+       * forms, and a player wanting one had to find it among the rest.
+       */}
+      <section aria-label="Add to the Inventory" className="flex flex-col gap-3">
+        {forms.map((form) => (
+          <div key={form.id} className="flex flex-col gap-2">
+            <div>
+              <button
+                type="button"
+                aria-expanded={open === form.id}
+                className={SECONDARY}
+                onClick={() => {
+                  setOpen(open === form.id ? null : form.id);
+                }}
+              >
+                {form.title}
+              </button>
+            </div>
+            {open === form.id && form.render()}
+          </div>
+        ))}
+      </section>
     </div>
   );
 }
@@ -402,18 +454,21 @@ function BuildItem({ campaign }: { readonly campaign: Campaign }) {
         </ul>
       )}
 
-      <button
-        type="button"
-        className={`mt-3 ${PRIMARY}`}
-        disabled={!permitted(check, false)}
-        onClick={() => {
-          dispatch({ type: 'planning/itemBuilt', order, at: new Date().toISOString() });
-          setFresh(crypto.randomUUID());
-          setSupplies(0);
-        }}
-      >
-        Build
-      </button>
+      {/* With nothing standing to build it in, the reason above is the whole answer (#239). */}
+      {!check.blockers.some((blocker) => blocker.code === 'facility-missing') && (
+        <button
+          type="button"
+          className={`mt-3 ${PRIMARY}`}
+          disabled={!permitted(check, false)}
+          onClick={() => {
+            dispatch({ type: 'planning/itemBuilt', order, at: new Date().toISOString() });
+            setFresh(crypto.randomUUID());
+            setSupplies(0);
+          }}
+        >
+          Build
+        </button>
+      )}
     </fieldset>
   );
 }

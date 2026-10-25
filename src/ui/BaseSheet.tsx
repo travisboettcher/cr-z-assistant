@@ -143,12 +143,15 @@ export function BaseSheet({ campaign }: BaseSheetProps) {
        * input above is the Score, and this is how much of it the assignments
        * are already spending.
        */}
-      <Figure
-        label="Score spent"
-        value={`${String(staffedSpent(base))} / ${String(utilitiesScore(campaign))}`}
-        note="On assignments beyond flat generation"
-        pages={20}
-      />
+      {/* Only once there is a Score to spend or something spent: "0 / 0" said nothing (#239). */}
+      {(utilitiesScore(campaign) > 0 || staffedSpent(base) > 0) && (
+        <Figure
+          label="Score spent"
+          value={`${String(staffedSpent(base))} / ${String(utilitiesScore(campaign))}`}
+          note="On assignments beyond flat generation"
+          pages={20}
+        />
+      )}
     </dl>
   );
 }

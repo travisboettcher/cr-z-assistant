@@ -59,6 +59,7 @@ describe('the Inventory card and its modal (Z5-2)', () => {
   it('adds an item by hand, lists it by kind, and writes it in the history', async () => {
     const user = open(playing());
     openPanel('inventory');
+    await user.click(screen.getByRole('button', { name: 'Add an item by hand' }));
 
     await user.selectOptions(screen.getByLabelText('Item'), 'binoculars');
     // Binoculars come only as quality (pg. 41), so that is the only grade offered.
@@ -83,6 +84,7 @@ describe('the Inventory card and its modal (Z5-2)', () => {
   it('never offers shoddy, which nobody owns (R35)', async () => {
     const user = open(playing());
     openPanel('inventory');
+    await user.click(screen.getByRole('button', { name: 'Add an item by hand' }));
 
     await user.selectOptions(screen.getByLabelText('Item'), 'pistol');
     expect(
@@ -92,9 +94,10 @@ describe('the Inventory card and its modal (Z5-2)', () => {
     ).toEqual(['Standard', 'Quality']);
   });
 
-  it('offers only this campaign’s origin items (pg. 37)', () => {
-    open(playing({ origin: 'viral' }));
+  it('offers only this campaign’s origin items (pg. 37)', async () => {
+    const user = open(playing({ origin: 'viral' }));
     openPanel('inventory');
+    await user.click(screen.getByRole('button', { name: 'Add an item by hand' }));
 
     const items = within(screen.getByLabelText('Item'))
       .getAllByRole('option')
@@ -157,6 +160,7 @@ describe('building an item from the Inventory', () => {
   it('builds into the Inventory at once, and says what it cost', async () => {
     const user = open(building());
     openPanel('inventory');
+    await user.click(screen.getByRole('button', { name: 'Build an item' }));
 
     await user.selectOptions(screen.getByLabelText('Item to build'), 'blunt');
     expect(screen.getByText(/1 Hardware · 1 Labor, of 2 available/)).toBeInTheDocument();
@@ -174,6 +178,7 @@ describe('building an item from the Inventory', () => {
   it('refuses what the base cannot build, and says why', async () => {
     const user = open(building());
     openPanel('inventory');
+    await user.click(screen.getByRole('button', { name: 'Build an item' }));
 
     await user.selectOptions(screen.getByLabelText('Item to build'), 'bladed');
 
@@ -195,6 +200,7 @@ describe('building an item from the Inventory', () => {
       medicalSupplies: 2,
     });
     openPanel('inventory');
+    await user.click(screen.getByRole('button', { name: 'Build an item' }));
 
     await user.selectOptions(screen.getByLabelText('Item to build'), 'bandages');
     const tokens = screen.getByLabelText(/Medical Supply tokens toward its Labor, of 2 kept/);
@@ -212,9 +218,39 @@ describe('building an item from the Inventory', () => {
     expect(card().getByText(/Medical Supply/).textContent).toBe('1 Medical Supply token');
   });
 
+  /** #239: a build that can't happen is a line, not a disabled form. */
+  it('says so, with no Build button, when nothing standing builds it', async () => {
+    const user = open({ ...building(), origin: 'magic' });
+    openPanel('inventory');
+    await user.click(screen.getByRole('button', { name: 'Build an item' }));
+    await user.selectOptions(screen.getByLabelText('Item to build'), 'warding-stones');
+
+    expect(screen.getByText(/The base has no standing facility this is built in\./)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Build' })).toBeNull();
+  });
+
+  it('opens one form at a time', async () => {
+    const user = open(building());
+    openPanel('inventory');
+    await user.click(screen.getByRole('button', { name: 'Build an item' }));
+    expect(screen.getByRole('button', { name: 'Build an item' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Add an item by hand' }));
+
+    expect(screen.queryByLabelText('Item to build')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Build an item' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+  });
+
   it('asks for no tokens for any other build', async () => {
     const user = open({ ...building(), medicalSupplies: 2 });
     openPanel('inventory');
+    await user.click(screen.getByRole('button', { name: 'Build an item' }));
 
     await user.selectOptions(screen.getByLabelText('Item to build'), 'blunt');
 
@@ -235,6 +271,7 @@ describe('rolling on the Rare Item Table from the Inventory', () => {
   it('names what the two dice find, and adds it', async () => {
     const user = open(playing());
     openPanel('inventory');
+    await user.click(screen.getByRole('button', { name: 'Roll on the Rare Item Table' }));
 
     expect(screen.getByRole('button', { name: 'Add what it finds' })).toBeDisabled();
 
@@ -291,6 +328,7 @@ describe('trading from the Inventory', () => {
   it('trades for an item, paid at once, and puts it on order', async () => {
     const user = open(atPlanning());
     openPanel('inventory');
+    await user.click(screen.getByRole('button', { name: 'Trade for an item' }));
 
     await user.selectOptions(screen.getByLabelText('Item to trade for'), 'pistol');
     expect(screen.getByText(/^Costs 6/)).toBeInTheDocument();
@@ -306,9 +344,10 @@ describe('trading from the Inventory', () => {
     );
   });
 
-  it('says why it cannot, and offers no rare item', () => {
-    open(atPlanning({ materials: { food: 0, fuel: 1, hardware: 0 } }));
+  it('says why it cannot, and offers no rare item', async () => {
+    const user = open(atPlanning({ materials: { food: 0, fuel: 1, hardware: 0 } }));
     openPanel('inventory');
+    await user.click(screen.getByRole('button', { name: 'Trade for an item' }));
 
     const items = screen.getByLabelText('Item to trade for');
     expect(within(items).queryByRole('option', { name: 'Riot shield' })).toBeNull();
@@ -319,6 +358,7 @@ describe('trading from the Inventory', () => {
   it('sells a rare item for its price less two, and warns of a full store', async () => {
     const user = open(atPlanning({ inventory: [shield] }));
     openPanel('inventory');
+    await user.click(screen.getByRole('button', { name: 'Sell a rare item' }));
 
     expect(screen.getByText(/^Sells for 8/)).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText('Taken as'), '8');
@@ -359,6 +399,7 @@ describe('a Rare Items trade from the Inventory', () => {
   it('lists the rolls chosen, sets their price aside, and says what is under way', async () => {
     const user = open(going());
     openPanel('inventory');
+    await user.click(screen.getByRole('button', { name: 'Trade with the Rare Goods Trader' }));
 
     expect(screen.getByText(/The trader’s list has 2 rolls/)).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText('Trader’s list, first d10'), '3');
@@ -384,6 +425,7 @@ describe('a Rare Items trade from the Inventory', () => {
   it('takes a roll back off the list, and says why it cannot be made', async () => {
     const user = open(going());
     openPanel('inventory');
+    await user.click(screen.getByRole('button', { name: 'Trade with the Rare Goods Trader' }));
 
     await user.selectOptions(screen.getByLabelText('Trader’s list, first d10'), '3');
     await user.selectOptions(screen.getByLabelText('Trader’s list, second d10'), '1');
@@ -453,6 +495,7 @@ describe('vehicles in the Inventory', () => {
   it('adds a vehicle by hand, and takes it out', async () => {
     const user = open(playing());
     openPanel('inventory');
+    await user.click(screen.getByRole('button', { name: 'Add a vehicle by hand' }));
 
     expect(screen.getByText('No vehicles yet.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add the vehicle' })).toBeDisabled();

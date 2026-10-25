@@ -739,6 +739,12 @@ describe('assigning Power and Water', () => {
     expect(within(slotMap()).getByText(/supplied with water/i)).toBeInTheDocument();
   });
 
+  it('leaves out the Score spent with no Score and nothing spent (#239)', () => {
+    readyToSupply(0);
+
+    expect(screen.queryByRole('definition', { name: /score spent/i })).toBeNull();
+  });
+
   it('warns rather than refuses when nothing in the slot uses the point', async () => {
     const user = readyToSupply();
     await openUtilities(user);
