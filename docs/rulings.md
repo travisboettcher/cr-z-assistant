@@ -2714,3 +2714,117 @@ mission's do, **and its materials are rolled at Add Materials to Storage** like 
 Gather Materials'. Anything particular to the mission is the table's to add by hand.
 
 *Decided 2026-10-20.*
+
+---
+
+## R158 — The Toolkit's traits switched on part-way
+
+**pp. 88, 137, 139; Phase 7, Z7-10.** The Toolkit's traits are one optional chapter (pp. 88, 137),
+and an Advantage can only be gained at creation (pg. 139). The book does not say what happens when
+a campaign turns the chapter on with survivors already playing.
+
+**The ruling is that survivors already playing take no Advantages and no chosen injuries**, and can
+roll an injury from then on ([R86](#r86--a-permanent-injury-comes-only-at-creation-or-from-a-failed-rot-check)).
+Survivors created after the switch is on take both. The sheet can still set them by hand, as a
+correction.
+
+*Decided 2026-10-25 with Z7-10, from the batch-22 extract (T1).*
+
+---
+
+## R159 — An Advantage removed by an origin injury leaves its debt
+
+**pg. 140; Phase 7.** An origin injury removes the Advantage it meets (pg. 140). The book says
+nothing about the experience debt the Advantage carried.
+
+**The ruling is that the debt stays**: nothing is refunded and nothing is cancelled.
+
+*Decided 2026-10-25 from the batch-22 extract (T2).*
+
+---
+
+## R160 — No cap on Advantages at creation
+
+**pp. 137, 139; Phase 7, Z7-10.** The book sets no limit on how many Advantages one survivor takes,
+and no Tier limit on the debt.
+
+**The ruling is no cap**: the debt is the cost.
+
+*Decided 2026-10-25 with Z7-10, from the batch-22 extract (T3).*
+
+---
+
+## R161 — Repeats the book doesn't print turn the survivor
+
+**pp. 137–138; Phase 7.** The book prints a second result for four injuries and a third for
+One-handed ([R87](#r87--a-repeated-injury)), and turns the survivor for any other repeat. It does
+not cover a third Bad knee, a third Bad shoulder, or One-eyed after Blind, nor what a Blind made of
+two One-eyed at creation is worth.
+
+**The ruling is that each of those repeats turns the survivor, and a creation Blind
+made of two One-eyed is worth the sum of the two**, since the replacement happens on gaining the
+second.
+
+*Decided 2026-10-25 from the batch-22 extract (T4).*
+
+---
+
+## R162 — After an origin injury removes its Advantage
+
+**pg. 140; Phase 7.** An origin injury removes the matching Advantage instead of being gained
+(pg. 140). Touched says "the first time"; Sickly and Psychic Scars don't.
+
+**The ruling is that the survivor then has neither, and the next roll of that injury gains it as
+usual**, for all three.
+
+*Decided 2026-10-25 from the batch-22 extract (T5).*
+
+---
+
+## R163 — An Advantage and its matching origin injury aren't taken together
+
+**pp. 138, 140; Phase 7.** One-handed and Ambidextrous can't be held together (pg. 138). The book
+does not say whether a survivor can be created with an origin Advantage and the injury that would
+remove it.
+
+**The ruling is that they can't**: Rot Resistant with Sickly, Calloused Psyche with Psychic Scars,
+and Resistance with Touched are refused at creation, as Ambidextrous with One-handed is.
+
+*Decided 2026-10-25 from the batch-22 extract (T6).*
+
+---
+
+## R164 — Forager gives a Food for each mission, not a siege
+
+**pg. 139; Phase 7, Z7-10.** Forager adds 1 Food to the base in the next Advancement Phase whenever
+the survivor goes on a mission (pg. 139). The book does not say what several missions in one turn,
+or a Siege Defense, come to.
+
+**The ruling is 1 Food for each mission the survivor goes on, and none for a Siege Defense.** A
+survivor is on one team, so in practice it is 1 Food a turn they go out.
+
+*Decided 2026-10-25 with Z7-10, from the batch-22 extract (T7, amended).*
+
+---
+
+## R165 — Calloused Psyche caps what is kept, not the check
+
+**pp. 125, 140; Phase 7.** Calloused Psyche ignores Madness past 3 in a campaign turn (pg. 140).
+The book does not say whether the horror check is still rolled for the Madness ignored.
+
+**The ruling is that it is**: the cap limits the Madness stored, not the check.
+
+*Decided 2026-10-25 from the batch-22 extract (T8).*
+
+---
+
+## R166 — Strangers take Advantages when they join
+
+**pp. 13, 15, 19, 139; Phase 7, Z7-10.** Advantages are taken at character creation (pg. 139), and
+a rescued stranger is built with the character creation rules at Create New Survivors, with their
+Tier already set (pp. 15, 19).
+
+**The ruling is that a stranger may take Advantages when they join**, under the same debt rule
+([R94](#r94--experience-debt-is-paid-before-xp-can-be-spent)), as the starting community may.
+
+*Decided 2026-10-25 with Z7-10, from the batch-22 extract (T9).*

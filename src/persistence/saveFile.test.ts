@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import currentFixture from './__fixtures__/campaign-v25.json';
+import currentFixture from './__fixtures__/campaign-v26.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -21,6 +21,8 @@ const VALID_SURVIVOR = {
   madness: 0,
   humanity: 3,
   spells: [],
+  advantages: [],
+  xpDebt: 0,
   xpSpent: 0,
   found: false,
   foundCheckPassed: false,
@@ -747,6 +749,12 @@ describe('a survivor whose fields are the wrong type', () => {
     ['a missing spell list', { spells: undefined }],
     ['a spell this version doesn’t know', { spells: ['fireball'] }],
     ['a spell known twice', { spells: ['teleport', 'teleport'] }],
+    // The Toolkit's Advantages and their debt (R84, R94; Z7-10).
+    ['a missing list of Advantages', { advantages: undefined }],
+    ['an Advantage this version doesn’t know', { advantages: ['telepathy'] }],
+    ['an Advantage taken twice', { advantages: ['quiet', 'quiet'] }],
+    ['a negative debt', { xpDebt: -1 }],
+    ['a missing debt', { xpDebt: undefined }],
     // XP spent (R149) and the Found marks (R109, R111; Z7-8).
     ['a negative XP spent', { xpSpent: -1 }],
     ['a Found that isn’t yes or no', { found: 'yes' }],
@@ -779,6 +787,8 @@ describe('a survivor whose fields are the wrong type', () => {
       madness: 0,
       humanity: 3,
       spells: [],
+      advantages: [],
+      xpDebt: 0,
       xpSpent: 0,
       found: false,
       foundCheckPassed: false,
@@ -1814,6 +1824,8 @@ describe('a campaign whose assignments are damaged', () => {
       madness: 0,
       humanity: 3,
       spells: [],
+      advantages: [],
+      xpDebt: 0,
       xpSpent: 0,
       found: false,
       foundCheckPassed: false,

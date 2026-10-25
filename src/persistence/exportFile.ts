@@ -107,6 +107,8 @@ function orderedSurvivor(survivor: Survivor): Record<keyof Survivor, unknown> {
     bondGroup: survivor.bondGroup,
     stories: survivor.stories.map(({ mission, attachedOnTurn }) => ({ mission, attachedOnTurn })),
     rotResistant: survivor.rotResistant,
+    advantages: survivor.advantages,
+    xpDebt: survivor.xpDebt,
   };
 }
 
@@ -552,6 +554,7 @@ function inFileOrder(campaign: Campaign): Record<keyof Campaign, unknown> {
     vehicles: campaign.vehicles.map(orderedVehicle),
     heldZombies: campaign.heldZombies,
     medicalSupplies: campaign.medicalSupplies,
+    traitsEnabled: campaign.traitsEnabled,
     rareTrade:
       campaign.rareTrade === null
         ? null

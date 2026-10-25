@@ -7,8 +7,9 @@
  * missions is here, as numbers. What they do on the map (an extra Attack, a
  * die bonus, Damage dealt back) stays in the book, cited by page.
  *
- * The Toolkit's Permanent Injuries and Advantages (pp. 137–140) are Z7-10's
- * and Z7-11's, and live beside these when they come.
+ * The Toolkit's Advantages (pg. 139) are below, behind the campaign's switch
+ * (R84, R158); its Permanent Injuries and origin traits (pp. 137–140) are
+ * Z7-11's and Z7-12's.
  */
 
 /** The five Story Traits a survivor holds one of at a time (pg. 88). Veteran is apart. */
@@ -65,3 +66,71 @@ export const VETERAN_PAGES = '87–88';
  * theirs for 1 Health to a survivor at 0 Health (pg. 88; R91).
  */
 export const VETERAN_HEALING = { xp: 1, health: 1 } as const;
+
+/**
+ * The Toolkit's eight Advantages common to every origin (pg. 139; Z7-10). The
+ * three origin ones on pg. 140, Rot Resistant, Calloused Psyche and
+ * Resistance, are Z7-12's. Taken only at creation (pg. 139; R158, R166), any
+ * number of them (R160), each adding its debt.
+ */
+export const ADVANTAGES = [
+  'powerhouse',
+  'light-eater',
+  'forager',
+  'outdoor-enthusiast',
+  'quiet',
+  'ambidextrous',
+  'parkour-practitioner',
+  'natural-leader',
+] as const;
+
+export type Advantage = (typeof ADVANTAGES)[number];
+
+/**
+ * What an Advantage costs and changes between missions (pg. 139). Only the
+ * numbers: what one does on the map stays in the book, cited by page.
+ */
+export interface AdvantageRules {
+  readonly pages: number;
+
+  /** The experience debt it adds at creation (pg. 137; R94). */
+  readonly debt: number;
+
+  /** Added to the survivor's Inventory Slots (Powerhouse). */
+  readonly inventorySlots?: number;
+
+  /** The Food they eat a Management Phase, whatever their Tier (Light Eater; pg. 22). */
+  readonly foodEaten?: number;
+
+  /** Food added at the next Add Materials to Storage for each mission they go on (Forager; R164). */
+  readonly foodPerMission?: number;
+
+  /** Takes no bed at Assign Beds (Outdoor Enthusiast; pg. 23). */
+  readonly needsNoBed?: true;
+
+  /**
+   * A Skill Score of this much without the skill, or this much more with it,
+   * not counted against skill-level maximums (Quiet's Stealth, Natural
+   * Leader's Tactics; R92).
+   */
+  readonly score?: { readonly skill: 'stealth' | 'tactics'; readonly amount: number };
+
+  /** Labor added to every other survivor on the project team (Natural Leader; R89). */
+  readonly laborToOthers?: number;
+}
+
+export const ADVANTAGE_RULES = {
+  powerhouse: { pages: 139, debt: 5, inventorySlots: 1 },
+  'light-eater': { pages: 139, debt: 4, foodEaten: 1 },
+  forager: { pages: 139, debt: 3, foodPerMission: 1 },
+  'outdoor-enthusiast': { pages: 139, debt: 2, needsNoBed: true },
+  quiet: { pages: 139, debt: 5, score: { skill: 'stealth', amount: 1 } },
+  ambidextrous: { pages: 139, debt: 6 },
+  'parkour-practitioner': { pages: 139, debt: 4 },
+  'natural-leader': {
+    pages: 139,
+    debt: 4,
+    score: { skill: 'tactics', amount: 1 },
+    laborToOthers: 1,
+  },
+} as const satisfies Record<Advantage, AdvantageRules>;

@@ -25,7 +25,7 @@ import { COMMON_SKILLS, SKILLS, STATS, type Skill } from '../data/skills';
 import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS, type Materials } from '../data/materials';
-import { STORY_TRAITS } from '../data/traits';
+import { ADVANTAGES, STORY_TRAITS } from '../data/traits';
 import { EQUIPMENT, GRADES, ITEM_IDS, VEHICLE_TIERS } from '../data/equipment';
 import { OVERRUN_OPTIONS, PROMOTION_STORIES, STORY_MISSION_IDS } from '../data/missions';
 import { CAMPAIGN_ORIGINS, SPELLS } from '../data/origins';
@@ -212,6 +212,8 @@ export function survivorArbitrary(): fc.Arbitrary<Survivor> {
       madness: anyCount,
       humanity: fc.integer({ min: 0, max: 5 }),
       spells: fc.subarray([...SPELLS]),
+      advantages: fc.subarray([...ADVANTAGES]),
+      xpDebt: anyCount,
       xpSpent: anyCount,
       found: fc.boolean(),
       foundCheckPassed: fc.boolean(),
@@ -1215,6 +1217,7 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
           vehicles: fc.array(vehicleArbitrary(), { maxLength: 2 }),
           heldZombies: anyCount,
           medicalSupplies: anyCount,
+          traitsEnabled: fc.boolean(),
           // None as often as one: a trade under way is the rarer state (Z5-10).
           rareTrade: fc.option(
             fc.record({
@@ -1258,6 +1261,7 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
             'vehicles',
             'heldZombies',
             'medicalSupplies',
+            'traitsEnabled',
             'startingCommunityBuilt',
             'base',
             'log',

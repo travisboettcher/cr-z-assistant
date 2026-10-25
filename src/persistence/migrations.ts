@@ -678,6 +678,36 @@ const spellsRecorded: MigrationStep = {
   },
 };
 
+/**
+ * v25 → v26: the Toolkit's traits switch, and each survivor's Advantages and
+ * experience debt (pp. 137, 139; R84, R94, R158; Z7-10).
+ *
+ * **Off, none and none.** A v25 build had no Toolkit traits, so the campaign
+ * has them off and nobody took an Advantage or owes a debt. All three lists.
+ */
+const advantagesRecorded: MigrationStep = {
+  from: 25,
+  to: 26,
+  up: (previous) => {
+    const withAdvantages = (list: unknown): unknown =>
+      Array.isArray(list)
+        ? (list as unknown[]).map((survivor) =>
+            typeof survivor === 'object' && survivor !== null && !('advantages' in survivor)
+              ? { ...survivor, advantages: [], xpDebt: 0 }
+              : survivor,
+          )
+        : list;
+
+    return {
+      ...previous,
+      traitsEnabled: 'traitsEnabled' in previous ? previous.traitsEnabled : false,
+      survivors: withAdvantages(previous.survivors),
+      setAside: withAdvantages(previous.setAside),
+      lost: withAdvantages(previous.lost),
+    };
+  },
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -704,6 +734,7 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   xpSpentRecorded,
   humanityRecorded,
   spellsRecorded,
+  advantagesRecorded,
 ];
 
 /** Why a save could not be brought forward. */

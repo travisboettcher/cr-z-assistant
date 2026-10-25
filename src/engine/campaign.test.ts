@@ -84,6 +84,7 @@ describe('createNewCampaign', () => {
       'step',
       'survivors',
       'trades',
+      'traitsEnabled',
       'turn',
       'vehicles',
     ]);
@@ -122,12 +123,15 @@ describe('Survivor', () => {
       madness: 0,
       humanity: 3,
       spells: [],
+      advantages: [],
+      xpDebt: 0,
       xpSpent: 0,
       found: false,
       foundCheckPassed: false,
     } satisfies Survivor;
 
     expect(Object.keys(survivor).sort()).toEqual([
+      'advantages',
       'bondGroup',
       'currentHp',
       'defense',
@@ -149,6 +153,7 @@ describe('Survivor', () => {
       'tier',
       'veteran',
       'xp',
+      'xpDebt',
       'xpSpent',
     ]);
   });
@@ -179,6 +184,8 @@ describe('Survivor', () => {
       madness: 0,
       humanity: 3,
       spells: [],
+      advantages: [],
+      xpDebt: 0,
       xpSpent: 0,
       found: false,
       foundCheckPassed: false,

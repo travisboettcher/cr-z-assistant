@@ -27,7 +27,7 @@ import { FIELD_RECRUITABLE_TIERS } from '../data/recruitTable';
 import { CAMPAIGN_ORIGINS, SPELLS } from '../data/origins';
 import { CAMPAIGN_PHASES, HEALTH_SOURCES, XP_SOURCES } from '../data/turn';
 import type { Assignment, Campaign, Project } from '../engine/campaign';
-import { STORY_TRAITS } from '../data/traits';
+import { ADVANTAGES, STORY_TRAITS } from '../data/traits';
 import {
   LEAVING_CAUSES,
   RARE_TRADE_LOSSES,
@@ -360,6 +360,17 @@ function describeSurvivorProblem(value: unknown): string | null {
   ) {
     return 'has an unreadable list of spells';
   }
+  // The Toolkit's Advantages, each once, and the debt they left (R84, R94; Z7-10).
+  if (
+    !Array.isArray(value.advantages) ||
+    value.advantages.some(
+      (advantage: unknown, at: number, all: unknown[]) =>
+        !ADVANTAGES.some((known) => known === advantage) || all.indexOf(advantage) !== at,
+    )
+  ) {
+    return 'has an unreadable list of Advantages';
+  }
+  if (!isCountFromZero(value.xpDebt)) return 'doesn’t say how much experience debt they carry';
   // The XP spent (R149) and the Found marks (R109, R111; Z7-8).
   if (!isCountFromZero(value.xpSpent)) return 'doesn’t say how much XP they have spent';
   if (typeof value.found !== 'boolean') return 'doesn’t say whether they are Found';
@@ -1482,6 +1493,10 @@ function describeCampaignProblem(value: unknown): string | null {
     return 'it doesn’t say how many zombies Containment holds';
   if (!isCountFromZero(value.medicalSupplies)) {
     return 'it doesn’t say how many Medical Supply tokens it keeps';
+  }
+  // The Toolkit's traits switch (R84; Z7-10).
+  if (typeof value.traitsEnabled !== 'boolean') {
+    return 'it doesn’t say whether the Toolkit’s traits are in use';
   }
 
   // The base's Inventory (Z5-2), which never holds a shoddy item: shoddy gear

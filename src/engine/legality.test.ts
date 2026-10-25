@@ -37,6 +37,8 @@ const EARL = {
   madness: 0,
   humanity: 3,
   spells: [],
+  advantages: [],
+  xpDebt: 0,
   xpSpent: 0,
   found: false,
   foundCheckPassed: false,
