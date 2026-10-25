@@ -720,6 +720,10 @@ export interface NewCampaignOptions {
   id?: string;
   /** ISO 8601. */
   createdAt?: string;
+  /** Chosen at the start and fixed for the campaign's life (pp. 13, 122; R98). */
+  origin?: CampaignOrigin;
+  /** Whether the Toolkit's traits are in use from the start (pg. 137; R84). */
+  traitsEnabled?: boolean;
 }
 
 /** An empty campaign, ready for its first Mission Phase. */
@@ -747,8 +751,9 @@ export function createNewCampaign(name: string, options: NewCampaignOptions = {}
     vehicles: [],
     heldZombies: 0,
     medicalSupplies: 0,
-    // Off: the Toolkit's traits are optional (pg. 137; R84).
-    traitsEnabled: false,
+    // Off unless asked for: the Toolkit's traits are optional (pg. 137; R84).
+    traitsEnabled: options.traitsEnabled ?? false,
+    ...(options.origin === undefined ? {} : { origin: options.origin }),
     // False, so a new campaign gets the ten-tier-level check while it is being
     // built. The v2 → v3 migration deliberately answers `true` instead — see
     // the step in `src/persistence/migrations.ts` for why the two differ.

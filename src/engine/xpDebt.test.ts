@@ -42,6 +42,14 @@ describe('experience debt (pg. 137; R94; Z7-10)', () => {
       toDebt: 1,
     });
 
+    // Part of a larger debt: the entry says the point went to it.
+    const deeper = submitXpAward(
+      { ...campaign, survivors: [earl({ xpDebt: 3 })] },
+      { survivor: 'earl', source: 'mission' },
+      AT,
+    );
+    expect(deeper.ok && deeper.campaign.log.at(-1)?.event).toMatchObject({ toDebt: 1 });
+
     const free = submitXpAward(
       { ...campaign, survivors: [earl()] },
       { survivor: 'earl', source: 'mission' },

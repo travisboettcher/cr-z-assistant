@@ -50,8 +50,8 @@ import {
 import { COMMON_SKILL_LABELS, SKILL_LABELS, STAT_LABELS } from './skillLabels';
 import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 import { TIER_LABELS } from './tierLabels';
-import { describeTraits, STORY_TRAIT_LABELS } from './traitLabels';
-import { STORY_TRAITS, type StoryTrait } from '../data/traits';
+import { ADVANTAGE_LABELS, describeTraits, STORY_TRAIT_LABELS } from './traitLabels';
+import { ADVANTAGE_RULES, ADVANTAGES, STORY_TRAITS, type StoryTrait } from '../data/traits';
 import { storiesHeld, storiesOnOffer, traitStatBonus, type SurvivorTraits } from '../engine/traits';
 import { STORY_MISSION_IDS, type StoryMissionId } from '../data/missions';
 import { MISSION_LABELS } from './missionLabels';
@@ -364,7 +364,12 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
     found: survivor.found,
     foundCheckPassed: survivor.foundCheckPassed,
     spells: survivor.spells,
+    advantages: survivor.advantages,
+    xpDebt: survivor.xpDebt,
   };
+  // The Toolkit's Advantages and debt (R84; Z7-10), or anybody's who has them.
+  const advantagesShown =
+    campaign?.traitsEnabled === true || survivor.advantages.length > 0 || survivor.xpDebt > 0;
   // The spells they know, the Magic origin's (R112; Z7-9), or anybody's who knows one.
   const spellsShown = campaign?.origin === 'magic' || survivor.spells.length > 0;
 
@@ -401,6 +406,15 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
                   .join('; ')}`}{' '}
             <PageRef pages={87} />
           </p>
+          {advantagesShown && (
+            <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+              {survivor.advantages.length === 0
+                ? 'No Advantages'
+                : `Advantages: ${survivor.advantages.map((one) => ADVANTAGE_LABELS[one]).join(', ')}`}
+              {survivor.xpDebt > 0 && ` · ${String(survivor.xpDebt)} XP of experience debt`}{' '}
+              <PageRef pages="137, 139" />
+            </p>
+          )}
           {spellsShown && (
             <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
               {survivor.spells.length === 0
@@ -527,6 +541,62 @@ function Traits({ survivor }: { readonly survivor: Survivor }) {
               </>
             )}
           </div>
+
+          {/*
+           * Taken when a survivor is created (pg. 139; R158, R166): ticking one
+           * adds its debt, unticking takes it off again. The debt itself is
+           * here for a correction.
+           */}
+          {advantagesShown && (
+            <fieldset className="flex flex-col gap-1">
+              <legend className="text-sm">
+                Advantages, taken when they join <PageRef pages={139} />
+              </legend>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                {ADVANTAGES.map((advantage) => (
+                  <label key={advantage} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className={FOCUS_RING}
+                      checked={(draft.advantages ?? []).includes(advantage)}
+                      onChange={(event) => {
+                        const held = draft.advantages ?? [];
+                        const debt = ADVANTAGE_RULES[advantage].debt;
+                        setDraft({
+                          ...draft,
+                          advantages: ADVANTAGES.filter((one) =>
+                            one === advantage ? event.target.checked : held.includes(one),
+                          ),
+                          xpDebt: Math.max(
+                            0,
+                            (draft.xpDebt ?? 0) + (event.target.checked ? debt : -debt),
+                          ),
+                        });
+                      }}
+                    />
+                    {ADVANTAGE_LABELS[advantage]}{' '}
+                    <span className="text-stone-600 dark:text-stone-400">
+                      ({ADVANTAGE_RULES[advantage].debt} debt)
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <label className="mt-1 flex items-center gap-2 text-sm">
+                Experience debt
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  className={`${FOCUS_RING} ${TOUCH_TARGET} w-20 rounded-lg border border-stone-300 bg-transparent px-2 dark:border-stone-600`}
+                  value={draft.xpDebt ?? 0}
+                  onChange={(event) => {
+                    setDraft({ ...draft, xpDebt: Math.max(0, Number(event.target.value) || 0) });
+                  }}
+                />
+                <PageRef pages={137} />
+              </label>
+            </fieldset>
+          )}
 
           {/* Learned at the Mystic Library (R113); here for a correction. */}
           {spellsShown && (

@@ -439,3 +439,37 @@ nothing records one.
   and assignments (R89, R93).
 - **Z7-12 — The origin traits.** Sickly, Calloused Psyche, Psychic Scars, Resistance and Touched, and
   how each replaces an Advantage it meets (pg. 140). Rot Resistant itself is Z7-5's.
+
+### Z7-10 — What this story turned out to include
+
+- **Nine more rulings, decided 2026-10-25 from the batch-22 extract**:
+  - R158: switching the traits on part-way gives survivors already playing nothing.
+  - R159: an Advantage removed by an origin injury leaves its debt.
+  - R160: no cap on Advantages at creation.
+  - R161: unprinted repeats turn the survivor.
+  - R162: after an origin injury removes its Advantage, the survivor has neither.
+  - R163: no Advantage with its matching origin injury.
+  - R164: Forager gives 1 Food a mission, not for a siege.
+  - R165: Calloused Psyche caps what is kept, not the check.
+  - R166: strangers take Advantages when they join.
+- **The origin is chosen when a campaign starts.** Nothing set it before, so the origin work from
+  Z7-5 to Z7-9 could only be reached by importing an edited file. The new-campaign form asks for
+  the origin and the Toolkit switch, and a Campaign settings modal in the menu shows the origin
+  (fixed, R98) and switches the traits. Switching them off takes every survivor's Advantages and
+  debt, after a confirmation.
+- **Schema v26 adds the switch, each survivor's Advantages and their experience debt**: off, none
+  and 0 for everybody already playing. `src/data/traits.ts` lists the eight common Advantages with
+  each one's debt and numbers. The origin ones on pg. 140 are Z7-12's.
+- **Debt is paid in one place**, `withXpGained` in `src/engine/survivor.ts`, which every XP gain
+  goes through: the Advancement pools, a Lost roll and a story's reward. While any debt is left,
+  the purchases, a Veteran's healing and learning a spell are refused (R91, R94, R113). An
+  `xp-awarded` entry says how much went to the debt.
+- **The effects**:
+  - Powerhouse's slot.
+  - Light Eater's 1 Food.
+  - Forager's Food with the haul.
+  - Outdoor Enthusiast's bed.
+  - Quiet's and Natural Leader's Scores, a term of their own (R92).
+  - Natural Leader's Labor, at R89's adding step.
+- **Advantages are taken on the sheet**, in the traits editor, each adding its debt. A survivor
+  who joins gets theirs there.

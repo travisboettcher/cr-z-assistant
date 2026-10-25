@@ -427,7 +427,16 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
   const survivor = { survivor: anyId, name: anyName };
 
   return fc.oneof<fc.Arbitrary<CampaignEvent>[]>(
-    fc.record({ kind: fc.constant('campaign-started' as const), name: anyName }),
+    fc.record(
+      {
+        kind: fc.constant('campaign-started' as const),
+        name: anyName,
+        origin: fc.constantFrom(...CAMPAIGN_ORIGINS),
+        traits: fc.constant(true as const),
+      },
+      { requiredKeys: ['kind', 'name'] },
+    ),
+    fc.record({ kind: fc.constant('traits-switched' as const), enabled: fc.boolean() }),
     fc.record({ kind: fc.constant('phase-entered' as const) }),
     fc.record({ kind: fc.constant('turn-began' as const) }),
     fc.record({ kind: fc.constant('planning-began' as const) }),

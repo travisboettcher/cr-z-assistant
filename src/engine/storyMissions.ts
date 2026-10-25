@@ -235,18 +235,15 @@ export function withStoryRecorded(
     const storyTrait = record.trait ?? survivor.storyTrait;
     const bondGroup = record.bondGroup ?? (storyTrait === 'bonded' ? survivor.bondGroup : null);
 
-    return withTraits(
-      withXpGained(survivor, record.xp ?? 0),
-      {
-        storyTrait,
-        veteran: survivor.veteran,
-        bondGroup,
-        stories:
-          record.stays === true
-            ? survivor.stories
-            : survivor.stories.filter((held) => held.mission !== story),
-      },
-    );
+    return withTraits(withXpGained(survivor, record.xp ?? 0), {
+      storyTrait,
+      veteran: survivor.veteran,
+      bondGroup,
+      stories:
+        record.stays === true
+          ? survivor.stories
+          : survivor.stories.filter((held) => held.mission !== story),
+    });
   };
   const attached = (survivor: Survivor): Survivor =>
     record.attached?.survivor === survivor.id

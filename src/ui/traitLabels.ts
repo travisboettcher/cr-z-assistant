@@ -6,7 +6,7 @@
  * rules data fails the typecheck here rather than rendering `undefined`.
  */
 
-import type { StoryTrait } from '../data/traits';
+import type { Advantage, StoryTrait } from '../data/traits';
 
 export const STORY_TRAIT_LABELS: Record<StoryTrait, string> = {
   bonded: 'Bonded',
@@ -42,3 +42,15 @@ export function describeTraits(traits: {
 
   return named.length === 0 ? 'None' : named.join(', ');
 }
+
+/** The Toolkit's Advantages as pg. 139 names them (Z7-10). */
+export const ADVANTAGE_LABELS: Record<Advantage, string> = {
+  powerhouse: 'Powerhouse',
+  'light-eater': 'Light Eater',
+  forager: 'Forager',
+  'outdoor-enthusiast': 'Outdoor Enthusiast',
+  quiet: 'Quiet',
+  ambidextrous: 'Ambidextrous',
+  'parkour-practitioner': 'Parkour Practitioner',
+  'natural-leader': 'Natural Leader',
+};

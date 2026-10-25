@@ -10,11 +10,16 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useCampaign } from '../state/useCampaign';
 import { ImportCampaign } from './ImportCampaign';
+import { NewCampaignChoices } from './CampaignSettings';
+import type { CampaignOrigin } from '../data/origins';
 import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 
 export function CampaignEmptyState() {
   const { dispatch } = useCampaign();
   const [name, setName] = useState('');
+  // Chosen now and, for the origin, fixed (R98; Z7-10).
+  const [origin, setOrigin] = useState<CampaignOrigin | undefined>(undefined);
+  const [traits, setTraits] = useState(false);
 
   const trimmed = name.trim();
 
@@ -40,6 +45,8 @@ export function CampaignEmptyState() {
       name: trimmed,
       id: crypto.randomUUID(),
       createdAt: now,
+      ...(origin === undefined ? {} : { origin }),
+      ...(traits ? { traitsEnabled: true } : {}),
       at: now,
     });
   }
@@ -57,35 +64,43 @@ export function CampaignEmptyState() {
           Choose a name. It can’t be changed later.
         </p>
 
-        <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end">
-          <div className="grow">
-            <label htmlFor="campaign-name" className="block text-sm font-medium">
-              Campaign name
-            </label>
-            {/* text-lg is not decoration: below 16px, tablet browsers zoom the
+        <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+            <div className="grow">
+              <label htmlFor="campaign-name" className="block text-sm font-medium">
+                Campaign name
+              </label>
+              {/* text-lg is not decoration: below 16px, tablet browsers zoom the
                 page on focus and knock the layout sideways mid-game. */}
-            <input
-              id="campaign-name"
-              name="campaign-name"
-              type="text"
-              autoComplete="off"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              // "For example", so the grey reads as a suggestion and not a
-              // name already typed (#240).
-              placeholder="For example, Cedar Hollow"
-              className={`${TOUCH_TARGET} ${FOCUS_RING} mt-2 w-full rounded-lg border border-stone-300 bg-stone-50 px-4 py-2 text-lg placeholder:text-stone-400 dark:border-stone-600 dark:bg-stone-800 dark:placeholder:text-stone-500`}
-            />
-          </div>
+              <input
+                id="campaign-name"
+                name="campaign-name"
+                type="text"
+                autoComplete="off"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                // "For example", so the grey reads as a suggestion and not a
+                // name already typed (#240).
+                placeholder="For example, Cedar Hollow"
+                className={`${TOUCH_TARGET} ${FOCUS_RING} mt-2 w-full rounded-lg border border-stone-300 bg-stone-50 px-4 py-2 text-lg placeholder:text-stone-400 dark:border-stone-600 dark:bg-stone-800 dark:placeholder:text-stone-500`}
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={trimmed === ''}
-            aria-describedby={trimmed === '' ? 'campaign-name-needed' : undefined}
-            className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg ${PRIMARY_FILL} px-6 py-2 text-lg font-semibold disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500 dark:disabled:bg-stone-700 dark:disabled:text-stone-400`}
-          >
-            New campaign
-          </button>
+            <button
+              type="submit"
+              disabled={trimmed === ''}
+              aria-describedby={trimmed === '' ? 'campaign-name-needed' : undefined}
+              className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg ${PRIMARY_FILL} px-6 py-2 text-lg font-semibold disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500 dark:disabled:bg-stone-700 dark:disabled:text-stone-400`}
+            >
+              New campaign
+            </button>
+          </div>
+          <NewCampaignChoices
+            origin={origin}
+            traits={traits}
+            onOrigin={setOrigin}
+            onTraits={setTraits}
+          />
         </form>
         {/* Why the button waits, said rather than left to a grey button (#240). */}
         {trimmed === '' && (

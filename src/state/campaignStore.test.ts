@@ -3179,6 +3179,11 @@ describe('what earns a line in the log', () => {
       action: { type: 'advancement/madnessRecovered', at: AT },
       entry: entry(3, 'advancement', { kind: 'madness-recovered', ...WEBB, madness: 2 }),
     },
+    // The Toolkit's traits switched on part-way (R84, R158; Z7-10).
+    'campaign/traitsSwitched': {
+      action: { type: 'campaign/traitsSwitched', enabled: true, at: AT },
+      entry: entry(3, 'mission', { kind: 'traits-switched', enabled: true }),
+    },
     // Marcus, staffing a Mystic Library with 20 XP, learns a spell an enemy cast (R113; Z7-9).
     'advancement/spellLearned': {
       state: openState({

@@ -741,6 +741,9 @@ const EVENT_FIELD_CHECKS = {
         SPELLS.some((known) => known === spell) && value.indexOf(spell) === at,
     ),
   spell: (value: unknown) => SPELLS.some((known) => known === value),
+  // The origin a campaign began with (R98; Z7-10).
+  optionalOrigin: (value: unknown) =>
+    value === undefined || CAMPAIGN_ORIGINS.some((origin) => origin === value),
   // Why a survivor gained Humanity (R114; Z7-9).
   humanityGain: (value: unknown) => ['project-team', 'healed-from-0'].includes(value as string),
   // Why a survivor left (#201), absent on an entry from before it was recorded.
@@ -768,7 +771,12 @@ const EVENT_FIELDS: Record<
   CampaignEventKind,
   readonly (readonly [field: string, check: EventFieldCheck])[]
 > = {
-  'campaign-started': [['name', 'name']],
+  'campaign-started': [
+    ['name', 'name'],
+    ['origin', 'optionalOrigin'],
+    ['traits', 'optionalTrue'],
+  ],
+  'traits-switched': [['enabled', 'flag']],
   'phase-entered': [],
   'turn-began': [],
   'starting-community-settled': [['built', 'flag']],

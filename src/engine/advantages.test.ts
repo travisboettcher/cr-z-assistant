@@ -6,6 +6,8 @@ import { createNewCampaign, type Campaign, type Survivor } from './campaign';
 import { exhaustion, foodEaten, foodRequired } from './feeding';
 import { foraged } from './materials';
 import { createSurvivor, inventorySlots, skillScore } from './survivor';
+import { submitTraitsSwitched } from './campaignForms';
+import { traitsProblem } from './traits';
 
 const AT = '2026-10-25T09:00:00.000Z';
 
@@ -55,6 +57,8 @@ describe('the Advantages between missions (pg. 139; Z7-10)', () => {
   it('Light Eater eats 1 whatever the Tier', () => {
     expect(foodEaten(with_('Earl', 4, ['light-eater']))).toBe(1);
     expect(foodEaten(with_('Earl', 4, []))).toBe(2);
+    // Another Advantage leaves what they eat alone.
+    expect(foodEaten(with_('Earl', 4, ['forager']))).toBe(2);
     expect(
       foodRequired({
         ...createNewCampaign('Cedar Hollow'),
@@ -73,6 +77,7 @@ describe('the Advantages between missions (pg. 139; Z7-10)', () => {
     });
 
     expect(exhaustion(camping(['outdoor-enthusiast']))).toBe(exhaustion(camping([])) - 1);
+    expect(exhaustion(camping(['forager']))).toBe(exhaustion(camping([])));
   });
 
   describe('Forager (R164)', () => {
@@ -125,5 +130,67 @@ describe('the Advantages between missions (pg. 139; Z7-10)', () => {
 
       expect(result.campaign.materials.food - without.campaign.materials.food).toBe(2);
     });
+  });
+});
+
+describe('the Toolkit’s traits switch (R84, R158; Z7-10)', () => {
+  it('starts a campaign with its origin and the traits as asked, and off by default', () => {
+    expect(createNewCampaign('Cedar Hollow').traitsEnabled).toBe(false);
+    expect(createNewCampaign('Cedar Hollow')).not.toHaveProperty('origin');
+    expect(
+      createNewCampaign('Cedar Hollow', { origin: 'viral', traitsEnabled: true }),
+    ).toMatchObject({ origin: 'viral', traitsEnabled: true });
+  });
+
+  it('switches on with nothing given, and off taking every survivor’s Advantages and debt', () => {
+    const forager = with_('Earl', 2, ['forager'], { xpDebt: 3 });
+    const off: Campaign = { ...createNewCampaign('Cedar Hollow'), survivors: [forager] };
+
+    const on = submitTraitsSwitched(off, true, AT);
+    if (!on.ok) throw new Error(on.problem);
+    expect(on.campaign.traitsEnabled).toBe(true);
+    expect(on.campaign.survivors[0]).toEqual(forager);
+    expect(on.campaign.log.at(-1)?.event).toEqual({ kind: 'traits-switched', enabled: true });
+
+    const kept: Campaign = {
+      ...on.campaign,
+      setAside: [with_('Carla', 2, ['quiet'], { xpDebt: 5 })],
+      lost: [with_('Ruby', 1, ['powerhouse'], { xpDebt: 5 })],
+    };
+    const back = submitTraitsSwitched(kept, false, AT);
+    if (!back.ok) throw new Error(back.problem);
+    for (const survivor of [
+      ...back.campaign.survivors,
+      ...back.campaign.setAside,
+      ...back.campaign.lost,
+    ]) {
+      expect(survivor).toMatchObject({ advantages: [], xpDebt: 0 });
+    }
+
+    expect(submitTraitsSwitched(off, false, AT)).toEqual({
+      ok: false,
+      problem: 'The Toolkit’s traits are off already.',
+    });
+    expect(submitTraitsSwitched(on.campaign, true, AT)).toEqual({
+      ok: false,
+      problem: 'The Toolkit’s traits are in use already.',
+    });
+  });
+
+  it('sets Advantages and debt on the sheet, each Advantage once and the debt whole', () => {
+    const base = { storyTrait: null, veteran: false, bondGroup: null, stories: [] } as const;
+
+    expect(traitsProblem({ ...base, advantages: ['quiet', 'forager'], xpDebt: 8 })).toBeNull();
+    expect(traitsProblem({ ...base, xpDebt: 0 })).toBeNull();
+    expect(traitsProblem({ ...base, advantages: ['quiet', 'quiet'] })).toBe(
+      'Each Advantage is held once.',
+    );
+    expect(traitsProblem({ ...base, advantages: ['telepathy' as Advantage] })).toBe(
+      'Each Advantage is held once.',
+    );
+    expect(traitsProblem({ ...base, xpDebt: -1 })).toBe(
+      'Experience debt is a whole number, 0 or more.',
+    );
+    expect(traitsProblem({ ...base, xpDebt: 1.5 })).toMatch(/whole number/);
   });
 });

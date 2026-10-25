@@ -802,3 +802,36 @@ export function submitInoculationChosen(
 
   return accepted(withInoculationChosen(campaign, survivor, item));
 }
+
+/**
+ * Switch the Toolkit's survivor traits on or off part-way (pp. 88, 137; R84,
+ * R158; Z7-10). On, survivors already playing take nothing at once (R158). Off,
+ * every survivor's Advantages and debt go with it, in the community, set aside
+ * and Lost alike, because with the traits off a survivor has none (R84).
+ */
+export function submitTraitsSwitched(campaign: Campaign, enabled: boolean, at: string): FormResult {
+  if (campaign.traitsEnabled === enabled) {
+    return refused(
+      enabled
+        ? 'The Toolkit’s traits are in use already.'
+        : 'The Toolkit’s traits are off already.',
+    );
+  }
+
+  const cleared = (survivors: readonly Survivor[]): readonly Survivor[] =>
+    enabled ? survivors : survivors.map((one) => ({ ...one, advantages: [], xpDebt: 0 }));
+
+  return accepted(
+    logged(
+      {
+        ...campaign,
+        traitsEnabled: enabled,
+        survivors: cleared(campaign.survivors),
+        setAside: cleared(campaign.setAside),
+        lost: cleared(campaign.lost),
+      },
+      at,
+      { kind: 'traits-switched', enabled },
+    ),
+  );
+}

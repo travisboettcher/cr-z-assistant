@@ -18,6 +18,9 @@ const SURVIVOR = { survivor: 'a4f0c1e2-91b3-4d67-8a05-2c7e3f9b1d48', name: 'Earl
 
 export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'campaign-started', name: 'Cedar Hollow' },
+  { kind: 'campaign-started', name: 'Cedar Hollow', origin: 'magic', traits: true },
+  { kind: 'traits-switched', enabled: true },
+  { kind: 'traits-switched', enabled: false },
   { kind: 'phase-entered' },
   { kind: 'turn-began' },
   { kind: 'starting-community-settled', built: true },

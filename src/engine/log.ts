@@ -45,7 +45,7 @@ import type { FacilityId, UpgradeId } from '../data/facilities';
 import type { Material, Materials } from '../data/materials';
 import type { MissionId, OverrunOption, StoryMissionId } from '../data/missions';
 import type { CommonSkill, Skill } from '../data/skills';
-import type { SpellId } from '../data/origins';
+import type { CampaignOrigin, SpellId } from '../data/origins';
 import type { FieldRecruitTier } from '../data/recruitTable';
 import type { Tier } from '../data/tiers';
 import type { StoryTrait } from '../data/traits';
@@ -271,7 +271,21 @@ export type LeavingCause = (typeof LEAVING_CAUSES)[number];
  * event answers those two the same way.
  */
 export type CampaignEvent =
-  | { readonly kind: 'campaign-started'; readonly name: string }
+  /**
+   * The campaign began, with its origin and whether the Toolkit's traits are
+   * in use, each absent for none (R84, R98; Z7-10).
+   */
+  | {
+      readonly kind: 'campaign-started';
+      readonly name: string;
+      readonly origin?: CampaignOrigin;
+      readonly traits?: true;
+    }
+  /**
+   * The Toolkit's traits were switched on or off part-way (R84, R158; Z7-10).
+   * Off takes every survivor's Advantages and debt with it.
+   */
+  | { readonly kind: 'traits-switched'; readonly enabled: boolean }
   /**
    * Carries no fields: which phase was entered is the entry's own `phase`,
    * because an entry is stamped *after* the change. Repeating it inside the

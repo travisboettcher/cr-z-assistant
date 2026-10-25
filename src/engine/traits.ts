@@ -16,6 +16,7 @@
 import { STATS, type Stat } from '../data/skills';
 import {
   ADVANTAGE_RULES,
+  ADVANTAGES,
   STORY_TRAIT_RULES,
   type AdvantageRules,
   type StoryTrait,
@@ -124,12 +125,18 @@ export function missionWhileWounded(survivor: Survivor): boolean {
 
 /**
  * A survivor's Story Trait, Veteran, bond group, attached stories, Rot
- * Resistant, the Found marks and the spells they know together, as the sheet
- * sets them (R84, R97, R109, R111, R112, R116). The last four are optional
- * here: the stories and traits a story sets leave them as they are.
+ * Resistant, the Found marks, the spells they know, and their Advantages and
+ * experience debt together, as the sheet sets them (R84, R97, R109, R111,
+ * R112, R116, R158). The optional ones are left as they are by the stories and
+ * traits a story sets.
  */
 export type SurvivorTraits = Pick<Survivor, 'storyTrait' | 'veteran' | 'bondGroup' | 'stories'> &
-  Partial<Pick<Survivor, 'rotResistant' | 'found' | 'foundCheckPassed' | 'spells'>>;
+  Partial<
+    Pick<
+      Survivor,
+      'rotResistant' | 'found' | 'foundCheckPassed' | 'spells' | 'advantages' | 'xpDebt'
+    >
+  >;
 
 /**
  * Why these traits cannot be a survivor's, or `null`: each spell known once
@@ -140,6 +147,17 @@ export function traitsProblem(traits: SurvivorTraits): string | null {
   const spells = traits.spells ?? [];
   if (spells.some((spell, at) => !SPELLS.includes(spell) || spells.indexOf(spell) !== at)) {
     return 'Each spell is known once.';
+  }
+  const advantages = traits.advantages ?? [];
+  if (
+    advantages.some(
+      (advantage, at) => !ADVANTAGES.includes(advantage) || advantages.indexOf(advantage) !== at,
+    )
+  ) {
+    return 'Each Advantage is held once.';
+  }
+  if (traits.xpDebt !== undefined && !(Number.isInteger(traits.xpDebt) && traits.xpDebt >= 0)) {
+    return 'Experience debt is a whole number, 0 or more.';
   }
   if (traits.storyTrait === 'bonded') {
     return Number.isInteger(traits.bondGroup) && (traits.bondGroup as number) >= 1

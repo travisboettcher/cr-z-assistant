@@ -7,6 +7,8 @@
  * touching a file — and it says so, in the case where it is actually true.
  */
 
+import type { CampaignOrigin } from '../data/origins';
+import { NewCampaignChoices } from './CampaignSettings';
 import { useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useCampaign } from '../state/useCampaign';
@@ -18,6 +20,8 @@ export function StartNewCampaign() {
   const headingId = useId();
   const nameId = useId();
   const [name, setName] = useState('');
+  const [origin, setOrigin] = useState<CampaignOrigin | undefined>(undefined);
+  const [traits, setTraits] = useState(false);
 
   const trimmed = name.trim();
 
@@ -33,10 +37,14 @@ export function StartNewCampaign() {
       name: trimmed,
       id: crypto.randomUUID(),
       createdAt: now,
+      ...(origin === undefined ? {} : { origin }),
+      ...(traits ? { traitsEnabled: true } : {}),
       at: now,
     });
 
     setName('');
+    setOrigin(undefined);
+    setTraits(false);
     dialogRef.current?.close();
   }
 
@@ -92,6 +100,15 @@ export function StartNewCampaign() {
             placeholder="For example, Millbrook"
             className={`${TOUCH_TARGET} ${FOCUS_RING} mt-2 w-full rounded-lg border border-stone-300 bg-stone-50 px-4 py-2 text-lg placeholder:text-stone-400 dark:border-stone-600 dark:bg-stone-800 dark:placeholder:text-stone-500`}
           />
+
+          <div className="mt-4">
+            <NewCampaignChoices
+              origin={origin}
+              traits={traits}
+              onOrigin={setOrigin}
+              onTraits={setTraits}
+            />
+          </div>
 
           <div className="mt-6 flex flex-wrap justify-end gap-3">
             <button

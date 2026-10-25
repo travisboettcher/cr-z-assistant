@@ -52,6 +52,7 @@ import { PHASE_LABELS } from './turnLabels';
 import { COMMON_SKILL_LABELS, SKILL_LABELS } from './skillLabels';
 import { TIER_LABELS } from './tierLabels';
 import { SPELL_LABELS, spellList } from './spellLabels';
+import { ORIGIN_LABELS } from './originLabels';
 
 export interface EventLabel {
   /** One line, in the past tense. No rule text — see the copyright posture. */
@@ -157,7 +158,19 @@ function cited(text: string, pages: number | string | undefined): EventLabel {
 export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
   switch (event.kind) {
     case 'campaign-started':
-      return { text: `Started the campaign “${event.name}”.` };
+      return {
+        text: `Started the campaign “${event.name}”${
+          event.origin === undefined ? '' : `, with the ${ORIGIN_LABELS[event.origin]} origin`
+        }${event.traits === true ? ', using the Toolkit’s survivor traits' : ''}.`,
+      };
+
+    case 'traits-switched':
+      return {
+        text: event.enabled
+          ? 'The Toolkit’s survivor traits are in use from now on.'
+          : 'The Toolkit’s survivor traits are no longer in use, and every survivor’s Advantages and experience debt went with them.',
+        pages: 137,
+      };
 
     case 'phase-entered':
       // Deliberately says nothing about *which* phase: the entry it came from

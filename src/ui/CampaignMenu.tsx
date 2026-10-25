@@ -18,7 +18,7 @@ import { exportState } from './exportLabels';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
 /** What a menu item opens. */
-export type MenuPanel = 'log' | 'file';
+export type MenuPanel = 'log' | 'settings' | 'file';
 
 export interface CampaignMenuProps {
   readonly onOpen: (panel: MenuPanel) => void;
@@ -93,6 +93,11 @@ export function CampaignMenu({ onOpen }: CampaignMenuProps) {
             <li>
               <button type="button" className={ITEM} onClick={() => go('log')}>
                 Campaign log
+              </button>
+            </li>
+            <li>
+              <button type="button" className={ITEM} onClick={() => go('settings')}>
+                Campaign settings
               </button>
             </li>
             <li>

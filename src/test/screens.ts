@@ -31,6 +31,7 @@ export function openPanel(panel: keyof typeof CARDS): void {
 
 const ITEMS = {
   log: /^campaign log$/i,
+  settings: /^campaign settings$/i,
   file: /^export, import or start new$/i,
 } as const;
 
