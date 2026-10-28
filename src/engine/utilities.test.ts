@@ -557,10 +557,11 @@ describe('a hunger penalty landing after the points were assigned', () => {
 
   it('keeps them backed when the Feed step costs the community a stat', () => {
     // One survivor eating two against nothing stored: a shortfall of two over a
-    // head count of one, so every stat drops by one and Utilities with it.
+    // head count of one, so every stat drops by the whole two (R1) and
+    // Utilities with it.
     const starving = { ...assigned(), log: [fed(3, 2, 1)] };
 
-    expect(hungerPenalty(starving)).toBe(1);
+    expect(hungerPenalty(starving)).toBe(2);
     expect(utilitiesScore(starving)).toBe(4);
     expect(suppliedOccupants(starving).filter((one) => one.power && one.water)).toHaveLength(2);
   });
@@ -579,7 +580,7 @@ describe('a hunger penalty landing after the points were assigned', () => {
       log: [fed(3, 2, 1)],
     };
 
-    expect(utilitiesScore(next)).toBe(3);
+    expect(utilitiesScore(next)).toBe(2);
   });
 });
 

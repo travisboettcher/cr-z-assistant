@@ -12,13 +12,14 @@
  *
  * ## The penalty is a starvation threshold, not a tax
  *
- * `max(0, Hunger − population)`, floored at zero and applied to stats rather
- * than to Skill Scores. This is [R1](../../docs/rulings.md) and
- * it is the literal reading of pg. 22: the printed arithmetic computes
- * `population − Hunger` and tests it for negativity, which is the shape of a
- * threshold. A community of Tier 1–2 survivors can empty its stores completely
- * and never reach it — an accepted consequence, not a bug, and they are not
- * spared either way because Unrest counts the Hunger directly.
+ * Nothing while Hunger is no more than the population; past it, the whole
+ * Hunger, applied to stats rather than to Skill Scores and floored at zero.
+ * This is [R1](../../docs/rulings.md): pg. 22's arithmetic tests
+ * `population − Hunger` for negativity, which is the shape of a threshold, and
+ * FAQ "Hunger Penalty"'s worked example takes more off a stat than the
+ * difference ever could (#215). A community of Tier 1–2 survivors can empty its
+ * stores completely and never reach it — an accepted consequence, not a bug,
+ * and they are not spared either way because Unrest counts the Hunger directly.
  *
  * ## Neither Hunger nor Exhaustion is ever stored
  *
@@ -270,7 +271,8 @@ export function fedPopulation(campaign: Campaign): number {
 }
 
 /**
- * The threshold itself, over two plain numbers.
+ * The threshold itself, over two plain numbers: the whole shortfall once it
+ * passes the head count, and nothing before (R1, #215).
  *
  * Separate from `hungerPenalty` because the Feed step has to show what a
  * shortfall *would* cost before it costs it, and that preview works from
@@ -278,7 +280,7 @@ export function fedPopulation(campaign: Campaign): number {
  * itself would be a second copy of R1 waiting to disagree with this one.
  */
 export function penaltyFor(shortfall: number, population: number): number {
-  return Math.max(0, shortfall - population);
+  return shortfall > population ? shortfall : 0;
 }
 
 /**
