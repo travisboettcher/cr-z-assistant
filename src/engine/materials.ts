@@ -453,12 +453,12 @@ export function gatheredSubstitutionProblem(
         (offered) => offered.skill === forced.skill && offered.material === forced.material,
       )
     ) {
-      return `A ${forced.skill} use can’t make the gathered ${replaces} ${forced.material}.`;
+      return 'That substitution isn’t one its skill can make there.';
     }
 
     const key = `${String(team)} ${replaces}`;
     if (replaced.has(key)) {
-      return `Mission team ${String(team)}’s gathered ${replaces} is substituted once.`;
+      return `Each of mission team ${String(team)}’s one of each is substituted once at most.`;
     }
     replaced.add(key);
   }

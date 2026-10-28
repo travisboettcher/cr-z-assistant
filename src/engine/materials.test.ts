@@ -781,12 +781,12 @@ describe('substitutions on a Gather Materials haul', () => {
         gatheredSubstitutionProblem(two, [
           { team: 1, replaces: 'hardware', forced: { skill: 'utilities', material: 'food' } },
         ]),
-      ).toBe('A utilities use can’t make the gathered hardware food.');
+      ).toBe('That substitution isn’t one its skill can make there.');
       expect(
         gatheredSubstitutionProblem(two, [
           { team: 1, replaces: 'food', forced: { skill: 'rationing', material: 'food' } },
         ]),
-      ).toBe('A rationing use can’t make the gathered food food.');
+      ).toBe('That substitution isn’t one its skill can make there.');
     });
 
     it('refuses replacing the same one twice on one team', () => {
@@ -795,7 +795,7 @@ describe('substitutions on a Gather Materials haul', () => {
           { team: 1, replaces: 'fuel', forced: rationing },
           { team: 1, replaces: 'fuel', forced: mechanics },
         ]),
-      ).toBe('Mission team 1’s gathered fuel is substituted once.');
+      ).toBe('Each of mission team 1’s one of each is substituted once at most.');
     });
   });
 
