@@ -18,6 +18,7 @@
 import { BASES } from '../data/bases';
 import { SKILLS, STATS } from '../data/skills';
 import { MATERIALS } from '../data/materials';
+import { INJURIES } from '../data/traits';
 import type {
   Base,
   Campaign,
@@ -107,6 +108,15 @@ function orderedSurvivor(survivor: Survivor): Record<keyof Survivor, unknown> {
     bondGroup: survivor.bondGroup,
     stories: survivor.stories.map(({ mission, attachedOnTurn }) => ({ mission, attachedOnTurn })),
     rotResistant: survivor.rotResistant,
+    advantages: survivor.advantages,
+    xpDebt: survivor.xpDebt,
+    // In the table's order, whatever order they were gained in (Z7-11).
+    injuries: Object.fromEntries(
+      INJURIES.flatMap((injury) => {
+        const count = survivor.injuries[injury];
+        return count === undefined ? [] : [[injury, count]];
+      }),
+    ),
   };
 }
 
@@ -336,6 +346,14 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
   ) {
     return { ...taggedFirst(event, 'kind'), items: event.items.map(orderedItem) };
   }
+  // A Permanent Injury taken instead of turning (R86, R100; Z7-11).
+  if (
+    (event.kind === 'rot-checked' || event.kind === 'infection-checked') &&
+    event.injury !== undefined
+  ) {
+    const { roll, injury, fate } = event.injury;
+    return { ...taggedFirst(event, 'kind'), injury: { roll, injury, fate } };
+  }
   if (event.kind === 'survivor-left' && event.lost !== undefined) {
     return { ...taggedFirst(event, 'kind'), lost: event.lost.map(orderedItem) };
   }
@@ -552,6 +570,7 @@ function inFileOrder(campaign: Campaign): Record<keyof Campaign, unknown> {
     vehicles: campaign.vehicles.map(orderedVehicle),
     heldZombies: campaign.heldZombies,
     medicalSupplies: campaign.medicalSupplies,
+    traitsEnabled: campaign.traitsEnabled,
     rareTrade:
       campaign.rareTrade === null
         ? null

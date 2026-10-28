@@ -18,7 +18,7 @@ import type { BaseId } from '../data/bases';
 import type { Grade, ItemId, VehicleTier } from '../data/equipment';
 import type { Cost, FacilityId, UpgradeId } from '../data/facilities';
 import type { Materials } from '../data/materials';
-import type { StoryTrait } from '../data/traits';
+import type { Advantage, Injury, StoryTrait } from '../data/traits';
 import type { StoryMissionId } from '../data/missions';
 import type { CampaignOrigin, SpellId } from '../data/origins';
 import type { D10Result } from '../data/dice';
@@ -36,7 +36,7 @@ import type { LogEntry } from './log';
  * Bumping this without adding a matching migration step and fixture fails the
  * guard test in `src/persistence`.
  */
-export const CURRENT_SCHEMA_VERSION = 25;
+export const CURRENT_SCHEMA_VERSION = 27;
 
 /** A survivor's four stat values (pg. 8). */
 export type Stats = Record<Stat, number>;
@@ -195,6 +195,27 @@ export interface Survivor {
    * from before v20.
    */
   rotResistant: boolean;
+
+  /**
+   * The Toolkit's Advantages they took at creation (pg. 139; R84, R158, R160;
+   * Z7-10), in the order `ADVANTAGES` lists them. Empty while the campaign's
+   * traits are off, and for everybody in a save from before v26.
+   */
+  advantages: readonly Advantage[];
+
+  /**
+   * The experience debt their Advantages left (pg. 137; R94): XP gained pays
+   * it off one for one before any reaches `xp`, and nothing can be spent while
+   * any is left. Zero for everybody in a save from before v26.
+   */
+  xpDebt: number;
+
+  /**
+   * The Toolkit's Permanent Injuries they carry, a count of each (pp. 137–138;
+   * R84, R86–R88; Z7-11), and only those they carry. Never healed (R88). Empty
+   * for everybody in a save from before v27.
+   */
+  injuries: Partial<Record<Injury, number>>;
 }
 
 /** A story mission attached to a survivor, and when (pg. 87; R116, R118). */
@@ -635,6 +656,14 @@ export interface Campaign {
   medicalSupplies: number;
 
   /**
+   * Whether the Apocalypse Toolkit's survivor traits are in use (pp. 88, 137;
+   * R84; Z7-10): Advantages, their debt, and from Z7-11 the Permanent
+   * Injuries. One switch for the chapter, off for a new campaign and for every
+   * save from before v26. Story Traits are core and never behind it.
+   */
+  traitsEnabled: boolean;
+
+  /**
    * Whether the player has finished assembling their starting community.
    *
    * A starting community is built from ten Tier levels (pg. 13), and that rule
@@ -698,6 +727,10 @@ export interface NewCampaignOptions {
   id?: string;
   /** ISO 8601. */
   createdAt?: string;
+  /** Chosen at the start and fixed for the campaign's life (pp. 13, 122; R98). */
+  origin?: CampaignOrigin;
+  /** Whether the Toolkit's traits are in use from the start (pg. 137; R84). */
+  traitsEnabled?: boolean;
 }
 
 /** An empty campaign, ready for its first Mission Phase. */
@@ -725,6 +758,9 @@ export function createNewCampaign(name: string, options: NewCampaignOptions = {}
     vehicles: [],
     heldZombies: 0,
     medicalSupplies: 0,
+    // Off unless asked for: the Toolkit's traits are optional (pg. 137; R84).
+    traitsEnabled: options.traitsEnabled ?? false,
+    ...(options.origin === undefined ? {} : { origin: options.origin }),
     // False, so a new campaign gets the ten-tier-level check while it is being
     // built. The v2 → v3 migration deliberately answers `true` instead — see
     // the step in `src/persistence/migrations.ts` for why the two differ.

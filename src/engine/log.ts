@@ -45,10 +45,11 @@ import type { FacilityId, UpgradeId } from '../data/facilities';
 import type { Material, Materials } from '../data/materials';
 import type { MissionId, OverrunOption, StoryMissionId } from '../data/missions';
 import type { CommonSkill, Skill } from '../data/skills';
-import type { SpellId } from '../data/origins';
+import type { CampaignOrigin, SpellId } from '../data/origins';
 import type { FieldRecruitTier } from '../data/recruitTable';
 import type { Tier } from '../data/tiers';
-import type { StoryTrait } from '../data/traits';
+import type { Injury, StoryTrait } from '../data/traits';
+import type { InjuryFate } from './injuries';
 import type { CampaignPhase, HealthSource, XpSource } from '../data/turn';
 import { phaseOf } from './turn';
 // Type-only, and the other half of a deliberate pair: `campaign.ts` imports
@@ -77,6 +78,17 @@ import type { Assignment, Campaign, Item, RareTradeItem, TradeOrder, Vehicle } f
  * read who a Siege Defense left at 0 Health off these, rather than off Health
  * as the roster has it now (R17's October 2026 amendment).
  */
+/**
+ * A Permanent Injury a failed Rot or Infection check was taken as instead of
+ * turning (pg. 137; R86, R100): the d10 on the table, the injury it gave, and
+ * what gaining it did (R87, R161, R162).
+ */
+export interface InjuryTaken {
+  readonly roll: D10Result;
+  readonly injury: Injury;
+  readonly fate: InjuryFate;
+}
+
 export interface MissionWound {
   readonly survivor: string;
   readonly name: string;
@@ -257,7 +269,7 @@ export const RARE_TRADE_LOSSES = ['siege', 'other-mission', 'no-mission'] as con
 export type RareTradeLoss = (typeof RARE_TRADE_LOSSES)[number];
 
 /** Why a `survivor-left` entry's survivor left (#201). */
-export const LEAVING_CAUSES = ['turned', 'bitten', 'removed', 'killed'] as const;
+export const LEAVING_CAUSES = ['turned', 'bitten', 'removed', 'killed', 'injury'] as const;
 
 export type LeavingCause = (typeof LEAVING_CAUSES)[number];
 
@@ -271,7 +283,21 @@ export type LeavingCause = (typeof LEAVING_CAUSES)[number];
  * event answers those two the same way.
  */
 export type CampaignEvent =
-  | { readonly kind: 'campaign-started'; readonly name: string }
+  /**
+   * The campaign began, with its origin and whether the Toolkit's traits are
+   * in use, each absent for none (R84, R98; Z7-10).
+   */
+  | {
+      readonly kind: 'campaign-started';
+      readonly name: string;
+      readonly origin?: CampaignOrigin;
+      readonly traits?: true;
+    }
+  /**
+   * The Toolkit's traits were switched on or off part-way (R84, R158; Z7-10).
+   * Off takes every survivor's Advantages, debt and injuries with it.
+   */
+  | { readonly kind: 'traits-switched'; readonly enabled: boolean }
   /**
    * Carries no fields: which phase was entered is the entry's own `phase`,
    * because an entry is stamped *after* the change. Repeating it inside the
@@ -432,6 +458,12 @@ export type CampaignEvent =
       readonly roll: D10Result;
       readonly target: number;
       readonly passed: boolean;
+      /**
+       * The Permanent Injury a failed check was taken as instead of turning
+       * (pg. 137; R86; Z7-11): the d10 on the table, the injury it gave, and
+       * what gaining it did (R87, R161). Absent when they didn't take one.
+       */
+      readonly injury?: InjuryTaken;
     }
   /**
    * One survivor's Infection check under the Viral origin (pp. 22, 123; R99;
@@ -448,6 +480,8 @@ export type CampaignEvent =
       readonly infection: number;
       readonly bonus: number;
       readonly passed: boolean;
+      /** Taken as a Permanent Injury instead of turning, as a Rot check can be (R100; Z7-12). */
+      readonly injury?: InjuryTaken;
     }
   /**
    * A set of Restraints held a turning survivor, so nobody was bitten (pg. 69).
@@ -991,6 +1025,8 @@ export type CampaignEvent =
       readonly name: string;
       readonly amount: number;
       readonly source: XpSource;
+      /** How much of it paid off experience debt instead (R94; Z7-10). Absent for none. */
+      readonly toDebt?: number;
     }
   | {
       readonly kind: 'survivor-added';

@@ -29,6 +29,8 @@ import { TIER_RULES, type Tier } from '../data/tiers';
 import type { Stats, Survivor } from './campaign';
 import { itemCap, itemInventorySlots, itemTerm } from './equipment';
 import { traitMaxHealth, traitStatBonus } from './traits';
+import { injuriesOf, scoreZeroed } from './injuries';
+import { ADVANTAGE_RULES, type AdvantageRules } from '../data/traits';
 
 /**
  * A skill's level added to its governing stat (pg. 8), or **null when the
@@ -48,12 +50,20 @@ import { traitMaxHealth, traitStatBonus } from './traits';
  */
 export function skillScore(survivor: Survivor, skill: Skill, penalty: number): number | null {
   const level = survivor.skills[skill];
+  // Quiet's Stealth and Natural Leader's Tactics: a Score of their own without
+  // the skill, a term added to it with (pg. 139; R92).
+  const advantage = advantageScore(survivor, skill);
 
-  if (level === undefined) return null;
+  if (level === undefined && advantage === 0) return null;
 
   const score =
-    statValue(survivor, SKILL_STATS[skill], penalty) + level + itemTerm(survivor, skill);
+    (level === undefined ? 0 : statValue(survivor, SKILL_STATS[skill], penalty) + level) +
+    advantage +
+    itemTerm(survivor, skill);
   const cap = itemCap(survivor, skill);
+
+  // Blind's Scout and Scavenge are 0 (pg. 138; Z7-11).
+  if (scoreZeroed(survivor, skill)) return 0;
 
   return cap === undefined ? score : Math.min(score, cap);
 }
@@ -156,7 +166,28 @@ export function inventorySlots(survivor: Survivor, penalty: number): number {
 
   // And what their carried items add outright, the ultralight backpack's and
   // tactical armor's (pg. 51; Z5-2).
-  return TIER_RULES[survivor.tier].baseInventorySlots + (carry ?? 0) + itemInventorySlots(survivor);
+  // And Powerhouse's slot (pg. 139; Z7-10).
+  return (
+    TIER_RULES[survivor.tier].baseInventorySlots +
+    (carry ?? 0) +
+    itemInventorySlots(survivor) +
+    advantagesOf(survivor).reduce((total, rules) => total + (rules.inventorySlots ?? 0), 0) +
+    // And Wheelchair-bound's (pg. 138; Z7-11).
+    injuriesOf(survivor).reduce((total, { rules }) => total + (rules.inventorySlots ?? 0), 0)
+  );
+}
+
+/** The rules of each Advantage a survivor holds (pg. 139; Z7-10). */
+export function advantagesOf(survivor: Survivor): readonly AdvantageRules[] {
+  return survivor.advantages.map((advantage) => ADVANTAGE_RULES[advantage]);
+}
+
+/** What a survivor's Advantages add to a Skill Score, as a term of its own (R92). */
+function advantageScore(survivor: Survivor, skill: Skill): number {
+  return advantagesOf(survivor).reduce(
+    (total, rules) => total + (rules.score?.skill === skill ? rules.score.amount : 0),
+    0,
+  );
 }
 
 /**
@@ -267,6 +298,9 @@ export function createSurvivor(
     madness: 0,
     humanity: HUMANITY_START,
     spells: [],
+    advantages: [],
+    xpDebt: 0,
+    injuries: {},
     xpSpent: 0,
     found: false,
     foundCheckPassed: false,
@@ -280,6 +314,17 @@ export function createSurvivor(
     stories: [],
     rotResistant: false,
   };
+}
+
+/**
+ * The survivor with this much XP gained (pg. 137; R94): it pays off their
+ * experience debt one for one first, and only what is left over reaches their
+ * XP. Every gain goes through here, so no source can skip the debt.
+ */
+export function withXpGained(survivor: Survivor, amount: number): Survivor {
+  const paid = Math.min(survivor.xpDebt, amount);
+
+  return { ...survivor, xpDebt: survivor.xpDebt - paid, xp: survivor.xp + amount - paid };
 }
 
 /**

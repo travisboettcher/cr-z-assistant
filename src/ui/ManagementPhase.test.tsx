@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { createNewCampaign, type Campaign, type Survivor } from '../engine/campaign';
@@ -169,6 +169,48 @@ describe('Check for Rot', () => {
       ...overrides,
     });
 
+  /** R86; Z7-11: a Permanent Injury instead of turning, with the Toolkit's traits in use. */
+  it('offers a Permanent Injury instead of turning, and takes it', async () => {
+    const user = open(dying({ traitsEnabled: true }));
+
+    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '1');
+    await user.click(within(walk()).getByLabelText(/take a permanent injury instead of turning/i));
+    expect(walk().textContent).toContain('Roll on the injury table for Earl Rhodes.');
+    expect(within(walk()).getByRole('button', { name: /resolve earl/i })).toBeDisabled();
+
+    await user.selectOptions(within(walk()).getByLabelText(/injury table d10/i), '10');
+    await user.selectOptions(within(walk()).getByLabelText(/^chosen$/i), 'deaf');
+    expect(walk().textContent).toContain('Earl Rhodes takes Deaf and doesn’t turn.');
+    await user.click(within(walk()).getByRole('button', { name: /resolve earl/i }));
+
+    expect(walk().textContent).toContain(
+      'Earl Rhodes failed, rolling a 1 against 12, and took Deaf instead of turning (a 10 on the injury table).',
+    );
+  });
+
+  it('says a 4 with no origin is rolled again', async () => {
+    const user = open(dying({ traitsEnabled: true }));
+
+    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '1');
+    await user.click(within(walk()).getByLabelText(/take a permanent injury instead of turning/i));
+    await user.selectOptions(within(walk()).getByLabelText(/injury table d10/i), '4');
+
+    expect(walk().textContent).toContain('A 4 with no origin is rolled again.');
+    expect(within(walk()).getByRole('button', { name: /resolve earl/i })).toBeDisabled();
+  });
+
+  it('offers no injury without the traits, or on a check that holds', async () => {
+    const user = open(dying({ traitsEnabled: true }));
+
+    await user.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '10');
+    expect(within(walk()).queryByLabelText(/take a permanent injury/i)).toBeNull();
+
+    cleanup();
+    const plain = open(dying());
+    await plain.selectOptions(within(walk()).getByLabelText(/^rolled$/i), '1');
+    expect(within(walk()).queryByLabelText(/take a permanent injury/i)).toBeNull();
+  });
+
   it('says nothing to do when nobody is dying', () => {
     open(management({ step: 'check-for-rot' }));
 
@@ -207,7 +249,7 @@ describe('Check for Rot', () => {
     // #104's fix, with a reset roll select, a preview reading "turns and is
     // removed", and a button the reducer's guard silently swallowed (#143).
     expect(within(walk()).queryByRole('button', { name: /resolve earl/i })).toBeNull();
-    expect(walk().textContent).toContain('Earl Rhodes held on this turn');
+    expect(walk().textContent).toContain('Earl Rhodes held on, rolling a 10 against 12.');
     expect(campaignLog().textContent).toContain('Earl Rhodes held on');
   });
 
@@ -393,6 +435,54 @@ describe('the Infection check', () => {
     expect(campaignLog().textContent).toContain(
       'Earl Rhodes held off the Infection, rolling a 2 against 6 Infection.',
     );
+  });
+
+  /** R100; Z7-12: a Permanent Injury instead of turning, as a Rot check's can be. */
+  it('takes a Permanent Injury instead of turning, and says so', async () => {
+    const user = open({ ...infected(10), traitsEnabled: true });
+    const section = within(within(walk()).getByRole('region', { name: 'Infection checks' }));
+
+    await user.selectOptions(section.getByLabelText('Rolled'), '1');
+    await user.click(section.getByLabelText(/take a permanent injury instead of turning/i));
+    await user.selectOptions(section.getByLabelText(/injury table d10/i), '4');
+    expect(section.getByText('Earl Rhodes takes Sickly and doesn’t turn.')).toBeTruthy();
+    await user.click(
+      section.getByRole('button', { name: 'Resolve Earl Rhodes’s Infection check' }),
+    );
+
+    expect(section.queryByText(/held off the Infection this turn/)).toBeNull();
+    expect(
+      section.getByText(
+        'Earl Rhodes failed the Infection check, rolling a 1 against 10 Infection, and took Sickly instead of turning (a 4 on the injury table).',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('says an origin injury takes its Advantage away instead', async () => {
+    const user = open({
+      ...infected(10),
+      traitsEnabled: true,
+      survivors: [
+        { ...createSurvivor('Earl Rhodes', 4, { id: EARL }), infection: 10, rotResistant: true },
+      ],
+    });
+    const section = within(within(walk()).getByRole('region', { name: 'Infection checks' }));
+
+    await user.selectOptions(section.getByLabelText('Rolled'), '1');
+    await user.click(section.getByLabelText(/take a permanent injury instead of turning/i));
+    await user.selectOptions(section.getByLabelText(/injury table d10/i), '4');
+    expect(
+      section.getByText(
+        'Sickly takes Earl Rhodes’s Rot Resistant away instead, and they don’t turn.',
+      ),
+    ).toBeTruthy();
+    await user.click(
+      section.getByRole('button', { name: 'Resolve Earl Rhodes’s Infection check' }),
+    );
+
+    expect(
+      section.getByText(/and lost their Rot Resistant to Sickly instead of turning/),
+    ).toBeTruthy();
   });
 
   it('says what a failure costs before the press', async () => {

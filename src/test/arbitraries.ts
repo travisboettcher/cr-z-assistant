@@ -25,7 +25,7 @@ import { COMMON_SKILLS, SKILLS, STATS, type Skill } from '../data/skills';
 import { D10_RESULTS } from '../data/dice';
 import { TIERS } from '../data/tiers';
 import { MATERIALS, type Materials } from '../data/materials';
-import { STORY_TRAITS } from '../data/traits';
+import { ADVANTAGES, INJURIES, INJURY_RULES, STORY_TRAITS } from '../data/traits';
 import { EQUIPMENT, GRADES, ITEM_IDS, VEHICLE_TIERS } from '../data/equipment';
 import { OVERRUN_OPTIONS, PROMOTION_STORIES, STORY_MISSION_IDS } from '../data/missions';
 import { CAMPAIGN_ORIGINS, SPELLS } from '../data/origins';
@@ -212,6 +212,16 @@ export function survivorArbitrary(): fc.Arbitrary<Survivor> {
       madness: anyCount,
       humanity: fc.integer({ min: 0, max: 5 }),
       spells: fc.subarray([...SPELLS]),
+      advantages: fc.subarray([...ADVANTAGES]),
+      xpDebt: anyCount,
+      // A count of each held, from 1 to as many as the injury allows (R87).
+      injuries: fc
+        .subarray([...INJURIES])
+        .chain((held) =>
+          fc
+            .tuple(...held.map((injury) => fc.integer({ min: 1, max: INJURY_RULES[injury].most })))
+            .map((counts) => Object.fromEntries(held.map((injury, at) => [injury, counts[at]]))),
+        ),
       xpSpent: anyCount,
       found: fc.boolean(),
       foundCheckPassed: fc.boolean(),
@@ -423,9 +433,30 @@ const MISSION_IDS = Object.keys(MISSIONS) as MissionId[];
  */
 function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
   const survivor = { survivor: anyId, name: anyName };
+  // A Permanent Injury taken instead of turning (R86, R100).
+  const anyInjuryTaken = fc.record({
+    roll: fc.constantFrom(...D10_RESULTS),
+    injury: fc.constantFrom(...INJURIES),
+    fate: fc.constantFrom(
+      'gained' as const,
+      'becomes' as const,
+      'turns' as const,
+      'kills' as const,
+      'replaces' as const,
+    ),
+  });
 
   return fc.oneof<fc.Arbitrary<CampaignEvent>[]>(
-    fc.record({ kind: fc.constant('campaign-started' as const), name: anyName }),
+    fc.record(
+      {
+        kind: fc.constant('campaign-started' as const),
+        name: anyName,
+        origin: fc.constantFrom(...CAMPAIGN_ORIGINS),
+        traits: fc.constant(true as const),
+      },
+      { requiredKeys: ['kind', 'name'] },
+    ),
+    fc.record({ kind: fc.constant('traits-switched' as const), enabled: fc.boolean() }),
     fc.record({ kind: fc.constant('phase-entered' as const) }),
     fc.record({ kind: fc.constant('turn-began' as const) }),
     fc.record({ kind: fc.constant('planning-began' as const) }),
@@ -441,14 +472,19 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       required: anyCount,
       hunger: anyCount,
     }),
-    fc.record({
-      kind: fc.constant('rot-checked' as const),
-      survivor: anyId,
-      name: anyName,
-      roll: fc.constantFrom(...D10_RESULTS),
-      target: anyAmount,
-      passed: fc.boolean(),
-    }),
+    // With a Permanent Injury taken instead of turning, or none (R86; Z7-11).
+    fc.record(
+      {
+        kind: fc.constant('rot-checked' as const),
+        survivor: anyId,
+        name: anyName,
+        roll: fc.constantFrom(...D10_RESULTS),
+        target: anyAmount,
+        passed: fc.boolean(),
+        injury: anyInjuryTaken,
+      },
+      { requiredKeys: ['kind', 'survivor', 'name', 'roll', 'target', 'passed'] },
+    ),
     fc.record({
       kind: fc.constant('survivor-inoculated' as const),
       survivor: anyId,
@@ -472,15 +508,19 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       name: anyName,
       infection: fc.integer({ min: 1, max: 10 }),
     }),
-    fc.record({
-      kind: fc.constant('infection-checked' as const),
-      survivor: anyId,
-      name: anyName,
-      roll: fc.constantFrom(...D10_RESULTS),
-      infection: fc.integer({ min: 1, max: 10 }),
-      bonus: anyAmount,
-      passed: fc.boolean(),
-    }),
+    fc.record(
+      {
+        kind: fc.constant('infection-checked' as const),
+        survivor: anyId,
+        name: anyName,
+        roll: fc.constantFrom(...D10_RESULTS),
+        infection: fc.integer({ min: 1, max: 10 }),
+        bonus: anyAmount,
+        passed: fc.boolean(),
+        injury: anyInjuryTaken,
+      },
+      { requiredKeys: ['kind', 'survivor', 'name', 'roll', 'infection', 'bonus', 'passed'] },
+    ),
     fc.record({
       kind: fc.constant('bite-restrained' as const),
       survivor: anyId,
@@ -729,13 +769,18 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       },
       { requiredKeys: ['kind', 'survivor', 'name', 'health', 'source'] },
     ),
-    fc.record({
-      kind: fc.constant('xp-awarded' as const),
-      survivor: anyId,
-      name: anyName,
-      amount: fc.integer({ min: 1, max: 20 }),
-      source: fc.constantFrom(...XP_SOURCES),
-    }),
+    // With what went to experience debt, or none (R94; Z7-10).
+    fc.record(
+      {
+        kind: fc.constant('xp-awarded' as const),
+        survivor: anyId,
+        name: anyName,
+        amount: fc.integer({ min: 1, max: 20 }),
+        source: fc.constantFrom(...XP_SOURCES),
+        toDebt: fc.integer({ min: 1, max: 20 }),
+      },
+      { requiredKeys: ['kind', 'survivor', 'name', 'amount', 'source'] },
+    ),
     fc.record({ kind: fc.constant('starting-community-settled' as const), built: fc.boolean() }),
     fc.record({
       kind: fc.constant('survivor-added' as const),
@@ -1215,6 +1260,7 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
           vehicles: fc.array(vehicleArbitrary(), { maxLength: 2 }),
           heldZombies: anyCount,
           medicalSupplies: anyCount,
+          traitsEnabled: fc.boolean(),
           // None as often as one: a trade under way is the rarer state (Z5-10).
           rareTrade: fc.option(
             fc.record({
@@ -1258,6 +1304,7 @@ function unassignedCampaignArbitrary(): fc.Arbitrary<Omit<Campaign, 'assignments
             'vehicles',
             'heldZombies',
             'medicalSupplies',
+            'traitsEnabled',
             'startingCommunityBuilt',
             'base',
             'log',

@@ -34,6 +34,9 @@ const SAMPLE_SURVIVOR = {
   madness: 0,
   humanity: 3,
   spells: [],
+  advantages: [],
+  xpDebt: 0,
+  injuries: {},
   xpSpent: 0,
   found: false,
   foundCheckPassed: false,
@@ -1037,6 +1040,96 @@ describe('the v24 to v25 spells', () => {
     if (!result.ok) return;
 
     expect(result.campaign.lost[0]?.spells).toEqual([]);
+    expect(result.campaign.survivors).toEqual([null, 7]);
+    expect(result.campaign.setAside).toBe('nobody');
+  });
+});
+
+describe('the v25 to v26 Toolkit traits', () => {
+  it('brings every earlier campaign forward with the traits off, and nobody indebted (R84)', () => {
+    for (const fixture of fixtures.filter((f) => f.version < 26)) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok) continue;
+
+      expect(result.campaign.traitsEnabled, fixture.path).toBe(false);
+      for (const survivor of [...result.campaign.survivors, ...result.campaign.setAside]) {
+        expect(survivor.advantages, `${fixture.path} ${survivor.name}`).toEqual([]);
+        expect(survivor.xpDebt, `${fixture.path} ${survivor.name}`).toBe(0);
+      }
+    }
+  });
+
+  it('keeps a v26 save’s own', () => {
+    const v26 = fixtures.find((fixture) => fixture.version === 26);
+    const result = migrate(v26?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.traitsEnabled).toBe(true);
+    expect(result.campaign.survivors[0]?.advantages).toEqual(['forager', 'natural-leader']);
+    expect(result.campaign.survivors[0]?.xpDebt).toBe(4);
+  });
+
+  it('brings a Lost survivor forward too, and hands anything else on untouched', () => {
+    const v25 = fixtures.find((fixture) => fixture.version === 25);
+    const gone = { ...((v25?.contents as { survivors: object[] }).survivors[0] as object) };
+    const result = migrate({
+      ...(v25?.contents as object),
+      lost: [{ ...gone, id: 'gone' }],
+      survivors: [null, 7],
+      setAside: 'nobody',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.lost[0]?.advantages).toEqual([]);
+    expect(result.campaign.survivors).toEqual([null, 7]);
+    expect(result.campaign.setAside).toBe('nobody');
+  });
+});
+
+describe('the v26 to v27 Permanent Injuries', () => {
+  it('brings every earlier survivor forward carrying none (R84)', () => {
+    for (const fixture of fixtures.filter((f) => f.version < 27)) {
+      const result = migrate(fixture.contents);
+
+      expect(result.ok, `${fixture.path} no longer migrates`).toBe(true);
+      if (!result.ok) continue;
+
+      for (const survivor of [...result.campaign.survivors, ...result.campaign.setAside]) {
+        expect(survivor.injuries, `${fixture.path} ${survivor.name}`).toEqual({});
+      }
+    }
+  });
+
+  it('keeps a v27 save’s own', () => {
+    const v27 = fixtures.find((fixture) => fixture.version === 27);
+    const result = migrate(v27?.contents);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.survivors[0]?.injuries).toEqual({ 'one-handed': 1, deaf: 1 });
+  });
+
+  it('brings a Lost survivor forward too, and hands anything else on untouched', () => {
+    const v26 = fixtures.find((fixture) => fixture.version === 26);
+    const gone = { ...((v26?.contents as { survivors: object[] }).survivors[0] as object) };
+    const result = migrate({
+      ...(v26?.contents as object),
+      lost: [{ ...gone, id: 'gone' }],
+      survivors: [null, 7],
+      setAside: 'nobody',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.campaign.lost[0]?.injuries).toEqual({});
     expect(result.campaign.survivors).toEqual([null, 7]);
     expect(result.campaign.setAside).toBe('nobody');
   });

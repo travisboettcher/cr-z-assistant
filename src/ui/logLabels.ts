@@ -25,6 +25,7 @@ import type { Item } from '../engine/campaign';
 import type {
   CampaignEvent,
   HistoricMaterials,
+  InjuryTaken,
   LeavingCause,
   LogEntry,
   RareTradeLoss,
@@ -52,6 +53,8 @@ import { PHASE_LABELS } from './turnLabels';
 import { COMMON_SKILL_LABELS, SKILL_LABELS } from './skillLabels';
 import { TIER_LABELS } from './tierLabels';
 import { SPELL_LABELS, spellList } from './spellLabels';
+import { INJURY_LABELS, replacedLabel } from './traitLabels';
+import { ORIGIN_LABELS } from './originLabels';
 
 export interface EventLabel {
   /** One line, in the past tense. No rule text — see the copyright posture. */
@@ -125,11 +128,13 @@ function counted(items: readonly Item[]): string {
 
 /** How a `survivor-left` entry's survivor left, by its cause (#201). */
 const LEFT_BY_CAUSE: Readonly<
-  Record<Exclude<LeavingCause, 'killed'>, { readonly how: string; readonly pages?: 22 }>
+  Record<Exclude<LeavingCause, 'killed'>, { readonly how: string; readonly pages?: number }>
 > = {
   turned: { how: 'turned and left the community', pages: 22 },
   bitten: { how: 'died of the bite', pages: 22 },
   removed: { how: 'was taken off the roster' },
+  // A third One-handed (pg. 138; R87; Z7-11).
+  injury: { how: 'died of their injuries', pages: 138 },
 };
 
 /** Why a Rare Items trade was lost, as its line opens (pp. 21, 23; R59, R60). */
@@ -157,7 +162,19 @@ function cited(text: string, pages: number | string | undefined): EventLabel {
 export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
   switch (event.kind) {
     case 'campaign-started':
-      return { text: `Started the campaign “${event.name}”.` };
+      return {
+        text: `Started the campaign “${event.name}”${
+          event.origin === undefined ? '' : `, with the ${ORIGIN_LABELS[event.origin]} origin`
+        }${event.traits === true ? ', using the Toolkit’s survivor traits' : ''}.`,
+      };
+
+    case 'traits-switched':
+      return {
+        text: event.enabled
+          ? 'The Toolkit’s survivor traits are in use from now on.'
+          : 'The Toolkit’s survivor traits are no longer in use, and every survivor’s Advantages, experience debt and Permanent Injuries went with them.',
+        pages: 137,
+      };
 
     case 'phase-entered':
       // Deliberately says nothing about *which* phase: the entry it came from
@@ -251,19 +268,38 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
         pages: 22,
       };
 
-    case 'rot-checked':
+    case 'rot-checked': {
+      const rolling = `rolling ${articleForNumber(event.roll)} ${String(event.roll)} against ${String(event.target)}`;
+
+      if (event.injury !== undefined) {
+        // Taken as a Permanent Injury instead of turning (R86; Z7-11).
+        return {
+          text: `${event.name} failed, ${rolling}, ${injuryTakenText(event.injury)}.`,
+          pages: '22, 137–138',
+        };
+      }
+
       return {
         text: event.passed
-          ? `${event.name} held on, rolling ${articleForNumber(event.roll)} ${String(event.roll)} against ${String(event.target)}.`
-          : `${event.name} turned, rolling ${articleForNumber(event.roll)} ${String(event.roll)} against ${String(event.target)}.`,
+          ? `${event.name} held on, ${rolling}.`
+          : `${event.name} turned, ${rolling}.`,
         pages: 22,
       };
+    }
 
     case 'infection-checked': {
       // The roll's whole sum, because the Medicine is what usually decides it (R99).
       const against = `rolling ${articleForNumber(event.roll)} ${String(event.roll)}${
         event.bonus === 0 ? '' : ` with ${String(event.bonus)} Medicine`
       } against ${String(event.infection)} Infection`;
+
+      if (event.injury !== undefined) {
+        // Taken as a Permanent Injury instead of turning (R100; Z7-12).
+        return {
+          text: `${event.name} failed the Infection check, ${against}, ${injuryTakenText(event.injury)}.`,
+          pages: '123, 137–138',
+        };
+      }
 
       return {
         text: event.passed
@@ -438,7 +474,13 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
 
     case 'xp-awarded':
       return {
-        text: `${event.name} gained ${event.amount} XP ${XP_SOURCE_PHRASES[event.source]}.`,
+        text: `${event.name} gained ${event.amount} XP ${XP_SOURCE_PHRASES[event.source]}${
+          event.toDebt === undefined
+            ? ''
+            : event.toDebt >= event.amount
+              ? ', all of it toward their experience debt'
+              : `, ${String(event.toDebt)} of it toward their experience debt`
+        }.`,
         pages: XP_SOURCE_PAGES[event.source],
       };
 
@@ -809,4 +851,18 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
  */
 export function describeWhen(entry: LogEntry): string {
   return `Turn ${entry.turn}, ${PHASE_LABELS[entry.phase]}`;
+}
+
+/** What a check's Permanent Injury did, and the d10 on the table (R86, R87, R161, R162). */
+function injuryTakenText(taken: InjuryTaken): string {
+  const injury = INJURY_LABELS[taken.injury];
+  const what = {
+    gained: `and took ${injury} instead of turning`,
+    becomes: `and took a second ${injury} instead of turning, so is Blind`,
+    turns: `and turned anyway: another ${injury} is more than they can carry`,
+    kills: `and a third ${injury} killed them`,
+    replaces: `and lost their ${replacedLabel(taken.injury)} to ${injury} instead of turning`,
+  }[taken.fate];
+
+  return `${what} (${articleForNumber(taken.roll)} ${String(taken.roll)} on the injury table)`;
 }

@@ -238,6 +238,78 @@ describe('a failure turns them, as a failed Rot check does (pg. 22; R100)', () =
   });
 });
 
+describe('a failure taken as a Permanent Injury instead (R100; Z7-12)', () => {
+  const toolkit = (survivors: readonly Survivor[]) =>
+    viral(survivors, { traitsEnabled: true, assignments: { b: { task: 'healing' } } });
+
+  it('gains it and turns nobody, the check’s entry saying so', () => {
+    const result = submitInfectionCheck(
+      toolkit([carrying('a', 'A', 9), carrying('b', 'B', 0)]),
+      { survivor: 'a', roll: 2, bitten: null, injury: { roll: 4 } },
+      AT,
+    );
+    if (!result.ok) throw new Error(result.problem);
+
+    expect(result.campaign.survivors.map((one) => [one.id, one.injuries])).toEqual([
+      ['a', { sickly: 1 }],
+      ['b', {}],
+    ]);
+    expect(result.campaign.log.map(({ event }) => event)).toEqual([
+      {
+        kind: 'infection-checked',
+        survivor: 'a',
+        name: 'A',
+        roll: 2,
+        infection: 9,
+        bonus: 0,
+        passed: false,
+        injury: { roll: 4, injury: 'sickly', fate: 'gained' },
+      },
+    ]);
+    expect(infectionCheckResolved(result.campaign, 'a')).toBe(true);
+  });
+
+  it('turns them as normal for a repeat they can’t carry, the bite and all', () => {
+    const result = submitInfectionCheck(
+      toolkit([{ ...carrying('a', 'A', 9), injuries: { deaf: 1 } }, carrying('b', 'B', 0)]),
+      { survivor: 'a', roll: 2, bitten: 'b', injury: { roll: 8 } },
+      AT,
+    );
+    if (!result.ok) throw new Error(result.problem);
+
+    expect(result.campaign.log.map(({ event }) => event.kind)).toEqual([
+      'infection-checked',
+      'survivor-left',
+      'survivor-bitten',
+    ]);
+    expect(result.campaign.log[0]?.event).toMatchObject({
+      injury: { roll: 8, injury: 'deaf', fate: 'turns' },
+    });
+  });
+
+  it('is refused on a check that held, and without the traits', () => {
+    const held = submitInfectionCheck(
+      toolkit([carrying('a', 'A', 3)]),
+      { survivor: 'a', roll: 9, bitten: null, injury: { roll: 8 } },
+      AT,
+    );
+    expect(held).toEqual({
+      ok: false,
+      problem: 'They passed, so there’s no turning to take an injury instead of.',
+    });
+    expect(
+      submitInfectionCheck(
+        viral([carrying('a', 'A', 9)]),
+        { survivor: 'a', roll: 2, bitten: null, injury: { roll: 8 } },
+        AT,
+      ),
+    ).toEqual({
+      ok: false,
+      problem: 'Permanent Injuries come with the Toolkit’s survivor traits.',
+    });
+  });
+});
+
 describe('the step owes the checks (R99)', () => {
   it('until everybody carrying Infection has made one', () => {
     const campaign = viral([carrying('a', 'A', 2)]);

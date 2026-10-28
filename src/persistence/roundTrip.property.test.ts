@@ -200,6 +200,7 @@ it('does not survive a negative zero material count, which is why the generator 
     vehicles: [],
     heldZombies: 0,
     medicalSupplies: 0,
+    traitsEnabled: false,
     startingCommunityBuilt: false,
     base: null,
     assignments: {},

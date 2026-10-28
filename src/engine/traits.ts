@@ -14,10 +14,22 @@
  */
 
 import { STATS, type Stat } from '../data/skills';
-import { STORY_TRAIT_RULES, type StoryTrait, type StoryTraitRules } from '../data/traits';
+import {
+  ADVANTAGE_RULES,
+  ADVANTAGES,
+  INJURIES,
+  INJURY_RULES,
+  type Injury,
+  type InjuryRules,
+  STORY_TRAIT_RULES,
+  type AdvantageRules,
+  type StoryTrait,
+  type StoryTraitRules,
+} from '../data/traits';
 import { TIER_RULES } from '../data/tiers';
 import { PROMOTION_STORIES, type StoryMissionId } from '../data/missions';
 import { SPELLS } from '../data/origins';
+import { injuryLaborAdd, injuryLaborSet } from './injuries';
 import { type Assignment, type Campaign, keptSurvivors, type Survivor } from './campaign';
 
 /** The rules of the Story Trait a survivor holds, or `undefined` for none. */
@@ -70,11 +82,26 @@ export function survivorLabor(survivor: Survivor, team: readonly Survivor[]): nu
 
   if (rules?.laborAlone !== undefined && others.length > 0) return 0;
 
+  // R89's first step, setting: Blind's 1, a second One-handed's 0 (pg. 138; Z7-11).
+  const set = injuryLaborSet(survivor);
+
+  // R89's third step, adding: Natural Leader gives every other member 1
+  // (pg. 139; Z7-10).
+  const led = others.reduce(
+    (total, other) =>
+      total +
+      other.advantages.reduce(
+        (sum, advantage) =>
+          sum + ((ADVANTAGE_RULES[advantage] as AdvantageRules).laborToOthers ?? 0),
+        0,
+      ),
+    0,
+  );
   const bonded =
     rules?.laborNeedsBondmate !== true || others.some((other) => bondmates(survivor, other));
   const multiplier = (rules?.laborAlone ?? 1) * (bonded ? (rules?.laborMultiplier ?? 1) : 1);
 
-  return Math.max(0, Math.ceil(base * multiplier));
+  return Math.max(0, Math.ceil(((set ?? base) + led + injuryLaborAdd(survivor)) * multiplier));
 }
 
 /** Whether two Bonded survivors share a bond group (R84, R134). */
@@ -106,12 +133,25 @@ export function missionWhileWounded(survivor: Survivor): boolean {
 
 /**
  * A survivor's Story Trait, Veteran, bond group, attached stories, Rot
- * Resistant, the Found marks and the spells they know together, as the sheet
- * sets them (R84, R97, R109, R111, R112, R116). The last four are optional
- * here: the stories and traits a story sets leave them as they are.
+ * Resistant, the Found marks, the spells they know, and their Advantages and
+ * experience debt together, as the sheet sets them (R84, R97, R109, R111,
+ * R112, R116, R158). The optional ones are left as they are by the stories and
+ * traits a story sets.
  */
 export type SurvivorTraits = Pick<Survivor, 'storyTrait' | 'veteran' | 'bondGroup' | 'stories'> &
-  Partial<Pick<Survivor, 'rotResistant' | 'found' | 'foundCheckPassed' | 'spells'>>;
+  Partial<
+    Pick<
+      Survivor,
+      | 'rotResistant'
+      | 'found'
+      | 'foundCheckPassed'
+      | 'spells'
+      | 'advantages'
+      | 'xpDebt'
+      | 'injuries'
+      | 'xp'
+    >
+  >;
 
 /**
  * Why these traits cannot be a survivor's, or `null`: each spell known once
@@ -122,6 +162,55 @@ export function traitsProblem(traits: SurvivorTraits): string | null {
   const spells = traits.spells ?? [];
   if (spells.some((spell, at) => !SPELLS.includes(spell) || spells.indexOf(spell) !== at)) {
     return 'Each spell is known once.';
+  }
+  const advantages = traits.advantages ?? [];
+  if (
+    advantages.some(
+      (advantage, at) => !ADVANTAGES.includes(advantage) || advantages.indexOf(advantage) !== at,
+    )
+  ) {
+    return 'Each Advantage is held once.';
+  }
+  if (traits.xpDebt !== undefined && !(Number.isInteger(traits.xpDebt) && traits.xpDebt >= 0)) {
+    return 'Experience debt is a whole number, 0 or more.';
+  }
+  if (traits.xp !== undefined && !(Number.isInteger(traits.xp) && traits.xp >= 0)) {
+    return 'XP is a whole number, 0 or more.';
+  }
+  // Each injury from 1 to as many as it allows (R87), and One-handed never with
+  // Ambidextrous (pg. 138).
+  const injuries = Object.entries(traits.injuries ?? {});
+  if (
+    injuries.some(
+      ([injury, count]) =>
+        !(INJURIES as readonly string[]).includes(injury) ||
+        !Number.isInteger(count) ||
+        (count as number) < 1 ||
+        (count as number) > INJURY_RULES[injury as Injury].most,
+    )
+  ) {
+    return 'Each injury is held from once to as many times as it allows.';
+  }
+  if (
+    injuries.some(([injury]) =>
+      advantages.some(
+        (advantage) => (INJURY_RULES[injury as Injury] as InjuryRules).removes === advantage,
+      ),
+    )
+  ) {
+    return 'One-handed and Ambidextrous can’t be held together.';
+  }
+  // Nor Psychic Scars with Calloused Psyche, or Touched with Resistance (R163).
+  // Rot Resistant isn't refused with Sickly: an Inoculation gives it to anybody
+  // (R97), so only the sheet's creation picker keeps them apart.
+  if (
+    injuries.some(([injury]) =>
+      advantages.some(
+        (advantage) => (INJURY_RULES[injury as Injury] as InjuryRules).replaces === advantage,
+      ),
+    )
+  ) {
+    return 'An origin injury and the Advantage it takes away can’t be held together.';
   }
   if (traits.storyTrait === 'bonded') {
     return Number.isInteger(traits.bondGroup) && (traits.bondGroup as number) >= 1

@@ -1,3 +1,5 @@
+import { scoreZeroed } from './injuries';
+import { ADVANTAGE_RULES, type AdvantageRules } from '../data/traits';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { NO_PENALTY } from './production';
@@ -27,11 +29,15 @@ describe('derived survivor values', () => {
    * makes that safe — a version that returned null for level 0 as well would
    * pass a test that only checked the absent case.
    */
-  it('score a skill if and only if the survivor has it', () => {
+  it('score a skill if and only if the survivor has it, or an Advantage gives one (R92)', () => {
     fc.assert(
       fc.property(survivorArbitrary(), (survivor) => {
         for (const skill of SKILLS) {
-          const held = skill in survivor.skills;
+          const held =
+            skill in survivor.skills ||
+            survivor.advantages.some(
+              (advantage) => (ADVANTAGE_RULES[advantage] as AdvantageRules).score?.skill === skill,
+            );
 
           expect(skillScore(survivor, skill, NO_PENALTY) === null).toBe(!held);
         }
@@ -47,7 +53,13 @@ describe('derived survivor values', () => {
           const score = skillScore(survivor, skill, NO_PENALTY);
           const level = survivor.skills[skill];
 
-          if (score === null || level === undefined || itemCap(survivor, skill) !== undefined) {
+          // Blind's Scout and Scavenge are 0 whatever the stat (pg. 138; Z7-11).
+          if (
+            score === null ||
+            level === undefined ||
+            itemCap(survivor, skill) !== undefined ||
+            scoreZeroed(survivor, skill)
+          ) {
             continue;
           }
 

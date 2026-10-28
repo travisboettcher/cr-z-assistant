@@ -28,9 +28,11 @@ import {
 import { TIER_RULES, type StatArray, type Tier } from '../data/tiers';
 import type { Stats, Survivor } from './campaign';
 import { withXpSpent } from './survivor';
+import { skillLevelMaximum } from './injuries';
 
 /** Why a purchase cannot be made. */
 export type PurchaseBlock =
+  | 'in-debt'
   | 'not-enough-xp'
   | 'at-tier-maximum'
   | 'at-score-maximum'
@@ -70,7 +72,8 @@ export function skillLevelPurchase(survivor: Survivor, skill: Skill): Purchase {
 
   if (level === undefined) return { cost, blocked: 'skill-not-taken' };
 
-  if (newLevel > TIER_RULES[survivor.tier].maxSkillLevel) {
+  // Their Tier's maximum, less what Bad shoulder takes off (pg. 138; Z7-11).
+  if (newLevel > skillLevelMaximum(survivor, skill)) {
     return { cost, blocked: 'at-tier-maximum' };
   }
 
@@ -235,6 +238,9 @@ function chosen(stat: Stat, raise: Stat | null): number {
 }
 
 function affordable(survivor: Survivor, cost: number): PurchaseBlock | null {
+  // Debt is paid before anything is spent (pg. 137; R94).
+  if (survivor.xpDebt > 0) return 'in-debt';
+
   return survivor.xp >= cost ? null : 'not-enough-xp';
 }
 

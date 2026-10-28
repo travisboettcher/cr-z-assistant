@@ -27,7 +27,7 @@ import { FIELD_RECRUITABLE_TIERS } from '../data/recruitTable';
 import { CAMPAIGN_ORIGINS, SPELLS } from '../data/origins';
 import { CAMPAIGN_PHASES, HEALTH_SOURCES, XP_SOURCES } from '../data/turn';
 import type { Assignment, Campaign, Project } from '../engine/campaign';
-import { STORY_TRAITS } from '../data/traits';
+import { ADVANTAGES, INJURY_RULES, STORY_TRAITS, type Injury } from '../data/traits';
 import {
   LEAVING_CAUSES,
   RARE_TRADE_LOSSES,
@@ -359,6 +359,29 @@ function describeSurvivorProblem(value: unknown): string | null {
     )
   ) {
     return 'has an unreadable list of spells';
+  }
+  // The Toolkit's Advantages, each once, and the debt they left (R84, R94; Z7-10).
+  if (
+    !Array.isArray(value.advantages) ||
+    value.advantages.some(
+      (advantage: unknown, at: number, all: unknown[]) =>
+        !ADVANTAGES.some((known) => known === advantage) || all.indexOf(advantage) !== at,
+    )
+  ) {
+    return 'has an unreadable list of Advantages';
+  }
+  if (!isCountFromZero(value.xpDebt)) return 'doesn’t say how much experience debt they carry';
+  // The Permanent Injuries, a count of each, from 1 to as many as one allows (R84, R87; Z7-11).
+  if (
+    !isRecord(value.injuries) ||
+    Object.entries(value.injuries).some(
+      ([injury, count]) =>
+        !isKeyOf(INJURY_RULES, injury) ||
+        !isCountFromOne(count) ||
+        (count as number) > INJURY_RULES[injury as Injury].most,
+    )
+  ) {
+    return 'has an unreadable list of Permanent Injuries';
   }
   // The XP spent (R149) and the Found marks (R109, R111; Z7-8).
   if (!isCountFromZero(value.xpSpent)) return 'doesn’t say how much XP they have spent';
@@ -730,6 +753,17 @@ const EVENT_FIELD_CHECKS = {
         SPELLS.some((known) => known === spell) && value.indexOf(spell) === at,
     ),
   spell: (value: unknown) => SPELLS.some((known) => known === value),
+  // A Permanent Injury a failed Rot or Infection check was taken as (R86, R100; Z7-11).
+  optionalRotInjury: (value: unknown) =>
+    value === undefined ||
+    (isRecord(value) &&
+      Object.keys(value).length === 3 &&
+      D10_RESULTS.some((result) => result === value.roll) &&
+      isKeyOf(INJURY_RULES, value.injury as string) &&
+      ['gained', 'becomes', 'turns', 'kills', 'replaces'].includes(value.fate as string)),
+  // The origin a campaign began with (R98; Z7-10).
+  optionalOrigin: (value: unknown) =>
+    value === undefined || CAMPAIGN_ORIGINS.some((origin) => origin === value),
   // Why a survivor gained Humanity (R114; Z7-9).
   humanityGain: (value: unknown) => ['project-team', 'healed-from-0'].includes(value as string),
   // Why a survivor left (#201), absent on an entry from before it was recorded.
@@ -757,7 +791,12 @@ const EVENT_FIELDS: Record<
   CampaignEventKind,
   readonly (readonly [field: string, check: EventFieldCheck])[]
 > = {
-  'campaign-started': [['name', 'name']],
+  'campaign-started': [
+    ['name', 'name'],
+    ['origin', 'optionalOrigin'],
+    ['traits', 'optionalTrue'],
+  ],
+  'traits-switched': [['enabled', 'flag']],
   'phase-entered': [],
   'turn-began': [],
   'starting-community-settled': [['built', 'flag']],
@@ -796,6 +835,7 @@ const EVENT_FIELDS: Record<
     ['roll', 'roll'],
     ['target', 'amount'],
     ['passed', 'flag'],
+    ['injury', 'optionalRotInjury'],
   ],
   // The Viral origin's Infection check (Z7-5): against Infection from 1, with
   // the community's Medicine, which a Score can make any whole number.
@@ -806,6 +846,7 @@ const EVENT_FIELDS: Record<
     ['infection', 'countFromOne'],
     ['bonus', 'amount'],
     ['passed', 'flag'],
+    ['injury', 'optionalRotInjury'],
   ],
   'survivor-inoculated': [
     ['survivor', 'id'],
@@ -967,6 +1008,7 @@ const EVENT_FIELDS: Record<
     ['name', 'name'],
     ['amount', 'countFromOne'],
     ['source', 'xpSource'],
+    ['toDebt', 'optionalCountFromOne'],
   ],
   'survivor-added': [
     ['survivor', 'id'],
@@ -1482,6 +1524,10 @@ function describeCampaignProblem(value: unknown): string | null {
     return 'it doesn’t say how many zombies Containment holds';
   if (!isCountFromZero(value.medicalSupplies)) {
     return 'it doesn’t say how many Medical Supply tokens it keeps';
+  }
+  // The Toolkit's traits switch (R84; Z7-10).
+  if (typeof value.traitsEnabled !== 'boolean') {
+    return 'it doesn’t say whether the Toolkit’s traits are in use';
   }
 
   // The base's Inventory (Z5-2), which never holds a shoddy item: shoddy gear

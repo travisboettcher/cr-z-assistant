@@ -28,6 +28,7 @@ import { MaterialsEditor } from './MaterialsEditor';
 import { Modal } from './Modal';
 import { PanelOpener } from './panelOpener';
 import { InventoryPanel } from './InventoryPanel';
+import { CampaignSettings } from './CampaignSettings';
 import { SurvivorRoster } from './SurvivorRoster';
 import { SurvivorSheet } from './SurvivorSheet';
 import { TurnWalk } from './TurnWalk';
@@ -42,6 +43,7 @@ const TITLES: Record<Panel, string> = {
   materials: 'Materials',
   inventory: 'Inventory',
   log: 'Campaign log',
+  settings: 'Campaign settings',
   file: 'Campaign file',
 };
 
@@ -173,6 +175,7 @@ export function App() {
             ) : (
               <CampaignLog campaign={campaign} />
             ))}
+          {panel === 'settings' && <CampaignSettings campaign={campaign} />}
           {panel === 'file' && <CampaignFile campaign={campaign} />}
         </Modal>
       </Shell>

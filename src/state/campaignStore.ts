@@ -32,7 +32,7 @@
 import type { BaseId } from '../data/bases';
 import type { Utility } from '../data/facilities';
 import type { Material } from '../data/materials';
-import type { SpellId } from '../data/origins';
+import type { CampaignOrigin, SpellId } from '../data/origins';
 import type { Grade, ItemId } from '../data/equipment';
 import type { MissionId, OverrunOption } from '../data/missions';
 import type { D10Result } from '../data/dice';
@@ -50,6 +50,7 @@ import {
 import { builtEvent, builtOf, checkOrder, orderedEvent } from '../engine/orders';
 import { withUtilityToggled } from '../engine/utilities';
 import { createNewCampaign } from '../engine/campaign';
+import { humanityMax } from '../engine/injuries';
 import { logged } from '../engine/log';
 import { reverse, type AdvanceBy } from '../engine/turn';
 import type { MaterialRoll } from '../engine/materials';
@@ -73,6 +74,7 @@ import type { MissionOutcome } from '../engine/missions';
 import type { EquipMove } from '../engine/equip';
 import type { MissionDeath } from '../engine/missionDeaths';
 import type { SurvivorTraits } from '../engine/traits';
+import type { Injury } from '../data/traits';
 import type { StoryMissionId } from '../data/missions';
 import type { BuildOrder } from '../engine/making';
 import type { RareItemRoll } from '../engine/finding';
@@ -116,6 +118,7 @@ import {
   submitStrangerJoined,
   submitAssignment,
   submitTraitsSet,
+  submitTraitsSwitched,
   submitInoculationChosen,
   submitVeteranHealing,
 } from '../engine/campaignForms';
@@ -205,8 +208,14 @@ export type CampaignAction =
       readonly name: string;
       readonly id: string;
       readonly createdAt: string;
+      /** Chosen at the start and fixed (R98); absent for none. */
+      readonly origin?: CampaignOrigin;
+      /** Whether the Toolkit's traits are in use from the start (R84; Z7-10). */
+      readonly traitsEnabled?: boolean;
       readonly at: string;
     }
+  /** Switch the Toolkit's survivor traits on or off part-way (R84, R158; Z7-10). */
+  | { readonly type: 'campaign/traitsSwitched'; readonly enabled: boolean; readonly at: string }
   /**
    * Adopt an already-parsed campaign — the output of `parseCampaignFile` on
    * import (Z0-9) or of the localStorage restore (Z0-10). Validation and
@@ -708,6 +717,8 @@ export type CampaignAction =
       readonly survivor: string;
       readonly roll: D10Result;
       readonly bitten: string | null;
+      /** A Permanent Injury taken instead of turning (R86; Z7-11). */
+      readonly injury?: { readonly roll: D10Result; readonly chosen?: Injury };
       readonly at: string;
     }
   /**
@@ -721,6 +732,8 @@ export type CampaignAction =
       readonly survivor: string;
       readonly roll: D10Result;
       readonly bitten: string | null;
+      /** A Permanent Injury taken instead of turning (R100; Z7-12). */
+      readonly injury?: { readonly roll: D10Result; readonly chosen?: Injury };
       readonly at: string;
     }
   /**
@@ -872,14 +885,29 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return {
         status: 'open',
         campaign: logged(
-          createNewCampaign(action.name, { id: action.id, createdAt: action.createdAt }),
+          createNewCampaign(action.name, {
+            id: action.id,
+            createdAt: action.createdAt,
+            ...(action.origin === undefined ? {} : { origin: action.origin }),
+            ...(action.traitsEnabled === true ? { traitsEnabled: true } : {}),
+          }),
           action.at,
-          { kind: 'campaign-started', name: action.name },
+          {
+            kind: 'campaign-started',
+            name: action.name,
+            ...(action.origin === undefined ? {} : { origin: action.origin }),
+            ...(action.traitsEnabled === true ? { traits: true as const } : {}),
+          },
         ),
       };
 
     case 'campaign/loaded':
       return { status: 'open', campaign: action.campaign };
+
+    case 'campaign/traitsSwitched':
+      return submitted(state, (campaign) =>
+        submitTraitsSwitched(campaign, action.enabled, action.at),
+      );
 
     case 'campaign/renamed':
       return withCampaign(state, (campaign) => ({ ...campaign, name: action.name }));
@@ -945,7 +973,7 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
     case 'survivor/humanitySet':
       return editSurvivor(state, action.id, (survivor) => ({
         ...survivor,
-        humanity: Math.min(5, action.humanity),
+        humanity: Math.min(humanityMax(survivor), action.humanity),
       }));
 
     case 'survivor/xpSpentSet':
@@ -1138,7 +1166,12 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return submitted(state, (campaign) =>
         submitRotCheck(
           campaign,
-          { survivor: action.survivor, roll: action.roll, bitten: action.bitten },
+          {
+            survivor: action.survivor,
+            roll: action.roll,
+            bitten: action.bitten,
+            ...(action.injury === undefined ? {} : { injury: action.injury }),
+          },
           action.at,
         ),
       );
@@ -1147,7 +1180,12 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return submitted(state, (campaign) =>
         submitInfectionCheck(
           campaign,
-          { survivor: action.survivor, roll: action.roll, bitten: action.bitten },
+          {
+            survivor: action.survivor,
+            roll: action.roll,
+            bitten: action.bitten,
+            ...(action.injury === undefined ? {} : { injury: action.injury }),
+          },
           action.at,
         ),
       );

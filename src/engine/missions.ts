@@ -46,7 +46,6 @@ import { FIELD_RECRUITABLE_TIERS, type FieldRecruitTier } from '../data/recruitT
 import {
   FOUND_CHECK_TARGET,
   FOUND_MADNESS_CAP,
-  HUMANITY_MAX,
   MAGICAL_ITEMS,
   MADNESS_FOR_COSMIC_MISSIONS,
 } from '../data/origins';
@@ -60,6 +59,8 @@ import { storyProblem } from './storyMissions';
 import { magicProblem } from './magicMissions';
 import { containmentUnlock, viralProblem } from './viralMissions';
 import { maxHp, tierCheckPasses } from './survivor';
+import { humanityMax } from './injuries';
+import { ADVANTAGE_RULES, type AdvantageRules } from '../data/traits';
 import { phaseOf } from './turn';
 import { retrievedProblem } from './vehicles';
 
@@ -1040,9 +1041,9 @@ export function woundsProblem(campaign: Campaign, outcome: MissionOutcome): stri
     } else if (
       !Number.isSafeInteger(wound.humanity) ||
       (wound.humanity as number) < 0 ||
-      (wound.humanity as number) > HUMANITY_MAX
+      (wound.humanity as number) > humanityMax(survivor)
     ) {
-      return `${survivor.name}’s Humanity must be a whole number from 0 to ${String(HUMANITY_MAX)}.`;
+      return `${survivor.name}’s Humanity must be a whole number from 0 to ${String(humanityMax(survivor))}.`;
     }
 
     // A Found survivor's Tier check at their next gain (pg. 130; R111; Z7-8).
@@ -1112,13 +1113,18 @@ export function foundCheckOwed(survivor: Survivor, madness: number | undefined):
 /**
  * The Madness a wound leaves a survivor with, and whether they have passed
  * the Found check (R111): capped at 6 once it is passed, this check included,
- * and as recorded otherwise.
+ * and as recorded otherwise. Calloused Psyche keeps no more than 3 of what the
+ * mission gave (R165): a survivor is in one mission's outcome a turn, a siege's
+ * included (R17), so that is the turn's.
  */
 export function madnessAfter(
   survivor: Survivor,
   wound: MissionWound,
 ): Pick<Survivor, 'madness' | 'foundCheckPassed'> {
-  const madness = wound.madness ?? survivor.madness;
+  const madness = Math.min(
+    wound.madness ?? survivor.madness,
+    survivor.madness + madnessPerTurn(survivor),
+  );
   const passed =
     survivor.foundCheckPassed ||
     (wound.foundCheck !== undefined &&
@@ -1128,6 +1134,16 @@ export function madnessAfter(
     madness: passed ? Math.min(madness, FOUND_MADNESS_CAP) : madness,
     foundCheckPassed: passed,
   };
+}
+
+/** The most Madness a survivor keeps in a campaign turn: Calloused Psyche's 3, or no limit. */
+export function madnessPerTurn(survivor: Survivor): number {
+  return Math.min(
+    Infinity,
+    ...survivor.advantages.map(
+      (advantage) => (ADVANTAGE_RULES[advantage] as AdvantageRules).madnessPerTurn ?? Infinity,
+    ),
+  );
 }
 
 /**

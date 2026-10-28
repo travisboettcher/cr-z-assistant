@@ -13,13 +13,13 @@
  *
  * Staffed last Planning, read this Advancement, as the Training Room's XP is
  * (`beforePlanning`), less anybody a siege took off their post (`whoWorked`).
- * The Resistance trait that can never learn one (pg. 140) is the Toolkit's,
- * which the tracker does not keep yet (Z7-10).
+ * The Toolkit's Resistance never learns one (pg. 140; Z7-12).
  *
  * Pure, like the rest of `src/engine`.
  */
 
 import { NECROMANCER_SPELL_DISCOUNT, SPELLS, type SpellId } from '../data/origins';
+import { ADVANTAGE_RULES, type AdvantageRules } from '../data/traits';
 import { beforePlanning, staffOf } from './assignments';
 import { working } from './base';
 import type { Campaign, Survivor } from './campaign';
@@ -133,7 +133,7 @@ export function learnableSpells(campaign: Campaign, survivor: Survivor): readonl
  * Why this survivor cannot learn this spell now, or `null` (pg. 70; R113):
  * at Character Advancement, staffing a working Mystic Library, once a turn,
  * with Humanity 3 or less, a spell an enemy has cast that they do not know,
- * and the XP to pay for it.
+ * and the XP to pay for it; never with Resistance (pg. 140).
  */
 export function spellLearningProblem(
   campaign: Campaign,
@@ -148,6 +148,13 @@ export function spellLearningProblem(
   if (learner === undefined) {
     return 'Only somebody who staffed a working Mystic Library learns a spell.';
   }
+  if (
+    learner.survivor.advantages.some(
+      (advantage) => (ADVANTAGE_RULES[advantage] as AdvantageRules).learnsNoSpell === true,
+    )
+  ) {
+    return 'Resistance never learns a spell.';
+  }
   if (learnedThisTurn(campaign, survivor)) return 'They have learned a spell this turn already.';
   if (learner.survivor.humanity > learner.maxHumanity) {
     return `Only somebody with Humanity ${String(learner.maxHumanity)} or less learns a spell.`;
@@ -155,6 +162,11 @@ export function spellLearningProblem(
   if (learner.survivor.spells.includes(spell)) return 'They know that spell already.';
   if (!spellsSeen(campaign).includes(spell)) {
     return 'An enemy has to cast a spell before anybody can learn it.';
+  }
+
+  // Never while in debt (R94, R113).
+  if (learner.survivor.xpDebt > 0) {
+    return 'Their experience debt is paid off before any XP is spent.';
   }
 
   return learner.survivor.xp >= spellCost(campaign, learner).xp

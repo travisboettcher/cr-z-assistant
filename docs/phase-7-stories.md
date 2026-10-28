@@ -425,8 +425,8 @@ nothing records one.
   working Mystic Library, one a staff place, one spell a turn from those seen, for 6 XP or 3 with a
   Necromancer discount left, paid as XP spent (R113, R149). The sheet lists and corrects them with
   the traits.
-- **Not tracked yet**: the Resistance trait that can never learn a spell (pg. 140) is the Toolkit's,
-  Z7-10's. Casting is a mission action, so it shows only as the Humanity the outcome records.
+- **Casting is a mission action**, so it shows only as the Humanity the outcome records. The
+  Resistance trait that never learns a spell (pg. 140) came with Z7-12.
 
 ## Part 3 — The Toolkit's survivor traits (outline)
 
@@ -439,3 +439,92 @@ nothing records one.
   and assignments (R89, R93).
 - **Z7-12 — The origin traits.** Sickly, Calloused Psyche, Psychic Scars, Resistance and Touched, and
   how each replaces an Advantage it meets (pg. 140). Rot Resistant itself is Z7-5's.
+
+### Z7-10 — What this story turned out to include
+
+- **Nine more rulings, decided 2026-10-25 from the batch-22 extract**:
+  - R158: switching the traits on part-way gives survivors already playing nothing.
+  - R159: an Advantage removed by an origin injury leaves its debt.
+  - R160: no cap on Advantages at creation.
+  - R161: unprinted repeats turn the survivor.
+  - R162: after an origin injury removes its Advantage, the survivor has neither.
+  - R163: no Advantage with its matching origin injury.
+  - R164: Forager gives 1 Food a mission, not for a siege.
+  - R165: Calloused Psyche caps what is kept, not the check.
+  - R166: strangers take Advantages when they join.
+- **The origin is chosen when a campaign starts.** Nothing set it before, so the origin work from
+  Z7-5 to Z7-9 could only be reached by importing an edited file. The new-campaign form asks for
+  the origin and the Toolkit switch, and a Campaign settings modal in the menu shows the origin
+  (fixed, R98) and switches the traits. Switching them off takes every survivor's Advantages and
+  debt, after a confirmation.
+- **Schema v26 adds the switch, each survivor's Advantages and their experience debt**: off, none
+  and 0 for everybody already playing. `src/data/traits.ts` lists the eight common Advantages with
+  each one's debt and numbers. The origin ones on pg. 140 are Z7-12's.
+- **Debt is paid in one place**, `withXpGained` in `src/engine/survivor.ts`, which every XP gain
+  goes through: the Advancement pools, a Lost roll and a story's reward. While any debt is left,
+  the purchases, a Veteran's healing and learning a spell are refused (R91, R94, R113). An
+  `xp-awarded` entry says how much went to the debt.
+- **The effects**:
+  - Powerhouse's slot.
+  - Light Eater's 1 Food.
+  - Forager's Food with the haul.
+  - Outdoor Enthusiast's bed.
+  - Quiet's and Natural Leader's Scores, a term of their own (R92).
+  - Natural Leader's Labor, at R89's adding step.
+- **Advantages are taken on the sheet**, in the traits editor, each adding its debt. A survivor
+  who joins gets theirs there.
+
+### Z7-11 — What this story turned out to include
+
+- **Schema v27 adds each survivor's Permanent Injuries**, a count of each, none for everybody
+  already playing. `src/data/traits.ts` lists the eleven injuries with each one's XP, how many a
+  survivor can hold and the numbers they change, and the d10 table on pg. 138, its 4 the origin's
+  injury and its 10 the player's choice. `src/engine/injuries.ts` answers the per-survivor
+  questions.
+- **Gaining one** follows R87 and R161: counted while the injury allows it, a second One-eyed
+  becomes Blind (or turns somebody Blind already), a third One-handed kills, and any other repeat
+  turns them. One-handed takes Ambidextrous away, its debt staying (R159).
+- **The effects are read where each rule already lives**:
+  - Labor in `survivorLabor`: Blind's 1 and a second One-handed's 0 at R89's setting step,
+    One-handed's −1 at its adding step.
+  - Wheelchair-bound's slot in `inventorySlots`.
+  - Blind's Scout and Scavenge at 0 in `skillScore`.
+  - Bad shoulder's lower skill-level maximum in the purchases and the legality checks.
+  - The tasks in `checkAssignment` (R93): Blind joins no mission team, and Twice shy needs company
+    on one and doesn't staff the watchtower.
+  - The origin injuries carry their XP only; what they do is Z7-12's.
+- **An injury instead of turning** is offered at Check for Rot when a check fails and the traits are
+  in use (R86). The player enters the d10, and chooses the injury for a 10; a 4 with no origin is
+  rolled again. A repeat that turns them turns them as normal, and a third One-handed is recorded
+  as leaving, "died of their injuries" (pg. 138).
+- **Injuries are set on the sheet**, in the traits editor, with a count for each. The origin
+  injuries are offered only for this campaign's origin, or to somebody holding one. With "Taken at
+  creation" ticked, each one added gains its XP, debt first (R94), and taking one off takes it back.
+  A creation Blind made of two One-eyed is worth both (R161): the extra 2 XP is set by hand.
+  Switching the traits off takes injuries away with the Advantages and debt.
+
+### Z7-12 — What this story turned out to include
+
+- **Calloused Psyche and Resistance are Advantages**, each offered only under its origin, or to
+  somebody who already holds one. Rot Resistant stays the survivor's own flag, because an
+  Inoculation gives it too (R97). With the Toolkit's traits in use it is ticked among the
+  Advantages for its 2 debt, and one an Inoculation gave moves no debt. Switching the traits off
+  leaves it alone for the same reason.
+- **An origin injury takes its Advantage away instead of being gained** (R162), the debt staying
+  (R159): a new `replaces` fate, which the check's entry records. Sickly does it to an Inoculation's
+  Rot Resistant too.
+- **Not both at creation** (R163). The sheet keeps each origin Advantage and its injury apart, and
+  `traitsProblem` refuses Calloused Psyche with Psychic Scars and Resistance with Touched. Rot
+  Resistant with Sickly isn't refused there, since an Inoculation can give it to somebody Sickly.
+- **The effects**:
+  - Sickly's 1 Infection, added when a mission's outcome gave them any.
+  - Calloused Psyche's cap of 3 more Madness than they had, where the outcome is recorded (R165). A
+    survivor is in one outcome a turn, a siege's included (R17), so that's the turn's.
+  - Resistance refused at the Mystic Library (R113).
+  - Touched's Humanity maximum of 4, wherever 5 was read: the gains, the outcome's Humanity, the
+    sheet and its correction. Gaining Touched at 5 brings it to 4.
+  - Psychic Scars only changes a check on the map (pg. 125), so it carries its XP and nothing else
+    here.
+- **A failed Infection check can be taken as an injury too**, as R100 has it. Z7-11 had only
+  offered it at the Rot check. The Infection check's entry records the injury, and the step names
+  who took one instead of saying they held it off.

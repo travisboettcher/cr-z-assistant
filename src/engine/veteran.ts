@@ -48,6 +48,8 @@ export function veteranHealingProblem(
 
   const healer = campaign.survivors.find((one) => one.id === veteran);
   if (healer?.veteran !== true) return 'Only a Veteran in the community can do this.';
+  // A Veteran in experience debt can't pay (R91, R94).
+  if (healer.xpDebt > 0) return `${healer.name} has experience debt to pay off first.`;
   if (healer.xp < VETERAN_HEALING.xp) {
     return `${healer.name} has no XP to spend on it.`;
   }

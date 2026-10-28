@@ -53,7 +53,7 @@ import type { Campaign, Survivor } from './campaign';
 import type { Check, Violation } from './checks';
 import { facilityProduction } from './production';
 import { hungerPenalty } from './feeding';
-import { skillScore } from './survivor';
+import { skillScore, withXpGained } from './survivor';
 import { bondmateXpRecipients } from './storyRewards';
 import type { StoryMissionId } from '../data/missions';
 
@@ -400,5 +400,6 @@ export function checkXpAward(campaign: Campaign, survivorId: string, source: XpS
  * before it can be asked.
  */
 export function withXpAwarded(survivor: Survivor, amount: number): Survivor {
-  return { ...survivor, xp: survivor.xp + amount };
+  // Debt first (R94).
+  return withXpGained(survivor, amount);
 }

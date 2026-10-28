@@ -18,6 +18,9 @@ const SURVIVOR = { survivor: 'a4f0c1e2-91b3-4d67-8a05-2c7e3f9b1d48', name: 'Earl
 
 export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'campaign-started', name: 'Cedar Hollow' },
+  { kind: 'campaign-started', name: 'Cedar Hollow', origin: 'magic', traits: true },
+  { kind: 'traits-switched', enabled: true },
+  { kind: 'traits-switched', enabled: false },
   { kind: 'phase-entered' },
   { kind: 'turn-began' },
   { kind: 'starting-community-settled', built: true },
@@ -61,6 +64,9 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   },
   { kind: 'xp-awarded', ...SURVIVOR, amount: 1, source: 'mission' },
   { kind: 'xp-awarded', ...SURVIVOR, amount: 2, source: 'mission-teaching' },
+  // Paying off experience debt, all or part of it (R94; Z7-10).
+  { kind: 'xp-awarded', ...SURVIVOR, amount: 1, source: 'discretionary', toDebt: 1 },
+  { kind: 'xp-awarded', ...SURVIVOR, amount: 2, source: 'training-room', toDebt: 1 },
   { kind: 'health-restored', ...SURVIVOR, health: 2, source: 'facility' },
   { kind: 'health-restored', ...SURVIVOR, health: 1, source: 'rest' },
   // Under the Viral origin a point may remove Infection instead (#176).
@@ -68,12 +74,62 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'survivors-fed', required: 10, hunger: 0 },
   { kind: 'survivors-fed', required: 10, hunger: 6 },
   { kind: 'rot-checked', ...SURVIVOR, roll: 7, target: 12, passed: false },
+  // A Permanent Injury taken instead of turning, each fate (R86, R87, R161; Z7-11).
+  {
+    kind: 'rot-checked',
+    ...SURVIVOR,
+    roll: 3,
+    target: 8,
+    passed: false,
+    injury: { roll: 8, injury: 'deaf', fate: 'gained' },
+  },
+  {
+    kind: 'rot-checked',
+    ...SURVIVOR,
+    roll: 3,
+    target: 8,
+    passed: false,
+    injury: { roll: 3, injury: 'one-eyed', fate: 'becomes' },
+  },
+  {
+    kind: 'rot-checked',
+    ...SURVIVOR,
+    roll: 3,
+    target: 8,
+    passed: false,
+    injury: { roll: 7, injury: 'blind', fate: 'turns' },
+  },
+  {
+    kind: 'rot-checked',
+    ...SURVIVOR,
+    roll: 3,
+    target: 8,
+    passed: false,
+    injury: { roll: 4, injury: 'sickly', fate: 'replaces' },
+  },
+  {
+    kind: 'rot-checked',
+    ...SURVIVOR,
+    roll: 3,
+    target: 8,
+    passed: false,
+    injury: { roll: 2, injury: 'one-handed', fate: 'kills' },
+  },
   // A Clinic can drive the target below zero, which the book leaves unclamped
   // (R2) — so the validator has to accept a target no count would.
   { kind: 'rot-checked', ...SURVIVOR, roll: 10, target: -1, passed: true },
   // The Viral origin's Infection check (Z7-5), with and without a Clinic's Medicine.
   { kind: 'infection-checked', ...SURVIVOR, roll: 4, infection: 6, bonus: 3, passed: true },
   { kind: 'infection-checked', ...SURVIVOR, roll: 1, infection: 10, bonus: 0, passed: false },
+  {
+    kind: 'infection-checked',
+    ...SURVIVOR,
+    roll: 1,
+    infection: 10,
+    bonus: 0,
+    passed: false,
+    injury: { roll: 4, injury: 'sickly', fate: 'gained' },
+  },
   // Inoculation and Rot Resistant (Z7-5).
   { kind: 'survivor-inoculated', ...SURVIVOR, item: 'inoculation-1' },
   { kind: 'infection-resisted', ...SURVIVOR },
@@ -311,6 +367,7 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
   { kind: 'survivor-left', ...SURVIVOR, tier: 1, cause: 'turned' },
   { kind: 'survivor-left', ...SURVIVOR, tier: 2, cause: 'bitten' },
   { kind: 'survivor-left', ...SURVIVOR, tier: 3, cause: 'removed' },
+  { kind: 'survivor-left', ...SURVIVOR, tier: 3, cause: 'injury' },
   { kind: 'survivor-left', ...SURVIVOR, tier: 1 },
   // A death on a mission (R71; Z5-13), with what stayed on the map and without.
   {

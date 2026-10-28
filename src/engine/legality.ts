@@ -19,7 +19,8 @@
  * the order it was bought in, and there is nothing here to check.
  */
 
-import { STATS, type Stat } from '../data/skills';
+import { STATS, type Skill, type Stat } from '../data/skills';
+import { skillLevelMaximum } from './injuries';
 import { STARTING_COMMUNITY_TIER_LEVELS, TIER_RULES } from '../data/tiers';
 import type { Stats, Survivor } from './campaign';
 import { communityTierLevels } from './survivor';
@@ -62,11 +63,16 @@ export function survivorViolations(survivor: Survivor): readonly Violation[] {
   }
 
   for (const [skill, level] of skills) {
-    if (level > rules.maxSkillLevel) {
+    // Their Tier's maximum, less what Bad shoulder takes off (pg. 138; Z7-11).
+    const most = skillLevelMaximum(survivor, skill as Skill);
+    if (level > most) {
       violations.push({
         code: 'skill-above-tier',
-        message: `${skill} is at level ${level}, above the maximum of ${rules.maxSkillLevel} for Tier ${survivor.tier}.`,
-        pages: 7,
+        message:
+          most === rules.maxSkillLevel
+            ? `${skill} is at level ${level}, above the maximum of ${rules.maxSkillLevel} for Tier ${survivor.tier}.`
+            : `${skill} is at level ${level}, above the maximum of ${String(most)} their injuries leave.`,
+        pages: most === rules.maxSkillLevel ? 7 : 138,
       });
     }
   }

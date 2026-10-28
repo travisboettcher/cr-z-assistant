@@ -21,6 +21,7 @@ import type { OverrunOption, StoryMissionId, ViralMissionId } from '../data/miss
 import type { SpellId } from '../data/origins';
 import type { Campaign, Survivor, Vehicle } from './campaign';
 import { equipCheck, withEquipMove, type EquipMove } from './equip';
+import { infectionAfterMission } from './injuries';
 import { accepted, blockedBy, refused, type FormResult } from './forms';
 import { logged, type MissionWound, type StoryRecord } from './log';
 import {
@@ -247,7 +248,10 @@ export function submitMissionEnded(
         survivor: member.survivor,
         name: member.name,
         health,
-        ...(infection === undefined ? {} : { infection }),
+        // Sickly's 1 more when the mission gave them any (pg. 140).
+        ...(infection === undefined
+          ? {}
+          : { infection: infectionAfterMission(survivor, infection) }),
         // Capped at 6 for a Found survivor who has passed their check (R111).
         ...(madness === undefined ? {} : { madness: madnessAfter(survivor, wound).madness }),
         ...(foundCheck === undefined ? {} : { foundCheck }),
