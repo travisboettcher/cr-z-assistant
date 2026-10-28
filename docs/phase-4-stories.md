@@ -438,8 +438,8 @@ building Z4-8:
   different base type recovers no stored materials and no free rebuild; the same type on the same
   map recovers half, and its free rebuild lasts until used.
 - [R30](rulings.md#r30--start-a-new-community-after-an-overrun) — Start a New Community
-  after an overrun loses the old storage, arrives stocked like a first base, and keeps the turn and
-  siege counters.
+  after an overrun loses the old storage, starts the new base empty (amended for #216), and keeps
+  the turn and siege counters.
 - [R31](rulings.md#r31--abandoned-survivors-and-a-hero-sent-away-are-set-aside) —
   abandoned survivors, and a Hero sent away over the cap, are *set aside*: off the roster, kept on
   the record, and able to return as a stranger. Abandoning builds a new starting community in the
@@ -557,8 +557,8 @@ reducer's `mission/selected` action gained the field beside the material's.
 - A continuation that meets no end condition re-owes the choice (R28).
 - Option 1's claim places no strangers (pg. 86): the outcome form does not offer them.
 - Option 1 on a different base type, or not on the same map, empties storage on the move (R29);
-  the same type on the same map halves it. Option 2's First Mission stocks the new base to its caps
-  and drops the old storage (R30). Both move through Z4-8's `submitBaseMove`.
+  the same type on the same map halves it. Option 2's First Mission drops the old storage and starts
+  the new base empty (R30, as amended for #216). Both move through Z4-8's `submitBaseMove`.
 - `baseOverrun`'s screen line becomes the choice.
 
 **Acceptance**
@@ -632,7 +632,7 @@ reducer's `mission/selected` action gained the field beside the material's.
 - A *set-aside* survivor: off the roster and out of every count, kept on the record with their Tier,
   XP and Inventory. Written by Z4-8's Hero cap and by option 3 (R31).
 - Option 3 sets every survivor aside, then reopens the starting community builder; the new
-  community plays the First Mission as the continuation (R27), and its base arrives stocked as
+  community plays the First Mission as the continuation (R27), and its base starts empty as
   option 2's does (R30). Same campaign: the origin, the log and the turn and siege counters carry
   on.
 - A Rescue Strangers outcome may name set-aside survivors instead of a new stranger's Tier; they
@@ -653,7 +653,7 @@ reducer's `mission/selected` action gained the field beside the material's.
   `community-abandoned` entry naming everybody set aside, and opens the starting community again;
   the Tactical Mission step then waits for the new community to be on the roster and offers its
   First Mission, with the base it will claim, and the walk owes that choice. From there it is
-  starting over: the base arrives stocked (R30) and the move is Z4-8's.
+  starting over: the base starts empty (R30) and the move is Z4-8's.
 - **Brought back alongside new strangers, not instead of them.** A Rescue Strangers outcome records
   its strangers as before and, beside them, which survivors set aside it brought back (`returned`).
   Only Rescue Strangers asks (R31). A rescuer below a returning survivor's Tier is a warning, as it

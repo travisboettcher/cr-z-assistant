@@ -864,31 +864,30 @@ time. Every other move is a new building, with every slot as its layout has it (
 
 ## R30 — Start a New Community after an overrun
 
-> **Under review, [#216](https://github.com/travisboettcher/cr-z-assistant/issues/216).** FAQ "New Bases and Materials", pg. 19 and pg. 54 agree that only
-> a campaign's *first* base starts full, and starting over continues the campaign (pg. 86). So "stocked
-> to its caps as a first base does" below contradicts the text. What the new base gets instead (the
-> old stores in full, or nothing) is the decision the issue holds. The counters carrying on stands.
+**pp. 19, 54, 76–77, 86, FAQ "New Bases and Materials"; #182, Z4-9;
+[#216](https://github.com/travisboettcher/cr-z-assistant/issues/216).** Starting over uses the
+remaining survivors and their gear (pg. 86) and says nothing of storage. Only a campaign's first base
+arrives full (pp. 19, 54, FAQ), and starting over continues the campaign rather than beginning a new
+one. The FAQ's general rule would carry the old stores over in full, but the overrun is what cost
+them: pg. 86's way on names only the survivors and their gear, and the same-type reclaim getting
+back only half (R29) says the rest is gone.
 
-**pp. 19, 76–77, 86, FAQ; #182, Z4-9.** Starting over uses the remaining survivors and their gear
-(pg. 86) and says nothing of storage. A campaign's first base arrives full (pg. 19, FAQ), but this
-is a way to continue the campaign rather than a new one.
+**The ruling is that the old storage is lost, the new base starts with none, and the turn and siege
+counters carry on as they stand.** The First Mission is every community's first (pg. 76), and the
+survivors are starting one from nothing. The counter's reset and halving are written for victories
+only (pp. 81, 86), so an overrun leaves it alone. Empty storage matches what R29 gives a claim of a
+different base type.
 
-**The ruling is that the old storage is lost, the new base arrives stocked to its caps as a first
-base does, and the turn and siege counters carry on as they stand.** The First Mission is every
-community's first (pg. 76), and the survivors are starting one from nothing. The counter's reset
-and halving are written for victories only (pp. 81, 86), so an overrun leaves it alone.
+**What it costs.** A table that reads the FAQ's transfer as governing carries everything over, and
+the first version of this ruling stocked the new base to its caps as a first base is. Both make the
+restart much easier than an overrun should leave it.
 
-**What it costs.** A table that reads "continue this campaign" strictly starts the new base empty,
-which is a much harder opening.
-
-*Confirmed 2026-10-13 from the batch-15 extract.*
+*Confirmed 2026-10-13 from the batch-15 extract. Amended 2026-10-28 for #216: the new base starts
+empty, not stocked to its caps.*
 
 ---
 
 ## R31 — Abandoned survivors, and a Hero sent away, are set aside
-
-> **Partly under review.** "The new base is stocked as R30's" follows R30, which is under review
-> ([#216](https://github.com/travisboettcher/cr-z-assistant/issues/216)). The rest of this ruling stands.
 
 **pp. 7, 31, 54, 82–83, 86; #182, Z4-8, Z4-11.** Two rules take a survivor out of the community
 without killing them: the Hero sent away when a move lowers the cap (pg. 54), and the survivors
@@ -900,7 +899,8 @@ of either.
 record as they were, and able to be named on a later Rescue Strangers outcome, where they rejoin
 as themselves and the rescuer's Tier must be at least theirs (pg. 31).** Abandoning builds a new
 starting community in the same campaign, which plays the First Mission as R27's continuation; the
-origin, the log and the turn and siege counters carry on, and the new base is stocked as R30's.
+origin, the log and the turn and siege counters carry on, and the new base starts empty as R30's
+does.
 A set-aside Hero is the one Tier 4 stranger a mission records, which amends R24.
 
 **What it costs.** Pg. 54 also lets a Hero who left start the player's next campaign; that is a
