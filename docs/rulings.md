@@ -2838,3 +2838,21 @@ Tier already set (pp. 15, 19).
 ([R94](#r94--experience-debt-is-paid-before-xp-can-be-spent)), as the starting community may.
 
 *Decided 2026-10-25 with Z7-10, from the batch-22 extract (T9).*
+
+---
+
+## R167 — Switching the Toolkit's traits off leaves Rot Resistant
+
+**pp. 48, 137, 140; Phase 7, Z7-12.** With the Toolkit's traits off a survivor has no injuries, no
+Advantages and no debt ([R84](#r84--what-a-survivors-sheet-records-for-traits)), so switching them
+off takes all three away. Rot Resistant is the Viral origin's Advantage under the Toolkit (pg.
+140), but an Inoculation gives it too (pg. 48;
+[R97](#r97--inoculation-is-built-then-given-at-the-clinic)), and a survivor's record doesn't say
+which one gave it.
+
+**The ruling is that Rot Resistant stays when the traits are switched off**, wherever it came from.
+
+**What it costs.** A survivor who took Rot Resistant at creation keeps it with the traits off, debt
+and all gone. Taking it away instead would take away what an Inoculation paid for.
+
+*Decided 2026-10-28.*

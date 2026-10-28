@@ -157,7 +157,10 @@ record. The base's slot card keeps its list throughout.
 - **Is somebody with nothing to do owed?** Z3-6 says leaving somebody idle by accident is "the
   commonest mistake this screen exists to prevent". Owing it at Assign Mission Team would make Next
   ask (#234) each turn somebody is idle, including on purpose. Owe it, show it only, or owe it only
-  when everybody was idle last turn too?
+  when everybody was idle last turn too? *Decided 2026-10-28: shown, not owed.* The
+  Unassigned lane shows who is idle, and Next doesn't ask. Leaving somebody idle on purpose is
+  common enough (holding back a wounded survivor, resting without a Clinic) that asking every turn
+  would teach players to press past it.
 - **One board or four?** *Decided 2026-10-16: four.* The four steps stay, each focusing its lanes,
   because the walk follows the book's step list. One Planning step showing the whole board was the
   alternative.
