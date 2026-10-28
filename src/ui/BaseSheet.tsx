@@ -21,7 +21,7 @@ import type { Campaign } from '../engine/campaign';
 import { assignedCount, staffedSpent, utilityCapacity } from '../engine/utilities';
 import { utilitiesScore } from '../engine/assignments';
 import { siegeThreat } from '../engine/siege';
-import { UTILITY_LABELS } from './baseLabels';
+import { UTILITY_LABELS } from '../labels/baseLabels';
 import { PageRef } from './PageRef';
 
 export interface BaseSheetProps {

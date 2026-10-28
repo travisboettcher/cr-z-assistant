@@ -13,9 +13,9 @@
 
 import type { Campaign } from '../engine/campaign';
 import type { LogEntry } from '../engine/log';
-import { PHASE_LABELS } from './turnLabels';
+import { PHASE_LABELS } from '../labels/turnLabels';
 import { PageRef } from './PageRef';
-import { describeEvent } from './logLabels';
+import { describeEvent } from '../labels/logLabels';
 
 export interface CampaignLogProps {
   readonly campaign: Campaign;

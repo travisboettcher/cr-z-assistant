@@ -13,7 +13,7 @@ import { buildableFacilities, checkBuild } from '../engine/build';
 import { projectCost } from '../engine/projects';
 import { freeRebuild } from '../engine/rebuild';
 import { useCampaign } from '../state/useCampaign';
-import { FACILITY_LABELS } from './baseLabels';
+import { FACILITY_LABELS } from '../labels/baseLabels';
 import { SlotAction } from './SlotAction';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 

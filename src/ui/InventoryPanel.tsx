@@ -55,8 +55,13 @@ import {
   tradePrice,
 } from '../engine/trading';
 import { useCampaign } from '../state/useCampaign';
-import { describeItem, GRADE_LABELS, ITEM_KIND_LABELS, ITEM_LABELS } from './equipmentLabels';
-import { slotLabel } from './baseLabels';
+import {
+  describeItem,
+  GRADE_LABELS,
+  ITEM_KIND_LABELS,
+  ITEM_LABELS,
+} from '../labels/equipmentLabels';
+import { slotLabel } from '../labels/baseLabels';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 

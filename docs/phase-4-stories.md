@@ -191,7 +191,7 @@ Two more, found while building, and settled from the batch-14 extract:
   story, origin, Road Trip). For the standard eight: when it may be chosen (turn 1 only, forced by
   a siege, any time), what Select Mission asks for it (Gather Materials' material type), and which
   counts its outcome records.
-- `MISSION_PAGES` in `src/ui/missionLabels.ts` reads its pages from here rather than keeping its
+- `MISSION_PAGES` in `src/labels/missionLabels.ts` reads its pages from here rather than keeping its
   own.
 
 **Acceptance**

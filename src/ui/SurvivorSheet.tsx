@@ -34,7 +34,7 @@ import {
   statValue,
 } from '../engine/survivor';
 import { useCampaign } from '../state/useCampaign';
-import { GRADE_LABELS, ITEM_LABELS, describeItem } from './equipmentLabels';
+import { GRADE_LABELS, ITEM_LABELS, describeItem } from '../labels/equipmentLabels';
 import { PageRef } from './PageRef';
 import { promotionViolations } from '../engine/legality';
 import { maxHeroes } from '../engine/base';
@@ -47,10 +47,15 @@ import {
   itemsAddingTo,
   slotsInUse,
 } from '../engine/equipment';
-import { COMMON_SKILL_LABELS, SKILL_LABELS, STAT_LABELS } from './skillLabels';
+import { COMMON_SKILL_LABELS, SKILL_LABELS, STAT_LABELS } from '../labels/skillLabels';
 import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
-import { TIER_LABELS } from './tierLabels';
-import { ADVANTAGE_LABELS, describeTraits, INJURY_LABELS, STORY_TRAIT_LABELS } from './traitLabels';
+import { TIER_LABELS } from '../labels/tierLabels';
+import {
+  ADVANTAGE_LABELS,
+  describeTraits,
+  INJURY_LABELS,
+  STORY_TRAIT_LABELS,
+} from '../labels/traitLabels';
 import {
   ADVANTAGE_RULES,
   ADVANTAGES,
@@ -69,8 +74,8 @@ import {
 import { humanityMax, injuriesOf, injuryCount } from '../engine/injuries';
 import { storiesHeld, storiesOnOffer, traitStatBonus, type SurvivorTraits } from '../engine/traits';
 import { STORY_MISSION_IDS, type StoryMissionId } from '../data/missions';
-import { MISSION_LABELS } from './missionLabels';
-import { SPELL_LABELS, spellList } from './spellLabels';
+import { MISSION_LABELS } from '../labels/missionLabels';
+import { SPELL_LABELS, spellList } from '../labels/spellLabels';
 
 export interface SurvivorSheetProps {
   readonly survivor: Survivor;

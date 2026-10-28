@@ -46,6 +46,7 @@ you touch. The short version:
 | `src/engine` | Pure functions over a `Campaign`. No React, no UI. |
 | `src/state` | One reducer. Sets fields; computes nothing and caches nothing derived. |
 | `src/persistence` | The save format, its schema version and migration chain. |
+| `src/labels` | The names ids and log entries read as. Imports only `src/data` and `src/engine`. |
 | `src/ui` | Renders and dispatches. Holds no rules. |
 
 Three rules hold across all of it, and `npm run lint` enforces the boundaries between them:

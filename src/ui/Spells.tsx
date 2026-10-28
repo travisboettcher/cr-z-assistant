@@ -17,9 +17,9 @@ import {
   type SpellLearner,
 } from '../engine/spells';
 import { useCampaign } from '../state/useCampaign';
-import { describeEvent } from './logLabels';
+import { describeEvent } from '../labels/logLabels';
 import { PageRef } from './PageRef';
-import { SPELL_LABELS, spellList } from './spellLabels';
+import { SPELL_LABELS, spellList } from '../labels/spellLabels';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
 const HINT = 'text-sm text-stone-600 dark:text-stone-400';

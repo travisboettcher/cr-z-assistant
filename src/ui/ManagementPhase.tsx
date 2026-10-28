@@ -56,7 +56,7 @@ import {
   departurePressure,
   someoneDeparted,
 } from '../engine/departures';
-import { MATERIAL_LABELS, slotLabel } from './baseLabels';
+import { MATERIAL_LABELS, slotLabel } from '../labels/baseLabels';
 import { STORED_MATERIALS } from '../data/materials';
 import { MADNESS_GOES_LOST } from '../data/origins';
 import {
@@ -72,15 +72,15 @@ import {
   infectionStillToCheck,
 } from '../engine/rot';
 import { laborShortfall, orderedThisTurn, queuedCost } from '../engine/projects';
-import { describeProject } from './projectLabels';
+import { describeProject } from '../labels/projectLabels';
 import { useCampaign } from '../state/useCampaign';
 import { ProjectTeamHumanity } from './Humanity';
-import { describeEvent } from './logLabels';
+import { describeEvent } from '../labels/logLabels';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 import { INJURIES, ORIGIN_INJURIES, type Injury } from '../data/traits';
 import { injuryFate, rolledInjury, type InjuryFate } from '../engine/injuries';
-import { INJURY_LABELS, replacedLabel } from './traitLabels';
+import { INJURY_LABELS, replacedLabel } from '../labels/traitLabels';
 
 export interface ManagementPhaseProps {
   readonly campaign: Campaign;
