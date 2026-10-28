@@ -1831,7 +1831,8 @@ test('a hungry community rolls worse everywhere, and nothing is written down', a
   await setMaterial(page, 'food', '0');
 
   // Three Heroes eat six a turn (pg. 22). With empty stores that is a shortfall
-  // of six against a head count of three: a penalty of three (R1).
+  // of six against a head count of three: past it, so a penalty of the whole
+  // six (R1).
   for (const name of ['Nell Haig', 'Tomas Ford', 'Ada Poole']) {
     await ensurePanel(page, 'survivors');
     await page.getByLabel(/survivor name/i).fill(name);
@@ -1861,13 +1862,13 @@ test('a hungry community rolls worse everywhere, and nothing is written down', a
 
   const walk = page.getByRole('region', { name: 'Turn 1' });
   await expect(walk).toContainText('6 Hunger');
-  await expect(walk).toContainText('stats drop by 3');
+  await expect(walk).toContainText('stats drop by 6');
 
   await walk.getByRole('button', { name: /feed the community/i }).click();
   await expect(walk).toContainText('Food is eaten');
 
   /*
-   * Three off every stat. Nell's Cooperation was 1, so her Medicine Score is
+   * Six off every stat. Nell's Cooperation was 1, so her Medicine Score is
    * floored at 0 — and the roster's Inventory Slots move too, because Carry is
    * a Score as well (pg. 14).
    */
