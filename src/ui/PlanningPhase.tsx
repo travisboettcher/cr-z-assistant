@@ -113,9 +113,8 @@ export function PlanningPhase({ campaign, step }: PlanningPhaseProps) {
       {step === 'assign-rest-and-healing' && (
         <>
           <p className="text-sm text-stone-600 dark:text-stone-400">
-            Two rules in one step. Resting gives a survivor one Health nobody else can use, and{' '}
-            <strong>only one survivor may rest a turn</strong>. Healing shares out what a Medical
-            Clinic makes, between everybody assigned to it <PageRef pages={21} />
+            One survivor may rest a turn, and healing shares out what a Medical Clinic makes{' '}
+            <PageRef pages={21} />
           </p>
           <AssignmentBoard
             key={step}

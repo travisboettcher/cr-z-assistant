@@ -1333,8 +1333,7 @@ function Stats({ survivor, penalty }: { readonly survivor: Survivor; readonly pe
       </div>
       {editing && (
         <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-          A Tier hands out a fixed set of values and lets you choose which stat gets which. Moving a
-          value here swaps it with the stat that had it, so the four always stay that set.
+          Picking a value swaps it with the stat that had it.
         </p>
       )}
       {draft !== null && <p className="mt-1 text-sm font-medium">{readers(survivor)}</p>}
@@ -1461,8 +1460,7 @@ function CommonSkills({ survivor }: { readonly survivor: Survivor }) {
         Common skills <PageRef pages={9} />
       </h3>
       <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-        Scores, not levels — these have no governing stat, so raising one costs its new{' '}
-        <em>score</em> rather than a level.
+        Each is a Score, not a level.
       </p>
       <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {COMMON_SKILLS.map((skill) => (
@@ -1547,9 +1545,7 @@ function Skills({ survivor, penalty }: { readonly survivor: Survivor; readonly p
         Skills <PageRef pages={8} />
       </h3>
       <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-        Score is the skill&rsquo;s level plus its governing stat. A dash means this survivor doesn’t
-        have the skill and can’t use it. Skills start at level zero, and each level costs its own
-        number in experience &mdash; so they are only ever bought one at a time, in order.
+        A Score is the level plus its stat. A dash means they don’t have the skill.
       </p>
 
       <div className="mt-3 grid gap-4 sm:grid-cols-2">

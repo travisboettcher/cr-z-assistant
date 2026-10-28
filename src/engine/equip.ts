@@ -46,7 +46,8 @@ export type EquipCode =
   | 'needs-skill'
   | 'worn-already'
   | 'no-slots'
-  | 'cannot-use';
+  | 'cannot-use'
+  | 'carried-already';
 
 /** Where an item goes: to somebody going out, or back where it came from. */
 export type EquipTarget = 'base' | { readonly survivor: string };
@@ -153,6 +154,17 @@ function receivingViolations(
       code: 'cannot-use',
       message: `${survivor.name} can carry it, but has no skill to use it with.`,
       pages: 8,
+    });
+  }
+
+  // Allowed, but two of one item give one bonus (R81) and each takes its slot
+  // (R35), so a second identical one is worth saying (#241). Protective gear
+  // is refused above instead (R40).
+  if (rules.kind !== 'protective' && survivor.items.some((held) => held.item === item.item)) {
+    warnings.push({
+      code: 'carried-already',
+      message: `${survivor.name} already carries one. A second gives no more bonus, and takes its own slot.`,
+      pages: '8, 14, 44',
     });
   }
 
