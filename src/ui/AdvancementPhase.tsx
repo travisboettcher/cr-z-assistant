@@ -16,7 +16,7 @@
 import { useId, useRef, useState } from 'react';
 import { MATERIALS, type Material, type Materials } from '../data/materials';
 import { D10_RESULTS, type D10Result } from '../data/dice';
-import { MISSIONS } from '../data/missions';
+import { GATHERED_MATERIALS, MISSIONS } from '../data/missions';
 import { rollsForSkill } from '../data/recruitTable';
 import {
   SUBSTITUTION_SKILLS,
@@ -43,8 +43,11 @@ import {
   scavenged,
   scavenger,
   scavengesEverything,
+  substitutableGatherings,
   substitutionUses,
+  substitutionsFor,
   substitutionsSpent,
+  type GatheredSubstitution,
   type MaterialRoll,
 } from '../engine/materials';
 import { baseMoved, claimedBase, heroesOverCap } from '../engine/claim';
@@ -583,6 +586,13 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
   const [found, setFound] = useState<Material | undefined>(undefined);
 
   /*
+   * Substitutions on Gather Materials teams' one of each (FAQ "Gather
+   * Materials and Coop Skills"; #221). Kept with `found` rather than with the
+   * rolls, and for its reason: a choice made again costs nothing.
+   */
+  const [substituted, setSubstituted] = useState<readonly GatheredSubstitution[]>([]);
+
+  /*
    * The Rare Item Table's two dice for each roll it owes (Z5-7), by position:
    * the rolls that owe one can be removed or forced, so the list is cut to
    * what is due rather than kept in step with them.
@@ -602,6 +612,7 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
     dispatch({
       type: 'advancement/materialsAdded',
       rolls,
+      gatheredSubstitutions: substituted,
       ...(found === undefined ? {} : { scavenged: found }),
       rareItems: rare.map((dice) => ({
         id: crypto.randomUUID(),
@@ -624,7 +635,7 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
   const fromBase = baseProduction(campaign);
   // What a Gather Materials team brought back without a roll, and how many of
   // a short haul's materials are rolled after all (pg. 80; Z4-6).
-  const fromGathering = gathered(campaign);
+  const fromGathering = gathered(campaign, substituted);
   const gatheredCount = MATERIALS.reduce((sum, material) => sum + fromGathering[material], 0);
   const toRoll = gatheredToRoll(campaign);
   const scavenging = scavenger(campaign);
@@ -637,8 +648,8 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
     fromForaging,
   );
   const unchosen = scavengeNeedsAChoice(campaign, found);
-  const { warnings } = checkMaterials(campaign, rolls);
-  const spent = substitutionsSpent(rolls);
+  const { warnings } = checkMaterials(campaign, rolls, substituted);
+  const spent = substitutionsSpent(rolls, substituted);
 
   return (
     <>
@@ -797,6 +808,12 @@ function AddMaterials({ campaign }: { readonly campaign: Campaign }) {
                   below.
                 </p>
               )}
+              <GatheredSubstitutions
+                campaign={campaign}
+                substitutions={substituted}
+                spent={spent}
+                onChange={setSubstituted}
+              />
               {toRoll > 0 && (
                 <p className={`${HINT} mt-1`}>
                   {toRoll} carried off {toRoll === 1 ? 'is' : 'are'} fewer than one of each, so roll{' '}
@@ -1299,6 +1316,144 @@ function RareRoll({
         <span className="font-medium">{describeItem(rareItemFor(dice.subtable, dice.entry))}</span>
       )}
     </li>
+  );
+}
+
+/**
+ * Substitutions on what Gather Materials teams brought back without a roll
+ * (pp. 12, 80; FAQ "Gather Materials and Coop Skills"; #221).
+ *
+ * A line in the step's Gather Materials block says what is substituted, and a
+ * button opens the controls in a dialog: the step summarises and the dialog
+ * edits (docs/ux-principles.md). Each team's one of each is offered and
+ * nothing else, from `substitutableGatherings` and `substitutionsFor`, the
+ * lists the form checks against. As on the rolls, a skill stays offered once
+ * its uses are spent, because over-spending is `checkMaterials`'s warning.
+ */
+function GatheredSubstitutions({
+  campaign,
+  substitutions,
+  spent,
+  onChange,
+}: {
+  readonly campaign: Campaign;
+  readonly substitutions: readonly GatheredSubstitution[];
+  readonly spent: Record<SubstitutionSkill, number>;
+  readonly onChange: (next: readonly GatheredSubstitution[]) => void;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const headingId = useId();
+  const teams = substitutableGatherings(campaign);
+  const skills = SUBSTITUTION_SKILLS.filter(
+    (skill) => substitutionUses(campaign, skill) > 0 || spent[skill] > 0,
+  );
+
+  if (teams.length === 0 || skills.length === 0) return null;
+
+  const several = teams.length > 1;
+  const describe = ({ team, replaces, forced }: GatheredSubstitution) =>
+    `${several ? `team ${String(team)}’s ` : ''}${MATERIAL_LABELS[replaces]} to ${MATERIAL_LABELS[forced.material]} with ${SKILL_LABELS[forced.skill]}`;
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <p className={HINT}>
+        {substitutions.length === 0
+          ? 'Nothing gathered is substituted.'
+          : `Substituted: ${substitutions.map(describe).join(', ')}.`}
+      </p>
+      <button
+        type="button"
+        className={`${SMALL_BUTTON} ${TOUCH_TARGET}`}
+        onClick={() => dialogRef.current?.showModal()}
+      >
+        Substitute gathered materials
+      </button>
+
+      <dialog
+        ref={dialogRef}
+        aria-labelledby={headingId}
+        className="m-auto max-w-md rounded-xl bg-white p-6 text-stone-900 backdrop:bg-stone-950/50 dark:bg-stone-900 dark:text-stone-100"
+      >
+        <h2 id={headingId} className="text-xl font-semibold">
+          Substitute gathered materials
+        </h2>
+        <p className={`${HINT} mt-2`}>
+          Uses spent, the rolls’ included:{' '}
+          {skills
+            .map(
+              (skill) =>
+                `${SKILL_LABELS[skill]} ${String(spent[skill])} of ${String(substitutionUses(campaign, skill))}`,
+            )
+            .join(', ')}{' '}
+          <PageRef pages="12, 80" />
+        </p>
+
+        {teams.map((team) => (
+          <fieldset key={team} className="mt-4">
+            <legend className="text-sm font-medium">Mission team {team}’s one of each</legend>
+            <div className="mt-2 flex flex-col gap-2">
+              {GATHERED_MATERIALS.map((replaces) => {
+                const options = substitutionsFor(replaces).filter((forced) =>
+                  skills.includes(forced.skill),
+                );
+                const current = substitutions.find(
+                  (substitution) =>
+                    substitution.team === team && substitution.replaces === replaces,
+                );
+
+                // Utilities alone has nothing to make a Fuel (R9). A choice
+                // already made is in `options`: its skill has a use spent.
+                if (options.length === 0) return null;
+
+                return (
+                  <div key={replaces} className="flex items-center justify-between gap-3 text-sm">
+                    <span>{MATERIAL_LABELS[replaces]}</span>
+                    <select
+                      aria-label={`Mission team ${String(team)}’s gathered ${MATERIAL_LABELS[replaces]}`}
+                      value={
+                        current === undefined
+                          ? ''
+                          : `${current.forced.skill}:${current.forced.material}`
+                      }
+                      className={`${FOCUS_RING} ${TOUCH_TARGET} rounded-lg border border-stone-300 px-3 dark:border-stone-600 dark:bg-stone-800`}
+                      onChange={(changed) => {
+                        const forced = options.find(
+                          (option) => `${option.skill}:${option.material}` === changed.target.value,
+                        );
+                        const others = substitutions.filter(
+                          (substitution) => substitution !== current,
+                        );
+
+                        onChange(
+                          forced === undefined ? others : [...others, { team, replaces, forced }],
+                        );
+                      }}
+                    >
+                      <option value="">as gathered</option>
+                      {options.map((option) => (
+                        <option key={option.skill} value={`${option.skill}:${option.material}`}>
+                          {SKILL_LABELS[option.skill]} → {MATERIAL_LABELS[option.material]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })}
+            </div>
+          </fieldset>
+        ))}
+
+        <div className="mt-6 flex justify-end">
+          <button
+            type="button"
+            onClick={() => dialogRef.current?.close()}
+            className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg ${PRIMARY_FILL} px-5 font-semibold`}
+          >
+            Back to the haul
+          </button>
+        </div>
+      </dialog>
+    </div>
   );
 }
 

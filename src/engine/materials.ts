@@ -25,6 +25,13 @@
  * exactly as many materials as there were rolls. Adding one instead is the
  * obvious wrong implementation and `materials.test.ts` holds the line on it.
  *
+ * A Gather Materials haul has no die to override (pg. 80), and FAQ "Gather
+ * Materials and Coop Skills" gives the same uses something else to change: the
+ * guaranteed one of each type, and never the remainder in the type the team
+ * chose (#221). So a `GatheredSubstitution` replaces one of those three, from
+ * the same pools as the rolls' substitutions, and `gatheredBy` still returns
+ * exactly as many materials as the team carried off.
+ *
  * ## Storage caps are reported here and never enforced
  *
  * Check Storage is a Management Phase step (pg. 23), a whole phase later.
@@ -65,6 +72,12 @@ export type MaterialsViolation = Violation<MaterialsViolationCode>;
 
 export type MaterialsCheck = Check<MaterialsViolationCode>;
 
+/** A result a substitution forced: the skill whose use was spent, and what it gave (pg. 12). */
+export interface Forced {
+  readonly skill: SubstitutionSkill;
+  readonly material: Material;
+}
+
 /**
  * One d10 rolled for one material the mission recovered (pg. 18–19).
  *
@@ -76,7 +89,7 @@ export type MaterialsCheck = Check<MaterialsViolationCode>;
  */
 export interface MaterialRoll {
   readonly roll: D10Result;
-  readonly forced?: { readonly skill: SubstitutionSkill; readonly material: Material };
+  readonly forced?: Forced;
   /**
    * Made a 10 by Crashed Convoy, whatever it rolled, so a Rare Item Table
    * roll (pp. 19, 101; R126; Z7-4). Never with `forced`: a roll is one or the
@@ -289,14 +302,19 @@ export function substitutionUses(campaign: Campaign, skill: SubstitutionSkill): 
   );
 }
 
-/** How many times each skill was actually spent across a set of rolls. */
+/**
+ * How many times each skill was actually spent across a set of rolls and the
+ * substitutions on what Gather Materials teams brought back: one pool per
+ * skill for both (pg. 12; FAQ "Gather Materials and Coop Skills"; #221).
+ */
 export function substitutionsSpent(
   rolls: readonly MaterialRoll[],
+  substitutions: readonly GatheredSubstitution[],
 ): Record<SubstitutionSkill, number> {
   const spent = { rationing: 0, mechanics: 0, utilities: 0 };
 
-  for (const entry of rolls) {
-    if (entry.forced !== undefined) spent[entry.forced.skill] += 1;
+  for (const { forced } of [...rolls, ...substitutions]) {
+    if (forced !== undefined) spent[forced.skill] += 1;
   }
 
   return spent;
@@ -317,21 +335,48 @@ export function combined(one: Materials, other: Materials): Materials {
 }
 
 /**
+ * A substitution spent on one of a Gather Materials team's guaranteed one of
+ * each type (pp. 12, 80; FAQ "Gather Materials and Coop Skills"; #221).
+ *
+ * Named by the material it `replaces` rather than by a place in the haul,
+ * because the one of each is all a substitution may touch there: the remainder
+ * in the chosen type has nothing to name it by. The one of the chosen type is
+ * one of the one of each like the others, which is how the FAQ's own example
+ * turns all three into Food.
+ */
+export interface GatheredSubstitution {
+  readonly team: number;
+  readonly replaces: Material;
+  readonly forced: Forced;
+}
+
+/**
  * What one Gather Materials team's haul comes to, without a roll (pg. 80; Z4-6).
  *
- * One of each gathered type and the rest in the type chosen at Select Mission.
+ * One of each gathered type and the rest in the type chosen at Select Mission,
+ * with each of the one of each that a substitution replaced counted as what it
+ * forced instead (FAQ "Gather Materials and Coop Skills"; #221). The remainder
+ * is added after, so no substitution can reach it.
+ *
  * A team that carried off fewer than one of each gets nothing here: its
  * materials are rolled like any others, and `gatheredToRoll` says how many.
  * Nothing either for a choice that named no type, which only a save edited by
  * hand can hold.
  */
-export function gatheredBy(carried: number, chosen: Material | undefined): Materials {
+export function gatheredBy(
+  carried: number,
+  chosen: Material | undefined,
+  substitutions: readonly Omit<GatheredSubstitution, 'team'>[],
+): Materials {
   if (!splits(carried, chosen)) return noMaterials();
 
-  const each = GATHERED_MATERIALS.reduce(
-    (total, material) => ({ ...total, [material]: total[material] + 1 }),
-    noMaterials(),
-  );
+  const each = GATHERED_MATERIALS.reduce((total, material) => {
+    const result =
+      substitutions.find((substitution) => substitution.replaces === material)?.forced.material ??
+      material;
+
+    return { ...total, [result]: total[result] + 1 };
+  }, noMaterials());
 
   return { ...each, [chosen]: each[chosen] + carried - GATHERED_MATERIALS.length };
 }
@@ -344,27 +389,103 @@ function splits(carried: number, chosen: Material | undefined): chosen is Materi
 /** This turn's Gather Materials teams' outcomes, each with the type its team chose. */
 function gatherings(
   campaign: Campaign,
-): readonly { carried: number; chosen: Material | undefined }[] {
+): readonly { team: number; carried: number; chosen: Material | undefined }[] {
   const { choices } = turnMissions(campaign);
 
   return [...teamOutcomes(campaign).values()].flatMap((outcome) => {
     if (outcome.kind !== 'gather-materials-resolved') return [];
 
-    const chosen = choices.find((choice) => choice.team === outcomeTeam(outcome))?.material;
+    const team = outcomeTeam(outcome);
+    const chosen = choices.find((choice) => choice.team === team)?.material;
 
-    return [{ carried: outcome.materialsCarriedOut, chosen }];
+    return [{ team, carried: outcome.materialsCarriedOut, chosen }];
   });
+}
+
+/**
+ * The teams whose Gather Materials haul came back as one of each and the rest
+ * this turn, so have a one of each a substitution may replace (pg. 80; FAQ
+ * "Gather Materials and Coop Skills"; #221). A short haul is rolled, and its
+ * rolls are substituted like any others.
+ */
+export function substitutableGatherings(campaign: Campaign): readonly number[] {
+  return gatherings(campaign)
+    .filter((gathering) => splits(gathering.carried, gathering.chosen))
+    .map((gathering) => gathering.team);
+}
+
+/**
+ * What a substitution may force in place of one of a Gather Materials team's
+ * one of each (pg. 12; R9; FAQ "Gather Materials and Coop Skills"; #221):
+ * whatever each skill can force, but the material it would replace, which
+ * would spend a use on nothing.
+ */
+export function substitutionsFor(replaces: Material): readonly Forced[] {
+  return SUBSTITUTION_SKILLS.flatMap((skill) =>
+    MATERIALS.filter((material) => material !== replaces && canForce(skill, material)).map(
+      (material) => ({ skill, material }),
+    ),
+  );
+}
+
+/**
+ * Why these substitutions on Gather Materials hauls can't be accepted, or
+ * `null` (FAQ "Gather Materials and Coop Skills"; #221).
+ *
+ * Each names a team `substitutableGatherings` offers, a result
+ * `substitutionsFor` offers, and a material of that team's one of each no
+ * other substitution has replaced. Spending more uses than a skill has is not
+ * here: it is the warning `checkMaterials` gives the rolls' substitutions too.
+ */
+export function gatheredSubstitutionProblem(
+  campaign: Campaign,
+  substitutions: readonly GatheredSubstitution[],
+): string | null {
+  const teams = substitutableGatherings(campaign);
+  const replaced = new Set<string>();
+
+  for (const { team, replaces, forced } of substitutions) {
+    if (!teams.includes(team)) {
+      return `Mission team ${String(team)} brought back no one of each from Gather Materials.`;
+    }
+    if (
+      !substitutionsFor(replaces).some(
+        (offered) => offered.skill === forced.skill && offered.material === forced.material,
+      )
+    ) {
+      return `A ${forced.skill} use can’t make the gathered ${replaces} ${forced.material}.`;
+    }
+
+    const key = `${String(team)} ${replaces}`;
+    if (replaced.has(key)) {
+      return `Mission team ${String(team)}’s gathered ${replaces} is substituted once.`;
+    }
+    replaced.add(key);
+  }
+
+  return null;
 }
 
 /**
  * What every Gather Materials team this turn brought back without a roll
  * (pg. 80; Z4-6), added to the haul beside the rolled materials and the base's
  * production. Several teams may have gathered (R19), and each is split on its
- * own.
+ * own, with the substitutions that name it (#221).
  */
-export function gathered(campaign: Campaign): Materials {
+export function gathered(
+  campaign: Campaign,
+  substitutions: readonly GatheredSubstitution[],
+): Materials {
   return gatherings(campaign).reduce(
-    (total, gathering) => combined(total, gatheredBy(gathering.carried, gathering.chosen)),
+    (total, gathering) =>
+      combined(
+        total,
+        gatheredBy(
+          gathering.carried,
+          gathering.chosen,
+          substitutions.filter((substitution) => substitution.team === gathering.team),
+        ),
+      ),
     noMaterials(),
   );
 }
@@ -427,9 +548,13 @@ export function rollsOwed(campaign: Campaign): boolean {
  * miscounted Skill Score, or a haul that will be trimmed a phase later anyway.
  * Nothing here is the app having nothing to do, which is what a blocker is.
  */
-export function checkMaterials(campaign: Campaign, rolls: readonly MaterialRoll[]): MaterialsCheck {
+export function checkMaterials(
+  campaign: Campaign,
+  rolls: readonly MaterialRoll[],
+  substitutions: readonly GatheredSubstitution[],
+): MaterialsCheck {
   const warnings: MaterialsViolation[] = [];
-  const spent = substitutionsSpent(rolls);
+  const spent = substitutionsSpent(rolls, substitutions);
 
   for (const skill of SUBSTITUTION_SKILLS) {
     const uses = substitutionUses(campaign, skill);
@@ -447,7 +572,7 @@ export function checkMaterials(campaign: Campaign, rolls: readonly MaterialRoll[
 
   if (base !== null) {
     const adding = combined(
-      combined(recovered(rolls), gathered(campaign)),
+      combined(recovered(rolls), gathered(campaign, substitutions)),
       baseProduction(campaign),
     );
     const caps = storageCaps(base, suppliedOccupants(campaign));
