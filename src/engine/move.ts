@@ -179,8 +179,9 @@ export function storesAfterMove(campaign: Campaign): Materials | null {
   if (option === null || to === null) return null;
 
   // The outcome says "same map" only of a claim of the overrun base's own type:
-  // `missionOutcomeProblem` refuses it on any other.
-  const recovered = option === 'claim' && reclaimedOnSameMap(campaign);
+  // `missionOutcomeProblem` refuses it on any other, and starting over plays a
+  // First Mission, whose outcome has no map to name.
+  const recovered = reclaimedOnSameMap(campaign);
 
   return Object.fromEntries(
     MATERIALS.map((material) => [

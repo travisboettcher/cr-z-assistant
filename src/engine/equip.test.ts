@@ -266,7 +266,10 @@ describe('what a survivor can take (pp. 14, 38, 44; R40)', () => {
       ],
       inventory: [item('coat-2', 'reinforced-clothing')],
     });
-    expect(codes(armed, move('coat-2', 'earl')).blockers).toEqual(['worn-already']);
+    expect(codes(armed, move('coat-2', 'earl'))).toEqual({
+      blockers: ['worn-already'],
+      warnings: [],
+    });
     expect(codes(worn, move('pads', 'earl')).blockers).toEqual([]);
   });
 
@@ -296,6 +299,10 @@ describe('what a survivor can take (pp. 14, 38, 44; R40)', () => {
     const holding = after(second, move('pistol-1', 'earl'));
 
     expect(codes(second, move('pistol-1', 'earl')).warnings).toEqual([]);
+    // Carrying something else is no reason to say so.
+    expect(
+      codes(after(second, take('shoddy-1', 'revolver', 'earl')), move('pistol-1', 'earl')).warnings,
+    ).toEqual([]);
     expect(codes(holding, move('pistol-2', 'earl'))).toEqual({
       blockers: [],
       warnings: ['carried-already'],
