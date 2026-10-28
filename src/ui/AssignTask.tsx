@@ -30,7 +30,7 @@ import { sameTask } from '../engine/assignments';
 import { checkAssignment } from '../engine/planning';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
-import { taskLabel } from './taskLabels';
+import { taskLabel } from '../labels/taskLabels';
 import { FOCUS_RING } from './styles';
 
 export interface AssignTaskProps {

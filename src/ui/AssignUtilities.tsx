@@ -26,7 +26,7 @@ import { UTILITIES, type Utility } from '../data/facilities';
 import type { Campaign } from '../engine/campaign';
 import { checkUtility, suppliedOccupants } from '../engine/utilities';
 import { useCampaign } from '../state/useCampaign';
-import { FACILITY_LABELS, UTILITY_LABELS, slotLabel } from './baseLabels';
+import { FACILITY_LABELS, UTILITY_LABELS, slotLabel } from '../labels/baseLabels';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 

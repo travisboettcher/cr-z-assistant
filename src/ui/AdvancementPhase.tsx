@@ -88,28 +88,28 @@ import {
 import { fellInTheSiege } from '../engine/siegeWork';
 import { rareItemFor, rareRollsDue } from '../engine/finding';
 import { convoyTensDue } from '../engine/storyRewards';
-import { describeItem, ITEM_LABELS } from './equipmentLabels';
+import { describeItem, ITEM_LABELS } from '../labels/equipmentLabels';
 import { dueTrades } from '../engine/trading';
 import { CORE_WEAPONS, EQUIPMENT, type ItemId } from '../data/equipment';
 import { SiegeWork } from './SiegeWork';
-import { describeProject } from './projectLabels';
+import { describeProject } from '../labels/projectLabels';
 import {
   clearPendingRolls,
   readPendingRolls,
   writePendingRolls,
 } from '../persistence/pendingRolls';
 import { useCampaign } from '../state/useCampaign';
-import { BASE_LABELS, MATERIAL_LABELS, builtThingLabel, slotLabel } from './baseLabels';
+import { BASE_LABELS, MATERIAL_LABELS, builtThingLabel, slotLabel } from '../labels/baseLabels';
 import { OpenPanel } from './OpenPanel';
 import { PageRef } from './PageRef';
-import { SKILL_LABELS } from './skillLabels';
-import { TIER_LABELS } from './tierLabels';
+import { SKILL_LABELS } from '../labels/skillLabels';
+import { TIER_LABELS } from '../labels/tierLabels';
 import { InoculationsGiven, RotResistance } from './Inoculations';
 import { LoungeRecovery } from './Lounge';
 import { SpellLearning } from './Spells';
-import { missionTitle } from './missionLabels';
-import { describeBuild } from './storyLabels';
-import { withArticle } from './articles';
+import { missionTitle } from '../labels/missionLabels';
+import { describeBuild } from '../labels/storyLabels';
+import { withArticle } from '../labels/articles';
 import { FOCUS_RING, PRIMARY_FILL, SECONDARY_FILL, TOUCH_TARGET } from './styles';
 
 export interface AdvancementPhaseProps {

@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { CAMPAIGN_EVENT_SAMPLES } from '../test/logSamples';
-import { describeEvent } from './logLabels';
+import { describeEvent } from '../labels/logLabels';
 import { CampaignProvider } from '../state/CampaignProvider';
 import { campaignLog, openMenu, openPanel } from '../test/screens';
 import { App } from './App';

@@ -46,8 +46,8 @@ import { useCampaign } from '../state/useCampaign';
 import { OpenPanel } from './OpenPanel';
 import { PageRef } from './PageRef';
 import { FOCUS_RING } from './styles';
-import { taskLabel } from './taskLabels';
-import { STEP_LABELS } from './turnLabels';
+import { taskLabel } from '../labels/taskLabels';
+import { STEP_LABELS } from '../labels/turnLabels';
 
 const HINT = 'text-sm text-stone-600 dark:text-stone-400';
 

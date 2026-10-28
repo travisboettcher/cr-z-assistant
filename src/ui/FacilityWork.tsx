@@ -16,7 +16,7 @@
 import type { Occupant } from '../engine/base';
 import { STAFF_STEP } from '../data/turn';
 import { PageRef } from './PageRef';
-import { STEP_LABELS } from './turnLabels';
+import { STEP_LABELS } from '../labels/turnLabels';
 import type { Campaign } from '../engine/campaign';
 import { staffOf } from '../engine/assignments';
 import { hungerPenalty } from '../engine/feeding';
@@ -28,8 +28,8 @@ import {
   type ProductionLine,
 } from '../engine/production';
 import { AssignTask } from './AssignTask';
-import { STAT_LABELS } from './skillLabels';
-import { MATERIAL_LABELS, UTILITY_LABELS, builtThingLabel } from './baseLabels';
+import { STAT_LABELS } from '../labels/skillLabels';
+import { MATERIAL_LABELS, UTILITY_LABELS, builtThingLabel } from '../labels/baseLabels';
 import { unmodelledExchanges } from '../engine/conversions';
 
 export interface FacilityWorkProps {

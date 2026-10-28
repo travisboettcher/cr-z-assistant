@@ -72,10 +72,10 @@ import { maxHp } from '../engine/survivor';
 import { atTier, tierRolled } from '../engine/vehicles';
 import { D10_RESULTS, type D10Result } from '../data/dice';
 import { useCampaign } from '../state/useCampaign';
-import { withArticle } from './articles';
-import { BASE_LABELS } from './baseLabels';
-import { describeItem } from './equipmentLabels';
-import { describeEvent } from './logLabels';
+import { withArticle } from '../labels/articles';
+import { BASE_LABELS } from '../labels/baseLabels';
+import { describeItem } from '../labels/equipmentLabels';
+import { describeEvent } from '../labels/logLabels';
 import { VehicleFields, type VehicleDraft } from './VehicleFields';
 import {
   COUNT_LABELS,
@@ -85,7 +85,7 @@ import {
   OVERRUN_LABELS,
   outcomeConsequences,
   outcomePages,
-} from './missionLabels';
+} from '../labels/missionLabels';
 import { PageRef } from './PageRef';
 import { LostRescues } from './LostRoll';
 import { StoryEnding } from './StoryEnding';

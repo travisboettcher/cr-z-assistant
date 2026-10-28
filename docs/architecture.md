@@ -28,11 +28,13 @@ starts, who reads it, and what else has to change when it does.
             └──────────────────────────────────────────────┘
 
   src/persistence   Campaign ⇄ bytes: schema version, migrations, parse, export, autosave
+  src/labels        ids and log entries ⇒ names and lines; reads src/data and src/engine, read by src/ui
 ```
 
 Imports only point down. `src/data` imports nothing above it, `src/engine` and `src/data` import no
-React and nothing from `src/ui`, and `npm run lint` fails if any of that is broken. Each directory's
-README says what belongs in it.
+React and nothing from `src/ui` or `src/labels`, and `src/labels` imports nothing but `src/data` and
+`src/engine` — no React, no UI, no store — so a caller without a screen can have the names (#203).
+`npm run lint` fails if any of that is broken. Each directory's README says what belongs in it.
 
 ## A campaign is facts, a step and a log
 
@@ -45,7 +47,7 @@ The **log** (`src/engine/log.ts`) is the other half. Several steps of a turn are
 after one has run the campaign cannot tell by looking at itself that it did — a departure lowers
 the very pressure that called for it. So the steps that matter write a structured entry, and "has
 this turn's Rot check happened?" is a question about the log. Entries are data, never sentences;
-`src/ui/logLabels.ts` turns them into something to read.
+`src/labels/logLabels.ts` turns them into something to read.
 
 ## The engine's vocabulary
 
@@ -117,7 +119,7 @@ Departures (pg. 23) touches every layer, which makes it the example to follow:
 | engine | `src/engine/managementForms.ts` | `submitDeparture`: refuses a second departure or a name `departureCandidates` does not offer, applies `withDeparture`, logs |
 | state | `src/state/campaignStore.ts` | `management/departed`: one call to `submitDeparture` |
 | ui | `src/ui/ManagementPhase.tsx` | the Departures step: shows the pressure, offers the candidates, says "would have left" from `departureCalled` |
-| ui | `src/ui/logLabels.ts` | the log line |
+| labels | `src/labels/logLabels.ts` | the log line |
 | docs | `docs/phase-3-stories.md` (Z3-10), `docs/rulings.md` (R3, R18) | why each of those answers is the one it is |
 
 [#192](https://github.com/travisboettcher/cr-z-assistant/issues/192) is what happens when two of

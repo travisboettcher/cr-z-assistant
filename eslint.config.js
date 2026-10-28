@@ -103,7 +103,7 @@ const NO_REACT_IN_ENGINE = [
  * `globalThis.document` is the obvious way round the rest, and a pure function
  * over a `Campaign` has no reason to touch the global object at all.
  */
-const BROWSER_IN_THE_SERIALISER = [
+const BROWSER_GLOBALS = [
   'document',
   'window',
   'self',
@@ -117,7 +117,9 @@ const BROWSER_IN_THE_SERIALISER = [
   'FileReader',
   'URL',
   'requestAnimationFrame',
-].map((name) => ({
+];
+
+const BROWSER_IN_THE_SERIALISER = BROWSER_GLOBALS.map((name) => ({
   name,
   message:
     'src/persistence/exportFile.ts must stay pure so it can be imported without a DOM (#180). Browser glue belongs in src/persistence/download.ts.',
@@ -125,6 +127,38 @@ const BROWSER_IN_THE_SERIALISER = [
 
 const DATA_IS_THE_BOTTOM =
   'src/data must not import from src/engine — the engine is a set of functions over the rules, not where they live. If the engine holds something a rules file needs, move it down into src/data (materials, origins and the campaign phases all made that trip).';
+
+/**
+ * The display names stay loadable without the app (#203).
+ *
+ * `src/labels` names ids and turns log entries into lines, and it moved out of
+ * `src/ui` so a caller that drives the engine without a screen can have the
+ * same words. That holds only while the tables stay pure, so the directory gets
+ * the engine's restrictions on React and the UI, the store and persistence
+ * besides, and the same browser names the serialiser may not touch.
+ *
+ * It sits above the engine — it reads `src/data` and asks the engine about a
+ * record — so the arrow points one way: `src/engine` and `src/data` may not
+ * import it. An entry the engine wrote as a sentence would be a second format
+ * to keep in sync with this one.
+ */
+const LABELS_ARE_PURE =
+  'src/labels must stay pure so the names can be imported without the app (#203). It may read src/data and src/engine; rendering belongs in src/ui.';
+
+const LABELS_STAY_PURE = [
+  { group: ['react', 'react-dom', 'react/*', 'react-dom/*'], message: LABELS_ARE_PURE },
+  { group: ['**/ui/**', '**/ui'], message: LABELS_ARE_PURE },
+  { group: ['**/state/**', '**/state'], message: LABELS_ARE_PURE },
+  { group: ['**/persistence/**', '**/persistence'], message: LABELS_ARE_PURE },
+];
+
+const BROWSER_IN_THE_LABELS = BROWSER_GLOBALS.map((name) => ({ name, message: LABELS_ARE_PURE }));
+
+const LABELS_ARE_ABOVE = {
+  group: ['**/labels/**', '**/labels'],
+  message:
+    'src/engine and src/data must not import from src/labels — the labels read the engine, and an entry is structured, never a sentence. Name things in src/labels and ask the engine there.',
+};
 
 export default tseslint.config(
   {
@@ -171,6 +205,7 @@ export default tseslint.config(
           patterns: [
             { group: ['react', 'react-dom', 'react/*', 'react-dom/*'], message: ENGINE_IS_PURE },
             { group: ['**/ui/**', '**/ui'], message: ENGINE_IS_PURE },
+            LABELS_ARE_ABOVE,
           ],
         },
       ],
@@ -186,6 +221,7 @@ export default tseslint.config(
           patterns: [
             { group: ['react', 'react-dom', 'react/*', 'react-dom/*'], message: ENGINE_IS_PURE },
             { group: ['**/ui/**', '**/ui'], message: ENGINE_IS_PURE },
+            LABELS_ARE_ABOVE,
             { group: ['**/engine/**', '**/engine'], message: DATA_IS_THE_BOTTOM },
           ],
         },
@@ -202,7 +238,10 @@ export default tseslint.config(
     files: ['src/engine/**/*.ts'],
     ignores: [...RESOLUTION_BUILT_HERE, ...TESTS],
     rules: {
-      'no-restricted-imports': ['error', { patterns: [...NO_REACT_IN_ENGINE, RAW_OCCUPANTS] }],
+      'no-restricted-imports': [
+        'error',
+        { patterns: [...NO_REACT_IN_ENGINE, LABELS_ARE_ABOVE, RAW_OCCUPANTS] },
+      ],
     },
   },
 
@@ -211,6 +250,18 @@ export default tseslint.config(
     ignores: TESTS,
     rules: {
       'no-restricted-imports': ['error', { patterns: [RAW_OCCUPANTS] }],
+    },
+  },
+
+  /*
+   * The labels were in `src/ui` until #203 and kept its raw-occupants rule on
+   * the way out: a name for a slot is read from the same base a screen reads.
+   */
+  {
+    files: ['src/labels/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [...LABELS_STAY_PURE, RAW_OCCUPANTS] }],
+      'no-restricted-globals': ['error', ...BROWSER_IN_THE_LABELS],
     },
   },
 

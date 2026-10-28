@@ -7,7 +7,7 @@
 import type { ReactNode } from 'react';
 import type { Campaign } from '../engine/campaign';
 import { phaseOf } from '../engine/turn';
-import { PHASE_LABELS, STEP_LABELS } from './turnLabels';
+import { PHASE_LABELS, STEP_LABELS } from '../labels/turnLabels';
 
 export interface AppHeaderProps {
   /** Omitted while the store reports `status: 'empty'`. */

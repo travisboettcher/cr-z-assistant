@@ -7,7 +7,7 @@
  * *is* stays in the book, and the app cites the page.
  *
  * Display names are not here, for the same reason `skillLabels.ts` lives in
- * `src/ui`: naming a thing for a screen is the UI's job, and this directory
+ * `src/labels`: naming a thing for a screen is presentation, and this directory
  * stays structural. `bunk-room` is an identifier.
  *
  * Three rules hold across the whole table and are therefore constants and

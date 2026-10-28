@@ -23,8 +23,8 @@ import {
   type StoryExtras,
   type StoryItemChoice,
 } from '../engine/storyRewards';
-import { describeItem, ITEM_LABELS } from './equipmentLabels';
-import { missionTitle } from './missionLabels';
+import { describeItem, ITEM_LABELS } from '../labels/equipmentLabels';
+import { missionTitle } from '../labels/missionLabels';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 

@@ -43,6 +43,7 @@ const COVERED = [
   ['src/ui/BaseSheet.tsx', 'the UI'],
   ['src/state/campaignStore.ts', 'the store'],
   ['src/persistence/exportFile.ts', 'persistence'],
+  ['src/labels/taskLabels.ts', 'the labels'],
 ] as const;
 
 describe('the raw-occupants rule', () => {
@@ -163,6 +164,68 @@ describe('the pure-serialiser rule', () => {
         'src/persistence/download.ts',
         "document.createElement('a');\nURL.createObjectURL(new Blob(['{}']));\n",
         GLOBALS,
+      ),
+    ).toEqual([]);
+  });
+});
+
+/**
+ * The #203 guard. The label tables moved out of `src/ui` so a caller without a
+ * screen can import them, which stays true only while nothing in them reaches
+ * back up — and while nothing below them reaches up into them.
+ */
+describe('the pure-labels rule', () => {
+  const LABELS = 'src/labels/logLabels.ts';
+
+  it.each([
+    ["import { useState } from 'react';\n", 'React'],
+    ["import { PageRef } from '../ui/PageRef';\n", 'the UI'],
+    ["import { useCampaign } from '../state/campaignStore';\n", 'the store'],
+    ["import { serializeCampaign } from '../persistence/exportFile';\n", 'persistence'],
+  ])('refuses %o in src/labels (%s)', async (source) => {
+    const said = await messagesFor(LABELS, source);
+
+    expect(said).toHaveLength(1);
+    expect(said[0]).toContain('src/labels must stay pure');
+  });
+
+  it('refuses a browser global in src/labels', async () => {
+    const said = await messagesFor(LABELS, 'window.alert(1);\n', 'no-restricted-globals');
+
+    expect(said).toHaveLength(1);
+  });
+
+  /** What the names are read from is allowed: the rules and the engine. */
+  it('permits src/data and src/engine in src/labels', async () => {
+    expect(
+      await messagesFor(
+        LABELS,
+        "import { MATERIALS } from '../data/materials';\nimport { FIRST_TURN } from '../engine/siege';\n",
+      ),
+    ).toEqual([]);
+  });
+
+  /** Including the engine modules on the raw-occupants allowlist, which fall back to the pure-layers rule. */
+  it.each([
+    'src/engine/log.ts',
+    'src/engine/base.ts',
+    'src/engine/log.test.ts',
+    'src/data/skills.ts',
+  ])('refuses src/labels in %s, which sits below it', async (filePath) => {
+    const said = await messagesFor(
+      filePath,
+      "import { SKILL_LABELS } from '../labels/skillLabels';\n",
+    );
+
+    expect(said).toHaveLength(1);
+    expect(said[0]).toContain('must not import from src/labels');
+  });
+
+  it('permits src/labels in src/ui', async () => {
+    expect(
+      await messagesFor(
+        'src/ui/SurvivorSheet.tsx',
+        "import { SKILL_LABELS } from '../labels/skillLabels';\n",
       ),
     ).toEqual([]);
   });

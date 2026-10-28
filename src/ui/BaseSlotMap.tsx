@@ -25,7 +25,7 @@ import {
   UPGRADE_LABELS,
   slotLabel,
   suppliedWith,
-} from './baseLabels';
+} from '../labels/baseLabels';
 import { UtilitiesPanel } from './AssignUtilities';
 import { BaseSheet } from './BaseSheet';
 import { FacilityWork } from './FacilityWork';
@@ -33,7 +33,7 @@ import { cancellable, laborAvailable, laborShortfall, queuedFor } from '../engin
 import { planningHasBegun } from '../engine/planning';
 import { rebuildsOpen } from '../engine/rebuild';
 import { baseLaborBonus, siegeLaborBonus, traitLaborChange } from '../engine/assignments';
-import { describeProject } from './projectLabels';
+import { describeProject } from '../labels/projectLabels';
 import { useCampaign } from '../state/useCampaign';
 import { BuildFacility } from './BuildFacility';
 import { ClearSlot } from './ClearSlot';

@@ -29,7 +29,7 @@ import { hungerPenalty } from '../engine/feeding';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
-import { TIER_LABELS } from './tierLabels';
+import { TIER_LABELS } from '../labels/tierLabels';
 
 export interface SurvivorRosterProps {
   readonly campaign: Campaign;
