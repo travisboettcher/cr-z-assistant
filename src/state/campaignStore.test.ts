@@ -3960,6 +3960,50 @@ describe('the Advancement Phase steps', () => {
     expect(expectOpen(next).materials.food).toBe(2);
   });
 
+  /** FAQ "Gather Materials and Coop Skills" (#221). */
+  it('passes on the substitutions on a Gather Materials haul', () => {
+    const gathering = openState({
+      ...expectOpen(afterAMission()),
+      log: [
+        {
+          turn: 3,
+          phase: 'mission',
+          at: AT,
+          event: {
+            kind: 'mission-selected',
+            team: 1,
+            mission: 'gather-materials',
+            names: ['Earl Rhodes'],
+            material: 'fuel',
+          },
+        },
+        {
+          turn: 3,
+          phase: 'mission',
+          at: AT,
+          event: {
+            kind: 'gather-materials-resolved',
+            team: 1,
+            materialsCarriedOut: 3,
+            strangers: [],
+          },
+        },
+      ],
+    });
+    const after = expectOpen(
+      campaignReducer(gathering, {
+        type: 'advancement/materialsAdded',
+        at: AT,
+        rolls: [],
+        gatheredSubstitutions: [
+          { team: 1, replaces: 'hardware', forced: { skill: 'rationing', material: 'food' } },
+        ],
+      }),
+    );
+
+    expect(after.materials).toEqual({ food: 2, fuel: 1, hardware: 0 });
+  });
+
   /**
    * **#163.** The whole feature was here except the payout: a community that
    * skipped its mission to scavenge walked to this step and received nothing,

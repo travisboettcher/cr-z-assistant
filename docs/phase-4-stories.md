@@ -85,7 +85,7 @@ none places a Hero (pg. 7; R24).
 |---|---|---|---|
 | First Mission: Start a New Community | 76–77 | Which end condition was met, if any; strangers rescued, with their Tiers | The first base (already recorded by `base-claimed`); strangers join at Advancement Step 2 (pg. 19) |
 | Claim a New Base | 78–79 | Which end condition was met, if any; strangers rescued; working vehicles on the area | #182's: a new base, its Inventory, Unrest locked at 0 for the turn |
-| Gather Materials | 79–80 | Materials carried off the map; the material type chosen at selection; a stranger its setup may place | One each of Food, Fuel and Hardware, remainder in the chosen type, **instead of** rolling the Material Type table (pg. 19); fewer than three are rolled |
+| Gather Materials | 79–80 | Materials carried off the map; the material type chosen at selection; a stranger its setup may place | One each of Food, Fuel and Hardware, remainder in the chosen type, **instead of** rolling the Material Type table (pg. 19); fewer than three are rolled. A substitution may replace one of the one of each, never the remainder (FAQ "Gather Materials and Coop Skills", #221) |
 | Thin the Herd | 80–81 | Starting zombies, zombies left, survivors exited, whether all were incapacitated | As #175: the siege counter reset or halved, or the next siege automatic |
 | Retrieve New Vehicles | 81–82 | Vehicles repaired and driven off; a stranger its setup may place | Phase 5's: each into the base Inventory |
 | Rescue Strangers | 82–83 | Strangers rescued, with their Tiers | They join at Advancement Step 2 (pg. 19); a rescuer's Tier is at least the stranger's (pg. 31) |
@@ -366,6 +366,21 @@ off fewer than three gets no split: its materials are rolled on the Material Typ
 others, and the step says how many. Several Gather Materials teams in one turn are each split on
 their own (R19). What was gathered counts against the storage caps the haul is warned about, as
 rolled materials do.
+
+**Substitutions reach the one of each, and no further (#221).** As built, a split haul had no roll,
+and a substitution only ever changed a roll (pg. 12), so nothing a team gathered could be
+substituted at all. FAQ "Gather Materials and Coop Skills" corrects that: the uses may replace the
+guaranteed one of each, within their usual limits, and never the materials of the targeted type. In
+the FAQ's example a team targeting Hardware turns at most its first three into Food. So
+`gatheredBy` takes the substitutions spent on a team's one of each, named by the material each
+replaces, and adds the remainder after them where none can reach it. The one of the targeted type
+is one of the three like the others, as the example has it. The uses are the pools the rolls draw
+on, summed across every team as R19 sums them, and spending more than a Score is the same warning
+(`checkMaterials`). A substitution that names a team with no one of each, a result its skill can't
+force (Utilities forces Fuel only, R9), the material it would replace, or a material already
+replaced is refused by `submitHaul`. A short haul is rolled, and its rolls are substituted like any
+others. The step's Gather Materials block says what is substituted, and a button opens the controls
+in a dialog. Nothing new is saved: the log records the haul's amounts, as before.
 
 ---
 

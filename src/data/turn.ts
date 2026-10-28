@@ -249,6 +249,10 @@ export type MaterialRollResult = Material | 'rare-item';
  * the obvious wrong implementation, so the rule is written here as a mapping
  * from skill to *allowed results* rather than as an amount.
  *
+ * The same uses may replace a Gather Materials team's guaranteed one of each,
+ * which has no roll, and never its remainder in the chosen type (pg. 80; FAQ
+ * "Gather Materials and Coop Skills"; #221). The results allowed are these.
+ *
  * One material each: Rationing forces Food, Mechanics Hardware and Utilities
  * Fuel (pg. 12, as the Errata corrects it), and none forces a 10, which is a
  * Rare Item Table roll rather than a material (pg. 19;

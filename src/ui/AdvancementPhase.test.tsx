@@ -359,6 +359,96 @@ describe('Add Materials to Storage', () => {
     expect(within(walk()).queryByText(/without a roll/i)).toBeNull();
   });
 
+  /** FAQ "Gather Materials and Coop Skills" (#221). */
+  describe('substituting a Gather Materials haul', () => {
+    /** Earl, on the mission, with a Score of 2 in each skill named. */
+    const skilled = (...skills: readonly ('rationing' | 'utilities')[]) =>
+      onTheStep({
+        survivors: [
+          {
+            ...createSurvivor('Earl Rhodes', 4, { id: EARL }),
+            stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: 2 },
+            skills: Object.fromEntries(skills.map((skill) => [skill, 0])),
+          },
+        ],
+        log: gatheredLog(5),
+      });
+    const substitute = () =>
+      within(walk()).getByRole('button', { name: 'Substitute gathered materials' });
+    const dialog = () => screen.getByRole('dialog', { name: 'Substitute gathered materials' });
+
+    it('offers the one of each in a dialog, and stores what it was turned into', async () => {
+      const user = open(skilled('rationing'));
+
+      expect(within(walk()).getByText('Nothing gathered is substituted.')).toBeTruthy();
+      await user.click(substitute());
+
+      // One control for each of the one of each Rationing can change, and none
+      // for the remainder.
+      expect(
+        within(dialog())
+          .getAllByRole('combobox')
+          .map((select) => select.getAttribute('aria-label')),
+      ).toEqual(['Mission team 1’s gathered Hardware', 'Mission team 1’s gathered Fuel']);
+      expect(within(dialog()).getByText(/Rationing 0 of 2/)).toBeTruthy();
+
+      await user.selectOptions(
+        within(dialog()).getByRole('combobox', { name: 'Mission team 1’s gathered Hardware' }),
+        'Rationing → Food',
+      );
+      await user.click(within(dialog()).getByRole('button', { name: 'Back to the haul' }));
+
+      expect(
+        within(walk()).getByText('Substituted: Hardware to Food with Rationing.'),
+      ).toBeTruthy();
+      expect(within(walk()).getByText(/\+2 Food/)).toBeTruthy();
+      expect(within(walk()).getByText(/\+3 Fuel/)).toBeTruthy();
+      expect(within(walk()).getByText(/\+0 Hardware/)).toBeTruthy();
+
+      await user.click(within(walk()).getByRole('button', { name: /add to storage/i }));
+
+      expect(stored(/^food$/i)).toBe(2);
+      expect(stored(/^hardware$/i)).toBe(0);
+    });
+
+    it('puts a substitution back as gathered', async () => {
+      const user = open(skilled('rationing'));
+      const fuel = () =>
+        within(dialog()).getByRole('combobox', { name: 'Mission team 1’s gathered Fuel' });
+
+      await user.click(substitute());
+      await user.selectOptions(fuel(), 'Rationing → Food');
+      await user.selectOptions(fuel(), 'as gathered');
+
+      expect(within(walk()).getByText('Nothing gathered is substituted.')).toBeTruthy();
+    });
+
+    it('offers Utilities Fuel only, so nothing for the Fuel (R9)', async () => {
+      const user = open(skilled('utilities'));
+
+      await user.click(substitute());
+
+      expect(
+        within(dialog())
+          .getAllByRole('combobox')
+          .map((select) => select.getAttribute('aria-label')),
+      ).toEqual(['Mission team 1’s gathered Hardware', 'Mission team 1’s gathered Food']);
+      expect(
+        within(within(dialog()).getByRole('combobox', { name: 'Mission team 1’s gathered Food' }))
+          .getAllByRole('option')
+          .map((option) => option.textContent),
+      ).toEqual(['as gathered', 'Utilities → Fuel']);
+    });
+
+    it('offers nothing to a team without the skills', () => {
+      open(onTheStep({ log: gatheredLog(5) }));
+
+      expect(
+        within(walk()).queryByRole('button', { name: 'Substitute gathered materials' }),
+      ).toBeNull();
+    });
+  });
+
   /**
    * **#163, on the screen it went missing from.** Every visible part of
    * scavenging existed — the Planning control, the warnings, the label — and
