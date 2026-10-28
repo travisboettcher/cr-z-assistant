@@ -140,6 +140,9 @@ export function CampaignSettings({ campaign }: { readonly campaign: Campaign }) 
             {holders.map((survivor) => survivor.name).join(', ')}{' '}
             {holders.length === 1 ? 'loses their' : 'lose their'} Advantages, experience debt and
             Permanent Injuries. Switching back on doesn’t return them.
+            {/* An Inoculation gives it too, so it stays (R167). */}
+            {keptSurvivors(campaign).some((survivor) => survivor.rotResistant) &&
+              ' Rot Resistant stays, since an Inoculation gives it too.'}
           </p>
           <div className="mt-6 flex flex-wrap justify-end gap-3">
             <button

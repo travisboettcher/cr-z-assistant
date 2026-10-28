@@ -77,6 +77,8 @@ describe('switching the traits part-way (R158; Z7-10)', () => {
     expect(
       confirm.getByText(/Earl Rhodes loses their Advantages, experience debt and/),
     ).toBeTruthy();
+    // Nobody here is Rot Resistant, so the confirmation doesn't mention it (R167).
+    expect(confirm.queryByText(/Rot Resistant stays/)).toBeNull();
 
     await user.click(confirm.getByRole('button', { name: 'Keep them' }));
     expect(screen.getByLabelText('In use')).toBeChecked();
@@ -89,6 +91,28 @@ describe('switching the traits part-way (R158; Z7-10)', () => {
       ),
     );
     expect(screen.getByLabelText('In use')).not.toBeChecked();
+  });
+
+  it('says Rot Resistant stays when somebody has it (R167)', async () => {
+    const user = open({
+      ...createNewCampaign('Cedar Hollow', { origin: 'viral' }),
+      traitsEnabled: true,
+      survivors: [earl({ advantages: ['forager'], xpDebt: 3, rotResistant: true })],
+    });
+
+    openMenu('settings');
+    await user.click(screen.getByLabelText('In use'));
+    const confirm = within(screen.getByRole('dialog', { name: /stop using the survivor traits/i }));
+    expect(
+      confirm.getByText(/Rot Resistant stays, since an Inoculation gives it too\./),
+    ).toBeTruthy();
+
+    await user.click(confirm.getByRole('button', { name: 'Stop using them' }));
+    openPanel('survivors');
+    await user.click(screen.getByRole('button', { name: /^sheet$/i }));
+    expect(
+      within(screen.getByRole('region', { name: 'Earl Rhodes' })).getByText(/Rot Resistant/),
+    ).toBeTruthy();
   });
 });
 
