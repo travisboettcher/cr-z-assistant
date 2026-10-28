@@ -41,9 +41,11 @@ stored. See [`docs/base-slot-interaction.md`](../../docs/base-slot-interaction.m
 ## Words and citations
 
 - **Every rulebook citation goes through `PageRef`.** No inline "(p8)".
-- **Display names live in the `*Labels.ts` files** — `turnLabels.ts`, `logLabels.ts`,
-  `baseLabels.ts` and the rest — not in `src/data`. Naming things for a screen is this layer's job.
-  `logLabels.ts` is what turns a structured log entry into a line someone reads.
+- **Display names live in [`src/labels`](../labels/README.md)** — `turnLabels.ts`, `logLabels.ts`,
+  `baseLabels.ts` and the rest — not in `src/data` and not here. A screen imports them; they are
+  kept out of this directory so a caller without React can have the same names (#203).
+  `logLabels.ts` is what turns a structured log entry into a line someone reads. Words about the
+  app rather than the game, like `exportLabels.ts`'s, stay here.
 - **No rule text.** A screen may say what a number is and where the rule is; it does not explain
   the rule. Messages from the engine are already written for a person at the table.
 - **`styles.ts`** holds the class fragments that must be identical everywhere — the focus ring and

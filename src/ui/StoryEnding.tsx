@@ -9,10 +9,10 @@ import { STORY_RESULTS, STORY_WINDOWS, storyResult, type StoryResult } from '../
 import type { StoryMissionId } from '../data/missions';
 import type { Campaign, Survivor } from '../engine/campaign';
 import { nextPart, storyHolder, storyRecipients, type StoryChoice } from '../engine/storyMissions';
-import { missionTitle } from './missionLabels';
+import { missionTitle } from '../labels/missionLabels';
 import { PageRef } from './PageRef';
 import { StoryExtrasFields } from './StoryExtras';
-import { storyResultLabel } from './storyLabels';
+import { storyResultLabel } from '../labels/storyLabels';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
 const HINT = 'text-sm text-stone-600 dark:text-stone-400';

@@ -15,7 +15,7 @@ import { CampaignProvider } from '../state/CampaignProvider';
 import { campaignLog, openPanel, stored } from '../test/screens';
 import { App } from './App';
 import { BaseSlotMap } from './BaseSlotMap';
-import { BASE_LABELS, slotLabel } from './baseLabels';
+import { BASE_LABELS, slotLabel } from '../labels/baseLabels';
 
 /**
  * Driven through `App` and the real provider, for the reason

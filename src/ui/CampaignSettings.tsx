@@ -15,7 +15,7 @@ import { CAMPAIGN_ORIGINS, type CampaignOrigin } from '../data/origins';
 import type { Campaign } from '../engine/campaign';
 import { keptSurvivors } from '../engine/campaign';
 import { useCampaign } from '../state/useCampaign';
-import { ORIGIN_LABELS } from './originLabels';
+import { ORIGIN_LABELS } from '../labels/originLabels';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 

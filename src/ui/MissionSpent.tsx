@@ -26,8 +26,8 @@ import {
   type Carried,
 } from '../engine/spent';
 import { useCampaign } from '../state/useCampaign';
-import { describeItem } from './equipmentLabels';
-import { describeEvent } from './logLabels';
+import { describeItem } from '../labels/equipmentLabels';
+import { describeEvent } from '../labels/logLabels';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 

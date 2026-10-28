@@ -30,10 +30,10 @@ import {
 } from '../engine/assignments';
 import { laborAvailable, laborThisTurn, projectTeamIdle } from '../engine/projects';
 import { AssignmentBoard } from './AssignmentBoard';
-import { facilityInSlot } from './baseLabels';
+import { facilityInSlot } from '../labels/baseLabels';
 import { OpenPanel } from './OpenPanel';
 import { PageRef } from './PageRef';
-import { laneLabel } from './taskLabels';
+import { laneLabel } from '../labels/taskLabels';
 
 export interface PlanningPhaseProps {
   readonly campaign: Campaign;

@@ -11,7 +11,7 @@
 import type { Campaign } from '../engine/campaign';
 import { veteranCanReach } from '../engine/veteran';
 import { useCampaign } from '../state/useCampaign';
-import { describeEvent } from './logLabels';
+import { describeEvent } from '../labels/logLabels';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 

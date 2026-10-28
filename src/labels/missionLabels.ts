@@ -31,7 +31,7 @@ import {
 
 /**
  * What each mission is called on a screen — the book's own titles, which the
- * catalogue leaves to the UI as the base roster does (Z4-1).
+ * catalogue leaves to `src/labels` as the base roster does (Z4-1).
  */
 export const MISSION_LABELS: Record<MissionId, string> = {
   'first-mission': 'the First Mission',

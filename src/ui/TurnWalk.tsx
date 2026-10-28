@@ -34,7 +34,7 @@ import { laborShortfall } from '../engine/projects';
 import { materialsAdded } from '../engine/materials';
 import { missionPhaseEmpty } from '../engine/missions';
 import { clearPendingRolls, readPendingRolls } from '../persistence/pendingRolls';
-import { PHASE_LABELS, STEP_LABELS } from './turnLabels';
+import { PHASE_LABELS, STEP_LABELS } from '../labels/turnLabels';
 import { FOCUS_RING, PRIMARY_FILL, SECONDARY_FILL, TOUCH_TARGET } from './styles';
 
 export interface TurnWalkProps {

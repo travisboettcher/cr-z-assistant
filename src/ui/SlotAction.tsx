@@ -19,7 +19,7 @@ import type { Campaign } from '../engine/campaign';
 import type { Check } from '../engine/checks';
 import { permitted } from '../engine/checks';
 import { PageRef } from './PageRef';
-import { STEP_LABELS } from './turnLabels';
+import { STEP_LABELS } from '../labels/turnLabels';
 import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 
 export interface SlotActionProps<Code extends string> {

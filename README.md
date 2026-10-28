@@ -126,7 +126,8 @@ this app failed:
    edit, not a code edit.
 2. **Pure engine.** Derived values and phase transitions are pure functions over a `Campaign`,
    testable with no DOM. The UI only renders and dispatches. A lint rule enforces the
-   boundary — `src/engine` and `src/data` cannot import React or anything from `src/ui`.
+   boundary — `src/engine` and `src/data` cannot import React or anything from `src/ui`, and
+   the display names in `src/labels` cannot either.
 3. **Derived is never stored.** Only primitive facts persist. Hunger, Unrest, Siege Threat and
    Skill Scores are always recomputed, because the hunger penalty retroactively changes every
    Skill Score for the turn and makes a cached one wrong.
