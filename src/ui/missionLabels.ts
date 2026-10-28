@@ -171,6 +171,30 @@ function sameMapOf(sameMap: boolean | undefined): string {
   return sameMap ? ', on the overrun base’s own map' : ', on a different map';
 }
 
+/**
+ * Each numbered end condition in the page's own words, shortened (pp. 77, 79;
+ * #241). The book gives them no names, so its wording is the name, as it is for
+ * a step or a weapon; the number is the order the page lists them in, and the
+ * last is the failure (#205).
+ */
+export const END_CONDITION_LABELS: Record<
+  'first-mission' | 'claim-a-new-base',
+  readonly [string, string, string, string]
+> = {
+  'first-mission': [
+    'No zombies left in the mission area',
+    'No zombies inside the building, no survivors outside, and the door barricaded',
+    'No zombies inside or within 6" of the building, and no survivors outside',
+    'No survivors left in the mission area',
+  ],
+  'claim-a-new-base': [
+    'No zombies left on the mission area',
+    'No zombies inside the building, no survivors outside, and all the doors barricaded',
+    'No zombies inside or within 6" of the building, and no survivors outside',
+    'No survivors on the mission area still able to activate',
+  ],
+};
+
 /** Which end condition was met; a failure under the number the page gives it (#205). */
 function endOf(mission: 'first-mission' | 'claim-a-new-base', endCondition: number | null): string {
   return endCondition === null

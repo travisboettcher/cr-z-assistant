@@ -79,6 +79,7 @@ import { describeEvent } from './logLabels';
 import { VehicleFields, type VehicleDraft } from './VehicleFields';
 import {
   COUNT_LABELS,
+  END_CONDITION_LABELS,
   describeOutcome,
   MISSION_LABELS,
   missionPages,
@@ -131,6 +132,15 @@ function failedOn(mission: MissionId): number | undefined {
   const entry: (typeof MISSIONS)[MissionId] = MISSIONS[mission];
 
   return 'failedOn' in entry ? entry.failedOn : undefined;
+}
+
+/** A numbered end condition with its words, where the page has them (#241). */
+function endConditionOption(mission: MissionId, number: number): string {
+  const words = (END_CONDITION_LABELS as Partial<Record<MissionId, readonly string[]>>)[mission]?.[
+    number - 1
+  ];
+
+  return words === undefined ? String(number) : `${String(number)} — ${words}`;
 }
 
 function endConditionsOf(mission: MissionId): number {
@@ -687,7 +697,7 @@ function TeamOutcome({
                   </option>
                   {Array.from({ length: endConditionsOf(choice.mission) }, (_, index) => (
                     <option key={index + 1} value={String(index + 1)}>
-                      {index + 1}
+                      {endConditionOption(choice.mission, index + 1)}
                     </option>
                   ))}
                   {/*
@@ -698,7 +708,8 @@ function TeamOutcome({
                     <option value="none">None</option>
                   ) : (
                     <option value={String(failedOn(choice.mission))}>
-                      {failedOn(choice.mission)} (failed)
+                      {endConditionOption(choice.mission, failedOn(choice.mission) as number)}{' '}
+                      (failed)
                     </option>
                   )}
                 </select>
