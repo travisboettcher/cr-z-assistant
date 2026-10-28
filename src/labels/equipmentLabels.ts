@@ -2,8 +2,8 @@
  * How items read on a screen (pp. 37–53; Z5-2).
  *
  * Display names live here, never in `src/data` (see `src/data/README.md`):
- * `historical-katana` is an identifier, and naming it for a table is the UI's
- * job.
+ * `historical-katana` is an identifier, and naming it for a table is
+ * `src/labels`' job.
  */
 
 import type { Grade, ItemId, ItemKind } from '../data/equipment';

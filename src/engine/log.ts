@@ -11,7 +11,7 @@
  * was promoted to tier 3" — that is prose, and prose is the one shape that
  * serves exactly one reader. Three want this data: the log screen, the markdown
  * export in Phase 8, and an undo that will need to know what it is undoing.
- * Rendering lives in `src/ui/logLabels.ts`, so the export is a second reader of
+ * Rendering lives in `src/labels/logLabels.ts`, so the export is a second reader of
  * the same fields rather than a second format to keep in sync.
  *
  * ## Append-only, and nothing here removes an entry

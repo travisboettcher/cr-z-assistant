@@ -33,7 +33,7 @@ import { checkAssignment } from '../engine/planning';
 import { maxHp } from '../engine/survivor';
 import { useCampaign } from '../state/useCampaign';
 import { PageRef } from './PageRef';
-import { taskLabel } from './taskLabels';
+import { taskLabel } from '../labels/taskLabels';
 import { BoardCard, BoardColumns, CardRow, DropZone, LaneFrame, RefusedZone } from './Board';
 import { BOARD_DROP } from './styles';
 

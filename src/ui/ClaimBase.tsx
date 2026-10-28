@@ -15,7 +15,7 @@
 import { useId, useState } from 'react';
 import { BASES, BASE_IDS, maxHeroes, type BaseId } from '../data/bases';
 import { useCampaign } from '../state/useCampaign';
-import { BASE_LABELS } from './baseLabels';
+import { BASE_LABELS } from '../labels/baseLabels';
 import { PageRef } from './PageRef';
 import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 

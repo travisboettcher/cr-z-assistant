@@ -15,6 +15,7 @@ property and mutation testing is in the top-level README, under "Checking the te
 | Reducer | `src/state/campaignStore.test.ts` | `npm test`, mutation | each action through the store: accepted, refused, what it logs |
 | Persistence | `src/persistence/*.test.ts`, `__fixtures__/` | `npm test`, mutation | parsing, validation, migrations, every old save still opening |
 | Property | `*.property.test.ts` | `npm test` | invariants over generated input — round trips, never overdrawing, never throwing |
+| Labels | `src/labels/*.test.ts` | `npm test` | a name or a line that is easy to get wrong — articles, plurals; log lines are checked on the log screen |
 | Screen | `src/ui/*.test.tsx` | `npm test` (jsdom) | what a person sees and can press, rendered through the real `App` |
 | Lint guard | `lintGuard.test.ts`, here | `npm test` | that each boundary in `eslint.config.js` actually catches what it claims to |
 | End to end | `e2e/*.spec.ts` | `npm run e2e` | the built bundle in a real browser at tablet size: export, reload, import, the turn walk, `<dialog>` |

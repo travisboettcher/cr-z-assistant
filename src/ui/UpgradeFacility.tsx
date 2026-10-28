@@ -12,7 +12,7 @@ import type { Campaign } from '../engine/campaign';
 import { freeRebuild } from '../engine/rebuild';
 import { checkUpgrade, upgradeOrder, upgradesFor } from '../engine/upgrade';
 import { useCampaign } from '../state/useCampaign';
-import { UPGRADE_LABELS } from './baseLabels';
+import { UPGRADE_LABELS } from '../labels/baseLabels';
 import { PageRef } from './PageRef';
 import { SlotAction } from './SlotAction';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';

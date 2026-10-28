@@ -67,9 +67,9 @@ re-derives the whole column and asserts it reproduces the book's table, which is
 roster a check on the transcription instead of a second copy of it.
 
 **Rules enforced by `eslint.config.js`:** no React, no React DOM, no imports from `src/ui`, and no
-imports from `src/engine`.
+imports from `src/engine` or `src/labels`.
 
 Costs, caps and formulas are fine here. Facility descriptions, skill descriptions and mission
 narrative are not — the app must be useless without owning the rulebook. Display labels are not
-here either: naming things for a screen is the UI's job, the same way `src/ui/turnLabels.ts`
-names the campaign phases.
+here either: naming things is [`src/labels`](../labels/README.md)' job, the same way
+`src/labels/turnLabels.ts` names the campaign phases, and nothing here may import it.

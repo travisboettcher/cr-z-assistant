@@ -44,11 +44,11 @@ import {
   RefusedZone,
   type ZoneNote,
 } from './Board';
-import { describeItem, ITEM_LABELS } from './equipmentLabels';
+import { describeItem, ITEM_LABELS } from '../labels/equipmentLabels';
 import { AutoShopNote } from './MissionVehicles';
 import { OpenPanel } from './OpenPanel';
 import { PageRef } from './PageRef';
-import { SKILL_LABELS } from './skillLabels';
+import { SKILL_LABELS } from '../labels/skillLabels';
 import { BOARD_DROP, BOARD_QUIET } from './styles';
 
 const HINT = 'text-sm text-stone-600 dark:text-stone-400';

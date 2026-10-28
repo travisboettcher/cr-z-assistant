@@ -21,8 +21,8 @@ import { firstBaseOwed, layoutOf } from '../engine/base';
 import { communityTierLevels, maxHp } from '../engine/survivor';
 import { emptySlotCount } from '../engine/utilities';
 import { firstTurnChecklist } from '../engine/firstTurn';
-import { BASE_LABELS, MATERIAL_LABELS } from './baseLabels';
-import { ITEM_KIND_LABELS } from './equipmentLabels';
+import { BASE_LABELS, MATERIAL_LABELS } from '../labels/baseLabels';
+import { ITEM_KIND_LABELS } from '../labels/equipmentLabels';
 import { FOCUS_RING, PRIMARY_FILL, SECONDARY_FILL, TOUCH_TARGET } from './styles';
 
 /** What a card opens. */
