@@ -71,8 +71,8 @@ describe('Feed your Survivors', () => {
   });
 
   /**
-   * R1, on the screen: two survivors absorb a shortfall of two, and the
-   * third point is the one that costs everybody a stat.
+   * R1, on the screen: two survivors absorb a shortfall of two, and a third
+   * point costs everybody the whole shortfall.
    */
   it('names the head count as the threshold the penalty starts at', () => {
     open(management({ materials: { food: 2, fuel: 0, hardware: 0 } }));
@@ -84,8 +84,9 @@ describe('Feed your Survivors', () => {
   it('warns in so many words once the shortfall passes it', () => {
     open(management({ materials: { food: 0, fuel: 0, hardware: 0 } }));
 
-    // Four required, nothing stored, two survivors: a penalty of two.
-    expect(walk().textContent).toContain('stats drop by 2');
+    // Four required, nothing stored, two survivors: past the head count, so
+    // a penalty of the whole four (R1).
+    expect(walk().textContent).toContain('stats drop by 4');
   });
 });
 
@@ -109,10 +110,10 @@ describe('the penalty the Feed step reports', () => {
   it('keeps saying what it said when the step ran, after the roster changes', async () => {
     const user = open(starving());
 
-    // Six short against three survivors: three off every stat.
+    // Six short against three survivors: six off every stat (R1).
     await user.click(within(walk()).getByRole('button', { name: /feed the community/i }));
 
-    expect(walk().textContent).toContain('every survivor’s stats drop by 3');
+    expect(walk().textContent).toContain('every survivor’s stats drop by 6');
 
     // A survivor arrives afterwards. The penalty in force was priced at Feed
     // and does not move (R1) — so this line must not move either.
@@ -121,7 +122,7 @@ describe('the penalty the Feed step reports', () => {
     await user.selectOptions(screen.getByLabelText(/^Tier$/i), '4');
     await user.click(screen.getByRole('button', { name: /^add survivor$/i }));
 
-    expect(walk().textContent).toContain('every survivor’s stats drop by 3');
+    expect(walk().textContent).toContain('every survivor’s stats drop by 6');
     expect(walk().textContent).toContain('head count of 3');
   });
 });
@@ -1082,7 +1083,7 @@ describe('a shortfall reaches every screen at once', () => {
 
   /**
    * Three Heroes eat six and the stores are empty, so a shortfall of six
-   * against a head count of three is a penalty of three. Nell staffs a Clinic
+   * against a head count of three is a penalty of the whole six (R1). Nell staffs a Clinic
    * with Water, so its Health is her Medicine Score rather than half of it.
    */
   const starving = () =>
@@ -1125,8 +1126,8 @@ describe('a shortfall reaches every screen at once', () => {
 
     await user.click(within(walk()).getByRole('button', { name: /feed the community/i }));
 
-    // Three off every stat: a Medicine Score of 1, and a Clinic making 1.
-    expect(clinic().textContent).toContain('+1 Health');
+    // Six off every stat: a Medicine Score of 0, and a Clinic making nothing.
+    expect(clinic().textContent).toContain('+0 Health');
   });
 
   it('lowers the Skill Scores on the sheet, and the stored stats stay put', async () => {

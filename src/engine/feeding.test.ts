@@ -160,12 +160,15 @@ describe('hunger', () => {
 describe('the hunger penalty', () => {
   /**
    * R1: a starvation threshold, not a tax. The community absorbs a
-   * shortfall up to its head count and every point past that costs a stat.
+   * shortfall up to its head count, and once past it the whole shortfall
+   * costs every stat (#215): FAQ "Hunger Penalty"'s example takes a 3 to 0
+   * for 4 Food short, which the part past the head count never could.
    */
-  it('fires only once the shortfall passes the head count', () => {
+  it('fires only once the shortfall passes the head count, and then whole', () => {
     expect(penaltyFor(5, 5)).toBe(0);
-    expect(penaltyFor(6, 5)).toBe(1);
-    expect(penaltyFor(10, 5)).toBe(5);
+    expect(penaltyFor(6, 5)).toBe(6);
+    expect(penaltyFor(10, 5)).toBe(10);
+    expect(penaltyFor(4, 3)).toBe(4);
   });
 
   it('is never negative, however well fed the community is', () => {
@@ -185,7 +188,7 @@ describe('the hunger penalty', () => {
   });
 
   it('does fire for a community that eats two each', () => {
-    expect(hungerPenalty(withLog(community(5, 4, 0), [fed(3, 10, 10)]))).toBe(5);
+    expect(hungerPenalty(withLog(community(5, 4, 0), [fed(3, 10, 10)]))).toBe(10);
   });
 
   it('is nothing for a community that has never eaten', () => {
@@ -202,7 +205,7 @@ describe('the hunger penalty', () => {
     const carried: Campaign = { ...withLog(community(5, 4, 0), [fed(3, 10, 10)]), turn: 4 };
 
     expect(hunger(carried)).toBe(0);
-    expect(hungerPenalty(carried)).toBe(5);
+    expect(hungerPenalty(carried)).toBe(10);
   });
 
   /**
@@ -212,12 +215,12 @@ describe('the hunger penalty', () => {
    * Management Phase" buys the rule, and a naive turn filter would lose it.
    */
   it.each([
-    ['select-mission', 5],
-    ['tactical-mission', 5],
-    ['character-advancement', 5],
-    ['heal-wounds', 5],
-    ['assign-facility-staff', 5],
-    ['assign-mission-team', 5],
+    ['select-mission', 10],
+    ['tactical-mission', 10],
+    ['character-advancement', 10],
+    ['heal-wounds', 10],
+    ['assign-facility-staff', 10],
+    ['assign-mission-team', 10],
     ['check-for-rot', 0],
     ['feed-your-survivors', 0],
     ['departures', 0],
@@ -245,7 +248,7 @@ describe('the hunger penalty', () => {
     const shortfall = withLog(community(5, 4, 0), [fed(3, 10, 10)]);
     const nextTurn: Campaign = { ...shortfall, turn: 4 };
 
-    expect(hungerPenalty({ ...nextTurn, step: 'assign-mission-team' })).toBe(5);
+    expect(hungerPenalty({ ...nextTurn, step: 'assign-mission-team' })).toBe(10);
     expect(hungerPenalty({ ...nextTurn, step: 'check-for-rot' })).toBe(0);
 
     // And it does not come back two turns later, which is what the log-reading
@@ -263,8 +266,8 @@ describe('the hunger penalty', () => {
   it('holds through the rest of the Management Phase that set it', () => {
     const fedThisTurn = withLog(community(5, 4, 0), [fed(3, 10, 10)]);
 
-    expect(hungerPenalty({ ...fedThisTurn, step: 'calculate-unrest' })).toBe(5);
-    expect(hungerPenalty({ ...fedThisTurn, step: 'departures' })).toBe(5);
+    expect(hungerPenalty({ ...fedThisTurn, step: 'calculate-unrest' })).toBe(10);
+    expect(hungerPenalty({ ...fedThisTurn, step: 'departures' })).toBe(10);
   });
 
   /**
@@ -274,14 +277,14 @@ describe('the hunger penalty', () => {
    * food shortage hurt the people left *more*.
    */
   it('uses the head count the Feed step saw, not the one left afterwards', () => {
-    const atFeed = withLog(community(4, 4, 0), [fed(3, 8, 6, 4)]);
+    const atFeed = withLog(community(4, 4, 0), [fed(3, 8, 4, 4)]);
     const afterDeparture: Campaign = {
       ...atFeed,
       survivors: atFeed.survivors.slice(1),
     };
 
-    expect(hungerPenalty(atFeed)).toBe(2);
-    expect(hungerPenalty(afterDeparture)).toBe(2);
+    expect(hungerPenalty(atFeed)).toBe(0);
+    expect(hungerPenalty(afterDeparture)).toBe(0);
   });
 
   /**
@@ -290,10 +293,10 @@ describe('the hunger penalty', () => {
    * acquire a different answer by being loaded into a newer build.
    */
   it('falls back to the live head count for an entry that carries none', () => {
-    const older = withLog(community(4, 4, 0), [fed(3, 8, 6)]);
+    const older = withLog(community(4, 4, 0), [fed(3, 8, 4)]);
 
-    expect(hungerPenalty(older)).toBe(2);
-    expect(hungerPenalty({ ...older, survivors: older.survivors.slice(1) })).toBe(3);
+    expect(hungerPenalty(older)).toBe(0);
+    expect(hungerPenalty({ ...older, survivors: older.survivors.slice(1) })).toBe(4);
   });
 
   /**

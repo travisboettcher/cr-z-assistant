@@ -53,29 +53,30 @@ R50 was assigned by that check, for a question it found that no ruling covered.
 
 ## R1 — The hunger penalty is a starvation threshold, not a hunger tax
 
-> **Under review, [#215](https://github.com/travisboettcher/cr-z-assistant/issues/215).** FAQ "Hunger and Population" confirms the threshold, and FAQ
-> "Hunger Penalty" confirms that stats alone take it and floor at zero. But that entry's worked
-> example implies a penalty larger than `Hunger − population` can ever reach, so the *size* below
-> is expected to change. The issue holds the proposed reading; nothing changes until it is decided.
+**pg. 22; FAQ "Hunger and Population"; FAQ "Hunger Penalty"; [#215](https://github.com/travisboettcher/cr-z-assistant/issues/215).**
+The book says to subtract Hunger from the community's population and, if the result is negative,
+reduce every survivor's stats by that number. Two problems. `population − Hunger` is almost never
+negative: Hunger is capped at the Food required, which is at most twice the population, so the
+penalty fires only when a mostly Tier 3–4 community has nearly empty stores. And "reduced by that
+number" where the number is negative is self-contradictory.
 
-**pg. 22.** The book says to subtract Hunger from the community's population and, if the result is
-negative, reduce every survivor's stats by that number. Two problems. `population − Hunger` is
-almost never negative: Hunger is capped at the Food required, which is at most twice the
-population, so the penalty fires only when a mostly Tier 3–4 community has nearly empty stores.
-And "reduced by that number" where the number is negative is self-contradictory; the intent is
-presumably its absolute value.
+FAQ "Hunger and Population" confirms the threshold: Hunger is compared with the population, not
+with the Food required, so a community can have Hunger and no stat penalty. FAQ "Hunger Penalty"
+confirms that stats alone take it and floor at zero, and its worked example takes a stat of 3 to 0
+for a community 4 Food short. The part of the Hunger past the population can never be that large
+(a penalty of 3 would need Hunger of at least the population plus 3, so 6 or more), so the size
+cannot be the difference.
 
-**The ruling is the literal one.** `penalty = max(0, Hunger − population)`, applied to every
-survivor's stats and floored at zero. The printed arithmetic computes `population − Hunger` and
-tests it for negativity, which is the shape of a threshold — a tax would just have said "reduce
-stats by the Hunger" and never mentioned the population.
+**The ruling is a threshold, then the whole Hunger.** While Hunger is no more than the population
+there is no penalty; once it is more, every survivor's stats drop by the full Hunger, floored at
+zero. It is the only reading that fits both FAQ entries.
 
-| Community | Food required | Food stored | Hunger | pop − Hunger | Stat penalty |
+| Community | Food required | Food stored | Hunger | Past the population? | Stat penalty |
 |---|---|---|---|---|---|
-| 5 Heroes | 10 | 5 | 5 | 0 | none |
-| 5 Heroes | 10 | 4 | 6 | −1 | −1 to every stat |
-| 5 Heroes | 10 | 0 | 10 | −5 | −5, everything floored at 0 |
-| 5 Rookies | 5 | 0 | 5 | 0 | **none, at any shortfall** |
+| 5 Heroes | 10 | 5 | 5 | no | none |
+| 5 Heroes | 10 | 4 | 6 | yes | −6 to every stat, floored at 0 |
+| 5 Heroes | 10 | 0 | 10 | yes | −10, everything floored at 0 |
+| 5 Rookies | 5 | 0 | 5 | no | **none, at any shortfall** |
 
 That last row is an accepted consequence rather than a bug to route around: a community of
 Tier 1–2 survivors can empty its stores completely and take no stat penalty, because the
@@ -110,6 +111,15 @@ is gone when turn N + 1's Management Phase begins, whether or not a Feed step ra
 That dissolves the dilemma the issue posed. Feed does not have to be refused, and a turn ending
 with Feed unresolved does not need to clear the penalty as a special case — the clock does it.
 Z3-6's posture that the walk guides rather than refuses is untouched.
+
+### Amendment, October 2026 — the size is the whole Hunger
+
+The rulings audit of 2026-10-14 found that FAQ "Hunger Penalty"'s worked example can't happen under
+`max(0, Hunger − population)`, which this ruling first used
+([#215](https://github.com/travisboettcher/cr-z-assistant/issues/215)). The threshold and the clock
+above stand; the penalty past the threshold is the full Hunger.
+
+*Decided 2026-10-28.*
 
 ---
 
