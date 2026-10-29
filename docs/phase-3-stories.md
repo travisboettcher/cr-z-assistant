@@ -726,7 +726,10 @@ acquire a step to happen in.
 
 **Acceptance**
 - The substitution replaces a roll's result and does not add a material; a test covers the
-  difference, because adding is the obvious wrong implementation.
+  difference, because adding is the obvious wrong implementation. *(A Gather Materials haul has no
+  roll for its one of each, and FAQ "Gather Materials and Coop Skills" lets a substitution replace
+  one of those instead, never the remainder: see
+  [phase-4-stories.md](phase-4-stories.md#z4-6--gather-materials-replaces-the-roll), #221.)*
 - Production computed from the current assignments lands in materials on acceptance, and the
   amount matches what the base sheet showed.
 - Storage caps are reported here and not enforced — Check Storage is a Management step, and
