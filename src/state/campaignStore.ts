@@ -53,7 +53,7 @@ import { createNewCampaign } from '../engine/campaign';
 import { humanityMax } from '../engine/injuries';
 import { logged } from '../engine/log';
 import { reverse, type AdvanceBy } from '../engine/turn';
-import type { MaterialRoll } from '../engine/materials';
+import type { GatheredSubstitution, MaterialRoll } from '../engine/materials';
 import {
   submitBaseMove,
   submitCommonSkill,
@@ -465,6 +465,8 @@ export type CampaignAction =
   | {
       readonly type: 'advancement/materialsAdded';
       readonly rolls: readonly MaterialRoll[];
+      /** Substitutions on Gather Materials teams' one of each (FAQ "Gather Materials and Coop Skills"; #221). */
+      readonly gatheredSubstitutions?: readonly GatheredSubstitution[];
       readonly scavenged?: Material;
       /** The Rare Item Table's dice, with fresh ids for what they find (Z5-7). */
       readonly rareItems?: readonly RareItemRoll[];
@@ -1085,7 +1087,12 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
       return submitted(state, (campaign) =>
         submitHaul(
           campaign,
-          { rolls: action.rolls, scavenged: action.scavenged, rareItems: action.rareItems ?? [] },
+          {
+            rolls: action.rolls,
+            gatheredSubstitutions: action.gatheredSubstitutions ?? [],
+            scavenged: action.scavenged,
+            rareItems: action.rareItems ?? [],
+          },
           action.at,
         ),
       );

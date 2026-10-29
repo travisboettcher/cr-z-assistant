@@ -113,6 +113,75 @@ describe('submitHaul', () => {
     expect(after.materials).toEqual({ food: 2, fuel: 1, hardware: 2 });
   });
 
+  /** FAQ "Gather Materials and Coop Skills" (#221). */
+  describe('with substitutions on a Gather Materials haul', () => {
+    const gathering = community({
+      ...afterAMission(),
+      log: [
+        {
+          turn: 3,
+          phase: 'mission',
+          at: AT,
+          event: {
+            kind: 'mission-selected',
+            team: 1,
+            mission: 'gather-materials',
+            names: ['Earl Rhodes'],
+            material: 'hardware',
+          },
+        },
+        {
+          turn: 3,
+          phase: 'mission',
+          at: AT,
+          event: {
+            kind: 'gather-materials-resolved',
+            team: 1,
+            materialsCarriedOut: 5,
+            strangers: [],
+          },
+        },
+      ],
+    });
+    const toFood = { skill: 'rationing', material: 'food' } as const;
+
+    it('stores the one of each as substituted, and the remainder as targeted', () => {
+      const after = expectAccepted(
+        submitHaul(
+          gathering,
+          {
+            rolls: [],
+            gatheredSubstitutions: [
+              { team: 1, replaces: 'fuel', forced: toFood },
+              { team: 1, replaces: 'hardware', forced: toFood },
+            ],
+          },
+          AT,
+        ),
+      );
+
+      expect(after.materials).toEqual({ food: 3, fuel: 0, hardware: 2 });
+      expect(events(after).at(-1)).toEqual({
+        kind: 'materials-added',
+        food: 3,
+        fuel: 0,
+        hardware: 2,
+      });
+    });
+
+    it('refuses one that isn’t on a team’s one of each, and stores nothing', () => {
+      expect(
+        expectRefused(
+          submitHaul(
+            gathering,
+            { rolls: [], gatheredSubstitutions: [{ team: 2, replaces: 'fuel', forced: toFood }] },
+            AT,
+          ),
+        ),
+      ).toBe('Mission team 2 brought back no one of each from Gather Materials.');
+    });
+  });
+
   it('records a scavenger’s find after the haul, with what they chose', () => {
     const after = expectAccepted(
       submitHaul(

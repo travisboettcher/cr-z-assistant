@@ -58,7 +58,9 @@ import {
   scavenger,
   withMaterialsAdded,
   gathered,
+  gatheredSubstitutionProblem,
   madeTens,
+  type GatheredSubstitution,
   type MaterialRoll,
 } from './materials';
 import { convoyTensDue } from './storyRewards';
@@ -89,6 +91,13 @@ export interface HaulForm {
   readonly rolls: readonly MaterialRoll[];
 
   /**
+   * Substitutions spent on what Gather Materials teams brought back without a
+   * roll, each replacing one of a team's one of each (pp. 12, 80; FAQ "Gather
+   * Materials and Coop Skills"; #221). Absent is none.
+   */
+  readonly gatheredSubstitutions?: readonly GatheredSubstitution[];
+
+  /**
    * The one thing about the haul the campaign cannot work out: a scavenger
    * without the Scavenge skill brings back one material of a type the *player*
    * picks (pg. 17). Ignored with the skill, and with nobody scavenging.
@@ -105,7 +114,8 @@ export interface HaulForm {
 
 /**
  * Put this turn's haul in storage — the mission's rolls, what a Gather
- * Materials team brought back without one (pg. 80; Z4-6), what the base made,
+ * Materials team brought back without one (pg. 80; Z4-6) with any
+ * substitutions on its one of each (#221), what the base made,
  * and a scavenger's find (pp. 17–19). Once a turn: the step is destructive and
  * the walk can go back over it.
  *
@@ -134,11 +144,21 @@ export function submitHaul(campaign: Campaign, form: HaulForm, at: string): Form
   const rare = rareRollsProblem(campaign, form.rolls, rareItems);
   if (rare !== null) return refused(rare);
 
+  // Only a team's one of each, and once each (FAQ "Gather Materials and Coop
+  // Skills"; #221). Spending more uses than a Score is `checkMaterials`'s
+  // warning, as it is for the rolls.
+  const substitutions = form.gatheredSubstitutions ?? [];
+  const substituting = gatheredSubstitutionProblem(campaign, substitutions);
+  if (substituting !== null) return refused(substituting);
+
   const found = scavenged(campaign, form.scavenged);
   // Forager's Food with the haul (R164; Z7-10).
   const adding = combined(
     combined(
-      combined(combined(recovered(form.rolls), gathered(campaign)), baseProduction(campaign)),
+      combined(
+        combined(recovered(form.rolls), gathered(campaign, substitutions)),
+        baseProduction(campaign),
+      ),
       found,
     ),
     foraged(campaign),

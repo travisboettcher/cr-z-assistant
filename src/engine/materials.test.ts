@@ -8,6 +8,7 @@ import {
   combined,
   gathered,
   gatheredBy,
+  gatheredSubstitutionProblem,
   gatheredToRoll,
   materialsAdded,
   noMaterials,
@@ -18,7 +19,9 @@ import {
   scavenged,
   scavenger,
   scavengerStoodDown,
+  substitutableGatherings,
   substitutionUses,
+  substitutionsFor,
   substitutionsSpent,
   withMaterialsAdded,
   type MaterialRoll,
@@ -160,12 +163,15 @@ describe('substitutionUses', () => {
 describe('substitutionsSpent', () => {
   it('counts each skill separately, because each has its own pool', () => {
     expect(
-      substitutionsSpent([
-        { roll: 1, forced: { skill: 'rationing', material: 'food' } },
-        { roll: 2, forced: { skill: 'rationing', material: 'food' } },
-        { roll: 3, forced: { skill: 'mechanics', material: 'hardware' } },
-        { roll: 4 },
-      ]),
+      substitutionsSpent(
+        [
+          { roll: 1, forced: { skill: 'rationing', material: 'food' } },
+          { roll: 2, forced: { skill: 'rationing', material: 'food' } },
+          { roll: 3, forced: { skill: 'mechanics', material: 'hardware' } },
+          { roll: 4 },
+        ],
+        [],
+      ),
     ).toEqual({ rationing: 2, mechanics: 1, utilities: 0 });
   });
 });
@@ -298,18 +304,22 @@ describe('checkMaterials', () => {
   const greasySpoon = (): Base => ({ id: 'greasy-spoon', slots: {} });
 
   it('never blocks anything', () => {
-    const check = checkMaterials(community(), [
-      { roll: 1, forced: { skill: 'rationing', material: 'food' } },
-    ]);
+    const check = checkMaterials(
+      community(),
+      [{ roll: 1, forced: { skill: 'rationing', material: 'food' } }],
+      [],
+    );
 
     expect(check.blockers).toEqual([]);
     expect(check.warnings.length).toBeGreaterThan(0);
   });
 
   it('warns when more results were forced than the team can force', () => {
-    const check = checkMaterials(community(), [
-      { roll: 1, forced: { skill: 'mechanics', material: 'hardware' } },
-    ]);
+    const check = checkMaterials(
+      community(),
+      [{ roll: 1, forced: { skill: 'mechanics', material: 'hardware' } }],
+      [],
+    );
 
     expect(codes(check.warnings)).toEqual(['not-enough-substitution']);
     expect(check.warnings[0]?.message).toContain('mechanics');
@@ -327,10 +337,14 @@ describe('checkMaterials', () => {
     };
 
     expect(
-      checkMaterials(campaign, [
-        { roll: 1, forced: { skill: 'mechanics', material: 'hardware' } },
-        { roll: 2, forced: { skill: 'mechanics', material: 'hardware' } },
-      ]).warnings,
+      checkMaterials(
+        campaign,
+        [
+          { roll: 1, forced: { skill: 'mechanics', material: 'hardware' } },
+          { roll: 2, forced: { skill: 'mechanics', material: 'hardware' } },
+        ],
+        [],
+      ).warnings,
     ).toEqual([]);
   });
 
@@ -345,7 +359,7 @@ describe('checkMaterials', () => {
       // The Greasy Spoon stores 6 Food (pg. 54).
       materials: { food: 6, fuel: 0, hardware: 0 },
     };
-    const check = checkMaterials(full, [{ roll: 4 }]);
+    const check = checkMaterials(full, [{ roll: 4 }], []);
 
     expect(codes(check.warnings)).toEqual(['over-storage-cap']);
     // Six stored, one rolled, and the Greasy Spoon's own Food: eight, over six.
@@ -362,12 +376,12 @@ describe('checkMaterials', () => {
       materials: { food: 4, fuel: 0, hardware: 0 },
     };
 
-    expect(checkMaterials(level, [{ roll: 4 }]).warnings).toEqual([]);
+    expect(checkMaterials(level, [{ roll: 4 }], []).warnings).toEqual([]);
 
     // And one more is over.
     expect(
       codes(
-        checkMaterials({ ...level, materials: { ...level.materials, food: 5 } }, [{ roll: 4 }])
+        checkMaterials({ ...level, materials: { ...level.materials, food: 5 } }, [{ roll: 4 }], [])
           .warnings,
       ),
     ).toEqual(['over-storage-cap']);
@@ -380,8 +394,8 @@ describe('checkMaterials', () => {
       materials: { food: 6, fuel: 6, hardware: 6 },
     };
 
-    expect(checkMaterials(full, [{ roll: 10 }]).warnings).toEqual(
-      checkMaterials(full, []).warnings,
+    expect(checkMaterials(full, [{ roll: 10 }], []).warnings).toEqual(
+      checkMaterials(full, [], []).warnings,
     );
   });
 
@@ -391,7 +405,7 @@ describe('checkMaterials', () => {
       materials: { food: 999, fuel: 999, hardware: 999 },
     };
 
-    expect(checkMaterials(rich, [{ roll: 4 }]).warnings).toEqual([]);
+    expect(checkMaterials(rich, [{ roll: 4 }], []).warnings).toEqual([]);
   });
 
   it('counts what the base makes against the cap as well as what was rolled', () => {
@@ -402,7 +416,7 @@ describe('checkMaterials', () => {
       materials: { food: 6, fuel: 0, hardware: 0 },
     };
 
-    expect(codes(checkMaterials(nearly, []).warnings)).toEqual(['over-storage-cap']);
+    expect(codes(checkMaterials(nearly, [], []).warnings)).toEqual(['over-storage-cap']);
   });
 });
 
@@ -640,20 +654,217 @@ const gathering = (team: number, carried: number, material?: Material): LogEntry
 
 describe('gatheredBy (pg. 80; Z4-6)', () => {
   it('gives one of each stored type and the rest in the chosen one', () => {
-    expect(gatheredBy(5, 'fuel')).toEqual({ food: 1, fuel: 3, hardware: 1 });
+    expect(gatheredBy(5, 'fuel', [])).toEqual({ food: 1, fuel: 3, hardware: 1 });
   });
 
   it('gives exactly one of each when there is no rest', () => {
-    expect(gatheredBy(3, 'hardware')).toEqual({ food: 1, fuel: 1, hardware: 1 });
+    expect(gatheredBy(3, 'hardware', [])).toEqual({ food: 1, fuel: 1, hardware: 1 });
   });
 
   it('gives nothing for fewer than one of each, which is rolled instead', () => {
-    expect(gatheredBy(2, 'food')).toEqual(noMaterials());
-    expect(gatheredBy(0, 'food')).toEqual(noMaterials());
+    expect(gatheredBy(2, 'food', [])).toEqual(noMaterials());
+    expect(gatheredBy(0, 'food', [])).toEqual(noMaterials());
   });
 
   it('gives nothing for a choice that named no type', () => {
-    expect(gatheredBy(5, undefined)).toEqual(noMaterials());
+    expect(gatheredBy(5, undefined, [])).toEqual(noMaterials());
+  });
+});
+
+/**
+ * FAQ "Gather Materials and Coop Skills" (#221): a substitution may replace the
+ * guaranteed one of each, within the skill's uses, and never the remainder in
+ * the targeted type.
+ */
+describe('substitutions on a Gather Materials haul', () => {
+  const rationing = { skill: 'rationing', material: 'food' } as const;
+  const mechanics = { skill: 'mechanics', material: 'hardware' } as const;
+  const utilities = { skill: 'utilities', material: 'fuel' } as const;
+
+  describe('gatheredBy', () => {
+    /** The FAQ's own example: targeting Hardware, a big Rationing Score. */
+    it('turns at most the one of each into Food when the team targeted Hardware', () => {
+      const every = MATERIALS.flatMap((replaces) =>
+        substitutionsFor(replaces)
+          .filter((forced) => forced.skill === 'rationing')
+          .map((forced) => ({ replaces, forced })),
+      );
+
+      expect(gatheredBy(8, 'hardware', every)).toEqual({ food: 3, fuel: 0, hardware: 5 });
+    });
+
+    it('replaces the one it names and leaves the remainder in the targeted type', () => {
+      expect(gatheredBy(5, 'fuel', [{ replaces: 'fuel', forced: rationing }])).toEqual({
+        food: 2,
+        fuel: 2,
+        hardware: 1,
+      });
+      expect(gatheredBy(5, 'food', [{ replaces: 'hardware', forced: utilities }])).toEqual({
+        food: 3,
+        fuel: 2,
+        hardware: 0,
+      });
+    });
+
+    it('changes materials and never adds one', () => {
+      const haul = gatheredBy(
+        6,
+        'food',
+        MATERIALS.map((replaces) => ({ replaces, forced: mechanics })),
+      );
+
+      expect(size(haul)).toBe(6);
+      expect(haul).toEqual({ food: 3, fuel: 0, hardware: 3 });
+    });
+
+    it('has nothing to substitute on a short haul, which is rolled', () => {
+      expect(gatheredBy(2, 'food', [{ replaces: 'fuel', forced: rationing }])).toEqual(
+        noMaterials(),
+      );
+    });
+  });
+
+  describe('substitutionsFor', () => {
+    it('offers what each skill forces, but the material being replaced (R9)', () => {
+      expect(substitutionsFor('food')).toEqual([mechanics, utilities]);
+      expect(substitutionsFor('fuel')).toEqual([rationing, mechanics]);
+      expect(substitutionsFor('hardware')).toEqual([rationing, utilities]);
+    });
+  });
+
+  describe('substitutableGatherings', () => {
+    it('names the teams that came back with one of each, and no others', () => {
+      const campaign: Campaign = {
+        ...community(),
+        log: [
+          ...gathering(1, 2, 'food'),
+          ...gathering(2, 3, 'fuel'),
+          ...gathering(3, 6),
+          ...gathering(4, 4, 'hardware'),
+        ],
+      };
+
+      expect(substitutableGatherings(campaign)).toEqual([2, 4]);
+      expect(substitutableGatherings(community())).toEqual([]);
+    });
+  });
+
+  describe('gatheredSubstitutionProblem', () => {
+    const two: Campaign = {
+      ...community(),
+      log: [...gathering(1, 4, 'hardware'), ...gathering(2, 3, 'fuel'), ...gathering(3, 2, 'food')],
+    };
+
+    it('accepts none, and a substitution on each team’s one of each', () => {
+      expect(gatheredSubstitutionProblem(two, [])).toBeNull();
+      expect(
+        gatheredSubstitutionProblem(two, [
+          { team: 1, replaces: 'fuel', forced: rationing },
+          { team: 1, replaces: 'hardware', forced: rationing },
+          { team: 2, replaces: 'fuel', forced: rationing },
+          { team: 2, replaces: 'food', forced: utilities },
+        ]),
+      ).toBeNull();
+    });
+
+    it('refuses a team with no one of each: a short haul, or no Gather Materials', () => {
+      expect(
+        gatheredSubstitutionProblem(two, [{ team: 3, replaces: 'fuel', forced: rationing }]),
+      ).toBe('Mission team 3 brought back no one of each from Gather Materials.');
+      expect(
+        gatheredSubstitutionProblem(two, [{ team: 4, replaces: 'fuel', forced: rationing }]),
+      ).toBe('Mission team 4 brought back no one of each from Gather Materials.');
+    });
+
+    it('refuses a result the skill can’t force, so Utilities forces Fuel only (R9)', () => {
+      expect(
+        gatheredSubstitutionProblem(two, [
+          { team: 1, replaces: 'hardware', forced: { skill: 'utilities', material: 'food' } },
+        ]),
+      ).toBe('That substitution isn’t one its skill can make there.');
+      expect(
+        gatheredSubstitutionProblem(two, [
+          { team: 1, replaces: 'food', forced: { skill: 'rationing', material: 'food' } },
+        ]),
+      ).toBe('That substitution isn’t one its skill can make there.');
+    });
+
+    it('refuses replacing the same one twice on one team', () => {
+      expect(
+        gatheredSubstitutionProblem(two, [
+          { team: 1, replaces: 'fuel', forced: rationing },
+          { team: 1, replaces: 'fuel', forced: mechanics },
+        ]),
+      ).toBe('Each of mission team 1’s one of each is substituted once at most.');
+    });
+  });
+
+  describe('gathered', () => {
+    it('applies each substitution to the team it names', () => {
+      const two: Campaign = {
+        ...community(),
+        log: [...gathering(1, 4, 'food'), ...gathering(2, 3, 'fuel')],
+      };
+
+      expect(gathered(two, [{ team: 2, replaces: 'hardware', forced: utilities }])).toEqual({
+        food: 3,
+        fuel: 3,
+        hardware: 1,
+      });
+      expect(gathered(two, [{ team: 1, replaces: 'food', forced: utilities }])).toEqual({
+        food: 2,
+        fuel: 3,
+        hardware: 2,
+      });
+    });
+  });
+
+  describe('substitutionsSpent and checkMaterials', () => {
+    const rationer = {
+      ...createSurvivor('Ada Poole', 4, { id: 'ada' }),
+      stats: { strength: 0, dexterity: 0, intelligence: 0, cooperation: 2 },
+      skills: { rationing: 0 },
+    };
+    const out: Campaign = {
+      ...community({ ada: { task: 'mission', team: 1 } }),
+      survivors: [rationer],
+      log: gathering(1, 4, 'hardware'),
+    };
+    const roll: MaterialRoll = { roll: 1, forced: rationing };
+    const onFuel = { team: 1, replaces: 'fuel', forced: rationing } as const;
+    const onHardware = { team: 1, replaces: 'hardware', forced: rationing } as const;
+
+    it('draws the rolls’ and the haul’s substitutions from one pool per skill', () => {
+      expect(substitutionsSpent([roll], [onFuel, onHardware])).toEqual({
+        rationing: 3,
+        mechanics: 0,
+        utilities: 0,
+      });
+    });
+
+    it('warns once the two together spend more than the team’s Score', () => {
+      expect(substitutionUses(out, 'rationing')).toBe(2);
+      expect(checkMaterials(out, [roll], [onFuel]).warnings).toEqual([]);
+      expect(checkMaterials(out, [], [onFuel, onHardware]).warnings).toEqual([]);
+      expect(codes(checkMaterials(out, [roll], [onFuel, onHardware]).warnings)).toEqual([
+        'not-enough-substitution',
+      ]);
+    });
+
+    it('counts a substituted haul against the storage caps', () => {
+      // The Greasy Spoon stores 6 Food and makes 1 (pg. 54): 4 stored, 1 made
+      // and the 1 gathered is 6, and two more substituted to Food is over.
+      const level: Campaign = {
+        ...out,
+        base: { id: 'greasy-spoon', slots: {} },
+        materials: { food: 4, fuel: 0, hardware: 0 },
+      };
+
+      expect(codes(checkMaterials(level, [], [onFuel, onHardware]).warnings)).toContain(
+        'over-storage-cap',
+      );
+      expect(codes(checkMaterials(level, [], []).warnings)).not.toContain('over-storage-cap');
+    });
   });
 });
 
@@ -663,14 +874,14 @@ describe('gathered and gatheredToRoll', () => {
   it('splits each Gather Materials team on its own, and adds them up (R19)', () => {
     const two = turn([...gathering(1, 4, 'food'), ...gathering(2, 3, 'fuel')]);
 
-    expect(gathered(two)).toEqual({ food: 3, fuel: 2, hardware: 2 });
+    expect(gathered(two, [])).toEqual({ food: 3, fuel: 2, hardware: 2 });
     expect(gatheredToRoll(two)).toBe(0);
   });
 
   it('rolls a short haul instead, and says how many', () => {
     const short = turn([...gathering(1, 2, 'food'), ...gathering(2, 5, 'fuel')]);
 
-    expect(gathered(short)).toEqual({ food: 1, fuel: 3, hardware: 1 });
+    expect(gathered(short, [])).toEqual({ food: 1, fuel: 3, hardware: 1 });
     expect(gatheredToRoll(short)).toBe(2);
   });
 
@@ -692,19 +903,19 @@ describe('gathered and gatheredToRoll', () => {
       },
     ]);
 
-    expect(gathered(other)).toEqual({ food: 2, fuel: 1, hardware: 1 });
+    expect(gathered(other, [])).toEqual({ food: 2, fuel: 1, hardware: 1 });
     expect(gatheredToRoll(other)).toBe(0);
   });
 
   it('rolls a Gather Materials haul whose team named no type, as a hand-edited save can hold', () => {
     const unchosen = turn([gathering(1, 4)[1] as LogEntry]);
 
-    expect(gathered(unchosen)).toEqual(noMaterials());
+    expect(gathered(unchosen, [])).toEqual(noMaterials());
     expect(gatheredToRoll(unchosen)).toBe(4);
   });
 
   it('reads nothing on a turn nobody gathered', () => {
-    expect(gathered(community())).toEqual(noMaterials());
+    expect(gathered(community(), [])).toEqual(noMaterials());
     expect(gatheredToRoll(community())).toBe(0);
   });
 
@@ -714,7 +925,7 @@ describe('gathered and gatheredToRoll', () => {
       log: gathering(1, 10, 'food'),
     };
 
-    expect(codes(checkMaterials(tight, []).warnings)).toContain('over-storage-cap');
+    expect(codes(checkMaterials(tight, [], []).warnings)).toContain('over-storage-cap');
   });
 });
 
