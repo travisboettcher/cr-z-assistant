@@ -119,6 +119,12 @@ describe('the overrun base', () => {
     const claim = group(/how claim a new base ended/i);
     expect(claim.getByText('Claiming a Hobby Farm.')).toBeInTheDocument();
     expect(claim.queryByLabelText('Stranger’s Tier')).toBeNull();
+    // Claim a New Base's own wording, its failure last (pg. 79; #241).
+    expect(
+      claim.getByRole('option', {
+        name: '4 — No survivors on the mission area still able to activate (failed)',
+      }),
+    ).toBeInTheDocument();
 
     await user.selectOptions(claim.getByLabelText(/end condition met/i), '1');
     await user.click(claim.getByLabelText(/overrun base’s own map/i));
@@ -158,6 +164,18 @@ describe('the overrun base', () => {
     await user.click(choice().getByRole('button', { name: 'Go on this way' }));
 
     const first = group(/how the first mission ended/i);
+    // Each condition in the page's words, the failure last (pg. 77; #241).
+    expect(
+      within(first.getByLabelText(/end condition met/i))
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual([
+      'Choose…',
+      '1 — No zombies left in the mission area',
+      '2 — No zombies inside the building, no survivors outside, and the door barricaded',
+      '3 — No zombies inside or within 6" of the building, and no survivors outside',
+      '4 — No survivors left in the mission area (failed)',
+    ]);
     await user.selectOptions(first.getByLabelText(/end condition met/i), '4');
     await user.click(first.getByRole('button', { name: 'Record the First Mission' }));
 

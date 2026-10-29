@@ -597,22 +597,24 @@ function toggleFor(sheet: HTMLElement, label: string) {
  * to stats, and therefore to Inventory Slots too. This is about saying so.
  */
 describe('a community that is going hungry', () => {
-  /** Three Heroes eating two each against empty stores: six short of three. */
+  /**
+   * Two Heroes eating two each, three short: past the head count of two, so
+   * the whole three comes off every stat (R1).
+   */
   const starving = (): Campaign => ({
     ...createNewCampaign('Cedar Hollow'),
     turn: 3,
     survivors: [
       createSurvivor('Nell Haig', 4, { id: 'nell' }),
       createSurvivor('Tomas Ford', 4, { id: 'tomas' }),
-      createSurvivor('Ada Poole', 4, { id: 'ada' }),
     ],
-    materials: { food: 0, fuel: 0, hardware: 0 },
+    materials: { food: 1, fuel: 0, hardware: 0 },
     log: [
       {
         turn: 3,
         phase: 'management',
         at: '2026-09-13T09:00:00.000Z',
-        event: { kind: 'survivors-fed', required: 6, hunger: 6 },
+        event: { kind: 'survivors-fed', required: 4, hunger: 3 },
       },
     ],
   });

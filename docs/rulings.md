@@ -53,29 +53,30 @@ R50 was assigned by that check, for a question it found that no ruling covered.
 
 ## R1 — The hunger penalty is a starvation threshold, not a hunger tax
 
-> **Under review, [#215](https://github.com/travisboettcher/cr-z-assistant/issues/215).** FAQ "Hunger and Population" confirms the threshold, and FAQ
-> "Hunger Penalty" confirms that stats alone take it and floor at zero. But that entry's worked
-> example implies a penalty larger than `Hunger − population` can ever reach, so the *size* below
-> is expected to change. The issue holds the proposed reading; nothing changes until it is decided.
+**pg. 22; FAQ "Hunger and Population"; FAQ "Hunger Penalty"; [#215](https://github.com/travisboettcher/cr-z-assistant/issues/215).**
+The book says to subtract Hunger from the community's population and, if the result is negative,
+reduce every survivor's stats by that number. Two problems. `population − Hunger` is almost never
+negative: Hunger is capped at the Food required, which is at most twice the population, so the
+penalty fires only when a mostly Tier 3–4 community has nearly empty stores. And "reduced by that
+number" where the number is negative is self-contradictory.
 
-**pg. 22.** The book says to subtract Hunger from the community's population and, if the result is
-negative, reduce every survivor's stats by that number. Two problems. `population − Hunger` is
-almost never negative: Hunger is capped at the Food required, which is at most twice the
-population, so the penalty fires only when a mostly Tier 3–4 community has nearly empty stores.
-And "reduced by that number" where the number is negative is self-contradictory; the intent is
-presumably its absolute value.
+FAQ "Hunger and Population" confirms the threshold: Hunger is compared with the population, not
+with the Food required, so a community can have Hunger and no stat penalty. FAQ "Hunger Penalty"
+confirms that stats alone take it and floor at zero, and its worked example takes a stat of 3 to 0
+for a community 4 Food short. The part of the Hunger past the population can never be that large
+(a penalty of 3 would need Hunger of at least the population plus 3, so 6 or more), so the size
+cannot be the difference.
 
-**The ruling is the literal one.** `penalty = max(0, Hunger − population)`, applied to every
-survivor's stats and floored at zero. The printed arithmetic computes `population − Hunger` and
-tests it for negativity, which is the shape of a threshold — a tax would just have said "reduce
-stats by the Hunger" and never mentioned the population.
+**The ruling is a threshold, then the whole Hunger.** While Hunger is no more than the population
+there is no penalty; once it is more, every survivor's stats drop by the full Hunger, floored at
+zero. It is the only reading that fits both FAQ entries.
 
-| Community | Food required | Food stored | Hunger | pop − Hunger | Stat penalty |
+| Community | Food required | Food stored | Hunger | Past the population? | Stat penalty |
 |---|---|---|---|---|---|
-| 5 Heroes | 10 | 5 | 5 | 0 | none |
-| 5 Heroes | 10 | 4 | 6 | −1 | −1 to every stat |
-| 5 Heroes | 10 | 0 | 10 | −5 | −5, everything floored at 0 |
-| 5 Rookies | 5 | 0 | 5 | 0 | **none, at any shortfall** |
+| 5 Heroes | 10 | 5 | 5 | no | none |
+| 5 Heroes | 10 | 4 | 6 | yes | −6 to every stat, floored at 0 |
+| 5 Heroes | 10 | 0 | 10 | yes | −10, everything floored at 0 |
+| 5 Rookies | 5 | 0 | 5 | no | **none, at any shortfall** |
 
 That last row is an accepted consequence rather than a bug to route around: a community of
 Tier 1–2 survivors can empty its stores completely and take no stat penalty, because the
@@ -110,6 +111,15 @@ is gone when turn N + 1's Management Phase begins, whether or not a Feed step ra
 That dissolves the dilemma the issue posed. Feed does not have to be refused, and a turn ending
 with Feed unresolved does not need to clear the penalty as a special case — the clock does it.
 Z3-6's posture that the walk guides rather than refuses is untouched.
+
+### Amendment, October 2026 — the size is the whole Hunger
+
+The rulings audit of 2026-10-14 found that FAQ "Hunger Penalty"'s worked example can't happen under
+`max(0, Hunger − population)`, which this ruling first used
+([#215](https://github.com/travisboettcher/cr-z-assistant/issues/215)). The threshold and the clock
+above stand; the penalty past the threshold is the full Hunger.
+
+*Decided 2026-10-28.*
 
 ---
 
@@ -854,31 +864,30 @@ time. Every other move is a new building, with every slot as its layout has it (
 
 ## R30 — Start a New Community after an overrun
 
-> **Under review, [#216](https://github.com/travisboettcher/cr-z-assistant/issues/216).** FAQ "New Bases and Materials", pg. 19 and pg. 54 agree that only
-> a campaign's *first* base starts full, and starting over continues the campaign (pg. 86). So "stocked
-> to its caps as a first base does" below contradicts the text. What the new base gets instead (the
-> old stores in full, or nothing) is the decision the issue holds. The counters carrying on stands.
+**pp. 19, 54, 76–77, 86, FAQ "New Bases and Materials"; #182, Z4-9;
+[#216](https://github.com/travisboettcher/cr-z-assistant/issues/216).** Starting over uses the
+remaining survivors and their gear (pg. 86) and says nothing of storage. Only a campaign's first base
+arrives full (pp. 19, 54, FAQ), and starting over continues the campaign rather than beginning a new
+one. The FAQ's general rule would carry the old stores over in full, but the overrun is what cost
+them: pg. 86's way on names only the survivors and their gear, and the same-type reclaim getting
+back only half (R29) says the rest is gone.
 
-**pp. 19, 76–77, 86, FAQ; #182, Z4-9.** Starting over uses the remaining survivors and their gear
-(pg. 86) and says nothing of storage. A campaign's first base arrives full (pg. 19, FAQ), but this
-is a way to continue the campaign rather than a new one.
+**The ruling is that the old storage is lost, the new base starts with none, and the turn and siege
+counters carry on as they stand.** The First Mission is every community's first (pg. 76), and the
+survivors are starting one from nothing. The counter's reset and halving are written for victories
+only (pp. 81, 86), so an overrun leaves it alone. Empty storage matches what R29 gives a claim of a
+different base type.
 
-**The ruling is that the old storage is lost, the new base arrives stocked to its caps as a first
-base does, and the turn and siege counters carry on as they stand.** The First Mission is every
-community's first (pg. 76), and the survivors are starting one from nothing. The counter's reset
-and halving are written for victories only (pp. 81, 86), so an overrun leaves it alone.
+**What it costs.** A table that reads the FAQ's transfer as governing carries everything over, and
+the first version of this ruling stocked the new base to its caps as a first base is. Both make the
+restart much easier than an overrun should leave it.
 
-**What it costs.** A table that reads "continue this campaign" strictly starts the new base empty,
-which is a much harder opening.
-
-*Confirmed 2026-10-13 from the batch-15 extract.*
+*Confirmed 2026-10-13 from the batch-15 extract. Amended 2026-10-28 for #216: the new base starts
+empty, not stocked to its caps.*
 
 ---
 
 ## R31 — Abandoned survivors, and a Hero sent away, are set aside
-
-> **Partly under review.** "The new base is stocked as R30's" follows R30, which is under review
-> ([#216](https://github.com/travisboettcher/cr-z-assistant/issues/216)). The rest of this ruling stands.
 
 **pp. 7, 31, 54, 82–83, 86; #182, Z4-8, Z4-11.** Two rules take a survivor out of the community
 without killing them: the Hero sent away when a move lowers the cap (pg. 54), and the survivors
@@ -890,7 +899,8 @@ of either.
 record as they were, and able to be named on a later Rescue Strangers outcome, where they rejoin
 as themselves and the rescuer's Tier must be at least theirs (pg. 31).** Abandoning builds a new
 starting community in the same campaign, which plays the First Mission as R27's continuation; the
-origin, the log and the turn and siege counters carry on, and the new base is stocked as R30's.
+origin, the log and the turn and siege counters carry on, and the new base starts empty as R30's
+does.
 A set-aside Hero is the one Tier 4 stranger a mission records, which amends R24.
 
 **What it costs.** Pg. 54 also lets a Hero who left start the player's next campaign; that is a
@@ -2828,3 +2838,21 @@ Tier already set (pp. 15, 19).
 ([R94](#r94--experience-debt-is-paid-before-xp-can-be-spent)), as the starting community may.
 
 *Decided 2026-10-25 with Z7-10, from the batch-22 extract (T9).*
+
+---
+
+## R167 — Switching the Toolkit's traits off leaves Rot Resistant
+
+**pp. 48, 137, 140; Phase 7, Z7-12.** With the Toolkit's traits off a survivor has no injuries, no
+Advantages and no debt ([R84](#r84--what-a-survivors-sheet-records-for-traits)), so switching them
+off takes all three away. Rot Resistant is the Viral origin's Advantage under the Toolkit (pg.
+140), but an Inoculation gives it too (pg. 48;
+[R97](#r97--inoculation-is-built-then-given-at-the-clinic)), and a survivor's record doesn't say
+which one gave it.
+
+**The ruling is that Rot Resistant stays when the traits are switched off**, wherever it came from.
+
+**What it costs.** A survivor who took Rot Resistant at creation keeps it with the traits off, debt
+and all gone. Taking it away instead would take away what an Inoculation paid for.
+
+*Decided 2026-10-28.*

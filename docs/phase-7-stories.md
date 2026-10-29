@@ -509,7 +509,7 @@ nothing records one.
   somebody who already holds one. Rot Resistant stays the survivor's own flag, because an
   Inoculation gives it too (R97). With the Toolkit's traits in use it is ticked among the
   Advantages for its 2 debt, and one an Inoculation gave moves no debt. Switching the traits off
-  leaves it alone for the same reason.
+  leaves it alone for the same reason (R167).
 - **An origin injury takes its Advantage away instead of being gained** (R162), the debt staying
   (R159): a new `replaces` fate, which the check's entry records. Sickly does it to an Inoculation's
   Rot Resistant too.

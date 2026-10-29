@@ -9,8 +9,8 @@
  * What moves is the people and the stores. The new base starts with its own
  * built-ins and empty slots (R26); its stores are the old ones, uncapped until
  * Check Storage spoils what does not fit (pp. 19, 23, 54) — but for a move
- * after an overrun, which keeps half of them, none, or a first base's stock
- * (`storesAfterMove`; R29, R30). A first base's
+ * after an overrun, which keeps half of them or none (`storesAfterMove`; R29,
+ * R30). A first base's
  * stocking (`submitBaseClaim`) is not repeated: a later base has only what was
  * carried. One Hero of the player's choice leaves for every Hero the new base
  * cannot hold (pg. 54; R32), and is set aside rather than lost (R31), with
@@ -28,14 +28,12 @@
 import { BASES } from '../data/bases';
 import { MATERIALS, type Materials } from '../data/materials';
 import { withoutAssignment } from './assignments';
-import { storageCaps } from './base';
 import type { Campaign, Item, SlotState, TradeOrder, Vehicle } from './campaign';
 import { baseMoved, claimedBase, heroesOverCap } from './claim';
 import type { RebuildSlot } from './log';
 import { overrunChoice, reclaimedOnSameMap } from './overrun';
 import { dueProjects } from './projects';
 import { phaseOf } from './turn';
-import { suppliedOccupants } from './utilities';
 
 /**
  * Why the community cannot move now, sending these Heroes away, or `null` if
@@ -168,8 +166,8 @@ function withoutLost(
  *   material, rounded down (pg. 86; R29).
  * - **Any other claim after an overrun:** nothing (R29).
  * - **Starting over, or a new community after leaving the survivors behind:**
- *   the old stores are lost, and the new base arrives stocked to its caps as a
- *   first base does (R30, R31).
+ *   nothing either. Only a campaign's first base starts full (pg. 19, FAQ "New
+ *   Bases and Materials"), and this continues the campaign (R30, R31; #216).
  *
  * Every material alike, since the overrun's recovery is of the stores. Rare
  * was a fourth until schema v17 made a 10 an item (R49); items are not stores.
@@ -180,14 +178,9 @@ export function storesAfterMove(campaign: Campaign): Materials | null {
   const to = claimedBase(campaign);
   if (option === null || to === null) return null;
 
-  if (option !== 'claim') {
-    const stocked = { ...campaign, base: { id: to, slots: {} } };
-
-    return storageCaps(stocked.base, suppliedOccupants(stocked));
-  }
-
   // The outcome says "same map" only of a claim of the overrun base's own type:
-  // `missionOutcomeProblem` refuses it on any other.
+  // `missionOutcomeProblem` refuses it on any other, and starting over plays a
+  // First Mission, whose outcome has no map to name.
   const recovered = reclaimedOnSameMap(campaign);
 
   return Object.fromEntries(

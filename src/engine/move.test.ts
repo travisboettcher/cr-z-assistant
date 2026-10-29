@@ -263,14 +263,15 @@ describe('storesAfterMove', () => {
     ).toEqual(none);
   });
 
-  it('stocks a community starting over to its new base’s caps, and loses the rest (R30)', () => {
+  it('starts a community starting over with empty stores (R30, #216)', () => {
     const campaign = advanced([
       ...wentOn('start-over', 'summer-camp'),
       continued('start-over', true),
     ]);
 
-    // A Tier 1 base caps each stored material at 4 (pg. 54); Rare has no cap.
-    expect(storesAfterMove(campaign)).toEqual({ food: 4, fuel: 4, hardware: 4 });
+    // Only a campaign's first base starts full (pg. 19, FAQ "New Bases and
+    // Materials"), and starting over continues the campaign.
+    expect(storesAfterMove(campaign)).toEqual({ food: 0, fuel: 0, hardware: 0 });
   });
 
   it('is nothing until a way on has won', () => {
@@ -387,7 +388,7 @@ describe('rebuildAfterMove, and the slots the move leaves', () => {
 });
 
 describe('storesAfterMove for a community begun again (R30, R31; Z4-11)', () => {
-  it('stocks the new community’s base like a first base, and loses the old stores', () => {
+  it('starts the new community’s base empty, the old stores lost (#216)', () => {
     const campaign = overrun(
       [
         inMission({ kind: 'overrun-continued', option: 'abandon' }),
@@ -403,7 +404,7 @@ describe('storesAfterMove for a community begun again (R30, R31; Z4-11)', () => 
       { step: 'add-facilities-and-upgrades' },
     );
 
-    expect(storesAfterMove(campaign)).toEqual({ food: 4, fuel: 4, hardware: 4 });
+    expect(storesAfterMove(campaign)).toEqual({ food: 0, fuel: 0, hardware: 0 });
   });
 });
 

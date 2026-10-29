@@ -266,7 +266,10 @@ describe('what a survivor can take (pp. 14, 38, 44; R40)', () => {
       ],
       inventory: [item('coat-2', 'reinforced-clothing')],
     });
-    expect(codes(armed, move('coat-2', 'earl')).blockers).toEqual(['worn-already']);
+    expect(codes(armed, move('coat-2', 'earl'))).toEqual({
+      blockers: ['worn-already'],
+      warnings: [],
+    });
     expect(codes(worn, move('pads', 'earl')).blockers).toEqual([]);
   });
 
@@ -286,6 +289,35 @@ describe('what a survivor can take (pp. 14, 38, 44; R40)', () => {
     const halligan = equipping({ inventory: [item('hal', 'halligan-tool')] });
     expect(codes(halligan, move('hal', 'ruby'))).toEqual({ blockers: [], warnings: [] });
     expect(carried(after(equipping(), move('rifle-1', 'earl')), 'earl')).toEqual(['rifle-1']);
+  });
+
+  /** #241: allowed, but a second of one item gives no more bonus (R81) and takes a slot (R35). */
+  it('warns about a second of an item already carried, and carries it on the press', () => {
+    const second = equipping({
+      inventory: [item('pistol-1', 'pistol'), item('pistol-2', 'pistol')],
+    });
+    const holding = after(second, move('pistol-1', 'earl'));
+
+    expect(codes(second, move('pistol-1', 'earl')).warnings).toEqual([]);
+    // Carrying something else is no reason to say so.
+    expect(
+      codes(after(second, take('shoddy-1', 'revolver', 'earl')), move('pistol-1', 'earl')).warnings,
+    ).toEqual([]);
+    expect(codes(holding, move('pistol-2', 'earl'))).toEqual({
+      blockers: [],
+      warnings: ['carried-already'],
+    });
+    expect(carried(after(holding, move('pistol-2', 'earl')), 'earl')).toEqual([
+      'pistol-1',
+      'pistol-2',
+    ]);
+  });
+
+  it('warns the same about a second shoddy one taken free (#241)', () => {
+    const one = after(equipping(), take('shoddy-1', 'pistol', 'earl'));
+
+    expect(codes(equipping(), take('shoddy-1', 'pistol', 'earl')).warnings).toEqual([]);
+    expect(codes(one, take('shoddy-2', 'pistol', 'earl')).warnings).toEqual(['carried-already']);
   });
 });
 

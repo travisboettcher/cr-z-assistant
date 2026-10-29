@@ -227,14 +227,15 @@ describe('rotTarget', () => {
     const staffed = staffedWith(community([], {}, clinic()), 'garage', [medic(4)]);
     const starving: Campaign = {
       ...staffed,
-      // One survivor and a shortfall of three: a penalty of two.
+      // One survivor and a shortfall of two: past the head count, so a
+      // penalty of the whole two (R1).
       survivors: [...staffed.survivors],
       log: [
         {
           turn: 2,
           phase: 'management',
           at: AT,
-          event: { kind: 'survivors-fed', required: 2, hunger: 3 },
+          event: { kind: 'survivors-fed', required: 2, hunger: 2 },
         },
       ],
     };

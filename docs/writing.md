@@ -140,6 +140,10 @@ wording, that draws the line here:
   saved and what is lost.
 - **It may not say how or why a rule works**, even in different words, and even to help a new
   player. A sentence that would let somebody play without opening the book is rule text.
+- **An end condition is named by its own words, shortened**, as a step or a weapon is named by the
+  book's. The book gives its end conditions no names, so the page's wording is the name the
+  outcome form offers (`END_CONDITION_LABELS`; #241, decided 2026-10-28). That covers the
+  condition only, never what meeting it gives.
 
 When a sentence is unclear because it leans on a rule, the fix is a clearer pointer to the page,
 not an explanation of the rule.
