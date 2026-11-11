@@ -2419,6 +2419,21 @@ describe('what earns a line in the log', () => {
       // A new campaign, so turn 1 rather than `rich()`'s turn 3.
       entry: entry(1, 'mission', { kind: 'campaign-started', name: 'Millbrook' }),
     },
+    'campaign/continued': {
+      action: {
+        type: 'campaign/continued',
+        at: AT,
+        name: 'Millbrook',
+        id: 'x',
+        createdAt: AT,
+        start: { turn: 5, history: { turnsSinceSiege: 2 } },
+      },
+      // Picked up at its own turn, with the entry that says what it brings.
+      entry: [
+        entry(5, 'mission', { kind: 'campaign-started', name: 'Millbrook' }),
+        entry(5, 'mission', { kind: 'campaign-continued', turnsSinceSiege: 2 }),
+      ],
+    },
     'turn/advanced': {
       // `rich()` sits on the last step of the Mission Phase, so one step
       // forward crosses into the Advancement Phase. Stamped after the move, so

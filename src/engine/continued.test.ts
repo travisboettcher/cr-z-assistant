@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { TurnStepId } from '../data/turn';
 import { siegeLaborBonus } from './assignments';
 import { createNewCampaign, type Campaign } from './campaign';
-import { continuedFrom } from './continued';
+import { continuedFrom, continuedProblem, withContinued } from './continued';
+import { campaignReducer } from '../state/campaignStore';
 import { hungerPenalty, planningPenalty } from './feeding';
 import type { ContinuedHistory, LogEntry } from './log';
 import { mysticLibraryUnlocked, necromancerKilled, necromancerWins } from './magicMissions';
@@ -175,5 +176,148 @@ describe('Viral’s Containment (Z7-6)', () => {
       hardware: 3,
     });
     expect(containmentUnlock(pickedUp({}, { origin: 'viral' }))).toBeNull();
+  });
+});
+
+describe('what a campaign can be picked up with (#210)', () => {
+  const start = (history: Partial<ContinuedHistory> = {}, turn = 6) => ({
+    turn,
+    history: { turnsSinceSiege: 2, ...history },
+  });
+
+  it('takes a turn from 2, and a siege count no longer than the turns played', () => {
+    expect(continuedProblem(start(), undefined)).toBeNull();
+    expect(continuedProblem(start({ turnsSinceSiege: 1 }, 2), undefined)).toBeNull();
+    expect(continuedProblem(start({}, 1), undefined)).toBe(
+      'A campaign is picked up at turn 2 or later.',
+    );
+    expect(continuedProblem(start({}, 2.5), undefined)).toMatch(/turn 2 or later/);
+    expect(continuedProblem(start({ turnsSinceSiege: 6 }), undefined)).toBe(
+      'The turns since the last siege are a whole number from 0 to 5.',
+    );
+    expect(continuedProblem(start({ turnsSinceSiege: -1 }), undefined)).toMatch(/from 0 to 5/);
+    expect(continuedProblem(start({ turnsSinceSiege: 1.5 }), undefined)).toMatch(/from 0 to 5/);
+  });
+
+  it('wants whole numbers for a siege and last turn’s Feed', () => {
+    expect(continuedProblem(start({ siegeCalledAt: 11 }), undefined)).toBeNull();
+    expect(continuedProblem(start({ siegeCalledAt: -2 }), undefined)).toBeNull();
+    expect(continuedProblem(start({ siegeCalledAt: 1.5 }), undefined)).toBe(
+      'The Siege Threat is a whole number.',
+    );
+    expect(continuedProblem(start({ fed: { hunger: 3, population: 2 } }), undefined)).toBeNull();
+    expect(continuedProblem(start({ fed: { hunger: 0, population: 2 } }), undefined)).toBe(
+      'Last turn’s shortfall and head count are whole numbers, 1 or more.',
+    );
+    expect(continuedProblem(start({ fed: { hunger: 3, population: 0 } }), undefined)).toMatch(
+      /head count/,
+    );
+  });
+
+  it('takes each of the five stories once', () => {
+    expect(continuedProblem(start({ storiesDone: ['left-behind-1'] }), undefined)).toBeNull();
+    expect(
+      continuedProblem(start({ storiesDone: ['left-behind-1', 'left-behind-1'] }), undefined),
+    ).toBe('Each story is finished once.');
+    expect(continuedProblem(start({ storiesDone: ['left-behind-2a'] }), undefined)).toMatch(
+      /finished once/,
+    );
+  });
+
+  it('keeps each origin’s history to its origin', () => {
+    const magic = {
+      spellsSeen: ['teleport'],
+      graveyardDone: true,
+      necromancerWins: 2,
+      necromancerKilled: true,
+      discountsUsed: 2,
+    } as const;
+
+    expect(continuedProblem(start(magic), 'magic')).toBeNull();
+    expect(continuedProblem(start(magic), 'viral')).toBe(
+      'Only a Magic campaign has spells and The Necromancer.',
+    );
+    for (const one of [
+      { spellsSeen: [] },
+      { graveyardDone: true },
+      { necromancerWins: 0 },
+      { necromancerKilled: true },
+      { discountsUsed: 0 },
+    ] as const) {
+      expect(continuedProblem(start(one), undefined)).toMatch(/Only a Magic campaign/);
+    }
+    expect(continuedProblem(start({ spellsSeen: ['teleport', 'teleport'] }), 'magic')).toBe(
+      'Each spell is seen once.',
+    );
+    expect(continuedProblem(start({ necromancerWins: -1 }), 'magic')).toBe(
+      'The Necromancer’s wins and discounts are whole numbers, 0 or more.',
+    );
+    expect(continuedProblem(start({ discountsUsed: 1.5 }), 'magic')).toMatch(/whole numbers/);
+    expect(continuedProblem(start({ necromancerWins: 1, discountsUsed: 2 }), 'magic')).toBe(
+      'No more discounts are spent than The Necromancer was won.',
+    );
+    expect(continuedProblem(start({ discountsUsed: 1 }), 'magic')).toMatch(/No more discounts/);
+
+    expect(continuedProblem(start({ containmentHardware: 3 }), 'viral')).toBeNull();
+    expect(continuedProblem(start({ containmentHardware: 0 }), 'viral')).toBeNull();
+    expect(continuedProblem(start({ containmentHardware: 3 }), 'magic')).toBe(
+      'Only a Viral campaign has Containment.',
+    );
+    expect(continuedProblem(start({ containmentHardware: -1 }), 'viral')).toBe(
+      'Containment’s Hardware is a whole number, 0 or more.',
+    );
+  });
+
+  it('starts the campaign at that turn’s Select Mission, its community taken as it stands', () => {
+    const picked = withContinued(
+      createNewCampaign('Cedar Hollow'),
+      start({ hordeForced: true }),
+      AT,
+    );
+
+    expect(picked).toMatchObject({ turn: 6, step: 'select-mission', startingCommunityBuilt: true });
+    expect(picked.log).toEqual([
+      {
+        turn: 6,
+        phase: 'mission',
+        at: AT,
+        event: { kind: 'campaign-continued', turnsSinceSiege: 2, hordeForced: true },
+      },
+    ]);
+  });
+});
+
+describe('the store’s campaign/continued (#210)', () => {
+  const action = (turn: number) =>
+    ({
+      type: 'campaign/continued',
+      name: 'Cedar Hollow',
+      id: 'x',
+      createdAt: AT,
+      origin: 'viral',
+      traitsEnabled: true,
+      start: { turn, history: { turnsSinceSiege: 1, containmentHardware: 3 } },
+      at: AT,
+    }) as const;
+
+  it('opens the campaign at its turn, started and picked up there', () => {
+    const state = campaignReducer({ status: 'empty' }, action(4));
+    if (state.status !== 'open') throw new Error('not opened');
+
+    expect(state.campaign).toMatchObject({
+      turn: 4,
+      step: 'select-mission',
+      origin: 'viral',
+      traitsEnabled: true,
+    });
+    expect(state.campaign.log.map(({ turn, event }) => [turn, event.kind])).toEqual([
+      [4, 'campaign-started'],
+      [4, 'campaign-continued'],
+    ]);
+    expect(containmentUnlock(state.campaign)).toEqual({ hardware: 3 });
+  });
+
+  it('opens nothing for answers it can’t take', () => {
+    expect(campaignReducer({ status: 'empty' }, action(1))).toEqual({ status: 'empty' });
   });
 });

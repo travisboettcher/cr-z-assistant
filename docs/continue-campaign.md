@@ -87,10 +87,11 @@ Each question that doesn't apply to the origin or the turn isn't asked.
 
 ### What it records: one `campaign-continued` entry
 
-*Decided 2026-11-11.* The answers go in one log entry, `campaign-continued`, dated the turn being
-picked up. It is the first entry in the log. Each reader in kinds 2 and 3 above reads it as well as
-the entries it reads now, so the answer to "how many turns since the last siege" or "which spells
-have been seen" comes from the same function whether the history was played here or entered.
+*Decided 2026-11-11.* The answers go in one log entry, `campaign-continued`, right after
+`campaign-started`, both dated the turn being picked up. Each reader in kinds 2 and 3 above reads it
+as well as the entries it reads now, so the answer to "how many turns since the last siege" or
+"which spells have been seen" comes from the same function whether the history was played here or
+entered.
 
 The alternative was synthetic entries: a made-up `siege-defense-resolved`, `spells-cast` or
 `mission-played` for each fact, so the readers need no change. It would put events in the history
