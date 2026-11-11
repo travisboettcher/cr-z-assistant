@@ -38,6 +38,7 @@ import type { MissionId, OverrunOption } from '../data/missions';
 import type { D10Result } from '../data/dice';
 import type { FieldRecruitTier } from '../data/recruitTable';
 import type { CommonSkill, Skill, Stat } from '../data/skills';
+import type { FacilityId, UpgradeId } from '../data/facilities';
 import type { Tier } from '../data/tiers';
 import {
   cancellable,
@@ -51,6 +52,22 @@ import { builtEvent, builtOf, checkOrder, orderedEvent } from '../engine/orders'
 import { withUtilityToggled } from '../engine/utilities';
 import { createNewCampaign } from '../engine/campaign';
 import { humanityMax } from '../engine/injuries';
+import {
+  submitFacilityPlaced,
+  submitOrderCarried,
+  submitOrderDropped,
+  submitSlotCleared,
+  submitSlotEmptied,
+  submitUpgradePlaced,
+} from '../engine/settingUp';
+import {
+  continuedProblem,
+  submitCommonSkillSet,
+  submitSettingUpFinished,
+  submitSkillLevelSet,
+  withContinued,
+  type ContinuedStart,
+} from '../engine/continued';
 import { logged } from '../engine/log';
 import { reverse, type AdvanceBy } from '../engine/turn';
 import type { GatheredSubstitution, MaterialRoll } from '../engine/materials';
@@ -214,6 +231,46 @@ export type CampaignAction =
       readonly traitsEnabled?: boolean;
       readonly at: string;
     }
+  /**
+   * Start tracking a campaign already under way, at the start of this turn,
+   * with what it brings from before (#210). As `campaign/started` otherwise.
+   */
+  | {
+      readonly type: 'campaign/continued';
+      readonly name: string;
+      readonly id: string;
+      readonly createdAt: string;
+      readonly origin?: CampaignOrigin;
+      readonly traitsEnabled?: boolean;
+      readonly start: ContinuedStart;
+      readonly at: string;
+    }
+  /** Finish setting up a campaign picked up partway (#210). */
+  | { readonly type: 'campaign/settingUpFinished'; readonly at: string }
+  /**
+   * While a campaign picked up partway is set up (#210): a skill level or a
+   * common skill's Score without its XP, a facility or an upgrade placed free,
+   * a slot emptied of what was placed, and one of last turn's orders carried
+   * onto the queue already paid.
+   */
+  | {
+      readonly type: 'setup/skillLevelSet';
+      readonly id: string;
+      readonly skill: Skill;
+      readonly level: number;
+    }
+  | {
+      readonly type: 'setup/commonSkillSet';
+      readonly id: string;
+      readonly skill: CommonSkill;
+      readonly score: number;
+    }
+  | { readonly type: 'setup/facilityPlaced'; readonly slot: string; readonly facility: FacilityId }
+  | { readonly type: 'setup/upgradePlaced'; readonly slot: string; readonly upgrade: UpgradeId }
+  | { readonly type: 'setup/slotEmptied'; readonly slot: string }
+  | { readonly type: 'setup/slotCleared'; readonly slot: string }
+  | { readonly type: 'setup/orderDropped'; readonly at: number }
+  | { readonly type: 'setup/orderCarried'; readonly project: ProjectOrder }
   /** Switch the Toolkit's survivor traits on or off part-way (R84, R158; Z7-10). */
   | { readonly type: 'campaign/traitsSwitched'; readonly enabled: boolean; readonly at: string }
   /**
@@ -902,6 +959,66 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
           },
         ),
       };
+
+    case 'campaign/continued': {
+      // Refused whole, as nothing is open to keep: the form asks the same
+      // question before it sends (#210).
+      if (continuedProblem(action.start, action.origin) !== null) return state;
+
+      const fresh = createNewCampaign(action.name, {
+        id: action.id,
+        createdAt: action.createdAt,
+        ...(action.origin === undefined ? {} : { origin: action.origin }),
+        ...(action.traitsEnabled === true ? { traitsEnabled: true } : {}),
+      });
+      const started = logged(
+        { ...fresh, turn: action.start.turn, step: 'select-mission' },
+        action.at,
+        {
+          kind: 'campaign-started',
+          name: action.name,
+          ...(action.origin === undefined ? {} : { origin: action.origin }),
+          ...(action.traitsEnabled === true ? { traits: true as const } : {}),
+        },
+      );
+
+      return { status: 'open', campaign: withContinued(started, action.start, action.at) };
+    }
+
+    case 'campaign/settingUpFinished':
+      return submitted(state, (campaign) => submitSettingUpFinished(campaign, action.at));
+
+    case 'setup/skillLevelSet':
+      return submitted(state, (campaign) =>
+        submitSkillLevelSet(campaign, action.id, action.skill, action.level),
+      );
+
+    case 'setup/commonSkillSet':
+      return submitted(state, (campaign) =>
+        submitCommonSkillSet(campaign, action.id, action.skill, action.score),
+      );
+
+    case 'setup/facilityPlaced':
+      return submitted(state, (campaign) =>
+        submitFacilityPlaced(campaign, action.slot, action.facility),
+      );
+
+    case 'setup/upgradePlaced':
+      return submitted(state, (campaign) =>
+        submitUpgradePlaced(campaign, action.slot, action.upgrade),
+      );
+
+    case 'setup/slotEmptied':
+      return submitted(state, (campaign) => submitSlotEmptied(campaign, action.slot));
+
+    case 'setup/slotCleared':
+      return submitted(state, (campaign) => submitSlotCleared(campaign, action.slot));
+
+    case 'setup/orderCarried':
+      return submitted(state, (campaign) => submitOrderCarried(campaign, action.project));
+
+    case 'setup/orderDropped':
+      return submitted(state, (campaign) => submitOrderDropped(campaign, action.at));
 
     case 'campaign/loaded':
       return { status: 'open', campaign: action.campaign };

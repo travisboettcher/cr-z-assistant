@@ -70,6 +70,7 @@ import { veteranHealingProblem, withVeteranHealing } from './veteran';
 import { advance, type AdvanceBy } from './turn';
 import { suppliedOccupants } from './utilities';
 import { healedFromZero, withHumanityGained } from './humanity';
+import { settingUp } from './continued';
 
 /**
  * Move forward through the turn: one step, or on to the next phase.
@@ -178,6 +179,12 @@ export function submitBaseClaim(campaign: Campaign, base: BaseId, at: string): F
   }
 
   const claimed = { ...campaign, base: { id: base, slots: {} } };
+
+  // A campaign picked up partway has its stores and items entered as they
+  // stand, so its base is claimed without a first base's stock or the
+  // Firehouse's gear (#210).
+  if (settingUp(campaign)) return accepted(logged(claimed, at, { kind: 'base-claimed', base }));
+
   const caps = storageCaps(claimed.base, suppliedOccupants(claimed));
 
   const stocked = logged(

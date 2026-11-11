@@ -17,6 +17,9 @@ import { clearingProject } from '../engine/base';
 import { checkClearing } from '../engine/clearing';
 import { useCampaign } from '../state/useCampaign';
 import { SlotAction } from './SlotAction';
+import { SetUpSlotAction } from './SetUpSlotAction';
+import { settingUp } from '../engine/continued';
+import { checkOrderCarried, checkSlotCleared } from '../engine/settingUp';
 
 export interface ClearSlotProps {
   readonly campaign: Campaign;
@@ -29,6 +32,27 @@ export function ClearSlot({ campaign, slot, onCleared }: ClearSlotProps) {
 
   const project = clearingProject(campaign, slot);
   const check = checkClearing(campaign, { slot });
+
+  // While a campaign picked up partway is set up, rubble already cleared is
+  // entered as it stands (#210).
+  if (settingUp(campaign)) {
+    const order = { kind: 'clearing', slot } as const;
+    return (
+      <SetUpSlotAction
+        placeCheck={checkSlotCleared(campaign, slot)}
+        carryCheck={checkOrderCarried(campaign, order)}
+        placeLabel="Already cleared"
+        onPlace={() => {
+          dispatch({ type: 'setup/slotCleared', slot });
+          onCleared();
+        }}
+        onCarry={() => {
+          dispatch({ type: 'setup/orderCarried', project: order });
+          onCleared();
+        }}
+      />
+    );
+  }
 
   return (
     <SlotAction

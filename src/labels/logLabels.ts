@@ -24,6 +24,7 @@ import { SIEGE_TRIGGER, XP_SOURCE_PAGES, type HealthSource, type XpSource } from
 import type { Item } from '../engine/campaign';
 import type {
   CampaignEvent,
+  ContinuedHistory,
   HistoricMaterials,
   InjuryTaken,
   LeavingCause,
@@ -167,6 +168,12 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
           event.origin === undefined ? '' : `, with the ${ORIGIN_LABELS[event.origin]} origin`
         }${event.traits === true ? ', using the Toolkit’s survivor traits' : ''}.`,
       };
+
+    case 'campaign-continued':
+      return { text: continuedText(event, turn) };
+
+    case 'setting-up-finished':
+      return { text: 'Finished setting up, and the campaign is tracked from here.' };
 
     case 'traits-switched':
       return {
@@ -865,4 +872,43 @@ function injuryTakenText(taken: InjuryTaken): string {
   }[taken.fate];
 
   return `${what} (${articleForNumber(taken.roll)} ${String(taken.roll)} on the injury table)`;
+}
+
+/** What a campaign picked up partway brought from the turns before it (#210). */
+function continuedText(history: ContinuedHistory, turn: number): string {
+  const parts = [
+    `${history.turnsSinceSiege === 1 ? '1 turn' : `${String(history.turnsSinceSiege)} turns`} since the last siege`,
+    ...(history.siegeCalledAt === undefined
+      ? []
+      : [`a siege called at Siege Threat ${String(history.siegeCalledAt)}`]),
+    ...(history.hordeForced === true ? ['the next horde roll forced'] : []),
+    ...(history.siegeCleared === true ? ['last turn’s siege cleared of zombies'] : []),
+    ...(history.fed === undefined
+      ? []
+      : [
+          `last turn ${String(history.fed.hunger)} Food short against a head count of ${String(history.fed.population)}`,
+        ]),
+    ...(history.storiesDone === undefined || history.storiesDone.length === 0
+      ? []
+      : [`stories finished: ${history.storiesDone.map((one) => MISSION_LABELS[one]).join(', ')}`]),
+    ...(history.spellsSeen === undefined || history.spellsSeen.length === 0
+      ? []
+      : [`spells seen: ${spellList(history.spellsSeen)}`]),
+    ...(history.graveyardDone === true ? ['The Graveyard done'] : []),
+    ...(history.necromancerWins === undefined || history.necromancerWins === 0
+      ? []
+      : [
+          `The Necromancer won ${history.necromancerWins === 1 ? 'once' : `${String(history.necromancerWins)} times`}${
+            history.necromancerKilled === true ? ' and killed' : ''
+          }`,
+        ]),
+    ...(history.discountsUsed === undefined || history.discountsUsed === 0
+      ? []
+      : [`${String(history.discountsUsed)} of its spell discounts spent`]),
+    ...(history.containmentHardware === undefined
+      ? []
+      : [`Containment unlocked at ${String(history.containmentHardware)} Hardware`]),
+  ];
+
+  return `Picked up the campaign at turn ${String(turn)}, with ${parts.join('; ')}.`;
 }

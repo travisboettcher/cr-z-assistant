@@ -2361,6 +2361,14 @@ describe('what earns a line in the log', () => {
     });
   }
 
+  /** `rich()` picked up partway and still being set up (#210). */
+  function settingUpState(): CampaignState {
+    return openState({
+      ...expectOpen(rich()),
+      log: [entry(3, 'mission', { kind: 'campaign-continued', turnsSinceSiege: 1 })],
+    });
+  }
+
   /** `rich()` with Marcus on mission team 1, and these entries in its log. */
   function marcusOnTeamOne(log: readonly LogEntry[] = []): CampaignState {
     const campaign = expectOpen(rich());
@@ -2418,6 +2426,92 @@ describe('what earns a line in the log', () => {
       action: { type: 'campaign/started', at: AT, name: 'Millbrook', id: 'x', createdAt: AT },
       // A new campaign, so turn 1 rather than `rich()`'s turn 3.
       entry: entry(1, 'mission', { kind: 'campaign-started', name: 'Millbrook' }),
+    },
+    // Setting up a campaign picked up partway writes nothing: it enters the
+    // campaign as it stands, as the sheet's own edits do (#210).
+    'setup/skillLevelSet': {
+      action: { type: 'setup/skillLevelSet', id: LOGGED_SURVIVOR, skill: 'archery', level: 1 },
+      state: settingUpState(),
+      entry: null,
+    },
+    'setup/commonSkillSet': {
+      action: { type: 'setup/commonSkillSet', id: LOGGED_SURVIVOR, skill: 'move', score: 7 },
+      state: settingUpState(),
+      entry: null,
+    },
+    'setup/facilityPlaced': {
+      action: { type: 'setup/facilityPlaced', slot: 'front-yard', facility: 'watchtower' },
+      state: settingUpState(),
+      entry: null,
+    },
+    'setup/upgradePlaced': {
+      action: { type: 'setup/upgradePlaced', slot: 'bunk-room-1', upgrade: 'extra-bed' },
+      state: settingUpState(),
+      entry: null,
+    },
+    'setup/slotEmptied': {
+      action: { type: 'setup/slotEmptied', slot: 'front-yard' },
+      state: openState({
+        ...expectOpen(settingUpState()),
+        base: {
+          id: 'hobby-farm',
+          slots: { 'front-yard': { built: { facility: 'watchtower', builtOnTurn: 2 } } },
+        },
+      }),
+      entry: null,
+    },
+    'setup/slotCleared': {
+      action: { type: 'setup/slotCleared', slot: 'pews-1' },
+      state: openState({
+        ...expectOpen(settingUpState()),
+        base: { id: 'rural-church', slots: {} },
+      }),
+      entry: null,
+    },
+    'setup/orderCarried': {
+      action: {
+        type: 'setup/orderCarried',
+        project: { kind: 'facility', slot: 'front-yard', facility: 'watchtower' },
+      },
+      state: settingUpState(),
+      entry: null,
+    },
+    'setup/orderDropped': {
+      action: { type: 'setup/orderDropped', at: 0 },
+      state: openState({
+        ...expectOpen(settingUpState()),
+        projects: [
+          {
+            kind: 'facility',
+            slot: 'front-yard',
+            facility: 'watchtower',
+            orderedOnTurn: 2,
+            charged: { hardware: 0, labor: 0 },
+          },
+        ],
+      }),
+      entry: null,
+    },
+    'campaign/settingUpFinished': {
+      action: { type: 'campaign/settingUpFinished', at: AT },
+      // A campaign picked up partway, so there is setting up to finish (#210).
+      state: settingUpState(),
+      entry: entry(3, 'mission', { kind: 'setting-up-finished' }),
+    },
+    'campaign/continued': {
+      action: {
+        type: 'campaign/continued',
+        at: AT,
+        name: 'Millbrook',
+        id: 'x',
+        createdAt: AT,
+        start: { turn: 5, history: { turnsSinceSiege: 2 } },
+      },
+      // Picked up at its own turn, with the entry that says what it brings.
+      entry: [
+        entry(5, 'mission', { kind: 'campaign-started', name: 'Millbrook' }),
+        entry(5, 'mission', { kind: 'campaign-continued', turnsSinceSiege: 2 }),
+      ],
     },
     'turn/advanced': {
       // `rich()` sits on the last step of the Mission Phase, so one step

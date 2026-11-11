@@ -9,6 +9,8 @@
 
 import type { CampaignOrigin } from '../data/origins';
 import { NewCampaignChoices } from './CampaignSettings';
+import { ContinueChoices } from './ContinueCampaign';
+import { draftProblem, startFromDraft, type ContinueDraft } from './continueDraft';
 import { useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useCampaign } from '../state/useCampaign';
@@ -22,29 +24,38 @@ export function StartNewCampaign() {
   const [name, setName] = useState('');
   const [origin, setOrigin] = useState<CampaignOrigin | undefined>(undefined);
   const [traits, setTraits] = useState(false);
+  // A campaign already under way, or `null` for one starting at turn 1 (#210).
+  const [continuing, setContinuing] = useState<ContinueDraft | null>(null);
 
   const trimmed = name.trim();
+  const problem = continuing === null ? null : draftProblem(continuing, origin);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (trimmed === '') return;
+    if (trimmed === '' || problem !== null) return;
 
     // One clock read for both, as in `CampaignEmptyState`.
     const now = new Date().toISOString();
 
-    dispatch({
-      type: 'campaign/started',
+    const chosen = {
       name: trimmed,
       id: crypto.randomUUID(),
       createdAt: now,
       ...(origin === undefined ? {} : { origin }),
       ...(traits ? { traitsEnabled: true } : {}),
       at: now,
-    });
+    };
+    // Picked up partway, at its turn, with what it brings from before (#210).
+    dispatch(
+      continuing === null
+        ? { type: 'campaign/started', ...chosen }
+        : { type: 'campaign/continued', ...chosen, start: startFromDraft(continuing, origin) },
+    );
 
     setName('');
     setOrigin(undefined);
     setTraits(false);
+    setContinuing(null);
     dialogRef.current?.close();
   }
 
@@ -109,6 +120,9 @@ export function StartNewCampaign() {
               onTraits={setTraits}
             />
           </div>
+          <div className="mt-4">
+            <ContinueChoices origin={origin} draft={continuing} onChange={setContinuing} />
+          </div>
 
           <div className="mt-6 flex flex-wrap justify-end gap-3">
             <button
@@ -128,7 +142,7 @@ export function StartNewCampaign() {
             )}
             <button
               type="submit"
-              disabled={trimmed === ''}
+              disabled={trimmed === '' || problem !== null}
               aria-describedby={trimmed === '' ? `${nameId}-needed` : undefined}
               className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg ${PRIMARY_FILL} px-5 font-semibold disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500 dark:disabled:bg-stone-700 dark:disabled:text-stone-400`}
             >

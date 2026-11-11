@@ -346,6 +346,11 @@ function orderedEvent(event: CampaignEvent): Record<string, unknown> {
   ) {
     return { ...taggedFirst(event, 'kind'), items: event.items.map(orderedItem) };
   }
+  // Last turn's Feed, carried by a campaign picked up partway (#210).
+  if (event.kind === 'campaign-continued' && event.fed !== undefined) {
+    const { hunger, population } = event.fed;
+    return { ...taggedFirst(event, 'kind'), fed: { hunger, population } };
+  }
   // A Permanent Injury taken instead of turning (R86, R100; Z7-11).
   if (
     (event.kind === 'rot-checked' || event.kind === 'infection-checked') &&

@@ -11,6 +11,8 @@ import type { FormEvent } from 'react';
 import { useCampaign } from '../state/useCampaign';
 import { ImportCampaign } from './ImportCampaign';
 import { NewCampaignChoices } from './CampaignSettings';
+import { ContinueChoices } from './ContinueCampaign';
+import { draftProblem, startFromDraft, type ContinueDraft } from './continueDraft';
 import type { CampaignOrigin } from '../data/origins';
 import { FOCUS_RING, PRIMARY_FILL, TOUCH_TARGET } from './styles';
 
@@ -20,12 +22,15 @@ export function CampaignEmptyState() {
   // Chosen now and, for the origin, fixed (R98; Z7-10).
   const [origin, setOrigin] = useState<CampaignOrigin | undefined>(undefined);
   const [traits, setTraits] = useState(false);
+  // A campaign already under way, or `null` for one starting at turn 1 (#210).
+  const [continuing, setContinuing] = useState<ContinueDraft | null>(null);
 
   const trimmed = name.trim();
+  const problem = continuing === null ? null : draftProblem(continuing, origin);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (trimmed === '') {
+    if (trimmed === '' || problem !== null) {
       return;
     }
 
@@ -40,15 +45,20 @@ export function CampaignEmptyState() {
      */
     const now = new Date().toISOString();
 
-    dispatch({
-      type: 'campaign/started',
+    const chosen = {
       name: trimmed,
       id: crypto.randomUUID(),
       createdAt: now,
       ...(origin === undefined ? {} : { origin }),
       ...(traits ? { traitsEnabled: true } : {}),
       at: now,
-    });
+    };
+    // Picked up partway, at its turn, with what it brings from before (#210).
+    dispatch(
+      continuing === null
+        ? { type: 'campaign/started', ...chosen }
+        : { type: 'campaign/continued', ...chosen, start: startFromDraft(continuing, origin) },
+    );
   }
 
   return (
@@ -88,7 +98,7 @@ export function CampaignEmptyState() {
 
             <button
               type="submit"
-              disabled={trimmed === ''}
+              disabled={trimmed === '' || problem !== null}
               aria-describedby={trimmed === '' ? 'campaign-name-needed' : undefined}
               className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg ${PRIMARY_FILL} px-6 py-2 text-lg font-semibold disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500 dark:disabled:bg-stone-700 dark:disabled:text-stone-400`}
             >
@@ -101,6 +111,7 @@ export function CampaignEmptyState() {
             onOrigin={setOrigin}
             onTraits={setTraits}
           />
+          <ContinueChoices origin={origin} draft={continuing} onChange={setContinuing} />
         </form>
         {/* Why the button waits, said rather than left to a grey button (#240). */}
         {trimmed === '' && (

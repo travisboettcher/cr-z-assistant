@@ -79,6 +79,38 @@ import type { Assignment, Campaign, Item, RareTradeItem, TradeOrder, Vehicle } f
  * as the roster has it now (R17's October 2026 amendment).
  */
 /**
+ * What a campaign picked up partway brings from the turns before it (#210),
+ * each for the reader that would otherwise work it out from the log
+ * (`docs/continue-campaign.md`). Optional fields are absent for none.
+ */
+export interface ContinuedHistory {
+  /** The turns since the last siege as the counter stands at the start of this turn (pg. 23). */
+  readonly turnsSinceSiege: number;
+  /** The Siege Threat last turn's horde check called a siege at, so one is fought this turn (pg. 85). */
+  readonly siegeCalledAt?: number;
+  /** The next horde roll succeeds on its own, after a failed Thin the Herd (pg. 81). */
+  readonly hordeForced?: true;
+  /** Last turn's Siege Defense left no zombies, so its Labor comes this turn (pg. 86). */
+  readonly siegeCleared?: true;
+  /** Last turn's Feed, when the community went short: its penalty runs into this turn (R1). */
+  readonly fed?: { readonly hunger: number; readonly population: number };
+  /** The stories finished (R116). */
+  readonly storiesDone?: readonly StoryMissionId[];
+  /** The spells an enemy has cast (R112). */
+  readonly spellsSeen?: readonly SpellId[];
+  /** The Graveyard completed, which unlocks the Mystic Library (R123). */
+  readonly graveyardDone?: true;
+  /** How many times The Necromancer was won (R124). */
+  readonly necromancerWins?: number;
+  /** The Necromancer was killed (R124). */
+  readonly necromancerKilled?: true;
+  /** How many of The Necromancer's spell discounts are spent (R153). */
+  readonly discountsUsed?: number;
+  /** Containment unlocked by Experimental Data, at this Hardware (Z7-6). */
+  readonly containmentHardware?: number;
+}
+
+/**
  * A Permanent Injury a failed Rot or Infection check was taken as instead of
  * turning (pg. 137; R86, R100): the d10 on the table, the injury it gave, and
  * what gaining it did (R87, R161, R162).
@@ -293,6 +325,18 @@ export type CampaignEvent =
       readonly origin?: CampaignOrigin;
       readonly traits?: true;
     }
+  /**
+   * A campaign picked up partway, at the start of this entry's turn (#210):
+   * what the log would otherwise hold from the turns played before it. The
+   * first entry such a campaign has. See `ContinuedHistory`.
+   */
+  | ({ readonly kind: 'campaign-continued' } & ContinuedHistory)
+  /**
+   * A campaign picked up partway finished setting up (#210): from here on its
+   * roster, base and orders are kept as any campaign's are, and nothing is
+   * placed free.
+   */
+  | { readonly kind: 'setting-up-finished' }
   /**
    * The Toolkit's traits were switched on or off part-way (R84, R158; Z7-10).
    * Off takes every survivor's Advantages, debt and injuries with it.

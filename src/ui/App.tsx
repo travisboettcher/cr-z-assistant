@@ -3,7 +3,8 @@
  *
  * **One screen, not a page of sections.** The turn walk is the screen; beside
  * it (below it, on a portrait tablet) a summary of the community; above it, on
- * turn 1 only, what a new campaign needs first. Anything with a form in it —
+ * turn 1 only, what a new campaign needs first, or what a campaign picked up
+ * partway needs entered. Anything with a form in it —
  * the roster, the base, the materials, the log, the campaign file — opens in a
  * modal over that screen and closes back to it. The rules behind that are in
  * `docs/ux-principles.md`.
@@ -24,6 +25,7 @@ import { ClaimBase } from './ClaimBase';
 import { CampaignEmptyState } from './CampaignEmptyState';
 import { CommunitySummary, type CommunityPanel } from './CommunitySummary';
 import { GettingStarted } from './GettingStarted';
+import { LastTurnAssignments, SettingUp, type SetUpPanel } from './SettingUp';
 import { MaterialsEditor } from './MaterialsEditor';
 import { Modal } from './Modal';
 import { PanelOpener } from './panelOpener';
@@ -33,9 +35,10 @@ import { SurvivorRoster } from './SurvivorRoster';
 import { SurvivorSheet } from './SurvivorSheet';
 import { TurnWalk } from './TurnWalk';
 import { hungerPenalty } from '../engine/feeding';
+import { settingUp } from '../engine/continued';
 
 /** Every modal the shell can open, one at a time. */
-type Panel = CommunityPanel | MenuPanel;
+type Panel = CommunityPanel | MenuPanel | SetUpPanel;
 
 const TITLES: Record<Panel, string> = {
   survivors: 'Survivors',
@@ -45,6 +48,7 @@ const TITLES: Record<Panel, string> = {
   log: 'Campaign log',
   settings: 'Campaign settings',
   file: 'Campaign file',
+  assignments: 'Last turn’s assignments',
 };
 
 export function App() {
@@ -129,6 +133,8 @@ export function App() {
                 {autosaveError}
               </p>
             )}
+            {/* A campaign picked up partway, until it's set up (#210). */}
+            <SettingUp campaign={campaign} onOpen={show} />
             <GettingStarted
               campaign={campaign}
               onAddSurvivors={() => {
@@ -156,6 +162,7 @@ export function App() {
                 onClose={() => {
                   setOpenSheetId(null);
                 }}
+                settingUp={settingUp(campaign)}
               />
             ) : (
               <SurvivorRoster campaign={campaign} onOpenSheet={setOpenSheetId} />
@@ -177,6 +184,7 @@ export function App() {
             ))}
           {panel === 'settings' && <CampaignSettings campaign={campaign} />}
           {panel === 'file' && <CampaignFile campaign={campaign} />}
+          {panel === 'assignments' && <LastTurnAssignments campaign={campaign} />}
         </Modal>
       </Shell>
     </PanelOpener>

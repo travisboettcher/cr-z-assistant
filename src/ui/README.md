@@ -29,7 +29,8 @@ where a new screen goes, how empty states and turn 1 guide a player, and what am
 - `CommunitySummary.tsx`: the cards beside the turn. `CampaignMenu.tsx`: the header menu.
 - `InventoryPanel.tsx`: the base's Inventory, opened from its card (Phase 5).
 - `Modal.tsx`: the one modal every editor opens in. `OpenPanel.tsx`: how a step opens one.
-- `GettingStarted.tsx`: turn 1's checklist.
+- `GettingStarted.tsx`: turn 1's checklist. `SettingUp.tsx`: the same place for a campaign picked
+  up partway, until it's set up (#210; `docs/continue-campaign.md`).
 
 ## Blockers, warnings and overrides
 

@@ -15,6 +15,9 @@ import { useCampaign } from '../state/useCampaign';
 import { UPGRADE_LABELS } from '../labels/baseLabels';
 import { PageRef } from './PageRef';
 import { SlotAction } from './SlotAction';
+import { SetUpSlotAction } from './SetUpSlotAction';
+import { settingUp } from '../engine/continued';
+import { checkOrderCarried, checkUpgradePlaced } from '../engine/settingUp';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
 export interface UpgradeFacilityProps {
@@ -51,6 +54,64 @@ export function UpgradeFacility({ campaign, slot, onUpgraded }: UpgradeFacilityP
   // Garden (pp. 72–73), and the number here is the number the order will spend.
   const { cost, replaces } = upgradeOrder(campaign, { slot, upgrade: chosen });
 
+  const picker = (
+    <div className="flex flex-col gap-2">
+      <label htmlFor={chooserId} className="text-sm font-medium">
+        Upgrade
+      </label>
+      <select
+        id={chooserId}
+        value={chosen}
+        onChange={(event) => {
+          setChoice(event.target.value as UpgradeId);
+        }}
+        className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 bg-white px-3 dark:border-stone-700 dark:bg-stone-950`}
+      >
+        {offered.map((option) => (
+          <option key={option.id} value={option.id}>
+            {UPGRADE_LABELS[option.id]}
+          </option>
+        ))}
+      </select>
+
+      {/*
+       * Said before the order, not discovered after it. This is the only
+       * thing in the app that takes something off the base as a side effect
+       * of putting something on it, and a Fence that vanished a turn later
+       * without warning would be the app doing what it never said.
+       */}
+      {replaces.length > 0 && (
+        <p className="text-sm text-stone-600 dark:text-stone-400">
+          Replaces the {replaces.map((installed) => UPGRADE_LABELS[installed]).join(', the ')},
+          which comes off when the work is done <PageRef pages="72–73" />
+        </p>
+      )}
+    </div>
+  );
+
+  // While a campaign picked up partway is set up, upgrades are entered as they
+  // stand (#210).
+  if (settingUp(campaign)) {
+    const order = { kind: 'upgrade', slot, upgrade: chosen } as const;
+    return (
+      <SetUpSlotAction
+        placeCheck={checkUpgradePlaced(campaign, slot, chosen)}
+        carryCheck={checkOrderCarried(campaign, order)}
+        placeLabel="Already upgraded"
+        onPlace={() => {
+          dispatch({ type: 'setup/upgradePlaced', slot, upgrade: chosen });
+          onUpgraded();
+        }}
+        onCarry={() => {
+          dispatch({ type: 'setup/orderCarried', project: order });
+          onUpgraded();
+        }}
+      >
+        {picker}
+      </SetUpSlotAction>
+    );
+  }
+
   return (
     <SlotAction
       campaign={campaign}
@@ -72,38 +133,7 @@ export function UpgradeFacility({ campaign, slot, onUpgraded }: UpgradeFacilityP
         onUpgraded();
       }}
     >
-      <div className="flex flex-col gap-2">
-        <label htmlFor={chooserId} className="text-sm font-medium">
-          Upgrade
-        </label>
-        <select
-          id={chooserId}
-          value={chosen}
-          onChange={(event) => {
-            setChoice(event.target.value as UpgradeId);
-          }}
-          className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 bg-white px-3 dark:border-stone-700 dark:bg-stone-950`}
-        >
-          {offered.map((option) => (
-            <option key={option.id} value={option.id}>
-              {UPGRADE_LABELS[option.id]}
-            </option>
-          ))}
-        </select>
-
-        {/*
-         * Said before the order, not discovered after it. This is the only
-         * thing in the app that takes something off the base as a side effect
-         * of putting something on it, and a Fence that vanished a turn later
-         * without warning would be the app doing what it never said.
-         */}
-        {replaces.length > 0 && (
-          <p className="text-sm text-stone-600 dark:text-stone-400">
-            Replaces the {replaces.map((installed) => UPGRADE_LABELS[installed]).join(', the ')},
-            which comes off when the work is done <PageRef pages="72–73" />
-          </p>
-        )}
-      </div>
+      {picker}
     </SlotAction>
   );
 }

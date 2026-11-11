@@ -31,6 +31,7 @@ import { PROMOTION_STORIES, type StoryMissionId } from '../data/missions';
 import { SPELLS } from '../data/origins';
 import { injuryLaborAdd, injuryLaborSet } from './injuries';
 import { type Assignment, type Campaign, keptSurvivors, type Survivor } from './campaign';
+import { continuedFrom } from './continued';
 
 /** The rules of the Story Trait a survivor holds, or `undefined` for none. */
 export function storyTraitRules(survivor: Survivor): StoryTraitRules | undefined {
@@ -250,8 +251,10 @@ export function storiesHeld(campaign: Campaign): ReadonlySet<StoryMissionId> {
  * 2 does when its trap door stays shut.
  */
 export function storiesDone(campaign: Campaign): ReadonlySet<StoryMissionId> {
-  return new Set(
-    campaign.log.flatMap(({ event }) =>
+  return new Set([
+    // Finished before a campaign was picked up partway (#210).
+    ...(continuedFrom(campaign)?.history.storiesDone ?? []),
+    ...campaign.log.flatMap(({ event }) =>
       event.kind === 'mission-played' &&
       event.story !== undefined &&
       event.story.stays !== true &&
@@ -259,7 +262,7 @@ export function storiesDone(campaign: Campaign): ReadonlySet<StoryMissionId> {
         ? [event.mission as StoryMissionId]
         : [],
     ),
-  );
+  ]);
 }
 
 /**

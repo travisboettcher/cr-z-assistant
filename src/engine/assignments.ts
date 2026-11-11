@@ -36,6 +36,7 @@ import { exhaustion, planningPenalty } from './feeding';
 import type { Assignment, Campaign, Survivor } from './campaign';
 import { facilityProduction, type ProductionLine } from './production';
 import { survivorLabor } from './traits';
+import { continuedFrom } from './continued';
 
 /**
  * Whether two assignments are the same job.
@@ -314,12 +315,16 @@ export function laborOf(campaign: Campaign, team: readonly Survivor[], turn: num
  * nothing, which the Catwalks have to spell out and this does not.
  */
 function siegeReward(campaign: Campaign, team: readonly Survivor[], turn: number): number {
-  const clean = campaign.log.some(
-    (entry) =>
-      entry.turn === turn - 1 &&
-      entry.event.kind === 'siege-defense-resolved' &&
-      entry.event.zombiesLeft === 0,
-  );
+  const continued = continuedFrom(campaign);
+  const clean =
+    campaign.log.some(
+      (entry) =>
+        entry.turn === turn - 1 &&
+        entry.event.kind === 'siege-defense-resolved' &&
+        entry.event.zombiesLeft === 0,
+    ) ||
+    // Fought the turn before a campaign was picked up (#210).
+    (continued?.turn === turn && continued.history.siegeCleared === true);
 
   return clean ? team.length : 0;
 }

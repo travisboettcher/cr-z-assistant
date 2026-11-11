@@ -34,28 +34,11 @@ import { facilityInSlot } from '../labels/baseLabels';
 import { OpenPanel } from './OpenPanel';
 import { PageRef } from './PageRef';
 import { laneLabel } from '../labels/taskLabels';
+import { missionTeamsToOffer } from './planningLanes';
 
 export interface PlanningPhaseProps {
   readonly campaign: Campaign;
   readonly step: TurnStepId;
-}
-
-/**
- * The mission teams this step offers: team 1 always, every team somebody is on
- * already, and one more after the highest, for splitting the mission survivors
- * further (pg. 21). An empty team is not a team — `missionTeams` ignores it —
- * so offering the next one costs nothing until somebody is put on it.
- */
-function missionTeamsToOffer(campaign: Campaign): readonly number[] {
-  const inUse = Object.values(campaign.assignments).flatMap((assignment) =>
-    assignment.task === 'mission' ? [assignment.team] : [],
-  );
-
-  if (inUse.length === 0) return [1];
-
-  const highest = Math.max(...inUse);
-
-  return Array.from({ length: highest + 1 }, (_, index) => index + 1);
 }
 
 export function PlanningPhase({ campaign, step }: PlanningPhaseProps) {
