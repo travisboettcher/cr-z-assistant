@@ -25,6 +25,7 @@ import type { MissionId, ViralMissionId } from '../data/missions';
 import type { Campaign } from './campaign';
 import type { ViralRecord } from './log';
 import { suppliedOccupants } from './utilities';
+import { continuedFrom } from './continued';
 
 /** What each Viral mission's outcome asks the table for. */
 const ASKS = {
@@ -139,6 +140,10 @@ export function containmentHardware(record: ViralRecord): number | null {
  * interest. The first is the one, since it is not offered again (R132).
  */
 export function containmentUnlock(campaign: Campaign): { readonly hardware: number } | null {
+  // Unlocked before a campaign was picked up partway (#210).
+  const before = continuedFrom(campaign)?.history.containmentHardware;
+  if (before !== undefined) return { hardware: before };
+
   for (const { event } of campaign.log) {
     if (event.kind !== 'mission-played' || event.mission !== 'experimental-data') continue;
 

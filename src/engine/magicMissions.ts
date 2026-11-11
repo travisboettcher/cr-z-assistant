@@ -18,6 +18,7 @@
 import type { MagicMissionId, MissionId } from '../data/missions';
 import type { Campaign } from './campaign';
 import type { CampaignEvent, MagicRecord } from './log';
+import { continuedFrom } from './continued';
 
 /** What each Magic mission's outcome asks the table. */
 const ASKS = {
@@ -70,15 +71,24 @@ function said(event: CampaignEvent, mission: MagicMissionId, field: keyof MagicR
 
 /** Whether The Graveyard has been completed, which unlocks the Mystic Library (R123). */
 export function mysticLibraryUnlocked(campaign: Campaign): boolean {
-  return campaign.log.some(({ event }) => said(event, 'the-graveyard', 'completed'));
+  return (
+    continuedFrom(campaign)?.history.graveyardDone === true ||
+    campaign.log.some(({ event }) => said(event, 'the-graveyard', 'completed'))
+  );
 }
 
 /** Whether the Necromancer has been killed: a Mystic Library and its upgrades cost 1 Labor less (R124). */
 export function necromancerKilled(campaign: Campaign): boolean {
-  return campaign.log.some(({ event }) => said(event, 'the-necromancer', 'killed'));
+  return (
+    continuedFrom(campaign)?.history.necromancerKilled === true ||
+    campaign.log.some(({ event }) => said(event, 'the-necromancer', 'killed'))
+  );
 }
 
 /** How many Necromancer wins have given the next spell its 3 XP off (R124, R153). */
 export function necromancerWins(campaign: Campaign): number {
-  return campaign.log.filter(({ event }) => said(event, 'the-necromancer', 'completed')).length;
+  return (
+    (continuedFrom(campaign)?.history.necromancerWins ?? 0) +
+    campaign.log.filter(({ event }) => said(event, 'the-necromancer', 'completed')).length
+  );
 }

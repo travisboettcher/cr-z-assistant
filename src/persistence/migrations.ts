@@ -736,6 +736,21 @@ const injuriesRecorded: MigrationStep = {
   },
 };
 
+/**
+ * v27 → v28: a campaign picked up partway, through a `campaign-continued` log
+ * entry (#210).
+ *
+ * **Nothing to change.** The entry is a new kind, and a v27 save has none, so
+ * every campaign it holds was started here. The version moves so that a v27
+ * build refuses a file that has one, as a newer version's, rather than as a
+ * broken file.
+ */
+const campaignsContinued: MigrationStep = {
+  from: 27,
+  to: 28,
+  up: (previous) => previous,
+};
+
 /** Ordered oldest first: index `i` migrates version `i + 1` to `i + 2`. */
 export const MIGRATION_STEPS: readonly MigrationStep[] = [
   survivorsBecameReal,
@@ -764,6 +779,7 @@ export const MIGRATION_STEPS: readonly MigrationStep[] = [
   spellsRecorded,
   advantagesRecorded,
   injuriesRecorded,
+  campaignsContinued,
 ];
 
 /** Why a save could not be brought forward. */

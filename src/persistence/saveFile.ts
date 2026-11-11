@@ -761,6 +761,30 @@ const EVENT_FIELD_CHECKS = {
       D10_RESULTS.some((result) => result === value.roll) &&
       isKeyOf(INJURY_RULES, value.injury as string) &&
       ['gained', 'becomes', 'turns', 'kills', 'replaces'].includes(value.fate as string)),
+  // Last turn's Feed for a campaign picked up partway: a shortfall and the head
+  // count it was measured against (R1; #210).
+  optionalFed: (value: unknown) =>
+    value === undefined ||
+    (isRecord(value) &&
+      Object.keys(value).length === 2 &&
+      isCountFromOne(value.hunger) &&
+      isCountFromOne(value.population)),
+  // The stories finished before tracking began, each once (#210).
+  optionalStoryMissions: (value: unknown) =>
+    value === undefined ||
+    (Array.isArray(value) &&
+      value.every(
+        (mission: unknown, at) =>
+          STORY_MISSION_IDS.some((id) => id === mission) && value.indexOf(mission) === at,
+      )),
+  // The spells seen before tracking began, each once (#210).
+  optionalSpells: (value: unknown) =>
+    value === undefined ||
+    (Array.isArray(value) &&
+      value.every(
+        (spell: unknown, at) =>
+          SPELLS.some((known) => known === spell) && value.indexOf(spell) === at,
+      )),
   // The origin a campaign began with (R98; Z7-10).
   optionalOrigin: (value: unknown) =>
     value === undefined || CAMPAIGN_ORIGINS.some((origin) => origin === value),
@@ -795,6 +819,21 @@ const EVENT_FIELDS: Record<
     ['name', 'name'],
     ['origin', 'optionalOrigin'],
     ['traits', 'optionalTrue'],
+  ],
+  // A campaign picked up partway, and what it brings from before (#210).
+  'campaign-continued': [
+    ['turnsSinceSiege', 'count'],
+    ['siegeCalledAt', 'optionalAmount'],
+    ['hordeForced', 'optionalTrue'],
+    ['siegeCleared', 'optionalTrue'],
+    ['fed', 'optionalFed'],
+    ['storiesDone', 'optionalStoryMissions'],
+    ['spellsSeen', 'optionalSpells'],
+    ['graveyardDone', 'optionalTrue'],
+    ['necromancerWins', 'optionalCount'],
+    ['necromancerKilled', 'optionalTrue'],
+    ['discountsUsed', 'optionalCount'],
+    ['containmentHardware', 'optionalCount'],
   ],
   'traits-switched': [['enabled', 'flag']],
   'phase-entered': [],

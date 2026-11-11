@@ -74,6 +74,7 @@ import { claimWon } from './claim';
 import { warehouseQuiet } from './storyRewards';
 import type { Campaign, Survivor } from './campaign';
 import { advantagesOf } from './survivor';
+import { continuedFrom } from './continued';
 
 /** How much Food this community eats in a Management Phase (pg. 22). */
 export function foodRequired(campaign: Campaign): number {
@@ -197,11 +198,7 @@ export function hungerPenalty(campaign: Campaign): number {
  * in force, which is right — it is in force at that point in the turn.
  */
 function penaltyInForce(campaign: Campaign) {
-  const fed = campaign.log
-    .flatMap((entry) =>
-      entry.event.kind === 'survivors-fed' ? [{ turn: entry.turn, event: entry.event }] : [],
-    )
-    .at(-1);
+  const fed = feedHistory(campaign).at(-1);
 
   if (fed === undefined) return undefined;
 
@@ -210,6 +207,29 @@ function penaltyInForce(campaign: Campaign) {
   return fed.turn === campaign.turn - 1 && phaseOf(campaign.step) !== 'management'
     ? fed.event
     : undefined;
+}
+
+/**
+ * Every Feed this campaign knows of, oldest first, each with its turn: the
+ * `survivors-fed` entries, after the Feed of the turn before a campaign was
+ * picked up partway, when it went short (#210). What the penalty readers walk.
+ */
+function feedHistory(campaign: Campaign): readonly {
+  readonly turn: number;
+  readonly event: { readonly hunger: number; readonly population?: number };
+}[] {
+  const continued = continuedFrom(campaign);
+  const before =
+    continued?.history.fed === undefined
+      ? []
+      : [{ turn: continued.turn - 1, event: continued.history.fed }];
+
+  return [
+    ...before,
+    ...campaign.log.flatMap((entry) =>
+      entry.event.kind === 'survivors-fed' ? [{ turn: entry.turn, event: entry.event }] : [],
+    ),
+  ];
 }
 
 /**
@@ -241,10 +261,9 @@ export function planningPenalty(campaign: Campaign): number {
   // up until this turn's Feed step runs — and after that, the entry this turn
   // opened with is the previous turn's. `penaltyInForce` has already applied
   // the clock, so anything it returns from an earlier turn is still running.
-  const atPlanning = campaign.log
-    .flatMap((entry) =>
-      entry.event.kind === 'survivors-fed' && entry.turn < campaign.turn ? [entry.event] : [],
-    )
+  const atPlanning = feedHistory(campaign)
+    .filter((fed) => fed.turn < campaign.turn)
+    .map((fed) => fed.event)
     .at(-1);
 
   const chosen = survivorsFed(campaign) ? atPlanning : fed;

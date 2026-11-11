@@ -38,6 +38,7 @@ import { hungerPenalty } from './feeding';
 import { facilityProduction } from './production';
 import type { Campaign } from './campaign';
 import type { CampaignEvent, LogEntry } from './log';
+import { continuedFrom } from './continued';
 
 /**
  * The turn a campaign with no mission outcome behind it counts from.
@@ -63,9 +64,13 @@ function siegeTurns(campaign: Campaign): readonly number[] {
   // A filter and a map rather than a `flatMap` returning `[]`: since only
   // `includes` reads this, a mutation run showed an empty array swapped for a
   // stray entry could not be told apart from the real thing.
-  return campaign.log
+  const called = campaign.log
     .filter((entry) => entry.event.kind === 'horde-checked' && entry.event.siege)
     .map((entry) => entry.turn + 1);
+  // Or called before a campaign picked up partway, for its first turn (#210).
+  const continued = continuedFrom(campaign);
+
+  return continued?.history.siegeCalledAt === undefined ? called : [continued.turn, ...called];
 }
 
 /**
@@ -188,10 +193,22 @@ export function turnsSinceLastSiege(campaign: Campaign): number {
           counter.count + entry.turn - counter.turn,
         ),
       }),
-      { turn: FIRST_TURN, count: 0 },
+      startingCounter(campaign),
     );
 
   return last.count + campaign.turn - last.turn;
+}
+
+/**
+ * Where the counter starts: at 0 on turn 1, or, for a campaign picked up
+ * partway, at what it stood at when its first turn began (#210).
+ */
+function startingCounter(campaign: Campaign): { readonly turn: number; readonly count: number } {
+  const continued = continuedFrom(campaign);
+
+  return continued === undefined
+    ? { turn: FIRST_TURN, count: 0 }
+    : { turn: continued.turn, count: continued.history.turnsSinceSiege };
 }
 
 /**
@@ -207,9 +224,12 @@ export function turnsSinceLastSiege(campaign: Campaign): number {
 export function hordeForced(campaign: Campaign): boolean {
   const lastCheck = campaign.log.map((entry) => entry.event.kind).lastIndexOf('horde-checked');
 
-  return campaign.log
-    .slice(lastCheck + 1)
-    .some((entry) => entry.event.kind === 'thin-the-herd-resolved' && entry.event.allIncapacitated);
+  return campaign.log.slice(lastCheck + 1).some(
+    (entry) =>
+      (entry.event.kind === 'thin-the-herd-resolved' && entry.event.allIncapacitated) ||
+      // A forced roll brought in by a campaign picked up partway (#210).
+      (entry.event.kind === 'campaign-continued' && entry.event.hordeForced === true),
+  );
 }
 
 /** Each term of Siege Threat on its own, for the screen that shows the sum. */
@@ -288,6 +308,12 @@ export function siegeDue(campaign: Campaign): boolean {
  * `siegeTurns` does, asked of the one call this turn answers.
  */
 export function siegeCalledOn(campaign: Campaign): number | null {
+  // Called before a campaign picked up partway, for its first turn (#210).
+  const continued = continuedFrom(campaign);
+  if (continued?.turn === campaign.turn && continued.history.siegeCalledAt !== undefined) {
+    return continued.history.siegeCalledAt;
+  }
+
   const call = campaign.log.find(
     (entry) => entry.turn + 1 === campaign.turn && entry.event.kind === 'horde-checked',
   )?.event;

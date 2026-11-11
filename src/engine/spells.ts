@@ -28,6 +28,7 @@ import { necromancerWins } from './magicMissions';
 import { whoWorked } from './siegeWork';
 import { withXpSpent } from './survivor';
 import { suppliedOccupants } from './utilities';
+import { continuedFrom } from './continued';
 
 /** Somebody who may learn a spell this turn, and what their Library asks. */
 export interface SpellLearner {
@@ -38,8 +39,15 @@ export interface SpellLearner {
 
 /** The spells an enemy has cast in this campaign, in the order `SPELLS` lists them (R112). */
 export function spellsSeen(campaign: Campaign): readonly SpellId[] {
-  return SPELLS.filter((spell) =>
-    campaign.log.some(({ event }) => event.kind === 'spells-cast' && event.spells.includes(spell)),
+  // Seen before a campaign was picked up partway, too (#210).
+  const before = continuedFrom(campaign)?.history.spellsSeen ?? [];
+
+  return SPELLS.filter(
+    (spell) =>
+      before.includes(spell) ||
+      campaign.log.some(
+        ({ event }) => event.kind === 'spells-cast' && event.spells.includes(spell),
+      ),
   );
 }
 
@@ -99,9 +107,10 @@ export function spellLearners(campaign: Campaign): readonly SpellLearner[] {
 
 /** How many wins of The Necromancer have a discount no spell has used yet (R124, R153). */
 export function spellDiscountsLeft(campaign: Campaign): number {
-  const used = campaign.log.filter(
-    ({ event }) => event.kind === 'spell-learned' && event.discounted === true,
-  ).length;
+  const used =
+    (continuedFrom(campaign)?.history.discountsUsed ?? 0) +
+    campaign.log.filter(({ event }) => event.kind === 'spell-learned' && event.discounted === true)
+      .length;
 
   return Math.max(0, necromancerWins(campaign) - used);
 }

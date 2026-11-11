@@ -5,7 +5,7 @@ import { migrate } from './migrations';
 import { parseCampaignFile } from './saveFile';
 import v1Fixture from './__fixtures__/campaign-v1.json';
 import v2Fixture from './__fixtures__/campaign-v2.json';
-import currentFixture from './__fixtures__/campaign-v27.json';
+import currentFixture from './__fixtures__/campaign-v28.json';
 
 /** A structurally sound survivor, for the cases that damage one field of it. */
 const VALID_SURVIVOR = {
@@ -1264,6 +1264,50 @@ describe('a campaign whose log is damaged', () => {
         discounted: false,
       },
       'unreadable discounted',
+    ],
+    // A campaign picked up partway (#210).
+    [
+      'a picked-up campaign with no siege count',
+      { kind: 'campaign-continued' },
+      'unreadable turnsSinceSiege',
+    ],
+    [
+      'last turn’s Feed with nobody to feed',
+      { kind: 'campaign-continued', turnsSinceSiege: 2, fed: { hunger: 3, population: 0 } },
+      'unreadable fed',
+    ],
+    [
+      'last turn’s Feed with more than its two numbers',
+      {
+        kind: 'campaign-continued',
+        turnsSinceSiege: 2,
+        fed: { hunger: 3, population: 2, required: 5 },
+      },
+      'unreadable fed',
+    ],
+    [
+      'a story finished twice',
+      {
+        kind: 'campaign-continued',
+        turnsSinceSiege: 2,
+        storiesDone: ['left-behind-1', 'left-behind-1'],
+      },
+      'unreadable storiesDone',
+    ],
+    [
+      'a story this version doesn’t know',
+      { kind: 'campaign-continued', turnsSinceSiege: 2, storiesDone: ['thin-the-herd'] },
+      'unreadable storiesDone',
+    ],
+    [
+      'a spell seen twice',
+      { kind: 'campaign-continued', turnsSinceSiege: 2, spellsSeen: ['teleport', 'teleport'] },
+      'unreadable spellsSeen',
+    ],
+    [
+      'spells seen that aren’t a list',
+      { kind: 'campaign-continued', turnsSinceSiege: 2, spellsSeen: 'teleport' },
+      'unreadable spellsSeen',
     ],
   ])('refuses %s', (_label, event, expected) => {
     const result = parseCampaignFile(savedWith({ log: [{ ...good, event }] }));
