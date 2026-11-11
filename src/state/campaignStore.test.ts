@@ -2460,12 +2460,36 @@ describe('what earns a line in the log', () => {
       }),
       entry: null,
     },
+    'setup/slotCleared': {
+      action: { type: 'setup/slotCleared', slot: 'pews-1' },
+      state: openState({
+        ...expectOpen(settingUpState()),
+        base: { id: 'rural-church', slots: {} },
+      }),
+      entry: null,
+    },
     'setup/orderCarried': {
       action: {
         type: 'setup/orderCarried',
         project: { kind: 'facility', slot: 'front-yard', facility: 'watchtower' },
       },
       state: settingUpState(),
+      entry: null,
+    },
+    'setup/orderDropped': {
+      action: { type: 'setup/orderDropped', at: 0 },
+      state: openState({
+        ...expectOpen(settingUpState()),
+        projects: [
+          {
+            kind: 'facility',
+            slot: 'front-yard',
+            facility: 'watchtower',
+            orderedOnTurn: 2,
+            charged: { hardware: 0, labor: 0 },
+          },
+        ],
+      }),
       entry: null,
     },
     'campaign/settingUpFinished': {

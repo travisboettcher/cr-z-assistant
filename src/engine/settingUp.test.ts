@@ -13,6 +13,8 @@ import { dueProjects } from './projects';
 import {
   submitFacilityPlaced,
   submitOrderCarried,
+  submitOrderDropped,
+  submitSlotCleared,
   submitSlotEmptied,
   submitUpgradePlaced,
 } from './settingUp';
@@ -105,7 +107,23 @@ describe('skill levels while setting up', () => {
     });
   });
 
+  it('changes only the survivor named', () => {
+    const two = settingUpCampaign({
+      survivors: [
+        ...settingUpCampaign().survivors,
+        { ...createSurvivor('Nell Ames', 3, { id: 'nell' }), skills: { archery: 1 } },
+      ],
+    });
+
+    expect(
+      after(submitSkillLevelSet(two, 'earl', 'archery', 2)).survivors.map(({ skills }) => skills),
+    ).toEqual([{ archery: 2 }, { archery: 1 }]);
+  });
+
   it('sets a common skill’s Score from 6 to 8', () => {
+    expect(
+      after(submitCommonSkillSet(settingUpCampaign(), 'earl', 'defense', 6)).survivors[0]?.defense,
+    ).toBe(6);
     expect(
       after(submitCommonSkillSet(settingUpCampaign(), 'earl', 'move', 8)).survivors[0]?.move,
     ).toBe(8);
@@ -173,10 +191,51 @@ describe('the base while setting up', () => {
     );
   });
 
+  it('puts an upgrade in the place of one it excludes, as the finished work does', () => {
+    const garden = after(submitFacilityPlaced(settingUpCampaign(), 'front-yard', 'garden'));
+    const fenced = after(
+      submitUpgradePlaced(
+        after(submitUpgradePlaced(garden, 'front-yard', 'herb-plot')),
+        'front-yard',
+        'fence',
+      ),
+    );
+
+    expect(
+      after(submitUpgradePlaced(fenced, 'front-yard', 'greenhouse')).base?.slots['front-yard']
+        ?.upgrades,
+    ).toEqual(['herb-plot', 'greenhouse']);
+  });
+
+  it('places a facility where rubble stood, cleared to build it', () => {
+    const church = settingUpCampaign({ base: { id: 'rural-church', slots: {} } });
+
+    expect(after(submitFacilityPlaced(church, 'pews-1', 'kitchen')).base?.slots['pews-1']).toEqual({
+      cleared: true,
+      built: { facility: 'kitchen', builtOnTurn: 4 },
+    });
+  });
+
+  it('marks rubble cleared with nothing built there, once', () => {
+    const church = settingUpCampaign({ base: { id: 'rural-church', slots: {} } });
+    const cleared = after(submitSlotCleared(church, 'pews-1'));
+
+    expect(cleared.base?.slots['pews-1']).toEqual({ cleared: true });
+    expect(cleared.materials).toEqual(church.materials);
+    expect(submitSlotCleared(cleared, 'pews-1').ok).toBe(false);
+    expect(submitSlotCleared(church, 'parking-lot').ok).toBe(false);
+    expect(submitSlotCleared(done(church), 'pews-2').ok).toBe(false);
+  });
+
   it('empties a slot of what was placed, and nothing else', () => {
     const placed = after(submitFacilityPlaced(settingUpCampaign(), 'front-yard', 'watchtower'));
 
-    expect(after(submitSlotEmptied(placed, 'front-yard')).base?.slots).toEqual({});
+    const two = after(submitUpgradePlaced(placed, 'bunk-room-1', 'extra-bed'));
+
+    expect(after(submitSlotEmptied(two, 'front-yard')).base?.slots).toEqual({
+      'bunk-room-1': { upgrades: ['extra-bed'] },
+    });
+    expect(submitSlotEmptied(settingUpCampaign({ base: null }), 'front-yard').ok).toBe(false);
     expect(submitSlotEmptied(settingUpCampaign(), 'front-yard')).toEqual({
       ok: false,
       problem: 'Nothing is placed in that slot.',
@@ -230,5 +289,25 @@ describe('last turn’s orders while setting up', () => {
       ok: false,
       problem: 'Last turn’s orders are entered only while a campaign picked up partway is set up.',
     });
+  });
+
+  it('come off the queue again while setting up, and only then', () => {
+    const order = { kind: 'facility', slot: 'front-yard', facility: 'watchtower' } as const;
+    const carried = after(
+      submitOrderCarried(after(submitOrderCarried(settingUpCampaign(), order)), {
+        kind: 'upgrade',
+        slot: 'bunk-room-1',
+        upgrade: 'extra-bed',
+      }),
+    );
+
+    expect(after(submitOrderDropped(carried, 0)).projects.map(({ kind }) => kind)).toEqual([
+      'upgrade',
+    ]);
+    expect(submitOrderDropped(carried, 2)).toEqual({
+      ok: false,
+      problem: 'Nothing is on order there.',
+    });
+    expect(submitOrderDropped(done(carried), 0).ok).toBe(false);
   });
 });

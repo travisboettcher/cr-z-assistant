@@ -21,6 +21,7 @@ import { firstBaseOwed, layoutOf } from '../engine/base';
 import { communityTierLevels, maxHp } from '../engine/survivor';
 import { emptySlotCount } from '../engine/utilities';
 import { firstTurnChecklist } from '../engine/firstTurn';
+import { settingUp } from '../engine/continued';
 import { BASE_LABELS, MATERIAL_LABELS } from '../labels/baseLabels';
 import { ITEM_KIND_LABELS } from '../labels/equipmentLabels';
 import { FOCUS_RING, PRIMARY_FILL, SECONDARY_FILL, TOUCH_TARGET } from './styles';
@@ -64,6 +65,15 @@ export function CommunitySummary({ campaign, onOpen }: CommunitySummaryProps) {
   );
 }
 
+/**
+ * Whether a checklist above the turn holds the primary action, so an empty
+ * card's button stands back (#231): turn 1's Getting started, or setting up a
+ * campaign picked up partway (#210).
+ */
+function checklistAbove(campaign: Campaign): boolean {
+  return firstTurnChecklist(campaign) !== null || settingUp(campaign);
+}
+
 function Survivors({
   campaign,
   onOpen,
@@ -104,7 +114,7 @@ function Survivors({
           <button
             type="button"
             onClick={onOpen}
-            className={firstTurnChecklist(campaign) === null ? PRIMARY : GUIDED}
+            className={checklistAbove(campaign) ? GUIDED : PRIMARY}
           >
             Add survivors
           </button>
@@ -172,7 +182,7 @@ function BaseCard({
           <button
             type="button"
             onClick={onOpen}
-            className={firstTurnChecklist(campaign) === null ? PRIMARY : GUIDED}
+            className={checklistAbove(campaign) ? GUIDED : PRIMARY}
           >
             Claim a base
           </button>

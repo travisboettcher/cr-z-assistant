@@ -1,9 +1,9 @@
 # Continuing a campaign already under way
 
 How a table that is several turns into a campaign starts tracking it here. Written for
-[#210](https://github.com/travisboettcher/cr-z-assistant/issues/210) before any of it is built: it
+[#210](https://github.com/travisboettcher/cr-z-assistant/issues/210) before any of it was built: it
 adds a path to starting a campaign, a new kind of log entry and a save-format change, and
-CONTRIBUTING asks for that to be agreed first.
+CONTRIBUTING asks for that to be agreed first. [What was built](#what-was-built) is at the end.
 
 ## What happens now
 
@@ -144,3 +144,34 @@ None left: the three the first draft asked are decided above.
 | **C3** | The setting-up stage: skill levels, the base, last turn's assignments and orders placed free, and the tick that ends it |
 
 C1 goes first, and C2 and C3 each need it.
+
+## What was built
+
+All three, as agreed above.
+
+- **C1.** `src/engine/continued.ts` reads the entry (`continuedFrom`) and checks the answers
+  (`continuedProblem`). The readers of kinds 2 and 3 each read it beside the entries they read
+  already. Schema v28 adds no field, so its migration changes nothing.
+- **C2.** "Continue a campaign already under way" is a tick on both new-campaign forms
+  (`ContinueCampaign.tsx`). The questions it opens follow the origin, and the button waits, and
+  says why, while an answer can't be taken.
+- **C3.** While `settingUp` holds, from the entry until `setting-up-finished`:
+  - a **Setting up** list sits above the turn (`SettingUp.tsx`), as Getting started does on
+    turn 1. It names the survivors, the base, the stores, last turn's assignments and last turn's
+    orders, each with the modal that enters it, and ends with "Setting up is done". The turn owes
+    the setting up before anything else (`outstanding`);
+  - a survivor's sheet sets each skill's level and each common skill's Score from a list, in
+    place of buying it a point at a time;
+  - claiming a base brings no first base's stock, and no Firehouse gear;
+  - a slot card enters a facility, an upgrade or a clearing as **already there** or **ordered
+    last turn**, both free, with every other check a build or order makes. An upgrade entered as
+    there takes the place of one it excludes, as finished work does. What was entered in a slot,
+    and an order entered, can be taken back;
+  - last turn's assignments open from the list as a board with every lane the Planning Phase's
+    steps have between them.
+
+  None of it writes an entry: it's the campaign as it stood, as the sheet's own edits are.
+
+**Not covered: trades on their way.** An item traded for last turn arrives at this turn's
+Advancement, and there's no way to enter one as on its way. Until there is, a table adds it to the
+Inventory once it arrives.

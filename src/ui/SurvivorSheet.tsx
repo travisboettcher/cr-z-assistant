@@ -13,7 +13,16 @@
 
 import { useId, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
-import { COMMON_SKILLS, SKILLS, SKILL_STATS, STATS, type Skill, type Stat } from '../data/skills';
+import {
+  COMMON_SKILLS,
+  COMMON_SKILL_MAX_SCORE,
+  COMMON_SKILL_START_SCORE,
+  SKILLS,
+  SKILL_STATS,
+  STATS,
+  type Skill,
+  type Stat,
+} from '../data/skills';
 import { TIER_RULES } from '../data/tiers';
 import { MADNESS_GOES_LOST, SPELLS } from '../data/origins';
 import {
@@ -71,7 +80,7 @@ import {
   type OriginAdvantage,
   type StoryTrait,
 } from '../data/traits';
-import { humanityMax, injuriesOf, injuryCount } from '../engine/injuries';
+import { humanityMax, injuriesOf, injuryCount, skillLevelMaximum } from '../engine/injuries';
 import { storiesHeld, storiesOnOffer, traitStatBonus, type SurvivorTraits } from '../engine/traits';
 import { STORY_MISSION_IDS, type StoryMissionId } from '../data/missions';
 import { MISSION_LABELS } from '../labels/missionLabels';
@@ -89,9 +98,19 @@ export interface SurvivorSheetProps {
    */
   readonly penalty: number;
   readonly onClose: () => void;
+  /**
+   * Whether the campaign is a campaign picked up partway, still being set up
+   * (#210): levels and Scores are then set as they stand, without XP.
+   */
+  readonly settingUp?: boolean;
 }
 
-export function SurvivorSheet({ survivor, penalty, onClose }: SurvivorSheetProps) {
+export function SurvivorSheet({
+  survivor,
+  penalty,
+  onClose,
+  settingUp = false,
+}: SurvivorSheetProps) {
   const headingId = useId();
 
   return (
@@ -135,9 +154,9 @@ export function SurvivorSheet({ survivor, penalty, onClose }: SurvivorSheetProps
        * quietly suggest otherwise. The separation is the type's shape made
        * visible.
        */}
-      <CommonSkills survivor={survivor} />
+      <CommonSkills survivor={survivor} settingUp={settingUp} />
 
-      <Skills survivor={survivor} penalty={penalty} />
+      <Skills survivor={survivor} penalty={penalty} settingUp={settingUp} />
     </section>
   );
 }
@@ -1451,7 +1470,51 @@ function statOptions(survivor: Survivor, stat: Stat): readonly number[] {
   return [...new Set(values)].sort((a, b) => b - a);
 }
 
-function CommonSkills({ survivor }: { readonly survivor: Survivor }) {
+/** The whole numbers from one to the other, both included. */
+function wholeNumbers(from: number, to: number): readonly number[] {
+  return Array.from({ length: Math.max(0, to - from + 1) }, (_, index) => from + index);
+}
+
+/**
+ * A level or Score picked as it stands, while a campaign picked up partway is
+ * set up (#210), in place of buying it a point at a time.
+ */
+function SetTo({
+  label,
+  value,
+  options,
+  onSet,
+}: {
+  readonly label: string;
+  readonly value: number;
+  readonly options: readonly number[];
+  readonly onSet: (value: number) => void;
+}) {
+  return (
+    <select
+      aria-label={label}
+      value={value}
+      onChange={(event) => {
+        onSet(Number(event.target.value));
+      }}
+      className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 bg-white px-2 tabular-nums dark:border-stone-700 dark:bg-stone-950`}
+    >
+      {options.map((option) => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function CommonSkills({
+  survivor,
+  settingUp,
+}: {
+  readonly survivor: Survivor;
+  readonly settingUp: boolean;
+}) {
   const { dispatch } = useCampaign();
 
   return (
@@ -1485,19 +1548,30 @@ function CommonSkills({ survivor }: { readonly survivor: Survivor }) {
                   </span>
                 )}
               </span>
-              <BuyButton
-                purchase={commonSkillPurchase(survivor, skill)}
-                label="+1"
-                what={`${COMMON_SKILL_LABELS[skill]} to ${survivor[skill] + 1}`}
-                onBuy={() =>
-                  dispatch({
-                    type: 'survivor/commonSkillBought',
-                    id: survivor.id,
-                    skill,
-                    at: new Date().toISOString(),
-                  })
-                }
-              />
+              {settingUp ? (
+                <SetTo
+                  label={`${COMMON_SKILL_LABELS[skill]} Score bought`}
+                  value={survivor[skill]}
+                  options={wholeNumbers(COMMON_SKILL_START_SCORE, COMMON_SKILL_MAX_SCORE)}
+                  onSet={(score) => {
+                    dispatch({ type: 'setup/commonSkillSet', id: survivor.id, skill, score });
+                  }}
+                />
+              ) : (
+                <BuyButton
+                  purchase={commonSkillPurchase(survivor, skill)}
+                  label="+1"
+                  what={`${COMMON_SKILL_LABELS[skill]} to ${survivor[skill] + 1}`}
+                  onBuy={() =>
+                    dispatch({
+                      type: 'survivor/commonSkillBought',
+                      id: survivor.id,
+                      skill,
+                      at: new Date().toISOString(),
+                    })
+                  }
+                />
+              )}
             </dd>
           </div>
         ))}
@@ -1506,7 +1580,15 @@ function CommonSkills({ survivor }: { readonly survivor: Survivor }) {
   );
 }
 
-function Skills({ survivor, penalty }: { readonly survivor: Survivor; readonly penalty: number }) {
+function Skills({
+  survivor,
+  penalty,
+  settingUp,
+}: {
+  readonly survivor: Survivor;
+  readonly penalty: number;
+  readonly settingUp: boolean;
+}) {
   const { dispatch } = useCampaign();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const confirmId = useId();
@@ -1567,6 +1649,13 @@ function Skills({ survivor, penalty }: { readonly survivor: Survivor; readonly p
             onDrop={(skill) => {
               dispatch({ type: 'survivor/skillRemoved', id: survivor.id, skill });
             }}
+            {...(settingUp
+              ? {
+                  onSet: (skill: Skill, level: number) => {
+                    dispatch({ type: 'setup/skillLevelSet', id: survivor.id, skill, level });
+                  },
+                }
+              : {})}
           />
         ))}
       </div>
@@ -1619,9 +1708,11 @@ interface SkillGroupProps {
   readonly onTake: (skill: Skill) => void;
   readonly onBuy: (skill: Skill) => void;
   readonly onDrop: (skill: Skill) => void;
+  /** Set a level as it stands, while setting up (#210), in place of buying it. */
+  readonly onSet?: (skill: Skill, level: number) => void;
 }
 
-function SkillGroup({ stat, survivor, penalty, onTake, onBuy, onDrop }: SkillGroupProps) {
+function SkillGroup({ stat, survivor, penalty, onTake, onBuy, onDrop, onSet }: SkillGroupProps) {
   const governed = SKILLS.filter((skill) => SKILL_STATS[skill] === stat);
 
   return (
@@ -1645,7 +1736,9 @@ function SkillGroup({ stat, survivor, penalty, onTake, onBuy, onDrop }: SkillGro
               Score
             </th>
             <th scope="col" className="px-2 py-1">
-              <span className="sr-only">Raise a level</span>
+              <span className="sr-only">
+                {onSet === undefined ? 'Raise a level' : 'Set the level'}
+              </span>
             </th>
             <th scope="col" className="px-2 py-1">
               <span className="sr-only">Take or drop</span>
@@ -1698,7 +1791,16 @@ function SkillGroup({ stat, survivor, penalty, onTake, onBuy, onDrop }: SkillGro
                  * the twenty rows would bury the ones they can actually buy.
                  */}
                 <td className="px-2 py-1.5 text-right">
-                  {level === undefined ? null : (
+                  {level === undefined ? null : onSet !== undefined ? (
+                    <SetTo
+                      label={`${SKILL_LABELS[skill]} level`}
+                      value={level}
+                      options={wholeNumbers(0, Math.max(level, skillLevelMaximum(survivor, skill)))}
+                      onSet={(set) => {
+                        onSet(skill, set);
+                      }}
+                    />
+                  ) : (
                     <BuyButton
                       purchase={skillLevelPurchase(survivor, skill)}
                       label="+1"

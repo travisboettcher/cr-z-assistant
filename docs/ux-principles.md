@@ -93,6 +93,11 @@ rule, and the app must not be the reason a game stops.
   offered once the First Mission is played, there and on the checklist, not before. Each tick
   reads a question the rest of the app already asks, so the checklist cannot disagree with the
   screens it points to.
+- **A campaign picked up partway says what to enter.** In Getting started's place, the Setting up
+  list names what a campaign already under way enters as it stands, each with the modal that
+  enters it, until "Setting up is done" is pressed ([`continue-campaign.md`](continue-campaign.md)).
+  It holds the primary action the way Getting started does, so the empty cards stand back for it
+  too.
 - **The End-turn dialog names what is owed** (`src/engine/outstanding.ts`), and still ends the
   turn. A turn ending with no base claimed is one of those warnings (R33), and so is a project
   team with Labor and nothing ordered. Next and a skip ask the same question before they pass a

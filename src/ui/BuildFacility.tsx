@@ -15,6 +15,9 @@ import { freeRebuild } from '../engine/rebuild';
 import { useCampaign } from '../state/useCampaign';
 import { FACILITY_LABELS } from '../labels/baseLabels';
 import { SlotAction } from './SlotAction';
+import { SetUpSlotAction } from './SetUpSlotAction';
+import { settingUp } from '../engine/continued';
+import { checkFacilityPlaced, checkOrderCarried } from '../engine/settingUp';
 import { FOCUS_RING, TOUCH_TARGET } from './styles';
 
 export interface BuildFacilityProps {
@@ -41,6 +44,50 @@ export function BuildFacility({ campaign, slot, onBuilt }: BuildFacilityProps) {
    */
   const [overriddenFor, setOverriddenFor] = useState<FacilityId | null>(null);
 
+  const picker = (
+    <div className="flex flex-col gap-2">
+      <label htmlFor={chooserId} className="text-sm font-medium">
+        Facility
+      </label>
+      <select
+        id={chooserId}
+        value={choice}
+        onChange={(event) => {
+          setChoice(event.target.value as FacilityId);
+        }}
+        className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 bg-white px-3 dark:border-stone-700 dark:bg-stone-950`}
+      >
+        {offered.map((option) => (
+          <option key={option.id} value={option.id}>
+            {FACILITY_LABELS[option.id]}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
+  // While a campaign picked up partway is set up, what is built is entered as
+  // it stands (#210).
+  if (settingUp(campaign)) {
+    return (
+      <SetUpSlotAction
+        placeCheck={checkFacilityPlaced(campaign, slot, choice)}
+        carryCheck={checkOrderCarried(campaign, order)}
+        placeLabel="Already built"
+        onPlace={() => {
+          dispatch({ type: 'setup/facilityPlaced', slot, facility: choice });
+          onBuilt();
+        }}
+        onCarry={() => {
+          dispatch({ type: 'setup/orderCarried', project: order });
+          onBuilt();
+        }}
+      >
+        {picker}
+      </SetUpSlotAction>
+    );
+  }
+
   return (
     <SlotAction
       campaign={campaign}
@@ -62,25 +109,7 @@ export function BuildFacility({ campaign, slot, onBuilt }: BuildFacilityProps) {
         onBuilt();
       }}
     >
-      <div className="flex flex-col gap-2">
-        <label htmlFor={chooserId} className="text-sm font-medium">
-          Facility
-        </label>
-        <select
-          id={chooserId}
-          value={choice}
-          onChange={(event) => {
-            setChoice(event.target.value as FacilityId);
-          }}
-          className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 bg-white px-3 dark:border-stone-700 dark:bg-stone-950`}
-        >
-          {offered.map((option) => (
-            <option key={option.id} value={option.id}>
-              {FACILITY_LABELS[option.id]}
-            </option>
-          ))}
-        </select>
-      </div>
+      {picker}
     </SlotAction>
   );
 }

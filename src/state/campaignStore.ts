@@ -55,6 +55,8 @@ import { humanityMax } from '../engine/injuries';
 import {
   submitFacilityPlaced,
   submitOrderCarried,
+  submitOrderDropped,
+  submitSlotCleared,
   submitSlotEmptied,
   submitUpgradePlaced,
 } from '../engine/settingUp';
@@ -266,6 +268,8 @@ export type CampaignAction =
   | { readonly type: 'setup/facilityPlaced'; readonly slot: string; readonly facility: FacilityId }
   | { readonly type: 'setup/upgradePlaced'; readonly slot: string; readonly upgrade: UpgradeId }
   | { readonly type: 'setup/slotEmptied'; readonly slot: string }
+  | { readonly type: 'setup/slotCleared'; readonly slot: string }
+  | { readonly type: 'setup/orderDropped'; readonly at: number }
   | { readonly type: 'setup/orderCarried'; readonly project: ProjectOrder }
   /** Switch the Toolkit's survivor traits on or off part-way (R84, R158; Z7-10). */
   | { readonly type: 'campaign/traitsSwitched'; readonly enabled: boolean; readonly at: string }
@@ -1007,8 +1011,14 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
     case 'setup/slotEmptied':
       return submitted(state, (campaign) => submitSlotEmptied(campaign, action.slot));
 
+    case 'setup/slotCleared':
+      return submitted(state, (campaign) => submitSlotCleared(campaign, action.slot));
+
     case 'setup/orderCarried':
       return submitted(state, (campaign) => submitOrderCarried(campaign, action.project));
+
+    case 'setup/orderDropped':
+      return submitted(state, (campaign) => submitOrderDropped(campaign, action.at));
 
     case 'campaign/loaded':
       return { status: 'open', campaign: action.campaign };

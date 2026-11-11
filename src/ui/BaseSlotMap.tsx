@@ -31,6 +31,7 @@ import { BaseSheet } from './BaseSheet';
 import { FacilityWork } from './FacilityWork';
 import { cancellable, laborAvailable, laborShortfall, queuedFor } from '../engine/projects';
 import { planningHasBegun } from '../engine/planning';
+import { settingUp } from '../engine/continued';
 import { rebuildsOpen } from '../engine/rebuild';
 import { baseLaborBonus, siegeLaborBonus, traitLaborChange } from '../engine/assignments';
 import { describeProject } from '../labels/projectLabels';
@@ -143,7 +144,22 @@ function QueuedProjects({
            * mentioned was the Hardware: an order spends it when it is placed,
            * and a player cancelling has no way to know it is not simply gone.
            */}
-          {cancellable(campaign, at) ? (
+          {/*
+           * While a campaign picked up partway is set up, an order was entered
+           * rather than placed, so it comes off the same way, with nothing
+           * logged and nothing to give back (#210).
+           */}
+          {settingUp(campaign) ? (
+            <button
+              type="button"
+              onClick={() => {
+                dispatch({ type: 'setup/orderDropped', at });
+              }}
+              className={`${TOUCH_TARGET} ${FOCUS_RING} rounded-lg border border-stone-300 px-3 text-sm font-medium dark:border-stone-700`}
+            >
+              Take back {describeProject(project)}
+            </button>
+          ) : cancellable(campaign, at) ? (
             <button
               type="button"
               onClick={() => {
@@ -200,6 +216,28 @@ function FreeRebuilds({ campaign, slot }: { readonly campaign: Campaign; readonl
   );
 }
 
+/**
+ * While a campaign picked up partway is set up, the way back out of what was
+ * entered in a slot: its facility, upgrades and clearing (#210). A built-in the
+ * base ships with is the layout's and stays.
+ */
+function TakeBack({ campaign, slot }: { readonly campaign: Campaign; readonly slot: string }) {
+  const { dispatch } = useCampaign();
+  if (!settingUp(campaign) || campaign.base?.slots[slot] === undefined) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        dispatch({ type: 'setup/slotEmptied', slot });
+      }}
+      className={`${TOUCH_TARGET} ${FOCUS_RING} mt-2 rounded-lg border border-stone-300 px-3 text-sm font-medium dark:border-stone-700`}
+    >
+      Take back what’s entered in {slotLabel(slot)}
+    </button>
+  );
+}
+
 function SlotCard({
   campaign,
   slot,
@@ -240,6 +278,8 @@ function SlotCard({
       <QueuedProjects campaign={campaign} slot={slot.id} />
 
       <FreeRebuilds campaign={campaign} slot={slot.id} />
+
+      <TakeBack campaign={campaign} slot={slot.id} />
 
       {occupant !== undefined && (
         <>

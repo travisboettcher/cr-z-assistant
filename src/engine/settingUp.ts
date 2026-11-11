@@ -16,14 +16,15 @@
  * Pure, like the rest of `src/engine`.
  */
 
-import type { UpgradeId } from '../data/facilities';
-import type { FacilityId } from '../data/facilities';
+import type { FacilityId, UpgradeId } from '../data/facilities';
 import { checkBuild } from './build';
 import type { Campaign, ProjectOrder, SlotState } from './campaign';
+import type { Check } from './checks';
+import { checkClearing } from './clearing';
 import { settingUp } from './continued';
 import { accepted, blockedBy, refused, type FormResult } from './forms';
 import { checkOrder } from './orders';
-import { checkUpgrade } from './upgrade';
+import { checkUpgrade, upgradeOrder } from './upgrade';
 
 /** What a build or an order costs, which setting up has paid already. */
 const COSTS: readonly string[] = ['not-enough-hardware', 'not-enough-labor'];
@@ -53,6 +54,44 @@ const NOT_SETTING_UP =
   'The base is placed like this only while a campaign picked up partway is set up.';
 
 /**
+ * What placing a facility is checked for while setting up: a build's checks
+ * without its cost, and without the clearing, since a slot that needed it was
+ * cleared to build there. Asked by the slot card and by the form.
+ */
+export function checkFacilityPlaced(
+  campaign: Campaign,
+  slot: string,
+  facility: FacilityId,
+): Check<string> {
+  const check = withoutCosts(checkBuild(campaign, { slot, facility }));
+
+  return { ...check, blockers: check.blockers.filter((one) => one.code !== 'slot-not-cleared') };
+}
+
+/** What putting an upgrade on a facility is checked for while setting up. */
+export function checkUpgradePlaced(
+  campaign: Campaign,
+  slot: string,
+  upgrade: UpgradeId,
+): Check<string> {
+  return withoutCosts(checkUpgrade(campaign, { slot, upgrade }));
+}
+
+/** What marking a slot's rubble cleared is checked for while setting up. */
+export function checkSlotCleared(campaign: Campaign, slot: string): Check<string> {
+  return withoutCosts(checkClearing(campaign, { slot }));
+}
+
+/**
+ * What carrying one of last turn's orders is checked for: an order's checks
+ * without its cost, and quoted rather than placed, so the Planning Phase's own
+ * rule (R14) asks nothing of an order already placed at the table.
+ */
+export function checkOrderCarried(campaign: Campaign, project: ProjectOrder): Check<string> {
+  return withoutCosts(checkOrder(campaign, project, { labor: Infinity }));
+}
+
+/**
  * Place a facility in a slot while setting up, free and built the turn
  * before (#210). A slot that needed clearing was cleared to build it.
  */
@@ -63,12 +102,7 @@ export function submitFacilityPlaced(
 ): FormResult {
   if (!settingUp(campaign)) return refused(NOT_SETTING_UP);
 
-  const check = withoutCosts(checkBuild(campaign, { slot, facility }));
-  const cleared = {
-    ...check,
-    blockers: check.blockers.filter((one) => one.code !== 'slot-not-cleared'),
-  };
-  const problem = blockedBy(cleared);
+  const problem = blockedBy(checkFacilityPlaced(campaign, slot, facility));
   if (problem !== null) return refused(problem);
 
   return accepted(
@@ -80,7 +114,11 @@ export function submitFacilityPlaced(
   );
 }
 
-/** Put an upgrade on a slot's facility while setting up, free (#210). */
+/**
+ * Put an upgrade on a slot's facility while setting up, free (#210). One that
+ * excludes an upgrade already there takes its place, as it does when its work
+ * is done (pp. 72–73).
+ */
 export function submitUpgradePlaced(
   campaign: Campaign,
   slot: string,
@@ -88,15 +126,33 @@ export function submitUpgradePlaced(
 ): FormResult {
   if (!settingUp(campaign)) return refused(NOT_SETTING_UP);
 
-  const problem = blockedBy(withoutCosts(checkUpgrade(campaign, { slot, upgrade })));
+  const problem = blockedBy(checkUpgradePlaced(campaign, slot, upgrade));
   if (problem !== null) return refused(problem);
+
+  const { replaces } = upgradeOrder(campaign, { slot, upgrade });
 
   return accepted(
     withSlot(campaign, slot, (state) => ({
       ...state,
-      upgrades: [...(state.upgrades ?? []), upgrade],
+      upgrades: [
+        ...(state.upgrades ?? []).filter((installed) => !replaces.includes(installed)),
+        upgrade,
+      ],
     })),
   );
+}
+
+/**
+ * Mark a slot's rubble cleared while setting up, with nothing built there yet
+ * (#210). What clearing it gave is in the stores as they stand.
+ */
+export function submitSlotCleared(campaign: Campaign, slot: string): FormResult {
+  if (!settingUp(campaign)) return refused(NOT_SETTING_UP);
+
+  const problem = blockedBy(checkSlotCleared(campaign, slot));
+  if (problem !== null) return refused(problem);
+
+  return accepted(withSlot(campaign, slot, (state) => ({ ...state, cleared: true })));
 }
 
 /**
@@ -125,9 +181,7 @@ export function submitOrderCarried(campaign: Campaign, project: ProjectOrder): F
     );
   }
 
-  // Quoted rather than placed, so the Planning Phase's own rule (R14) asks
-  // nothing of an order already placed at the table.
-  const problem = blockedBy(withoutCosts(checkOrder(campaign, project, { labor: Infinity })));
+  const problem = blockedBy(checkOrderCarried(campaign, project));
   if (problem !== null) return refused(problem);
 
   return accepted({
@@ -137,4 +191,19 @@ export function submitOrderCarried(campaign: Campaign, project: ProjectOrder): F
       { ...project, orderedOnTurn: campaign.turn - 1, charged: { hardware: 0, labor: 0 } },
     ],
   });
+}
+
+/**
+ * Take one of last turn's orders off the queue again while setting up (#210),
+ * by its place in the queue. Nothing comes back, since nothing was charged.
+ */
+export function submitOrderDropped(campaign: Campaign, at: number): FormResult {
+  if (!settingUp(campaign)) {
+    return refused(
+      'Last turn’s orders are entered only while a campaign picked up partway is set up.',
+    );
+  }
+  if (campaign.projects[at] === undefined) return refused('Nothing is on order there.');
+
+  return accepted({ ...campaign, projects: campaign.projects.filter((_, index) => index !== at) });
 }
