@@ -20,13 +20,15 @@ happened. There are 61 reads of the log in 32 engine files. They fall into three
 
 1. **This turn's**: has the Rot check run, has the community eaten, did a team record its
    outcome. They filter on `entry.turn === campaign.turn`. If tracking starts at the beginning of
-   a step, these are right with an empty log: nothing from this step on has happened yet.
+   a turn, these are right with an empty log: nothing this turn has happened yet.
 2. **Last turn's**, read across the turn boundary:
    - the hunger penalty set at last turn's Feed, in force until this turn's Management Phase
      (`penaltyInForce`, `planningPenalty`; R1);
+   - a siege called at last turn's horde check, which makes this turn's mission a Siege Defense
+     (`siegeTurns`, `siegeDue`);
    - a clean Siege Defense last turn, which adds Labor this turn (`siegeReward`).
 3. **The whole campaign's**:
-   - the turns since the last siege (`turnsSinceLastSiege`, `siegeTurns`);
+   - the turns since the last siege (`turnsSinceLastSiege`);
    - a forced siege roll (`hordeForced`);
    - the stories finished (`storiesDone`);
    - Magic's history:
@@ -36,26 +38,31 @@ happened. There are 61 reads of the log in 32 engine files. They fall into three
      - the spells seen (`spellsSeen`);
    - Viral's Containment, unlocked by Experimental Data, and its Hardware (`containmentUnlock`).
 
-Facts that happened earlier in the same turn matter too, if tracking starts partway through it:
-- a claim won this turn locks Unrest at 0 (`unrestLocked`);
-- a failed Thin the Herd forces this turn's horde roll.
-
 Everything else a table knows (survivors, the base, materials, items, vehicles, trades on their
-way) is the campaign's own state, not history, and is entered as it stands.
+way, and last turn's Planning) is the campaign's own state, not history, and is entered as it
+stands.
 
 ## The proposal
 
-### Where tracking starts: the beginning of a Planning Phase
+### Where tracking starts: the beginning of a turn
 
-The table names the turn, which is 2 or later. Tracking begins at that turn's first Planning step,
-Assign Facility Staff. The turn's Mission and Advancement Phases have been played at the table
-already.
+*Decided 2026-11-11.* The table names the turn, which is 2 or later, and tracking begins at that
+turn's Mission Phase, Select Mission, as every turn does. Nothing of the turn has happened yet, so
+the readers of kind 1 need nothing.
 
-That is the point in a turn with the least to carry over. Last turn's projects were finished at
-this turn's Advancement (they're ordered at Planning and done at the next Advancement), so
-nothing is half-built. Last turn's assignments have done their work, and this turn's are made here,
-on the board. The alternative, starting at a Mission Phase, would need last turn's Planning typed
-in as well: who staffed what, the project team, the mission teams and the orders placed.
+That means last turn's Planning is entered as it stands: the Mission Phase plays the teams it
+assigned, and the Advancement Phase pays out what it staffed and finishes what it ordered. All of
+that is state the campaign already keeps:
+
+- **The assignments**: who staffs what, the project team, rest and healing, and the mission teams.
+  The Advancement Phase reads them as they stood before this turn's Planning (`beforePlanning`),
+  and with no Planning yet this turn, that is what is entered.
+- **The projects ordered**, with their costs already paid. They finish at this turn's Advancement
+  as any order does.
+
+Starting at a Planning Phase instead was the alternative. It needs less typed in, but it starts
+partway through a turn, so this turn's Mission and Advancement would have been played at the table
+with nothing recorded.
 
 ### What it asks, once
 
@@ -64,12 +71,13 @@ otherwise hold:
 
 - **The turn** being picked up, 2 or later.
 - **The origin** and **the Toolkit's traits**, as a new campaign asks (R98, R84).
-- **Turns since the last siege**, as the counter stands now, and whether this turn's horde roll is
-  forced (a failed Thin the Herd).
-- **This turn's Mission**: whether a claim was won (so Unrest is locked at 0), and whether a Siege
-  Defense left no zombies (its Labor comes next turn).
+- **Turns since the last siege**, as the counter stands now. Whether last turn's horde check called
+  a siege, so this turn's mission is a Siege Defense. Whether the next horde roll is forced (a
+  failed Thin the Herd).
+- **Last turn's Siege Defense**, if there was one: whether it left no zombies, so its Labor comes
+  this turn.
 - **Last turn's Feed**: the Hunger and the head count, if the community went short. That gives the
-  penalty still in force through this Planning Phase.
+  penalty still in force until this turn's Management Phase.
 - **Stories finished**, from the five.
 - **Magic, when it's the origin**: the spells seen, whether The Graveyard is done, The
   Necromancer's wins and whether one killed it, and how many of its discounts are spent.
@@ -79,12 +87,12 @@ Each question that doesn't apply to the origin or the turn isn't asked.
 
 ### What it records: one `campaign-continued` entry
 
-The answers go in one log entry, `campaign-continued`, dated the turn being picked up. It is the
-first entry in the log. Each reader in kinds 2 and 3 above reads it as well as the entries it reads
-now, so the answer to "how many turns since the last siege" or "which spells have been seen" comes
-from the same function whether the history was played here or entered.
+*Decided 2026-11-11.* The answers go in one log entry, `campaign-continued`, dated the turn being
+picked up. It is the first entry in the log. Each reader in kinds 2 and 3 above reads it as well as
+the entries it reads now, so the answer to "how many turns since the last siege" or "which spells
+have been seen" comes from the same function whether the history was played here or entered.
 
-The alternative is synthetic entries: a made-up `siege-defense-resolved`, `spells-cast` or
+The alternative was synthetic entries: a made-up `siege-defense-resolved`, `spells-cast` or
 `mission-played` for each fact, so the readers need no change. It would put events in the history
 that nobody recorded, with teams, wounds and turns that are guesses, and the campaign log would show
 them as played. One entry that says what it is keeps the history honest. It costs a change in each
@@ -94,11 +102,12 @@ This adds a kind of log entry, so it is **schema v28**: a migration (nothing to 
 save), a fixture, saveFile validation, the export's key order, arbitraries and a log label ("Picked
 up at turn 6, with…").
 
-### Setting up the community, base and stores
+### Setting up the community, base, stores and last turn's Planning
 
-Once the entry is written, the campaign opens on its Planning Phase with the roster, base and stores
-empty, the same as a new campaign. What's entered next is state, and the screens that set it already
-exist, with two gaps:
+*Decided 2026-11-11: free placement only while setting up.* Once the entry is written, the campaign
+opens on its turn's Select Mission with the roster, base and stores empty, as a new campaign does.
+What's entered next is state, and most of the screens that set it exist already. Four things have
+no screen outside the step that normally sets them:
 
 - **Skill levels.** A survivor partway through a campaign has levels the app would charge XP for.
   The roster builder takes skills at Tier with no charge already; this extends it to set a level
@@ -106,25 +115,22 @@ exist, with two gaps:
 - **The base.** Claiming a base stocks it as a first base (pg. 19), and building costs materials and
   Labor. Setting up needs the claimed base and what is built in each slot, its upgrades, Power and
   Water, all placed without cost.
+- **Last turn's assignments**, which the board takes only in the Planning Phase.
+- **Last turn's orders**, which only the Planning Phase places (R14), placed as already paid.
 
-Both are done in a **setting-up stage**, like the starting community's "the starting community is
-built" tick (`startingCommunityBuilt`). The 10 Tier levels limit doesn't apply. Until the table
-ticks that setting up is done, the roster and the base take these free placements. After it,
-they're corrections as they are today, and nothing is placed free. The walk stays at Assign Facility
-Staff, and nothing is owed until setting up is done.
+All four are done in a **setting-up stage**, like the starting community's "the starting community
+is built" tick (`startingCommunityBuilt`). The 10 Tier levels limit doesn't apply. Until the table
+ticks that setting up is done, these are placed free and outside their usual step. After it,
+they're corrections as they are today, and nothing is placed free. The walk stays at Select
+Mission, and nothing is owed until setting up is done.
 
 ## Open questions
 
-- **Where tracking starts.** The beginning of a Planning Phase, as proposed, or the beginning of a
-  Mission Phase, with last turn's Planning typed in.
-- **One entry or synthetic entries**, as above.
-- **Free placement only while setting up, or always.** As proposed, a free skill level or facility
-  is only offered before the setting-up tick. The alternative is a permanent correction on the sheet
-  and the slot card, which is simpler, but a mis-tap would then give a free facility at any time.
+None left: the three the first draft asked are decided above.
 
 ## What this design does not decide
 
-- **Mid-step starts**, or picking up at a Mission or Management Phase.
+- **Starts partway through a turn**: picking up at a Planning or Management Phase, or mid-step.
 - **Importing from paper or another tracker**: everything is typed in.
 - **Wording** beyond the questions' own, which follows [`writing.md`](writing.md).
 
@@ -133,7 +139,7 @@ Staff, and nothing is owed until setting up is done.
 | | Adds |
 |---|---|
 | **C1** | The `campaign-continued` entry, schema v28, and the readers of kinds 2 and 3 reading it |
-| **C2** | The path from the new-campaign form, with its questions, opening on the turn's Planning Phase |
-| **C3** | The setting-up stage: skill levels and the base placed free, and the tick that ends it |
+| **C2** | The path from the new-campaign form, with its questions, opening on the turn's Select Mission |
+| **C3** | The setting-up stage: skill levels, the base, last turn's assignments and orders placed free, and the tick that ends it |
 
 C1 goes first, and C2 and C3 each need it.
