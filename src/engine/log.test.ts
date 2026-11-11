@@ -92,6 +92,7 @@ describe('the event samples', () => {
   const EVERY_KIND: Record<CampaignEventKind, true> = {
     'campaign-started': true,
     'campaign-continued': true,
+    'setting-up-finished': true,
     'traits-switched': true,
     'phase-entered': true,
     'turn-began': true,

@@ -478,6 +478,7 @@ function campaignEventArbitrary(): fc.Arbitrary<CampaignEvent> {
       },
       { requiredKeys: ['kind', 'turnsSinceSiege'] },
     ),
+    fc.record({ kind: fc.constant('setting-up-finished' as const) }),
     fc.record({ kind: fc.constant('traits-switched' as const), enabled: fc.boolean() }),
     fc.record({ kind: fc.constant('phase-entered' as const) }),
     fc.record({ kind: fc.constant('turn-began' as const) }),

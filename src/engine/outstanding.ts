@@ -59,6 +59,7 @@ import { broughtHomeOwed } from './missionVehicles';
 import { spentOwed } from './spent';
 import { advance, positionOf, type AdvanceBy } from './turn';
 import { dueTrades } from './trading';
+import { settingUp } from './continued';
 import { returnedWaiting, strangersWaiting } from './strangers';
 
 /** Why a step is outstanding, in the words the walk shows the player. */
@@ -92,6 +93,11 @@ function rotOutstanding(campaign: Campaign): boolean {
  */
 export function outstanding(campaign: Campaign): readonly Outstanding[] {
   const owed: Outstanding[] = [];
+
+  // A campaign picked up partway is set up before its first turn is played (#210).
+  if (settingUp(campaign)) {
+    owed.push({ step: 'select-mission', says: 'Setting up isn’t finished.' });
+  }
 
   // Every team the Planning Phase sent needs a mission, unless the community
   // opted out (pg. 17; Z4-2). A turn with nobody on a team owes nothing.

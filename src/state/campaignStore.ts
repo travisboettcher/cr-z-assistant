@@ -38,6 +38,7 @@ import type { MissionId, OverrunOption } from '../data/missions';
 import type { D10Result } from '../data/dice';
 import type { FieldRecruitTier } from '../data/recruitTable';
 import type { CommonSkill, Skill, Stat } from '../data/skills';
+import type { FacilityId, UpgradeId } from '../data/facilities';
 import type { Tier } from '../data/tiers';
 import {
   cancellable,
@@ -51,7 +52,20 @@ import { builtEvent, builtOf, checkOrder, orderedEvent } from '../engine/orders'
 import { withUtilityToggled } from '../engine/utilities';
 import { createNewCampaign } from '../engine/campaign';
 import { humanityMax } from '../engine/injuries';
-import { continuedProblem, withContinued, type ContinuedStart } from '../engine/continued';
+import {
+  submitFacilityPlaced,
+  submitOrderCarried,
+  submitSlotEmptied,
+  submitUpgradePlaced,
+} from '../engine/settingUp';
+import {
+  continuedProblem,
+  submitCommonSkillSet,
+  submitSettingUpFinished,
+  submitSkillLevelSet,
+  withContinued,
+  type ContinuedStart,
+} from '../engine/continued';
 import { logged } from '../engine/log';
 import { reverse, type AdvanceBy } from '../engine/turn';
 import type { GatheredSubstitution, MaterialRoll } from '../engine/materials';
@@ -229,6 +243,30 @@ export type CampaignAction =
       readonly start: ContinuedStart;
       readonly at: string;
     }
+  /** Finish setting up a campaign picked up partway (#210). */
+  | { readonly type: 'campaign/settingUpFinished'; readonly at: string }
+  /**
+   * While a campaign picked up partway is set up (#210): a skill level or a
+   * common skill's Score without its XP, a facility or an upgrade placed free,
+   * a slot emptied of what was placed, and one of last turn's orders carried
+   * onto the queue already paid.
+   */
+  | {
+      readonly type: 'setup/skillLevelSet';
+      readonly id: string;
+      readonly skill: Skill;
+      readonly level: number;
+    }
+  | {
+      readonly type: 'setup/commonSkillSet';
+      readonly id: string;
+      readonly skill: CommonSkill;
+      readonly score: number;
+    }
+  | { readonly type: 'setup/facilityPlaced'; readonly slot: string; readonly facility: FacilityId }
+  | { readonly type: 'setup/upgradePlaced'; readonly slot: string; readonly upgrade: UpgradeId }
+  | { readonly type: 'setup/slotEmptied'; readonly slot: string }
+  | { readonly type: 'setup/orderCarried'; readonly project: ProjectOrder }
   /** Switch the Toolkit's survivor traits on or off part-way (R84, R158; Z7-10). */
   | { readonly type: 'campaign/traitsSwitched'; readonly enabled: boolean; readonly at: string }
   /**
@@ -942,6 +980,35 @@ export function campaignReducer(state: CampaignState, action: CampaignAction): C
 
       return { status: 'open', campaign: withContinued(started, action.start, action.at) };
     }
+
+    case 'campaign/settingUpFinished':
+      return submitted(state, (campaign) => submitSettingUpFinished(campaign, action.at));
+
+    case 'setup/skillLevelSet':
+      return submitted(state, (campaign) =>
+        submitSkillLevelSet(campaign, action.id, action.skill, action.level),
+      );
+
+    case 'setup/commonSkillSet':
+      return submitted(state, (campaign) =>
+        submitCommonSkillSet(campaign, action.id, action.skill, action.score),
+      );
+
+    case 'setup/facilityPlaced':
+      return submitted(state, (campaign) =>
+        submitFacilityPlaced(campaign, action.slot, action.facility),
+      );
+
+    case 'setup/upgradePlaced':
+      return submitted(state, (campaign) =>
+        submitUpgradePlaced(campaign, action.slot, action.upgrade),
+      );
+
+    case 'setup/slotEmptied':
+      return submitted(state, (campaign) => submitSlotEmptied(campaign, action.slot));
+
+    case 'setup/orderCarried':
+      return submitted(state, (campaign) => submitOrderCarried(campaign, action.project));
 
     case 'campaign/loaded':
       return { status: 'open', campaign: action.campaign };

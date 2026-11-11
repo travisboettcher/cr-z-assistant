@@ -172,6 +172,9 @@ export function describeEvent(event: CampaignEvent, turn = 1): EventLabel {
     case 'campaign-continued':
       return { text: continuedText(event, turn) };
 
+    case 'setting-up-finished':
+      return { text: 'Finished setting up, and the campaign is tracked from here.' };
+
     case 'traits-switched':
       return {
         text: event.enabled

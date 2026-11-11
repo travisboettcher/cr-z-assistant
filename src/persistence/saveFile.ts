@@ -835,6 +835,7 @@ const EVENT_FIELDS: Record<
     ['discountsUsed', 'optionalCount'],
     ['containmentHardware', 'optionalCount'],
   ],
+  'setting-up-finished': [],
   'traits-switched': [['enabled', 'flag']],
   'phase-entered': [],
   'turn-began': [],

@@ -332,6 +332,12 @@ export type CampaignEvent =
    */
   | ({ readonly kind: 'campaign-continued' } & ContinuedHistory)
   /**
+   * A campaign picked up partway finished setting up (#210): from here on its
+   * roster, base and orders are kept as any campaign's are, and nothing is
+   * placed free.
+   */
+  | { readonly kind: 'setting-up-finished' }
+  /**
    * The Toolkit's traits were switched on or off part-way (R84, R158; Z7-10).
    * Off takes every survivor's Advantages, debt and injuries with it.
    */

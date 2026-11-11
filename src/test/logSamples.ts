@@ -35,6 +35,7 @@ export const CAMPAIGN_EVENT_SAMPLES: readonly CampaignEvent[] = [
     discountsUsed: 1,
     containmentHardware: 3,
   },
+  { kind: 'setting-up-finished' },
   { kind: 'traits-switched', enabled: true },
   { kind: 'traits-switched', enabled: false },
   { kind: 'phase-entered' },

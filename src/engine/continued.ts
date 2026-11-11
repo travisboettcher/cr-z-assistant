@@ -15,7 +15,15 @@
 import type { CampaignOrigin } from '../data/origins';
 import { PROMOTION_STORIES } from '../data/missions';
 import { SPELLS } from '../data/origins';
-import type { Campaign } from './campaign';
+import {
+  COMMON_SKILL_MAX_SCORE,
+  COMMON_SKILL_START_SCORE,
+  type CommonSkill,
+  type Skill,
+} from '../data/skills';
+import type { Campaign, Survivor } from './campaign';
+import { skillLevelMaximum } from './injuries';
+import { accepted, refused, type FormResult } from './forms';
 import { logged, type ContinuedHistory, type LogEntry } from './log';
 
 /** The `campaign-continued` entry and the turn it was picked up at, or `undefined`. */
@@ -117,5 +125,88 @@ export function withContinued(campaign: Campaign, start: ContinuedStart, at: str
     { ...campaign, turn: start.turn, step: 'select-mission', startingCommunityBuilt: true },
     at,
     { kind: 'campaign-continued', ...start.history },
+  );
+}
+
+/**
+ * Whether a campaign picked up partway is still being set up (#210): from its
+ * `campaign-continued` entry until `setting-up-finished`. While it is, the
+ * survivors' skill levels, the base and last turn's orders are placed free,
+ * and the turn owes the setting up before anything else. Never for a campaign
+ * started at turn 1.
+ */
+export function settingUp(campaign: Campaign): boolean {
+  return (
+    continuedFrom(campaign) !== undefined &&
+    !campaign.log.some(({ event }) => event.kind === 'setting-up-finished')
+  );
+}
+
+/** Finish setting up a campaign picked up partway (#210). */
+export function submitSettingUpFinished(campaign: Campaign, at: string): FormResult {
+  if (!settingUp(campaign)) return refused('Only a campaign picked up partway is set up.');
+
+  return accepted(logged(campaign, at, { kind: 'setting-up-finished' }));
+}
+
+/** The campaign with one survivor changed, or the reason they can't be set up. */
+function setUp(
+  campaign: Campaign,
+  id: string,
+  change: (survivor: Survivor) => Survivor | string,
+): FormResult {
+  if (!settingUp(campaign)) {
+    return refused('Levels are set like this only while a campaign picked up partway is set up.');
+  }
+
+  const survivor = campaign.survivors.find((one) => one.id === id);
+  if (survivor === undefined) return refused('Only somebody in the community is set up.');
+
+  const changed = change(survivor);
+  if (typeof changed === 'string') return refused(changed);
+
+  return accepted({
+    ...campaign,
+    survivors: campaign.survivors.map((one) => (one.id === id ? changed : one)),
+  });
+}
+
+/**
+ * Set a skill a survivor has to a level while setting up, without its XP
+ * (#210): from 0 to the most their Tier and injuries allow (pg. 8). No entry,
+ * as no edit on the sheet has one.
+ */
+export function submitSkillLevelSet(
+  campaign: Campaign,
+  id: string,
+  skill: Skill,
+  level: number,
+): FormResult {
+  return setUp(campaign, id, (survivor) => {
+    if (survivor.skills[skill] === undefined) return `${survivor.name} doesn’t have that skill.`;
+
+    const most = skillLevelMaximum(survivor, skill);
+    if (!Number.isInteger(level) || level < 0 || level > most) {
+      return `${survivor.name}’s level is a whole number from 0 to ${String(most)}.`;
+    }
+
+    return { ...survivor, skills: { ...survivor.skills, [skill]: level } };
+  });
+}
+
+/**
+ * Set a common skill's Score while setting up, without its XP (#210): from
+ * where it starts to its most (pg. 9).
+ */
+export function submitCommonSkillSet(
+  campaign: Campaign,
+  id: string,
+  skill: CommonSkill,
+  score: number,
+): FormResult {
+  return setUp(campaign, id, (survivor) =>
+    Number.isInteger(score) && score >= COMMON_SKILL_START_SCORE && score <= COMMON_SKILL_MAX_SCORE
+      ? { ...survivor, [skill]: score }
+      : `${survivor.name}’s Score is a whole number from ${String(COMMON_SKILL_START_SCORE)} to ${String(COMMON_SKILL_MAX_SCORE)}.`,
   );
 }
